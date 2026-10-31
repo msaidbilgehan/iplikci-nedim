@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:">
+<title>İplikçi Nedim</title>
+<style>/*__CSS__*/</style>
+</head>
+<body>
+<div class="viz-root">
+  <header class="top">
+    <div>
+      <h1>İplikçi Nedim</h1>
+      <p class="sub" id="subtitle"></p>
+    </div>
+    <button type="button" class="ghost" id="theme" aria-label="Tema değiştir"></button>
+  </header>
+
+  <div class="filters" role="toolbar" aria-label="Filtreler">
+    <div class="fgroup" role="group" aria-label="Dönem">
+      <span class="flabel">Dönem</span>
+      <div class="seg" id="presets"></div>
+      <select id="from" aria-label="Başlangıç ayı"></select>
+      <span class="dash" aria-hidden="true">–</span>
+      <select id="to" aria-label="Bitiş ayı"></select>
+    </div>
+    <details class="dd" id="dd-accounts"><summary></summary><div class="menu"></div></details>
+    <details class="dd" id="dd-kinds"><summary></summary><div class="menu"></div></details>
+    <details class="dd" id="dd-categories"><summary></summary><div class="menu wide"></div></details>
+    <details class="dd" id="dd-levels"><summary></summary><div class="menu"></div></details>
+    <input type="search" id="q" placeholder="İşyeri, kişi veya açıklama ara" aria-label="Ara">
+    <button type="button" class="ghost" id="reset">Sıfırla</button>
+  </div>
+  <div class="chips" id="chips"></div>
+
+  <main>
+    <section class="kpis" id="kpis" aria-label="Özet"></section>
+    <p class="excluded" id="excluded"></p>
+
+    <section class="card" id="card-insights">
+      <div class="card-head">
+        <div>
+          <h2>Değerlendirme ve strateji</h2>
+          <p class="hint" id="insights-hint"></p>
+        </div>
+      </div>
+      <div class="insight-grid">
+        <div>
+          <h3 class="subhead first">Öne çıkanlar</h3>
+          <ul class="findings" id="findings"></ul>
+        </div>
+        <div>
+          <h3 class="subhead first">Önerilen adımlar</h3>
+          <ol class="steps" id="steps"></ol>
+        </div>
+      </div>
+      <h3 class="subhead">Aylık bütçe: bugün ve öneri</h3>
+      <p class="hint" id="budget-hint"></p>
+      <div class="table-wrap" id="budget"></div>
+    </section>
+
+    <section class="card" id="card-holdings">
+      <div class="card-head">
+        <div>
+          <h2>Varlıklar ve borçlar</h2>
+          <p class="hint" id="holdings-hint"></p>
+        </div>
+      </div>
+      <div class="kpis small" id="holdings-tiles"></div>
+      <div class="table-wrap" id="holdings"></div>
+    </section>
+
+    <section class="card" id="card-closing">
+      <div class="card-head">
+        <div>
+          <h2>Ay sonu ve ekstre ile kapanış</h2>
+          <p class="hint" id="closing-hint"></p>
+        </div>
+        <a class="more" href="ay-sonu/index.html">Bütün aylar</a>
+      </div>
+      <div class="table-wrap" id="closing"></div>
+    </section>
+
+    <section class="card" id="card-monthly">
+      <div class="card-head">
+        <div>
+          <h2>Aylık giderler</h2>
+          <p class="hint">Ana gruplara göre. Bir sütuna tıklayınca o aya odaklanır.</p>
+        </div>
+        <div class="seg small" role="tablist" data-view-for="card-monthly">
+          <button type="button" data-view="chart" aria-pressed="true">Grafik</button>
+          <button type="button" data-view="table" aria-pressed="false">Tablo</button>
+        </div>
+      </div>
+      <div class="legend" id="legend"></div>
+      <div class="view" data-view="chart"><div class="chart" id="monthly"></div></div>
+      <div class="view" data-view="table" hidden><div class="table-wrap" id="monthly-table"></div></div>
+    </section>
+
+    <section class="card" id="card-necessity">
+      <div class="card-head">
+        <div>
+          <h2>Gerekli ve gereksiz harcamalar</h2>
+          <p class="hint">Kategoriler kategoriler.yaml dosyasındaki "_gereklilik" bölümüne göre sınıflanır. Gereksiz: faiz, gecikme ve banka ücretleri gibi kaçınılabilir maliyetler.</p>
+        </div>
+        <div class="seg small" role="tablist" data-view-for="card-necessity">
+          <button type="button" data-view="chart" aria-pressed="true">Grafik</button>
+          <button type="button" data-view="table" aria-pressed="false">Tablo</button>
+        </div>
+      </div>
+      <div class="level-tiles" id="level-tiles"></div>
+      <div class="view" data-view="chart"><div class="chart" id="necessity"></div></div>
+      <div class="view" data-view="table" hidden><div class="table-wrap" id="necessity-table"></div></div>
+      <h3 class="subhead">Alışkanlıklar ve tasarruf fırsatları</h3>
+      <p class="hint" id="habits-hint"></p>
+      <div class="table-wrap" id="habits"></div>
+    </section>
+
+    <section class="card" id="card-cashflow">
+      <div class="card-head">
+        <div>
+          <h2>Gelir ve gider</h2>
+          <p class="hint" id="cashflow-hint"></p>
+        </div>
+        <div class="seg small" role="tablist" data-view-for="card-cashflow">
+          <button type="button" data-view="chart" aria-pressed="true">Grafik</button>
+          <button type="button" data-view="table" aria-pressed="false">Tablo</button>
+        </div>
+      </div>
+      <div class="legend" id="cashflow-legend"></div>
+      <div class="view" data-view="chart"><div class="chart" id="cashflow"></div></div>
+      <div class="view" data-view="table" hidden><div class="table-wrap" id="cashflow-table"></div></div>
+    </section>
+
+    <section class="card" id="card-forecast">
+      <div class="card-head">
+        <div>
+          <h2>Önümüzdeki aylar — tahmin</h2>
+          <p class="hint" id="forecast-hint"></p>
+        </div>
+      </div>
+      <div class="kpis small" id="forecast-tiles"></div>
+      <div class="legend" id="forecast-legend"></div>
+      <div class="chart" id="forecast-chart"></div>
+      <div class="table-wrap" id="forecast-table"></div>
+    </section>
+
+    <div class="row2">
+      <section class="card" id="card-categories">
+        <div class="card-head">
+          <div>
+            <h2>Kategoriler</h2>
+            <p class="hint">Bir satıra tıklayınca o kategoriyle filtreler.</p>
+          </div>
+          <div class="seg small" role="tablist" data-view-for="card-categories">
+            <button type="button" data-view="chart" aria-pressed="true">Grafik</button>
+            <button type="button" data-view="table" aria-pressed="false">Tablo</button>
+          </div>
+        </div>
+        <div class="view" data-view="chart"><div class="hbars" id="categories"></div></div>
+        <div class="view" data-view="table" hidden><div class="table-wrap" id="categories-table"></div></div>
+      </section>
+      <section class="card" id="card-merchants">
+        <div class="card-head">
+          <div>
+            <h2>En çok harcama yapılan yerler</h2>
+            <p class="hint">Bir satıra tıklayınca o işyeriyle filtreler.</p>
+          </div>
+          <div class="seg small" role="tablist" data-view-for="card-merchants">
+            <button type="button" data-view="chart" aria-pressed="true">Grafik</button>
+            <button type="button" data-view="table" aria-pressed="false">Tablo</button>
+          </div>
+        </div>
+        <div class="view" data-view="chart"><div class="hbars" id="merchants"></div></div>
+        <div class="view" data-view="table" hidden><div class="table-wrap" id="merchants-table"></div></div>
+      </section>
+    </div>
+
+    <section class="card" id="card-recurring">
+      <div class="card-head">
+        <div>
+          <h2>Düzenli ödemeler ve abonelikler</h2>
+          <p class="hint" id="recurring-hint"></p>
+        </div>
+      </div>
+      <div class="table-wrap" id="recurring"></div>
+    </section>
+
+    <section class="card" id="card-transactions">
+      <div class="card-head">
+        <div>
+          <h2>İşlemler</h2>
+          <p class="hint" id="tx-summary"></p>
+        </div>
+        <button type="button" class="ghost" id="export">CSV indir</button>
+      </div>
+      <div class="table-wrap" id="transactions"></div>
+      <div class="pager" id="pager"></div>
+    </section>
+
+    <section class="card" id="card-sources">
+      <div class="card-head">
+        <div>
+          <h2>Veri kaynakları ve kapsam</h2>
+          <p class="hint" id="sources-summary"></p>
+        </div>
+      </div>
+      <div id="coverage"></div>
+      <div id="no-statements"></div>
+      <details class="sub-details" id="statements-details"><summary></summary><div class="table-wrap" id="statements"></div></details>
+      <details class="sub-details" id="documents-details"><summary></summary><div class="table-wrap" id="documents"></div></details>
+    </section>
+  </main>
+  <footer class="foot" id="footer"></footer>
+  <div id="tooltip" role="tooltip" hidden></div>
+<!--__PANEL__-->
+</div>
+<script type="application/json" id="veri">__DATA__</script>
+<script>/*__JS__*/</script>
+<!--__PANEL_SCRIPT__-->
+</body>
+</html>

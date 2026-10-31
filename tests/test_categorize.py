@@ -1,0 +1,189 @@
+from datetime import date
+
+import pytest
+
+from iplikci.categorize import DEFAULT_RULES, OTHER_INCOME, TO_PEOPLE, Categorizer, clean_description, display_name
+from iplikci.models import Account, Transaction
+
+from conftest import PEOPLE_RULES
+
+CARD = Account(id="a", label="Test Kart", bank="İş Bankası", type="Kredi kartı")
+OVERDRAFT = Account(id="b", label="Test Ek Hesap", bank="QNB", type="Ek hesap (KMH)")
+
+
+@pytest.fixture(scope="module")
+def cat():
+    return Categorizer(DEFAULT_RULES)
+
+
+def categorize(cat, description, kind="harcama", bank_category="", amount=100.0, account=CARD):
+    t = Transaction(date=date(2025, 1, 1), description=description, amount=amount, kind=kind,
+                    account=account.id, bank_category=bank_category)
+    cat.apply(t, account)
+    return t
+
+
+@pytest.mark.parametrize("description, category, merchant", [
+    ("MIGROS MJET ORNEK SUBE ISTANBUL TR KAZANILAN MAXİPUAN:0,10", "Market & Gıda", "Migros"),
+    ("SBX ORNEK CLUB ISTANBUL", "Kafe & Kahve", "Starbucks"),  # a named merchant beats the keyword CLUB
+    ("PARAM*GETIR ARAC ISTANBUL", "Toplu Taşıma & Taksi", "Getir Araç"),
+    ("PARAM. /GETIR", "Market & Gıda", "Getir"),
+    ("ORNEKVERGIDAIRESIISTANBULTR", "Vergi & Resmi İşlemler", None),  # printed without spaces
+    ("ÖRNEK PETROL MARKET", "Akaryakıt", None),  # earliest keyword wins
+    ("ORNEK GIDA LOKANTA TARIM", "Restoran & Yemek", None),  # weak "GIDA" loses
+    ("IYZICO*AMAZON TURKEY PE ISTANBUL TR", "Dijital Abonelikler", "Amazon Prime"),
+    ("ORNEK ELEKTROMARKET", "Elektronik", None),
+    ("UBER EATS YEMEK", "Restoran & Yemek", "Uber Eats"),  # food delivery, not a ride
+    ("UBER *TRIP HELP.UBER.COM", "Toplu Taşıma & Taksi", "Uber"),
+    ("IYZICO/SAHIBINDEN.COM ISTANBUL TR", "Online Alışveriş", "sahibinden.com"),
+    ("ORNEK MALI MUSAVIRLIK ANONISTANBUL TR", "Muhasebe & Şirket Hizmetleri", None),
+])
+def test_rules(cat, description, category, merchant):
+    t = categorize(cat, description)
+    assert t.category == category
+    if merchant:
+        assert t.merchant == merchant
+
+
+def test_bank_category_beats_weak_keyword(cat):
+    t = categorize(cat, "ORNEK GIDA", bank_category="Fast Food")
+    assert t.category == "Restoran & Yemek"
+
+
+def test_unmatched_falls_back(cat):
+    t = categorize(cat, "XYZ QWERTY LTD ISTANBUL TR")
+    assert (t.category, t.group, t.merchant, t.necessity) == ("Diğer Harcamalar", "Diğer", "Xyz Qwerty Ltd", "Belirsiz")
+
+
+def test_fees_split_by_cause(cat):
+    t = categorize(cat, "FAIZ TUTARI FZ:1.00 VR/FN:0.30", kind="faiz_ucret")
+    assert (t.category, t.group, t.merchant) == ("Kredi Kartı Faizi", "Banka & Finans", "İş Bankası faiz & ücretleri")
+    assert categorize(cat, "YILLIK UYELIK UCRETI", kind="faiz_ucret").category == "Kart Aidatı & Ücretleri"
+    assert categorize(cat, "Mevduat İşlemleri - Faiz Tahakkuku", kind="faiz_ucret", account=OVERDRAFT).category == "Ek Hesap (KMH) Faizi"
+    assert categorize(cat, "FAST Ücreti", kind="faiz_ucret", account=OVERDRAFT).category == "Transfer & İşlem Ücretleri"
+
+
+def test_other_kinds_get_finance_categories(cat):
+    t = categorize(cat, "9999-123456 HESAPTAN AKTARIM", kind="kart_odemesi", amount=-500)
+    assert (t.category, t.necessity) == ("Kart Borcu Ödemeleri", "")
+    t = categorize(cat, "DOVIZ ALIS EUR", kind="transfer")
+    assert t.category == "Döviz & Altın Alım-Satımı"
+
+
+@pytest.mark.parametrize("description, kind, level", [
+    ("MIGROS ORNEK SUBE", "harcama", "Gerekli"),
+    ("STEAMGAMES.COM 1234567", "harcama", "İsteğe bağlı"),
+    ("FAIZ TUTARI", "faiz_ucret", "Gereksiz"),
+    ("XYZ QWERTY", "harcama", "Belirsiz"),
+])
+def test_necessity_levels(cat, description, kind, level):
+    assert categorize(cat, description, kind=kind).necessity == level
+
+
+def test_a_merchant_necessity_beats_its_category(tmp_path):
+    rules = tmp_path / "k.yaml"
+    rules.write_text(
+        "Yeme & İçme:\n  Market & Gıda:\n    Örnek Market: [ORNEK MARKET]\n    _: [MARKET]\n"
+        "_gereklilik:\n  Gerekli: [Market & Gıda]\n_gereklilik_işyeri:\n  Örnek Market: İsteğe bağlı\n",
+        encoding="utf-8",
+    )
+    c = Categorizer(rules)
+    assert categorize(c, "ORNEK MARKET ISTANBUL TR").necessity == "İsteğe bağlı"
+    assert categorize(c, "BASKA MARKET").necessity == "Gerekli"
+
+
+def test_category_type_decides_transfer_kind(tmp_path):
+    rules = tmp_path / "kategoriler.yaml"
+    rules.write_text(PEOPLE_RULES, encoding="utf-8")
+    cat = Categorizer(rules)
+
+    def candidate(description, amount, counterparty=""):
+        return Transaction(date=date(2025, 1, 1), description=description, amount=amount, kind="aday",
+                           account="b", counterparty=counterparty)
+
+    rent = candidate("FAST", 15000.0, "VELİ ÖRNEKSOY")
+    assert cat.resolve_kind(rent) and (rent.kind, rent.category) == ("harcama", "Kira")
+    family_out, family_in = candidate("FAST", 500.0, "Ayşe Soyadoğlu"), candidate("FAST", -500.0, "Ayşe Soyadoğlu")
+    assert cat.resolve_kind(family_out) and family_out.kind == "kisiye_transfer"
+    assert cat.resolve_kind(family_in) and family_in.kind == "gelir"
+    debt = candidate("Ayşe Soyadoğlu borç iade", 1000.0)  # a named purpose beats the person
+    assert cat.resolve_kind(debt) and debt.kind == "kredi_anapara"
+    pension = candidate("ANADOLU HAYAT EMEKLILIK", 750.0)
+    assert cat.resolve_kind(pension) and pension.kind == "yatirim"
+    assert not cat.resolve_kind(candidate("FAST", 300.0, "Tanımadığım Kişi"))
+
+
+def test_groups_keep_file_order_and_other_last(cat):
+    assert cat.groups[0] == "Yeme & İçme"
+    assert cat.groups[-1] == "Diğer"
+    assert "Banka & Finans" in cat.groups
+
+
+def test_custom_rules_file(tmp_path):
+    rules = tmp_path / "k.yaml"
+    rules.write_text(
+        "Ev:\n  Kira:\n    Ev sahibi: [MEHMET YILMAZ]\n  Market:\n    _: [MARKET]\n    _zayıf: [GIDA]\n"
+        "_gereklilik:\n  Gerekli: [Kira]\n",
+        encoding="utf-8",
+    )
+    c = Categorizer(rules)
+    t = Transaction(date=date(2025, 1, 1), description="Mehmet Yılmaz kira", amount=10, kind="harcama", account="a")
+    c.apply(t, None)
+    assert (t.group, t.category, t.merchant, t.necessity) == ("Ev", "Kira", "Ev sahibi", "Gerekli")
+    assert c.groups == ["Ev", "Banka & Finans", "Diğer"]
+
+
+def test_unknown_necessity_level_is_reported(tmp_path):
+    rules = tmp_path / "k.yaml"
+    rules.write_text("_gereklilik:\n  Lüks: [Kira]\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="bilinmeyen gereklilik"):
+        Categorizer(rules)
+
+
+def test_clean_description():
+    assert clean_description("ORNEK GIDA NAKLIYAT TISTANBUL TR") == "ORNEK GIDA NAKLIYAT T"
+    assert clean_description("0001234567 MILLENICOM TELE FAT.ÖDE.") == "MILLENICOM TELE"
+    assert display_name("ORNEK COFFEE İSTANBUL TR KAZANILAN MAXİPUAN:0,01") == "Ornek Coffee"
+
+
+@pytest.mark.parametrize("description, cleaned", [
+    ("ORNEK KAFE VAN TR", "ORNEK KAFE"),  # any province, however short
+    ("ORNEK BUFEESKISEHIR TR", "ORNEK BUFE"),  # glued to the name
+    ("ORNEK KARAVAN", "ORNEK KARAVAN"),  # a short province name never cuts a word
+    ("MEHMET AYDIN", "MEHMET AYDIN"),  # a surname that is also a province stays
+    ("ORNEK LTD GUNAYDIN", "ORNEK LTD GUNAYDIN"),
+])
+def test_clean_description_cuts_the_place_but_not_a_name(description, cleaned):
+    assert clean_description(description) == cleaned
+
+
+def test_ended_payments_and_regular_categories(tmp_path):
+    rules = tmp_path / "k.yaml"
+    rules.write_text(
+        "Abonelik:\n  Dijital Abonelikler:\n    Örnek Dergi: [ORNEK DERGI]\n"
+        "_düzenli:\n  - Dijital Abonelikler\n"
+        "_biten:\n  Örnek Dergi: 2025-10\n  Örnek Kulüp: 2025-01-21\n",  # YAML reads the second one as a date
+        encoding="utf-8",
+    )
+    c = Categorizer(rules)
+    assert c.ended == {"ORNEK DERGI": "2025-10", "ORNEK KULUP": "2025-01"}
+    assert c.regular == {"Dijital Abonelikler"}
+
+
+def test_ended_payment_needs_a_month(tmp_path):
+    rules = tmp_path / "k.yaml"
+    rules.write_text("_biten:\n  Örnek Dergi: geçen ay\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="YYYY-AA"):
+        Categorizer(rules)
+
+
+def test_shipped_rules_hold_no_personal_decisions(cat):
+    # Payees of rent and dues, family, employers, ended payments and a merchant's necessity are the user's own.
+    assert (cat.ended, cat.merchant_necessity) == ({}, {})
+    assert not {"Gelir", "Aile & Kişiler"} & set(cat.groups)
+    assert {c: t for c, t in cat.types.items() if t != "yatirim"} == {OTHER_INCOME: "gelir", TO_PEOPLE: "kisi"}
+
+
+def test_shipped_rules_name_the_commitment_categories(cat):
+    assert {"Kira", "Elektrik, Su & Doğalgaz", "Dijital Abonelikler"} <= cat.regular <= set(cat.categories)
+    assert set(cat.necessity) <= set(cat.categories)

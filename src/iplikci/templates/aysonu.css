@@ -1,0 +1,23 @@
+/* Month-end pages: rapor.css plus these. No script; the colour roles are the report's. */
+.month-nav { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; }
+.month-nav a { text-decoration: none; white-space: nowrap; }
+.month-nav a:hover { text-decoration: underline; }
+.status-card { display: flex; flex-direction: column; gap: 6px; }
+.status-card .tone { font-size: 15px; font-weight: 600; color: var(--ink); }
+.status-card .tone .icon { width: 22px; height: 22px; font-size: 13px; }
+.status-card p { margin: 0; color: var(--ink-2); }
+.kpis.month { grid-template-columns: 1.4fr repeat(3, 1fr); }
+@media (max-width: 1100px) { .kpis.month { grid-template-columns: repeat(2, 1fr); } }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 28px; }
+@media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+table.bars td { vertical-align: middle; }
+table.bars .bar-cell { width: 42%; min-width: 120px; }
+/* Thin bars from one baseline: square there, a 4px rounded data end. */
+table.bars .bar { display: block; height: 12px; min-width: 2px; border-radius: 0 4px 4px 0; }
+table.bars tbody tr:hover td { background: var(--wash); }
+.nowrap { white-space: nowrap; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media print {
+  .month-nav { display: none; }
+  .card { break-inside: avoid; }
+}

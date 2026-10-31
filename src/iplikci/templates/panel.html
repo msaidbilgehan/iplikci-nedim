@@ -1,0 +1,30 @@
+<dialog class="panel-dialog" id="belge-dialog" aria-labelledby="belge-baslik">
+  <div class="pd-head">
+    <h2 id="belge-baslik">Belge ekle</h2>
+    <button type="button" class="ghost" id="belge-kapat">Kapat</button>
+  </div>
+  <p class="hint">Kart ekstrelerini, hesap hareketi dökümlerini ve dekontları ekleyin. Dosyalar önce
+    <strong id="gelen-adi"></strong> klasörüne kopyalanır. Her birine ne olacağını aşağıda görüp onaylayınca
+    yerlerine taşınırlar.</p>
+  <div class="drop" id="birakma-alani">
+    <p class="drop-title">Dosyaları ya da bir klasörü buraya sürükleyip bırakın</p>
+    <div class="drop-actions">
+      <button type="button" class="primary" id="dosya-sec" autofocus>Dosya seç</button>
+      <button type="button" class="ghost" id="klasor-sec">Klasör seç</button>
+      <button type="button" class="ghost" id="eposta-al" hidden>E-postadan al</button>
+    </div>
+    <p class="hint" id="kabul"></p>
+    <p class="hint" id="eposta-bilgi"></p>
+    <input type="file" id="dosya-girdi" multiple hidden>
+    <input type="file" id="klasor-girdi" webkitdirectory multiple hidden>
+  </div>
+  <div id="yuklemeler"></div>
+  <div id="plan"></div>
+  <div class="pd-foot">
+    <p class="hint" id="plan-durum" role="status" aria-live="polite"></p>
+    <button type="button" class="primary" id="uygula" disabled>Yerleştir ve raporu güncelle</button>
+  </div>
+  <details class="sub-details" id="eksikler" hidden><summary></summary><ul class="notes" id="eksik-liste"></ul></details>
+</dialog>
+<div class="drop-overlay" id="birakma-katmani" hidden><p>Bırakın: belgeler eklenecek</p></div>
+<div class="toast" id="bildirim" role="status" aria-live="polite" hidden></div>
