@@ -5,7 +5,7 @@ Bütün belgeler Türkçedir; ajan talimatları deponun kökündeki `CLAUDE.md`'
 ## Okuma sırası
 
 1. [Revizyonlar](REVISIONS.md): hangi revizyon nerede, değişiklik kaydı.
-2. [V1 gereksinimleri](v1/requirements.md): kullanıcının istekleri ve yanıtları, ürün ilkeleri, kararlar (K1–K17),
+2. [V1 gereksinimleri](v1/requirements.md): kullanıcının istekleri ve yanıtları, ürün ilkeleri, kararlar (K1–K18),
    gereksinimler (G1–G13).
 3. [V1 mimarisi](v1/architecture.md): bileşenler, veri modeli, veri klasörü, API, MCP, güvenlik, hedefler.
 4. [V1 özellikleri](v1/features.md): ekran ekran davranış, kabul ölçütleri, MVP eşitlik listesi.

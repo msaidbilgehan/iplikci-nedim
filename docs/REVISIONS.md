@@ -11,6 +11,9 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 
 ## Değişiklik kaydı
 
+- 2026-11-01 (11) — Kullanıcı kararı [K18](v1/requirements.md#kararlar): depo özel kalır, lisans BSD 3-Clause
+  (`LICENSE.txt`, kullanıcı ekledi). CLAUDE.md, gereksinimlerdeki açık soru, README ve `pyproject.toml`'un lisans
+  alanları buna göre güncellendi.
 - 2026-11-01 (10) — Aşama 0 uygulandı (`asama-0` dalı); belgeler kodla uyumlu hâle getirildi:
   - README'nin durum bölümü güncellendi; geliştiriciler için komutlar eklendi. `CHANGELOG.md` başladı.
   - [Yol haritası](v1/roadmap.md)'nın ilk oturum bölümü, adımların uygulandığını söylüyor.

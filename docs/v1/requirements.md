@@ -171,6 +171,7 @@ Kullanıcının koyduğu ilkeler (2026-10-31):
 | K15 | E-posta köprüsü üç işletim sisteminde çalışır ve kullanıcıdan ek bir uygulama istemez; Thunderbird yolu bu yüzden bırakıldı. Kullanıcının önerisi: Chromium tabanlı tarayıcılar için bir eklenti ([ADR-0016](../adr/0016-mail-connectors.md)). | G1 |
 | K16 | Eklenti postayı Gmail'in web arayüzünden, açık oturumla okur (ADR-0016'nın B yolu). Apps Script yolu bırakıldı: kurulumu son kullanıcıya göre değil ve kendiliğinden kurulamıyor. | G1 |
 | K17 | İplikçi Nedim veriyi kendisi toplar. Kullanıcının elle taşıdığı belgelerle (`Bankalar/`), MVP'nin diğer klasörleriyle (`Gelen Belgeler/`, `gider-analizi/`) ve taşıma kayıtlarıyla (`belge-duzenleme-kaydi *.csv`) çalışmaz; bunlar kaldırılır. 2026-10-31'de çöp kutusuna taşındılar ve MVP emekliye ayrıldı. Neyin alındığı ve geçmişin nasıl kurulduğu [ADR-0018](../adr/0018-retire-mvp-clean-start.md)'dedir. | G1, G2 |
+| K18 | Depo GitHub'da özel (private) kalır; lisansı [BSD 3-Clause](../../LICENSE.txt)'tır (2026-11-01). Depo yine de herkese açıkmış gibi yazılır: kişisel veri girmez, her commit'ten önce ve CI'da gitleaks çalışır. | G6 |
 
 Mühendislik kararları (veri klasörü, veritabanı, API, ön yüz, bildirim içeriği, MVP'den geçiş…) gerekçeleriyle
 [ADR-0001 … ADR-0018](../adr/README.md)'dedir. Kullanıcı aksini söylemedikçe geçerlidirler.
@@ -413,7 +414,7 @@ isterse değiştirir:
 | Bildirim e-postası nereden gider? | Uygulama şifresine izin veren hesapta aynı hesaptan, kullanıcının kendi adresine. Gelişmiş Koruma'daki hesapta SMTP girişi yoktur; varsayılan kanallar Telegram ve masaüstüdür | ADR-0010, ADR-0016 |
 | Enflasyon ve altın kaynağı? | Enflasyon EVDS ile, isteğe bağlı (anahtarı kullanıcı alır); altın kaynağı araştırılacak, o zamana dek gram ve maliyetle | mimari §15 |
 | Tek dosyalık HTML rapor kalsın mı? | Dışa aktarım olarak kalır | F20 |
-| Depo herkese açık mı, özel mi? CI? | Depo herkese açıkmış gibi yazılır; CI yalnızca sahte veriyle | ADR-0002, yol haritası |
+| Depo herkese açık mı, özel mi? CI? | Kullanıcı karar verdi: depo özel kalır (K18). Yine de herkese açıkmış gibi yazılır; CI yalnızca sahte veriyle | K18, ADR-0002, yol haritası |
 
 Hâlâ kullanıcıda olanlar:
 

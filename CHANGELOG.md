@@ -17,6 +17,7 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 - Şirket adları ayardan gelir: `ayarlar.toml` içinde `[identity] business_names`. Adın hukuki biçimi (A.Ş., Ltd. Şti.)
   nasıl yazılırsa yazılsın eşleşir; adlar değişince okuma önbelleği yenilenir.
 - `IPLIKCI_HOME` çalışma alanının klasörünü belirler.
+- Lisans: BSD 3-Clause (`LICENSE.txt`).
 - Geliştirme ortamı:
   - uv projesi ve ruff,
   - pre-commit (ruff, gitleaks),

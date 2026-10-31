@@ -56,3 +56,7 @@ Gerçek belgeler depoya hiç girmez: testler ve demo, kodla üretilen sahte belg
 - Finanstan anlayan da anlamayan da kullanmak istemeli.
 - Kişisel ihtiyaçlar için yapılan bir hobi projesi, kurumsal bir ürün değil; yine de her kullanıcıya azami verim
   sağlamalı.
+
+## Lisans
+
+[BSD 3-Clause](LICENSE.txt).
