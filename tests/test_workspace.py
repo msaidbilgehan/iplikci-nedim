@@ -3,10 +3,11 @@
 import pytest
 
 from iplikci import pipeline
+from iplikci.demo import teb_export
 from iplikci.sources import collect
 from iplikci.workspace import HOME_ENV, SETTINGS, Workspace, home
 
-from conftest import JANUARY, put, teb_export
+from conftest import JANUARY, put
 
 BASE_SETTINGS = 'belge_klasoru = "Bankalar"\n'
 COMPANY = "ÖRNEK TEKNOLOJİ ANONİM ŞİRKETİ"

@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "day": "2026-11-15",
+  "documents": {
+    "unique": 11,
+    "duplicates": 1,
+    "by_status": {
+      "atlandi": 1,
+      "dekont": 2,
+      "hesap": 7,
+      "is": 1
+    },
+    "unreadable": []
+  },
+  "statements": {
+    "cards": {
+      "verified": 0,
+      "total": 0
+    },
+    "lists": {
+      "verified": 7,
+      "total": 7,
+      "by_account_type": {
+        "Vadesiz hesap": 2,
+        "Yatırım hesabı": 5
+      }
+    },
+    "unverified": []
+  },
+  "receipt_rows": {
+    "ekstresiz": 4
+  },
+  "months": {
+    "2026-01": "kapandi",
+    "2026-02": "kapandi",
+    "2026-03": "kapandi",
+    "2026-04": "kapandi",
+    "2026-05": "kapandi",
+    "2026-06": "kapandi",
+    "2026-07": "eksik",
+    "2026-08": "kapandi",
+    "2026-09": "kapandi",
+    "2026-10": "kapandi",
+    "2026-11": "suruyor"
+  },
+  "expenses": {
+    "total": "203120.76",
+    "by_month": {
+      "2025-12": "0.00",
+      "2026-01": "21227.99",
+      "2026-02": "22282.42",
+      "2026-03": "20627.99",
+      "2026-04": "28727.99",
+      "2026-05": "19977.99",
+      "2026-06": "19877.99",
+      "2026-07": "9039.99",
+      "2026-08": "19847.99",
+      "2026-09": "21182.42",
+      "2026-10": "20327.99",
+      "2026-11": "0.00"
+    }
+  }
+}

@@ -7,13 +7,17 @@ iplikci panel [--ac]            raporu ve belge ekleme yerini yerel web panelind
 iplikci eposta [--kur]          bankaların e-postayla gönderdiği belgeleri gelen kutusuna al
 iplikci otomatik [--kur]        e-postayı al, gelen kutusunu yerleştir (--kur: kendiliğinden)
 iplikci mcp                     Claude için MCP sunucusu (istemci başlatır)
+iplikci dogrula --taban         doğrulama tabanını al, öncekiyle karşılaştır (gerilemede çıkış kodu 1)
+iplikci dev demo [KLASÖR]       sahte belgelerle demo çalışma alanı kur
 """
 
 import argparse
 import csv
 import getpass
 import logging
+import os
 import re
+import shlex
 import sys
 import tomllib
 import webbrowser
@@ -21,7 +25,7 @@ from collections import Counter
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from . import duzenle, month_end
+from . import baseline, demo, duzenle, month_end
 from .analysis import Dataset
 from .insights import Insights, interpret, receipt_amount, tl
 from .models import DEFAULT_EXPENSE_KINDS
@@ -31,6 +35,7 @@ from .report import build_payload
 from .workspace import (
     DEFAULT_INBOX,
     DEFAULT_PORT,
+    HOME_ENV,
     SETTINGS,
     Busy,
     Workspace,
@@ -102,6 +107,8 @@ def main(argv: list[str] | None = None) -> int:
         "otomatik": automatic,
         "mcp": mcp_command,
         "aysonu": month_end_command,
+        "dogrula": verify_command,
+        "dev": dev_command,
     }
     if argv[:1] and argv[0] in commands:
         return commands[argv[0]](argv[1:])
@@ -195,6 +202,90 @@ def month_end_command(argv: list[str]) -> int:
     print(f"\nRapor: {page}")
     if args.ac:
         webbrowser.open(page.resolve().as_uri())
+    return 0
+
+
+def verify_command(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="iplikci dogrula",
+        description="Belgelerin doğrulama tabanını alır ve kayıtlı tabanla karşılaştırır. Daha az doğrulanan "
+        "ekstre, yeni bir okunamayan belge ya da yeni belge gelmeden yeniden açılan bir ay gerilemedir: komut 1 "
+        "ile biter ve taban kaydedilmez. Belgeler yalnızca okunur; önbellek ve taban çıktı klasöründedir.",
+    )
+    which = parser.add_mutually_exclusive_group(required=True)
+    which.add_argument("--taban", action="store_true", help="doğrulama tabanını al ve öncekiyle karşılaştır")
+    parser.add_argument("--tarih", type=_day, help="ayların kapanışına bakılan gün, YYYY-AA-GG (varsayılan: bugün)")
+    parser.add_argument("--kabul", action="store_true", help="gerileme olsa da yeni tabanı kaydet")
+    parser.add_argument("--onbellek-yok", action="store_true", help="önbelleği kullanma, tüm belgeleri yeniden oku")
+    args = parser.parse_args(argv)
+    day = args.tarih or date.today()
+    ws = _workspace(parser)
+    if not ws.rules.exists():
+        parser.error(f"kategori dosyası bulunamadı: {ws.rules}")
+    path = ws.output / baseline.FILE
+    try:
+        previous = baseline.load(path)
+    except ValueError as exc:
+        parser.error(f"kayıtlı taban okunamadı ({path}): {exc}")
+    try:
+        a = analyze(ws, _progress, use_cache=not args.onbellek_yok, today=day)
+    except Busy as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    _clear_progress()
+    current = baseline.take(a.dataset, a.stats, a.months, day)
+    print("\n".join(baseline.describe(current)))
+    changes = baseline.compare(previous, current) if previous else []
+    if previous is None:
+        print("\nKayıtlı taban yok: bu taban sonraki karşılaştırmalar için kaydediliyor.")
+    else:
+        print(
+            f"\nKayıtlı tabana göre ({date.fromisoformat(previous['day']):%d.%m.%Y}):"
+            if changes
+            else "\nKayıtlı tabanla aynı."
+        )
+    for c in changes:
+        print(f"  {'!' if c.regression else '·'} {c.label}: {_shown(c.before)} → {_shown(c.after)}")
+    regressions = sum(c.regression for c in changes)
+    if regressions and not args.kabul:
+        print(
+            f"\n{regressions} gerileme var (!): önce bunlar düzeltilir. Taban kaydedilmedi; değişiklik bilinçliyse "
+            "--kabul ile kaydedin.",
+            file=sys.stderr,
+        )
+        return 1
+    baseline.save(path, current)
+    print(f"\nTaban: {path}")
+    return 0
+
+
+def _shown(value: object) -> str:
+    return "—" if value is None else str(value)
+
+
+def dev_command(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(prog="iplikci dev", description="Geliştirici araçları.")
+    commands = parser.add_subparsers(dest="komut", required=True, metavar="KOMUT")
+    demo_parser = commands.add_parser(
+        "demo",
+        help="sahte belgelerle bir demo çalışma alanı kur",
+        description="Sahte banka belgeleriyle bir demo çalışma alanı kurar (ADR-0002). Klasör yoksa açılır; "
+        "varsa boş olmalıdır: hiçbir dosyanın üzerine yazılmaz.",
+    )
+    demo_parser.add_argument("klasor", nargs="?", help=f"çalışma alanının klasörü (varsayılan: {HOME_ENV})")
+    args = parser.parse_args(argv)
+    given = args.klasor or os.environ.get(HOME_ENV, "").strip()
+    if not given:
+        demo_parser.error(f"klasör verilmedi ve {HOME_ENV} tanımlı değil")
+    target = Path(given).expanduser().resolve()
+    try:
+        demo.build(target)
+    except FileExistsError as exc:
+        demo_parser.error(str(exc))
+    print(
+        f"Demo çalışma alanı hazır: {target}\nDoğrulama tabanı için: "
+        f"{HOME_ENV}={shlex.quote(str(target))} uv run iplikci dogrula --taban --tarih {demo.AS_OF}"
+    )
     return 0
 
 

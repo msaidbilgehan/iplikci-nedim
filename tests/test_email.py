@@ -10,10 +10,11 @@ from datetime import date
 import pytest
 
 from iplikci import email_fetch
+from iplikci.demo import teb_export, text_pdf
 from iplikci.email_fetch import Account, MailError, NotConfigured, fetch, search_criteria, setup
 from iplikci.workspace import Workspace, inbox_files
 
-from conftest import ADDRESS, APP_PASSWORD, FEBRUARY, JANUARY, bank_mail, put, teb_export, text_pdf
+from conftest import ADDRESS, APP_PASSWORD, FEBRUARY, JANUARY, bank_mail, put
 
 FILED = "TEB/Vadesiz Hesap TL 123456789/2026-01-01 - 2026-01-31 TEB Vadesiz TL 123456789 Hesap Hareketleri.xls"
 

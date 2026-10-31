@@ -9,6 +9,7 @@ import pytest
 
 from iplikci import duzenle, pipeline, workspace
 from iplikci.analysis import Dataset
+from iplikci.demo import teb_export
 from iplikci.models import Account, Statement
 from iplikci.parsers import ENCRYPTED_REASON, Unreadable
 from iplikci.sources import ZIP_DAMAGED, ZIP_ENCRYPTED
@@ -26,7 +27,7 @@ from iplikci.workspace import (
     save_upload,
 )
 
-from conftest import JANUARY, put, teb_export
+from conftest import JANUARY, put
 
 TARGET = Path("TEB/Vadesiz Hesap TL 123456789/2026-01-01 - 2026-01-31 TEB Vadesiz TL 123456789 Hesap Hareketleri.xls")
 

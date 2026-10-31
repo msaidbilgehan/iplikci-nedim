@@ -8,9 +8,10 @@ from urllib.parse import quote
 import pytest
 
 from iplikci import email_fetch
+from iplikci.demo import teb_export
 from iplikci.panel import make_server
 
-from conftest import JANUARY, bank_mail, teb_export
+from conftest import JANUARY, bank_mail
 
 
 @pytest.fixture

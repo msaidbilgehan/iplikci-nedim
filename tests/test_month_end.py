@@ -7,11 +7,12 @@ import pytest
 from iplikci import cli, month_end
 from iplikci.analysis import build
 from iplikci.categorize import Categorizer
+from iplikci.demo import teb_export
 from iplikci.insights import interpret
 from iplikci.models import Account, ParseResult, Security, Statement, Transaction
 from iplikci.sources import Document
 
-from conftest import JANUARY, RULES, put, teb_export
+from conftest import JANUARY, RULES, put
 
 HOLDER = "ÖRNEK KULLANICI"
 CHECKING = Account("teb-123456789", "TEB Vadesiz TL 123456789", "TEB", "Vadesiz hesap", number="123456789")

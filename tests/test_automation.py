@@ -9,9 +9,10 @@ from pathlib import Path
 import pytest
 
 from iplikci import automation, email_fetch
+from iplikci.demo import teb_export
 from iplikci.workspace import Workspace
 
-from conftest import JANUARY, bank_mail, put, teb_export
+from conftest import JANUARY, bank_mail, put
 
 TARGET = Path("TEB/Vadesiz Hesap TL 123456789/2026-01-01 - 2026-01-31 TEB Vadesiz TL 123456789 Hesap Hareketleri.xls")
 TASK = "{http://schemas.microsoft.com/windows/2004/02/mit/task}"

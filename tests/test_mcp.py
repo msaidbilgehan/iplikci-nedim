@@ -6,9 +6,10 @@ from pathlib import Path
 
 import pytest
 
+from iplikci.demo import teb_export
 from iplikci.mcp_server import PROTOCOL_VERSIONS, TOOLS, Server, serve
 
-from conftest import FEBRUARY, JANUARY, bank_mail, put, teb_export
+from conftest import FEBRUARY, JANUARY, bank_mail, put
 
 
 def rpc(server, method, params=None, mid=1):
