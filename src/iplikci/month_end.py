@@ -59,13 +59,19 @@ CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src data:"
 
 CLOSED, WAITING, MISSING, CHECK, RUNNING = "kapandi", "bekleniyor", "eksik", "kontrol", "suruyor"
 ACCOUNT_STATUS = {CLOSED: "Kapandı", WAITING: "Bekleniyor", MISSING: "Belge eksik", CHECK: "Kontrol edin"}
-MONTH_STATUS = {CLOSED: "Kapandı", WAITING: "Ekstre bekleniyor", MISSING: "Belge eksik", CHECK: "Kontrol gerekli",
-                RUNNING: "Ay sürüyor"}
+MONTH_STATUS = {
+    CLOSED: "Kapandı",
+    WAITING: "Ekstre bekleniyor",
+    MISSING: "Belge eksik",
+    CHECK: "Kontrol gerekli",
+    RUNNING: "Ay sürüyor",
+}
 _LATE_DAYS = 5  # a card statement this long past its expected cut date is late (the e-mail did not come)
 INCOME_NOTE = "hesap dökümlerindeki gelen para"  # the income note when there is nothing to add
 
 
 # --- days ----------------------------------------------------------------------------------------
+
 
 def first_day(month: str) -> date:
     return date(int(month[:4]), int(month[5:]), 1)
@@ -97,8 +103,10 @@ def _ranges(days: list[date]) -> list[tuple[date, date]]:
 
 def range_text(ranges: list[tuple[date, date]]) -> str:
     """[(25 Oct, 31 Oct)] -> '25–31 Ekim'."""
-    return ", ".join(f"{a.day} {MONTHS_TR[a.month - 1]}" if a == b else f"{a.day}–{b.day} {MONTHS_TR[a.month - 1]}"
-                     for a, b in ranges)
+    return ", ".join(
+        f"{a.day} {MONTHS_TR[a.month - 1]}" if a == b else f"{a.day}–{b.day} {MONTHS_TR[a.month - 1]}"
+        for a, b in ranges
+    )
 
 
 def _fails(s: Statement) -> bool:
@@ -130,6 +138,7 @@ def period_text(lo: date, hi: date) -> str:
 
 
 # --- one account in one month -------------------------------------------------------------------
+
 
 @dataclass
 class AccountClose:
@@ -166,8 +175,11 @@ class AccountClose:
         out = []
         for s, a, b in self.statements:
             if _fails(s):
-                out.append(f"{period_text(a, b)} ekstresi bankanın toplamıyla tutmuyor" if self.is_card
-                           else f"{period_text(a, b)} dökümünde bakiye {s.checks_ok}/{s.checks_total} satır tutarlı")
+                out.append(
+                    f"{period_text(a, b)} ekstresi bankanın toplamıyla tutmuyor"
+                    if self.is_card
+                    else f"{period_text(a, b)} dökümünde bakiye {s.checks_ok}/{s.checks_total} satır tutarlı"
+                )
         missing = self.count(NOT_ON_STATEMENT)
         if missing:
             out.append(f"{missing} dekont satırı ekstrede yok")
@@ -189,28 +201,38 @@ class AccountClose:
     def note(self) -> str:
         """What there is to know about the account this month, in one line."""
         if self.status == MISSING:
-            parts = [(f"{range_text(self.open)} için {'ekstre' if self.mailed else 'hesap dökümü'} yok: bankadan "
-                      "indirip Gelen Belgeler klasörüne bırakın")]
+            parts = [
+                (
+                    f"{range_text(self.open)} için {'ekstre' if self.mailed else 'hesap dökümü'} yok: bankadan "
+                    "indirip Gelen Belgeler klasörüne bırakın"
+                )
+            ]
         elif self.status == WAITING and self.mailed:
-            when = (f" (sonraki kesim ~{_day(self.next_cut)})" if self.is_card and self.next_cut
-                    else " (ay sonu ekstresi)")
+            when = (
+                f" (sonraki kesim ~{_day(self.next_cut)})" if self.is_card and self.next_cut else " (ay sonu ekstresi)"
+            )
             parts = [f"{range_text(self.open)} ekstresi e-postayla bekleniyor{when}"]
             if self.late:
                 parts.append("beklenen tarih geçti: e-posta gelmediyse ekstreyi bankadan indirin")
         elif self.status == WAITING:
-            parts = [(f"{range_text(self.open)}: son döküm {_day(self.last)} tarihli; sonrasını bankadan indirip "
-                      "ekleyin")]
+            parts = [
+                (f"{range_text(self.open)}: son döküm {_day(self.last)} tarihli; sonrasını bankadan indirip ekleyin")
+            ]
         elif self.status == CHECK:
             parts = []
         else:
             parts = ["ayın tamamı belgelerle kapsandı ve tutarlı"]
         parts += self.problems
-        receipts = [f"{n} {label}" for status, label in ((CONFIRMED, "dekont eşleşti"), (PROVISIONAL, "dekont geçici"))
-                    if (n := self.count(status))]
+        receipts = [
+            f"{n} {label}"
+            for status, label in ((CONFIRMED, "dekont eşleşti"), (PROVISIONAL, "dekont geçici"))
+            if (n := self.count(status))
+        ]
         return "; ".join(parts + receipts)
 
 
 # --- the month ----------------------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class Totals:
@@ -271,17 +293,23 @@ class MonthEnd:
         """The month's closing in one sentence, to go after its status label."""
         if self.status == CLOSED:
             matched = sum(a.count(CONFIRMED) for a in self.accounts)
-            return ("Bütün hesapların belgeleri ayın tamamını kapsıyor ve tutarlı"
-                    + (f"; {matched} dekont ekstrelerle eşleşti." if matched else "."))
+            return "Bütün hesapların belgeleri ayın tamamını kapsıyor ve tutarlı" + (
+                f"; {matched} dekont ekstrelerle eşleşti." if matched else "."
+            )
         if self.status == RUNNING:
             provisional = len(self.provisional)
-            return ("Rakamlar şimdiye kadar gelen ekstre ve dökümlerden"
-                    + (f"; ekstresi henüz gelmemiş {provisional} işlem dekontlardan geçici olarak işlendi."
-                       if provisional else "."))
+            return "Rakamlar şimdiye kadar gelen ekstre ve dökümlerden" + (
+                f"; ekstresi henüz gelmemiş {provisional} işlem dekontlardan geçici olarak işlendi."
+                if provisional
+                else "."
+            )
         if not self.accounts:
             return "Bu ay için hiçbir hesabın belgesi yok."
-        lead = {WAITING: "Kapanması için bekleniyor", MISSING: "Kapanması için eksik belge var",
-                CHECK: "Kapanmadan önce kontrol edin"}[self.status]
+        lead = {
+            WAITING: "Kapanması için bekleniyor",
+            MISSING: "Kapanması için eksik belge var",
+            CHECK: "Kapanmadan önce kontrol edin",
+        }[self.status]
         return f"{lead}: " + "; ".join(f"{a.account.label} ({a.waiting_for})" for a in self.open) + "."
 
 
@@ -312,8 +340,10 @@ class _Shared:
         """Like the report: a bank account's movement list covers at least half of the month (of its days so
         far, in the current month)."""
         days = set(_days(first_day(month), min(last_day(month), self.today)))
-        return bool(days) and any(self.ds.accounts[a].type not in NOT_BANK_ACCOUNTS
-                                  and len(days & covered) >= 0.5 * len(days) for a, covered in self.days.items())
+        return bool(days) and any(
+            self.ds.accounts[a].type not in NOT_BANK_ACCOUNTS and len(days & covered) >= 0.5 * len(days)
+            for a, covered in self.days.items()
+        )
 
     def totals(self, month: str) -> Totals:
         sums: dict[str, float] = defaultdict(float)
@@ -322,8 +352,9 @@ class _Shared:
             if t.kind == "faiz_ucret":
                 sums["fees"] += t.amount
         income = -sums["gelir"] if self.income_known(month) else None
-        return Totals(income, sums["expense"], sums["kisiye_transfer"], sums["kredi_anapara"], sums["yatirim"],
-                      sums["fees"])
+        return Totals(
+            income, sums["expense"], sums["kisiye_transfer"], sums["kredi_anapara"], sums["yatirim"], sums["fees"]
+        )
 
     # -- closing --------------------------------------------------------------------------------
     def closing(self, month: str) -> list[AccountClose]:
@@ -350,8 +381,18 @@ class _Shared:
                 status = CHECK
             else:
                 status = CLOSED
-            ac = AccountClose(acc, status, acc.type != INVESTMENT_TYPE, len(needed), len(needed) - len(holes),
-                              _ranges(missing or waiting), stmts, lines, None, last)
+            ac = AccountClose(
+                acc,
+                status,
+                acc.type != INVESTMENT_TYPE,
+                len(needed),
+                len(needed) - len(holes),
+                _ranges(missing or waiting),
+                stmts,
+                lines,
+                None,
+                last,
+            )
             if not ac.is_card:
                 covering = next((s for s, a, b in self.periods if s.account == account and a <= hi <= b), None)
                 if covering is not None and acc.type == INVESTMENT_TYPE:
@@ -408,8 +449,9 @@ class _Shared:
         group_of = {t.category: t.group for t in spent}
         categories = [(c, group_slot(ds.groups, group_of[c]), v, n) for c, v, n in ranked(lambda t: t.category)[:10]]
         merchant_group = {t.merchant: t.group for t in spent}
-        merchants = [(m, group_slot(ds.groups, merchant_group[m]), v, n)
-                     for m, v, n in ranked(lambda t: t.merchant)[:10]]
+        merchants = [
+            (m, group_slot(ds.groups, merchant_group[m]), v, n) for m, v, n in ranked(lambda t: t.merchant)[:10]
+        ]
 
         regular = []
         for s in ins.series:
@@ -425,15 +467,26 @@ class _Shared:
         big = sorted((t for t in spent if t.kind == "harcama" and t.amount >= threshold), key=lambda t: -t.amount)[:8]
         totals = self.totals(month)
         return MonthEnd(
-            month=month, status=status, accounts=accounts, totals=totals,
+            month=month,
+            status=status,
+            accounts=accounts,
+            totals=totals,
             previous=self.totals(shift(month, -1)) if shift(month, -1) in self.by_month else None,
-            typical=typical, typical_months=len(prior), groups=groups, levels=levels, categories=categories,
-            merchants=merchants, regular=regular, big=big,
+            typical=typical,
+            typical_months=len(prior),
+            groups=groups,
+            levels=levels,
+            categories=categories,
+            merchants=merchants,
+            regular=regular,
+            big=big,
             provisional=sorted((t for t in txns if t.provisional), key=lambda t: t.date),
-            unmatched=sorted((line for line in ds.receipts
-                              if line.status == NOT_ON_STATEMENT and month_of(line.txn.date) == month),
-                             key=lambda line: line.txn.date),
-            count=len(spent), trend=[(m, self.expense(m)) for m in span(shift(month, -11), month)],
+            unmatched=sorted(
+                (line for line in ds.receipts if line.status == NOT_ON_STATEMENT and month_of(line.txn.date) == month),
+                key=lambda line: line.txn.date,
+            ),
+            count=len(spent),
+            trend=[(m, self.expense(m)) for m in span(shift(month, -11), month)],
             income_note=self.income_note(month, totals, accounts, status),
             debt_end=debt_at(ds, last_day(month)) if status != RUNNING else None,
         )
@@ -478,6 +531,7 @@ def build(ds: Dataset, ins: Insights, today: date | None = None, months: list[st
 
 # --- rendering ----------------------------------------------------------------------------------------
 
+
 def _e(value: object) -> str:
     return html.escape(str(value), quote=True)
 
@@ -503,8 +557,13 @@ _PAGE = """<!doctype html>
 </html>
 """
 
-_TONES = {CLOSED: ("iyi", "✓"), WAITING: ("bekle", "…"), RUNNING: ("bekle", "…"), MISSING: ("dikkat", "!"),
-          CHECK: ("dikkat", "!")}
+_TONES = {
+    CLOSED: ("iyi", "✓"),
+    WAITING: ("bekle", "…"),
+    RUNNING: ("bekle", "…"),
+    MISSING: ("dikkat", "!"),
+    CHECK: ("dikkat", "!"),
+}
 
 
 def _page(title: str, body: str) -> str:
@@ -543,12 +602,14 @@ def _sparkline(points: list[tuple[str, float]]) -> str:
     y = lambda v: height - 4 - (v - lo) / ((hi - lo) or 1.0) * (height - 8)
     line = " ".join(f"{x(i):.1f},{y(v):.1f}" for i, v in enumerate(values))
     spoken = ", ".join(f"{month_name(m)} {tl(v)}" for m, v in points)
-    return (f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" '
-            f'aria-label="{_e("Son 12 ayın gideri: " + spoken)}"><title>{_e("Son 12 ay: " + spoken)}</title>'
-            f'<polyline points="{line}" fill="none" style="stroke:var(--muted)" stroke-width="2" '
-            'stroke-linejoin="round" stroke-linecap="round"/>'
-            f'<circle cx="{x(len(values) - 1):.1f}" cy="{y(values[-1]):.1f}" r="4" '
-            'style="fill:var(--accent);stroke:var(--surface)" stroke-width="2"/></svg>')
+    return (
+        f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" '
+        f'aria-label="{_e("Son 12 ayın gideri: " + spoken)}"><title>{_e("Son 12 ay: " + spoken)}</title>'
+        f'<polyline points="{line}" fill="none" style="stroke:var(--muted)" stroke-width="2" '
+        'stroke-linejoin="round" stroke-linecap="round"/>'
+        f'<circle cx="{x(len(values) - 1):.1f}" cy="{y(values[-1]):.1f}" r="4" '
+        'style="fill:var(--accent);stroke:var(--surface)" stroke-width="2"/></svg>'
+    )
 
 
 def _delta(now: float, before: float | None, what: str) -> str:
@@ -562,17 +623,30 @@ def _delta(now: float, before: float | None, what: str) -> str:
 
 
 def _tile(label: str, value: str, meta: str, extra: str = "", hero: bool = False) -> str:
-    return (f'<div class="tile{" hero" if hero else ""}"><div class="label">{_e(label)}</div>'
-            f'<div class="value">{value}</div><div class="meta">{_e(meta)}</div>{extra}</div>')
+    return (
+        f'<div class="tile{" hero" if hero else ""}"><div class="label">{_e(label)}</div>'
+        f'<div class="value">{value}</div><div class="meta">{_e(meta)}</div>{extra}</div>'
+    )
 
 
 def _table(head: list[tuple[str, bool]], rows: list[list[str]], foot: list[str] | None = None) -> str:
     """head: (label, numeric); cells are HTML already escaped."""
     th = "".join(f'<th class="num">{_e(h)}</th>' if num else f"<th>{_e(h)}</th>" for h, num in head)
-    body = "".join("<tr>" + "".join(f'<td class="num">{c}</td>' if head[i][1] else f"<td>{c}</td>"
-                                    for i, c in enumerate(r)) + "</tr>" for r in rows)
-    tfoot = ("<tfoot><tr>" + "".join(f'<td class="num">{c}</td>' if head[i][1] else f"<td>{c}</td>"
-                                     for i, c in enumerate(foot)) + "</tr></tfoot>") if foot else ""
+    body = "".join(
+        "<tr>"
+        + "".join(f'<td class="num">{c}</td>' if head[i][1] else f"<td>{c}</td>" for i, c in enumerate(r))
+        + "</tr>"
+        for r in rows
+    )
+    tfoot = (
+        (
+            "<tfoot><tr>"
+            + "".join(f'<td class="num">{c}</td>' if head[i][1] else f"<td>{c}</td>" for i, c in enumerate(foot))
+            + "</tr></tfoot>"
+        )
+        if foot
+        else ""
+    )
     return f'<div class="table-wrap"><table><thead><tr>{th}</tr></thead><tbody>{body}</tbody>{tfoot}</table></div>'
 
 
@@ -589,10 +663,14 @@ def _bars(rows: list[tuple[str, int, float]], total: float, what: str) -> str:
             f'<tr title="{_e(f"{name}: {tl(value)} (%{share * 100:.0f})")}"><td><span class="cat-cell">{_swatch(slot)}'
             f'{_e(name)}</span></td><td class="bar-cell"><span class="bar" style="width:{value / top * 100:.1f}%;'
             f'background:{color}"></span></td><td class="num">{_e(tl(value))}</td>'
-            f'<td class="num">%{share * 100:.0f}</td></tr>')
-    return (f'<div class="table-wrap"><table class="bars"><thead><tr><th>{_e(what)}</th><th><span class="sr">Çubuk'
-            '</span></th><th class="num">Tutar</th><th class="num">Pay</th></tr></thead><tbody>'
-            + "".join(out) + "</tbody></table></div>")
+            f'<td class="num">%{share * 100:.0f}</td></tr>'
+        )
+    return (
+        f'<div class="table-wrap"><table class="bars"><thead><tr><th>{_e(what)}</th><th><span class="sr">Çubuk'
+        '</span></th><th class="num">Tutar</th><th class="num">Pay</th></tr></thead><tbody>'
+        + "".join(out)
+        + "</tbody></table></div>"
+    )
 
 
 def _nav(months: list[str], month: str | None, home: str) -> str:
@@ -615,115 +693,220 @@ def _closing_table(me: MonthEnd) -> str:
         for s, lo, hi in a.statements:
             what = f"kesim {_short_day(s.cut_date)}" if not s.is_account else period_text(lo, hi)
             cls, mark, word = statement_check(s)
-            docs.append(f'<span class="status {cls}" title="{_e(word)}"><span class="icon" aria-hidden="true">{mark}'
-                        f"</span>{_e(what)}</span>")
-        receipts = [f"{n} {label}" for status, label in ((CONFIRMED, "eşleşti"), (PROVISIONAL, "geçici"),
-                                                         (NOT_ON_STATEMENT, "ekstrede yok")) if (n := a.count(status))]
+            docs.append(
+                f'<span class="status {cls}" title="{_e(word)}"><span class="icon" aria-hidden="true">{mark}'
+                f"</span>{_e(what)}</span>"
+            )
+        receipts = [
+            f"{n} {label}"
+            for status, label in ((CONFIRMED, "eşleşti"), (PROVISIONAL, "geçici"), (NOT_ON_STATEMENT, "ekstrede yok"))
+            if (n := a.count(status))
+        ]
         label = a.account.label + ("" if a.blocking else " (ayın kapanmasını beklemez)")
-        rows.append([
-            _e(label), _badge(a.status, ACCOUNT_STATUS[a.status]), f"{a.covered}/{a.needed}",
-            "<br>".join(docs) or "–", _e(", ".join(receipts) or "–"),
-            "–" if a.balance is None else _amount(a.balance, a.account.currency),
-            f'<span class="muted small">{_e(a.note)}</span>',
-        ])
+        rows.append(
+            [
+                _e(label),
+                _badge(a.status, ACCOUNT_STATUS[a.status]),
+                f"{a.covered}/{a.needed}",
+                "<br>".join(docs) or "–",
+                _e(", ".join(receipts) or "–"),
+                "–" if a.balance is None else _amount(a.balance, a.account.currency),
+                f'<span class="muted small">{_e(a.note)}</span>',
+            ]
+        )
     if not rows:
         return '<p class="empty">Bu ay için hiçbir hesabın belgesi yok.</p>'
-    return _table([("Hesap", False), ("Durum", False), ("Kapsanan gün", True), ("Belgeler", False),
-                   ("Dekontlar", False), ("Ay sonu bakiyesi", True), ("Açıklama", False)], rows)
+    return _table(
+        [
+            ("Hesap", False),
+            ("Durum", False),
+            ("Kapsanan gün", True),
+            ("Belgeler", False),
+            ("Dekontlar", False),
+            ("Ay sonu bakiyesi", True),
+            ("Açıklama", False),
+        ],
+        rows,
+    )
 
 
 def _txn_table(rows: list[Transaction], ds: Dataset) -> str:
-    return _table([("Tarih", False), ("Hesap", False), ("Açıklama", False), ("Tür", False), ("Tutar", True)], [
-        [_e(_day(t.date)), _e(ds.accounts[t.account].label), _e(t.merchant or t.description),
-         _e(KINDS.get(t.kind, t.kind)), f'<span class="{"neg" if t.amount < 0 else ""}">{_e(tl(t.amount))}</span>']
-        for t in rows])
+    return _table(
+        [("Tarih", False), ("Hesap", False), ("Açıklama", False), ("Tür", False), ("Tutar", True)],
+        [
+            [
+                _e(_day(t.date)),
+                _e(ds.accounts[t.account].label),
+                _e(t.merchant or t.description),
+                _e(KINDS.get(t.kind, t.kind)),
+                f'<span class="{"neg" if t.amount < 0 else ""}">{_e(tl(t.amount))}</span>',
+            ]
+            for t in rows
+        ],
+    )
 
 
 def render_month(me: MonthEnd, ds: Dataset, months: list[str], made: datetime, home: str) -> str:
     t, prev = me.totals, me.previous
     title = f"{me.name} ay sonu raporu"
-    head = (f'<header class="top"><div><h1>{_e(title)}</h1><p class="sub">Oluşturulma {_e(f"{made:%d.%m.%Y %H:%M}")}'
-            f" · kart ekstreleri, hesap dökümleri ve dekontlardan</p></div>{_nav(months, me.month, home)}</header>")
-    status = (f'<section class="card status-card" aria-label="Kapanış durumu">{_badge(me.status, me.label)}'
-              f"<p>{_e(me.summary)}</p></section>")
+    head = (
+        f'<header class="top"><div><h1>{_e(title)}</h1><p class="sub">Oluşturulma {_e(f"{made:%d.%m.%Y %H:%M}")}'
+        f" · kart ekstreleri, hesap dökümleri ve dekontlardan</p></div>{_nav(months, me.month, home)}</header>"
+    )
+    status = (
+        f'<section class="card status-card" aria-label="Kapanış durumu">{_badge(me.status, me.label)}'
+        f"<p>{_e(me.summary)}</p></section>"
+    )
 
     # An open month lacks the days its statements have not reached yet: compared with whole months it only
     # looks cheaper.
     closed = me.status == CLOSED
-    compare = (_delta(t.expense, prev.expense if prev else None, "geçen aydan")
-               + _delta(t.expense, me.typical, f"son {me.typical_months} tam ayın medyanından")) if closed else ""
+    compare = (
+        (
+            _delta(t.expense, prev.expense if prev else None, "geçen aydan")
+            + _delta(t.expense, me.typical, f"son {me.typical_months} tam ayın medyanından")
+        )
+        if closed
+        else ""
+    )
     spent_note = f"harcama, iade, faiz ve ücret · {me.count} işlem"
     if not closed:
         spent_note += " · ay kapanmadı: bekleyen ekstrelerle artabilir"
     tiles = [
         _tile("Gider", _e(tl(t.expense)), spent_note, compare + _sparkline(me.trend), hero=True),
         _tile("Gelir", _money(t.income), me.income_note),
-        _tile("Kişilere ve borca giden", _e(tl(t.people + t.debt)),
-              f"kişilere {tl(t.people)} · kredi ve borç {tl(t.debt)}"),
-        _tile("Şimdiye kadar kalan" if me.status == RUNNING else "Ay sonunda kalan", _money(t.left),
-              "gelir − gider − kişilere − borç − birikim" if t.left is not None else "gelir bilinmediği için yok"),
+        _tile(
+            "Kişilere ve borca giden",
+            _e(tl(t.people + t.debt)),
+            f"kişilere {tl(t.people)} · kredi ve borç {tl(t.debt)}",
+        ),
+        _tile(
+            "Şimdiye kadar kalan" if me.status == RUNNING else "Ay sonunda kalan",
+            _money(t.left),
+            "gelir − gider − kişilere − borç − birikim" if t.left is not None else "gelir bilinmediği için yok",
+        ),
     ]
     kpis = f'<section class="kpis month" aria-label="Özet">{"".join(tiles)}</section>'
 
-    debt = (f'<p class="hint">Ay sonunda kart ekstre borçları ve ek hesap kullanımı (belgelerin gösterdiği kadarıyla): '
-            f"{_e(tl(me.debt_end))}.</p>" if me.debt_end is not None else "")
-    closing = ('<section class="card"><div class="card-head"><div><h2>Ekstre ile kapanış</h2><p class="hint">'
-               "Her hesabın bu aydaki günlerini ekstre ya da hesap dökümü kapsıyor mu, belgeler tutarlı mı ve "
-               "dekontlar ekstrelerde bulundu mu. Kart ekstreleri e-postayla gelir; hesap dökümlerini bankadan "
-               f"indirip Gelen Belgeler klasörüne bırakın.</p></div></div>{_closing_table(me)}{debt}</section>")
+    debt = (
+        f'<p class="hint">Ay sonunda kart ekstre borçları ve ek hesap kullanımı (belgelerin gösterdiği kadarıyla): '
+        f"{_e(tl(me.debt_end))}.</p>"
+        if me.debt_end is not None
+        else ""
+    )
+    closing = (
+        '<section class="card"><div class="card-head"><div><h2>Ekstre ile kapanış</h2><p class="hint">'
+        "Her hesabın bu aydaki günlerini ekstre ya da hesap dökümü kapsıyor mu, belgeler tutarlı mı ve "
+        "dekontlar ekstrelerde bulundu mu. Kart ekstreleri e-postayla gelir; hesap dökümlerini bankadan "
+        f"indirip Gelen Belgeler klasörüne bırakın.</p></div></div>{_closing_table(me)}{debt}</section>"
+    )
 
-    expense = [('<section class="card"><div class="card-head"><div><h2>Giderler</h2><p class="hint">Harcama, iade, '
-                "faiz ve ücretler; kişilere gönderilen para, kredi anaparası ve hesaplar arası transferler ayrı.</p>"
-                '</div></div><div class="split">'),
-               f'<div><h3 class="subhead first">Ana gruplara göre</h3>{_bars(me.groups, t.expense, "Grup")}</div>',
-               (f'<div><h3 class="subhead first">Gerekliliğe göre</h3>{_bars(me.levels, t.expense, "Gereklilik")}'
-                "</div></div>")]
+    expense = [
+        (
+            '<section class="card"><div class="card-head"><div><h2>Giderler</h2><p class="hint">Harcama, iade, '
+            "faiz ve ücretler; kişilere gönderilen para, kredi anaparası ve hesaplar arası transferler ayrı.</p>"
+            '</div></div><div class="split">'
+        ),
+        f'<div><h3 class="subhead first">Ana gruplara göre</h3>{_bars(me.groups, t.expense, "Grup")}</div>',
+        (
+            f'<div><h3 class="subhead first">Gerekliliğe göre</h3>{_bars(me.levels, t.expense, "Gereklilik")}'
+            "</div></div>"
+        ),
+    ]
     if me.categories:
-        expense.append('<div class="split"><div><h3 class="subhead">En çok harcanan kategoriler</h3>' + _table(
-            [("Kategori", False), ("Tutar", True), ("İşlem", True)],
-            [[f'<span class="cat-cell">{_swatch(slot)}{_e(c)}</span>', _e(tl(v)), str(n)]
-             for c, slot, v, n in me.categories]) + "</div>")
-        expense.append('<div><h3 class="subhead">En çok harcama yapılan yerler</h3>' + _table(
-            [("İşyeri", False), ("Tutar", True), ("İşlem", True)],
-            [[f'<span class="cat-cell">{_swatch(slot)}{_e(m)}</span>', _e(tl(v)), str(n)]
-             for m, slot, v, n in me.merchants]) + "</div></div>")
+        expense.append(
+            '<div class="split"><div><h3 class="subhead">En çok harcanan kategoriler</h3>'
+            + _table(
+                [("Kategori", False), ("Tutar", True), ("İşlem", True)],
+                [
+                    [f'<span class="cat-cell">{_swatch(slot)}{_e(c)}</span>', _e(tl(v)), str(n)]
+                    for c, slot, v, n in me.categories
+                ],
+            )
+            + "</div>"
+        )
+        expense.append(
+            '<div><h3 class="subhead">En çok harcama yapılan yerler</h3>'
+            + _table(
+                [("İşyeri", False), ("Tutar", True), ("İşlem", True)],
+                [
+                    [f'<span class="cat-cell">{_swatch(slot)}{_e(m)}</span>', _e(tl(v)), str(n)]
+                    for m, slot, v, n in me.merchants
+                ],
+            )
+            + "</div></div>"
+        )
     if me.big:
-        expense.append('<h3 class="subhead">Büyük tek seferlik harcamalar</h3>' + _table(
-            [("Tarih", False), ("İşyeri", False), ("Kategori", False), ("Tutar", True)],
-            [[_e(_day(x.date)), _e(x.merchant), _e(x.category), _e(tl(x.amount))] for x in me.big]))
+        expense.append(
+            '<h3 class="subhead">Büyük tek seferlik harcamalar</h3>'
+            + _table(
+                [("Tarih", False), ("İşyeri", False), ("Kategori", False), ("Tutar", True)],
+                [[_e(_day(x.date)), _e(x.merchant), _e(x.category), _e(tl(x.amount))] for x in me.big],
+            )
+        )
     expense.append("</section>")
 
     sections = [head, "<main>", status, kpis, closing, "".join(expense)]
     if me.regular:
         rows = []
         for s, paid, expected in me.regular:
-            when = (f"Ödendi {', '.join(_short_day(x.date) for x in paid)}" if paid
-                    else f"Bekleniyor ~{_short_day(expected)}")
-            rows.append([_e(s.merchant), _e(s.last.category), _e(when),
-                         _e(tl(sum(abs(x.amount) for x in paid))) if paid else "–", _e(tl(s.monthly))])
-        sections.append('<section class="card"><div class="card-head"><div><h2>Düzenli ödemeler</h2><p class="hint">'
-                        "Bu ay ödenenler ve beklenen günü bu aya düşüp henüz görünmeyenler.</p></div></div>"
-                        + _table([("İşyeri / kişi", False), ("Kategori", False), ("Durum", False), ("Bu ay", True),
-                                  ("Aylık", True)], rows) + "</section>")
+            when = (
+                f"Ödendi {', '.join(_short_day(x.date) for x in paid)}"
+                if paid
+                else f"Bekleniyor ~{_short_day(expected)}"
+            )
+            rows.append(
+                [
+                    _e(s.merchant),
+                    _e(s.last.category),
+                    _e(when),
+                    _e(tl(sum(abs(x.amount) for x in paid))) if paid else "–",
+                    _e(tl(s.monthly)),
+                ]
+            )
+        sections.append(
+            '<section class="card"><div class="card-head"><div><h2>Düzenli ödemeler</h2><p class="hint">'
+            "Bu ay ödenenler ve beklenen günü bu aya düşüp henüz görünmeyenler.</p></div></div>"
+            + _table(
+                [("İşyeri / kişi", False), ("Kategori", False), ("Durum", False), ("Bu ay", True), ("Aylık", True)],
+                rows,
+            )
+            + "</section>"
+        )
     if me.provisional or me.unmatched:
         parts = ['<section class="card"><div class="card-head"><div><h2>Dekontlar</h2></div></div>']
         if me.provisional:
-            parts.append('<h3 class="subhead first">Geçici kayıtlar</h3><p class="hint">Ekstresi ya da dökümü henüz '
-                         "gelmemiş günlerden, bankanın e-postayla gönderdiği dekontlarla işlendi; belge gelince "
-                         "satırlarıyla eşleşip kesinleşecek.</p>" + _txn_table(me.provisional, ds))
+            parts.append(
+                '<h3 class="subhead first">Geçici kayıtlar</h3><p class="hint">Ekstresi ya da dökümü henüz '
+                "gelmemiş günlerden, bankanın e-postayla gönderdiği dekontlarla işlendi; belge gelince "
+                "satırlarıyla eşleşip kesinleşecek.</p>" + _txn_table(me.provisional, ds)
+            )
         if me.unmatched:
-            parts.append('<h3 class="subhead">Ekstrede görünmeyen dekontlar</h3><p class="hint">Aynı günleri kapsayan '
-                         "ekstre ya da döküm bu işlemi göstermiyor: iptal edilmiş, başka hesaptan yapılmış ya da "
-                         "dekont başka bir hesaba yazılmış olabilir. Toplamlara ekstredeki satırlar katıldı.</p>"
-                         + _table([("Tarih", False), ("Hesap", False), ("Açıklama", False), ("Tutar", True)],
-                                  [[_e(_day(line.txn.date)), _e(ds.accounts[line.txn.account].label),
-                                    _e(line.txn.description), _e(receipt_amount(ds, line))] for line in me.unmatched]))
+            parts.append(
+                '<h3 class="subhead">Ekstrede görünmeyen dekontlar</h3><p class="hint">Aynı günleri kapsayan '
+                "ekstre ya da döküm bu işlemi göstermiyor: iptal edilmiş, başka hesaptan yapılmış ya da "
+                "dekont başka bir hesaba yazılmış olabilir. Toplamlara ekstredeki satırlar katıldı.</p>"
+                + _table(
+                    [("Tarih", False), ("Hesap", False), ("Açıklama", False), ("Tutar", True)],
+                    [
+                        [
+                            _e(_day(line.txn.date)),
+                            _e(ds.accounts[line.txn.account].label),
+                            _e(line.txn.description),
+                            _e(receipt_amount(ds, line)),
+                        ]
+                        for line in me.unmatched
+                    ],
+                )
+            )
         parts.append("</section>")
         sections.append("".join(parts))
     sections.append("</main>")
-    sections.append('<footer class="foot">Bu sayfa bu bilgisayarda, belgelerinizden üretildi; hiçbir veri internete '
-                    "gönderilmez. Rakamlar ana raporla aynı kaynaktan; kategoriler kategoriler.yaml dosyasından."
-                    "</footer>")
+    sections.append(
+        '<footer class="foot">Bu sayfa bu bilgisayarda, belgelerinizden üretildi; hiçbir veri internete '
+        "gönderilmez. Rakamlar ana raporla aynı kaynaktan; kategoriler kategoriler.yaml dosyasından."
+        "</footer>"
+    )
     return _page(f"{title} — İplikçi Nedim", "\n".join(sections))
 
 
@@ -732,19 +915,39 @@ def render_index(items: list[MonthEnd], made: datetime, home: str) -> str:
     for me in reversed(items):
         t = me.totals
         # A month without the salary (or with two) explains its income and what was left.
-        notes = [me.summary] + ([me.income_note[0].upper() + me.income_note[1:] + "."]
-                                if me.income_note != INCOME_NOTE else [])
-        rows.append([f'<a class="nowrap" href="{_e(me.file)}">{_e(me.name)}</a>', _badge(me.status, me.label),
-                     _e(tl(t.expense)), _money(t.income), _money(t.left),
-                     str(len(me.provisional)) if me.provisional else "–",
-                     "<br>".join(f'<span class="muted small">{_e(n)}</span>' for n in notes)])
-    table = _table([("Ay", False), ("Durum", False), ("Gider", True), ("Gelir", True), ("Kalan", True),
-                    ("Geçici kayıt", True), ("Açıklama", False)], rows)
-    body = (f'<header class="top"><div><h1>Ay sonu raporları</h1><p class="sub">Oluşturulma '
-            f'{_e(f"{made:%d.%m.%Y %H:%M}")}</p></div>{_nav([], None, home)}</header><main>'
-            '<section class="card"><p class="hint">Bir ay, bütün hesapların ekstreleri ve dökümleri ayın tamamını '
-            "kapsayıp tutarlı çıkınca ve dekontlar ekstrelerde bulununca kapanır. Kapanmamış ayların rakamları "
-            f"gelen belgelerle değişebilir.</p>{table}</section></main>")
+        notes = [me.summary] + (
+            [me.income_note[0].upper() + me.income_note[1:] + "."] if me.income_note != INCOME_NOTE else []
+        )
+        rows.append(
+            [
+                f'<a class="nowrap" href="{_e(me.file)}">{_e(me.name)}</a>',
+                _badge(me.status, me.label),
+                _e(tl(t.expense)),
+                _money(t.income),
+                _money(t.left),
+                str(len(me.provisional)) if me.provisional else "–",
+                "<br>".join(f'<span class="muted small">{_e(n)}</span>' for n in notes),
+            ]
+        )
+    table = _table(
+        [
+            ("Ay", False),
+            ("Durum", False),
+            ("Gider", True),
+            ("Gelir", True),
+            ("Kalan", True),
+            ("Geçici kayıt", True),
+            ("Açıklama", False),
+        ],
+        rows,
+    )
+    body = (
+        f'<header class="top"><div><h1>Ay sonu raporları</h1><p class="sub">Oluşturulma '
+        f"{_e(f'{made:%d.%m.%Y %H:%M}')}</p></div>{_nav([], None, home)}</header><main>"
+        '<section class="card"><p class="hint">Bir ay, bütün hesapların ekstreleri ve dökümleri ayın tamamını '
+        "kapsayıp tutarlı çıkınca ve dekontlar ekstrelerde bulununca kapanır. Kapanmamış ayların rakamları "
+        f"gelen belgelerle değişebilir.</p>{table}</section></main>"
+    )
     return _page("Ay sonu raporları — İplikçi Nedim", body)
 
 

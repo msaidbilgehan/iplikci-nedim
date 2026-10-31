@@ -31,14 +31,17 @@ from conftest import JANUARY, put, teb_export
 TARGET = Path("TEB/Vadesiz Hesap TL 123456789/2026-01-01 - 2026-01-31 TEB Vadesiz TL 123456789 Hesap Hareketleri.xls")
 
 
-@pytest.mark.parametrize("name, safe", [
-    ("ekstre.pdf", "ekstre.pdf"),
-    ("../../etc/passwd.pdf", "etc/passwd.pdf"),  # never above the inbox
-    ("/Users/x/Downloads/a.pdf", "Users/x/Downloads/a.pdf"),  # absolute becomes relative
-    ("a/b/c/d/e/f.xls", "c/d/e/f.xls"),  # three folders at most
-    ("C:\\Belgeler\\ekim.pdf", "C/Belgeler/ekim.pdf"),
-    ("kötü\x00ad\x1f.pdf", "kötüad.pdf"),
-])
+@pytest.mark.parametrize(
+    "name, safe",
+    [
+        ("ekstre.pdf", "ekstre.pdf"),
+        ("../../etc/passwd.pdf", "etc/passwd.pdf"),  # never above the inbox
+        ("/Users/x/Downloads/a.pdf", "Users/x/Downloads/a.pdf"),  # absolute becomes relative
+        ("a/b/c/d/e/f.xls", "c/d/e/f.xls"),  # three folders at most
+        ("C:\\Belgeler\\ekim.pdf", "C/Belgeler/ekim.pdf"),
+        ("kötü\x00ad\x1f.pdf", "kötüad.pdf"),
+    ],
+)
 def test_upload_names_stay_inside_the_inbox(name, safe):
     assert safe_upload_path(name) == PurePosixPath(safe)
 
@@ -152,9 +155,14 @@ def test_document_gaps_name_missing_and_stale_statements():
     ds = Dataset(
         accounts={"a1": acc(1), "a2": acc(2), "a3": acc(3)},
         statements=[stmt(1, date(2026, 10, 15)), stmt(2, date(2026, 8, 15)), stmt(3, date(2025, 1, 15))],
-        transactions=[], documents=[], groups=[], categories={},
-        coverage={"a1": {"2026-07": 1.0, "2026-08": 0.4, "2026-09": 1.0, "2026-10": 0.5},
-                  "a2": {"2026-07": 1.0, "2026-08": 0.5}},
+        transactions=[],
+        documents=[],
+        groups=[],
+        categories={},
+        coverage={
+            "a1": {"2026-07": 1.0, "2026-08": 0.4, "2026-09": 1.0, "2026-10": 0.5},
+            "a2": {"2026-07": 1.0, "2026-08": 0.5},
+        },
     )
     gaps = {g.account: g for g in document_gaps(ds, today=date(2026, 10, 20))}
     assert gaps["Hesap 1"].months == ("2026-08",) and gaps["Hesap 1"].behind == 5
@@ -177,8 +185,9 @@ def _encrypted_zip(member: str, data: bytes) -> bytes:
     return bytes(raw)
 
 
-@pytest.mark.parametrize("data, reason", [(_encrypted_zip("ekstre.pdf", b"%PDF"), ZIP_ENCRYPTED),
-                                          (b"PK\x03\x04 yarim inmis", ZIP_DAMAGED)])
+@pytest.mark.parametrize(
+    "data, reason", [(_encrypted_zip("ekstre.pdf", b"%PDF"), ZIP_ENCRYPTED), (b"PK\x03\x04 yarim inmis", ZIP_DAMAGED)]
+)
 def test_a_zip_that_cannot_be_opened_is_kept_for_a_manual_look(ws, data, reason):
     put(ws.inbox / "ekstreler.zip", data)
     [item] = plan_inbox(ws).changes

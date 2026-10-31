@@ -32,8 +32,13 @@ def detect(first_page: str) -> bool:
 
 
 def _account(number: str) -> Account:
-    return Account(id=f"garanti-yatirim-{number}", label=f"Garanti BBVA Yatırım {number}", bank="Garanti BBVA",
-                   type=INVESTMENT_TYPE, number=number)
+    return Account(
+        id=f"garanti-yatirim-{number}",
+        label=f"Garanti BBVA Yatırım {number}",
+        bank="Garanti BBVA",
+        type=INVESTMENT_TYPE,
+        number=number,
+    )
 
 
 def _us(text: str) -> float | None:
@@ -58,6 +63,7 @@ def _price(value: float) -> str:
 
 # --- monthly statement ----------------------------------------------------------------------------
 
+
 def _page_kind(lines: list[Line]) -> str:
     head = " ".join(line.folded for line in lines[:4])
     if "HESAP EKSTRESI" in head:
@@ -73,7 +79,7 @@ def _securities(lines: list[Line], as_of: date) -> tuple[list[Security], list[fl
     held, totals = [], []
     top = next((i for i, line in enumerate(lines) if "MEVCUT MENKUL KIYMETLER" in line.folded), None)
     end = next((i for i, line in enumerate(lines) if "TOPLAMI(TL" in line.folded.replace(" ", "")), len(lines))
-    for line in lines[top + 1:end] if top is not None else []:
+    for line in lines[top + 1 : end] if top is not None else []:
         words = line.words
         value = next((_us(w.text) for w in words if 400 <= w.x0 < 480 and _us(w.text) is not None), None)
         if value is None:
@@ -92,7 +98,7 @@ def _securities(lines: list[Line], as_of: date) -> tuple[list[Security], list[fl
 def _portfolio_total(lines: list[Line]) -> float | None:
     """'Portföy toplamı(TL ) :' — its value is printed lower, at the right edge, often inside a footer line."""
     label = next((i for i, line in enumerate(lines) if "TOPLAMI(TL" in line.folded.replace(" ", "")), None)
-    for line in lines[label + 1:] if label is not None else []:
+    for line in lines[label + 1 :] if label is not None else []:
         value = next((_us(w.text) for w in line.words if w.x0 >= 500 and _us(w.text) is not None), None)
         if value is not None:
             return value
@@ -136,8 +142,14 @@ def _statement(doc, pdf, first: list[Line]) -> ParseResult:
     printed = re.search(r"\bTARIH : (\d{2}/\d{2}/\d{4})", text)
     if not (number and printed):
         raise ValueError("Garanti Yatırım ekstresinde emanet numarası ya da tarih bulunamadı")
-    holder = next((" ".join(w.text for w in line.words if w.x0 >= _HOLDER_X)
-                   for line in first if line.folded.startswith("TARIH :")), "")
+    holder = next(
+        (
+            " ".join(w.text for w in line.words if w.x0 >= _HOLDER_X)
+            for line in first
+            if line.folded.startswith("TARIH :")
+        ),
+        "",
+    )
     if is_business(holder):
         raise Skipped(BUSINESS_REASON, business=True)
     day = parse_dmy(printed[1])
@@ -145,8 +157,11 @@ def _statement(doc, pdf, first: list[Line]) -> ParseResult:
     start, end = day.replace(day=1), day.replace(day=calendar.monthrange(day.year, day.month)[1])
     account = _account(number[1])
     cash_line = next((i for i, line in enumerate(first) if line.folded.startswith("MEVCUDU")), None)
-    cash = next((_us(w.text) for w in first[cash_line + 1].words if _us(w.text) is not None), None) \
-        if cash_line is not None and cash_line + 1 < len(first) else None
+    cash = (
+        next((_us(w.text) for w in first[cash_line + 1].words if _us(w.text) is not None), None)
+        if cash_line is not None and cash_line + 1 < len(first)
+        else None
+    )
     held, totals, moves = [], [], []
     for page in pdf.pages:
         lines = page_lines(page)
@@ -174,22 +189,39 @@ def _statement(doc, pdf, first: list[Line]) -> ParseResult:
     expected += [(round(worth + cash, 2), portfolio)] if portfolio is not None else []
     ok += sum(abs(a - b) < 0.015 for a, b in expected)
     stmt = Statement(
-        account=account.id, cut_date=end, currency="TL", source=doc.name, previous=opening, total=cash, start=start,
-        checks_ok=ok, checks_total=checks + len(expected),
-        balances=month_end_balances(moves, oldest_first=True) or {f"{end:%Y-%m}": cash}, securities=held,
+        account=account.id,
+        cut_date=end,
+        currency="TL",
+        source=doc.name,
+        previous=opening,
+        total=cash,
+        start=start,
+        checks_ok=ok,
+        checks_total=checks + len(expected),
+        balances=month_end_balances(moves, oldest_first=True) or {f"{end:%Y-%m}": cash},
+        securities=held,
     )
     for m in moves:
         kind, desc = _kind(m)
-        stmt.transactions.append(Transaction(
-            date=m.date, description=desc, amount=round(-m.amount, 2), kind=kind, account=account.id, source=doc.name,
-            # Proceeds, dividends and fee money moved to or from the user's bank account: their own transfer.
-            counterparty=holder if kind == CANDIDATE and any(
-                p in fold(m.description) for p in ("NOLU HESABIN BANKA", "TEMETTU")) else "",
-        ))
+        stmt.transactions.append(
+            Transaction(
+                date=m.date,
+                description=desc,
+                amount=round(-m.amount, 2),
+                kind=kind,
+                account=account.id,
+                source=doc.name,
+                # Proceeds, dividends and fee money moved to or from the user's bank account: their own transfer.
+                counterparty=holder
+                if kind == CANDIDATE and any(p in fold(m.description) for p in ("NOLU HESABIN BANKA", "TEMETTU"))
+                else "",
+            )
+        )
     return ParseResult(parser=NAME, accounts=[account], statements=[stmt], holder=holder)
 
 
 # --- trade result form --------------------------------------------------------------------------------
+
 
 def _form(doc, lines: list[Line]) -> ParseResult:
     text = " ".join(line.folded for line in lines)
@@ -207,8 +239,13 @@ def _form(doc, lines: list[Line]) -> ParseResult:
         raise Skipped(BUSINESS_REASON, business=True)
     account = _account(number[1])
     when = parse_dmy(day[1])
-    result = ParseResult(parser=NAME, accounts=[account], holder=holder_name, title="Hisse İşlemi",
-                         receipt_key=f"garanti-yatirim-form-{sequence[1] if sequence else doc.sha256}")
+    result = ParseResult(
+        parser=NAME,
+        accounts=[account],
+        holder=holder_name,
+        title="Hisse İşlemi",
+        receipt_key=f"garanti-yatirim-form-{sequence[1] if sequence else doc.sha256}",
+    )
     for line in lines:
         words = [w.text for w in line.words]
         if len(words) < 6 or not parse_dmy(words[0]) or fold(words[2]) not in ("SATIS", "ALIS"):
@@ -217,17 +254,29 @@ def _form(doc, lines: list[Line]) -> ParseResult:
         if amount is None:
             continue
         sale = fold(words[2]) == "SATIS"
-        result.transactions.append(Transaction(
-            date=parse_dmy(words[0]), amount=-amount if sale else amount, kind="yatirim", account=account.id,
-            description=f"Hisse {'satışı' if sale else 'alışı'}: {words[1]} {_count(quantity or 0)} adet × "
-                        f"{_price(price or 0)} TL", source=doc.name,
-        ))
+        result.transactions.append(
+            Transaction(
+                date=parse_dmy(words[0]),
+                amount=-amount if sale else amount,
+                kind="yatirim",
+                account=account.id,
+                description=f"Hisse {'satışı' if sale else 'alışı'}: {words[1]} {_count(quantity or 0)} adet × "
+                f"{_price(price or 0)} TL",
+                source=doc.name,
+            )
+        )
     fees = _tr3(total[1]) if total else None
     if fees:
-        result.transactions.append(Transaction(
-            date=when, description="Hisse senedi komisyon ve MKK ücretleri", amount=round(fees, 2), kind="faiz_ucret",
-            account=account.id, source=doc.name,
-        ))
+        result.transactions.append(
+            Transaction(
+                date=when,
+                description="Hisse senedi komisyon ve MKK ücretleri",
+                amount=round(fees, 2),
+                kind="faiz_ucret",
+                account=account.id,
+                source=doc.name,
+            )
+        )
     if not result.transactions:
         raise Skipped("işlem sonuç formunda tutar yok")
     return result

@@ -20,11 +20,17 @@ def bank_account(bank: str, number: str, currency: str, kind: str = "") -> Accou
     else:
         type_ = kind or "Vadesiz hesap"
         word = {"Ek hesap (KMH)": "Ek Hesap", "Vadeli hesap": "Vadeli TL"}.get(type_, "Vadesiz TL")
-    slug = {"Garanti BBVA": "garanti", "İş Bankası": "isbank", "TEB": "teb", "Vakıfbank": "vakifbank", "QNB": "qnb"}[bank]
+    slug = {"Garanti BBVA": "garanti", "İş Bankası": "isbank", "TEB": "teb", "Vakıfbank": "vakifbank", "QNB": "qnb"}[
+        bank
+    ]
     shown = number if len(number) <= 12 else "…" + number[-6:]
     return Account(
-        id=f"{slug}-{number}", label=f"{bank} {word} {shown}", bank=bank, type=type_,
-        currency=currency, number=number,
+        id=f"{slug}-{number}",
+        label=f"{bank} {word} {shown}",
+        bank=bank,
+        type=type_,
+        currency=currency,
+        number=number,
     )
 
 
@@ -62,6 +68,7 @@ def parse(doc) -> ParseResult:
 
 # --- Garanti BBVA -------------------------------------------------------------
 
+
 def _garanti_counterparty(desc: str, label: str) -> str:
     if fold(label) != "PARA TRANSFERI":
         return ""
@@ -82,7 +89,7 @@ def _garanti(doc, rows) -> ParseResult:
     account = bank_account("Garanti BBVA", m[2], m[3].upper())
     cols = {name: i for i, name in enumerate(str(v).strip() for v in rows[header])}
     moves = []
-    for r in rows[header + 1:]:
+    for r in rows[header + 1 :]:
         d = to_date(r[cols["Tarih"]])
         amount = to_number(r[cols["Tutar"]])
         if not d or amount is None:
@@ -98,12 +105,15 @@ def _garanti(doc, rows) -> ParseResult:
 
 # --- İş Bankası ---------------------------------------------------------------
 
+
 def _isbank(doc, rows) -> ParseResult:
     header = next((i for i, r in enumerate(rows) if str(r[0]).strip().startswith("Tarih/Saat")), None)
     if header is None:
         raise Skipped("İş Bankası tablo başlığı yok")
     info = key_values(rows[:header])
-    holder = next((c[0].replace("Sayın", "").strip() for c in map(cells, rows[:header]) if c and c[0].startswith("Sayın")), "")
+    holder = next(
+        (c[0].replace("Sayın", "").strip() for c in map(cells, rows[:header]) if c and c[0].startswith("Sayın")), ""
+    )
     digits = re.sub(r"\D", "", info.get("IBAN", ""))
     branch_account = re.search(r"(\d{4})(\d{7})$", digits)  # IBAN ends with branch (4) + account (7)
     number = f"{branch_account[1]}-{branch_account[2]}" if branch_account else digits[-11:]
@@ -117,7 +127,7 @@ def _isbank(doc, rows) -> ParseResult:
     col = {n: i for i, n in enumerate(names) if n}
     desc_start, desc_end = col["Açıklama"], col.get("Referans", len(names))
     moves = []
-    for r in rows[header + 1:]:
+    for r in rows[header + 1 :]:
         d = to_date(str(r[0]))
         amount = to_number(r[col["İşlem Tutarı*"]])
         if not d or amount is None:
@@ -132,6 +142,7 @@ def _isbank(doc, rows) -> ParseResult:
 
 
 # --- TEB (CEPTETEB "Hesap Hareketlerim", HTML saved as .xls) -------------------
+
 
 def _teb(doc, rows, info: dict, html: str) -> ParseResult:
     number = info.get("Hesap", "")
@@ -160,6 +171,7 @@ def _teb(doc, rows, info: dict, html: str) -> ParseResult:
 
 # --- Vakıfbank ------------------------------------------------------------------
 
+
 def _vakifbank(doc, rows) -> ParseResult:
     header = next((i for i, r in enumerate(rows) if "HESAP NO" in cells(r) and "İŞLEM" in cells(r)), None)
     if header is None:
@@ -167,14 +179,16 @@ def _vakifbank(doc, rows) -> ParseResult:
     info = key_values(rows[:header])
     iban = re.sub(r"\s", "", info.get("IBAN", ""))
     number = iban[-16:] if iban else ""
-    currency = "TL" if fold(info.get("HESAP TÜRÜ", "")).endswith("TL") else info.get("HESAP TÜRÜ", "").split()[-1].upper()
+    currency = (
+        "TL" if fold(info.get("HESAP TÜRÜ", "")).endswith("TL") else info.get("HESAP TÜRÜ", "").split()[-1].upper()
+    )
     account = bank_account("Vakıfbank", number, currency)
     nickname = info.get("RUMUZ", "")
     if nickname:
         account.label += f" ({nickname})"
     col = {str(v).strip(): i for i, v in enumerate(rows[header]) if v is not None}
     moves = []
-    for r in rows[header + 1:]:
+    for r in rows[header + 1 :]:
         d = to_date(r[col["İŞLEM TARİHİ"]])
         amount = to_number(r[col["TUTAR"]])
         if not d or amount is None:
@@ -191,7 +205,9 @@ def _vakifbank(doc, rows) -> ParseResult:
             company = re.search(r"sorgu numaralı (.+?) tarafından", desc)
             if company:
                 counterparty = company[1]
-        moves.append(Movement(d, f"{label}: {desc}" if label else desc, amount, to_number(r[col["BAKİYE"]]), label, counterparty))
+        moves.append(
+            Movement(d, f"{label}: {desc}" if label else desc, amount, to_number(r[col["BAKİYE"]]), label, counterparty)
+        )
     start, end = _period(info.get("TARİH ARALIĞI", ""))
     stmt = build_statement(doc, account, moves, start, end, oldest_first=True)
     return ParseResult(parser=NAME, accounts=[account], statements=[stmt], holder=info.get("HESAP SAHİBİ", ""))

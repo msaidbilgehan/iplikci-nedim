@@ -63,15 +63,24 @@ _gereklilik:
 """
 
 
-def teb_export(rows: list[tuple], number: str = "123456789", holder: str = HOLDER,
-               period: str = "01/01/2026 - 31/01/2026") -> bytes:
+def teb_export(
+    rows: list[tuple], number: str = "123456789", holder: str = HOLDER, period: str = "01/01/2026 - 31/01/2026"
+) -> bytes:
     """A CEPTETEB "Hesap Hareketlerim" export (HTML saved as .xls), rows newest first:
     (date, description, amount, balance)."""
-    info = [("Şube", "999-DENEME"), ("Hesap", number), ("IBAN", f"TR00000320000000000{number[-7:]}"),
-            ("Hesap Türü", "Vadesiz TL"), ("Hesap Sahibi", holder), ("Bakiye", "0,00")]
+    info = [
+        ("Şube", "999-DENEME"),
+        ("Hesap", number),
+        ("IBAN", f"TR00000320000000000{number[-7:]}"),
+        ("Hesap Türü", "Vadesiz TL"),
+        ("Hesap Sahibi", holder),
+        ("Bakiye", "0,00"),
+    ]
     head = "".join(f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in info)
-    body = "".join(f"<tr><td>{d}</td><td>{d}</td><td>10:00</td><td>{desc}</td><td>{amount}</td><td>{balance}</td>"
-                   f"<td>{i}</td></tr>" for i, (d, desc, amount, balance) in enumerate(rows))
+    body = "".join(
+        f"<tr><td>{d}</td><td>{d}</td><td>10:00</td><td>{desc}</td><td>{amount}</td><td>{balance}</td><td>{i}</td></tr>"
+        for i, (d, desc, amount, balance) in enumerate(rows)
+    )
     return (
         "<html><body><table><tr><td></td><td>Hesap Hareketlerim</td></tr>" + head + "</table>"
         f'<div class="prompt"> {period} tarihleri arasındaki işlemleriniz aşağıdadır.</div>'
@@ -121,7 +130,9 @@ def ws(tmp_path) -> Workspace:
     (tmp_path / "kategoriler.yaml").write_text(RULES, encoding="utf-8")
     (tmp_path / "ayarlar.toml").write_text(
         'kaynaklar = ["Bankalar"]\nbelge_klasoru = "Bankalar"\ngelen_klasoru = "Gelen"\ncikti = "cikti"\n'
-        'kurallar = "kategoriler.yaml"\n', encoding="utf-8")
+        'kurallar = "kategoriler.yaml"\n',
+        encoding="utf-8",
+    )
     return Workspace.load(tmp_path)
 
 
@@ -137,15 +148,23 @@ ADDRESS = "kullanici@example.com"
 APP_PASSWORD = "abcdefghijklmnop"
 
 
-def bank_mail(attachment: bytes | None, name: str = "HesapHareketleri.xls", sender: str = "bilgi@teb.com.tr",
-              results: tuple[str, ...] | None = None) -> bytes:
+def bank_mail(
+    attachment: bytes | None,
+    name: str = "HesapHareketleri.xls",
+    sender: str = "bilgi@teb.com.tr",
+    results: tuple[str, ...] | None = None,
+) -> bytes:
     """A bank e-mail as Gmail stores it: its own Authentication-Results on top (DMARC pass unless
     results say otherwise), the statement attached."""
     domain = sender.rpartition("@")[2]
     msg = EmailMessage()
     if results is None:
-        results = ((f"mx.google.com; dkim=pass header.i=@{domain}; spf=pass smtp.mailfrom={domain}; "
-                    f"dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from={domain}"),)
+        results = (
+            (
+                f"mx.google.com; dkim=pass header.i=@{domain}; spf=pass smtp.mailfrom={domain}; "
+                f"dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from={domain}"
+            ),
+        )
     for line in results:
         msg["Authentication-Results"] = line
     msg["From"] = f"Banka <{sender}>"
@@ -176,9 +195,11 @@ class FakeImap:
         return "OK", [b"authenticated (Success)"]
 
     def list(self):
-        return "OK", [b'(\\HasNoChildren) "/" "INBOX"',
-                      b'(\\HasNoChildren \\Sent) "/" "[Gmail]/G&APY-nderilmi&AV8- Postalar"',
-                      b'(\\All \\HasNoChildren) "/" "[Gmail]/T&APw-m Postalar"']
+        return "OK", [
+            b'(\\HasNoChildren) "/" "INBOX"',
+            b'(\\HasNoChildren \\Sent) "/" "[Gmail]/G&APY-nderilmi&AV8- Postalar"',
+            b'(\\All \\HasNoChildren) "/" "[Gmail]/T&APw-m Postalar"',
+        ]
 
     def select(self, mailbox: str, readonly: bool = False):
         self.commands.append(("SELECT", mailbox, readonly))
@@ -212,8 +233,9 @@ def imap(monkeypatch) -> FakeImap:
     server = FakeImap()
     server.stored = {}
     monkeypatch.setattr(email_fetch, "connect", lambda acc: server)
-    monkeypatch.setattr(email_fetch, "store_password", lambda address, secret: server.stored.update({address: secret})
-                        or True)
+    monkeypatch.setattr(
+        email_fetch, "store_password", lambda address, secret: server.stored.update({address: secret}) or True
+    )
     monkeypatch.setattr(email_fetch, "load_password", lambda address: server.stored[address])
     monkeypatch.setattr(email_fetch, "delete_password", lambda address: server.stored.pop(address, None))
     return server
@@ -229,12 +251,14 @@ def mail(ws, imap) -> FakeImap:
 
 # --- synthetic PDFs ---------------------------------------------------------------------------------
 
-_UNICODE_MAP = (b"/CIDInit /ProcSet findresource begin 12 dict begin begincmap\n"
-                b"/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def\n"
-                b"/CMapName /Adobe-Identity-UCS def /CMapType 2 def\n"
-                b"1 begincodespacerange <0000> <FFFF> endcodespacerange\n"
-                b"1 beginbfrange <0020> <02FF> <0020> endbfrange\n"
-                b"endcmap CMapName currentdict /CMap defineresource pop end end")
+_UNICODE_MAP = (
+    b"/CIDInit /ProcSet findresource begin 12 dict begin begincmap\n"
+    b"/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def\n"
+    b"/CMapName /Adobe-Identity-UCS def /CMapType 2 def\n"
+    b"1 begincodespacerange <0000> <FFFF> endcodespacerange\n"
+    b"1 beginbfrange <0020> <02FF> <0020> endbfrange\n"
+    b"endcmap CMapName currentdict /CMap defineresource pop end end"
+)
 CHAR = 4.5  # width of every character at the default size: half an em of 9 points
 
 
@@ -252,21 +276,32 @@ def text_pdf(*pages: list[tuple[float, float, str]], size: float = 9.0) -> bytes
     def stream(data: bytes) -> bytes:
         return b"<< /Length %d >>\nstream\n%s\nendstream" % (len(data), data)
 
-    descriptor = add(b"<< /Type /FontDescriptor /FontName /Deneme /Flags 32 /FontBBox [0 -200 500 800] "
-                     b"/ItalicAngle 0 /Ascent 800 /Descent -200 /CapHeight 700 /StemV 80 >>")
-    glyphs = add(b"<< /Type /Font /Subtype /CIDFontType2 /BaseFont /Deneme /CIDSystemInfo << /Registry (Adobe) "
-                 b"/Ordering (Identity) /Supplement 0 >> /FontDescriptor %d 0 R /DW 500 /CIDToGIDMap /Identity >>"
-                 % descriptor)
-    font = add(b"<< /Type /Font /Subtype /Type0 /BaseFont /Deneme /Encoding /Identity-H /DescendantFonts [%d 0 R] "
-               b"/ToUnicode %d 0 R >>" % (glyphs, add(stream(_UNICODE_MAP))))
+    descriptor = add(
+        b"<< /Type /FontDescriptor /FontName /Deneme /Flags 32 /FontBBox [0 -200 500 800] "
+        b"/ItalicAngle 0 /Ascent 800 /Descent -200 /CapHeight 700 /StemV 80 >>"
+    )
+    glyphs = add(
+        b"<< /Type /Font /Subtype /CIDFontType2 /BaseFont /Deneme /CIDSystemInfo << /Registry (Adobe) "
+        b"/Ordering (Identity) /Supplement 0 >> /FontDescriptor %d 0 R /DW 500 /CIDToGIDMap /Identity >>" % descriptor
+    )
+    font = add(
+        b"<< /Type /Font /Subtype /Type0 /BaseFont /Deneme /Encoding /Identity-H /DescendantFonts [%d 0 R] "
+        b"/ToUnicode %d 0 R >>" % (glyphs, add(stream(_UNICODE_MAP)))
+    )
     kids = []
     for runs in pages:
-        ops = b"".join(b"BT /F1 %.1f Tf 1 0 0 1 %.2f %.2f Tm <%s> Tj ET\n"
-                       % (size, x, height - top - 0.8 * size, text.encode("utf-16-be").hex().encode())
-                       for x, top, text in runs)
+        ops = b"".join(
+            b"BT /F1 %.1f Tf 1 0 0 1 %.2f %.2f Tm <%s> Tj ET\n"
+            % (size, x, height - top - 0.8 * size, text.encode("utf-16-be").hex().encode())
+            for x, top, text in runs
+        )
         content = add(stream(ops))
-        kids.append(add(b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 %d] /Resources << /Font << /F1 %d 0 R >> >> "
-                        b"/Contents %d 0 R >>" % (height, font, content)))
+        kids.append(
+            add(
+                b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 %d] /Resources << /Font << /F1 %d 0 R >> >> "
+                b"/Contents %d 0 R >>" % (height, font, content)
+            )
+        )
     objects[1] = b"<< /Type /Pages /Kids [%s] /Count %d >>" % (b" ".join(b"%d 0 R" % k for k in kids), len(kids))
     out, offsets = b"%PDF-1.4\n", []
     for number, body in enumerate(objects, 1):

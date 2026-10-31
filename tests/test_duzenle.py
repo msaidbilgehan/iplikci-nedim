@@ -12,10 +12,19 @@ from iplikci.duzenle import BUSINESS, DUPLICATE, FAILED, KEEP, UNUSED, Item, acc
 from iplikci.models import Account, ParseResult, Statement, Transaction
 
 
-def item(path: Path | None, action: str, target: Path | None = None, data: bytes = b"", archive: Path | None = None) -> Item:
+def item(
+    path: Path | None, action: str, target: Path | None = None, data: bytes = b"", archive: Path | None = None
+) -> Item:
     data = data or (path.read_bytes() if path else b"")
-    return Item(name=path.name if path else "uye.pdf", sha256=hashlib.sha256(data).hexdigest(), path=path,
-                archive=archive, data=data, action=action, target=target)
+    return Item(
+        name=path.name if path else "uye.pdf",
+        sha256=hashlib.sha256(data).hexdigest(),
+        path=path,
+        archive=archive,
+        data=data,
+        action=action,
+        target=target,
+    )
 
 
 def write(path: Path, text: str) -> Path:
@@ -29,7 +38,9 @@ def test_folder_and_file_names():
     assert account_names(card) == ("Garanti Bonus Kredi Kartı 4321", "Garanti Bonus 4321")
     loan = Account("qnb-5678", "QNB İhtiyaç Kredisi …5678", "QNB", "Kredi", number="")
     assert account_names(loan) == ("İhtiyaç Kredisi 5678", "Kredi 5678")
-    salary = Account("vakifbank-1", "Vakıfbank Vadesiz TL …123456 (Maaş)", "Vakıfbank", "Vadesiz hesap", number="0999000000123456")
+    salary = Account(
+        "vakifbank-1", "Vakıfbank Vadesiz TL …123456 (Maaş)", "Vakıfbank", "Vadesiz hesap", number="0999000000123456"
+    )
     assert account_names(salary)[0] == "Vadesiz Hesap TL 0999000000123456 (Maaş)"
 
 
@@ -83,8 +94,9 @@ def test_apply_removes_emptied_folders(tmp_path):
 def test_apply_never_removes_a_named_source_folder(tmp_path):
     downloads = tmp_path / "Downloads"
     old = write(downloads / "ekstreler" / "a.pdf", "a")
-    duzenle.apply([item(old, UNUSED)], tmp_path / "Bankalar", tmp_path / "cop", tmp_path / "kayit.csv",
-                  keep=(downloads,))
+    duzenle.apply(
+        [item(old, UNUSED)], tmp_path / "Bankalar", tmp_path / "cop", tmp_path / "kayit.csv", keep=(downloads,)
+    )
     assert downloads.is_dir() and not (downloads / "ekstreler").exists()
 
 
@@ -108,8 +120,13 @@ def test_changes_leave_out_documents_already_in_place(tmp_path):
     new = write(tmp_path / "gelen" / "b.pdf", "b")
     copy = write(tmp_path / "gelen" / "c.pdf", "a")
     unread = write(root / "bozuk.pdf", "x")
-    plans = [item(placed, KEEP, placed), item(new, KEEP, root / "TEB" / "b.pdf"), item(copy, DUPLICATE),
-             item(unread, FAILED), item(None, UNUSED, data=b"arsiv-uyesi", archive=tmp_path / "x.zip")]
+    plans = [
+        item(placed, KEEP, placed),
+        item(new, KEEP, root / "TEB" / "b.pdf"),
+        item(copy, DUPLICATE),
+        item(unread, FAILED),
+        item(None, UNUSED, data=b"arsiv-uyesi", archive=tmp_path / "x.zip"),
+    ]
     assert [p.path for p in duzenle.changes(plans)] == [new, copy]
 
 
@@ -140,12 +157,21 @@ def test_names_hold_nothing_windows_or_a_path_would_split_on():
 
 def test_every_personal_receipt_is_filed_even_when_a_list_shows_its_transfer(tmp_path, monkeypatch):
     # The receipt came before the list and is the evidence the month closed with: kept beside the list.
-    account = Account("garanti-1234567", "Garanti BBVA Vadesiz TL 1234567", "Garanti BBVA", "Vadesiz hesap",
-                      number="1234567")
-    listing = ParseResult("liste", accounts=[account], statements=[
-        Statement(account.id, date(2026, 10, 31), "TL", "liste.xls", 0.0, 0.0, start=date(2026, 10, 1))])
-    own = ParseResult("dekont", accounts=[account], receipt_key="k1", title="Giden FAST", transactions=[
-        Transaction(date(2026, 10, 5), "Giden FAST → kendi hesabım", 500.0, "transfer", account.id)])
+    account = Account(
+        "garanti-1234567", "Garanti BBVA Vadesiz TL 1234567", "Garanti BBVA", "Vadesiz hesap", number="1234567"
+    )
+    listing = ParseResult(
+        "liste",
+        accounts=[account],
+        statements=[Statement(account.id, date(2026, 10, 31), "TL", "liste.xls", 0.0, 0.0, start=date(2026, 10, 1))],
+    )
+    own = ParseResult(
+        "dekont",
+        accounts=[account],
+        receipt_key="k1",
+        title="Giden FAST",
+        transactions=[Transaction(date(2026, 10, 5), "Giden FAST → kendi hesabım", 500.0, "transfer", account.id)],
+    )
     write(tmp_path / "gelen" / "liste.xls", "liste")
     write(tmp_path / "gelen" / "dekont.pdf", "dekont")
     parsed = {"liste.xls": listing, "dekont.pdf": own}
@@ -153,5 +179,6 @@ def test_every_personal_receipt_is_filed_even_when_a_list_shows_its_transfer(tmp
     root = tmp_path / "Bankalar"
     plans = {it.name: it for it in duzenle.plan([tmp_path / "gelen"], root, None)}
     assert {name: it.action for name, it in plans.items()} == {"liste.xls": KEEP, "dekont.pdf": KEEP}
-    assert plans["dekont.pdf"].target == (root / "Garanti BBVA" / "Vadesiz Hesap TL 1234567"
-                                          / "2026-10-05 Garanti Giden FAST Dekont.pdf")
+    assert plans["dekont.pdf"].target == (
+        root / "Garanti BBVA" / "Vadesiz Hesap TL 1234567" / "2026-10-05 Garanti Giden FAST Dekont.pdf"
+    )

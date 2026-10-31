@@ -28,7 +28,11 @@ class Unreadable(Exception):
 # Marks of company documents: business card and account products, payroll. The user's company names come from
 # the settings (identity.business_names), never from the code.
 _BUSINESS_MARKS = (
-    "SIRKETKREDIKARTI", "GIRISIMCIKREDIKART", "KREDILITICARIMEVDUAT", "UCRETBORDROSU", "AYLIKOZETRAPORU",
+    "SIRKETKREDIKARTI",
+    "GIRISIMCIKREDIKART",
+    "KREDILITICARIMEVDUAT",
+    "UCRETBORDROSU",
+    "AYLIKOZETRAPORU",
 )
 _business_names: tuple[str, ...] = ()
 # Legal forms after a company's name, written in any spelling ("A.Ş.", "ANONİM ŞİRKETİ", "SAN. VE TİC. LTD. ŞTİ."):
@@ -63,8 +67,10 @@ BUSINESS_REASON = "şirket belgesi — kapsam dışı"
 # Bank documents without money movements, named so a summary says what they are (matched on the
 # squashed text of the first page, only once no reader took the document).
 _NOT_STATEMENTS = (
-    (("HAYATSIGORTASI", "SIGORTABASVURU", "KATILIMSERTIFIKA", "SIGORTALARBILGILENDIRME", "POLICE"),
-     "sigorta poliçesi/bilgilendirmesi"),
+    (
+        ("HAYATSIGORTASI", "SIGORTABASVURU", "KATILIMSERTIFIKA", "SIGORTALARBILGILENDIRME", "POLICE"),
+        "sigorta poliçesi/bilgilendirmesi",
+    ),
     (("KREDISIBILGIFORMU", "KREDISISOZLESMESI", "KREDIKULLANIMBEYANI", "KREDISITERCIHFORMU"), "kredi sözleşmesi/formu"),
     (("TALIMATFORMU",), "talimat formu"),
     (("SOZLESMESI",), "sözleşme"),
@@ -90,14 +96,36 @@ def is_business(header: str) -> bool:
 
 
 _FEE_PATTERNS = (
-    "FAIZ", "KKDF", "BSMV", "NAKIT AVANS UCRETI", "ODEME UCRETI", "KART UCRETI",
-    "UYELIK UCRETI", "YILLIK UCRET", "YILLIK UYELIK", "DIJITAL UYELIK", "DIJITALUYELIK",
-    "KART AIDATI", "HESAP ISLETIM", "EFT UCRETI", "HAVALE UCRETI", "LIMIT ASIM", "GECIKME",
-    "ATM KULLANIM", "TAHSILATI UCRETI", "TAHSILAT UCRETI", "SURCHARGE",
+    "FAIZ",
+    "KKDF",
+    "BSMV",
+    "NAKIT AVANS UCRETI",
+    "ODEME UCRETI",
+    "KART UCRETI",
+    "UYELIK UCRETI",
+    "YILLIK UCRET",
+    "YILLIK UYELIK",
+    "DIJITAL UYELIK",
+    "DIJITALUYELIK",
+    "KART AIDATI",
+    "HESAP ISLETIM",
+    "EFT UCRETI",
+    "HAVALE UCRETI",
+    "LIMIT ASIM",
+    "GECIKME",
+    "ATM KULLANIM",
+    "TAHSILATI UCRETI",
+    "TAHSILAT UCRETI",
+    "SURCHARGE",
 )
 _PAYMENT_PATTERNS = (
-    "HESAPTAN AKTARIM", "OTOMATIK TAHSILAT", "ODEME TESEKKUR", "ODEMENIZ ICIN TESEKKUR",
-    "ODEMELERINIZ ICIN", "TAHSILAT", "KREDI KARTI ODEMESI",
+    "HESAPTAN AKTARIM",
+    "OTOMATIK TAHSILAT",
+    "ODEME TESEKKUR",
+    "ODEMENIZ ICIN TESEKKUR",
+    "ODEMELERINIZ ICIN",
+    "TAHSILAT",
+    "KREDI KARTI ODEMESI",
 )
 _CASH_PATTERNS = ("NAKIT AVANS", "KARTTAN AKTARIM", "NAKIT CEKIM", "ATM ")
 # A deferred statement ("ekstre erteleme") is booked as a payment plus the same amount
@@ -131,8 +159,14 @@ def classify_kind(description: str, amount: float) -> str:
 def pair_deferrals(txns: list[Transaction]) -> None:
     """The payment line a deferral books against the old balance is not a real payment either."""
     for deferred in [t for t in txns if t.kind == "transfer" and t.amount > 0]:
-        payment = next((t for t in txns if t.kind == "kart_odemesi" and t.date == deferred.date
-                        and abs(t.amount + deferred.amount) < 0.01), None)
+        payment = next(
+            (
+                t
+                for t in txns
+                if t.kind == "kart_odemesi" and t.date == deferred.date and abs(t.amount + deferred.amount) < 0.01
+            ),
+            None,
+        )
         if payment:
             payment.kind = "transfer"
 
@@ -156,10 +190,16 @@ def split_interest(txn: Transaction) -> list[Transaction]:
     if principal:
         out.append(Transaction(**{**txn.__dict__, "amount": principal, "kind": "kredi_anapara"}))
     if interest:
-        out.append(Transaction(**{
-            **txn.__dict__, "amount": interest, "kind": "faiz_ucret",
-            "description": txn.description + " (faiz ve vergi payı)",
-        }))
+        out.append(
+            Transaction(
+                **{
+                    **txn.__dict__,
+                    "amount": interest,
+                    "kind": "faiz_ucret",
+                    "description": txn.description + " (faiz ve vergi payı)",
+                }
+            )
+        )
     return out
 
 

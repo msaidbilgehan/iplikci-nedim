@@ -18,8 +18,11 @@ def detect(first_page: str) -> bool:
 
 def _account(card_last4: str) -> Account:
     return Account(
-        id=f"isbank-{card_last4}", label=f"İş Bankası Maximum •{card_last4}",
-        bank="İş Bankası", type="Kredi kartı", number=card_last4,
+        id=f"isbank-{card_last4}",
+        label=f"İş Bankası Maximum •{card_last4}",
+        bank="İş Bankası",
+        type="Kredi kartı",
+        number=card_last4,
     )
 
 
@@ -57,7 +60,7 @@ def parse(doc, pdf) -> ParseResult:
         raise ValueError("kart numarası / hesap kesim tarihi bulunamadı")
     last4 = card[2]
     account = _account(last4)
-    currency = (total_m[2] if total_m and total_m[2] else "TL")
+    currency = total_m[2] if total_m and total_m[2] else "TL"
     total = None
     if total_m:
         # A leading '+' marks a credit balance in the bank's favour of the customer.
@@ -67,8 +70,12 @@ def parse(doc, pdf) -> ParseResult:
             total = -total
 
     stmt = Statement(
-        account=account.id, cut_date=parse_dmy(cut[1]), currency=currency,
-        source=doc.name, previous=None, total=total,
+        account=account.id,
+        cut_date=parse_dmy(cut[1]),
+        currency=currency,
+        source=doc.name,
+        previous=None,
+        total=total,
     )
 
     for page in pdf.pages:
@@ -81,7 +88,7 @@ def parse(doc, pdf) -> ParseResult:
         referans = find_word(header, "REFERANS")
         taksit = find_word(header, "TAKSIT")
         last = None  # previous transaction on this page, for wrapped lines
-        for line in lines[h + 1:]:
+        for line in lines[h + 1 :]:
             first_word = line.words[0].text
             if first_word.startswith("***") and "ONCEKI" in line.folded:
                 stmt.previous, _ = _amount(line, tutar.x1)
@@ -100,8 +107,7 @@ def parse(doc, pdf) -> ParseResult:
             rest = m[2] if not m[2].startswith("-") else ""
             desc = _row_description(line, rest, used[0].x0, referans.x1 if referans else None)
             taksit_text = " ".join(
-                w.text for w in line.words if taksit and w.x0 >= taksit.x0 - 25 and w not in used
-                and w.x0 > tutar.x1
+                w.text for w in line.words if taksit and w.x0 >= taksit.x0 - 25 and w not in used and w.x0 > tutar.x1
             )
             date = parse_dmy(m[1])
             f = fold(desc)
@@ -110,8 +116,13 @@ def parse(doc, pdf) -> ParseResult:
             else:
                 kind = classify_kind(desc, amount)
             last = Transaction(
-                date=date, description=desc, amount=amount, kind=kind, account=account.id,
-                installment=installment_label(taksit_text), source=doc.name,
+                date=date,
+                description=desc,
+                amount=amount,
+                kind=kind,
+                account=account.id,
+                installment=installment_label(taksit_text),
+                source=doc.name,
             )
             stmt.transactions.append(last)
 

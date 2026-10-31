@@ -35,17 +35,20 @@ def test_check_balances_newest_first():
     assert check_balances(rows, oldest_first=False) == (1, 2)
 
 
-@pytest.mark.parametrize("desc, amount, label, currency, kind", [
-    ("FAST Ücreti", -7.97, "", "TL", "faiz_ucret"),
-    ("Elektronik Fon Transferi (EFT) Ücreti", -12.5, "", "TL", "faiz_ucret"),
-    ("MAAŞ ÖDEMESİ ÖRNEK A.Ş.", 100000.0, "", "TL", "gelir"),
-    ("KRE.KART BORC ODEME 2468", -5000.0, "", "TL", "kart_odemesi"),
-    ("DÖVİZ ALIŞ EUR", -10000.0, "", "TL", "transfer"),  # currency bought into an own account
-    ("DÖVİZ ALIŞ EUR", 200.0, "", "EUR", None),  # its EUR side is dropped
-    ("BAKİYE YETERSİZ", 0.0, "", "TL", None),
-    ("İGDAŞ", -118.0, "Fatura", "TL", "harcama"),
-    ("Veli Örneksoy", -15000.0, "FAST", "TL", CANDIDATE),  # decided later, with all accounts known
-])
+@pytest.mark.parametrize(
+    "desc, amount, label, currency, kind",
+    [
+        ("FAST Ücreti", -7.97, "", "TL", "faiz_ucret"),
+        ("Elektronik Fon Transferi (EFT) Ücreti", -12.5, "", "TL", "faiz_ucret"),
+        ("MAAŞ ÖDEMESİ ÖRNEK A.Ş.", 100000.0, "", "TL", "gelir"),
+        ("KRE.KART BORC ODEME 2468", -5000.0, "", "TL", "kart_odemesi"),
+        ("DÖVİZ ALIŞ EUR", -10000.0, "", "TL", "transfer"),  # currency bought into an own account
+        ("DÖVİZ ALIŞ EUR", 200.0, "", "EUR", None),  # its EUR side is dropped
+        ("BAKİYE YETERSİZ", 0.0, "", "TL", None),
+        ("İGDAŞ", -118.0, "Fatura", "TL", "harcama"),
+        ("Veli Örneksoy", -15000.0, "FAST", "TL", CANDIDATE),  # decided later, with all accounts known
+    ],
+)
 def test_classify(desc, amount, label, currency, kind):
     assert classify(move(desc, amount, label=label), currency) == kind
 
@@ -57,15 +60,22 @@ def test_counterparty_from_transfer_text():
 
 
 def _teb_html(holder: str, rows: list[tuple]) -> bytes:
-    info = [("Şube", "999-DENEME"), ("Hesap", "111222333"), ("IBAN", "TR000003200000000111222333"),
-            ("Hesap Türü", "Vadesiz TL"), ("Hesap Sahibi", holder), ("Bakiye", "0,00")]
+    info = [
+        ("Şube", "999-DENEME"),
+        ("Hesap", "111222333"),
+        ("IBAN", "TR000003200000000111222333"),
+        ("Hesap Türü", "Vadesiz TL"),
+        ("Hesap Sahibi", holder),
+        ("Bakiye", "0,00"),
+    ]
     head = "".join(f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in info)
     body = "".join("<tr>" + "".join(f"<td>{c}</td>" for c in r) + "</tr>" for r in rows)
     return (
         "<html><body><table><tr><td></td><td>Hesap Hareketlerim</td></tr>" + head + "</table>"
         '<div class="prompt"> 01/01/2026 - 31/01/2026 tarihleri arasındaki işlemleriniz aşağıdadır.</div>'
         "<table><tr><td>Tarih</td><td>Valör</td><td>Saat</td><td>Açıklama</td><td>Tutar</td><td>Bakiye</td><td>Dekont</td></tr>"
-        + body + "</table></body></html>"
+        + body
+        + "</table></body></html>"
     ).encode("utf-8")
 
 

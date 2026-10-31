@@ -30,7 +30,7 @@ def _rows(lines: list[Line], holder: str) -> list[tuple[int, Movement]]:
         return []
     amount_edge, balance_edge = find_word(lines[h], "TUTAR").x1, find_word(lines[h], "KALAN").x1
     rows = []
-    for line in lines[h + 1:]:
+    for line in lines[h + 1 :]:
         words = line.words
         if len(words) < 3 or not words[0].text.isdigit() or not _ROW.match(words[1].text):
             continue
@@ -41,8 +41,9 @@ def _rows(lines: list[Line], holder: str) -> list[tuple[int, Movement]]:
         desc = " ".join(w.text for w in words[2:] if w.x1 <= used[0].x0)
         # "HESAP AÇMA İŞLEMİ 1234:0123456 -> 1234:0765432": money moved between the holder's own accounts.
         own = "->" in desc or "HESAP ACMA" in fold(desc)
-        rows.append((int(words[0].text), Movement(parse_dmy(words[1].text), desc, amount, balance, "",
-                                                  holder if own else "")))
+        rows.append(
+            (int(words[0].text), Movement(parse_dmy(words[1].text), desc, amount, balance, "", holder if own else ""))
+        )
     return rows
 
 
@@ -65,6 +66,7 @@ def parse(doc, pdf) -> ParseResult:
         raise Skipped("e-cüzdanda hareket yok")
     start = min(opened or moves[0].date, moves[0].date)
     # A passbook that starts on the opening day starts from zero, so its first row is checked too.
-    stmt = build_statement(doc, account, moves, start, moves[-1].date, oldest_first=True,
-                           opening=0.0 if opened == moves[0].date else None)
+    stmt = build_statement(
+        doc, account, moves, start, moves[-1].date, oldest_first=True, opening=0.0 if opened == moves[0].date else None
+    )
     return ParseResult(parser=NAME, accounts=[account], statements=[stmt], holder=holder)

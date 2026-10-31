@@ -1,12 +1,12 @@
 """Command line entry points.
 
-    iplikci [KAYNAK ...]            rapor üret
-    iplikci aysonu [AY] [--ac]      ay sonu raporları: hangi ay kapandı, hangisi neyi bekliyor
-    iplikci duzenle [KAYNAK ...]    belgeleri klasörle (önce yalnızca plan gösterir)
-    iplikci panel [--ac]            raporu ve belge ekleme yerini yerel web panelinde aç
-    iplikci eposta [--kur]          bankaların e-postayla gönderdiği belgeleri gelen kutusuna al
-    iplikci otomatik [--kur]        e-postayı al, gelen kutusunu yerleştir (--kur: kendiliğinden)
-    iplikci mcp                     Claude için MCP sunucusu (istemci başlatır)
+iplikci [KAYNAK ...]            rapor üret
+iplikci aysonu [AY] [--ac]      ay sonu raporları: hangi ay kapandı, hangisi neyi bekliyor
+iplikci duzenle [KAYNAK ...]    belgeleri klasörle (önce yalnızca plan gösterir)
+iplikci panel [--ac]            raporu ve belge ekleme yerini yerel web panelinde aç
+iplikci eposta [--kur]          bankaların e-postayla gönderdiği belgeleri gelen kutusuna al
+iplikci otomatik [--kur]        e-postayı al, gelen kutusunu yerleştir (--kur: kendiliğinden)
+iplikci mcp                     Claude için MCP sunucusu (istemci başlatır)
 """
 
 import argparse
@@ -95,8 +95,14 @@ def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     # pdfminer warns about harmless font metadata in some bank PDFs.
     logging.getLogger("pdfminer").setLevel(logging.ERROR)
-    commands = {"duzenle": organize, "panel": panel_command, "eposta": mail_command, "otomatik": automatic,
-                "mcp": mcp_command, "aysonu": month_end_command}
+    commands = {
+        "duzenle": organize,
+        "panel": panel_command,
+        "eposta": mail_command,
+        "otomatik": automatic,
+        "mcp": mcp_command,
+        "aysonu": month_end_command,
+    }
     if argv[:1] and argv[0] in commands:
         return commands[argv[0]](argv[1:])
     return report(argv)
@@ -106,9 +112,11 @@ def report(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
         prog="iplikci",
         description="Banka ekstrelerini ve hesap hareketlerini (PDF/HTML/XLS, mbox, klasör veya zip) okuyup "
-                    "gider, gelir, gereklilik ve tahmin raporu üretir. Belgeleri klasörlemek için: iplikci duzenle",
+        "gider, gelir, gereklilik ve tahmin raporu üretir. Belgeleri klasörlemek için: iplikci duzenle",
     )
-    parser.add_argument("kaynak", nargs="*", help="mbox dosyası, klasör, zip ya da tek belge (varsayılan: ayarlar.toml)")
+    parser.add_argument(
+        "kaynak", nargs="*", help="mbox dosyası, klasör, zip ya da tek belge (varsayılan: ayarlar.toml)"
+    )
     parser.add_argument("-o", "--cikti", help="çıktı klasörü (varsayılan: cikti)")
     parser.add_argument("-k", "--kurallar", help="kategori kuralları (varsayılan: kategoriler.yaml)")
     parser.add_argument("--ac", action="store_true", help="raporu tarayıcıda aç")
@@ -135,8 +143,10 @@ def report(argv: list[str]) -> int:
     _summary(ds, stats)
     _interpretation(ins)
     _closing(months[-3:])
-    print(f"\nRapor : {outputs.html}\nCSV   : {outputs.csv}\nExcel : {outputs.xlsx}\n"
-          f"Ay sonu: {outputs.month_end / month_end.INDEX}")
+    print(
+        f"\nRapor : {outputs.html}\nCSV   : {outputs.csv}\nExcel : {outputs.xlsx}\n"
+        f"Ay sonu: {outputs.month_end / month_end.INDEX}"
+    )
     if args.ac:
         webbrowser.open(outputs.html.resolve().as_uri())
     return 0
@@ -154,8 +164,8 @@ def month_end_command(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
         prog="iplikci aysonu",
         description="Ay sonu raporlarını üretir (cikti/ay-sonu/) ve her ayın ekstrelerle kapanıp kapanmadığını "
-                    "yazar: hangi hesabın hangi ekstresi ya da dökümü bekleniyor, dekontlar eşleşti mi. Ay verilirse "
-                    "o ayın ayrıntısını gösterir.",
+        "yazar: hangi hesabın hangi ekstresi ya da dökümü bekleniyor, dekontlar eşleşti mi. Ay verilirse "
+        "o ayın ayrıntısını gösterir.",
     )
     parser.add_argument("ay", nargs="?", help="YYYY-AA (varsayılan: son aylar)")
     parser.add_argument("--ac", action="store_true", help="raporu tarayıcıda aç")
@@ -191,9 +201,11 @@ def month_end_command(argv: list[str]) -> int:
 def _month_detail(me: month_end.MonthEnd, ds: Dataset) -> None:
     t = me.totals
     print(f"{me.name} — {me.label}\n{me.summary}\n")
-    print(f"Gider {tl(t.expense)} · gelir {tl(t.income) if t.income is not None else 'bilinmiyor'} · kişilere "
-          f"{tl(t.people)} · borç {tl(t.debt)} · birikim {tl(t.saving)}"
-          + (f" · kalan {tl(t.left)}" if t.left is not None else ""))
+    print(
+        f"Gider {tl(t.expense)} · gelir {tl(t.income) if t.income is not None else 'bilinmiyor'} · kişilere "
+        f"{tl(t.people)} · borç {tl(t.debt)} · birikim {tl(t.saving)}"
+        + (f" · kalan {tl(t.left)}" if t.left is not None else "")
+    )
     print("\nHesaplar:")
     for a in me.accounts:
         print(f"  {month_end.ACCOUNT_STATUS[a.status]:13} {a.account.label}: {a.note}")
@@ -204,17 +216,21 @@ def _month_detail(me: month_end.MonthEnd, ds: Dataset) -> None:
     if me.unmatched:
         print(f"\nEkstrede görünmeyen dekontlar ({len(me.unmatched)}):")
         for line in me.unmatched:
-            print(f"  {line.txn.date:%d.%m.%Y} {ds.accounts[line.txn.account].label}: {line.txn.description} "
-                  f"{receipt_amount(ds, line)}")
+            print(
+                f"  {line.txn.date:%d.%m.%Y} {ds.accounts[line.txn.account].label}: {line.txn.description} "
+                f"{receipt_amount(ds, line)}"
+            )
 
 
 def _summary(ds, stats) -> None:
     status = Counter(d.status for d in ds.documents)
     cards = [s for s in ds.statements if not s.is_account]
     accounts = [s for s in ds.statements if s.is_account]
-    print(f"{stats['documents']} benzersiz belge ({stats['duplicates']} kopya atlandı): "
-          f"{len(cards)} kart ekstresi, {len(accounts)} hesap dökümü, {status['dekont']} dekont, "
-          f"{status['is']} şirket belgesi, {status['atlandi']} atlandı, {status['hata']} hata")
+    print(
+        f"{stats['documents']} benzersiz belge ({stats['duplicates']} kopya atlandı): "
+        f"{len(cards)} kart ekstresi, {len(accounts)} hesap dökümü, {status['dekont']} dekont, "
+        f"{status['is']} şirket belgesi, {status['atlandi']} atlandı, {status['hata']} hata"
+    )
     print(f"Kart ekstreleri: {sum(s.verified for s in cards)}/{len(cards)} bankanın toplamıyla tutarlı")
     print(f"Hesap dökümleri: {sum(s.verified for s in accounts)}/{len(accounts)} satır satır bakiyeyle tutarlı")
     for s in ds.statements:
@@ -254,10 +270,12 @@ def organize(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
         prog="iplikci duzenle",
         description="Kişisel ekstre ve hesap dökümlerini <hedef>/<Banka>/<Hesap>/ altına anlaşılır adlarla taşır; "
-                    "şirket belgelerini, kopyaları ve kullanılmayan belgeleri çöp kutusuna taşır. "
-                    "--uygula verilmezse hiçbir dosyaya dokunmaz, yalnızca planı gösterir.",
+        "şirket belgelerini, kopyaları ve kullanılmayan belgeleri çöp kutusuna taşır. "
+        "--uygula verilmezse hiçbir dosyaya dokunmaz, yalnızca planı gösterir.",
     )
-    parser.add_argument("kaynak", nargs="*", help="taranacak klasör, mbox, zip veya belgeler (varsayılan: ayarlar.toml)")
+    parser.add_argument(
+        "kaynak", nargs="*", help="taranacak klasör, mbox, zip veya belgeler (varsayılan: ayarlar.toml)"
+    )
     parser.add_argument("--hedef", help="düzenlenmiş belgelerin klasörü (varsayılan: ayarlar.toml 'belge_klasoru')")
     parser.add_argument("--cop", help="silinenlerin taşınacağı klasör (varsayılan: sistemin çöp kutusu)")
     parser.add_argument("--uygula", action="store_true", help="planı uygula (dosyaları taşı)")
@@ -303,7 +321,7 @@ def panel_command(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
         prog="iplikci panel",
         description="Raporu ve yeni belge ekleme yerini (tek dosya, çok dosya ya da klasör) yerel bir web panelinde "
-                    "açar. Yalnızca bu bilgisayardan erişilir (127.0.0.1); internete hiçbir şey gönderilmez.",
+        "açar. Yalnızca bu bilgisayardan erişilir (127.0.0.1); internete hiçbir şey gönderilmez.",
     )
     parser.add_argument("--port", type=int, help=f"port (varsayılan: ayarlar.toml 'panel_portu' ya da {DEFAULT_PORT})")
     parser.add_argument("--ac", action="store_true", help="paneli tarayıcıda aç")
@@ -317,12 +335,15 @@ def automatic(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
         prog="iplikci otomatik",
         description="E-posta kuruluysa bankaların yeni e-postalarını alır, gelen kutusundaki belgeleri plan "
-                    "göstermeden yerleştirir, raporu yeniden üretir ve bildirim gösterir. --kur ile kendiliğinden "
-                    "çalışır: gelen kutusuna belge düştükçe (macOS, Linux) ve saatte bir.",
+        "göstermeden yerleştirir, raporu yeniden üretir ve bildirim gösterir. --kur ile kendiliğinden "
+        "çalışır: gelen kutusuna belge düştükçe (macOS, Linux) ve saatte bir.",
     )
     which = parser.add_mutually_exclusive_group()
-    which.add_argument("--kur", action="store_true",
-                       help="arka plan görevini kur (macOS: launchd, Linux: systemd, Windows: Görev Zamanlayıcı)")
+    which.add_argument(
+        "--kur",
+        action="store_true",
+        help="arka plan görevini kur (macOS: launchd, Linux: systemd, Windows: Görev Zamanlayıcı)",
+    )
     which.add_argument("--kaldir", action="store_true", help="arka plan görevini kaldır")
     which.add_argument("--durum", action="store_true", help="arka plan görevinin durumunu göster")
     parser.add_argument("--kayit", help=argparse.SUPPRESS)  # the Windows task writes its own log
@@ -337,8 +358,10 @@ def automatic(argv: list[str]) -> int:
         except (OSError, RuntimeError) as exc:
             print(f"Kurulamadı: {exc}", file=sys.stderr)
             return 1
-        print(f"Kuruldu: {where}\nİzlenen klasör: {ws.inbox}\nKayıt: {ws.output / automation.LOG_NAME}\n"
-              "Kaldırmak için: uv run iplikci otomatik --kaldir")
+        print(
+            f"Kuruldu: {where}\nİzlenen klasör: {ws.inbox}\nKayıt: {ws.output / automation.LOG_NAME}\n"
+            "Kaldırmak için: uv run iplikci otomatik --kaldir"
+        )
         return 0
     if args.kaldir:
         print("Kaldırıldı." if automation.uninstall() else "Kurulu bir arka plan görevi yok.")
@@ -365,17 +388,21 @@ def mail_command(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
         prog="iplikci eposta",
         description="Bankaların e-postayla gönderdiği ekstreleri, hesap dökümlerini ve dekontları IMAP ile (Gmail) "
-                    "alır; yenilerini gelen kutusuna kopyalar. E-posta kutusu salt okunur açılır: orada hiçbir şey "
-                    "değişmez. Yalnızca ayarlar.toml [eposta] gondericiler alan adlarından gelen ve sunucunun "
-                    "göndereni doğruladığı e-postalar alınır.",
+        "alır; yenilerini gelen kutusuna kopyalar. E-posta kutusu salt okunur açılır: orada hiçbir şey "
+        "değişmez. Yalnızca ayarlar.toml [eposta] gondericiler alan adlarından gelen ve sunucunun "
+        "göndereni doğruladığı e-postalar alınır.",
     )
     which = parser.add_mutually_exclusive_group()
     which.add_argument("--kur", action="store_true", help="e-posta hesabını kur (adres ve uygulama şifresi sorulur)")
     which.add_argument("--durum", action="store_true", help="kurulu hesabı ve son alımı göster")
     which.add_argument("--kaldir", action="store_true", help="hesabı ve şifresini unut")
     parser.add_argument("--adres", help="--kur için e-posta adresi (verilmezse sorulur)")
-    parser.add_argument("--baslangic", type=_day, metavar="YYYY-AA-GG",
-                        help="bu günden sonra gelen e-postalar (değiştirilirse kutu o günden yeniden okunur)")
+    parser.add_argument(
+        "--baslangic",
+        type=_day,
+        metavar="YYYY-AA-GG",
+        help="bu günden sonra gelen e-postalar (değiştirilirse kutu o günden yeniden okunur)",
+    )
     args = parser.parse_args(argv)
     ws = _workspace(parser)
     if args.kur:
@@ -415,8 +442,10 @@ def mail_command(argv: list[str]) -> int:
         print(f"E-posta alınamadı: {exc}", file=sys.stderr)
         return 1
     if copied:
-        print(f"\nBelgeler {ws.inbox} klasöründe bekliyor. Yerleştirmek için panelde Belge ekle'yi açın ya da: "
-              "uv run iplikci duzenle --uygula")
+        print(
+            f"\nBelgeler {ws.inbox} klasöründe bekliyor. Yerleştirmek için panelde Belge ekle'yi açın ya da: "
+            "uv run iplikci duzenle --uygula"
+        )
     return 0
 
 
@@ -452,11 +481,15 @@ def _mail_setup(ws: Workspace, args: argparse.Namespace) -> int:
     if stored:
         print("Şifre bu bilgisayarın anahtar zincirinde saklandı.")
     else:
-        print(f"Bu sistemde kullanılabilir bir anahtar zinciri yok: şifreyi {email_fetch.PASSWORD_ENV} ortam "
-              "değişkeniyle verin (arka plan görevi için de).")
-    print(f"Kuruldu: {acc.address}, {acc.start:%d.%m.%Y} sonrası, {len(acc.senders)} banka alan adı.\n"
-          "E-postaları şimdi almak için: uv run iplikci eposta\n"
-          "Arka plan görevi kuruluysa (otomatik --kur) yeni e-postalar saatte bir kendiliğinden alınır.")
+        print(
+            f"Bu sistemde kullanılabilir bir anahtar zinciri yok: şifreyi {email_fetch.PASSWORD_ENV} ortam "
+            "değişkeniyle verin (arka plan görevi için de)."
+        )
+    print(
+        f"Kuruldu: {acc.address}, {acc.start:%d.%m.%Y} sonrası, {len(acc.senders)} banka alan adı.\n"
+        "E-postaları şimdi almak için: uv run iplikci eposta\n"
+        "Arka plan görevi kuruluysa (otomatik --kur) yeni e-postalar saatte bir kendiliğinden alınır."
+    )
     return 0
 
 
@@ -465,11 +498,11 @@ def mcp_command(argv: list[str]) -> int:
 
     parser = argparse.ArgumentParser(
         prog="iplikci mcp",
-        description="Claude için MCP sunucusu (stdio). MCP istemcisi (Claude Code, Claude Desktop) "
-                    "kendisi başlatır.",
+        description="Claude için MCP sunucusu (stdio). MCP istemcisi (Claude Code, Claude Desktop) kendisi başlatır.",
     )
-    parser.add_argument("--klasor",
-                        help="ayarlar.toml dosyasının klasörü (varsayılan: IPLIKCI_HOME, yoksa çalışma klasörü)")
+    parser.add_argument(
+        "--klasor", help="ayarlar.toml dosyasının klasörü (varsayılan: IPLIKCI_HOME, yoksa çalışma klasörü)"
+    )
     args = parser.parse_args(argv)
     return mcp_server.serve(_workspace(parser, Path(args.klasor) if args.klasor else None))
 
@@ -477,11 +510,13 @@ def mcp_command(argv: list[str]) -> int:
 def _print_plan(plans: list, root: Path) -> None:
     by_action = Counter(p.action for p in plans)
     print("Plan: " + ", ".join(f"{duzenle.ACTION_LABELS[k]}: {v}" for k, v in sorted(by_action.items())))
-    tree = Counter(p.target.parent.relative_to(root) for p in plans if p.target is not None and p.action == duzenle.KEEP)
+    tree = Counter(
+        p.target.parent.relative_to(root) for p in plans if p.target is not None and p.action == duzenle.KEEP
+    )
     print(f"\n{root}/")
     for folder, n in sorted(tree.items(), key=lambda kv: str(kv[0])):
         print(f"  {folder}/  ({n} belge)")
-    reasons = Counter((p.action, p.reason.split(':')[0]) for p in plans if p.action != duzenle.KEEP)
+    reasons = Counter((p.action, p.reason.split(":")[0]) for p in plans if p.action != duzenle.KEEP)
     if reasons:
         print("\nTaşınmayan / silinecek belgeler:")
         for (action, reason), n in sorted(reasons.items()):
@@ -492,6 +527,8 @@ def _write_plan(plans: list, path: Path) -> None:
     with path.open("w", encoding="utf-8-sig", newline="") as f:
         w = csv.writer(f, delimiter=";")
         w.writerow(["İşlem", "Eski konum", "Yeni konum", "Neden"])
-        rows = [[duzenle.ACTION_LABELS[p.action], str(p.path or f"{p.archive} › {p.name}"), str(p.target or ""), p.reason]
-                for p in plans]
+        rows = [
+            [duzenle.ACTION_LABELS[p.action], str(p.path or f"{p.archive} › {p.name}"), str(p.target or ""), p.reason]
+            for p in plans
+        ]
         w.writerows(sorted(rows))

@@ -55,8 +55,12 @@ def parse_card(doc, pdf) -> ParseResult:
     last4 = card[1]
     account = Account(id=f"qnb-{last4}", label=f"QNB Mastercard •{last4}", bank="QNB", type="Kredi kartı", number=last4)
     stmt = Statement(
-        account=account.id, cut_date=parse_dmy(cut[1]), currency="TL", source=doc.name,
-        previous=_us(previous), total=_us(total),
+        account=account.id,
+        cut_date=parse_dmy(cut[1]),
+        currency="TL",
+        source=doc.name,
+        previous=_us(previous),
+        total=_us(total),
     )
     for line in text.splitlines():
         m = re.match(r"^(\d{2}/\d{2}/\d{4})\s+(.+?)\s+(" + _US + r")$", line.strip())
@@ -64,10 +68,16 @@ def parse_card(doc, pdf) -> ParseResult:
             continue
         desc, amount = _repair(m[2]), parse_us_amount(m[3].lstrip("-"))
         amount = -amount if m[3].startswith("-") else amount
-        stmt.transactions.append(Transaction(
-            date=parse_dmy(m[1]), description=desc, amount=amount, kind=classify_kind(desc, amount),
-            account=account.id, source=doc.name,
-        ))
+        stmt.transactions.append(
+            Transaction(
+                date=parse_dmy(m[1]),
+                description=desc,
+                amount=amount,
+                kind=classify_kind(desc, amount),
+                account=account.id,
+                source=doc.name,
+            )
+        )
     holder = re.search(r"Sn\.\s*([A-ZÇĞİÖŞÜa-zçğıöşü. ]+?)(?:\s{2,}|\n|$)", text)
     return ParseResult(parser=NAME, accounts=[account], statements=[stmt], holder=holder[1] if holder else "")
 
@@ -105,8 +115,11 @@ def parse_account(doc, pdf) -> ParseResult:
     number = re.sub(r"\D", "", iban[1])[-16:].lstrip("0")
     overdraft = name and "EK HESAP" in fold(name[1])
     account = Account(
-        id=f"qnb-{number}", label=f"QNB {'Ek Hesap' if overdraft else 'Vadesiz TL'} {number}", bank="QNB",
-        type="Ek hesap (KMH)" if overdraft else "Vadesiz hesap", number=number,
+        id=f"qnb-{number}",
+        label=f"QNB {'Ek Hesap' if overdraft else 'Vadesiz TL'} {number}",
+        bank="QNB",
+        type="Ek hesap (KMH)" if overdraft else "Vadesiz hesap",
+        number=number,
     )
     moves: list[Movement] = []
     head = ""
@@ -116,9 +129,16 @@ def parse_account(doc, pdf) -> ParseResult:
         m = re.match(r"^(\d{2}/\d{2}/\d{4})\s+(\S+)\s*(.*?)\s*(" + _US + r")\s+(" + _US + r")$", line)
         if m:
             desc = m[3] or head
-            moves.append(Movement(
-                parse_dmy(m[1]), desc, _us_signed(m[4]), _us_signed(m[5]), m[2], _counterparty(head) if not m[3] else "",
-            ))
+            moves.append(
+                Movement(
+                    parse_dmy(m[1]),
+                    desc,
+                    _us_signed(m[4]),
+                    _us_signed(m[5]),
+                    m[2],
+                    _counterparty(head) if not m[3] else "",
+                )
+            )
             last_from_head, head = not m[3] and bool(head), ""
         elif _HEAD.match(line):
             head = line
@@ -127,7 +147,12 @@ def parse_account(doc, pdf) -> ParseResult:
         else:
             last_from_head = False
     stmt = build_statement(
-        doc, account, moves, parse_dmy(period[1]), parse_dmy(period[2]), oldest_first=True,
+        doc,
+        account,
+        moves,
+        parse_dmy(period[1]),
+        parse_dmy(period[2]),
+        oldest_first=True,
         opening=_us_signed(opening[1]) if opening else None,
     )
     return ParseResult(parser=NAME, accounts=[account], statements=[stmt], holder=iban[2].strip())

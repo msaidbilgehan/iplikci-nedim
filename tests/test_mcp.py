@@ -73,9 +73,10 @@ def test_status_and_transactions(server):
 
 
 def test_import_then_apply_files_a_copy(server, ws, tmp_path):
-    original = put(tmp_path / "Downloads" / "subat.xls",
-                   teb_export([("10/02/2026", "MARKET ALISVERIS", "-80,00", "800,00")],
-                              period="01/02/2026 - 28/02/2026"))
+    original = put(
+        tmp_path / "Downloads" / "subat.xls",
+        teb_export([("10/02/2026", "MARKET ALISVERIS", "-80,00", "800,00")], period="01/02/2026 - 28/02/2026"),
+    )
     imported, failed = call(server, "import_documents", paths=[str(original.parent)])
     assert not failed and imported["copied"] == ["subat.xls"] and imported["plan"]["changes"] == 1
     done, failed = call(server, "apply_inbox", plan_id=imported["plan"]["plan_id"])

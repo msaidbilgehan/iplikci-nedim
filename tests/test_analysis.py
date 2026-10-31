@@ -9,19 +9,40 @@ def txn(d, desc, amount, kind="harcama", account="isbank-4321"):
 
 
 def test_statement_check():
-    s = Statement(account="a", cut_date=date(2024, 10, 7), currency="TL", source="x", previous=100.0, total=150.0,
-                  transactions=[txn(date(2024, 9, 10), "A", 70.0), txn(date(2024, 9, 11), "ODEME", -20.0)])
+    s = Statement(
+        account="a",
+        cut_date=date(2024, 10, 7),
+        currency="TL",
+        source="x",
+        previous=100.0,
+        total=150.0,
+        transactions=[txn(date(2024, 9, 10), "A", 70.0), txn(date(2024, 9, 11), "ODEME", -20.0)],
+    )
     assert s.verified and s.difference == 0
     s.total = 151.0
     assert not s.verified and s.difference == -1.0
 
 
 def test_foreign_currency_line_takes_merchant_names():
-    usd = Statement(account="isbank-4321", cut_date=date(2024, 12, 15), currency="USD", source="usd.pdf",
-                    previous=0, total=20.0, transactions=[txn(date(2024, 12, 9), "OPENAI *CHATGPT SUBSCR HTTPSOPENAI.C CA US", 20.0)])
+    usd = Statement(
+        account="isbank-4321",
+        cut_date=date(2024, 12, 15),
+        currency="USD",
+        source="usd.pdf",
+        previous=0,
+        total=20.0,
+        transactions=[txn(date(2024, 12, 9), "OPENAI *CHATGPT SUBSCR HTTPSOPENAI.C CA US", 20.0)],
+    )
     line = txn(date(2024, 12, 15), "15/12/2024 EKSTRENIZDEKI USD/EUR BORCUNUZUN TL", 700.0)
-    tl = Statement(account="isbank-4321", cut_date=date(2025, 1, 15), currency="TL", source="tl.pdf",
-                   previous=0, total=700.0, transactions=[line])
+    tl = Statement(
+        account="isbank-4321",
+        cut_date=date(2025, 1, 15),
+        currency="TL",
+        source="tl.pdf",
+        previous=0,
+        total=700.0,
+        transactions=[line],
+    )
     _link_foreign_currency([tl, usd])
     assert line.description.startswith("Yurt dışı harcama: OPENAI *CHATGPT")
     assert line.original == "20,00 USD"
@@ -31,8 +52,10 @@ def test_foreign_currency_line_takes_merchant_names():
 def _statements(*balances):
     """Card statements cut on the 7th of Feb, Mar and May 2024 with (previous, total) balances."""
     cuts = (date(2024, 2, 7), date(2024, 3, 7), date(2024, 5, 7))
-    return [Statement(account="a", cut_date=d, currency="TL", source="", previous=p, total=t)
-            for d, (p, t) in zip(cuts, balances)]
+    return [
+        Statement(account="a", cut_date=d, currency="TL", source="", previous=p, total=t)
+        for d, (p, t) in zip(cuts, balances)
+    ]
 
 
 def test_coverage_marks_missing_months():

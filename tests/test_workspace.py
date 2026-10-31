@@ -40,11 +40,14 @@ def test_documents_of_the_companies_in_the_settings_stay_out_of_scope(tmp_path):
     assert statuses["kisisel.xls"] is None
 
 
-@pytest.mark.parametrize("extra", [
-    '[identity]\nbusiness_names = "Örnek Teknoloji"\n',  # a name, not a list of names
-    "[identity]\nbusiness_names = [1, 2]\n",
-    'identity = "Örnek Teknoloji"\n',
-])
+@pytest.mark.parametrize(
+    "extra",
+    [
+        '[identity]\nbusiness_names = "Örnek Teknoloji"\n',  # a name, not a list of names
+        "[identity]\nbusiness_names = [1, 2]\n",
+        'identity = "Örnek Teknoloji"\n',
+    ],
+)
 def test_company_names_of_the_wrong_shape_are_an_error(tmp_path, extra):
     settings(tmp_path, extra)
     with pytest.raises(ValueError, match="business_names"):

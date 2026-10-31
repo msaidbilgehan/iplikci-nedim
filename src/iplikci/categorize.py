@@ -29,6 +29,7 @@ def group_slot(groups: list[str], group: str) -> int:
     i = groups.index(group) if group in groups else len(groups)
     return i + 1 if i < MAX_COLORED_GROUPS and group != OTHER_GROUP else 0
 
+
 # Kinds that are not purchases get a fixed category in the finance group.
 KIND_CATEGORY = {
     "kredi_anapara": "Kredi & Borç Anapara",
@@ -103,7 +104,9 @@ def _ended(entries: dict) -> dict[str, str]:
     for merchant, when in entries.items():
         month = str(when)[:7]
         if not _MONTH.fullmatch(month):
-            raise ValueError(f"kategoriler.yaml: _biten altında '{merchant}' için ay YYYY-AA biçiminde olmalı (ör. 2026-10)")
+            raise ValueError(
+                f"kategoriler.yaml: _biten altında '{merchant}' için ay YYYY-AA biçiminde olmalı (ör. 2026-10)"
+            )
         out[fold(str(merchant))] = month
     return out
 
@@ -158,7 +161,9 @@ class Categorizer:
                     target = {_GENERIC: self.generic, _WEAK: self.weak}.get(fold(merchant), self.named)
                     for p in patterns or []:
                         regex, squashed = _compile(p)
-                        target.append(Rule(group, category, "" if target is not self.named else merchant, regex, squashed))
+                        target.append(
+                            Rule(group, category, "" if target is not self.named else merchant, regex, squashed)
+                        )
         for group in (FINANCE_GROUP, OTHER_GROUP):
             if group not in self.groups:
                 self.groups.append(group)
@@ -207,7 +212,9 @@ class Categorizer:
         if txn.kind == "faiz_ucret":
             rule = self.match(txn.description, weak=False)
             txn.category = _fee_category(txn, account)
-            txn.merchant = rule.merchant if rule and rule.merchant else f"{bank} faiz & ücretleri" if bank else "Faiz & ücretler"
+            txn.merchant = (
+                rule.merchant if rule and rule.merchant else f"{bank} faiz & ücretleri" if bank else "Faiz & ücretler"
+            )
         elif txn.kind == "transfer":
             f = fold(txn.description)
             txn.category = FX_CATEGORY if any(p in f for p in ("DOVIZ", "DVZ", "ALTIN")) else KIND_CATEGORY["transfer"]
@@ -220,7 +227,9 @@ class Categorizer:
         elif txn.kind == "gelir":
             rule = self.match(f"{txn.description} {txn.counterparty}", weak=False)
             txn.category = rule.category if rule else OTHER_INCOME
-            txn.merchant = (rule.merchant if rule and rule.merchant else "") or display_name(txn.counterparty or txn.description)
+            txn.merchant = (rule.merchant if rule and rule.merchant else "") or display_name(
+                txn.counterparty or txn.description
+            )
         elif txn.kind == "kisiye_transfer":
             txn.category, txn.merchant = TO_PEOPLE, display_name(txn.counterparty or txn.description)
         else:
@@ -263,10 +272,15 @@ def _fee_category(txn: Transaction, account: Account | None) -> str:
     f = fold(txn.description)
     kind = account.type if account else ""
     card = kind in ("Kredi kartı", "Banka kartı")
-    if card and any(p in f for p in ("YILLIK", "UYELIK", "AIDAT", "NAKIT AVANS UCRETI", "KART UCRETI", "ODEME UCRETI", "ATM")):
+    if card and any(
+        p in f for p in ("YILLIK", "UYELIK", "AIDAT", "NAKIT AVANS UCRETI", "KART UCRETI", "ODEME UCRETI", "ATM")
+    ):
         return FEE_CATEGORIES["card_fee"]
-    if not card and kind != "Kredi" and "FAIZ" not in f and any(
-        p in f for p in ("UCRET", "EFT", "HAVALE", "KESINTI VE EKLERI", "KAMBIYO", "KMV", "MASRAF", "KOMISYON")
+    if (
+        not card
+        and kind != "Kredi"
+        and "FAIZ" not in f
+        and any(p in f for p in ("UCRET", "EFT", "HAVALE", "KESINTI VE EKLERI", "KAMBIYO", "KMV", "MASRAF", "KOMISYON"))
     ):
         return FEE_CATEGORIES["transfer_fee"]
     if kind == "Kredi":
@@ -298,24 +312,137 @@ _NOISE = [
     re.compile(r"^\d{2}/\d{2}/\d{4}\s+"),
     re.compile(r"^\d{6,}\s*"),
 ]
-_COUNTRIES = {"TR", "TU", "TUR", "IE", "DE", "NL", "US", "USA", "GB", "GBGB", "AZ", "CA", "LU", "SG", "FR",
-              "UTUS", "CCAUS", "WAUS", "IRIR", "TRTR"}
+_COUNTRIES = {
+    "TR",
+    "TU",
+    "TUR",
+    "IE",
+    "DE",
+    "NL",
+    "US",
+    "USA",
+    "GB",
+    "GBGB",
+    "AZ",
+    "CA",
+    "LU",
+    "SG",
+    "FR",
+    "UTUS",
+    "CCAUS",
+    "WAUS",
+    "IRIR",
+    "TRTR",
+}
 # Statements print the place of a purchase after the merchant's name: the Turkish provinces (and the centres
 # printed instead of some), plus the cities online services bill from and a few nearby capitals. Aydın, Bingöl,
 # Karaman and Tokat are left out: they are common surnames, and "MEHMET AYDIN" must stay a person's full name.
-_CITIES = frozenset({
-    "ADANA", "ADAPAZARI", "ADIYAMAN", "AFYON", "AFYONKARAHISAR", "AGRI", "AKSARAY", "AMASYA", "ANKARA", "ANTAKYA",
-    "ANTALYA", "ARDAHAN", "ARTVIN", "BALIKESIR", "BARTIN", "BATMAN", "BAYBURT", "BILECIK", "BITLIS", "BOLU",
-    "BURDUR", "BURSA", "CANAKKALE", "CANKIRI", "CORUM", "DENIZLI", "DIYARBAKIR", "DUZCE", "EDIRNE", "ELAZIG",
-    "ERZINCAN", "ERZURUM", "ESKISEHIR", "GAZIANTEP", "GIRESUN", "GUMUSHANE", "HAKKARI", "HATAY", "ICEL", "IGDIR",
-    "ISPARTA", "ISTANBUL", "ISTANBU", "IZMIR", "IZMIT", "KAHRAMANMARAS", "KARABUK", "KARS", "KASTAMONU", "KAYSERI",
-    "KILIS", "KIRIKKALE", "KIRKLARELI", "KIRSEHIR", "KOCAELI", "KONYA", "KUTAHYA", "MALATYA", "MANISA", "MARDIN",
-    "MERSIN", "MUGLA", "MUS", "NEVSEHIR", "NIGDE", "ORDU", "OSMANIYE", "RIZE", "SAKARYA", "SAMSUN", "SANLIURFA",
-    "SIIRT", "SINOP", "SIRNAK", "SIVAS", "TEKIRDAG", "TRABZON", "TUNCELI", "USAK", "VAN", "YALOVA", "YOZGAT",
-    "ZONGULDAK",
-    "AMSTERDAM", "ATHENS", "BAKU", "BELLEVUE", "BERLIN", "CORK", "CUPERTINO", "DUBLIN", "FRANCISCO", "LEFKOSA",
-    "LONDON", "LUXEMBOURG", "NICOSIA", "PARIS", "REDMOND", "SEATTLE", "SINGAPORE", "SOFIA", "TBILISI",
-})
+_CITIES = frozenset(
+    {
+        "ADANA",
+        "ADAPAZARI",
+        "ADIYAMAN",
+        "AFYON",
+        "AFYONKARAHISAR",
+        "AGRI",
+        "AKSARAY",
+        "AMASYA",
+        "ANKARA",
+        "ANTAKYA",
+        "ANTALYA",
+        "ARDAHAN",
+        "ARTVIN",
+        "BALIKESIR",
+        "BARTIN",
+        "BATMAN",
+        "BAYBURT",
+        "BILECIK",
+        "BITLIS",
+        "BOLU",
+        "BURDUR",
+        "BURSA",
+        "CANAKKALE",
+        "CANKIRI",
+        "CORUM",
+        "DENIZLI",
+        "DIYARBAKIR",
+        "DUZCE",
+        "EDIRNE",
+        "ELAZIG",
+        "ERZINCAN",
+        "ERZURUM",
+        "ESKISEHIR",
+        "GAZIANTEP",
+        "GIRESUN",
+        "GUMUSHANE",
+        "HAKKARI",
+        "HATAY",
+        "ICEL",
+        "IGDIR",
+        "ISPARTA",
+        "ISTANBUL",
+        "ISTANBU",
+        "IZMIR",
+        "IZMIT",
+        "KAHRAMANMARAS",
+        "KARABUK",
+        "KARS",
+        "KASTAMONU",
+        "KAYSERI",
+        "KILIS",
+        "KIRIKKALE",
+        "KIRKLARELI",
+        "KIRSEHIR",
+        "KOCAELI",
+        "KONYA",
+        "KUTAHYA",
+        "MALATYA",
+        "MANISA",
+        "MARDIN",
+        "MERSIN",
+        "MUGLA",
+        "MUS",
+        "NEVSEHIR",
+        "NIGDE",
+        "ORDU",
+        "OSMANIYE",
+        "RIZE",
+        "SAKARYA",
+        "SAMSUN",
+        "SANLIURFA",
+        "SIIRT",
+        "SINOP",
+        "SIRNAK",
+        "SIVAS",
+        "TEKIRDAG",
+        "TRABZON",
+        "TUNCELI",
+        "USAK",
+        "VAN",
+        "YALOVA",
+        "YOZGAT",
+        "ZONGULDAK",
+        "AMSTERDAM",
+        "ATHENS",
+        "BAKU",
+        "BELLEVUE",
+        "BERLIN",
+        "CORK",
+        "CUPERTINO",
+        "DUBLIN",
+        "FRANCISCO",
+        "LEFKOSA",
+        "LONDON",
+        "LUXEMBOURG",
+        "NICOSIA",
+        "PARIS",
+        "REDMOND",
+        "SEATTLE",
+        "SINGAPORE",
+        "SOFIA",
+        "TBILISI",
+    }
+)
 # A city glued to the merchant's name ("ANONISTANBUL") is cut off as well, longest name first; names shorter
 # than five letters would cut real words ("KARAVAN").
 _GLUED_CITIES = tuple(sorted((c for c in _CITIES if len(c) >= 5), key=len, reverse=True))

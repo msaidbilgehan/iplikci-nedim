@@ -16,8 +16,9 @@ from conftest import JANUARY, RULES, put, teb_export
 HOLDER = "ÖRNEK KULLANICI"
 CHECKING = Account("teb-123456789", "TEB Vadesiz TL 123456789", "TEB", "Vadesiz hesap", number="123456789")
 CARD = Account("teb-4321", "TEB Bonus •4321", "TEB", "Kredi kartı", number="4321")
-STOCKS = Account("garanti-yatirim-1-101", "Garanti BBVA Yatırım 1-101", "Garanti BBVA", "Yatırım hesabı",
-                 number="1-101")
+STOCKS = Account(
+    "garanti-yatirim-1-101", "Garanti BBVA Yatırım 1-101", "Garanti BBVA", "Yatırım hesabı", number="1-101"
+)
 
 
 @pytest.fixture(scope="module")
@@ -31,23 +32,47 @@ def spend(d: date, desc: str, amount: float, account: Account = CARD, kind: str 
     return Transaction(d, desc, amount, kind, account.id, source="belge")
 
 
-def listing(start: date, end: date, *rows: Transaction, checks: tuple[int, int] = (1, 1),
-            opening: float = 5000.0) -> ParseResult:
+def listing(
+    start: date, end: date, *rows: Transaction, checks: tuple[int, int] = (1, 1), opening: float = 5000.0
+) -> ParseResult:
     closing = round(opening - sum(r.amount for r in rows), 2)
-    s = Statement(CHECKING.id, end, "TL", f"liste-{end}.xls", opening, closing, list(rows), start=start,
-                  checks_ok=checks[0], checks_total=checks[1], balances={f"{end:%Y-%m}": closing})
+    s = Statement(
+        CHECKING.id,
+        end,
+        "TL",
+        f"liste-{end}.xls",
+        opening,
+        closing,
+        list(rows),
+        start=start,
+        checks_ok=checks[0],
+        checks_total=checks[1],
+        balances={f"{end:%Y-%m}": closing},
+    )
     return ParseResult("liste", accounts=[CHECKING], statements=[s])
 
 
 def card(cut: date, *rows: Transaction, previous: float = 0.0) -> ParseResult:
-    s = Statement(CARD.id, cut, "TL", f"ekstre-{cut}.pdf", previous, round(previous + sum(r.amount for r in rows), 2),
-                  list(rows))
+    s = Statement(
+        CARD.id, cut, "TL", f"ekstre-{cut}.pdf", previous, round(previous + sum(r.amount for r in rows), 2), list(rows)
+    )
     return ParseResult("ekstre", accounts=[CARD], statements=[s])
 
 
 def brokerage(month_start: date, month_last: date) -> ParseResult:
-    s = Statement(STOCKS.id, month_last, "TL", "hisse.pdf", 100.0, 100.0, [], start=month_start, checks_ok=1,
-                  checks_total=1, securities=[Security("ORNEK", "Örnek A.Ş.", 10, 2500.0, month_last)])
+    s = Statement(
+        STOCKS.id,
+        month_last,
+        "TL",
+        "hisse.pdf",
+        100.0,
+        100.0,
+        [],
+        start=month_start,
+        checks_ok=1,
+        checks_total=1,
+        securities=[Security("ORNEK", "Örnek A.Ş.", 10, 2500.0, month_last)],
+    )
     return ParseResult("hisse", accounts=[STOCKS], statements=[s])
 
 
@@ -65,9 +90,13 @@ def month(cat, today: date, which: str, *results: ParseResult) -> month_end.Mont
 
 def autumn(*extra: ParseResult) -> list[ParseResult]:
     """A checking account listed through October and a card whose statements cover it (cut on the 18th)."""
-    return [listing(date(2026, 9, 1), date(2026, 10, 31), spend(date(2026, 10, 5), "MARKET", 400.0, CHECKING)),
-            card(date(2026, 9, 18)), card(date(2026, 10, 18), spend(date(2026, 10, 2), "ORNEK KAHVE", 120.0)),
-            card(date(2026, 11, 18), spend(date(2026, 10, 25), "MARKET ALISVERIS", 300.0)), *extra]
+    return [
+        listing(date(2026, 9, 1), date(2026, 10, 31), spend(date(2026, 10, 5), "MARKET", 400.0, CHECKING)),
+        card(date(2026, 9, 18)),
+        card(date(2026, 10, 18), spend(date(2026, 10, 2), "ORNEK KAHVE", 120.0)),
+        card(date(2026, 11, 18), spend(date(2026, 10, 25), "MARKET ALISVERIS", 300.0)),
+        *extra,
+    ]
 
 
 def by_label(me: month_end.MonthEnd) -> dict[str, month_end.AccountClose]:
@@ -75,6 +104,7 @@ def by_label(me: month_end.MonthEnd) -> dict[str, month_end.AccountClose]:
 
 
 # --- closing -----------------------------------------------------------------------------------------
+
 
 def test_a_month_closes_when_every_account_covers_it_and_checks_out(cat):
     me = month(cat, date(2026, 11, 25), "2026-10", *autumn())
@@ -100,11 +130,20 @@ def test_a_statement_past_its_cut_date_is_late(cat):
 
 
 def test_a_missing_list_between_two_others_is_a_document_to_download(cat):
-    me = month(cat, date(2026, 12, 5), "2026-10",
-               listing(date(2026, 9, 1), date(2026, 9, 30)), listing(date(2026, 11, 1), date(2026, 11, 30)))
+    me = month(
+        cat,
+        date(2026, 12, 5),
+        "2026-10",
+        listing(date(2026, 9, 1), date(2026, 9, 30)),
+        listing(date(2026, 11, 1), date(2026, 11, 30)),
+    )
     checking = by_label(me)["TEB Vadesiz TL 123456789"]
-    assert (me.status, checking.status, checking.covered, checking.needed) == (month_end.MISSING, month_end.MISSING,
-                                                                               0, 31)
+    assert (me.status, checking.status, checking.covered, checking.needed) == (
+        month_end.MISSING,
+        month_end.MISSING,
+        0,
+        31,
+    )
     assert checking.note.startswith("1–31 Ekim için hesap dökümü yok: bankadan indirip")
 
 
@@ -125,8 +164,10 @@ def test_the_brokerage_statement_never_holds_the_month_open(cat):
     stocks = by_label(me)["Garanti BBVA Yatırım 1-101"]
     assert (stocks.status, stocks.blocking, me.status) == (month_end.WAITING, False, month_end.CLOSED)
     # The October statement comes in the first days of November: on the 25th it is late.
-    assert stocks.note == ("1–31 Ekim ekstresi e-postayla bekleniyor (ay sonu ekstresi); beklenen tarih geçti: "
-                           "e-posta gelmediyse ekstreyi bankadan indirin")
+    assert stocks.note == (
+        "1–31 Ekim ekstresi e-postayla bekleniyor (ay sonu ekstresi); beklenen tarih geçti: "
+        "e-posta gelmediyse ekstreyi bankadan indirin"
+    )
 
 
 def test_the_current_month_runs_and_counts_its_provisional_receipts(cat):
@@ -157,10 +198,13 @@ def test_a_month_end_balance_is_the_one_the_list_printed(cat):
 
 # --- pages ---------------------------------------------------------------------------------------------
 
+
 def test_pages_escape_statement_text_and_carry_no_script(cat, tmp_path):
     shop = spend(date(2026, 10, 2), '<img src=x onerror="alert(1)"> KAHVE', 120.0)
-    docs = [(Document(f"{i}.pdf", "test", b"", f"sha{i}"), r, None) for i, r in enumerate(
-        [listing(date(2026, 9, 1), date(2026, 10, 31)), card(date(2026, 10, 18), shop)])]
+    docs = [
+        (Document(f"{i}.pdf", "test", b"", f"sha{i}"), r, None)
+        for i, r in enumerate([listing(date(2026, 9, 1), date(2026, 10, 31)), card(date(2026, 10, 18), shop)])
+    ]
     ds = build(docs, cat, {"ad_soyad": HOLDER})
     months = month_end.build(ds, interpret(ds), today=date(2026, 11, 2))
     written = month_end.write_all(months, ds, tmp_path / "ay-sonu", made=datetime(2026, 11, 2, 9, 30))
@@ -188,8 +232,9 @@ def test_the_month_end_command_writes_a_months_page_and_refuses_a_month_to_come(
 
 
 def test_the_pages_cover_the_current_month_and_the_twelve_before_it(cat):
-    docs = [(Document("0.pdf", "test", b"", "sha0"), card(date(2023, 1, 18), spend(date(2023, 1, 2), "MARKET", 1.0)),
-             None)]
+    docs = [
+        (Document("0.pdf", "test", b"", "sha0"), card(date(2023, 1, 18), spend(date(2023, 1, 2), "MARKET", 1.0)), None)
+    ]
     ds = build(docs, cat, {"ad_soyad": HOLDER})
     months = month_end.report_months(ds, date(2026, 11, 2))
     assert (months[0], months[-1], len(months)) == ("2025-11", "2026-11", 13)

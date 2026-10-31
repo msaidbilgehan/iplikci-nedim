@@ -35,7 +35,8 @@ def test_a_verified_bank_statement_is_copied_into_the_inbox(ws, mail):
     [(_item, copy)] = got.copied
     assert copy.parent == ws.inbox and copy.read_bytes() == teb_export(JANUARY)
     assert got.message.startswith(
-        "1 yeni banka e-postası okundu; 1 yeni belge gelen kutusuna kopyalandı (1 hesap dökümü)")
+        "1 yeni banka e-postası okundu; 1 yeni belge gelen kutusuna kopyalandı (1 hesap dökümü)"
+    )
     assert got.folder == "[Gmail]/Tüm Postalar"  # All Mail, found by its \All flag in any language
 
 
@@ -53,8 +54,13 @@ def test_mail_whose_sender_is_not_verified_is_ignored(ws, mail):
     mail.messages |= {
         101: bank_mail(january, results=("mx.google.com; dmarc=fail (p=NONE) header.from=teb.com.tr",)),
         # A forged "pass" below Gmail's own verdict: only the topmost header counts.
-        102: bank_mail(january, results=("mx.google.com; dmarc=fail (p=NONE) header.from=teb.com.tr",
-                                          "mx.google.com; dmarc=pass header.from=teb.com.tr")),
+        102: bank_mail(
+            january,
+            results=(
+                "mx.google.com; dmarc=fail (p=NONE) header.from=teb.com.tr",
+                "mx.google.com; dmarc=pass header.from=teb.com.tr",
+            ),
+        ),
         103: bank_mail(january, results=("mx.saldirgan.example; dmarc=pass header.from=teb.com.tr",)),
         104: bank_mail(january, results=()),
         105: bank_mail(january, results=("mx.google.com; dmarc=pass header.from=baska.example",)),
@@ -174,14 +180,24 @@ def test_sender_settings_cannot_reach_the_imap_command(ws, imap, senders):
 def test_the_search_asks_for_any_bank_domain_since_the_start_day():
     acc = Account(ADDRESS, date(2026, 3, 5), senders=("a.com.tr", "b.com", "c.com"))
     assert search_criteria(acc, 41, gmail=True) == [
-        "UID 42:*", "SINCE 5-Mar-2026", 'OR FROM "a.com.tr" OR FROM "b.com" FROM "c.com"', 'X-GM-RAW "has:attachment"']
+        "UID 42:*",
+        "SINCE 5-Mar-2026",
+        'OR FROM "a.com.tr" OR FROM "b.com" FROM "c.com"',
+        'X-GM-RAW "has:attachment"',
+    ]
     assert search_criteria(acc, 0, gmail=False)[-1] == 'OR FROM "a.com.tr" OR FROM "b.com" FROM "c.com"'
 
 
-@pytest.mark.parametrize("name, coded", [
-    ("Tüm Postalar", "T&APw-m Postalar"), ("INBOX", "INBOX"), ("Ekstre & Dekont", "Ekstre &- Dekont"),
-    ("Gönderilmiş", "G&APY-nderilmi&AV8-"), ("日本語", "&ZeVnLIqe-"),
-])
+@pytest.mark.parametrize(
+    "name, coded",
+    [
+        ("Tüm Postalar", "T&APw-m Postalar"),
+        ("INBOX", "INBOX"),
+        ("Ekstre & Dekont", "Ekstre &- Dekont"),
+        ("Gönderilmiş", "G&APY-nderilmi&AV8-"),
+        ("日本語", "&ZeVnLIqe-"),
+    ],
+)
 def test_folder_names_use_modified_utf7(name, coded):
     assert email_fetch.utf7_encode(name) == coded and email_fetch.utf7_decode(coded) == name
 

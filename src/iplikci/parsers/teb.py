@@ -59,8 +59,12 @@ def _parse_statement(doc, pdf, first: str) -> ParseResult:
         raise ValueError("kart numarası / hesap kesim tarihi bulunamadı")
     account = _account(card[2])
     stmt = Statement(
-        account=account.id, cut_date=parse_dmy(cut[1]), currency="TL", source=doc.name,
-        previous=0.0, total=parse_tr_amount(total[1]) if total else None,
+        account=account.id,
+        cut_date=parse_dmy(cut[1]),
+        currency="TL",
+        source=doc.name,
+        previous=0.0,
+        total=parse_tr_amount(total[1]) if total else None,
     )
     for page in pdf.pages:
         lines = page_lines(page)
@@ -78,24 +82,31 @@ def _parse_statement(doc, pdf, first: str) -> ParseResult:
 
 def _add(stmt: Statement, account: Account, doc, date, desc: str, amount: float) -> None:
     desc, installment, original = _split_description(desc)
-    stmt.transactions.append(Transaction(
-        date=date, description=desc, amount=amount, kind=classify_kind(desc, amount),
-        account=account.id, installment=installment or installment_label(desc),
-        original=original, source=doc.name,
-    ))
+    stmt.transactions.append(
+        Transaction(
+            date=date,
+            description=desc,
+            amount=amount,
+            kind=classify_kind(desc, amount),
+            account=account.id,
+            installment=installment or installment_label(desc),
+            original=original,
+            source=doc.name,
+        )
+    )
 
 
 def _parse_section(lines: list[Line], h: int, stmt: Statement, account: Account, doc) -> None:
     header = lines[h]
     tutar = find_word(header, "TUTAR")
-    for line in lines[h + 1:]:
+    for line in lines[h + 1 :]:
         if find_word(line, "TARIH") and find_word(line, "TUTAR"):
             return  # next card section (ek kart) starts here
         amount, used = take_amount(line, tutar.x0, align="left")
         if amount is None:
             continue
         date = parse_dmy(line.words[0].text)
-        desc = " ".join(w.text for w in line.words[1 if date else 0:] if w not in used and w.x1 < tutar.x0 - 4)
+        desc = " ".join(w.text for w in line.words[1 if date else 0 :] if w not in used and w.x1 < tutar.x0 - 4)
         if date is None:
             if "DEVIR" in fold(desc):
                 stmt.previous = amount
@@ -104,6 +115,7 @@ def _parse_section(lines: list[Line], h: int, stmt: Statement, account: Account,
 
 
 # --- statements delivered as page images, read with OCR -------------------------
+
 
 def detect_ocr(text: str) -> bool:
     return "KREDIKARTEKSTREOZETI" in squash(text)
@@ -124,8 +136,9 @@ def parse_ocr(doc, pages: list[list[Line]]) -> ParseResult:
     if not (card and cut):
         raise ValueError("OCR: kart numarası / hesap kesim tarihi okunamadı")
     account = _account(card[1])
-    stmt = Statement(account=account.id, cut_date=parse_dmy(cut[0]), currency="TL", source=doc.name,
-                     previous=0.0, total=total)
+    stmt = Statement(
+        account=account.id, cut_date=parse_dmy(cut[0]), currency="TL", source=doc.name, previous=0.0, total=total
+    )
     for line in lines:
         if "ÖNCEKİ DÖNEM" in line.text.upper():
             stmt.previous = _tl(line.text) or 0.0
@@ -133,13 +146,23 @@ def parse_ocr(doc, pages: list[list[Line]]) -> ParseResult:
         date_i = next((i for i, w in enumerate(line.words) if re.fullmatch(r"\d{2}/\d{2}/\d{4}", w.text)), None)
         if date_i is None or date_i > 1:
             continue
-        rest = line.words[date_i + 1:]
-        amount_i = next((i for i, w in enumerate(rest) if re.fullmatch(r"-?TL\.?[\d.]+,(?:\d{1,2}|-)", w.text.replace(" ", ""))), None)
+        rest = line.words[date_i + 1 :]
+        amount_i = next(
+            (i for i, w in enumerate(rest) if re.fullmatch(r"-?TL\.?[\d.]+,(?:\d{1,2}|-)", w.text.replace(" ", ""))),
+            None,
+        )
         if amount_i is None or amount_i == 0:
             continue
         desc = " ".join(w.text for w in rest[:amount_i])
         desc = re.sub(r"[^\w)]+$", "", desc).strip()  # contactless-payment icon read as ")))"
-        _add(stmt, account, doc, parse_dmy(line.words[date_i].text), desc, parse_tr_amount(rest[amount_i].text.replace(" ", "")))
+        _add(
+            stmt,
+            account,
+            doc,
+            parse_dmy(line.words[date_i].text),
+            desc,
+            parse_tr_amount(rest[amount_i].text.replace(" ", "")),
+        )
     return ParseResult(parser=NAME + " (OCR)", accounts=[account], statements=[stmt])
 
 
@@ -152,13 +175,20 @@ def _parse_payment_receipt(doc, first: str) -> ParseResult:
         raise ValueError("TEB ödeme dekontu okunamadı")
     account = _account(card[3])
     txn = Transaction(
-        date=parse_dmy(when[1]), description=f"TEB Bonus •{card[3]} borç ödemesi",
-        amount=abs(parse_tr_amount(amount[1])), kind="ekstresiz_kart", account=account.id, source=doc.name,
+        date=parse_dmy(when[1]),
+        description=f"TEB Bonus •{card[3]} borç ödemesi",
+        amount=abs(parse_tr_amount(amount[1])),
+        kind="ekstresiz_kart",
+        account=account.id,
+        source=doc.name,
     )
     receipt = re.search(r"ISLEM NO: ?(\d+)", f)
     holder = re.search(r"HESAP SAHIBI:\s*([A-Z ]+?)\s+HESAP", f)
     return ParseResult(
-        parser=NAME, accounts=[account], transactions=[txn],
-        receipt_key=f"teb-{receipt[1] if receipt else doc.sha256}", title=f"Kart Ödemesi {card[3]}",
+        parser=NAME,
+        accounts=[account],
+        transactions=[txn],
+        receipt_key=f"teb-{receipt[1] if receipt else doc.sha256}",
+        title=f"Kart Ödemesi {card[3]}",
         holder=holder[1] if holder else "",
     )

@@ -17,27 +17,36 @@ def cat():
 
 
 def categorize(cat, description, kind="harcama", bank_category="", amount=100.0, account=CARD):
-    t = Transaction(date=date(2025, 1, 1), description=description, amount=amount, kind=kind,
-                    account=account.id, bank_category=bank_category)
+    t = Transaction(
+        date=date(2025, 1, 1),
+        description=description,
+        amount=amount,
+        kind=kind,
+        account=account.id,
+        bank_category=bank_category,
+    )
     cat.apply(t, account)
     return t
 
 
-@pytest.mark.parametrize("description, category, merchant", [
-    ("MIGROS MJET ORNEK SUBE ISTANBUL TR KAZANILAN MAXİPUAN:0,10", "Market & Gıda", "Migros"),
-    ("SBX ORNEK CLUB ISTANBUL", "Kafe & Kahve", "Starbucks"),  # a named merchant beats the keyword CLUB
-    ("PARAM*GETIR ARAC ISTANBUL", "Toplu Taşıma & Taksi", "Getir Araç"),
-    ("PARAM. /GETIR", "Market & Gıda", "Getir"),
-    ("ORNEKVERGIDAIRESIISTANBULTR", "Vergi & Resmi İşlemler", None),  # printed without spaces
-    ("ÖRNEK PETROL MARKET", "Akaryakıt", None),  # earliest keyword wins
-    ("ORNEK GIDA LOKANTA TARIM", "Restoran & Yemek", None),  # weak "GIDA" loses
-    ("IYZICO*AMAZON TURKEY PE ISTANBUL TR", "Dijital Abonelikler", "Amazon Prime"),
-    ("ORNEK ELEKTROMARKET", "Elektronik", None),
-    ("UBER EATS YEMEK", "Restoran & Yemek", "Uber Eats"),  # food delivery, not a ride
-    ("UBER *TRIP HELP.UBER.COM", "Toplu Taşıma & Taksi", "Uber"),
-    ("IYZICO/SAHIBINDEN.COM ISTANBUL TR", "Online Alışveriş", "sahibinden.com"),
-    ("ORNEK MALI MUSAVIRLIK ANONISTANBUL TR", "Muhasebe & Şirket Hizmetleri", None),
-])
+@pytest.mark.parametrize(
+    "description, category, merchant",
+    [
+        ("MIGROS MJET ORNEK SUBE ISTANBUL TR KAZANILAN MAXİPUAN:0,10", "Market & Gıda", "Migros"),
+        ("SBX ORNEK CLUB ISTANBUL", "Kafe & Kahve", "Starbucks"),  # a named merchant beats the keyword CLUB
+        ("PARAM*GETIR ARAC ISTANBUL", "Toplu Taşıma & Taksi", "Getir Araç"),
+        ("PARAM. /GETIR", "Market & Gıda", "Getir"),
+        ("ORNEKVERGIDAIRESIISTANBULTR", "Vergi & Resmi İşlemler", None),  # printed without spaces
+        ("ÖRNEK PETROL MARKET", "Akaryakıt", None),  # earliest keyword wins
+        ("ORNEK GIDA LOKANTA TARIM", "Restoran & Yemek", None),  # weak "GIDA" loses
+        ("IYZICO*AMAZON TURKEY PE ISTANBUL TR", "Dijital Abonelikler", "Amazon Prime"),
+        ("ORNEK ELEKTROMARKET", "Elektronik", None),
+        ("UBER EATS YEMEK", "Restoran & Yemek", "Uber Eats"),  # food delivery, not a ride
+        ("UBER *TRIP HELP.UBER.COM", "Toplu Taşıma & Taksi", "Uber"),
+        ("IYZICO/SAHIBINDEN.COM ISTANBUL TR", "Online Alışveriş", "sahibinden.com"),
+        ("ORNEK MALI MUSAVIRLIK ANONISTANBUL TR", "Muhasebe & Şirket Hizmetleri", None),
+    ],
+)
 def test_rules(cat, description, category, merchant):
     t = categorize(cat, description)
     assert t.category == category
@@ -59,7 +68,10 @@ def test_fees_split_by_cause(cat):
     t = categorize(cat, "FAIZ TUTARI FZ:1.00 VR/FN:0.30", kind="faiz_ucret")
     assert (t.category, t.group, t.merchant) == ("Kredi Kartı Faizi", "Banka & Finans", "İş Bankası faiz & ücretleri")
     assert categorize(cat, "YILLIK UYELIK UCRETI", kind="faiz_ucret").category == "Kart Aidatı & Ücretleri"
-    assert categorize(cat, "Mevduat İşlemleri - Faiz Tahakkuku", kind="faiz_ucret", account=OVERDRAFT).category == "Ek Hesap (KMH) Faizi"
+    assert (
+        categorize(cat, "Mevduat İşlemleri - Faiz Tahakkuku", kind="faiz_ucret", account=OVERDRAFT).category
+        == "Ek Hesap (KMH) Faizi"
+    )
     assert categorize(cat, "FAST Ücreti", kind="faiz_ucret", account=OVERDRAFT).category == "Transfer & İşlem Ücretleri"
 
 
@@ -70,12 +82,15 @@ def test_other_kinds_get_finance_categories(cat):
     assert t.category == "Döviz & Altın Alım-Satımı"
 
 
-@pytest.mark.parametrize("description, kind, level", [
-    ("MIGROS ORNEK SUBE", "harcama", "Gerekli"),
-    ("STEAMGAMES.COM 1234567", "harcama", "İsteğe bağlı"),
-    ("FAIZ TUTARI", "faiz_ucret", "Gereksiz"),
-    ("XYZ QWERTY", "harcama", "Belirsiz"),
-])
+@pytest.mark.parametrize(
+    "description, kind, level",
+    [
+        ("MIGROS ORNEK SUBE", "harcama", "Gerekli"),
+        ("STEAMGAMES.COM 1234567", "harcama", "İsteğe bağlı"),
+        ("FAIZ TUTARI", "faiz_ucret", "Gereksiz"),
+        ("XYZ QWERTY", "harcama", "Belirsiz"),
+    ],
+)
 def test_necessity_levels(cat, description, kind, level):
     assert categorize(cat, description, kind=kind).necessity == level
 
@@ -98,8 +113,14 @@ def test_category_type_decides_transfer_kind(tmp_path):
     cat = Categorizer(rules)
 
     def candidate(description, amount, counterparty=""):
-        return Transaction(date=date(2025, 1, 1), description=description, amount=amount, kind="aday",
-                           account="b", counterparty=counterparty)
+        return Transaction(
+            date=date(2025, 1, 1),
+            description=description,
+            amount=amount,
+            kind="aday",
+            account="b",
+            counterparty=counterparty,
+        )
 
     rent = candidate("FAST", 15000.0, "VELİ ÖRNEKSOY")
     assert cat.resolve_kind(rent) and (rent.kind, rent.category) == ("harcama", "Kira")
@@ -146,13 +167,16 @@ def test_clean_description():
     assert display_name("ORNEK COFFEE İSTANBUL TR KAZANILAN MAXİPUAN:0,01") == "Ornek Coffee"
 
 
-@pytest.mark.parametrize("description, cleaned", [
-    ("ORNEK KAFE VAN TR", "ORNEK KAFE"),  # any province, however short
-    ("ORNEK BUFEESKISEHIR TR", "ORNEK BUFE"),  # glued to the name
-    ("ORNEK KARAVAN", "ORNEK KARAVAN"),  # a short province name never cuts a word
-    ("MEHMET AYDIN", "MEHMET AYDIN"),  # a surname that is also a province stays
-    ("ORNEK LTD GUNAYDIN", "ORNEK LTD GUNAYDIN"),
-])
+@pytest.mark.parametrize(
+    "description, cleaned",
+    [
+        ("ORNEK KAFE VAN TR", "ORNEK KAFE"),  # any province, however short
+        ("ORNEK BUFEESKISEHIR TR", "ORNEK BUFE"),  # glued to the name
+        ("ORNEK KARAVAN", "ORNEK KARAVAN"),  # a short province name never cuts a word
+        ("MEHMET AYDIN", "MEHMET AYDIN"),  # a surname that is also a province stays
+        ("ORNEK LTD GUNAYDIN", "ORNEK LTD GUNAYDIN"),
+    ],
+)
 def test_clean_description_cuts_the_place_but_not_a_name(description, cleaned):
     assert clean_description(description) == cleaned
 

@@ -56,7 +56,10 @@ def test_classify_kind():
 
 def test_split_interest_of_installment_cash_advance():
     t = Transaction(
-        date=date(2024, 10, 7), amount=1500.0, kind="nakit_avans", account="x",
+        date=date(2024, 10, 7),
+        amount=1500.0,
+        kind="nakit_avans",
+        account="x",
         description="TAKSİTLİ NAKİT AVANS - HESABA HAVALE KALAN:3,000.00 FZ:120.00 VR/FN:36.00",
     )
     principal, interest = split_interest(t)
@@ -74,12 +77,27 @@ def test_installment_label():
 
 def test_deferred_statement_is_not_spending():
     # Garanti books a deferral as a payment plus the same amount charged again.
-    charge = Transaction(date=date(2025, 9, 22), description="ERTELENEN EKSTRE TUTARI", amount=30000.5,
-                         kind=classify_kind("ERTELENEN EKSTRE TUTARI", 30000.5), account="x")
-    payment = Transaction(date=date(2025, 9, 22), description="ÖDEMENİZ İÇİN TEŞEKKÜR EDERİZ", amount=-30000.5,
-                          kind=classify_kind("ÖDEMENİZ İÇİN TEŞEKKÜR EDERİZ", -30000.5), account="x")
-    real = Transaction(date=date(2025, 10, 1), description="ÖDEMENİZ İÇİN TEŞEKKÜR EDERİZ", amount=-20000.0,
-                       kind="kart_odemesi", account="x")
+    charge = Transaction(
+        date=date(2025, 9, 22),
+        description="ERTELENEN EKSTRE TUTARI",
+        amount=30000.5,
+        kind=classify_kind("ERTELENEN EKSTRE TUTARI", 30000.5),
+        account="x",
+    )
+    payment = Transaction(
+        date=date(2025, 9, 22),
+        description="ÖDEMENİZ İÇİN TEŞEKKÜR EDERİZ",
+        amount=-30000.5,
+        kind=classify_kind("ÖDEMENİZ İÇİN TEŞEKKÜR EDERİZ", -30000.5),
+        account="x",
+    )
+    real = Transaction(
+        date=date(2025, 10, 1),
+        description="ÖDEMENİZ İÇİN TEŞEKKÜR EDERİZ",
+        amount=-20000.0,
+        kind="kart_odemesi",
+        account="x",
+    )
     assert (charge.kind, payment.kind) == ("transfer", "kart_odemesi")
     pair_deferrals([charge, payment, real])
     assert (charge.kind, payment.kind, real.kind) == ("transfer", "transfer", "kart_odemesi")
@@ -140,10 +158,14 @@ def _image_only_pdf() -> bytes:
     objects = [
         b"<< /Type /Catalog /Pages 2 0 R >>",
         b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-        (b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << /XObject << /Im1 4 0 R >> >> "
-         b"/Contents 5 0 R >>"),
-        (b"<< /Type /XObject /Subtype /Image /Width 1 /Height 1 /ColorSpace /DeviceGray /BitsPerComponent 8 "
-         b"/Length 1 >>\nstream\n\x80\nendstream"),
+        (
+            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << /XObject << /Im1 4 0 R >> >> "
+            b"/Contents 5 0 R >>"
+        ),
+        (
+            b"<< /Type /XObject /Subtype /Image /Width 1 /Height 1 /ColorSpace /DeviceGray /BitsPerComponent 8 "
+            b"/Length 1 >>\nstream\n\x80\nendstream"
+        ),
         b"<< /Length %d >>\nstream\n%s\nendstream" % (len(content), content),
     ]
     out, offsets = b"%PDF-1.4\n", []

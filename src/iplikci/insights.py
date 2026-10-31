@@ -30,8 +30,20 @@ from .textutil import fold, format_tr_amount
 # Statements that say whether a month's income is known: bank accounts, not cards or a brokerage account.
 NOT_BANK_ACCOUNTS = (*CARD_TYPES, INVESTMENT_TYPE)
 FULL = 0.97  # share of a month the statements must cover for the month to be complete
-MONTHS_TR = ("Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım",
-             "Aralık")
+MONTHS_TR = (
+    "Ocak",
+    "Şubat",
+    "Mart",
+    "Nisan",
+    "Mayıs",
+    "Haziran",
+    "Temmuz",
+    "Ağustos",
+    "Eylül",
+    "Ekim",
+    "Kasım",
+    "Aralık",
+)
 NEEDED, OPTIONAL, AVOIDABLE = "Gerekli", "İsteğe bağlı", "Gereksiz"
 INTEREST = ("Kredi Kartı Faizi", "Ek Hesap (KMH) Faizi", "Kredi Faizi")
 CARD_FEES = "Kart Aidatı & Ücretleri"
@@ -39,6 +51,7 @@ WORK_CATEGORIES = ("Yazılım, Bulut & Dijital Hizmet", "Muhasebe & Şirket Hizm
 
 
 # --- months and money ---------------------------------------------------------------
+
 
 def month_of(d: date) -> str:
     return f"{d:%Y-%m}"
@@ -91,7 +104,18 @@ def months_in(months: list[str]) -> str:
 
 # Possessive suffix after a number, by how it is spoken: %64'ü (dört), %72'si (iki), %29'u (dokuz).
 _ONES_POSSESSIVE = {"1": "i", "2": "si", "3": "ü", "4": "ü", "5": "i", "6": "sı", "7": "si", "8": "i", "9": "u"}
-_TENS_POSSESSIVE = {"0": "ü", "1": "u", "2": "si", "3": "u", "4": "ı", "5": "si", "6": "ı", "7": "i", "8": "i", "9": "ı"}
+_TENS_POSSESSIVE = {
+    "0": "ü",
+    "1": "u",
+    "2": "si",
+    "3": "u",
+    "4": "ı",
+    "5": "si",
+    "6": "ı",
+    "7": "i",
+    "8": "i",
+    "9": "ı",
+}
 
 
 def pct(share: float) -> str:
@@ -115,6 +139,7 @@ def _change(a: float, b: float) -> float:
 
 
 # --- timeline -------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class Timeline:
@@ -161,8 +186,13 @@ def timeline(ds: Dataset) -> Timeline:
     as_of = max(seen.values(), default=newest)
     full = sorted(m for m in complete_months(ds) if m <= month_of(newest))
     last = full[-1] if full else shift(month_of(newest), -1)
-    with_accounts = {m for a, cov in ds.coverage.items() if ds.accounts[a].type not in NOT_BANK_ACCOUNTS
-                     for m, share in cov.items() if share >= FULL}
+    with_accounts = {
+        m
+        for a, cov in ds.coverage.items()
+        if ds.accounts[a].type not in NOT_BANK_ACCOUNTS
+        for m, share in cov.items()
+        if share >= FULL
+    }
     candidates = [m for m in span(shift(last, -11), last) if not full or m in full]
     window = [m for m in candidates if m in with_accounts] or candidates
     return Timeline(as_of, last, window, seen)
@@ -239,7 +269,7 @@ class Series:
             i -= 1
         if len(amounts) - i < 2 or i == 0:
             return None
-        old = median(amounts[max(0, i - 3):i])
+        old = median(amounts[max(0, i - 3) : i])
         return (old, amounts[-1], self.payments[i].date) if _change(old, amounts[-1]) > 0.05 else None
 
 
@@ -302,8 +332,11 @@ def _resume(series: list[Series], items: list[Transaction]) -> None:
     newest = max(series, key=lambda s: s.last.date)
     taken = {id(t) for s in series for t in s.payments}
     for t in items:
-        if (id(t) not in taken and 0 < (t.date - newest.last.date).days <= _RESUME
-                and _change(newest.last.amount, t.amount) <= _SIMILAR):
+        if (
+            id(t) not in taken
+            and 0 < (t.date - newest.last.date).days <= _RESUME
+            and _change(newest.last.amount, t.amount) <= _SIMILAR
+        ):
             newest.payments.append(t)
 
 
@@ -353,8 +386,11 @@ def settle(s: Series, seen_until: dict[str, date], ended: dict[str, str], as_of:
 
 def regular_payments(ds: Dataset, tl_: Timeline) -> tuple[list[Series], list[Series]]:
     """(outgoing series, income series), running ones and larger amounts first."""
-    out = [t for t in ds.transactions
-           if t.kind in ("harcama", "yatirim", "kredi_anapara") and t.amount > 0 and not t.installment]
+    out = [
+        t
+        for t in ds.transactions
+        if t.kind in ("harcama", "yatirim", "kredi_anapara") and t.amount > 0 and not t.installment
+    ]
     inc = [t for t in ds.transactions if t.kind == "gelir" and t.amount < 0]
     result = []
     for group in (find_series(out, ds.regular), find_series(inc, set())):
@@ -409,8 +445,11 @@ class Habit:
     @property
     def pattern(self) -> str:
         what = "işlem" if self.by_category else "alışveriş"
-        amounts = (f", tutarlar {tl(self.low)}–{tl(self.high)}"
-                   if not self.by_category and self.count >= 3 and self.high > self.low * 1.2 else "")
+        amounts = (
+            f", tutarlar {tl(self.low)}–{tl(self.high)}"
+            if not self.by_category and self.count >= 3 and self.high > self.low * 1.2
+            else ""
+        )
         if self.status == "yeni":
             return f"{since(self.since)}, {self.count} {what}{amounts}"
         if self.status == "durdu":
@@ -455,12 +494,19 @@ def habits(ds: Dataset, tl_: Timeline, series: list[Series]) -> list[Habit]:
         if not inside:
             continue
         h = Habit(
-            name=name, category=items[-1].category, necessity=items[-1].necessity, by_category=by_category,
-            count=len(inside), months=len({month_of(t.date) for t in inside}), span=len(window),
+            name=name,
+            category=items[-1].category,
+            necessity=items[-1].necessity,
+            by_category=by_category,
+            count=len(inside),
+            months=len({month_of(t.date) for t in inside}),
+            span=len(window),
             total=sum(t.amount for t in inside),
             recent=sum(t.amount for t in inside if month_of(t.date) in recent) / len(recent),
-            first=min(t.date for t in items), last=max(t.date for t in items),
-            low=min(t.amount for t in inside), high=max(t.amount for t in inside),
+            first=min(t.date for t in items),
+            last=max(t.date for t in items),
+            low=min(t.amount for t in inside),
+            high=max(t.amount for t in inside),
         )
         h.idle = (max(tl_.seen_until.get(t.account, h.last) for t in items) - h.last).days
         days = sorted({t.date for t in items})
@@ -471,6 +517,7 @@ def habits(ds: Dataset, tl_: Timeline, series: list[Series]) -> list[Habit]:
 
 
 # --- what changed -------------------------------------------------------------------------
+
 
 @dataclass
 class Change:
@@ -504,8 +551,10 @@ def trend(ds: Dataset, tl_: Timeline, in_series: set[int]) -> Trend | None:
     spent = _expenses(ds, set(tl_.window))
     average = sum(t.amount for t in spent) / n
     threshold = max(5000.0, 0.1 * average)
-    big = sorted((t for t in spent if t.kind == "harcama" and id(t) not in in_series and t.amount >= threshold),
-                 key=lambda t: -t.amount)
+    big = sorted(
+        (t for t in spent if t.kind == "harcama" and id(t) not in in_series and t.amount >= threshold),
+        key=lambda t: -t.amount,
+    )
 
     def avg(months: list[str], skip: set[int] = frozenset()) -> float:
         inside = set(months)
@@ -526,6 +575,7 @@ def trend(ds: Dataset, tl_: Timeline, in_series: set[int]) -> Trend | None:
 
 
 # --- money in and out ---------------------------------------------------------------------
+
 
 @dataclass
 class Flow:
@@ -568,10 +618,19 @@ def flow(ds: Dataset, tl_: Timeline) -> Flow | None:
     for t in ds.transactions:
         if t.kind in ("kisiye_transfer", "kredi_anapara") and month_of(t.date) in other:
             other[month_of(t.date)] += t.amount
-    return Flow(sorted(months), -sums["gelir"] / n, sums["expense"] / n, sums["kisiye_transfer"] / n,
-                sums["kredi_anapara"] / n, sums["yatirim"] / n, sums["fx"] / n, sums["unnamed"] / n,
-                debt_at(ds, month_end(shift(tl_.window[0], -1))), debt_at(ds, month_end(tl_.window[-1])),
-                median(other.values()))
+    return Flow(
+        sorted(months),
+        -sums["gelir"] / n,
+        sums["expense"] / n,
+        sums["kisiye_transfer"] / n,
+        sums["kredi_anapara"] / n,
+        sums["yatirim"] / n,
+        sums["fx"] / n,
+        sums["unnamed"] / n,
+        debt_at(ds, month_end(shift(tl_.window[0], -1))),
+        debt_at(ds, month_end(tl_.window[-1])),
+        median(other.values()),
+    )
 
 
 def _bank_name(name: str) -> bool:
@@ -594,6 +653,7 @@ def salary_timing(income: list[Series], window: list[str]) -> tuple[list[str], l
 # --- balances -------------------------------------------------------------------------------
 
 SAVINGS = ("nakit", "vadeli", "doviz", "yatirim")  # holdings valued in TL that count as savings; gold counts at cost
+
 
 @dataclass
 class Holding:
@@ -653,8 +713,10 @@ def _with_receipts(h: "Holding", lines: list[ReceiptLine], rate: float | None) -
         h.value = round(h.amount * rate, 2) if rate else None
         moved = ("+" if change > 0 else "−") + f"{format_tr_amount(abs(change))} {h.currency}"
         before = f"{format_tr_amount(stated)} {h.currency}"
-    h.note = (f"{_day(h.as_of)} dökümünde {before}; sonraki {len(lines)} dekontla {moved} (geçici, döküm gelince "
-              "kesinleşir)" + (f"; {h.note}" if h.note else ""))
+    h.note = (
+        f"{_day(h.as_of)} dökümünde {before}; sonraki {len(lines)} dekontla {moved} (geçici, döküm gelince "
+        "kesinleşir)" + (f"; {h.note}" if h.note else "")
+    )
     h.as_of = max(h.as_of, max(line.txn.date for line in lines))
 
 
@@ -691,9 +753,17 @@ def holdings(ds: Dataset) -> list[Holding]:
         elif a.type == INVESTMENT_TYPE:
             h = _stocks(a.label, s)
         elif a.type == "Altın hesabı":
-            paid = sum(t.amount for t in ds.transactions if t.category == FX_CATEGORY and "ALTIN" in fold(t.description)
-                       and ds.accounts[t.account].bank == a.bank and ds.accounts[t.account].currency == "TL")
-            note = f"alışta ödenen {tl(paid)}; güncel fiyat belgelerde yok" if paid >= 1 else "güncel fiyat belgelerde yok"
+            paid = sum(
+                t.amount
+                for t in ds.transactions
+                if t.category == FX_CATEGORY
+                and "ALTIN" in fold(t.description)
+                and ds.accounts[t.account].bank == a.bank
+                and ds.accounts[t.account].currency == "TL"
+            )
+            note = (
+                f"alışta ödenen {tl(paid)}; güncel fiyat belgelerde yok" if paid >= 1 else "güncel fiyat belgelerde yok"
+            )
             h = Holding(a.label, "altin", "gr", s.total, None, s.cut_date, note, max(0.0, paid))
         elif a.currency != "TL":
             rate = _latest_rate(ds, a.currency)
@@ -759,6 +829,7 @@ def overdraft_history(ds: Dataset, window: list[str]) -> dict[str, dict[str, flo
 
 
 # --- findings and steps -----------------------------------------------------------------------
+
 
 @dataclass
 class Finding:
@@ -834,8 +905,13 @@ class _Context:
 
     def level(self, level: str, work: bool = False) -> float:
         """Typical month of one necessity level without regular payments (and without work costs)."""
-        return self.typical(lambda t: (t.necessity or "Belirsiz") == level and id(t) not in self.in_series
-                            and (work or t.category not in WORK_CATEGORIES))
+        return self.typical(
+            lambda t: (
+                (t.necessity or "Belirsiz") == level
+                and id(t) not in self.in_series
+                and (work or t.category not in WORK_CATEGORIES)
+            )
+        )
 
 
 def _window_text(window: list[str]) -> str:
@@ -854,11 +930,23 @@ def interpret(ds: Dataset) -> Insights:
     ins = Insights(tl_, series, income, habits(ds, tl_, series), trend(ds, tl_, in_series), flow(ds, tl_), held)
     savings = sum(h.value or 0 for h in held if h.kind in SAVINGS) + sum(h.cost for h in held)
     debts = -sum(h.value or 0 for h in held if h.kind in ("kmh", "kart") and (h.value or 0) < 0)
-    ctx = _Context(ds, ins, in_series, _expenses(ds, set(tl_.window)),
-                   next((s for s in income if s.running), None), savings, debts)
+    ctx = _Context(
+        ds, ins, in_series, _expenses(ds, set(tl_.window)), next((s for s in income if s.running), None), savings, debts
+    )
     # Most telling first: where the month ends, debt and savings, what changed and why.
-    for write in (_balance, _debt_finding, _position_finding, _receipts_finding, _change_finding, _habit_finding,
-                  _fees_finding, _overdraft_finding, _regular_findings, _people_finding, _salary):
+    for write in (
+        _balance,
+        _debt_finding,
+        _position_finding,
+        _receipts_finding,
+        _change_finding,
+        _habit_finding,
+        _fees_finding,
+        _overdraft_finding,
+        _regular_findings,
+        _people_finding,
+        _salary,
+    ):
         write(ctx)
     _write_steps(ctx)
     _write_budget(ctx)
@@ -888,9 +976,11 @@ def _balance(c: _Context) -> None:
     if not fl:
         return
     share = fl.expense / fl.income if fl.income else 0
-    text = (f"{_window_text(c.window)} arasındaki {len(c.window)} tam ayda ortalama gelir {tl(fl.income)}, gider "
-            f"{tl(fl.expense)} (gelirin {pct(share)}). Kişilere gönderilen {tl(fl.people)}, borç ödemesi "
-            f"{tl(fl.debt)} ve BES/birikim {tl(fl.saving)} de düşülünce ayda {tl(fl.left)} kalıyor.")
+    text = (
+        f"{_window_text(c.window)} arasındaki {len(c.window)} tam ayda ortalama gelir {tl(fl.income)}, gider "
+        f"{tl(fl.expense)} (gelirin {pct(share)}). Kişilere gönderilen {tl(fl.people)}, borç ödemesi "
+        f"{tl(fl.debt)} ve BES/birikim {tl(fl.saving)} de düşülünce ayda {tl(fl.left)} kalıyor."
+    )
     tone = "iyi" if fl.left >= 0.15 * fl.income else "dikkat"
     c.ins.findings.append(Finding(tone, "Gelir ve gider dengesi", text))
 
@@ -902,13 +992,17 @@ def _debt_finding(c: _Context) -> None:
     months = len(c.window)
     before = month_name(shift(c.window[0], -1))
     change = fl.debt_end - fl.debt_start
-    text = (f"Kart ekstre borçları ve ek hesap kullanımı {before} sonunda {tl(fl.debt_start)}, "
-            f"{month_name(c.window[-1])} sonunda {tl(fl.debt_end)} ({'+' if change > 0 else ''}{tl(change)}).")
+    text = (
+        f"Kart ekstre borçları ve ek hesap kullanımı {before} sonunda {tl(fl.debt_start)}, "
+        f"{month_name(c.window[-1])} sonunda {tl(fl.debt_end)} ({'+' if change > 0 else ''}{tl(change)})."
+    )
     bought = fl.fx * months
     if bought >= 1 and fl.debt_end > fl.debt_start:
-        text += (f" Aynı {months} ayda {tl(bought)} döviz ve altın alındı; yani birikimin önemli bir kısmı borç "
-                 "büyürken yapıldı. Borcun faizi bu birikimin getirisinden yüksek olduğu için önce borcu kapatmak "
-                 "daha kârlı.")
+        text += (
+            f" Aynı {months} ayda {tl(bought)} döviz ve altın alındı; yani birikimin önemli bir kısmı borç "
+            "büyürken yapıldı. Borcun faizi bu birikimin getirisinden yüksek olduğu için önce borcu kapatmak "
+            "daha kârlı."
+        )
     text += f" {_day(c.ins.timeline.as_of)} itibarıyla borç {tl(c.debts)}."
     extra = _extra_income(c)
     if extra:
@@ -945,8 +1039,10 @@ def _salary(c: _Context) -> None:
         parts.append(f"{months_in(missing)} hiç")
     if double:
         parts.append(f"{months_in(double)} iki kez")
-    text = (f"{c.salary.merchant} ödemesi ayın başına ya da sonuna denk geldiği için {', '.join(parts)} görünüyor. "
-            f"Aylık gelir tablosundaki iniş çıkışların sebebi bu; tahminde düzenli gelir {tl(c.salary.amount)} sayıldı.")
+    text = (
+        f"{c.salary.merchant} ödemesi ayın başına ya da sonuna denk geldiği için {', '.join(parts)} görünüyor. "
+        f"Aylık gelir tablosundaki iniş çıkışların sebebi bu; tahminde düzenli gelir {tl(c.salary.amount)} sayıldı."
+    )
     c.ins.findings.append(Finding("bilgi", "Maaş takvimi", text, {"merchant": c.salary.merchant, "kind": "gelir"}))
 
 
@@ -955,15 +1051,22 @@ def _change_finding(c: _Context) -> None:
     if not tr or tr.before_avg <= 0:
         return
     delta = tr.recent_avg / tr.before_avg - 1
-    text = (f"Son {len(tr.recent)} tam ayda aylık gider ortalaması {tl(tr.recent_avg)}, önceki {len(tr.before)} ayda "
-            f"{tl(tr.before_avg)} (%{abs(delta) * 100:.0f} {'artış' if delta >= 0 else 'düşüş'}).")
+    text = (
+        f"Son {len(tr.recent)} tam ayda aylık gider ortalaması {tl(tr.recent_avg)}, önceki {len(tr.before)} ayda "
+        f"{tl(tr.before_avg)} (%{abs(delta) * 100:.0f} {'artış' if delta >= 0 else 'düşüş'})."
+    )
     big = [t for t in tr.big if month_of(t.date) in tr.recent]
     if big:
-        text += (" Büyük tek seferlik alışverişler (" + ", ".join(f"{t.merchant} {tl(t.amount)}" for t in big[:3])
-                 + f") çıkarılınca {tl(tr.usual_before)} → {tl(tr.usual_recent)}.")
+        text += (
+            " Büyük tek seferlik alışverişler ("
+            + ", ".join(f"{t.merchant} {tl(t.amount)}" for t in big[:3])
+            + f") çıkarılınca {tl(tr.usual_before)} → {tl(tr.usual_recent)}."
+        )
     ups = [ch for ch in tr.changes if ch.recent - ch.before >= 500][:3]
     if ups:
-        text += " En çok artanlar: " + ", ".join(f"{ch.category} (ayda +{tl(ch.recent - ch.before)})" for ch in ups) + "."
+        text += (
+            " En çok artanlar: " + ", ".join(f"{ch.category} (ayda +{tl(ch.recent - ch.before)})" for ch in ups) + "."
+        )
     usual = tr.usual_recent / tr.usual_before - 1 if tr.usual_before > 0 else delta
     c.ins.findings.append(Finding("dikkat" if usual > 0.15 else "bilgi", "Harcamalar nasıl değişti", text))
 
@@ -975,8 +1078,10 @@ def _habit_finding(c: _Context) -> None:
     last3 = set(c.window[-3:])
     count = sum(1 for t in c.expenses if t.merchant == top.name and month_of(t.date) in last3)
     same_category = sum(t.amount for t in c.expenses if t.category == top.category and month_of(t.date) in last3) / 3
-    text = (f"İsteğe bağlı harcamaların en büyüğü {top.name}: son 3 ayda ayda {tl(top.recent)}, "
-            f"ayda ortalama {count / 3:.0f} alışveriş, alışveriş başına {tl(top.recent * 3 / max(1, count))}")
+    text = (
+        f"İsteğe bağlı harcamaların en büyüğü {top.name}: son 3 ayda ayda {tl(top.recent)}, "
+        f"ayda ortalama {count / 3:.0f} alışveriş, alışveriş başına {tl(top.recent * 3 / max(1, count))}"
+    )
     if same_category > top.recent * 1.05:
         text += f"; {top.category} harcamasının {pct(top.recent / same_category)}"
     c.ins.findings.append(Finding("dikkat", "En büyük alışkanlık", text + ".", {"merchant": top.name}))
@@ -991,9 +1096,15 @@ def _fees_finding(c: _Context) -> None:
     if total < 1:
         return
     parts = ", ".join(f"{cat} {tl(v)}" for cat, v in sorted(by_category.items(), key=lambda kv: -kv[1]) if v >= 1)
-    c.ins.findings.append(Finding("dikkat", "Faiz ve banka ücretleri",
-                                  f"{len(c.window)} ayda {tl(total)}, ayda {tl(total / len(c.window))}: {parts}. "
-                                  "Borç zamanında ve tam ödenince bunların hepsi önlenebilir.", {"kind": "faiz_ucret"}))
+    c.ins.findings.append(
+        Finding(
+            "dikkat",
+            "Faiz ve banka ücretleri",
+            f"{len(c.window)} ayda {tl(total)}, ayda {tl(total / len(c.window))}: {parts}. "
+            "Borç zamanında ve tam ödenince bunların hepsi önlenebilir.",
+            {"kind": "faiz_ucret"},
+        )
+    )
 
 
 def _overdraft_finding(c: _Context) -> None:
@@ -1003,8 +1114,10 @@ def _overdraft_finding(c: _Context) -> None:
     parts = []
     for label, months in history.items():
         minus = [v for v in months.values() if v < -1]
-        parts.append(f"{label} {len(c.window)} ayın {len(minus)} ayını eksi bakiyeyle kapattı "
-                     f"(ay sonu ortalaması {tl(sum(minus) / len(minus))})")
+        parts.append(
+            f"{label} {len(c.window)} ayın {len(minus)} ayını eksi bakiyeyle kapattı "
+            f"(ay sonu ortalaması {tl(sum(minus) / len(minus))})"
+        )
     text = "; ".join(parts) + "."
     rate = overdraft_rate(c.ds, c.window, history)
     if rate:
@@ -1030,32 +1143,48 @@ def _regular_findings(c: _Context) -> None:
         text += "."
         changes = [(s, ch) for s in running if (ch := s.price_change()) and month_of(ch[2]) >= window[0]]
         if changes:
-            text += " Fiyatı artanlar: " + ", ".join(
-                f"{s.merchant} {tl(old)} → {tl(new)} ({month_name(month_of(when))})"
-                for s, (old, new, when) in changes[:4] if new > old) + "."
-        ins.findings.append(Finding("bilgi", "Düzenli ödemeler ve abonelikler", text.replace(" Fiyatı artanlar: .", "")))
+            text += (
+                " Fiyatı artanlar: "
+                + ", ".join(
+                    f"{s.merchant} {tl(old)} → {tl(new)} ({month_name(month_of(when))})"
+                    for s, (old, new, when) in changes[:4]
+                    if new > old
+                )
+                + "."
+            )
+        ins.findings.append(
+            Finding("bilgi", "Düzenli ödemeler ve abonelikler", text.replace(" Fiyatı artanlar: .", ""))
+        )
     ended = [s for s in ins.series if s.status in ("bitti", "iptal") and month_of(s.last.date) >= window[0]]
     stopped = [s for s in ended if s.last.necessity != NEEDED]
     if stopped:
-        text = ("Bitenler ve iptal ettikleriniz: "
-                + ", ".join(f"{s.merchant} {tl(s.monthly)} (son ödeme {_day(s.last.date)})" for s in stopped[:6])
-                + f". Ayda {tl(sum(s.monthly for s in stopped))} tasarruf; tahmine girmiyorlar.")
+        text = (
+            "Bitenler ve iptal ettikleriniz: "
+            + ", ".join(f"{s.merchant} {tl(s.monthly)} (son ödeme {_day(s.last.date)})" for s in stopped[:6])
+            + f". Ayda {tl(sum(s.monthly for s in stopped))} tasarruf; tahmine girmiyorlar."
+        )
         ins.findings.append(Finding("iyi", "Biten abonelikler", text))
     missing = [s for s in ended if s.last.necessity == NEEDED and s.status == "bitti"]
     if missing:
-        text = ("Bir süredir hiçbir belgede görünmeyen düzenli ödemeler: "
-                + ", ".join(f"{s.merchant} (son {_day(s.last.date)}, {tl(s.monthly)})" for s in missing)
-                + ". Başka bir hesaptan ödeniyorsa o hesabın dökümünü de ekleyin; bittiyse kategoriler.yaml'daki "
-                  "_biten listesine yazın.")
+        text = (
+            "Bir süredir hiçbir belgede görünmeyen düzenli ödemeler: "
+            + ", ".join(f"{s.merchant} (son {_day(s.last.date)}, {tl(s.monthly)})" for s in missing)
+            + ". Başka bir hesaptan ödeniyorsa o hesabın dökümünü de ekleyin; bittiyse kategoriler.yaml'daki "
+            "_biten listesine yazın."
+        )
         ins.findings.append(Finding("bilgi", "Görünmeyen faturalar", text))
     for s in (s for s in ins.series if s.status == "iptal_sonrasi"):
         cancelled = c.ds.ended[fold(s.merchant)]
         late = [t for t in s.payments if month_of(t.date) > cancelled]
-        ins.findings.append(Finding(
-            "dikkat", f"{s.merchant}: iptalden sonra ödeme",
-            f"kategoriler.yaml'da son ödemenin {month_name(cancelled)} olduğu yazıyor ama sonrasında {len(late)} ödeme "
-            f"daha alınmış (son {_day(late[-1].date)}, {tl(late[-1].amount)}). Aboneliği kontrol edin.",
-            {"merchant": s.merchant}))
+        ins.findings.append(
+            Finding(
+                "dikkat",
+                f"{s.merchant}: iptalden sonra ödeme",
+                f"kategoriler.yaml'da son ödemenin {month_name(cancelled)} olduğu yazıyor ama sonrasında {len(late)} ödeme "
+                f"daha alınmış (son {_day(late[-1].date)}, {tl(late[-1].amount)}). Aboneliği kontrol edin.",
+                {"merchant": s.merchant},
+            )
+        )
 
 
 def _people_finding(c: _Context) -> None:
@@ -1064,8 +1193,10 @@ def _people_finding(c: _Context) -> None:
         return
     text = f"Kişilere ayda ortalama {tl(fl.people)} gönderildi"
     if fl.unnamed_people >= 1:
-        text += (f"; bunun {tl(fl.unnamed_people)} kadarında belgede alıcının adı yok, yalnızca bankası yazıyor. "
-                 "Kime gittiğini kategoriler.yaml'a eklerseniz kira, aile ya da borç olarak ayrılır")
+        text += (
+            f"; bunun {tl(fl.unnamed_people)} kadarında belgede alıcının adı yok, yalnızca bankası yazıyor. "
+            "Kime gittiğini kategoriler.yaml'a eklerseniz kira, aile ya da borç olarak ayrılır"
+        )
     c.ins.findings.append(Finding("bilgi", "Kişilere gönderilen para", text + ".", {"kind": "kisiye_transfer"}))
 
 
@@ -1081,17 +1212,23 @@ def _position_finding(c: _Context) -> None:
             parts.append(f"altın {grams} gr" + (f" (alışta {tl(h.cost)} ödendi)" if h.cost else ""))
         elif h.kind == "yatirim" and h.value:
             parts.append(f"hisse senedi {tl(h.value)} ({_day(h.as_of)} piyasa değeri)")
-    text = (f"{_day(c.ins.timeline.as_of)} itibarıyla " + ", ".join(parts) + f"; ek hesap ve kart borcu {tl(c.debts)}. "
-            "Ayrıntılar Varlıklar ve borçlar tablosunda.")
+    text = (
+        f"{_day(c.ins.timeline.as_of)} itibarıyla " + ", ".join(parts) + f"; ek hesap ve kart borcu {tl(c.debts)}. "
+        "Ayrıntılar Varlıklar ve borçlar tablosunda."
+    )
     c.ins.findings.append(Finding("iyi" if c.savings > c.debts else "dikkat", "Birikim ve borç durumu", text))
 
 
 # How the rows a receipt brought before its statement read in a sentence, by kind.
 _RECEIPT_KINDS = (
-    (("gelir",), "gelen para"), (("kisiye_transfer",), "kişilere giden"),
-    (DEFAULT_EXPENSE_KINDS, "harcama ve ücret"), (("kredi_anapara",), "kredi ödemesi"),
-    (("kart_odemesi", "ekstresiz_kart"), "kart borcu ödemesi"), (("yatirim",), "birikim ve yatırım"),
-    (("nakit_avans",), "nakit çekim"), (("transfer",), "kendi hesaplarınız arasında"),
+    (("gelir",), "gelen para"),
+    (("kisiye_transfer",), "kişilere giden"),
+    (DEFAULT_EXPENSE_KINDS, "harcama ve ücret"),
+    (("kredi_anapara",), "kredi ödemesi"),
+    (("kart_odemesi", "ekstresiz_kart"), "kart borcu ödemesi"),
+    (("yatirim",), "birikim ve yatırım"),
+    (("nakit_avans",), "nakit çekim"),
+    (("transfer",), "kendi hesaplarınız arasında"),
 )
 
 
@@ -1113,17 +1250,23 @@ def _receipts_finding(c: _Context) -> None:
                 parts.append(f"{label} {tl(abs(total))}")
         first, last = min(t.date for t in rows), max(t.date for t in rows)
         when = _day(first) if first == last else f"{_day(first)}–{_day(last)}"
-        text = (f"Son ekstre ve hesap dökümlerinden sonra gelen dekontlardan {len(rows)} işlem şimdiden işlendi "
-                f"({when}): {', '.join(parts)}. Bakiyeler ve kart borcu bunlarla güncellendi; ekstre ya da döküm "
-                "gelince satırlarıyla eşleşip kesinleşecekler.")
+        text = (
+            f"Son ekstre ve hesap dökümlerinden sonra gelen dekontlardan {len(rows)} işlem şimdiden işlendi "
+            f"({when}): {', '.join(parts)}. Bakiyeler ve kart borcu bunlarla güncellendi; ekstre ya da döküm "
+            "gelince satırlarıyla eşleşip kesinleşecekler."
+        )
         c.ins.findings.append(Finding("bilgi", "Ekstre gelmeden işlenen dekontlar", text, {"provisional": True}))
     missing = [line for line in c.ds.receipts if line.status == NOT_ON_STATEMENT]
     if missing:
-        shown = ", ".join(f"{_day(line.txn.date)} {c.ds.accounts[line.txn.account].label} {receipt_amount(c.ds, line)}"
-                          for line in sorted(missing, key=lambda line: line.txn.date, reverse=True)[:4])
-        text = (f"{len(missing)} dekont satırı, aynı günleri kapsayan ekstrede ya da hesap dökümünde yok ({shown}). "
-                "İşlem iptal edilmiş, başka bir hesaptan yapılmış ya da dekont başka bir hesaba yazılmış olabilir; "
-                "toplamlara ekstredeki satırlar katıldı. Ay sonu raporunun kapanış bölümünde ayrıntısı var.")
+        shown = ", ".join(
+            f"{_day(line.txn.date)} {c.ds.accounts[line.txn.account].label} {receipt_amount(c.ds, line)}"
+            for line in sorted(missing, key=lambda line: line.txn.date, reverse=True)[:4]
+        )
+        text = (
+            f"{len(missing)} dekont satırı, aynı günleri kapsayan ekstrede ya da hesap dökümünde yok ({shown}). "
+            "İşlem iptal edilmiş, başka bir hesaptan yapılmış ya da dekont başka bir hesaba yazılmış olabilir; "
+            "toplamlara ekstredeki satırlar katıldı. Ay sonu raporunun kapanış bölümünde ayrıntısı var."
+        )
         c.ins.findings.append(Finding("dikkat", "Ekstrede görünmeyen dekontlar", text))
 
 
@@ -1140,50 +1283,80 @@ def _write_steps(c: _Context) -> None:
     interest = c.recent_avg(lambda t: t.category in INTEREST)
     if interest >= 1:
         overdraft = -sum(h.amount for h in ins.holdings if h.kind == "kmh" and h.amount < 0)
-        text = (f"Son 3 ayda faize ayda {tl(interest)} gitti. Kart ekstresinin her ay tamamını ödeyin, ek hesabı "
-                "sıfırlayıp eksiye düşürmeyin.")
+        text = (
+            f"Son 3 ayda faize ayda {tl(interest)} gitti. Kart ekstresinin her ay tamamını ödeyin, ek hesabı "
+            "sıfırlayıp eksiye düşürmeyin."
+        )
         if overdraft >= 1 and c.savings >= overdraft:
-            text += (f" Ek hesaplarda şu an {tl(overdraft)} borç var; birikiminizin bir kısmıyla kapatmak, o paranın "
-                     "getirisinden daha yüksek bir faizi keser.")
+            text += (
+                f" Ek hesaplarda şu an {tl(overdraft)} borç var; birikiminizin bir kısmıyla kapatmak, o paranın "
+                "getirisinden daha yüksek bir faizi keser."
+            )
         steps.append(Step("Faiz ödemeyi bırakın", text, interest))
 
     fee_cards = {t.account for t in c.expenses if t.category == CARD_FEES}
     fees = sum(t.amount for t in c.expenses if t.category == CARD_FEES)
     if len(fee_cards) >= 2 and fees >= 1:
-        steps.append(Step("Kart sayısını azaltın",
-                          f"{len(fee_cards)} kartınız {len(window)} ayda {tl(fees)} aidat ve kart ücreti kesti. Aidatsız "
-                          "bir karta geçin ya da az kullandıklarınızı kapatın.", fees / len(window)))
+        steps.append(
+            Step(
+                "Kart sayısını azaltın",
+                f"{len(fee_cards)} kartınız {len(window)} ayda {tl(fees)} aidat ve kart ücreti kesti. Aidatsız "
+                "bir karta geçin ya da az kullandıklarınızı kapatın.",
+                fees / len(window),
+            )
+        )
 
     typical, cut = _optional_cut(c)
     if typical >= 1:
         top = _top_habit(ins)
-        text = (f"Abonelikler dışındaki isteğe bağlı harcamalar son {len(c.base)} ayda tipik olarak ayda {tl(typical)}. "
-                f"Ayda {tl(typical - cut)} sınırı koymak {tl(cut)} bırakır.")
+        text = (
+            f"Abonelikler dışındaki isteğe bağlı harcamalar son {len(c.base)} ayda tipik olarak ayda {tl(typical)}. "
+            f"Ayda {tl(typical - cut)} sınırı koymak {tl(cut)} bırakır."
+        )
         if top:
-            text += (f" En kolay yer {top.name}: ayda {tl(top.recent)}; haftalık planlı alışverişle yarıya inmesi tek "
-                     f"başına {tl(top.recent / 2)} eder.")
+            text += (
+                f" En kolay yer {top.name}: ayda {tl(top.recent)}; haftalık planlı alışverişle yarıya inmesi tek "
+                f"başına {tl(top.recent / 2)} eder."
+            )
         steps.append(Step("İsteğe bağlı harcamaya aylık sınır koyun", text, cut))
 
-    subs = [s for s in ins.series if s.running and s.last.kind == "harcama" and s.last.necessity == OPTIONAL
-            and s.last.category not in WORK_CATEGORIES]
+    subs = [
+        s
+        for s in ins.series
+        if s.running
+        and s.last.kind == "harcama"
+        and s.last.necessity == OPTIONAL
+        and s.last.category not in WORK_CATEGORIES
+    ]
     if subs:
-        steps.append(Step("Abonelikleri gözden geçirin",
-                          f"İsteğe bağlı abonelikler ayda {tl(sum(s.monthly for s in subs))}: {_payee_list(subs)}. "
-                          "İptal ettiklerinizi kategoriler.yaml'daki _biten listesine ekleyin; tahmin ona göre düşer."))
+        steps.append(
+            Step(
+                "Abonelikleri gözden geçirin",
+                f"İsteğe bağlı abonelikler ayda {tl(sum(s.monthly for s in subs))}: {_payee_list(subs)}. "
+                "İptal ettiklerinizi kategoriler.yaml'daki _biten listesine ekleyin; tahmin ona göre düşer.",
+            )
+        )
 
     work = c.recent_avg(lambda t: t.category in WORK_CATEGORIES)
     if work >= 500:
         last3 = set(window[-3:])
         names = sorted({t.merchant for t in c.expenses if t.category in WORK_CATEGORIES and month_of(t.date) in last3})
-        steps.append(Step("İşle ilgili ödemeleri ayırın",
-                          f"{', '.join(names[:5])} gibi yazılım, bulut ve muhasebe ödemeleri son 3 ayda ayda {tl(work)}. "
-                          "İşiniz içinse şirket hesabından ödenmesi kişisel bütçeyi o kadar rahatlatır.", work))
+        steps.append(
+            Step(
+                "İşle ilgili ödemeleri ayırın",
+                f"{', '.join(names[:5])} gibi yazılım, bulut ve muhasebe ödemeleri son 3 ayda ayda {tl(work)}. "
+                "İşiniz içinse şirket hesabından ödenmesi kişisel bütçeyi o kadar rahatlatır.",
+                work,
+            )
+        )
 
     if ins.flow and ins.flow.income > 0 and (ins.flow.people + ins.flow.debt) >= 0.1 * ins.flow.income:
         other = ins.flow.people + ins.flow.debt
-        text = (f"Kişilere gönderilen para ve borç geri ödemeleri ayda ortalama {tl(other)}, gelirin "
-                f"{pct(other / ins.flow.income)}. Hangisi kalıcı (aile desteği), hangisi geçici (borç iadesi) "
-                "belirleyip bütçeye ayrı kalem olarak yazın; geçici olanlar bitince aynı tutarı birikime yönlendirin.")
+        text = (
+            f"Kişilere gönderilen para ve borç geri ödemeleri ayda ortalama {tl(other)}, gelirin "
+            f"{pct(other / ins.flow.income)}. Hangisi kalıcı (aile desteği), hangisi geçici (borç iadesi) "
+            "belirleyip bütçeye ayrı kalem olarak yazın; geçici olanlar bitince aynı tutarı birikime yönlendirin."
+        )
         if ins.flow.debt >= 1:
             text += f" Borç iadesi ayda ortalama {tl(ins.flow.debt)}."
         steps.append(Step("Kişilere ve borca giden parayı planlayın", text))
@@ -1191,18 +1364,27 @@ def _write_steps(c: _Context) -> None:
     big = [t for t in (ins.trend.big if ins.trend else []) if t.necessity != NEEDED]
     if big:
         total = sum(t.amount for t in big)
-        steps.append(Step("Büyük alışverişler için önceden biriktirin",
-                          f"{len(window)} ayda {len(big)} büyük alışveriş ({tl(total)}) tek seferde karttan ödendi. "
-                          f"Bunlar için her ay {tl(total / len(window))} ayırmak kart borcunu ve faizi önler."))
+        steps.append(
+            Step(
+                "Büyük alışverişler için önceden biriktirin",
+                f"{len(window)} ayda {len(big)} büyük alışveriş ({tl(total)}) tek seferde karttan ödendi. "
+                f"Bunlar için her ay {tl(total / len(window))} ayırmak kart borcunu ve faizi önler.",
+            )
+        )
 
     needed = c.typical(lambda t: t.necessity == NEEDED)
     if needed >= 1:
         target = 3 * needed
         have = max(0.0, c.savings - c.debts)
-        text = (f"Zorunlu giderler ayda yaklaşık {tl(needed)}; 3 aylık tampon {tl(target)} eder. Borçlar düşülünce "
-                f"birikiminiz {tl(have)}, yani yaklaşık {_decimal(have / needed)} aylık.")
-        text += (f" Eksik {tl(target - have)}; maaş yatınca otomatik talimatla ayırın." if have < target
-                 else " Tampon yeterli; fazlası için uzun vadeli birikim planlayabilirsiniz.")
+        text = (
+            f"Zorunlu giderler ayda yaklaşık {tl(needed)}; 3 aylık tampon {tl(target)} eder. Borçlar düşülünce "
+            f"birikiminiz {tl(have)}, yani yaklaşık {_decimal(have / needed)} aylık."
+        )
+        text += (
+            f" Eksik {tl(target - have)}; maaş yatınca otomatik talimatla ayırın."
+            if have < target
+            else " Tampon yeterli; fazlası için uzun vadeli birikim planlayabilirsiniz."
+        )
         steps.append(Step("Acil durum fonu", text))
 
 
@@ -1218,11 +1400,18 @@ def _write_budget(c: _Context) -> None:
     optional, cut = _optional_cut(c)
     saving = sum(s.monthly for s in ins.series if s.running and s.last.kind == "yatirim")
     lines = [
-        BudgetLine("Düzenli gelir", income, income, f"son maaş ({c.salary.merchant})" if c.salary else "ortalama gelir"),
-        BudgetLine("Sabit ödemeler (kira, aidat, faturalar, abonelikler)", sum(s.monthly for s in fixed),
-                   sum(s.monthly for s in fixed), f"{len(fixed)} düzenli ödeme, son tutarlarıyla"),
-        BudgetLine("Değişken zorunlu giderler (market, ulaşım, sağlık…)", needed, needed,
-                   f"son {len(c.base)} ayın medyanı"),
+        BudgetLine(
+            "Düzenli gelir", income, income, f"son maaş ({c.salary.merchant})" if c.salary else "ortalama gelir"
+        ),
+        BudgetLine(
+            "Sabit ödemeler (kira, aidat, faturalar, abonelikler)",
+            sum(s.monthly for s in fixed),
+            sum(s.monthly for s in fixed),
+            f"{len(fixed)} düzenli ödeme, son tutarlarıyla",
+        ),
+        BudgetLine(
+            "Değişken zorunlu giderler (market, ulaşım, sağlık…)", needed, needed, f"son {len(c.base)} ayın medyanı"
+        ),
         BudgetLine("İsteğe bağlı harcamalar", optional, optional - cut, "öneri: aylık sınır"),
         BudgetLine("Yazılım, bulut ve muhasebe (abonelik dışı)", work, work, "işinizse şirkete taşınabilir"),
         BudgetLine("Sınıflanmamış harcamalar", unsure, unsure, "kategoriler.yaml ile netleşir"),
@@ -1231,10 +1420,18 @@ def _write_budget(c: _Context) -> None:
     ]
     if ins.flow:
         other = ins.flow.other_typical
-        lines.append(BudgetLine("Kişilere ve borç ödemelerine giden", other, other,
-                                f"düzensiz; son {len(c.base)} ayın medyanı ({len(c.window)} aylık ortalama "
-                                f"{tl(ins.flow.people + ins.flow.debt)})"))
+        lines.append(
+            BudgetLine(
+                "Kişilere ve borç ödemelerine giden",
+                other,
+                other,
+                f"düzensiz; son {len(c.base)} ayın medyanı ({len(c.window)} aylık ortalama "
+                f"{tl(ins.flow.people + ins.flow.debt)})",
+            )
+        )
     spent_now = sum(line.now for line in lines[1:])
     spent_plan = sum(line.plan for line in lines[1:])
-    lines.append(BudgetLine("Ay sonunda kalan", income - spent_now, income - spent_plan, "birikime ve acil durum fonuna"))
+    lines.append(
+        BudgetLine("Ay sonunda kalan", income - spent_now, income - spent_plan, "birikime ve acil durum fonuna")
+    )
     ins.budget.extend(lines)

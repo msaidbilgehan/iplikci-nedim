@@ -28,10 +28,13 @@ PDF_PARSERS = (isbank, garanti, teb, garanti_dekont, garanti_yatirim, isbank_dek
 # Bump when parsing logic changes so cached results are re-parsed.
 PARSER_VERSION = "12"
 
-ENCRYPTED_REASON = ("şifreli PDF — Önizleme'de şifreyle açıp Dosya › PDF Olarak Dışa Aktar ile şifresiz "
-                    "kaydedin ve yeniden ekleyin")
-NO_OCR_REASON = ("sayfa görüntüsü olarak gelmiş PDF: metin tanıma (OCR) yalnızca macOS'ta var — belgeyi bir Mac'te "
-                 "ekleyin ya da bankadan metinli PDF indirin")
+ENCRYPTED_REASON = (
+    "şifreli PDF — Önizleme'de şifreyle açıp Dosya › PDF Olarak Dışa Aktar ile şifresiz kaydedin ve yeniden ekleyin"
+)
+NO_OCR_REASON = (
+    "sayfa görüntüsü olarak gelmiş PDF: metin tanıma (OCR) yalnızca macOS'ta var — belgeyi bir Mac'te "
+    "ekleyin ya da bankadan metinli PDF indirin"
+)
 
 
 def _encrypted(exc: Exception) -> bool:

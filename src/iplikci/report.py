@@ -25,19 +25,27 @@ PROVISIONAL_LABEL = "Geçici (ekstre bekleniyor)"
 
 def _closing_payload(months: list[month_end.MonthEnd]) -> list[dict]:
     """The month-end closing of the latest months, newest last, for the report's closing card."""
-    return [{
-        "m": me.month, "status": me.status, "label": me.label, "summary": me.summary,
-        "expense": round(me.totals.expense, 2),
-        "income": None if me.totals.income is None else round(me.totals.income, 2),
-        "left": None if me.totals.left is None else round(me.totals.left, 2),
-        "provisional": len(me.provisional), "unmatched": len(me.unmatched),
-        "open": [f"{a.account.label}: {a.waiting_for}" for a in me.open],
-        "file": f"{month_end.FOLDER}/{me.file}",
-    } for me in months[-CLOSING_MONTHS:]]
+    return [
+        {
+            "m": me.month,
+            "status": me.status,
+            "label": me.label,
+            "summary": me.summary,
+            "expense": round(me.totals.expense, 2),
+            "income": None if me.totals.income is None else round(me.totals.income, 2),
+            "left": None if me.totals.left is None else round(me.totals.left, 2),
+            "provisional": len(me.provisional),
+            "unmatched": len(me.unmatched),
+            "open": [f"{a.account.label}: {a.waiting_for}" for a in me.open],
+            "file": f"{month_end.FOLDER}/{me.file}",
+        }
+        for me in months[-CLOSING_MONTHS:]
+    ]
 
 
-def build_payload(ds: Dataset, stats: dict, ins: Insights | None = None,
-                  months: list[month_end.MonthEnd] | None = None) -> dict:
+def build_payload(
+    ds: Dataset, stats: dict, ins: Insights | None = None, months: list[month_end.MonthEnd] | None = None
+) -> dict:
     ins = ins or interpret(ds)
     months = month_end.build(ds, ins) if months is None else months
     account_ids = sorted(ds.accounts, key=lambda a: (ds.accounts[a].bank, ds.accounts[a].type, a))
@@ -63,16 +71,26 @@ def build_payload(ds: Dataset, stats: dict, ins: Insights | None = None,
         if t.category not in category_index:
             category_index[t.category] = len(categories)
             categories.append(t.category)
-        tx.append({
-            "d": t.date.isoformat(), "a": account_index[t.account], "k": kinds.index(t.kind),
-            "c": category_index[t.category], "m": t.merchant, "t": t.description, "v": t.amount,
-            "i": t.installment, "o": t.original, "s": src(t.source),
-            "n": NECESSITY.index(t.necessity) if t.necessity in NECESSITY else -1,
-            # r: regular payment it belongs to; x: merchant listed as ended (`_biten`);
-            # p: from a receipt no statement shows yet (provisional)
-            "r": series_of.get(id(t)), "x": 1 if fold(t.merchant) in ds.ended else None,
-            "p": 1 if t.provisional else None,
-        })
+        tx.append(
+            {
+                "d": t.date.isoformat(),
+                "a": account_index[t.account],
+                "k": kinds.index(t.kind),
+                "c": category_index[t.category],
+                "m": t.merchant,
+                "t": t.description,
+                "v": t.amount,
+                "i": t.installment,
+                "o": t.original,
+                "s": src(t.source),
+                "n": NECESSITY.index(t.necessity) if t.necessity in NECESSITY else -1,
+                # r: regular payment it belongs to; x: merchant listed as ended (`_biten`);
+                # p: from a receipt no statement shows yet (provisional)
+                "r": series_of.get(id(t)),
+                "x": 1 if fold(t.merchant) in ds.ended else None,
+                "p": 1 if t.provisional else None,
+            }
+        )
     statuses = [d.status for d in ds.documents]
     return {
         "meta": {
@@ -88,8 +106,10 @@ def build_payload(ds: Dataset, stats: dict, ins: Insights | None = None,
             "business": statuses.count("is"),
             "errors": statuses.count("hata"),
             "warnings": ds.warnings,
-            "receiptRows": {status: sum(line.status == status for line in ds.receipts)
-                            for status in (PROVISIONAL, CONFIRMED, NOT_ON_STATEMENT)},
+            "receiptRows": {
+                status: sum(line.status == status for line in ds.receipts)
+                for status in (PROVISIONAL, CONFIRMED, NOT_ON_STATEMENT)
+            },
         },
         "kinds": [{"id": k, "label": KINDS[k], "on": k in DEFAULT_EXPENSE_KINDS} for k in kinds],
         "levels": [{"name": n, "slot": NECESSITY_SLOTS[n]} for n in NECESSITY],
@@ -99,8 +119,12 @@ def build_payload(ds: Dataset, stats: dict, ins: Insights | None = None,
         ],
         "accounts": [
             {
-                "id": a, "label": ds.accounts[a].label, "bank": ds.accounts[a].bank,
-                "type": ds.accounts[a].type, "currency": ds.accounts[a].currency, "note": ds.accounts[a].note,
+                "id": a,
+                "label": ds.accounts[a].label,
+                "bank": ds.accounts[a].bank,
+                "type": ds.accounts[a].type,
+                "currency": ds.accounts[a].currency,
+                "note": ds.accounts[a].note,
                 "statements": a in with_statements,
             }
             for a in account_ids
@@ -109,10 +133,16 @@ def build_payload(ds: Dataset, stats: dict, ins: Insights | None = None,
         "sources": sources,
         "statements": [
             {
-                "a": account_index[s.account], "cut": s.cut_date.isoformat(), "cur": s.currency,
-                "start": s.start.isoformat() if s.start else None, "n": len(s.transactions),
-                "total": s.total, "calc": s.computed_total, "ok": s.verified,
-                "checks": [s.checks_ok, s.checks_total] if s.is_account else None, "src": s.source,
+                "a": account_index[s.account],
+                "cut": s.cut_date.isoformat(),
+                "cur": s.currency,
+                "start": s.start.isoformat() if s.start else None,
+                "n": len(s.transactions),
+                "total": s.total,
+                "calc": s.computed_total,
+                "ok": s.verified,
+                "checks": [s.checks_ok, s.checks_total] if s.is_account else None,
+                "src": s.source,
             }
             for s in ds.statements
         ],
@@ -139,45 +169,94 @@ def _insights_payload(ds: Dataset, ins: Insights, account_index: dict, category_
         change = s.price_change()
         shown = s.running or s.status == "iptal" and month_of(s.last.date) >= tl_.window[0]
         if s.status == "bitti":
-            shown = month_of(s.last.date) >= tl_.window[0] and (s.last.category in ds.regular or s.last.kind != "harcama")
+            shown = month_of(s.last.date) >= tl_.window[0] and (
+                s.last.category in ds.regular or s.last.kind != "harcama"
+            )
         return {
-            "m": s.merchant, "c": category_index[s.last.category], "lv": _level(s.last.necessity), "k": s.last.kind,
-            "a": sorted({account_index[t.account] for t in s.payments}), "v": round(s.monthly, 2),
-            "lastv": round(abs(s.last.amount), 2), "last": s.last.date.isoformat(),
-            "first": s.payments[0].date.isoformat(), "next": s.expected.isoformat() if s.expected else None,
-            "n": len(s.payments), "day": s.day, "status": s.status, "show": shown,
+            "m": s.merchant,
+            "c": category_index[s.last.category],
+            "lv": _level(s.last.necessity),
+            "k": s.last.kind,
+            "a": sorted({account_index[t.account] for t in s.payments}),
+            "v": round(s.monthly, 2),
+            "lastv": round(abs(s.last.amount), 2),
+            "last": s.last.date.isoformat(),
+            "first": s.payments[0].date.isoformat(),
+            "next": s.expected.isoformat() if s.expected else None,
+            "n": len(s.payments),
+            "day": s.day,
+            "status": s.status,
+            "show": shown,
             "change": [round(change[0], 2), round(change[1], 2), change[2].isoformat()] if change else None,
             "total": round(sum(abs(t.amount) for t in s.payments if month_of(t.date) in window), 2),
         }
 
     fl, tr = ins.flow, ins.trend
     return {
-        "asOf": tl_.as_of.isoformat(), "lastComplete": tl_.last_complete, "window": tl_.window,
-        "statusLabels": STATUS, "habitLabels": HABIT_STATUS,
+        "asOf": tl_.as_of.isoformat(),
+        "lastComplete": tl_.last_complete,
+        "window": tl_.window,
+        "statusLabels": STATUS,
+        "habitLabels": HABIT_STATUS,
         "series": [series(s) for s in ins.series],
-        "income": [{"m": s.merchant, "v": round(s.monthly, 2), "last": s.last.date.isoformat(), "status": s.status}
-                   for s in ins.income if s.running],
+        "income": [
+            {"m": s.merchant, "v": round(s.monthly, 2), "last": s.last.date.isoformat(), "status": s.status}
+            for s in ins.income
+            if s.running
+        ],
         "habits": [
-            {"name": h.name, "c": category_index[h.category], "lv": _level(h.necessity), "byCat": h.by_category,
-             "count": h.count, "months": h.months, "span": h.span, "total": round(h.total, 2),
-             "recent": round(h.recent, 2), "monthly": round(h.monthly, 2), "last": h.last.isoformat(),
-             "status": h.status, "pattern": h.pattern}
+            {
+                "name": h.name,
+                "c": category_index[h.category],
+                "lv": _level(h.necessity),
+                "byCat": h.by_category,
+                "count": h.count,
+                "months": h.months,
+                "span": h.span,
+                "total": round(h.total, 2),
+                "recent": round(h.recent, 2),
+                "monthly": round(h.monthly, 2),
+                "last": h.last.isoformat(),
+                "status": h.status,
+                "pattern": h.pattern,
+            }
             for h in ins.habits
         ],
-        "trend": tr and {
-            "before": tr.before, "recent": tr.recent, "beforeAvg": tr.before_avg, "recentAvg": tr.recent_avg,
-            "usualBefore": tr.usual_before, "usualRecent": tr.usual_recent,
+        "trend": tr
+        and {
+            "before": tr.before,
+            "recent": tr.recent,
+            "beforeAvg": tr.before_avg,
+            "recentAvg": tr.recent_avg,
+            "usualBefore": tr.usual_before,
+            "usualRecent": tr.usual_recent,
             "changes": [{"c": ch.category, "before": ch.before, "recent": ch.recent} for ch in tr.changes],
             "big": [{"d": t.date.isoformat(), "m": t.merchant, "v": t.amount} for t in tr.big],
         },
-        "flow": fl and {
-            "income": fl.income, "expense": fl.expense, "people": fl.people, "debt": fl.debt, "saving": fl.saving,
-            "fx": fl.fx, "left": fl.left, "debtStart": fl.debt_start, "debtEnd": fl.debt_end,
+        "flow": fl
+        and {
+            "income": fl.income,
+            "expense": fl.expense,
+            "people": fl.people,
+            "debt": fl.debt,
+            "saving": fl.saving,
+            "fx": fl.fx,
+            "left": fl.left,
+            "debtStart": fl.debt_start,
+            "debtEnd": fl.debt_end,
             "otherTypical": fl.other_typical,
         },
         "holdings": [
-            {"label": h.label, "kind": h.kind, "cur": h.currency, "amount": h.amount, "value": h.value,
-             "asOf": h.as_of.isoformat(), "note": h.note, "cost": h.cost}
+            {
+                "label": h.label,
+                "kind": h.kind,
+                "cur": h.currency,
+                "amount": h.amount,
+                "value": h.value,
+                "asOf": h.as_of.isoformat(),
+                "note": h.note,
+                "cost": h.cost,
+            }
             for h in ins.holdings
         ],
         "findings": [{"tone": f.tone, "title": f.title, "text": f.text, "filter": f.filter} for f in ins.findings],
@@ -209,10 +288,17 @@ def render_html(payload: dict, panel: dict | None = None) -> str:
         html = html.replace(REPORT_CSP, PANEL_CSP)
         css += "\n" + _template("panel.css")
         extra = _template("panel.html")
-        scripts = (f'<script type="application/json" id="panel-veri">{_json_block(panel)}</script>\n'
-                   f"<script>{_template('panel.js')}</script>")
-    values = {"/*__CSS__*/": css, "<!--__PANEL__-->": extra, "/*__JS__*/": _template("rapor.js"),
-              "<!--__PANEL_SCRIPT__-->": scripts, "__DATA__": _json_block(payload)}
+        scripts = (
+            f'<script type="application/json" id="panel-veri">{_json_block(panel)}</script>\n'
+            f"<script>{_template('panel.js')}</script>"
+        )
+    values = {
+        "/*__CSS__*/": css,
+        "<!--__PANEL__-->": extra,
+        "/*__JS__*/": _template("rapor.js"),
+        "<!--__PANEL_SCRIPT__-->": scripts,
+        "__DATA__": _json_block(payload),
+    }
     # One pass over the template: text inserted from the data is never searched for placeholders.
     return re.sub("|".join(map(re.escape, values)), lambda m: values[m[0]], html)
 
@@ -221,18 +307,45 @@ def write_html(payload: dict, path: Path) -> None:
     path.write_text(render_html(payload), encoding="utf-8")
 
 
-_COLUMNS = ["Tarih", "Ay", "Banka", "Hesap", "İşlem türü", "Ana grup", "Kategori", "Gereklilik",
-            "İşyeri / kişi", "Açıklama", "Tutar (TL)", "Taksit", "Döviz tutarı", "Gider sayılır", "Kaynak dosya",
-            "Durum"]
+_COLUMNS = [
+    "Tarih",
+    "Ay",
+    "Banka",
+    "Hesap",
+    "İşlem türü",
+    "Ana grup",
+    "Kategori",
+    "Gereklilik",
+    "İşyeri / kişi",
+    "Açıklama",
+    "Tutar (TL)",
+    "Taksit",
+    "Döviz tutarı",
+    "Gider sayılır",
+    "Kaynak dosya",
+    "Durum",
+]
 
 
 def _rows(ds: Dataset):
     for t in ds.transactions:
         a = ds.accounts[t.account]
         yield [
-            t.date, t.date.strftime("%Y-%m"), a.bank, a.label, KINDS[t.kind], t.group, t.category,
-            t.necessity, t.merchant, t.description, t.amount, t.installment, t.original,
-            "Evet" if t.kind in DEFAULT_EXPENSE_KINDS else "Hayır", t.source,
+            t.date,
+            t.date.strftime("%Y-%m"),
+            a.bank,
+            a.label,
+            KINDS[t.kind],
+            t.group,
+            t.category,
+            t.necessity,
+            t.merchant,
+            t.description,
+            t.amount,
+            t.installment,
+            t.original,
+            "Evet" if t.kind in DEFAULT_EXPENSE_KINDS else "Hayır",
+            t.source,
             PROVISIONAL_LABEL if t.provisional else "",
         ]
 
@@ -279,8 +392,9 @@ def _monthly(ds: Dataset, key) -> dict[str, dict[str, float]]:
     return totals
 
 
-def write_xlsx(ds: Dataset, path: Path, ins: Insights | None = None,
-               months: list[month_end.MonthEnd] | None = None) -> None:
+def write_xlsx(
+    ds: Dataset, path: Path, ins: Insights | None = None, months: list[month_end.MonthEnd] | None = None
+) -> None:
     ins = ins or interpret(ds)
     months = month_end.build(ds, ins) if months is None else months
     wb = Workbook()
@@ -315,31 +429,73 @@ def write_xlsx(ds: Dataset, path: Path, ins: Insights | None = None,
 
     flows = _monthly(ds, lambda t: t.kind)
     ws = wb.create_sheet("Gelir-Gider")
-    _sheet_header(ws, ["Ay", "Gelir", "Gider", "Net (gelir − gider)", "Kişilere gönderilen", "Borç ödemeleri",
-                       "Birikim & yatırım"], [10, 16, 16, 18, 18, 16, 16])
+    _sheet_header(
+        ws,
+        ["Ay", "Gelir", "Gider", "Net (gelir − gider)", "Kişilere gönderilen", "Borç ödemeleri", "Birikim & yatırım"],
+        [10, 16, 16, 18, 18, 16, 16],
+    )
     for month in sorted(flows):
         f = flows[month]
         income = -f.get("gelir", 0.0)
         spent = sum(f.get(k, 0.0) for k in DEFAULT_EXPENSE_KINDS)
-        ws.append([month, round(income, 2), round(spent, 2), round(income - spent, 2),
-                   round(f.get("kisiye_transfer", 0.0), 2), round(f.get("kredi_anapara", 0.0), 2),
-                   round(f.get("yatirim", 0.0), 2)])
+        ws.append(
+            [
+                month,
+                round(income, 2),
+                round(spent, 2),
+                round(income - spent, 2),
+                round(f.get("kisiye_transfer", 0.0), 2),
+                round(f.get("kredi_anapara", 0.0), 2),
+                round(f.get("yatirim", 0.0), 2),
+            ]
+        )
     _money(ws)
 
     ws = wb.create_sheet("Ekstreler")
-    _sheet_header(ws, ["Hesap", "Başlangıç", "Kesim / bitiş", "Para birimi", "İşlem sayısı", "Önceki bakiye",
-                       "Belgedeki toplam", "Hesaplanan", "Kontrol", "Dosya"], [32, 12, 12, 10, 12, 16, 16, 16, 18, 60])
+    _sheet_header(
+        ws,
+        [
+            "Hesap",
+            "Başlangıç",
+            "Kesim / bitiş",
+            "Para birimi",
+            "İşlem sayısı",
+            "Önceki bakiye",
+            "Belgedeki toplam",
+            "Hesaplanan",
+            "Kontrol",
+            "Dosya",
+        ],
+        [32, 12, 12, 10, 12, 16, 16, 16, 18, 60],
+    )
     for s in ds.statements:
-        check = (f"Bakiye {s.checks_ok}/{s.checks_total}" if s.is_account
-                 else "Tutarlı" if s.verified else f"Fark {s.difference}")
-        ws.append([ds.accounts[s.account].label, s.start, s.cut_date, s.currency, len(s.transactions),
-                   s.previous, s.total, None if s.is_account else s.computed_total, check, s.source])
+        check = (
+            f"Bakiye {s.checks_ok}/{s.checks_total}"
+            if s.is_account
+            else "Tutarlı"
+            if s.verified
+            else f"Fark {s.difference}"
+        )
+        ws.append(
+            [
+                ds.accounts[s.account].label,
+                s.start,
+                s.cut_date,
+                s.currency,
+                len(s.transactions),
+                s.previous,
+                s.total,
+                None if s.is_account else s.computed_total,
+                check,
+                s.source,
+            ]
+        )
     for col in "BC":
         for cell in ws[col][1:]:
             cell.number_format = "DD.MM.YYYY"
     for col in "FGH":
         for cell in ws[col][1:]:
-            cell.number_format = '#,##0.00'
+            cell.number_format = "#,##0.00"
     _insight_sheets(wb, ds, ins)
     _month_end_sheets(wb, months)
     wb.save(path)
@@ -348,14 +504,40 @@ def write_xlsx(ds: Dataset, path: Path, ins: Insights | None = None,
 def _month_end_sheets(wb: Workbook, months: list[month_end.MonthEnd]) -> None:
     """The month-end closing: one row per month, then one per account and month."""
     ws = wb.create_sheet("Ay Sonu", 3)
-    _sheet_header(ws, ["Ay", "Durum", "Gider", "Gelir", "Kişilere gönderilen", "Borç ödemesi", "Birikim & yatırım",
-                       "Ay sonunda kalan", "Geçici kayıt", "Ekstrede görünmeyen dekont", "Kapanış"],
-                  [10, 18, 14, 14, 18, 14, 16, 16, 12, 14, 110])
+    _sheet_header(
+        ws,
+        [
+            "Ay",
+            "Durum",
+            "Gider",
+            "Gelir",
+            "Kişilere gönderilen",
+            "Borç ödemesi",
+            "Birikim & yatırım",
+            "Ay sonunda kalan",
+            "Geçici kayıt",
+            "Ekstrede görünmeyen dekont",
+            "Kapanış",
+        ],
+        [10, 18, 14, 14, 18, 14, 16, 16, 12, 14, 110],
+    )
     for me in reversed(months):
         t = me.totals
-        ws.append([me.month, me.label, round(t.expense, 2), None if t.income is None else round(t.income, 2),
-                   round(t.people, 2), round(t.debt, 2), round(t.saving, 2),
-                   None if t.left is None else round(t.left, 2), len(me.provisional), len(me.unmatched), me.summary])
+        ws.append(
+            [
+                me.month,
+                me.label,
+                round(t.expense, 2),
+                None if t.income is None else round(t.income, 2),
+                round(t.people, 2),
+                round(t.debt, 2),
+                round(t.saving, 2),
+                None if t.left is None else round(t.left, 2),
+                len(me.provisional),
+                len(me.unmatched),
+                me.summary,
+            ]
+        )
     for row in ws.iter_rows(min_row=2):
         for cell in row[2:8]:
             cell.number_format = _MONEY
@@ -363,18 +545,43 @@ def _month_end_sheets(wb: Workbook, months: list[month_end.MonthEnd]) -> None:
     ws.auto_filter.ref = ws.dimensions
 
     ws = wb.create_sheet("Kapanış", 4)
-    _sheet_header(ws, ["Ay", "Hesap", "Durum", "Kapsanan gün", "Belgeler", "Dekontlar", "Ay sonu bakiyesi",
-                       "Para birimi", "Açıklama"], [10, 36, 14, 13, 40, 30, 16, 10, 90])
+    _sheet_header(
+        ws,
+        [
+            "Ay",
+            "Hesap",
+            "Durum",
+            "Kapsanan gün",
+            "Belgeler",
+            "Dekontlar",
+            "Ay sonu bakiyesi",
+            "Para birimi",
+            "Açıklama",
+        ],
+        [10, 36, 14, 13, 40, 30, 16, 10, 90],
+    )
     labels = ((CONFIRMED, "eşleşti"), (PROVISIONAL, "geçici"), (NOT_ON_STATEMENT, "ekstrede yok"))
     for me in reversed(months):
         for a in me.accounts:
-            docs = ", ".join(f"{month_end.period_text(lo, hi)} {month_end.statement_check(s)[2]}"
-                             for s, lo, hi in a.statements)
+            docs = ", ".join(
+                f"{month_end.period_text(lo, hi)} {month_end.statement_check(s)[2]}" for s, lo, hi in a.statements
+            )
             receipts = ", ".join(f"{n} {label}" for status, label in labels if (n := a.count(status)))
-            ws.append([me.month, a.account.label, month_end.ACCOUNT_STATUS[a.status], f"{a.covered}/{a.needed}", docs,
-                       receipts, a.balance, a.account.currency, a.note])
+            ws.append(
+                [
+                    me.month,
+                    a.account.label,
+                    month_end.ACCOUNT_STATUS[a.status],
+                    f"{a.covered}/{a.needed}",
+                    docs,
+                    receipts,
+                    a.balance,
+                    a.account.currency,
+                    a.note,
+                ]
+            )
     for cell in ws["G"][1:]:
-        cell.number_format = '#,##0.00'
+        cell.number_format = "#,##0.00"
     ws.auto_filter.ref = ws.dimensions
 
 
@@ -397,25 +604,72 @@ def _insight_sheets(wb: Workbook, ds: Dataset, ins: Insights) -> None:
     ws.column_dimensions["E"].width = 16
 
     ws = wb.create_sheet("Düzenli Ödemeler", 1)
-    _sheet_header(ws, ["İşyeri / kişi", "Kategori", "Gereklilik", "Durum", "Aylık tutar", "Son ödeme", "Son tutar",
-                       "Sonraki (beklenen)", "Ödeme sayısı", "Hesap"], [30, 26, 13, 24, 14, 12, 14, 16, 12, 30])
+    _sheet_header(
+        ws,
+        [
+            "İşyeri / kişi",
+            "Kategori",
+            "Gereklilik",
+            "Durum",
+            "Aylık tutar",
+            "Son ödeme",
+            "Son tutar",
+            "Sonraki (beklenen)",
+            "Ödeme sayısı",
+            "Hesap",
+        ],
+        [30, 26, 13, 24, 14, 12, 14, 16, 12, 30],
+    )
     for sr in ins.series:
         if sr.status == "bitti" and month_of(sr.last.date) < window[0]:
             continue
-        ws.append([sr.merchant, sr.last.category, sr.last.necessity, STATUS[sr.status], round(sr.monthly, 2),
-                   sr.last.date, round(abs(sr.last.amount), 2), sr.expected, len(sr.payments),
-                   ", ".join(dict.fromkeys(ds.accounts[t.account].label for t in sr.payments))])
+        ws.append(
+            [
+                sr.merchant,
+                sr.last.category,
+                sr.last.necessity,
+                STATUS[sr.status],
+                round(sr.monthly, 2),
+                sr.last.date,
+                round(abs(sr.last.amount), 2),
+                sr.expected,
+                len(sr.payments),
+                ", ".join(dict.fromkeys(ds.accounts[t.account].label for t in sr.payments)),
+            ]
+        )
     for col, fmt in (("E", _MONEY), ("G", _MONEY), ("F", "DD.MM.YYYY"), ("H", "DD.MM.YYYY")):
         for cell in ws[col][1:]:
             cell.number_format = fmt
     ws.auto_filter.ref = ws.dimensions
 
     ws = wb.create_sheet("Alışkanlıklar", 2)
-    _sheet_header(ws, ["Kalem", "Kategori", "Gereklilik", "Durum", "Ne sıklıkla", "Son 3 ayda aylık",
-                       f"{len(window)} ayda toplam", "Beklenen aylık"], [30, 26, 13, 16, 40, 16, 16, 16])
+    _sheet_header(
+        ws,
+        [
+            "Kalem",
+            "Kategori",
+            "Gereklilik",
+            "Durum",
+            "Ne sıklıkla",
+            "Son 3 ayda aylık",
+            f"{len(window)} ayda toplam",
+            "Beklenen aylık",
+        ],
+        [30, 26, 13, 16, 40, 16, 16, 16],
+    )
     for h in ins.habits:
-        ws.append([h.name, h.category, h.necessity, HABIT_STATUS[h.status], h.pattern, round(h.recent, 2),
-                   round(h.total, 2), round(h.monthly, 2)])
+        ws.append(
+            [
+                h.name,
+                h.category,
+                h.necessity,
+                HABIT_STATUS[h.status],
+                h.pattern,
+                round(h.recent, 2),
+                round(h.total, 2),
+                round(h.monthly, 2),
+            ]
+        )
     for col in "FGH":
         for cell in ws[col][1:]:
             cell.number_format = _MONEY

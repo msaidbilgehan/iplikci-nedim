@@ -4,11 +4,28 @@ import re
 import unicodedata
 from datetime import date
 
-_TR_FOLD = str.maketrans({
-    "ı": "i", "İ": "I", "ş": "s", "Ş": "S", "ğ": "g", "Ğ": "G",
-    "ü": "u", "Ü": "U", "ö": "o", "Ö": "O", "ç": "c", "Ç": "C",
-    "â": "a", "Â": "A", "î": "i", "Î": "I", "û": "u", "Û": "U",
-})
+_TR_FOLD = str.maketrans(
+    {
+        "ı": "i",
+        "İ": "I",
+        "ş": "s",
+        "Ş": "S",
+        "ğ": "g",
+        "Ğ": "G",
+        "ü": "u",
+        "Ü": "U",
+        "ö": "o",
+        "Ö": "O",
+        "ç": "c",
+        "Ç": "C",
+        "â": "a",
+        "Â": "A",
+        "î": "i",
+        "Î": "I",
+        "û": "u",
+        "Û": "U",
+    }
+)
 
 
 def nfc(s: str) -> str:
@@ -68,8 +85,18 @@ def parse_us_amount(text: str) -> float | None:
 
 
 TR_MONTHS = {
-    "OCAK": 1, "SUBAT": 2, "MART": 3, "NISAN": 4, "MAYIS": 5, "HAZIRAN": 6,
-    "TEMMUZ": 7, "AGUSTOS": 8, "EYLUL": 9, "EKIM": 10, "KASIM": 11, "ARALIK": 12,
+    "OCAK": 1,
+    "SUBAT": 2,
+    "MART": 3,
+    "NISAN": 4,
+    "MAYIS": 5,
+    "HAZIRAN": 6,
+    "TEMMUZ": 7,
+    "AGUSTOS": 8,
+    "EYLUL": 9,
+    "EKIM": 10,
+    "KASIM": 11,
+    "ARALIK": 12,
 }
 
 

@@ -18,9 +18,18 @@ CANDIDATE = "aday"
 
 # Five-digit bank codes inside a Turkish IBAN (TRkk BBBBB ...).
 BANK_CODES = {
-    "00010": "Ziraat Bankası", "00012": "Halkbank", "00015": "Vakıfbank", "00032": "TEB",
-    "00046": "Akbank", "00062": "Garanti BBVA", "00064": "İş Bankası", "00067": "Yapı Kredi",
-    "00099": "ING", "00111": "QNB", "00134": "Denizbank", "00205": "Kuveyt Türk",
+    "00010": "Ziraat Bankası",
+    "00012": "Halkbank",
+    "00015": "Vakıfbank",
+    "00032": "TEB",
+    "00046": "Akbank",
+    "00062": "Garanti BBVA",
+    "00064": "İş Bankası",
+    "00067": "Yapı Kredi",
+    "00099": "ING",
+    "00111": "QNB",
+    "00134": "Denizbank",
+    "00205": "Kuveyt Türk",
 }
 
 
@@ -54,13 +63,31 @@ def check_balances(movements: list[Movement], oldest_first: bool, opening: float
 
 
 _FEES = (
-    "FAST UCRETI", "EFT UCRETI", "EFT) UCRETI", "HAVALE UCRETI", "ISLEM UCRETI", "UCRET H",
-    "KESINTI VE EKLERI", "BSMV", "KKDF", "FAIZ", "KAMBIYO", "KMV", "KGV TUTARI", "MASRAF", "KOMISYON",
+    "FAST UCRETI",
+    "EFT UCRETI",
+    "EFT) UCRETI",
+    "HAVALE UCRETI",
+    "ISLEM UCRETI",
+    "UCRET H",
+    "KESINTI VE EKLERI",
+    "BSMV",
+    "KKDF",
+    "FAIZ",
+    "KAMBIYO",
+    "KMV",
+    "KGV TUTARI",
+    "MASRAF",
+    "KOMISYON",
     "HESAP ISLETIM",
 )
 _CARD_PAYMENT = (
-    "KRE.KART BORC ODEME", "K.KARTI ODEME", "KREDI KARTINA ODENEN", "NOLU KART ODEMESI", "KART ODEMESI",
-    "OTO TAH", "KREDI KARTI ODEME",
+    "KRE.KART BORC ODEME",
+    "K.KARTI ODEME",
+    "KREDI KARTINA ODENEN",
+    "NOLU KART ODEMESI",
+    "KART ODEMESI",
+    "OTO TAH",
+    "KREDI KARTI ODEME",
 )
 _FX = ("DOVIZ AL", "DOVIZ SAT", "DVZ AL", "ALTIN")
 _BILL_LABELS = ("FATURA", "TELEKOMUNIKASYON", "KURUM ODEMESI")
@@ -101,8 +128,16 @@ def month_end_balances(movements: list[Movement], oldest_first: bool) -> dict[st
     return {f"{m.date:%Y-%m}": m.balance for m in rows if m.balance is not None}
 
 
-def build_statement(doc, account: Account, movements: list[Movement], start: date, end: date,
-                    oldest_first: bool, opening: float | None = None, closing: float | None = None) -> Statement:
+def build_statement(
+    doc,
+    account: Account,
+    movements: list[Movement],
+    start: date,
+    end: date,
+    oldest_first: bool,
+    opening: float | None = None,
+    closing: float | None = None,
+) -> Statement:
     ok, total = check_balances(movements, oldest_first, opening)
     chronological = movements if oldest_first else list(reversed(movements))
     with_balance = [m for m in chronological if m.balance is not None]
@@ -111,19 +146,33 @@ def build_statement(doc, account: Account, movements: list[Movement], start: dat
     if closing is None and with_balance:
         closing = with_balance[-1].balance
     stmt = Statement(
-        account=account.id, cut_date=end, currency=account.currency, source=doc.name,
-        previous=opening, total=closing, start=start, checks_ok=ok, checks_total=total,
+        account=account.id,
+        cut_date=end,
+        currency=account.currency,
+        source=doc.name,
+        previous=opening,
+        total=closing,
+        start=start,
+        checks_ok=ok,
+        checks_total=total,
         balances=month_end_balances(movements, oldest_first),
     )
     for m in movements:
         kind = classify(m, account.currency)
         if kind is None:
             continue
-        stmt.transactions.append(Transaction(
-            date=m.date, description=m.description.strip(), amount=round(-m.amount, 2), kind=kind,
-            account=account.id, counterparty=m.counterparty.strip(), source=doc.name,
-            original=f"{format_tr_amount(abs(m.amount))} {account.currency}" if account.currency != "TL" else "",
-        ))
+        stmt.transactions.append(
+            Transaction(
+                date=m.date,
+                description=m.description.strip(),
+                amount=round(-m.amount, 2),
+                kind=kind,
+                account=account.id,
+                counterparty=m.counterparty.strip(),
+                source=doc.name,
+                original=f"{format_tr_amount(abs(m.amount))} {account.currency}" if account.currency != "TL" else "",
+            )
+        )
     _pair_cancellations(stmt.transactions)
     return stmt
 
@@ -135,7 +184,12 @@ def _pair_cancellations(txns: list[Transaction]) -> None:
             continue
         t.kind = "transfer"
         for other in txns:
-            if other is not t and other.date == t.date and other.kind == CANDIDATE and abs(other.amount + t.amount) < 0.01:
+            if (
+                other is not t
+                and other.date == t.date
+                and other.kind == CANDIDATE
+                and abs(other.amount + t.amount) < 0.01
+            ):
                 other.kind = "transfer"
                 break
 

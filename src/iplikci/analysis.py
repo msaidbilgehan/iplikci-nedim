@@ -32,8 +32,10 @@ CONFIRMED = "eslesti"  # a statement shows the same transaction: the statement's
 NOT_ON_STATEMENT = "eslesmedi"  # a statement covers its days but does not show it: left out, worth a look
 NO_STATEMENT = "ekstresiz"  # a period no statement of the account covers (older, or a loan): counts as it is
 RECEIPT_STATUS = {
-    PROVISIONAL: "Geçici — ekstre bekleniyor", CONFIRMED: "Ekstreyle eşleşti",
-    NOT_ON_STATEMENT: "Ekstrede görünmüyor", NO_STATEMENT: "Ekstresi olmayan dönem",
+    PROVISIONAL: "Geçici — ekstre bekleniyor",
+    CONFIRMED: "Ekstreyle eşleşti",
+    NOT_ON_STATEMENT: "Ekstrede görünmüyor",
+    NO_STATEMENT: "Ekstresi olmayan dönem",
 }
 # A statement books a receipt's transaction from the day before (a late-evening transfer) to three days
 # after it (a weekend or holiday in between).
@@ -123,7 +125,9 @@ def statement_periods(statements: list[Statement]) -> list[tuple[Statement, date
                 start = s.start
             else:
                 prev = stmts[i - 1] if i else None
-                continuous = prev and prev.total is not None and s.previous is not None and abs(prev.total - s.previous) < 0.01
+                continuous = (
+                    prev and prev.total is not None and s.previous is not None and abs(prev.total - s.previous) < 0.01
+                )
                 if prev and ((s.cut_date - prev.cut_date).days <= 45 or continuous):
                     start = prev.cut_date + timedelta(days=1)
                 else:
@@ -161,6 +165,7 @@ def _coverage(days: dict[str, set[date]]) -> dict[str, dict[str, float]]:
 
 # --- receipts and statements ------------------------------------------------------
 
+
 def _is_card_payment(t: Transaction, account: Account | None) -> bool:
     """A receipt of a payment to a credit card is booked on the card (QNB, TEB)."""
     return account is not None and account.type in CARD_TYPES and t.kind in ("ekstresiz_kart", "kart_odemesi")
@@ -183,23 +188,33 @@ class _Rows:
         lo, hi = t.date + timedelta(days=POSTING_DAYS[0]), t.date + timedelta(days=POSTING_DAYS[1])
 
         def near(rows, amount, extra=lambda r: True):
-            found = [r for r in rows if id(r) not in self.used and lo <= r.date <= hi
-                     and abs(r.amount - amount) < 0.011 and extra(r)]
+            found = [
+                r
+                for r in rows
+                if id(r) not in self.used and lo <= r.date <= hi and abs(r.amount - amount) < 0.011 and extra(r)
+            ]
             return min(found, key=lambda r: abs((r.date - t.date).days), default=None)
 
         # A card statement prints the payment as a credit; the paying account's list books it as money out.
         match = near(self.by_account.get(t.account, []), -t.amount if card_payment else t.amount)
         if match is None and card_payment:
             card = self.accounts[t.account]
-            match = near(self.payments, t.amount, lambda r: card.number[-4:] in r.description
-                         or self.accounts[r.account].bank == card.bank)
+            match = near(
+                self.payments,
+                t.amount,
+                lambda r: card.number[-4:] in r.description or self.accounts[r.account].bank == card.bank,
+            )
         if match is not None:
             self.used.add(id(match))
         return match
 
 
-def settle_receipts(receipts: dict[str, list[Transaction]], statements: list[Statement],
-                    accounts: dict[str, Account], days: dict[str, set[date]]) -> list[ReceiptLine]:
+def settle_receipts(
+    receipts: dict[str, list[Transaction]],
+    statements: list[Statement],
+    accounts: dict[str, Account],
+    days: dict[str, set[date]],
+) -> list[ReceiptLine]:
     """What the statements say about each receipt row (see the module docstring).
 
     A receipt keeps its status as a whole once one of its rows is found: a statement may print a
@@ -240,6 +255,7 @@ def settle_receipts(receipts: dict[str, list[Transaction]], statements: list[Sta
 
 # --- own accounts and transfers -----------------------------------------------
 
+
 class Own:
     """The user's names and account numbers, to recognise transfers between own accounts."""
 
@@ -252,8 +268,11 @@ class Own:
                 variants.add(f"{parts[0]} {parts[-1]}")  # ORNEK SOYADOGLU
                 variants.add(f"{parts[0][0]}.{parts[1]} {parts[-1]}" if len(parts) > 2 else "")
         self.names = {v for v in variants if v}
-        self.numbers = {re.sub(r"\D", "", a.number) for a in accounts.values()
-                        if a.type not in ("Kredi kartı", "Banka kartı", "Kredi") and len(re.sub(r"\D", "", a.number)) >= 6}
+        self.numbers = {
+            re.sub(r"\D", "", a.number)
+            for a in accounts.values()
+            if a.type not in ("Kredi kartı", "Banka kartı", "Kredi") and len(re.sub(r"\D", "", a.number)) >= 6
+        }
 
     def is_self(self, who: str) -> bool:
         f = fold(who)
@@ -269,8 +288,14 @@ class Own:
 
 _BANK_NOISE = {"TURKIYE", "TURK", "BANKASI", "BANK", "A.S.", "A.S", "T.A.O.", "T.A.O", "CUMHURIYETI", "VE"}
 # Receiver bank as printed in a transfer row -> bank name used for accounts.
-_BANK_NAMES = (("GARANTI", "Garanti BBVA"), ("IS BANKASI", "İş Bankası"), ("QNB", "QNB"),
-               ("FINANSBANK", "QNB"), ("EKONOMI", "TEB"), ("VAKIFLAR", "Vakıfbank"))
+_BANK_NAMES = (
+    ("GARANTI", "Garanti BBVA"),
+    ("IS BANKASI", "İş Bankası"),
+    ("QNB", "QNB"),
+    ("FINANSBANK", "QNB"),
+    ("EKONOMI", "TEB"),
+    ("VAKIFLAR", "Vakıfbank"),
+)
 
 
 def _bank_key(text: str) -> str:
@@ -301,9 +326,14 @@ def _free_card_payments(card_txns: list[Transaction], account_txns: list[Transac
     return free
 
 
-def _resolve_transfers(txns: list[Transaction], own: Own, categorizer: Categorizer,
-                       statements: list[Statement], accounts: dict[str, Account],
-                       card_payments: list[Transaction]) -> None:
+def _resolve_transfers(
+    txns: list[Transaction],
+    own: Own,
+    categorizer: Categorizer,
+    statements: list[Statement],
+    accounts: dict[str, Account],
+    card_payments: list[Transaction],
+) -> None:
     candidates = [t for t in txns if t.kind == CANDIDATE]
     found_by_name: list[Transaction] = []  # own transfers whose other side may still be open
     open_: list[Transaction] = []
@@ -388,7 +418,9 @@ def _rates(txns: list[Transaction]) -> dict[str, list[tuple[date, float]]]:
     return rates
 
 
-def _to_tl(txns: list[Transaction], accounts: dict[str, Account], rates: dict, warnings: list[str]) -> list[Transaction]:
+def _to_tl(
+    txns: list[Transaction], accounts: dict[str, Account], rates: dict, warnings: list[str]
+) -> list[Transaction]:
     """Value foreign-currency account rows in TL with the nearest rate found in the documents."""
     out = []
     for t in txns:
@@ -411,6 +443,7 @@ def _to_tl(txns: list[Transaction], accounts: dict[str, Account], rates: dict, w
 
 # --- build -------------------------------------------------------------------------
 
+
 def resolve_masked(results: Iterable[ParseResult]) -> None:
     """Receipts of incoming transfers print the account number masked ("1012/****321"): their rows
     move to the one account of that bank and currency whose number ends with the digits shown."""
@@ -419,8 +452,11 @@ def resolve_masked(results: Iterable[ParseResult]) -> None:
     for r in results:
         for i, masked in enumerate(r.accounts):
             shown = masked.number.rsplit("*", 1)[-1] if "*" in masked.number else ""
-            same = [a for a in known.values() if shown and a.bank == masked.bank and a.currency == masked.currency
-                    and a.number.endswith(shown)]
+            same = [
+                a
+                for a in known.values()
+                if shown and a.bank == masked.bank and a.currency == masked.currency and a.number.endswith(shown)
+            ]
             if len(same) != 1:
                 continue
             r.accounts[i] = same[0]
@@ -474,8 +510,9 @@ def build(results: list[tuple], categorizer: Categorizer, settings: dict) -> Dat
     own = Own([names] if isinstance(names, str) else list(names), accounts)
     warnings: list[str] = []
     # A receipt's transfer (a FAST to the landlord, a payment between own accounts) resolves like a list row.
-    _resolve_transfers(account_txns + receipt_txns, own, categorizer, stmts, accounts,
-                       _free_card_payments(card_txns, account_txns))
+    _resolve_transfers(
+        account_txns + receipt_txns, own, categorizer, stmts, accounts, _free_card_payments(card_txns, account_txns)
+    )
     rates = _rates(account_txns)
     account_txns = _to_tl(account_txns, accounts, rates, warnings)
     receipt_txns = _to_tl(receipt_txns, accounts, rates, warnings)
@@ -485,8 +522,16 @@ def build(results: list[tuple], categorizer: Categorizer, settings: dict) -> Dat
         categorizer.apply(t, accounts.get(t.account))
     txns.sort(key=lambda t: (t.date, t.account, t.description))
     return Dataset(
-        accounts=accounts, statements=stmts, transactions=txns, documents=documents,
-        groups=categorizer.groups, categories=categorizer.categories, coverage=coverage, warnings=warnings,
-        rates={cur: sorted(found) for cur, found in rates.items()}, ended=categorizer.ended,
-        regular=categorizer.regular, receipts=lines,
+        accounts=accounts,
+        statements=stmts,
+        transactions=txns,
+        documents=documents,
+        groups=categorizer.groups,
+        categories=categorizer.categories,
+        coverage=coverage,
+        warnings=warnings,
+        rates={cur: sorted(found) for cur, found in rates.items()},
+        ended=categorizer.ended,
+        regular=categorizer.regular,
+        receipts=lines,
     )

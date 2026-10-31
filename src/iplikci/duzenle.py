@@ -30,8 +30,11 @@ from .textutil import nfc
 
 KEEP, DUPLICATE, BUSINESS, UNUSED, FAILED = "tut", "kopya", "is", "kullanilmayan", "hata"
 ACTION_LABELS = {
-    KEEP: "Düzenlendi", DUPLICATE: "Kopya — silindi", BUSINESS: "İş belgesi — silindi",
-    UNUSED: "Kullanılmıyor — silindi", FAILED: "Okunamadı — elle bakın",
+    KEEP: "Düzenlendi",
+    DUPLICATE: "Kopya — silindi",
+    BUSINESS: "İş belgesi — silindi",
+    UNUSED: "Kullanılmıyor — silindi",
+    FAILED: "Okunamadı — elle bakın",
 }
 UNREADABLE_FOLDER = "Okunamayan belgeler"
 _BANK_SHORT = {"Garanti BBVA": "Garanti"}
@@ -62,7 +65,7 @@ class Item:
 def account_names(a: Account) -> tuple[str, str]:
     """(folder name, short name used inside file names) for an account or card."""
     number = (a.label.split()[-1] if a.label.split()[-1].startswith("…") else a.number).lstrip("…")
-    nickname = a.label[a.label.index("("):] if a.label.endswith(")") and "(" in a.label else ""
+    nickname = a.label[a.label.index("(") :] if a.label.endswith(")") and "(" in a.label else ""
     product = a.label.replace(a.bank, "", 1).split("•")[0].strip()
     folders = {
         "Kredi kartı": (f"{product} Kredi Kartı {number}", f"{product} {number}"),
@@ -142,8 +145,14 @@ def _inside(path: Path | None, folder: Path | None) -> bool:
     return path is not None and folder is not None and path.resolve().is_relative_to(folder.resolve())
 
 
-def plan(sources: list[Path], root: Path, cache_dir: Path | None, progress=None,
-         inbox: Path | None = None, extra: list[Item] | None = None) -> list[Item]:
+def plan(
+    sources: list[Path],
+    root: Path,
+    cache_dir: Path | None,
+    progress=None,
+    inbox: Path | None = None,
+    extra: list[Item] | None = None,
+) -> list[Item]:
     """Decide, without touching anything, what happens to every file under sources.
 
     inbox is a folder documents only pass through (uploads, the automatic import): its unreadable
@@ -156,7 +165,9 @@ def plan(sources: list[Path], root: Path, cache_dir: Path | None, progress=None,
     for it in items:
         unique.setdefault(it.sha256, it)
     docs = [Document(it.name, str(it.path or it.archive), it.data, it.sha256) for it in unique.values()]
-    parsed = {doc.sha256: (result, status) for doc, result, status in parse_all(docs, cache_dir, progress, keep_old=True)}
+    parsed = {
+        doc.sha256: (result, status) for doc, result, status in parse_all(docs, cache_dir, progress, keep_old=True)
+    }
     resolve_masked(result for result, _ in parsed.values() if result)
 
     extracted: set[str] = set()
@@ -184,7 +195,9 @@ def plan(sources: list[Path], root: Path, cache_dir: Path | None, progress=None,
 
     # One file per statement / receipt: identical bytes or the same statement downloaded twice.
     best: dict = {}
-    for it in sorted((i for i in items if i.action == KEEP), key=lambda i: (i.path is None, -i.weight, i.target != i.path)):
+    for it in sorted(
+        (i for i in items if i.action == KEEP), key=lambda i: (i.path is None, -i.weight, i.target != i.path)
+    ):
         key = it.keys[0] if it.keys else it.sha256
         if key in best or it.sha256 in best:
             it.action, it.reason = DUPLICATE, f"kopyası tutuldu: {best.get(key, best.get(it.sha256)).target.name}"
@@ -209,8 +222,15 @@ def plan(sources: list[Path], root: Path, cache_dir: Path | None, progress=None,
         plans.append(Item(nfc(p.name), "", path=p, action=UNUSED, reason="belge değil"))
     kept_from_archives = {it.sha256 for it in items if it.archive and it.action == KEEP}
     for a in archives:
-        plans.append(Item(nfc(a.name), "", path=a, action=UNUSED,
-                          reason="arşiv: içindeki kişisel belgeler klasöre çıkarıldı" if kept_from_archives else "arşiv"))
+        plans.append(
+            Item(
+                nfc(a.name),
+                "",
+                path=a,
+                action=UNUSED,
+                reason="arşiv: içindeki kişisel belgeler klasöre çıkarıldı" if kept_from_archives else "arşiv",
+            )
+        )
     return plans
 
 
@@ -332,7 +352,8 @@ def move_to_system_trash(folder: Path) -> Path:
     except ImportError:
         return folder
     ok, url, _ = NSFileManager.defaultManager().trashItemAtURL_resultingItemURL_error_(
-        NSURL.fileURLWithPath_(str(folder)), None, None)
+        NSURL.fileURLWithPath_(str(folder)), None, None
+    )
     return Path(str(url.path())) if ok and url is not None else folder
 
 
@@ -357,8 +378,9 @@ def freedesktop_trash(folder: Path) -> Path:
                 pass
             name, n = f"{folder.name} {n}", n + 1
         with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(f"[Trash Info]\nPath={quote(str(folder.resolve()))}\n"
-                    f"DeletionDate={datetime.now():%Y-%m-%dT%H:%M:%S}\n")
+            f.write(
+                f"[Trash Info]\nPath={quote(str(folder.resolve()))}\nDeletionDate={datetime.now():%Y-%m-%dT%H:%M:%S}\n"
+            )
         try:
             return Path(shutil.move(folder, trash / "files" / name))
         except OSError:

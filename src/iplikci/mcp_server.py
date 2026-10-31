@@ -46,13 +46,17 @@ from .workspace import (
 
 PROTOCOL_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
 PLAN_LABELS = {
-    duzenle.KEEP: "yerine taşınacak", duzenle.FAILED: "okunamadı — elle bakılacak",
-    duzenle.DUPLICATE: "kopya — çöp kutusuna", duzenle.BUSINESS: "şirket belgesi — çöp kutusuna",
+    duzenle.KEEP: "yerine taşınacak",
+    duzenle.FAILED: "okunamadı — elle bakılacak",
+    duzenle.DUPLICATE: "kopya — çöp kutusuna",
+    duzenle.BUSINESS: "şirket belgesi — çöp kutusuna",
     duzenle.UNUSED: "kullanılmıyor — çöp kutusuna",
 }
 IMPORT_LABELS = {
-    duzenle.KEEP: "gelen kutusuna kopyalandı", duzenle.FAILED: "okunamadı — elle bakmak için kopyalandı",
-    duzenle.DUPLICATE: "zaten var — atlandı", duzenle.BUSINESS: "şirket belgesi — atlandı",
+    duzenle.KEEP: "gelen kutusuna kopyalandı",
+    duzenle.FAILED: "okunamadı — elle bakmak için kopyalandı",
+    duzenle.DUPLICATE: "zaten var — atlandı",
+    duzenle.BUSINESS: "şirket belgesi — atlandı",
     duzenle.UNUSED: "banka belgesi değil ya da kullanılmıyor — atlandı",
 }
 
@@ -105,9 +109,17 @@ class Tool:
 
     def listing(self) -> dict:
         return {
-            "name": self.name, "title": self.title, "description": self.description, "inputSchema": self.schema,
-            "annotations": {"title": self.title, "readOnlyHint": self.read_only, "destructiveHint": self.destructive,
-                            "idempotentHint": self.read_only, "openWorldHint": self.open_world},
+            "name": self.name,
+            "title": self.title,
+            "description": self.description,
+            "inputSchema": self.schema,
+            "annotations": {
+                "title": self.title,
+                "readOnlyHint": self.read_only,
+                "destructiveHint": self.destructive,
+                "idempotentHint": self.read_only,
+                "openWorldHint": self.open_world,
+            },
         }
 
 
@@ -168,8 +180,10 @@ class Server:
             return {"content": [{"type": "text", "text": str(exc)}], "isError": True}
         except Exception as exc:  # reported to the model, details on stderr; the server keeps running  # noqa: BLE001
             traceback.print_exc(file=sys.stderr)
-            return {"content": [{"type": "text", "text": f"beklenmeyen hata: {type(exc).__name__}: {exc}"}],
-                    "isError": True}
+            return {
+                "content": [{"type": "text", "text": f"beklenmeyen hata: {type(exc).__name__}: {exc}"}],
+                "isError": True,
+            }
         text = json.dumps(value, ensure_ascii=False, default=str)
         return {"content": [{"type": "text", "text": text}], "isError": False}
 
@@ -223,6 +237,7 @@ def _check(schema: dict, args) -> dict:
 
 # --- tools ------------------------------------------------------------------------------------------
 
+
 def _status(s: Server, args: dict) -> dict:
     a = s.current.get()
     tl_ = a.insights.timeline
@@ -230,14 +245,25 @@ def _status(s: Server, args: dict) -> dict:
     html = s.ws.output / "gider_raporu.html"
     updated = datetime.fromtimestamp(html.stat().st_mtime).isoformat(timespec="minutes") if html.exists() else None
     return {
-        "workspace": {"documents": str(s.ws.documents), "inbox": str(s.ws.inbox), "output": str(s.ws.output),
-                      "rules": str(s.ws.rules)},
+        "workspace": {
+            "documents": str(s.ws.documents),
+            "inbox": str(s.ws.inbox),
+            "output": str(s.ws.output),
+            "rules": str(s.ws.rules),
+        },
         "read": summary(a),
         "inbox": {"waiting": len(waiting), "files": [str(p.relative_to(s.ws.inbox)) for p in waiting[:50]]},
         "completeMonths": {"window": tl_.window, "lastComplete": tl_.last_complete, "newestStatement": tl_.as_of},
-        "documentGaps": [{"account": g.account, "kind": g.kind, "lastStatement": g.last,
-                          "daysSinceLastStatement": g.behind, "missingMonths": list(g.months)}
-                         for g in document_gaps(a.dataset)],
+        "documentGaps": [
+            {
+                "account": g.account,
+                "kind": g.kind,
+                "lastStatement": g.last,
+                "daysSinceLastStatement": g.behind,
+                "missingMonths": list(g.months),
+            }
+            for g in document_gaps(a.dataset)
+        ],
         "report": {"html": str(html), "updated": updated},
         "automation": automation.status(s.ws),
         "email": email_fetch.status(s.ws),
@@ -247,9 +273,11 @@ def _status(s: Server, args: dict) -> dict:
 def _plan_view(s: Server, p: Plan) -> dict:
     s.keep(p)
     return {
-        "plan_id": p.id, "changes": len(p.changes),
+        "plan_id": p.id,
+        "changes": len(p.changes),
         "items": [{**describe(it, s.ws), "label": PLAN_LABELS[it.action]} for it in p.changes],
-        "note": "Hiçbir dosyaya dokunulmadı. Kullanıcı onaylarsa apply_inbox(plan_id) çağırın." if p.changes
+        "note": "Hiçbir dosyaya dokunulmadı. Kullanıcı onaylarsa apply_inbox(plan_id) çağırın."
+        if p.changes
         else "Gelen kutusunda yerleştirilecek belge yok.",
     }
 
@@ -258,10 +286,17 @@ def _found(s: Server, found: list[duzenle.Item], copies: list) -> dict:
     shown = [it for it in found if it.action in (duzenle.KEEP, duzenle.FAILED)]
     others = [it for it in found if it.action not in (duzenle.KEEP, duzenle.FAILED)]
     return {
-        "found": len(found), "byVerdict": dict(Counter(IMPORT_LABELS[it.action] for it in found)),
+        "found": len(found),
+        "byVerdict": dict(Counter(IMPORT_LABELS[it.action] for it in found)),
         "documents": [{**describe(it, s.ws), "label": IMPORT_LABELS[it.action]} for it in shown],
-        "skippedExamples": [{"source": str(it.path or f"{it.archive} › {it.name}"), "label": IMPORT_LABELS[it.action],
-                             "reason": it.reason} for it in others[:20]],
+        "skippedExamples": [
+            {
+                "source": str(it.path or f"{it.archive} › {it.name}"),
+                "label": IMPORT_LABELS[it.action],
+                "reason": it.reason,
+            }
+            for it in others[:20]
+        ],
         "copied": [str(c.relative_to(s.ws.inbox)) for c in copies],
         "plan": _plan_view(s, plan_inbox(s.ws)),
     }
@@ -273,9 +308,15 @@ def _import(s: Server, args: dict) -> dict:
 
 def _fetch_email(s: Server, args: dict) -> dict:
     got = email_fetch.fetch(s.ws, wait=30)
-    out = {"message": got.message, "emails": got.scanned, "withDocuments": got.with_documents,
-           "unverifiedSkipped": got.unverified, "tooLargeSkipped": got.too_large, "folder": got.folder,
-           "more": got.more}
+    out = {
+        "message": got.message,
+        "emails": got.scanned,
+        "withDocuments": got.with_documents,
+        "unverifiedSkipped": got.unverified,
+        "tooLargeSkipped": got.too_large,
+        "folder": got.folder,
+        "more": got.more,
+    }
     if got.more:
         out["note"] = "Daha fazla e-posta var: fetch_email'i yeniden çağırın."
     return out | _found(s, got.found, [path for _, path in got.copied])
@@ -295,8 +336,10 @@ def _apply(s: Server, args: dict) -> dict:
     return {
         "done": [{**describe(it, s.ws), "label": duzenle.ACTION_LABELS[it.action]} for it in done.items],
         "counts": {duzenle.ACTION_LABELS[k]: v for k, v in done.counts.items()},
-        "trash": str(done.trash) if done.trash else None, "log": str(done.log) if done.log else None,
-        "report": summary(a), "outputs": a.outputs and {k: str(v) for k, v in vars(a.outputs).items()},
+        "trash": str(done.trash) if done.trash else None,
+        "log": str(done.log) if done.log else None,
+        "report": summary(a),
+        "outputs": a.outputs and {k: str(v) for k, v in vars(a.outputs).items()},
     }
 
 
@@ -309,10 +352,16 @@ def _insights(s: Server, args: dict) -> dict:
     a = s.current.get()
     ins, p = a.insights, a.payload["insights"]
     return {
-        "window": ins.timeline.window, "lastComplete": ins.timeline.last_complete, "asOf": ins.timeline.as_of,
+        "window": ins.timeline.window,
+        "lastComplete": ins.timeline.last_complete,
+        "asOf": ins.timeline.as_of,
         "findings": [{"tone": f.tone, "title": f.title, "text": f.text} for f in ins.findings],
         "steps": [{"title": st.title, "text": st.text, "monthly": round(st.monthly, 2)} for st in ins.steps],
-        "budget": p["budget"], "flow": p["flow"], "trend": p["trend"], "holdings": p["holdings"], "income": p["income"],
+        "budget": p["budget"],
+        "flow": p["flow"],
+        "trend": p["trend"],
+        "holdings": p["holdings"],
+        "income": p["income"],
         "note": "flow: pencere aylarının aylık ortalamaları; budget: bugünkü tipik ay ve öneri.",
     }
 
@@ -353,15 +402,20 @@ def _transactions(s: Server, args: dict) -> dict:
         picked.append(t)
     limit = args.get("limit", 50)
     out = {
-        "count": len(picked), "total": round(sum(t.amount for t in picked), 2),
+        "count": len(picked),
+        "total": round(sum(t.amount for t in picked), 2),
         "out": round(sum(t.amount for t in picked if t.amount > 0), 2),
         "in": round(sum(t.amount for t in picked if t.amount < 0), 2),
     }
     if args.get("group_by"):
         keys = {
-            "month": lambda t: f"{t.date:%Y-%m}", "category": lambda t: t.category, "group": lambda t: t.group,
-            "merchant": lambda t: t.merchant, "kind": lambda t: t.kind,
-            "necessity": lambda t: t.necessity or "Belirsiz", "account": lambda t: ds.accounts[t.account].label,
+            "month": lambda t: f"{t.date:%Y-%m}",
+            "category": lambda t: t.category,
+            "group": lambda t: t.group,
+            "merchant": lambda t: t.merchant,
+            "kind": lambda t: t.kind,
+            "necessity": lambda t: t.necessity or "Belirsiz",
+            "account": lambda t: ds.accounts[t.account].label,
         }
         totals: dict[str, list] = defaultdict(lambda: [0.0, 0])
         for t in picked:
@@ -376,11 +430,27 @@ def _transactions(s: Server, args: dict) -> dict:
     picked.sort(key=lambda t: t.amount if order.startswith("amount") else t.date, reverse=order.endswith("desc"))
     out["rows"] = []
     for t in picked[:limit]:
-        row = {"date": t.date, "merchant": t.merchant, "description": t.description, "amount": t.amount,
-               "kind": t.kind, "category": t.category, "group": t.group, "necessity": t.necessity,
-               "account": ds.accounts[t.account].label}
-        row |= {k: v for k, v in (("installment", t.installment), ("original", t.original),
-                                   ("counterparty", t.counterparty), ("provisional", t.provisional)) if v}
+        row = {
+            "date": t.date,
+            "merchant": t.merchant,
+            "description": t.description,
+            "amount": t.amount,
+            "kind": t.kind,
+            "category": t.category,
+            "group": t.group,
+            "necessity": t.necessity,
+            "account": ds.accounts[t.account].label,
+        }
+        row |= {
+            k: v
+            for k, v in (
+                ("installment", t.installment),
+                ("original", t.original),
+                ("counterparty", t.counterparty),
+                ("provisional", t.provisional),
+            )
+            if v
+        }
         out["rows"].append(row)
     out["rowsShown"] = len(out["rows"])
     return out
@@ -395,29 +465,61 @@ def _regular(s: Server, args: dict) -> dict:
         if args.get("status") and sr.status != args["status"] or not args.get("status") and not show:
             continue
         change = sr.price_change()
-        rows.append({
-            "merchant": sr.merchant, "category": sr.last.category, "necessity": sr.last.necessity,
-            "kind": sr.last.kind, "status": sr.status, "statusLabel": STATUS[sr.status],
-            "monthly": round(sr.monthly, 2), "lastAmount": round(abs(sr.last.amount), 2), "last": sr.last.date,
-            "first": sr.payments[0].date, "next": sr.expected, "payments": len(sr.payments), "dayOfMonth": sr.day,
-            "priceChange": change and {"from": round(change[0], 2), "to": round(change[1], 2), "since": change[2]},
-            "accounts": sorted({ds.accounts[t.account].label for t in sr.payments}),
-        })
-    income = [{"payer": sr.merchant, "monthly": round(sr.monthly, 2), "last": sr.last.date,
-               "status": STATUS[sr.status]} for sr in ins.income if sr.running]
-    return {"series": rows, "income": income,
-            "note": "Varsayılan liste raporla aynı: sürenler ve pencere içinde bitenler. status ile süzülebilir."}
+        rows.append(
+            {
+                "merchant": sr.merchant,
+                "category": sr.last.category,
+                "necessity": sr.last.necessity,
+                "kind": sr.last.kind,
+                "status": sr.status,
+                "statusLabel": STATUS[sr.status],
+                "monthly": round(sr.monthly, 2),
+                "lastAmount": round(abs(sr.last.amount), 2),
+                "last": sr.last.date,
+                "first": sr.payments[0].date,
+                "next": sr.expected,
+                "payments": len(sr.payments),
+                "dayOfMonth": sr.day,
+                "priceChange": change and {"from": round(change[0], 2), "to": round(change[1], 2), "since": change[2]},
+                "accounts": sorted({ds.accounts[t.account].label for t in sr.payments}),
+            }
+        )
+    income = [
+        {"payer": sr.merchant, "monthly": round(sr.monthly, 2), "last": sr.last.date, "status": STATUS[sr.status]}
+        for sr in ins.income
+        if sr.running
+    ]
+    return {
+        "series": rows,
+        "income": income,
+        "note": "Varsayılan liste raporla aynı: sürenler ve pencere içinde bitenler. status ile süzülebilir.",
+    }
 
 
 def _habits(s: Server, args: dict) -> dict:
     ins = s.current.get().insights
-    return {"window": ins.timeline.window, "habits": [
-        {"name": h.name, "category": h.category, "necessity": h.necessity, "byCategory": h.by_category,
-         "status": h.status, "statusLabel": HABIT_STATUS[h.status], "pattern": h.pattern, "count": h.count,
-         "months": h.months, "windowMonths": h.span, "total": round(h.total, 2), "recentMonthly": round(h.recent, 2),
-         "expectedMonthly": round(h.monthly, 2), "last": h.last}
-        for h in ins.habits
-    ]}
+    return {
+        "window": ins.timeline.window,
+        "habits": [
+            {
+                "name": h.name,
+                "category": h.category,
+                "necessity": h.necessity,
+                "byCategory": h.by_category,
+                "status": h.status,
+                "statusLabel": HABIT_STATUS[h.status],
+                "pattern": h.pattern,
+                "count": h.count,
+                "months": h.months,
+                "windowMonths": h.span,
+                "total": round(h.total, 2),
+                "recentMonthly": round(h.recent, 2),
+                "expectedMonthly": round(h.monthly, 2),
+                "last": h.last,
+            }
+            for h in ins.habits
+        ],
+    }
 
 
 def _accounts(s: Server, args: dict) -> dict:
@@ -429,22 +531,35 @@ def _accounts(s: Server, args: dict) -> dict:
         stmts = [st for st in ds.statements if st.account == acc.id]
         cov = ds.coverage.get(acc.id, {})
         h = held.get(acc.label)
-        rows.append({
-            "label": acc.label, "bank": acc.bank, "type": acc.type, "currency": acc.currency, "note": acc.note or None,
-            "statements": len(stmts), "verified": sum(st.verified for st in stmts),
-            "first": min((st.start or st.cut_date for st in stmts), default=None),
-            "last": max((st.cut_date for st in stmts), default=None),
-            "fullMonths": sum(v >= 0.97 for v in cov.values()),
-            "partialMonths": sorted(m for m, v in cov.items() if v < 0.97),
-            "balance": h and {"amount": h.amount, "valueTL": h.value, "asOf": h.as_of, "note": h.note},
-        })
+        rows.append(
+            {
+                "label": acc.label,
+                "bank": acc.bank,
+                "type": acc.type,
+                "currency": acc.currency,
+                "note": acc.note or None,
+                "statements": len(stmts),
+                "verified": sum(st.verified for st in stmts),
+                "first": min((st.start or st.cut_date for st in stmts), default=None),
+                "last": max((st.cut_date for st in stmts), default=None),
+                "fullMonths": sum(v >= 0.97 for v in cov.values()),
+                "partialMonths": sorted(m for m, v in cov.items() if v < 0.97),
+                "balance": h and {"amount": h.amount, "valueTL": h.value, "asOf": h.as_of, "note": h.note},
+            }
+        )
     return {"accounts": rows}
 
 
 def _totals(t) -> dict:
-    return {"expense": round(t.expense, 2), "income": None if t.income is None else round(t.income, 2),
-            "people": round(t.people, 2), "debt": round(t.debt, 2), "saving": round(t.saving, 2),
-            "feesAndInterest": round(t.fees, 2), "left": None if t.left is None else round(t.left, 2)}
+    return {
+        "expense": round(t.expense, 2),
+        "income": None if t.income is None else round(t.income, 2),
+        "people": round(t.people, 2),
+        "debt": round(t.debt, 2),
+        "saving": round(t.saving, 2),
+        "feesAndInterest": round(t.fees, 2),
+        "left": None if t.left is None else round(t.left, 2),
+    }
 
 
 def _month_end(s: Server, args: dict) -> dict:
@@ -452,35 +567,79 @@ def _month_end(s: Server, args: dict) -> dict:
     months = a.months
     if "month" not in args:
         return {
-            "months": [{"month": me.month, "status": me.status, "statusLabel": me.label, "closing": me.summary,
-                        "totals": _totals(me.totals), "provisional": len(me.provisional),
-                        "notOnStatement": len(me.unmatched)} for me in reversed(months)],
+            "months": [
+                {
+                    "month": me.month,
+                    "status": me.status,
+                    "statusLabel": me.label,
+                    "closing": me.summary,
+                    "totals": _totals(me.totals),
+                    "provisional": len(me.provisional),
+                    "notOnStatement": len(me.unmatched),
+                }
+                for me in reversed(months)
+            ],
             "note": "status: kapandi (bütün belgeler geldi ve tutarlı), bekleniyor, eksik, kontrol, suruyor (bu ay). "
-                    "Ayrıntı için month ile çağırın.",
+            "Ayrıntı için month ile çağırın.",
         }
     me = next((m for m in months if m.month == args["month"]), None)
     if me is None:  # older than the months with a page
         [me] = month_end.build(a.dataset, a.insights, months=[args["month"]])
     ds = a.dataset
     return {
-        "month": me.month, "status": me.status, "statusLabel": me.label, "closing": me.summary,
-        "totals": _totals(me.totals), "incomeNote": me.income_note,
-        "previousMonth": me.previous and _totals(me.previous), "typicalExpense": me.typical,
-        "accounts": [{"account": ac.account.label, "status": ac.status,
-                      "statusLabel": month_end.ACCOUNT_STATUS[ac.status],
-                      "coveredDays": ac.covered, "neededDays": ac.needed, "note": ac.note,
-                      "monthEndBalance": ac.balance, "currency": ac.account.currency, "nextCut": ac.next_cut,
-                      "waitsForIt": ac.blocking} for ac in me.accounts],
+        "month": me.month,
+        "status": me.status,
+        "statusLabel": me.label,
+        "closing": me.summary,
+        "totals": _totals(me.totals),
+        "incomeNote": me.income_note,
+        "previousMonth": me.previous and _totals(me.previous),
+        "typicalExpense": me.typical,
+        "accounts": [
+            {
+                "account": ac.account.label,
+                "status": ac.status,
+                "statusLabel": month_end.ACCOUNT_STATUS[ac.status],
+                "coveredDays": ac.covered,
+                "neededDays": ac.needed,
+                "note": ac.note,
+                "monthEndBalance": ac.balance,
+                "currency": ac.account.currency,
+                "nextCut": ac.next_cut,
+                "waitsForIt": ac.blocking,
+            }
+            for ac in me.accounts
+        ],
         "expenseByGroup": [{"group": g, "total": round(v, 2)} for g, _, v in me.groups],
         "expenseByNecessity": [{"necessity": n, "total": round(v, 2)} for n, _, v in me.levels],
         "topCategories": [{"category": c, "total": round(v, 2), "count": n} for c, _, v, n in me.categories],
-        "regularPayments": [{"merchant": sr.merchant, "paid": [{"date": t.date, "amount": abs(t.amount)} for t in paid],
-                             "expected": expected} for sr, paid, expected in me.regular],
-        "provisional": [{"date": t.date, "account": ds.accounts[t.account].label, "description": t.description,
-                         "kind": t.kind, "amount": t.amount} for t in me.provisional],
-        "notOnStatement": [{"date": line.txn.date, "account": ds.accounts[line.txn.account].label,
-                            "description": line.txn.description, "amount": receipt_amount(ds, line)}
-                           for line in me.unmatched],
+        "regularPayments": [
+            {
+                "merchant": sr.merchant,
+                "paid": [{"date": t.date, "amount": abs(t.amount)} for t in paid],
+                "expected": expected,
+            }
+            for sr, paid, expected in me.regular
+        ],
+        "provisional": [
+            {
+                "date": t.date,
+                "account": ds.accounts[t.account].label,
+                "description": t.description,
+                "kind": t.kind,
+                "amount": t.amount,
+            }
+            for t in me.provisional
+        ],
+        "notOnStatement": [
+            {
+                "date": line.txn.date,
+                "account": ds.accounts[line.txn.account].label,
+                "description": line.txn.description,
+                "amount": receipt_amount(ds, line),
+            }
+            for line in me.unmatched
+        ],
         "page": str(s.ws.output / month_end.FOLDER / me.file),
     }
 
@@ -491,13 +650,18 @@ def _read_rules(s: Server, args: dict) -> dict:
     for category, group in rules.categories.items():
         groups[group].append(category)
     return {
-        "path": str(s.ws.rules), "content": s.ws.rules.read_text(encoding="utf-8"), "categories": dict(groups),
-        "necessity": rules.necessity, "regular": sorted(rules.regular), "ended": rules.ended,
+        "path": str(s.ws.rules),
+        "content": s.ws.rules.read_text(encoding="utf-8"),
+        "categories": dict(groups),
+        "necessity": rules.necessity,
+        "regular": sorted(rules.regular),
+        "ended": rules.ended,
     }
 
 
 def _effect(before: Dataset, after: Dataset) -> dict:
     """Transactions whose category, necessity, kind or merchant name the rule change changed."""
+
     def index(ds: Dataset) -> dict:
         out = defaultdict(list)
         for t in ds.transactions:
@@ -518,11 +682,22 @@ def _effect(before: Dataset, after: Dataset) -> dict:
             moves[(x.category, y.category)] += 1
             totals[(x.category, y.category)] += y.amount
             if len(examples) < 15:
-                examples.append({"date": y.date, "description": y.description, "amount": y.amount,
-                                 "before": labels(x), "after": labels(y)})
-    return {"changed": sum(moves.values()), "examples": examples,
-            "moves": [{"from": f, "to": t, "count": n, "total": round(totals[(f, t)], 2)}
-                      for (f, t), n in moves.most_common(20)]}
+                examples.append(
+                    {
+                        "date": y.date,
+                        "description": y.description,
+                        "amount": y.amount,
+                        "before": labels(x),
+                        "after": labels(y),
+                    }
+                )
+    return {
+        "changed": sum(moves.values()),
+        "examples": examples,
+        "moves": [
+            {"from": f, "to": t, "count": n, "total": round(totals[(f, t)], 2)} for (f, t), n in moves.most_common(20)
+        ],
+    }
 
 
 def _change_rules(s: Server, new: str) -> dict:
@@ -533,8 +708,12 @@ def _change_rules(s: Server, new: str) -> dict:
     before = s.current.get()
     backup = rulefile.replace(s.ws.rules, new, s.ws.output / "kategoriler-yedekleri")
     after = s.current.refresh(write=True)
-    return {"diff": rulefile.diff(old, new, s.ws.rules.name), "backup": str(backup),
-            "effect": _effect(before.dataset, after.dataset), "report": str(after.outputs.html)}
+    return {
+        "diff": rulefile.diff(old, new, s.ws.rules.name),
+        "backup": str(backup),
+        "effect": _effect(before.dataset, after.dataset),
+        "report": str(after.outputs.html),
+    }
 
 
 def _add_rule(s: Server, args: dict) -> dict:
@@ -547,8 +726,10 @@ def _mark_ended(s: Server, args: dict) -> dict:
     match = next((m for m in merchants if fold(m) == fold(args["merchant"])), None)
     if match is None:
         close = difflib.get_close_matches(args["merchant"], sorted(merchants), n=5, cutoff=0.5)
-        raise ToolError(f"'{args['merchant']}' adlı işyeri işlemlerde yok; raporda göründüğü adı kullanın"
-                        + (f" (yakın adlar: {', '.join(close)})" if close else ""))
+        raise ToolError(
+            f"'{args['merchant']}' adlı işyeri işlemlerde yok; raporda göründüğü adı kullanın"
+            + (f" (yakın adlar: {', '.join(close)})" if close else "")
+        )
     text = s.ws.rules.read_text(encoding="utf-8")
     return _change_rules(s, rulefile.add_ended(text, match, args["month"], args.get("note", "")))
 
@@ -567,105 +748,195 @@ _GROUP_BY = ["month", "category", "group", "merchant", "kind", "account", "neces
 _SORT = ["date_desc", "date_asc", "amount_desc", "amount_asc"]
 
 TOOLS = (
-    Tool("status", "Durum",
-         "Belgelerin ve hesapların durumu: kaç belge okundu ve bankanın toplamıyla/bakiyeyle tutarlı mı, "
-         "okunamayanlar, Gelen Belgeler klasöründe bekleyenler, tam aylar, eksik ya da güncel olmayan belgeler "
-         "(hangi hesabın hangi belgesi indirilmeli), rapor dosyası, otomatik yükleme görevinin ve e-postadan "
-         "belge almanın durumu.",
-         _schema(), _status),
-    Tool("import_documents", "Belge içe aktar",
-         "Bu bilgisayardaki dosya, klasör, zip ya da mbox (e-posta arşivi) yollarındaki banka belgelerini tarar. "
-         "Yeni kişisel kart ekstrelerini, hesap hareketi dökümlerini ve dekontları (ve okunamayanları) "
-         "Gelen Belgeler klasörüne KOPYALAR, asıllarına dokunmaz. Zaten var olanları, şirket belgelerini ve banka "
-         "belgesi olmayanları atlar. Ardından gelen kutusunun planını plan_id ile döndürür; yerleştirmek için "
-         "kullanıcı onaylayınca apply_inbox.",
-         _schema(("paths",), paths={"type": "array", "minItems": 1, "items": _TEXT,
-                                    "description": "mutlak yollar; ~ kullanılabilir"}),
-         _import, read_only=False),
-    Tool("fetch_email", "E-postadan belge al",
-         "Kullanıcının e-posta kutusunu (Gmail, IMAP) salt okunur açar ve bankaların gönderdiği kart ekstresi, hesap "
-         "dökümü ve dekont eklerini alır; yenilerini Gelen Belgeler klasörüne kopyalar, e-posta kutusunda hiçbir şeyi "
-         "değiştirmez. Yalnızca ayarlardaki banka alan adlarından gelen ve sunucunun göndereni doğruladığı (DMARC) "
-         "e-postalar sayılır. Son alımdan sonra gelenleri okur; ardından gelen kutusunun planını plan_id ile "
-         "döndürür. Kurulu değilse kullanıcı kendi terminalinde `uv run iplikci eposta --kur` çalıştırmalı.",
-         _schema(), _fetch_email, read_only=False, open_world=True),
-    Tool("plan_inbox", "Gelen kutusu planı",
-         "Gelen Belgeler klasöründeki belgelere ne olacağını gösterir, hiçbir dosyaya dokunmaz: hangisi hangi "
-         "klasöre hangi adla taşınacak (belge türü, hesap, dönem, tutarlılık kontrolüyle), hangileri kopya, şirket "
-         "belgesi ya da kullanılmıyor diye çöp kutusuna gidecek, hangileri okunamadı. Dönen plan_id apply_inbox "
-         "içindir.", _schema(), _plan),
-    Tool("apply_inbox", "Gelen kutusunu yerleştir",
-         "plan_inbox ya da import_documents ile gösterilen planı aynen uygular: belgeleri Bankalar/<Banka>/<Hesap>/ "
-         "altına taşır, ayrılanları çöp kutusuna (geri alınabilir) taşır, kayıt CSV'si yazar, raporu yeniden "
-         "üretir. Yalnızca kullanıcı planı görüp onayladıktan sonra çağırın.",
-         _schema(("plan_id",), plan_id=_TEXT), _apply, read_only=False, destructive=True),
-    Tool("build_report", "Raporu üret",
-         "HTML raporu, islemler.csv ve islemler.xlsx dosyalarını yeniden üretir; okunan belge sayılarını ve kontrol "
-         "sonuçlarını döndürür.", _schema(), _build, read_only=False),
-    Tool("insights", "Değerlendirme",
-         "Programın yorumu: tam aylar penceresi, öne çıkanlar, önerilen adımlar (aylık etkisiyle), aylık bütçe "
-         "(bugün ve öneri), gelir-gider ortalamaları, varlıklar ve borçlar, harcama eğilimi, düzenli gelir.",
-         _schema(), _insights),
-    Tool("transactions", "İşlemler",
-         "İşlemleri süzer, sıralar ya da gruplar (group_by ile aylık, kategori, işyeri… toplamları). amount > 0 para "
-         "çıkışı, < 0 para girişi. Gider toplamı için kinds = [harcama, iade, faiz_ucret] verin; varsayılan bütün "
-         "türlerdir.",
-         _schema(**{
-             "from": _MONTH_OR_DAY, "to": _MONTH_OR_DAY,
-             "text": {"type": "string", "description": "işyeri, açıklama ya da karşı tarafta geçen metin "
-                                                       "(Türkçe karakter ve büyük/küçük harf duyarsız)"},
-             "category": _TEXT, "group": {"type": "string", "description": "ana grup"},
-             "kinds": {"type": "array", "items": {"type": "string", "enum": list(KINDS)}},
-             "account": {"type": "string", "description": "hesap adında geçen metin"},
-             "necessity": {"type": "string", "enum": list(NECESSITY)},
-             "min_amount": {"type": "number"}, "max_amount": {"type": "number"},
-             "group_by": {"type": "string", "enum": _GROUP_BY}, "sort": {"type": "string", "enum": _SORT},
-             "limit": {"type": "integer", "minimum": 1, "maximum": 500},
-         }), _transactions),
-    Tool("regular_payments", "Düzenli ödemeler",
-         "Düzenli ödemeler ve abonelikler (kira, faturalar, üyelikler): durumu (devam, bitti, iptal, iptal_sonrasi), "
-         "aylık tutarı, son ve beklenen sonraki ödeme, fiyat değişimi; ayrıca düzenli gelirler.",
-         _schema(status={"type": "string", "enum": list(STATUS)}), _regular),
-    Tool("habits", "Alışkanlıklar",
-         "İsteğe bağlı harcamalar (işyerine göre) ve kaçınılabilir maliyetler (faiz, ücret; kategoriye göre): durumu "
-         "(her ay, yeni, ara sıra, durdu, tek seferlik), sıklığı ve bundan sonraki aylık maliyeti.",
-         _schema(), _habits),
-    Tool("accounts", "Hesaplar",
-         "Hesaplar ve kartlar: banka, tür, para birimi, belge sayısı ve tutarlılığı, belgelerin kapsadığı dönem, "
-         "eksik kalan aylar, son bakiye.", _schema(), _accounts),
-    Tool("month_end", "Ay sonu ve kapanış",
-         "Ay sonu raporu ve ekstre ile kapanış. month verilmezse son aylar: her ayın durumu (kapandi: bütün "
-         "hesapların ekstresi/dökümü ayın tamamını kapsıyor, tutarlı ve dekontlar eşleşti; bekleniyor; eksik; "
-         "kontrol; suruyor), gider, gelir, kalan. month ile o ayın ayrıntısı: hesap hesap hangi ekstre ya da döküm "
-         "bekleniyor (sonraki kesim tarihi), ay sonu bakiyeleri, gider dağılımı, düzenli ödemeler, ekstresi gelmeden "
-         "dekontlardan işlenen geçici kayıtlar ve ekstrede görünmeyen dekontlar.",
-         _schema(month={"type": "string", "pattern": r"\d{4}-\d{2}", "description": "YYYY-AA"}), _month_end),
-    Tool("read_rules", "Kategori kurallarını oku",
-         "kategoriler.yaml dosyasının metni ve özeti: ana gruplar ve kategoriler, gereklilik seviyeleri, düzenli "
-         "ödeme kategorileri, bitti olarak işaretlenen ödemeler.", _schema(), _read_rules),
-    Tool("add_rule", "Kategori kuralı ekle",
-         "Bir işyerini bir kategoriye bağlayan isimli kural ekler (işyeri varsa desenlerini genişletir). İsimli "
-         "kurallar bütün anahtar kelimelerden önce denenir. Desenler büyük/küçük harf ve Türkçe karakter "
-         "duyarsızdır; 're:' ile başlayan desen ASCII büyük harfe çevrilmiş açıklamaya uygulanan düzenli ifadedir. "
-         "Değişikliğin hangi işlemleri taşıdığını döndürür; dosyanın yedeği alınır.",
-         _schema(("category", "merchant", "patterns"),
-                 category={"type": "string", "description": "var olan kategori (read_rules)"},
-                 merchant={"type": "string", "description": "raporda görünecek işyeri adı"},
-                 patterns={"type": "array", "minItems": 1, "items": _TEXT}),
-         _add_rule, read_only=False),
-    Tool("mark_ended", "Bitti olarak işaretle",
-         "Kullanıcının bittiğini ya da iptal ettiğini söylediği bir ödemeyi veya bıraktığı bir alışkanlığı `_biten` "
-         "bölümüne yazar: işyeri adı raporda göründüğü gibi, son ödemenin ayı. Tahmine ve alışkanlıklara girmez; o "
-         "aydan sonra ödeme görünürse rapor uyarır.",
-         _schema(("merchant", "month"), merchant=_TEXT,
-                 month={"type": "string", "pattern": r"\d{4}-\d{2}", "description": "YYYY-AA"},
-                 note={"type": "string", "description": "kısa not (ör. kullanıcının söylediği)"}),
-         _mark_ended, read_only=False),
-    Tool("write_rules", "Kategori kurallarını yaz",
-         "kategoriler.yaml dosyasının tamamını verilen metinle değiştirir (önce read_rules ile okuyun, yorumları "
-         "koruyun). Metin programın okuyabileceği kurallar değilse hiçbir şey yazılmaz. Eski dosyanın yedeği alınır; "
-         "değişikliğin farkı ve etkilediği işlemler döner.",
-         _schema(("content",), content=_TEXT), _write_rules, read_only=False),
+    Tool(
+        "status",
+        "Durum",
+        "Belgelerin ve hesapların durumu: kaç belge okundu ve bankanın toplamıyla/bakiyeyle tutarlı mı, "
+        "okunamayanlar, Gelen Belgeler klasöründe bekleyenler, tam aylar, eksik ya da güncel olmayan belgeler "
+        "(hangi hesabın hangi belgesi indirilmeli), rapor dosyası, otomatik yükleme görevinin ve e-postadan "
+        "belge almanın durumu.",
+        _schema(),
+        _status,
+    ),
+    Tool(
+        "import_documents",
+        "Belge içe aktar",
+        "Bu bilgisayardaki dosya, klasör, zip ya da mbox (e-posta arşivi) yollarındaki banka belgelerini tarar. "
+        "Yeni kişisel kart ekstrelerini, hesap hareketi dökümlerini ve dekontları (ve okunamayanları) "
+        "Gelen Belgeler klasörüne KOPYALAR, asıllarına dokunmaz. Zaten var olanları, şirket belgelerini ve banka "
+        "belgesi olmayanları atlar. Ardından gelen kutusunun planını plan_id ile döndürür; yerleştirmek için "
+        "kullanıcı onaylayınca apply_inbox.",
+        _schema(
+            ("paths",),
+            paths={"type": "array", "minItems": 1, "items": _TEXT, "description": "mutlak yollar; ~ kullanılabilir"},
+        ),
+        _import,
+        read_only=False,
+    ),
+    Tool(
+        "fetch_email",
+        "E-postadan belge al",
+        "Kullanıcının e-posta kutusunu (Gmail, IMAP) salt okunur açar ve bankaların gönderdiği kart ekstresi, hesap "
+        "dökümü ve dekont eklerini alır; yenilerini Gelen Belgeler klasörüne kopyalar, e-posta kutusunda hiçbir şeyi "
+        "değiştirmez. Yalnızca ayarlardaki banka alan adlarından gelen ve sunucunun göndereni doğruladığı (DMARC) "
+        "e-postalar sayılır. Son alımdan sonra gelenleri okur; ardından gelen kutusunun planını plan_id ile "
+        "döndürür. Kurulu değilse kullanıcı kendi terminalinde `uv run iplikci eposta --kur` çalıştırmalı.",
+        _schema(),
+        _fetch_email,
+        read_only=False,
+        open_world=True,
+    ),
+    Tool(
+        "plan_inbox",
+        "Gelen kutusu planı",
+        "Gelen Belgeler klasöründeki belgelere ne olacağını gösterir, hiçbir dosyaya dokunmaz: hangisi hangi "
+        "klasöre hangi adla taşınacak (belge türü, hesap, dönem, tutarlılık kontrolüyle), hangileri kopya, şirket "
+        "belgesi ya da kullanılmıyor diye çöp kutusuna gidecek, hangileri okunamadı. Dönen plan_id apply_inbox "
+        "içindir.",
+        _schema(),
+        _plan,
+    ),
+    Tool(
+        "apply_inbox",
+        "Gelen kutusunu yerleştir",
+        "plan_inbox ya da import_documents ile gösterilen planı aynen uygular: belgeleri Bankalar/<Banka>/<Hesap>/ "
+        "altına taşır, ayrılanları çöp kutusuna (geri alınabilir) taşır, kayıt CSV'si yazar, raporu yeniden "
+        "üretir. Yalnızca kullanıcı planı görüp onayladıktan sonra çağırın.",
+        _schema(("plan_id",), plan_id=_TEXT),
+        _apply,
+        read_only=False,
+        destructive=True,
+    ),
+    Tool(
+        "build_report",
+        "Raporu üret",
+        "HTML raporu, islemler.csv ve islemler.xlsx dosyalarını yeniden üretir; okunan belge sayılarını ve kontrol "
+        "sonuçlarını döndürür.",
+        _schema(),
+        _build,
+        read_only=False,
+    ),
+    Tool(
+        "insights",
+        "Değerlendirme",
+        "Programın yorumu: tam aylar penceresi, öne çıkanlar, önerilen adımlar (aylık etkisiyle), aylık bütçe "
+        "(bugün ve öneri), gelir-gider ortalamaları, varlıklar ve borçlar, harcama eğilimi, düzenli gelir.",
+        _schema(),
+        _insights,
+    ),
+    Tool(
+        "transactions",
+        "İşlemler",
+        "İşlemleri süzer, sıralar ya da gruplar (group_by ile aylık, kategori, işyeri… toplamları). amount > 0 para "
+        "çıkışı, < 0 para girişi. Gider toplamı için kinds = [harcama, iade, faiz_ucret] verin; varsayılan bütün "
+        "türlerdir.",
+        _schema(
+            **{
+                "from": _MONTH_OR_DAY,
+                "to": _MONTH_OR_DAY,
+                "text": {
+                    "type": "string",
+                    "description": "işyeri, açıklama ya da karşı tarafta geçen metin "
+                    "(Türkçe karakter ve büyük/küçük harf duyarsız)",
+                },
+                "category": _TEXT,
+                "group": {"type": "string", "description": "ana grup"},
+                "kinds": {"type": "array", "items": {"type": "string", "enum": list(KINDS)}},
+                "account": {"type": "string", "description": "hesap adında geçen metin"},
+                "necessity": {"type": "string", "enum": list(NECESSITY)},
+                "min_amount": {"type": "number"},
+                "max_amount": {"type": "number"},
+                "group_by": {"type": "string", "enum": _GROUP_BY},
+                "sort": {"type": "string", "enum": _SORT},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 500},
+            }
+        ),
+        _transactions,
+    ),
+    Tool(
+        "regular_payments",
+        "Düzenli ödemeler",
+        "Düzenli ödemeler ve abonelikler (kira, faturalar, üyelikler): durumu (devam, bitti, iptal, iptal_sonrasi), "
+        "aylık tutarı, son ve beklenen sonraki ödeme, fiyat değişimi; ayrıca düzenli gelirler.",
+        _schema(status={"type": "string", "enum": list(STATUS)}),
+        _regular,
+    ),
+    Tool(
+        "habits",
+        "Alışkanlıklar",
+        "İsteğe bağlı harcamalar (işyerine göre) ve kaçınılabilir maliyetler (faiz, ücret; kategoriye göre): durumu "
+        "(her ay, yeni, ara sıra, durdu, tek seferlik), sıklığı ve bundan sonraki aylık maliyeti.",
+        _schema(),
+        _habits,
+    ),
+    Tool(
+        "accounts",
+        "Hesaplar",
+        "Hesaplar ve kartlar: banka, tür, para birimi, belge sayısı ve tutarlılığı, belgelerin kapsadığı dönem, "
+        "eksik kalan aylar, son bakiye.",
+        _schema(),
+        _accounts,
+    ),
+    Tool(
+        "month_end",
+        "Ay sonu ve kapanış",
+        "Ay sonu raporu ve ekstre ile kapanış. month verilmezse son aylar: her ayın durumu (kapandi: bütün "
+        "hesapların ekstresi/dökümü ayın tamamını kapsıyor, tutarlı ve dekontlar eşleşti; bekleniyor; eksik; "
+        "kontrol; suruyor), gider, gelir, kalan. month ile o ayın ayrıntısı: hesap hesap hangi ekstre ya da döküm "
+        "bekleniyor (sonraki kesim tarihi), ay sonu bakiyeleri, gider dağılımı, düzenli ödemeler, ekstresi gelmeden "
+        "dekontlardan işlenen geçici kayıtlar ve ekstrede görünmeyen dekontlar.",
+        _schema(month={"type": "string", "pattern": r"\d{4}-\d{2}", "description": "YYYY-AA"}),
+        _month_end,
+    ),
+    Tool(
+        "read_rules",
+        "Kategori kurallarını oku",
+        "kategoriler.yaml dosyasının metni ve özeti: ana gruplar ve kategoriler, gereklilik seviyeleri, düzenli "
+        "ödeme kategorileri, bitti olarak işaretlenen ödemeler.",
+        _schema(),
+        _read_rules,
+    ),
+    Tool(
+        "add_rule",
+        "Kategori kuralı ekle",
+        "Bir işyerini bir kategoriye bağlayan isimli kural ekler (işyeri varsa desenlerini genişletir). İsimli "
+        "kurallar bütün anahtar kelimelerden önce denenir. Desenler büyük/küçük harf ve Türkçe karakter "
+        "duyarsızdır; 're:' ile başlayan desen ASCII büyük harfe çevrilmiş açıklamaya uygulanan düzenli ifadedir. "
+        "Değişikliğin hangi işlemleri taşıdığını döndürür; dosyanın yedeği alınır.",
+        _schema(
+            ("category", "merchant", "patterns"),
+            category={"type": "string", "description": "var olan kategori (read_rules)"},
+            merchant={"type": "string", "description": "raporda görünecek işyeri adı"},
+            patterns={"type": "array", "minItems": 1, "items": _TEXT},
+        ),
+        _add_rule,
+        read_only=False,
+    ),
+    Tool(
+        "mark_ended",
+        "Bitti olarak işaretle",
+        "Kullanıcının bittiğini ya da iptal ettiğini söylediği bir ödemeyi veya bıraktığı bir alışkanlığı `_biten` "
+        "bölümüne yazar: işyeri adı raporda göründüğü gibi, son ödemenin ayı. Tahmine ve alışkanlıklara girmez; o "
+        "aydan sonra ödeme görünürse rapor uyarır.",
+        _schema(
+            ("merchant", "month"),
+            merchant=_TEXT,
+            month={"type": "string", "pattern": r"\d{4}-\d{2}", "description": "YYYY-AA"},
+            note={"type": "string", "description": "kısa not (ör. kullanıcının söylediği)"},
+        ),
+        _mark_ended,
+        read_only=False,
+    ),
+    Tool(
+        "write_rules",
+        "Kategori kurallarını yaz",
+        "kategoriler.yaml dosyasının tamamını verilen metinle değiştirir (önce read_rules ile okuyun, yorumları "
+        "koruyun). Metin programın okuyabileceği kurallar değilse hiçbir şey yazılmaz. Eski dosyanın yedeği alınır; "
+        "değişikliğin farkı ve etkilediği işlemler döner.",
+        _schema(("content",), content=_TEXT),
+        _write_rules,
+        read_only=False,
+    ),
 )
 TOOLS_BY_NAME = {t.name: t for t in TOOLS}
 

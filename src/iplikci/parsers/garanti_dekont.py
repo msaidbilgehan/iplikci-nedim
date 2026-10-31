@@ -36,7 +36,7 @@ class _Fields:
     def get(self, label: str) -> str:
         for line in self.lines:
             f = line.folded
-            if not f.startswith(label) or not f[len(label):].lstrip().startswith(":"):
+            if not f.startswith(label) or not f[len(label) :].lstrip().startswith(":"):
                 continue  # "ALACAKLI IBAN" is not "ALACAKLI"
             words = [w for w in line.words if w.x0 < _RIGHT_COLUMN or line.top > self.header_end]
             return " ".join(w.text for w in words).split(":", 1)[1].strip()
@@ -104,8 +104,13 @@ def parse(doc, pdf) -> ParseResult:
     title = _TITLES.get(heading) or ("Gelen Transfer" if printed > 0 else title_tr(heading) or "Transfer")
     account = _account(number[1], currency)
     sequence = re.search(r"SIRA NO\s*:\s*(\S+)", " ".join(line.folded for line in lines))
-    result = ParseResult(parser=NAME, accounts=[account], holder=holder, title=title,
-                         receipt_key=f"garanti-dekont-{sequence[1] if sequence else doc.sha256}")
+    result = ParseResult(
+        parser=NAME,
+        accounts=[account],
+        holder=holder,
+        title=title,
+        receipt_key=f"garanti-dekont-{sequence[1] if sequence else doc.sha256}",
+    )
     note = _note(lines, title)
     if printed < 0:
         party, arrow = _receiver(fields), "→"
@@ -116,21 +121,34 @@ def parse(doc, pdf) -> ParseResult:
     text = f"{title} {arrow} {party}" + (f" ({bank})" if bank else "") + (f" — {note}" if note else "")
     # Whether it went to the user's own account, the landlord or a friend is decided once every
     # account is known (analysis.py), like a transfer row of an account list.
-    result.transactions.append(Transaction(
-        date=day, description=text, amount=round(-printed, 2), kind=CANDIDATE, account=account.id,
-        counterparty=party, source=doc.name,
-        original=f"{format_tr_amount(abs(printed))} {currency}" if currency != "TL" else "",
-    ))
+    result.transactions.append(
+        Transaction(
+            date=day,
+            description=text,
+            amount=round(-printed, 2),
+            kind=CANDIDATE,
+            account=account.id,
+            counterparty=party,
+            source=doc.name,
+            original=f"{format_tr_amount(abs(printed))} {currency}" if currency != "TL" else "",
+        )
+    )
     fee_text = fields.get("KOMISYON TOPLAMI") or fields.get("MASRAF TOPLAMI")
     fee = re.match(r"([\d.]+,\d{2})\s*(TL|EUR|USD|GBP)?", fee_text)
     payer = _fee_account(fields, fee[2] or "TL", account) if fee and parse_tr_amount(fee[1]) else None
     if payer:
         if payer.id != account.id:
             result.accounts.append(payer)
-        result.transactions.append(Transaction(
-            date=day, description=f"{title} masrafı ve BSMV", amount=parse_tr_amount(fee[1]), kind="faiz_ucret",
-            account=payer.id, source=doc.name,
-        ))
+        result.transactions.append(
+            Transaction(
+                date=day,
+                description=f"{title} masrafı ve BSMV",
+                amount=parse_tr_amount(fee[1]),
+                kind="faiz_ucret",
+                account=payer.id,
+                source=doc.name,
+            )
+        )
     return result
 
 

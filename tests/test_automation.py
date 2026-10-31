@@ -120,8 +120,10 @@ def test_windows_task_runs_hourly_without_a_console_window(ws, tmp_path, calls, 
     assert task.find(f".//{TASK}Principal/{TASK}LogonType").text == "InteractiveToken"
 
 
-@pytest.mark.parametrize("platform, kind", [("darwin", automation.Launchd), ("linux", automation.Systemd),
-                                            ("win32", automation.TaskScheduler)])
+@pytest.mark.parametrize(
+    "platform, kind",
+    [("darwin", automation.Launchd), ("linux", automation.Systemd), ("win32", automation.TaskScheduler)],
+)
 def test_each_system_gets_its_own_scheduler(platform, kind):
     assert isinstance(automation.scheduler(platform), kind)
 
@@ -136,10 +138,12 @@ def test_the_user_hears_once_when_a_month_ended_and_when_it_closed(ws):
     assert automation.month_news(ws, None, today=date(2026, 1, 20)) == ""  # the first look only takes note
     assert automation.month_news(ws, None, today=date(2026, 1, 28)) == ""
     assert automation.month_news(ws, None, today=date(2026, 2, 2)) == (
-        "Ocak 2026 bitti, ay sonu raporu hazır (ekstre bekleniyor).")
+        "Ocak 2026 bitti, ay sonu raporu hazır (ekstre bekleniyor)."
+    )
     assert automation.month_news(ws, None, today=date(2026, 2, 3)) == ""  # told once
     assert (ws.output / "ay-sonu" / "2026-01.html").exists()
     # The list for the rest of January comes (through the panel, say): January closes.
     put(ws.documents / TARGET.with_name("subat.xls"), teb_export([], period="26/01/2026 - 28/02/2026"))
     assert automation.month_news(ws, None, today=date(2026, 2, 4)) == (
-        "Ocak 2026 kapandı: bütün ekstreler geldi ve tutarlı.")
+        "Ocak 2026 kapandı: bütün ekstreler geldi ve tutarlı."
+    )

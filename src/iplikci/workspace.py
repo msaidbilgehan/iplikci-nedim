@@ -81,8 +81,12 @@ def _unlock(f) -> None:
 
 
 @contextmanager
-def output_lock(output: Path, timeout: float = 120.0, name: str = _LOCK_NAME,
-                busy: str = "başka bir işlem belgeleri işliyor; biraz sonra yeniden deneyin"):
+def output_lock(
+    output: Path,
+    timeout: float = 120.0,
+    name: str = _LOCK_NAME,
+    busy: str = "başka bir işlem belgeleri işliyor; biraz sonra yeniden deneyin",
+):
     """One reader or writer of the documents and the outputs at a time, across the panel, the MCP
     server, the automatic run and the command line (they share the parse cache and the outputs).
     Another name is another lock (the e-mail fetch has its own)."""
@@ -112,8 +116,9 @@ def business_names(settings: dict) -> list[str]:
     identity = settings.get("identity", {})
     names = identity.get("business_names", []) if isinstance(identity, dict) else None
     if not isinstance(names, list) or not all(isinstance(n, str) for n in names):
-        raise ValueError(f"{SETTINGS}: [identity] business_names bir ad listesi olmalı, "
-                         'ör. business_names = ["ŞİRKET ADI"]')
+        raise ValueError(
+            f'{SETTINGS}: [identity] business_names bir ad listesi olmalı, ör. business_names = ["ŞİRKET ADI"]'
+        )
     return names
 
 
@@ -142,10 +147,13 @@ class Workspace:
         at = lambda value: (base / value).resolve()
         documents = at(settings["belge_klasoru"])
         return cls(
-            base=base, settings=settings,
+            base=base,
+            settings=settings,
             sources=tuple(at(p) for p in settings.get("kaynaklar", [])) or (documents,),
-            documents=documents, inbox=at(settings.get("gelen_klasoru", DEFAULT_INBOX)),
-            output=at(settings.get("cikti", "cikti")), rules=at(settings.get("kurallar", "kategoriler.yaml")),
+            documents=documents,
+            inbox=at(settings.get("gelen_klasoru", DEFAULT_INBOX)),
+            output=at(settings.get("cikti", "cikti")),
+            rules=at(settings.get("kurallar", "kategoriler.yaml")),
             port=int(settings.get("panel_portu", DEFAULT_PORT)),
         )
 
@@ -180,6 +188,7 @@ class Workspace:
 
 # --- analysis ------------------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class Outputs:
     html: Path
@@ -188,11 +197,11 @@ class Outputs:
     month_end: Path  # folder of the month-end pages; index.html lists them
 
 
-def write_outputs(output: Path, ds: Dataset, ins: Insights, payload: dict,
-                  months: list[month_end.MonthEnd]) -> Outputs:
+def write_outputs(output: Path, ds: Dataset, ins: Insights, payload: dict, months: list[month_end.MonthEnd]) -> Outputs:
     """The report, the CSV and Excel exports and the month-end pages, side by side in output."""
-    outputs = Outputs(output / "gider_raporu.html", output / "islemler.csv", output / "islemler.xlsx",
-                      output / month_end.FOLDER)
+    outputs = Outputs(
+        output / "gider_raporu.html", output / "islemler.csv", output / "islemler.xlsx", output / month_end.FOLDER
+    )
     write_html(payload, outputs.html)
     write_csv(ds, outputs.csv)
     write_xlsx(ds, outputs.xlsx, ins, months)
@@ -212,8 +221,9 @@ class Analysis:
     months: list[month_end.MonthEnd] = field(default_factory=list)  # month-end closing, oldest first
 
 
-def analyze(ws: Workspace, progress=None, write: bool = False, use_cache: bool = True,
-            today: date | None = None) -> Analysis:
+def analyze(
+    ws: Workspace, progress=None, write: bool = False, use_cache: bool = True, today: date | None = None
+) -> Analysis:
     """Read every document and interpret it; write=True also writes the report, CSV, Excel and the
     month-end pages (today decides which month is the current one)."""
     sig = ws.signature()
@@ -254,30 +264,44 @@ def summary(a: Analysis) -> dict:
     cards = [s for s in ds.statements if not s.is_account]
     lists = [s for s in ds.statements if s.is_account]
     unverified = [
-        {"account": ds.accounts[s.account].label, "cut": s.cut_date.isoformat(), "file": s.source,
-         "detail": f"bakiye {s.checks_ok}/{s.checks_total}" if s.is_account else f"fark {s.difference}"}
-        for s in ds.statements if not s.verified
+        {
+            "account": ds.accounts[s.account].label,
+            "cut": s.cut_date.isoformat(),
+            "file": s.source,
+            "detail": f"bakiye {s.checks_ok}/{s.checks_total}" if s.is_account else f"fark {s.difference}",
+        }
+        for s in ds.statements
+        if not s.verified
     ]
     return {
-        "documents": a.stats["documents"], "duplicates": a.stats["duplicates"],
-        "cardStatements": len(cards), "cardStatementsVerified": sum(s.verified for s in cards),
-        "accountStatements": len(lists), "accountStatementsVerified": sum(s.verified for s in lists),
-        "receipts": statuses.count("dekont"), "business": statuses.count("is"),
-        "skipped": statuses.count("atlandi"), "errors": statuses.count("hata"),
+        "documents": a.stats["documents"],
+        "duplicates": a.stats["duplicates"],
+        "cardStatements": len(cards),
+        "cardStatementsVerified": sum(s.verified for s in cards),
+        "accountStatements": len(lists),
+        "accountStatementsVerified": sum(s.verified for s in lists),
+        "receipts": statuses.count("dekont"),
+        "business": statuses.count("is"),
+        "skipped": statuses.count("atlandi"),
+        "errors": statuses.count("hata"),
         "unverified": unverified,
         "unreadable": [{"name": d.name, "detail": d.detail} for d in ds.documents if d.status == "hata"],
         # Receipt rows: waiting for their statement (counted), found on it, or covered by one that does not show them.
-        "receiptRows": {"provisional": sum(line.status == PROVISIONAL for line in ds.receipts),
-                        "confirmed": sum(line.status == CONFIRMED for line in ds.receipts),
-                        "notOnStatement": sum(line.status == NOT_ON_STATEMENT for line in ds.receipts)},
+        "receiptRows": {
+            "provisional": sum(line.status == PROVISIONAL for line in ds.receipts),
+            "confirmed": sum(line.status == CONFIRMED for line in ds.receipts),
+            "notOnStatement": sum(line.status == NOT_ON_STATEMENT for line in ds.receipts),
+        },
         "warnings": ds.warnings,
         "transactions": len(ds.transactions),
-        "period": ([ds.transactions[0].date.isoformat(), ds.transactions[-1].date.isoformat()]
-                   if ds.transactions else None),
+        "period": (
+            [ds.transactions[0].date.isoformat(), ds.transactions[-1].date.isoformat()] if ds.transactions else None
+        ),
     }
 
 
 # --- what documents are missing ------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class Gap:
@@ -320,6 +344,7 @@ def document_gaps(ds: Dataset, today: date | None = None, horizon: int = 12) -> 
 
 
 # --- the inbox: uploads, plans, filing -------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class Upload:
@@ -413,8 +438,12 @@ def save_upload(ws: Workspace, name: str, stream: BinaryIO, length: int) -> Uplo
         kinds = ", ".join(sorted(e.lstrip(".").upper() for e in UPLOAD_EXTENSIONS))
         return Upload("reddedildi", name, f"desteklenmeyen dosya türü (kabul edilenler: {kinds})")
     if length > MAX_UPLOAD_BYTES:
-        return Upload("reddedildi", name, f"dosya {MAX_UPLOAD_BYTES >> 20} MB sınırından büyük; "
-                                          f"büyük arşivleri doğrudan {ws.inbox.name} klasörüne kopyalayın")
+        return Upload(
+            "reddedildi",
+            name,
+            f"dosya {MAX_UPLOAD_BYTES >> 20} MB sınırından büyük; "
+            f"büyük arşivleri doğrudan {ws.inbox.name} klasörüne kopyalayın",
+        )
     ws.inbox.mkdir(parents=True, exist_ok=True)
     fd, tmp_name = tempfile.mkstemp(prefix=PARTIAL_PREFIX, dir=ws.inbox)
     tmp = Path(tmp_name)
@@ -511,8 +540,9 @@ def _check_import_size(paths: list[Path]) -> None:
                 count += 1
                 size += os.stat(os.path.join(folder, name)).st_size
     if count > _IMPORT_LIMIT[0] or size > _IMPORT_LIMIT[1]:
-        raise ValueError(f"{count} dosya, {size >> 20} MB: tek seferde okunamayacak kadar çok; "
-                         "daha dar bir klasör verin")
+        raise ValueError(
+            f"{count} dosya, {size >> 20} MB: tek seferde okunamayacak kadar çok; daha dar bir klasör verin"
+        )
 
 
 def import_paths(ws: Workspace, paths: list[str]) -> tuple[list[duzenle.Item], list[Path]]:
@@ -578,8 +608,12 @@ def describe(it: duzenle.Item, ws: Workspace) -> dict:
                 break
     source = f"{where} › {it.name}" if it.archive else str(where)
     out = {
-        "action": it.action, "name": it.name, "source": source, "reason": it.reason,
-        "target": str(it.target.relative_to(ws.documents)) if it.target and it.target.is_relative_to(ws.documents)
+        "action": it.action,
+        "name": it.name,
+        "source": source,
+        "reason": it.reason,
+        "target": str(it.target.relative_to(ws.documents))
+        if it.target and it.target.is_relative_to(ws.documents)
         else None,
         "fromInbox": duzenle._inside(it.path or it.archive, ws.inbox),
     }
@@ -588,17 +622,32 @@ def describe(it: duzenle.Item, ws: Workspace) -> dict:
         s = result.statements[0]
         account = next((a for a in result.accounts if a.id == s.account), None)
         out["document"] = {
-            "kind": "hesap" if s.is_account else "ekstre", "account": account.label if account else s.account,
-            "start": s.start.isoformat() if s.start else None, "end": s.cut_date.isoformat(),
-            "rows": sum(len(x.transactions) for x in result.statements), "verified": s.verified,
-            "check": ("bakiyeyi denetleyecek kadar satır yok" if s.is_account and not s.checks_total
-                      else f"bakiye {s.checks_ok}/{s.checks_total} satır tutarlı" if s.is_account
-                      else "bankanın toplamıyla tutarlı" if s.verified else f"fark {s.difference}"),
+            "kind": "hesap" if s.is_account else "ekstre",
+            "account": account.label if account else s.account,
+            "start": s.start.isoformat() if s.start else None,
+            "end": s.cut_date.isoformat(),
+            "rows": sum(len(x.transactions) for x in result.statements),
+            "verified": s.verified,
+            "check": (
+                "bakiyeyi denetleyecek kadar satır yok"
+                if s.is_account and not s.checks_total
+                else f"bakiye {s.checks_ok}/{s.checks_total} satır tutarlı"
+                if s.is_account
+                else "bankanın toplamıyla tutarlı"
+                if s.verified
+                else f"fark {s.difference}"
+            ),
         }
     elif result and result.transactions:
         t = result.transactions[0]
         account = next((a for a in result.accounts if a.id == t.account), None)
-        out["document"] = {"kind": "dekont", "account": account.label if account else t.account,
-                           "start": None, "end": t.date.isoformat(), "rows": len(result.transactions),
-                           "verified": None, "check": result.title or ""}
+        out["document"] = {
+            "kind": "dekont",
+            "account": account.label if account else t.account,
+            "start": None,
+            "end": t.date.isoformat(),
+            "rows": len(result.transactions),
+            "verified": None,
+            "check": result.title or "",
+        }
     return out

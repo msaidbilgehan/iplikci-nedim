@@ -50,8 +50,17 @@ STATE_NAME = ".eposta.json"
 GMAIL = "imap.gmail.com"
 # The domains the banks' statement e-mails came from, and the base domains. The server's search
 # narrows by them, then every sender is checked here again (a subdomain counts).
-DEFAULT_SENDERS = ("garantibbva.com.tr", "isbank.com.tr", "ileti.isbank.com.tr", "qnb.com.tr", "email.qnb.com.tr",
-                   "qnbfinansbank.com", "email.qnbfinansbank.com", "teb.com.tr", "vakifbank.com.tr")
+DEFAULT_SENDERS = (
+    "garantibbva.com.tr",
+    "isbank.com.tr",
+    "ileti.isbank.com.tr",
+    "qnb.com.tr",
+    "email.qnb.com.tr",
+    "qnbfinansbank.com",
+    "email.qnbfinansbank.com",
+    "teb.com.tr",
+    "vakifbank.com.tr",
+)
 SETUP_HINT = "e-posta hesabı kurulmadı; bir kez terminalde çalıştırın: uv run iplikci eposta --kur"
 APP_PASSWORD_HELP = """\
 Gmail, programların girişi için uygulama şifresi ister (normal Gmail şifresi çalışmaz):
@@ -96,11 +105,18 @@ class Account:
     def scan_key(self) -> list:
         """Changes when what is searched changes: the mailbox is then read again from the start. So do
         the readers: attachments an older reader could not use get another chance once."""
-        return [self.server, self.address.lower(), self.folder, sorted(self.senders), self.start.isoformat(),
-                PARSER_VERSION]
+        return [
+            self.server,
+            self.address.lower(),
+            self.folder,
+            sorted(self.senders),
+            self.start.isoformat(),
+            PARSER_VERSION,
+        ]
 
 
 # --- settings and state -----------------------------------------------------------------------------
+
 
 def _settings(ws: Workspace) -> dict:
     s = ws.settings.get("eposta", {})
@@ -132,8 +148,15 @@ def _account(ws: Workspace, address: str, start: date) -> Account:
     verify = s.get("gonderen_dogrulama", True)
     if not isinstance(verify, bool):
         raise MailError(f"{where}: gonderen_dogrulama true ya da false olmalı")
-    return Account(address, start, server.strip().lower(), port, tuple(dict.fromkeys(cleaned)),
-                   folder.strip() if folder else None, verify)
+    return Account(
+        address,
+        start,
+        server.strip().lower(),
+        port,
+        tuple(dict.fromkeys(cleaned)),
+        folder.strip() if folder else None,
+        verify,
+    )
 
 
 def _state_path(ws: Workspace) -> Path:
@@ -203,9 +226,15 @@ def status(ws: Workspace) -> dict:
     state = _state(ws)
     if not state.get("address"):
         return {"configured": False, "hint": SETUP_HINT}
-    out = {"configured": True, "address": state["address"], "start": state.get("start"),
-           "folder": state.get("folder"), "lastRun": state.get("last_run"), "lastResult": state.get("last_result"),
-           "lastError": state.get("last_error")}
+    out = {
+        "configured": True,
+        "address": state["address"],
+        "start": state.get("start"),
+        "folder": state.get("folder"),
+        "lastRun": state.get("last_run"),
+        "lastResult": state.get("last_result"),
+        "lastError": state.get("last_error"),
+    }
     try:
         acc = account(ws)
     except MailError as exc:
@@ -214,6 +243,7 @@ def status(ws: Workspace) -> dict:
 
 
 # --- the password -------------------------------------------------------------------------------------
+
 
 def _keyring():
     import keyring  # only when e-mail is used: it picks a backend on import
@@ -229,8 +259,10 @@ def load_password(address: str) -> str:
     try:
         secret = keyring.get_password(SERVICE, address)
     except keyring.errors.KeyringError as exc:
-        raise MailError(f"e-posta şifresi anahtar zincirinden okunamadı ({exc}); anahtar zinciri olmayan "
-                        f"sistemlerde şifreyi {PASSWORD_ENV} ortam değişkeniyle verin") from exc
+        raise MailError(
+            f"e-posta şifresi anahtar zincirinden okunamadı ({exc}); anahtar zinciri olmayan "
+            f"sistemlerde şifreyi {PASSWORD_ENV} ortam değişkeniyle verin"
+        ) from exc
     if not secret:
         raise MailError(f"{address} için kayıtlı şifre yok; yeniden kurun: uv run iplikci eposta --kur")
     return secret
@@ -267,6 +299,7 @@ def _clean_secret(acc: Account, secret: str) -> str:
 
 
 # --- IMAP -----------------------------------------------------------------------------------------------
+
 
 def connect(acc: Account) -> imaplib.IMAP4:
     """A TLS connection; the server's certificate and host name are checked."""
@@ -349,11 +382,14 @@ class _Box:
 
 def _login_refused(acc: Account, exc: Exception) -> str:
     text = str(exc)
-    if acc.is_gmail and re.search(r"AUTHENTICATIONFAILED|Invalid credentials|Application-specific password",
-                                  text, re.IGNORECASE):
-        return ("Gmail girişi reddetti: adres ya da uygulama şifresi yanlış. Normal Gmail şifresi çalışmaz; "
-                "2 Adımlı Doğrulamayı açıp https://myaccount.google.com/apppasswords sayfasında bir uygulama "
-                "şifresi oluşturun ve yeniden kurun: uv run iplikci eposta --kur")
+    if acc.is_gmail and re.search(
+        r"AUTHENTICATIONFAILED|Invalid credentials|Application-specific password", text, re.IGNORECASE
+    ):
+        return (
+            "Gmail girişi reddetti: adres ya da uygulama şifresi yanlış. Normal Gmail şifresi çalışmaz; "
+            "2 Adımlı Doğrulamayı açıp https://myaccount.google.com/apppasswords sayfasında bir uygulama "
+            "şifresi oluşturun ve yeniden kurun: uv run iplikci eposta --kur"
+        )
     return f"{acc.server} girişi reddetti: {text}"
 
 
@@ -415,8 +451,11 @@ def _any_from(senders: tuple[str, ...]) -> str:
 
 def search_criteria(acc: Account, after_uid: int, gmail: bool) -> list[str]:
     since = acc.start
-    keys = [f"UID {after_uid + 1}:*", f"SINCE {since.day}-{_MONTHS[since.month - 1]}-{since.year}",
-            _any_from(acc.senders)]
+    keys = [
+        f"UID {after_uid + 1}:*",
+        f"SINCE {since.day}-{_MONTHS[since.month - 1]}-{since.year}",
+        _any_from(acc.senders),
+    ]
     if gmail:
         keys.append('X-GM-RAW "has:attachment"')  # the server leaves out the banks' campaign e-mails
     return keys
@@ -457,6 +496,7 @@ def _body(imap: imaplib.IMAP4, uid: int) -> bytes | None:
 
 # --- one e-mail -----------------------------------------------------------------------------------------
 
+
 def sender_domain(msg: Message) -> str:
     return parseaddr(str(msg.get("From", "")))[1].rpartition("@")[2].strip().lower()
 
@@ -494,8 +534,12 @@ def _documents(msg: Message, domain: str) -> list[duzenle.Item]:
 
 # --- fetching ---------------------------------------------------------------------------------------------
 
-_SKIPPED = {duzenle.DUPLICATE: "zaten vardı", duzenle.BUSINESS: "şirket belgesi", duzenle.KEEP: "zaten gelen kutusunda",
-            duzenle.FAILED: "zaten gelen kutusunda"}
+_SKIPPED = {
+    duzenle.DUPLICATE: "zaten vardı",
+    duzenle.BUSINESS: "şirket belgesi",
+    duzenle.KEEP: "zaten gelen kutusunda",
+    duzenle.FAILED: "zaten gelen kutusunda",
+}
 
 
 @dataclass
@@ -514,8 +558,11 @@ class Fetched:
     def message(self) -> str:
         if not self.scanned:
             return "yeni banka e-postası yok"
-        parts = [f"{self.scanned} banka e-postası baştan okundu" if self.again else
-                 f"{self.scanned} yeni banka e-postası okundu"]
+        parts = [
+            f"{self.scanned} banka e-postası baştan okundu"
+            if self.again
+            else f"{self.scanned} yeni banka e-postası okundu"
+        ]
         if self.copied:
             kinds = Counter(_kind(it) for it, _ in self.copied)
             detail = ", ".join(f"{n} {k}" for k, n in sorted(kinds.items(), key=lambda kv: -kv[1]))
@@ -524,8 +571,9 @@ class Fetched:
             parts.append("yeni belge yok")
         copied = {id(it) for it, _ in self.copied}
         # What an unused attachment is: "sigorta poliçesi/bilgilendirmesi", "talimat formu", ...
-        skipped = Counter(_SKIPPED.get(it.action) or it.reason or "kullanılmıyor"
-                          for it in self.found if id(it) not in copied)
+        skipped = Counter(
+            _SKIPPED.get(it.action) or it.reason or "kullanılmıyor" for it in self.found if id(it) not in copied
+        )
         if skipped:
             parts.append("ekler: " + ", ".join(f"{n} {why}" for why, n in skipped.most_common()))
         if self.unverified:
@@ -537,9 +585,16 @@ class Fetched:
         return "; ".join(parts)
 
     def as_dict(self, ws: Workspace) -> dict:
-        return {"message": self.message, "scanned": self.scanned, "withDocuments": self.with_documents,
-                "unverified": self.unverified, "tooLarge": self.too_large, "more": self.more, "folder": self.folder,
-                "copied": [str(p.relative_to(ws.inbox)) for _, p in self.copied]}
+        return {
+            "message": self.message,
+            "scanned": self.scanned,
+            "withDocuments": self.with_documents,
+            "unverified": self.unverified,
+            "tooLarge": self.too_large,
+            "more": self.more,
+            "folder": self.folder,
+            "copied": [str(p.relative_to(ws.inbox)) for _, p in self.copied],
+        }
 
 
 def _kind(it: duzenle.Item) -> str:
@@ -571,10 +626,20 @@ def fetch(ws: Workspace, wait: float = 120.0, progress: Callable[[int, int, str]
         if out.found:
             out.copied = import_documents(ws, out.found)
         # Only now that the documents are safe in the inbox does the mailbox count as read this far.
-        state.update(uidvalidity=box.uidvalidity, last_uid=last, scan=acc.scan_key(), folder=out.folder,
-                     last_run=_now(), last_error=None,
-                     last_result={"scanned": out.scanned, "copied": len(out.copied), "unverified": out.unverified,
-                                  "more": out.more})
+        state.update(
+            uidvalidity=box.uidvalidity,
+            last_uid=last,
+            scan=acc.scan_key(),
+            folder=out.folder,
+            last_run=_now(),
+            last_error=None,
+            last_result={
+                "scanned": out.scanned,
+                "copied": len(out.copied),
+                "unverified": out.unverified,
+                "more": out.more,
+            },
+        )
         _save_state(ws, state)
     return out
 
@@ -625,6 +690,7 @@ def _download(acc: Account, secret: str, state: dict, progress) -> tuple[Fetched
 
 
 # --- setting up -------------------------------------------------------------------------------------------
+
 
 def setup(ws: Workspace, address: str, secret: str, start: date | None = None) -> tuple[Account, bool, str]:
     """Log in once to check the address and the password, then keep them. Returns the account,

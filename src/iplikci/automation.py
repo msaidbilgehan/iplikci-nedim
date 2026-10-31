@@ -190,8 +190,10 @@ def month_news(ws: Workspace, a: Analysis | None, today: date | None = None) -> 
             news.append(f"{me.name} kapandı: bütün ekstreler geldi ve tutarlı.")
         elif me.status == month_end.CHECK and before != month_end.CHECK:
             news.append(f"{me.name} kapanışında kontrol gerekli: ay sonu raporuna bakın.")
-    _save_month_state(ws, {"month": month_of(today), "documents": _fingerprint(ws),
-                           "months": {me.month: me.status for me in a.months}})
+    _save_month_state(
+        ws,
+        {"month": month_of(today), "documents": _fingerprint(ws), "months": {me.month: me.status for me in a.months}},
+    )
     return " ".join(news)
 
 
@@ -217,12 +219,17 @@ def show_notification(title: str, message: str) -> None:
     """A desktop notification (macOS, or Linux with notify-send). The text is passed as arguments,
     never pasted into a script."""
     if sys.platform == "darwin":
-        script = ["-e", "on run argv", "-e", "display notification (item 1 of argv) with title (item 2 of argv)",
-                  "-e", "end run"]
+        script = [
+            "-e",
+            "on run argv",
+            "-e",
+            "display notification (item 1 of argv) with title (item 2 of argv)",
+            "-e",
+            "end run",
+        ]
         subprocess.run(["/usr/bin/osascript", *script, message, title], capture_output=True, timeout=15, check=False)
     elif (notify_send := shutil.which("notify-send")) is not None:
-        subprocess.run([notify_send, "--app-name", title, title, message], capture_output=True, timeout=15,
-                       check=False)
+        subprocess.run([notify_send, "--app-name", title, title, message], capture_output=True, timeout=15, check=False)
 
 
 def _trim_log(ws: Workspace) -> None:
@@ -233,6 +240,7 @@ def _trim_log(ws: Workspace) -> None:
 
 # --- the background job, per operating system ------------------------------------------------------
 
+
 def _command(python: Path, *extra: str) -> list[str]:
     # -I: the job reads untrusted documents, so nothing from the working folder is importable.
     return [str(python), "-I", "-m", "iplikci", "otomatik", *extra]
@@ -241,8 +249,12 @@ def _command(python: Path, *extra: str) -> list[str]:
 def _run(args: list[str]) -> subprocess.CompletedProcess:
     done = subprocess.run(args, capture_output=True, check=False)
     encoding = "oem" if os.name == "nt" else "utf-8"  # Windows tools answer in the console's code page
-    return subprocess.CompletedProcess(args, done.returncode, done.stdout.decode(encoding, errors="replace"),
-                                       done.stderr.decode(encoding, errors="replace"))
+    return subprocess.CompletedProcess(
+        args,
+        done.returncode,
+        done.stdout.decode(encoding, errors="replace"),
+        done.stderr.decode(encoding, errors="replace"),
+    )
 
 
 class Launchd:
@@ -325,15 +337,18 @@ class Systemd:
                 f"[Service]\nType=oneshot\nWorkingDirectory={_unit_value(str(ws.base))}\nExecStart={command}\n"
                 # Where the system has no keyring, the e-mail password can be given in this file.
                 f"EnvironmentFile=-%h/.config/{UNIT}/ortam\n"
-                f"StandardOutput=append:{log}\nStandardError=append:{log}\nNice=10\nIOSchedulingClass=idle\n"),
+                f"StandardOutput=append:{log}\nStandardError=append:{log}\nNice=10\nIOSchedulingClass=idle\n"
+            ),
             "path": (
                 "[Unit]\nDescription=İplikçi Nedim: gelen kutusunu izler\n\n"
                 f"[Path]\nPathChanged={_unit_value(str(ws.inbox))}\nUnit={UNIT}.service\n\n"
-                "[Install]\nWantedBy=default.target\n"),
+                "[Install]\nWantedBy=default.target\n"
+            ),
             "timer": (
                 "[Unit]\nDescription=İplikçi Nedim: saatte bir e-postaya ve gelen kutusuna bakar\n\n"
                 f"[Timer]\nOnStartupSec=2min\nOnUnitActiveSec=1h\nUnit={UNIT}.service\n\n"
-                "[Install]\nWantedBy=timers.target\n"),
+                "[Install]\nWantedBy=timers.target\n"
+            ),
         }
 
     def install(self, ws: Workspace) -> str:
@@ -444,8 +459,10 @@ def scheduler(platform: str | None = None):
         return Systemd()
     if platform == "win32":
         return TaskScheduler()
-    raise RuntimeError(f"bu işletim sisteminde ({platform}) arka plan görevi kurulamıyor; "
-                       "'iplikci otomatik' komutunu kendi zamanlayıcınızla çalıştırın")
+    raise RuntimeError(
+        f"bu işletim sisteminde ({platform}) arka plan görevi kurulamıyor; "
+        "'iplikci otomatik' komutunu kendi zamanlayıcınızla çalıştırın"
+    )
 
 
 def install(ws: Workspace) -> str:
@@ -467,6 +484,10 @@ def status(ws: Workspace) -> dict:
     installed, running = job.state()
     log = ws.output / LOG_NAME
     return {
-        "installed": installed, "running": running, "scheduler": job.name, "inbox": str(ws.inbox), "log": str(log),
+        "installed": installed,
+        "running": running,
+        "scheduler": job.name,
+        "inbox": str(ws.inbox),
+        "log": str(log),
         "lastRun": datetime.fromtimestamp(log.stat().st_mtime).isoformat(timespec="seconds") if log.exists() else None,
     }

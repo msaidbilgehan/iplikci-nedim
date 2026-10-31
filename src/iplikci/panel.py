@@ -89,10 +89,25 @@ class Panel:
         with self._lock:
             if self._page and self._page[0] is a and self._page[1] == mail:
                 return self._page[2]
-        gaps = [{"account": g.account, "kind": g.kind, "last": g.last.isoformat(), "behind": g.behind,
-                 "months": list(g.months)} for g in document_gaps(a.dataset)]
-        data = {"inbox": str(self.ws.inbox), "inboxName": self.ws.inbox.name, "accept": sorted(UPLOAD_EXTENSIONS),
-                "maxBytes": MAX_UPLOAD_BYTES, "pending": len(inbox_files(self.ws)), "gaps": gaps, "mail": mail}
+        gaps = [
+            {
+                "account": g.account,
+                "kind": g.kind,
+                "last": g.last.isoformat(),
+                "behind": g.behind,
+                "months": list(g.months),
+            }
+            for g in document_gaps(a.dataset)
+        ]
+        data = {
+            "inbox": str(self.ws.inbox),
+            "inboxName": self.ws.inbox.name,
+            "accept": sorted(UPLOAD_EXTENSIONS),
+            "maxBytes": MAX_UPLOAD_BYTES,
+            "pending": len(inbox_files(self.ws)),
+            "gaps": gaps,
+            "mail": mail,
+        }
         text = render_html(a.payload, panel=data)
         with self._lock:
             self._page = (a, mail, text)
@@ -129,7 +144,8 @@ class Panel:
             "filed": sum(it.action == duzenle.KEEP for it in done.items),
             "unreadable": sum(it.action == duzenle.FAILED and it.target is not None for it in done.items),
             "trashed": sum(it.action in _SET_ASIDE and it.path is not None for it in done.items),
-            "trash": str(done.trash) if done.trash else None, "log": str(done.log) if done.log else None,
+            "trash": str(done.trash) if done.trash else None,
+            "log": str(done.log) if done.log else None,
         }
 
     def fetch_mail(self) -> dict:
@@ -191,10 +207,15 @@ class _Handler(BaseHTTPRequestHandler):
     def _send(self, status: int, body: bytes, ctype: str, extra: tuple = ()) -> None:
         self.send_response(status)
         for name, value in (
-            ("Content-Type", ctype), ("Content-Length", str(len(body))), ("Cache-Control", "no-store"),
-            ("X-Content-Type-Options", "nosniff"), ("Referrer-Policy", "no-referrer"),
-            ("Cross-Origin-Resource-Policy", "same-origin"), ("Cross-Origin-Opener-Policy", "same-origin"),
-            ("X-Frame-Options", "DENY"), *extra,
+            ("Content-Type", ctype),
+            ("Content-Length", str(len(body))),
+            ("Cache-Control", "no-store"),
+            ("X-Content-Type-Options", "nosniff"),
+            ("Referrer-Policy", "no-referrer"),
+            ("Cross-Origin-Resource-Policy", "same-origin"),
+            ("Cross-Origin-Opener-Policy", "same-origin"),
+            ("X-Frame-Options", "DENY"),
+            *extra,
         ):
             self.send_header(name, value)
         self.end_headers()
@@ -204,8 +225,12 @@ class _Handler(BaseHTTPRequestHandler):
         self._send(status, json.dumps(value, ensure_ascii=False).encode(), "application/json; charset=utf-8")
 
     def _html(self, page: str, status: int = 200) -> None:
-        self._send(status, page.encode(), "text/html; charset=utf-8",
-                   (("Content-Security-Policy", PANEL_CSP + "; frame-ancestors 'none'"),))
+        self._send(
+            status,
+            page.encode(),
+            "text/html; charset=utf-8",
+            (("Content-Security-Policy", PANEL_CSP + "; frame-ancestors 'none'"),),
+        )
 
     def _length(self) -> int | None:
         try:
@@ -365,8 +390,10 @@ def serve(ws: Workspace, port: int | None = None, open_browser: bool = False, pr
     try:
         server, panel = make_server(ws, port)
     except OSError as exc:
-        print(f"127.0.0.1:{port} kullanılamıyor ({exc.strerror}). Başka bir port deneyin: --port {port + 1}",
-              file=sys.stderr)
+        print(
+            f"127.0.0.1:{port} kullanılamıyor ({exc.strerror}). Başka bir port deneyin: --port {port + 1}",
+            file=sys.stderr,
+        )
         return 1
     ws.inbox.mkdir(parents=True, exist_ok=True)
     ws.output.mkdir(parents=True, exist_ok=True)

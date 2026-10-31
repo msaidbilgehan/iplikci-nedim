@@ -35,8 +35,12 @@ def parse(doc, pdf) -> ParseResult:
     kind, _, currency = (part.strip() for part in fold(info.get("HESAP TURU / PARA BIRIMI", "")).partition("/"))
     if len(iban) < 16 or not currency:
         raise ValueError("Vakıfbank e-cüzdanında IBAN ya da para birimi bulunamadı")
-    account = bank_account("Vakıfbank", iban[-16:], "TL" if currency in ("TL", "TRY") else currency,
-                           "Vadeli hesap" if "VADELI" in kind else "")
+    account = bank_account(
+        "Vakıfbank",
+        iban[-16:],
+        "TL" if currency in ("TL", "TRY") else currency,
+        "Vadeli hesap" if "VADELI" in kind else "",
+    )
     nickname = info.get("RUMUZ", "")
     if nickname:
         account.label += f" ({nickname})"
@@ -55,7 +59,13 @@ def parse(doc, pdf) -> ParseResult:
     opened = parse_dmy(info.get("HESAP ACILIS TARIHI", ""))
     issued = parse_dmy(info.get("ISLEM TARIHI", "")) or moves[-1].date
     # A passbook that starts on the opening day starts from zero, so its first row is checked too.
-    stmt = build_statement(doc, account, moves, min(opened or moves[0].date, moves[0].date),
-                           max(issued, moves[-1].date), oldest_first=True,
-                           opening=0.0 if opened == moves[0].date else None)
+    stmt = build_statement(
+        doc,
+        account,
+        moves,
+        min(opened or moves[0].date, moves[0].date),
+        max(issued, moves[-1].date),
+        oldest_first=True,
+        opening=0.0 if opened == moves[0].date else None,
+    )
     return ParseResult(parser=NAME, accounts=[account], statements=[stmt], holder=holder)

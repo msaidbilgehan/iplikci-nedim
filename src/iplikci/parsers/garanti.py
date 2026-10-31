@@ -41,19 +41,30 @@ def parse(doc, pdf) -> ParseResult:
     last4 = card[3]
     if paracard:
         account = Account(
-            id=f"garanti-{last4}", label=f"Garanti Paracard •{last4}", bank="Garanti BBVA",
-            type="Banka kartı", number=last4,
+            id=f"garanti-{last4}",
+            label=f"Garanti Paracard •{last4}",
+            bank="Garanti BBVA",
+            type="Banka kartı",
+            number=last4,
         )
     else:
         product = "Bonus"
         account = Account(
-            id=f"garanti-{last4}", label=f"Garanti {product} •{last4}", bank="Garanti BBVA",
-            type="Kredi kartı", number=last4,
+            id=f"garanti-{last4}",
+            label=f"Garanti {product} •{last4}",
+            bank="Garanti BBVA",
+            type="Kredi kartı",
+            number=last4,
         )
     cut_date = parse_tr_words_date(cut[1], cut[2], cut[3])
     stmt = Statement(
-        account=account.id, cut_date=cut_date, currency="TL", source=doc.name,
-        previous=None if paracard else 0.0, total=total, total_is_sum=paracard,
+        account=account.id,
+        cut_date=cut_date,
+        currency="TL",
+        source=doc.name,
+        previous=None if paracard else 0.0,
+        total=total,
+        total_is_sum=paracard,
     )
 
     section = ""
@@ -70,13 +81,13 @@ def parse(doc, pdf) -> ParseResult:
         donem = find_word(header, "DONEM")
         kalan = find_word(header, "KALAN")
         extra_left = kalan.x0 - 2 if kalan else bonus.x0 - 2
-        for line in lines[h + 1:]:
+        for line in lines[h + 1 :]:
             w = line.words
             amount, used = take_amount(line, tutar_right)
             date = None
             if len(w) >= 3 and w[0].text.isdigit():
                 date = parse_tr_words_date(w[0].text, w[1].text, w[2].text)
-            desc_words = [x for x in w[3 if date else 0:] if x not in used and x.x1 < extra_left]
+            desc_words = [x for x in w[3 if date else 0 :] if x not in used and x.x1 < extra_left]
             desc = " ".join(x.text for x in desc_words if x.x0 >= donem.x0 - 3 or not date)
             extra = " ".join(x.text for x in w if x not in used and extra_left <= x.x0 < bonus.x0 - 2)
             fd = fold(desc)
@@ -103,11 +114,19 @@ def parse(doc, pdf) -> ParseResult:
             in_cash_section = any(k in fold(section) for k in ("NAKIT CEKIM", "NAKIT AVANS"))
             if in_cash_section and kind == "harcama":
                 kind = "nakit_avans"  # debit-card ATM withdrawal
-            stmt.transactions.append(Transaction(
-                date=date, description=desc, amount=amount, kind=kind,
-                account=account.id, original=original, installment=installment_label(extra),
-                bank_category="" if in_cash_section else section, source=doc.name,
-            ))
+            stmt.transactions.append(
+                Transaction(
+                    date=date,
+                    description=desc,
+                    amount=amount,
+                    kind=kind,
+                    account=account.id,
+                    original=original,
+                    installment=installment_label(extra),
+                    bank_category="" if in_cash_section else section,
+                    source=doc.name,
+                )
+            )
 
     pair_deferrals(stmt.transactions)
     return ParseResult(parser=NAME, accounts=[account], statements=[stmt])

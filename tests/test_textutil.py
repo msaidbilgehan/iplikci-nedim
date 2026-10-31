@@ -12,26 +12,36 @@ from iplikci.textutil import (
 )
 
 
-@pytest.mark.parametrize("text, expected", [
-    ("1.234,56", 1234.56),
-    ("-12.345,67", -12345.67),
-    ("4321,09", 4321.09),
-    ("1.234,00+", -1234.0),  # Garanti prints credits with a trailing plus
-    ("TL.1.500,-", 1500.0),  # TEB
-    ("-TL.2.345,-", -2345.0),
-    ("TL 1.111,11-", -1111.11),
-    ("0,04", 0.04),
-    ("1234,56/6", None),
-    ("MAXİPUAN:0,07", None),
-    ("abc", None),
-])
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        ("1.234,56", 1234.56),
+        ("-12.345,67", -12345.67),
+        ("4321,09", 4321.09),
+        ("1.234,00+", -1234.0),  # Garanti prints credits with a trailing plus
+        ("TL.1.500,-", 1500.0),  # TEB
+        ("-TL.2.345,-", -2345.0),
+        ("TL 1.111,11-", -1111.11),
+        ("0,04", 0.04),
+        ("1234,56/6", None),
+        ("MAXİPUAN:0,07", None),
+        ("abc", None),
+    ],
+)
 def test_parse_tr_amount(text, expected):
     assert parse_tr_amount(text) == expected
 
 
-@pytest.mark.parametrize("text, expected", [
-    ("2,345.67", 2345.67), ("12.34", 12.34), ("4,321.0", 4321.0), ("11,000.00", 11000.0), ("1.234,5", None),
-])
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        ("2,345.67", 2345.67),
+        ("12.34", 12.34),
+        ("4,321.0", 4321.0),
+        ("11,000.00", 11000.0),
+        ("1.234,5", None),
+    ],
+)
 def test_parse_us_amount(text, expected):
     assert parse_us_amount(text) == expected
 

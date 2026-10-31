@@ -37,6 +37,8 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 120
 target-version = "py313"
+# The design docs keep their hand-aligned code samples.
+extend-exclude = ["docs"]
 
 [tool.ruff.lint.isort]
 # Test helpers come last, after the package, as their own group.

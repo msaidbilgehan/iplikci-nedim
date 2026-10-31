@@ -50,7 +50,11 @@ def _account_main(text: str) -> Account:
     iban = re.search(r"TR\d{24}", text)
     number = iban[0][-16:].lstrip("0") if iban else "hesap"
     return Account(
-        id=f"qnb-{number}", label=f"QNB Ek Hesap {number}", bank="QNB", type="Ek hesap (KMH)", number=number,
+        id=f"qnb-{number}",
+        label=f"QNB Ek Hesap {number}",
+        bank="QNB",
+        type="Ek hesap (KMH)",
+        number=number,
     )
 
 
@@ -64,21 +68,22 @@ def parse_text(doc, text: str) -> ParseResult:
     day = parse_dmy(when[1])
     key = f"qnb-{fis[1] if fis else doc.sha256}"
     holder = re.search(r"DEKONT\s+([A-ZÇĞİÖŞÜ ]+?)\s+(?:MUSTERI NO|[A-ZÇĞİÖŞÜ]+ MAH)", t)
-    table = t[f.find("PARA CINSI TUTAR") + len("PARA CINSI TUTAR"):] if "PARA CINSI TUTAR" in f else t
+    table = t[f.find("PARA CINSI TUTAR") + len("PARA CINSI TUTAR") :] if "PARA CINSI TUTAR" in f else t
     rows = [(m["desc"], m["ba"], m["cur"], parse_us_amount(m["amt"])) for m in _ROW.finditer(table)]
     result = ParseResult(parser=NAME, receipt_key=key, holder=holder[1] if holder else "")
 
     loan = re.search(r"(\d{5}-BT-\d+) REFERANSLI KREDI (\d{2}/\d{2}/\d{4}) TARIHLI TAKSIT ODEMESI", f)
-    parts = re.search(
-        r"ODENEN ANAPARA: ?([\d.,]+) FAIZ: ?([\d.,]+) KKDF: ?([\d.,]+) BSMV: ?([\d.,]+)", f
-    )
+    parts = re.search(r"ODENEN ANAPARA: ?([\d.,]+) FAIZ: ?([\d.,]+) KKDF: ?([\d.,]+) BSMV: ?([\d.,]+)", f)
     card = re.search(r"(\d{6})\*{6}(\d{4}) NOLU KART", f)
 
     if loan and parts:
         ref = loan[1]
         acct = Account(
-            id=f"qnb-kredi-{ref[-4:]}", label=f"QNB İhtiyaç Kredisi …{ref[-4:]}", bank="QNB",
-            type="Kredi", number=ref[-4:],
+            id=f"qnb-kredi-{ref[-4:]}",
+            label=f"QNB İhtiyaç Kredisi …{ref[-4:]}",
+            bank="QNB",
+            type="Kredi",
+            number=ref[-4:],
         )
         result.title = f"Kredi Taksiti {ref[-4:]}"
         principal = parse_us_amount(parts[1]) or 0.0
@@ -86,12 +91,20 @@ def parse_text(doc, text: str) -> ParseResult:
         result.accounts.append(acct)
         result.transactions += [
             Transaction(
-                date=day, description=f"QNB ihtiyaç kredisi taksiti ({loan[2]}) — anapara",
-                amount=round(principal, 2), kind="kredi_anapara", account=acct.id, source=doc.name,
+                date=day,
+                description=f"QNB ihtiyaç kredisi taksiti ({loan[2]}) — anapara",
+                amount=round(principal, 2),
+                kind="kredi_anapara",
+                account=acct.id,
+                source=doc.name,
             ),
             Transaction(
-                date=day, description=f"QNB ihtiyaç kredisi taksiti ({loan[2]}) — faiz, KKDF, BSMV",
-                amount=round(cost, 2), kind="faiz_ucret", account=acct.id, source=doc.name,
+                date=day,
+                description=f"QNB ihtiyaç kredisi taksiti ({loan[2]}) — faiz, KKDF, BSMV",
+                amount=round(cost, 2),
+                kind="faiz_ucret",
+                account=acct.id,
+                source=doc.name,
             ),
         ]
         return result
@@ -99,14 +112,24 @@ def parse_text(doc, text: str) -> ParseResult:
     if card and rows:
         last4 = card[2]
         acct = Account(
-            id=f"qnb-{last4}", label=f"QNB Mastercard •{last4}", bank="QNB", type="Kredi kartı", number=last4,
+            id=f"qnb-{last4}",
+            label=f"QNB Mastercard •{last4}",
+            bank="QNB",
+            type="Kredi kartı",
+            number=last4,
         )
         result.title = f"Kart Ödemesi {last4}"
         result.accounts.append(acct)
-        result.transactions.append(Transaction(
-            date=day, description=f"QNB Mastercard •{last4} borç ödemesi", amount=rows[0][3],
-            kind="ekstresiz_kart", account=acct.id, source=doc.name,
-        ))
+        result.transactions.append(
+            Transaction(
+                date=day,
+                description=f"QNB Mastercard •{last4} borç ödemesi",
+                amount=rows[0][3],
+                kind="ekstresiz_kart",
+                account=acct.id,
+                source=doc.name,
+            )
+        )
         return result
 
     if not rows:
@@ -116,15 +139,21 @@ def parse_text(doc, text: str) -> ParseResult:
     result.title = "Transfer"
     note = re.search(r"ACIKLAMA: ?(.+?) (?:GONDEREN|ALICI) ", f)
     bank = re.search(r"(?:KATILIMCI|BANKA ADI/SUBESI): ?([A-Z ]+?BANKASI)", f)
-    bank_name = (_BANKS.get(bank[1].strip(), title_tr(bank[1].strip())) if bank else "")
+    bank_name = _BANKS.get(bank[1].strip(), title_tr(bank[1].strip())) if bank else ""
     for desc, ba, cur, amount in rows:
         if amount is None or cur != "TL":
             continue
         if "UCRET" in fold(desc):
-            result.transactions.append(Transaction(
-                date=day, description="QNB EFT ücreti", amount=amount, kind="faiz_ucret",
-                account=main.id, source=doc.name,
-            ))
+            result.transactions.append(
+                Transaction(
+                    date=day,
+                    description="QNB EFT ücreti",
+                    amount=amount,
+                    kind="faiz_ucret",
+                    account=main.id,
+                    source=doc.name,
+                )
+            )
             continue
         incoming = ba == "A"
         text = f"{'Gelen' if incoming else 'Giden'} transfer"
@@ -132,10 +161,17 @@ def parse_text(doc, text: str) -> ParseResult:
             text += f" {'←' if incoming else '→'} {bank_name}"
         if note:
             text += f" ({note[1].strip().lower()})"
-        result.transactions.append(Transaction(
-            date=day, description=text, amount=-amount if incoming else amount,
-            kind=CANDIDATE, account=main.id, counterparty=_other_side(desc, t, incoming), source=doc.name,
-        ))
+        result.transactions.append(
+            Transaction(
+                date=day,
+                description=text,
+                amount=-amount if incoming else amount,
+                kind=CANDIDATE,
+                account=main.id,
+                counterparty=_other_side(desc, t, incoming),
+                source=doc.name,
+            )
+        )
     return result
 
 

@@ -75,8 +75,8 @@ def _trailing_comment(stripped: str, value) -> str:
     """The "  # …" a line ends with ("#" can also sit inside a quoted regex, so check by reparsing)."""
     for m in re.finditer(r"\s+#", stripped):
         try:
-            if yaml.safe_load(stripped[:m.start()]) == value:
-                return stripped[m.start():]
+            if yaml.safe_load(stripped[: m.start()]) == value:
+                return stripped[m.start() :]
         except yaml.YAMLError:
             continue
     return ""
@@ -153,11 +153,19 @@ def add_ended(text: str, merchant: str, month: str, note: str = "") -> str:
     lines = _lines(text)
     note = " ".join(note.split())
     entry = f"  {_scalar(merchant, key=True)}: {month}" + (f"  # {note}" if note else "") + "\n"
-    start = next((i for i, line in enumerate(lines)
-                  if _is_content(line) and _indent(line) == 0 and fold(_key(line) or "") == "_BITEN"), None)
+    start = next(
+        (
+            i
+            for i, line in enumerate(lines)
+            if _is_content(line) and _indent(line) == 0 and fold(_key(line) or "") == "_BITEN"
+        ),
+        None,
+    )
     if start is None:
-        return "".join(lines) + ("\n# Bittiğini ya da iptal ettiğinizi bildiğiniz ödemeler: işyeri adı ve son ödemenin "
-                                 "yapıldığı ay (YYYY-AA).\n_biten:\n" + entry)
+        return "".join(lines) + (
+            "\n# Bittiğini ya da iptal ettiğinizi bildiğiniz ödemeler: işyeri adı ve son ödemenin "
+            "yapıldığı ay (YYYY-AA).\n_biten:\n" + entry
+        )
     if re.match(r"^[^#]*:\s*\{\}", lines[start]):
         lines[start] = re.sub(r":\s*\{\}", ":", lines[start], count=1)
     end = _block_end(lines, start)
@@ -206,8 +214,9 @@ def replace(path: Path, text: str, backups: Path) -> Path:
 
 
 def diff(old: str, new: str, name: str, limit: int = 80) -> str:
-    lines = list(difflib.unified_diff(old.splitlines(), new.splitlines(), f"{name} (önce)", f"{name} (sonra)",
-                                      lineterm="", n=1))
+    lines = list(
+        difflib.unified_diff(old.splitlines(), new.splitlines(), f"{name} (önce)", f"{name} (sonra)", lineterm="", n=1)
+    )
     if len(lines) > limit:
         lines = lines[:limit] + [f"… {len(lines) - limit} satır daha"]
     return "\n".join(lines)

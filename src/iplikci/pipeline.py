@@ -61,7 +61,9 @@ def parse_all(docs: list[Document], cache_dir: Path | None, progress=None, keep_
     return results
 
 
-def run(sources: list[Path], rules: Path, cache_dir: Path | None, progress=None, settings: dict | None = None) -> tuple[Dataset, dict]:
+def run(
+    sources: list[Path], rules: Path, cache_dir: Path | None, progress=None, settings: dict | None = None
+) -> tuple[Dataset, dict]:
     docs, duplicates = collect(sources)
     results = parse_all(docs, cache_dir, progress)
     dataset = build(results, Categorizer(rules), settings or {})

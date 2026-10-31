@@ -72,6 +72,7 @@ def page_lines(page, x_tolerance: float = 1.0, y_tolerance: float = 2.0) -> list
 
 # --- OCR for statements delivered as page images (macOS Vision framework) ----
 
+
 def ocr_available() -> bool:
     try:
         import Vision  # noqa: F401
@@ -104,12 +105,14 @@ def ocr_page_lines(data: bytes, page_index: int, y_tolerance: float = 4.0) -> li
     words = []
     for obs in request.results() or []:
         box = obs.boundingBox()  # normalized, origin at the bottom left
-        words.append(Word(
-            str(obs.topCandidates_(1)[0].string()),
-            box.origin.x * width,
-            (box.origin.x + box.size.width) * width,
-            (1 - box.origin.y - box.size.height) * height,
-        ))
+        words.append(
+            Word(
+                str(obs.topCandidates_(1)[0].string()),
+                box.origin.x * width,
+                (box.origin.x + box.size.width) * width,
+                (1 - box.origin.y - box.size.height) * height,
+            )
+        )
     return _group_lines(words, y_tolerance)
 
 

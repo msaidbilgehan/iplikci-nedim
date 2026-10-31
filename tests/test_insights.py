@@ -30,10 +30,27 @@ TERM = Account("vadeli", "Test Vadeli TL", "İş Bankası", "Vadeli hesap", numb
 REGULAR = {"Dijital Abonelikler", "Elektrik, Su & Doğalgaz", "İnternet & Telefon", "Kira"}
 
 
-def tx(d: date, merchant: str, amount: float, category: str = "Dijital Abonelikler", necessity: str = "İsteğe bağlı",
-       kind: str = "harcama", account: str = "card", description: str = "") -> Transaction:
-    return Transaction(date=d, description=description or merchant.upper(), amount=amount, kind=kind, account=account,
-                       merchant=merchant, category=category, group="", necessity=necessity)
+def tx(
+    d: date,
+    merchant: str,
+    amount: float,
+    category: str = "Dijital Abonelikler",
+    necessity: str = "İsteğe bağlı",
+    kind: str = "harcama",
+    account: str = "card",
+    description: str = "",
+) -> Transaction:
+    return Transaction(
+        date=d,
+        description=description or merchant.upper(),
+        amount=amount,
+        kind=kind,
+        account=account,
+        merchant=merchant,
+        category=category,
+        group="",
+        necessity=necessity,
+    )
 
 
 def monthly(first: date, count: int) -> list[date]:
@@ -45,8 +62,10 @@ def monthly(first: date, count: int) -> list[date]:
 
 
 def card_statements(first_cut: date, count: int, account: str = "card", total: float = 0.0) -> list[Statement]:
-    return [Statement(account=account, cut_date=cut, currency="TL", source="e.pdf", previous=0.0, total=total)
-            for cut in monthly(first_cut, count)]
+    return [
+        Statement(account=account, cut_date=cut, currency="TL", source="e.pdf", previous=0.0, total=total)
+        for cut in monthly(first_cut, count)
+    ]
 
 
 def full_coverage(account: str, first: str, last: str, partial_last: float | None = None) -> dict[str, float]:
@@ -60,11 +79,20 @@ def full_coverage(account: str, first: str, last: str, partial_last: float | Non
     return cov
 
 
-def dataset(txns: list[Transaction], statements: list[Statement], coverage: dict | None = None,
-            ended: dict | None = None) -> Dataset:
-    return Dataset(accounts={a.id: a for a in (CARD, OTHER_CARD, CASH, USD, STOCKS, TERM)}, statements=statements,
-                   transactions=sorted(txns, key=lambda t: t.date), documents=[], groups=[], categories={},
-                   coverage=coverage or {}, ended=ended or {}, regular=REGULAR)
+def dataset(
+    txns: list[Transaction], statements: list[Statement], coverage: dict | None = None, ended: dict | None = None
+) -> Dataset:
+    return Dataset(
+        accounts={a.id: a for a in (CARD, OTHER_CARD, CASH, USD, STOCKS, TERM)},
+        statements=statements,
+        transactions=sorted(txns, key=lambda t: t.date),
+        documents=[],
+        groups=[],
+        categories={},
+        coverage=coverage or {},
+        ended=ended or {},
+        regular=REGULAR,
+    )
 
 
 def series_status(ds: Dataset) -> dict[tuple[str, float], str]:
@@ -73,6 +101,7 @@ def series_status(ds: Dataset) -> dict[tuple[str, float], str]:
 
 
 # --- regular payments -------------------------------------------------------------------------
+
 
 def test_subscription_ends_when_the_card_statements_go_on_without_it():
     txns = [tx(d, "Örnek Müzik", 99.99) for d in monthly(date(2025, 6, 15), 7)]  # last 15.12.2025
@@ -89,7 +118,9 @@ def test_subscription_runs_on_when_the_statements_stop_before_the_next_charge():
 def test_listed_as_ended_is_cancelled_and_a_later_charge_is_reported():
     txns = [tx(d, "Örnek Dergi", 49.90) for d in monthly(date(2025, 12, 12), 11)]
     statements = card_statements(date(2025, 12, 13), 12)
-    assert series_status(dataset(txns, statements, ended={"ORNEK DERGI": "2026-10"})) == {("Örnek Dergi", 49.9): "iptal"}
+    assert series_status(dataset(txns, statements, ended={"ORNEK DERGI": "2026-10"})) == {
+        ("Örnek Dergi", 49.9): "iptal"
+    }
     late = txns + [tx(date(2026, 11, 12), "Örnek Dergi", 49.90)]
     ds = dataset(late, statements, ended={"ORNEK DERGI": "2026-10"})
     assert series_status(ds) == {("Örnek Dergi", 49.9): "iptal_sonrasi"}
@@ -106,23 +137,32 @@ def test_two_subscriptions_with_one_payee_are_told_apart_by_amount():
 
 def test_a_bill_moving_with_the_seasons_is_one_series_but_a_shop_is_none():
     amounts = [1500, 1200, 700, 320, 120, 80, 100, 150, 600]
-    gas = [tx(d, "Doğalgaz (İGDAŞ)", a, category="Elektrik, Su & Doğalgaz", necessity="Gerekli")
-           for d, a in zip(monthly(date(2026, 1, 20), 9), amounts)]
+    gas = [
+        tx(d, "Doğalgaz (İGDAŞ)", a, category="Elektrik, Su & Doğalgaz", necessity="Gerekli")
+        for d, a in zip(monthly(date(2026, 1, 20), 9), amounts)
+    ]
     found = find_series(gas, REGULAR)
     assert len(found) == 1 and len(found[0].payments) == 9
     assert found[0].monthly == 150  # median of the last three: bills move from month to month
-    market = [tx(d, "Örnek Market", a, category="Market & Gıda", necessity="Gerekli")
-              for d, a in zip(monthly(date(2026, 1, 3), 9), amounts)]
+    market = [
+        tx(d, "Örnek Market", a, category="Market & Gıda", necessity="Gerekli")
+        for d, a in zip(monthly(date(2026, 1, 3), 9), amounts)
+    ]
     assert find_series(market, REGULAR) == []
 
 
 def test_an_unchanged_monthly_amount_is_regular_in_any_category():
-    gym = [tx(d, "Spor Salonu", 900.0, category="Diğer Harcamalar", necessity="Belirsiz") for d in monthly(date(2026, 1, 5), 5)]
+    gym = [
+        tx(d, "Spor Salonu", 900.0, category="Diğer Harcamalar", necessity="Belirsiz")
+        for d in monthly(date(2026, 1, 5), 5)
+    ]
     assert len(find_series(gym, REGULAR)) == 1
 
 
 def test_old_series_on_an_account_without_statements_is_over():
-    loan = [tx(d, "QNB ihtiyaç kredisi", 2500.0, kind="kredi_anapara", account="old") for d in monthly(date(2024, 1, 15), 5)]
+    loan = [
+        tx(d, "QNB ihtiyaç kredisi", 2500.0, kind="kredi_anapara", account="old") for d in monthly(date(2024, 1, 15), 5)
+    ]
     recent = card_statements(date(2026, 1, 14), 9)
     assert series_status(dataset(loan, recent)) == {("QNB ihtiyaç kredisi", 2500.0): "bitti"}
 
@@ -131,8 +171,14 @@ def test_a_bill_paid_elsewhere_for_a_few_months_goes_on():
     # Paid from an account without documents in May and June: the two payments after the pause are too few
     # to be a series of their own and continue the bill. The same-day card fee keeps it out of the
     # once-a-month path, so the payments are chained by amount.
-    bills = [(date(2026, 1, 9), 500.2), (date(2026, 1, 31), 540.0), (date(2026, 3, 10), 654.6),
-             (date(2026, 4, 8), 654.6), (date(2026, 7, 30), 657.8), (date(2026, 9, 9), 657.8)]
+    bills = [
+        (date(2026, 1, 9), 500.2),
+        (date(2026, 1, 31), 540.0),
+        (date(2026, 3, 10), 654.6),
+        (date(2026, 4, 8), 654.6),
+        (date(2026, 7, 30), 657.8),
+        (date(2026, 9, 9), 657.8),
+    ]
     fees = [(date(2026, 1, 9), 17.5), (date(2026, 9, 9), 23.02)]
     txns = [tx(d, "Türk Telekom", a, category="İnternet & Telefon", necessity="Gerekli") for d, a in bills + fees]
     ds = dataset(txns, card_statements(date(2026, 1, 10), 10))  # statements until 10.10.2026
@@ -141,22 +187,30 @@ def test_a_bill_paid_elsewhere_for_a_few_months_goes_on():
 
 
 def test_a_once_a_month_bill_goes_on_after_a_pause_but_not_after_a_long_one():
-    water = [tx(d, "Su (İSKİ)", a, category="Elektrik, Su & Doğalgaz", necessity="Gerekli")
-             for d, a in zip(monthly(date(2026, 1, 20), 4), [200, 210, 170, 140])]
-    later = [tx(d, "Su (İSKİ)", a, category="Elektrik, Su & Doğalgaz", necessity="Gerekli")
-             for d, a in zip(monthly(date(2026, 8, 25), 2), [85, 290])]
-    s, = find_series(water + later, REGULAR)
+    water = [
+        tx(d, "Su (İSKİ)", a, category="Elektrik, Su & Doğalgaz", necessity="Gerekli")
+        for d, a in zip(monthly(date(2026, 1, 20), 4), [200, 210, 170, 140])
+    ]
+    later = [
+        tx(d, "Su (İSKİ)", a, category="Elektrik, Su & Doğalgaz", necessity="Gerekli")
+        for d, a in zip(monthly(date(2026, 8, 25), 2), [85, 290])
+    ]
+    (s,) = find_series(water + later, REGULAR)
     assert s.last.date == date(2026, 9, 25) and len(s.payments) == 6
-    years_later = [tx(d, "Su (İSKİ)", 280, category="Elektrik, Su & Doğalgaz", necessity="Gerekli")
-                   for d in monthly(date(2027, 1, 25), 2)]
-    s, = find_series(water + years_later, REGULAR)
+    years_later = [
+        tx(d, "Su (İSKİ)", 280, category="Elektrik, Su & Doğalgaz", necessity="Gerekli")
+        for d in monthly(date(2027, 1, 25), 2)
+    ]
+    (s,) = find_series(water + years_later, REGULAR)
     assert s.last.date == date(2026, 4, 20)
 
 
 def test_price_change_needs_the_new_price_to_hold():
-    rent = [tx(d, "Ev kirası", a, category="Kira", necessity="Gerekli", account="cash")
-            for d, a in zip(monthly(date(2026, 1, 5), 10), [15000] * 6 + [16400] * 4)]
-    s, = find_series(rent, REGULAR)
+    rent = [
+        tx(d, "Ev kirası", a, category="Kira", necessity="Gerekli", account="cash")
+        for d, a in zip(monthly(date(2026, 1, 5), 10), [15000] * 6 + [16400] * 4)
+    ]
+    (s,) = find_series(rent, REGULAR)
     old, new, when = s.price_change()
     assert (old, new, when) == (15000, 16400, date(2026, 7, 5))
     s.payments = s.payments[:7]  # one payment at the new price is not a new price yet
@@ -165,16 +219,24 @@ def test_price_change_needs_the_new_price_to_hold():
 
 # --- habits -----------------------------------------------------------------------------------
 
+
 def test_habits_are_told_apart_and_only_habits_cost_from_now_on():
     window_cov = {"card": full_coverage("card", "2025-12", "2026-10", partial_last=0.4)}
     statements = card_statements(date(2025, 12, 14), 11)
     txns = []
     for i, d in enumerate(monthly(date(2025, 12, 3), 10)):  # every month, 2 orders of 500
-        txns += [tx(d, "Getir", 500.0, category="Market & Gıda"), tx(d + timedelta(days=7), "Getir", 500.0, category="Market & Gıda")]
+        txns += [
+            tx(d, "Getir", 500.0, category="Market & Gıda"),
+            tx(d + timedelta(days=7), "Getir", 500.0, category="Market & Gıda"),
+        ]
     txns += [tx(d, "Örnek Büfe", 1000.0, category="Tekel & Büfe") for d in monthly(date(2026, 5, 18), 5)]  # since May
-    txns += [tx(date(2026, m, 10), "Hepsiburada", 1200.0, category="Online Alışveriş") for m in (1, 4, 8)]  # now and then
-    txns += [tx(date(2026, 1, 10), "Trendyol", 300.0, category="Online Alışveriş"),
-             tx(date(2026, 3, 10), "Trendyol", 300.0, category="Online Alışveriş")]  # stopped in March
+    txns += [
+        tx(date(2026, m, 10), "Hepsiburada", 1200.0, category="Online Alışveriş") for m in (1, 4, 8)
+    ]  # now and then
+    txns += [
+        tx(date(2026, 1, 10), "Trendyol", 300.0, category="Online Alışveriş"),
+        tx(date(2026, 3, 10), "Trendyol", 300.0, category="Online Alışveriş"),
+    ]  # stopped in March
     txns.append(tx(date(2026, 8, 23), "sahibinden.com", 45000.0, category="Online Alışveriş"))  # once
     ds = dataset(txns, statements, coverage=window_cov)
     tl_ = timeline(ds)
@@ -192,19 +254,35 @@ def test_habits_are_told_apart_and_only_habits_cost_from_now_on():
 def test_a_habit_listed_as_ended_stopped():
     statements = card_statements(date(2025, 12, 14), 11)
     txns = [tx(d, "Örnek Büfe", 1000.0, category="Tekel & Büfe") for d in monthly(date(2026, 5, 18), 5)]
-    ds = dataset(txns, statements, coverage={"card": full_coverage("card", "2025-12", "2026-10", 0.4)},
-                 ended={"ORNEK BUFE": "2026-09"})
-    h, = habits(ds, timeline(ds), [])
+    ds = dataset(
+        txns,
+        statements,
+        coverage={"card": full_coverage("card", "2025-12", "2026-10", 0.4)},
+        ended={"ORNEK BUFE": "2026-09"},
+    )
+    (h,) = habits(ds, timeline(ds), [])
     assert (h.status, h.monthly) == ("durdu", 0.0)
 
 
 # --- months, balances and debt ---------------------------------------------------------------
 
+
 def test_complete_months_skip_a_partial_month_but_not_a_new_account():
     statements = card_statements(date(2026, 1, 14), 10) + [
-        Statement(account="usd", cut_date=date(2026, 10, 31), currency="USD", source="u.xls", previous=0.0, total=590.0,
-                  start=date(2026, 4, 30))]
-    coverage = {"card": full_coverage("card", "2026-01", "2026-10", 0.45), "usd": full_coverage("usd", "2026-04", "2026-10")}
+        Statement(
+            account="usd",
+            cut_date=date(2026, 10, 31),
+            currency="USD",
+            source="u.xls",
+            previous=0.0,
+            total=590.0,
+            start=date(2026, 4, 30),
+        )
+    ]
+    coverage = {
+        "card": full_coverage("card", "2026-01", "2026-10", 0.45),
+        "usd": full_coverage("usd", "2026-04", "2026-10"),
+    }
     coverage["usd"]["2026-04"] = 0.03  # opened on 30 April from a zero balance
     ds = dataset([], statements, coverage=coverage)
     months = complete_months(ds)
@@ -213,16 +291,48 @@ def test_complete_months_skip_a_partial_month_but_not_a_new_account():
 
 def test_holdings_value_foreign_currency_and_subtract_card_payments_after_the_cut():
     statements = [
-        Statement(account="card", cut_date=date(2026, 10, 13), currency="TL", source="k.pdf", previous=50.0, total=90000.5),
-        Statement(account="usd", cut_date=date(2026, 10, 31), currency="USD", source="u.xls", previous=0.0, total=500.0,
-                  start=date(2026, 4, 30), balances={"2026-10": 500.0}),
-        Statement(account="cash", cut_date=date(2026, 10, 31), currency="TL", source="v.xls", previous=0.0, total=-21000.75,
-                  start=date(2026, 1, 1), balances={"2026-09": -19000.0, "2026-10": -21000.75}),
+        Statement(
+            account="card", cut_date=date(2026, 10, 13), currency="TL", source="k.pdf", previous=50.0, total=90000.5
+        ),
+        Statement(
+            account="usd",
+            cut_date=date(2026, 10, 31),
+            currency="USD",
+            source="u.xls",
+            previous=0.0,
+            total=500.0,
+            start=date(2026, 4, 30),
+            balances={"2026-10": 500.0},
+        ),
+        Statement(
+            account="cash",
+            cut_date=date(2026, 10, 31),
+            currency="TL",
+            source="v.xls",
+            previous=0.0,
+            total=-21000.75,
+            start=date(2026, 1, 1),
+            balances={"2026-09": -19000.0, "2026-10": -21000.75},
+        ),
     ]
-    paid = [tx(date(2026, 10, 14), "Kart ödemesi", 40000.25, kind="kart_odemesi", account="cash",
-               description="123456******1234 no.lu Kredi Kartına Ödenen Tutar"),
-            tx(date(2026, 10, 17), "Kart ödemesi", 50000.25, kind="kart_odemesi", account="cash",
-               description="123456******1234 no.lu Kredi Kartına Ödenen Tutar")]
+    paid = [
+        tx(
+            date(2026, 10, 14),
+            "Kart ödemesi",
+            40000.25,
+            kind="kart_odemesi",
+            account="cash",
+            description="123456******1234 no.lu Kredi Kartına Ödenen Tutar",
+        ),
+        tx(
+            date(2026, 10, 17),
+            "Kart ödemesi",
+            50000.25,
+            kind="kart_odemesi",
+            account="cash",
+            description="123456******1234 no.lu Kredi Kartına Ödenen Tutar",
+        ),
+    ]
     ds = dataset(paid, statements)
     ds.rates = {"USD": [(date(2026, 5, 2), 46.4), (date(2026, 7, 1), 47.18)]}
     by_kind = {h.kind: h for h in holdings(ds)}
@@ -234,8 +344,10 @@ def test_holdings_value_foreign_currency_and_subtract_card_payments_after_the_cu
 
 
 def test_a_missing_brokerage_statement_leaves_the_month_complete():
-    coverage = {"card": full_coverage("card", "2026-01", "2026-10", 0.45),
-                "hisse": full_coverage("hisse", "2026-01", "2026-09")}
+    coverage = {
+        "card": full_coverage("card", "2026-01", "2026-10", 0.45),
+        "hisse": full_coverage("hisse", "2026-01", "2026-09"),
+    }
     coverage["hisse"]["2026-05"] = 0.0  # that month's stock statement never arrived: no bill or income is missing
     ds = dataset([], card_statements(date(2026, 1, 14), 10), coverage=coverage)
     assert "2026-05" in complete_months(ds)
@@ -244,12 +356,34 @@ def test_a_missing_brokerage_statement_leaves_the_month_complete():
 
 def test_stocks_count_at_market_value_and_an_old_balance_is_shown_but_not_counted():
     statements = [
-        Statement(account="cash", cut_date=date(2026, 10, 31), currency="TL", source="v.xls", previous=0.0,
-                  total=1000.0, start=date(2026, 10, 1)),
-        Statement(account="hisse", cut_date=date(2026, 9, 30), currency="TL", source="h.pdf", previous=0.0, total=5.0,
-                  start=date(2026, 9, 1), securities=[Security("ORNEK", "ÖRNEK A.Ş.", 20.0, 600.0, date(2026, 9, 30))]),
-        Statement(account="vadeli", cut_date=date(2024, 1, 17), currency="TL", source="c.pdf", previous=0.0,
-                  total=7500.0, start=date(2024, 1, 17)),  # known only from the passbook sent when it was opened
+        Statement(
+            account="cash",
+            cut_date=date(2026, 10, 31),
+            currency="TL",
+            source="v.xls",
+            previous=0.0,
+            total=1000.0,
+            start=date(2026, 10, 1),
+        ),
+        Statement(
+            account="hisse",
+            cut_date=date(2026, 9, 30),
+            currency="TL",
+            source="h.pdf",
+            previous=0.0,
+            total=5.0,
+            start=date(2026, 9, 1),
+            securities=[Security("ORNEK", "ÖRNEK A.Ş.", 20.0, 600.0, date(2026, 9, 30))],
+        ),
+        Statement(
+            account="vadeli",
+            cut_date=date(2024, 1, 17),
+            currency="TL",
+            source="c.pdf",
+            previous=0.0,
+            total=7500.0,
+            start=date(2024, 1, 17),
+        ),  # known only from the passbook sent when it was opened
     ]
     by_kind = {h.kind: h for h in holdings(dataset([], statements))}
     stocks, term = by_kind["yatirim"], by_kind["vadeli"]
@@ -260,21 +394,54 @@ def test_stocks_count_at_market_value_and_an_old_balance_is_shown_but_not_counte
 
 # --- findings ---------------------------------------------------------------------------------
 
+
 def test_interpretation_prices_the_steps_and_balances_the_budget():
     statements = card_statements(date(2025, 12, 14), 11, total=5000.0) + [
-        Statement(account="cash", cut_date=date(2026, 10, 31), currency="TL", source="v.xls", previous=0.0, total=-20000.0,
-                  start=date(2025, 11, 30), balances={"2026-09": -20000.0, "2026-10": -20000.0})]
-    coverage = {"card": full_coverage("card", "2025-12", "2026-10", 0.4), "cash": full_coverage("cash", "2025-12", "2026-10")}
-    txns = [tx(d, "Örnek (maaş)", -100000.0, kind="gelir", category="Maaş & İş Geliri", necessity="", account="cash")
-            for d in monthly(date(2025, 12, 1), 11)]
-    txns += [tx(d, "Ev kirası", 20000.0, category="Kira", necessity="Gerekli", account="cash") for d in monthly(date(2025, 12, 5), 11)]
-    txns += [tx(d + timedelta(days=4 * k), "Getir", 1400.0, category="Market & Gıda")  # six orders a month: a shop
-             for d in monthly(date(2025, 12, 2), 10) for k in range(6)]
-    txns += [tx(d, "TEB faiz & ücretleri", 1000.0, kind="faiz_ucret", category="Ek Hesap (KMH) Faizi", necessity="Gereksiz",
-                account="cash") for d in monthly(date(2025, 12, 28), 10)]
+        Statement(
+            account="cash",
+            cut_date=date(2026, 10, 31),
+            currency="TL",
+            source="v.xls",
+            previous=0.0,
+            total=-20000.0,
+            start=date(2025, 11, 30),
+            balances={"2026-09": -20000.0, "2026-10": -20000.0},
+        )
+    ]
+    coverage = {
+        "card": full_coverage("card", "2025-12", "2026-10", 0.4),
+        "cash": full_coverage("cash", "2025-12", "2026-10"),
+    }
+    txns = [
+        tx(d, "Örnek (maaş)", -100000.0, kind="gelir", category="Maaş & İş Geliri", necessity="", account="cash")
+        for d in monthly(date(2025, 12, 1), 11)
+    ]
+    txns += [
+        tx(d, "Ev kirası", 20000.0, category="Kira", necessity="Gerekli", account="cash")
+        for d in monthly(date(2025, 12, 5), 11)
+    ]
+    txns += [
+        tx(d + timedelta(days=4 * k), "Getir", 1400.0, category="Market & Gıda")  # six orders a month: a shop
+        for d in monthly(date(2025, 12, 2), 10)
+        for k in range(6)
+    ]
+    txns += [
+        tx(
+            d,
+            "TEB faiz & ücretleri",
+            1000.0,
+            kind="faiz_ucret",
+            category="Ek Hesap (KMH) Faizi",
+            necessity="Gereksiz",
+            account="cash",
+        )
+        for d in monthly(date(2025, 12, 28), 10)
+    ]
     ins = interpret(dataset(txns, statements, coverage=coverage))
     titles = [f.title for f in ins.findings]
-    assert "Gelir ve gider dengesi" in titles and "En büyük alışkanlık" in titles and "Faiz ve banka ücretleri" in titles
+    assert (
+        "Gelir ve gider dengesi" in titles and "En büyük alışkanlık" in titles and "Faiz ve banka ücretleri" in titles
+    )
     steps = {s.title: s.monthly for s in ins.steps}
     assert steps["Faiz ödemeyi bırakın"] == pytest.approx(1000.0)
     income, *spent, left = ins.budget
@@ -285,8 +452,20 @@ def test_interpretation_prices_the_steps_and_balances_the_budget():
 
 # --- Turkish ----------------------------------------------------------------------------------
 
-@pytest.mark.parametrize("share, text", [(0.64, "%64'ü"), (0.72, "%72'si"), (0.29, "%29'u"), (0.45, "%45'i"),
-                                         (0.30, "%30'u"), (0.60, "%60'ı"), (0.06, "%6'sı"), (1.0, "%100'ü")])
+
+@pytest.mark.parametrize(
+    "share, text",
+    [
+        (0.64, "%64'ü"),
+        (0.72, "%72'si"),
+        (0.29, "%29'u"),
+        (0.45, "%45'i"),
+        (0.30, "%30'u"),
+        (0.60, "%60'ı"),
+        (0.06, "%6'sı"),
+        (1.0, "%100'ü"),
+    ],
+)
 def test_percent_takes_the_right_suffix(share, text):
     assert pct(share) == text
 

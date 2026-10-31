@@ -38,8 +38,14 @@ def request(panel, method, path, body=b"", cookie=True, host=None, origin=True, 
 
 
 def post_json(panel, path, value=None, headers=None, **kw):
-    res, data = request(panel, "POST", path, json.dumps(value or {}).encode(),
-                        headers={"Content-Type": "application/json"} | (headers or {}), **kw)
+    res, data = request(
+        panel,
+        "POST",
+        path,
+        json.dumps(value or {}).encode(),
+        headers={"Content-Type": "application/json"} | (headers or {}),
+        **kw,
+    )
     return res.status, json.loads(data)
 
 
@@ -74,8 +80,9 @@ def test_another_host_name_is_refused(panel):
 
 def test_writes_need_the_panel_origin_and_header(panel):
     assert post_json(panel, "/api/plan", origin=False)[0] == 403
-    status, _ = post_json(panel, "/api/plan", origin=False,
-                          headers={"Origin": "http://saldirgan.example", "X-Iplikci": "1"})
+    status, _ = post_json(
+        panel, "/api/plan", origin=False, headers={"Origin": "http://saldirgan.example", "X-Iplikci": "1"}
+    )
     assert status == 403
     assert post_json(panel, "/api/plan", cookie=False)[0] == 403
     assert post_json(panel, "/api/plan")[0] == 200

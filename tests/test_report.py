@@ -11,14 +11,37 @@ from iplikci.report import NECESSITY_SLOTS, build_payload, write_html, write_xls
 
 def dataset() -> Dataset:
     account = Account("teb-2468", "TEB Bonus •2468", "TEB", "Kredi kartı", number="2468")
-    t = Transaction(date=date(2026, 1, 5), description="</script><script>alert(1)</script>", amount=100.0,
-                    kind="harcama", account="teb-2468", merchant="Kötü <b>", category="Diğer Harcamalar",
-                    group="Diğer", necessity="Belirsiz", source="a.pdf")
-    s = Statement(account="teb-2468", cut_date=date(2026, 1, 10), currency="TL", source="a.pdf",
-                  previous=0.0, total=100.0, transactions=[t])
-    return Dataset(accounts={"teb-2468": account}, statements=[s], transactions=[t], documents=[],
-                   groups=["Yeme & İçme", "Diğer"], categories={"Diğer Harcamalar": "Diğer"},
-                   coverage={"teb-2468": {"2026-01": 0.33}}, warnings=[])
+    t = Transaction(
+        date=date(2026, 1, 5),
+        description="</script><script>alert(1)</script>",
+        amount=100.0,
+        kind="harcama",
+        account="teb-2468",
+        merchant="Kötü <b>",
+        category="Diğer Harcamalar",
+        group="Diğer",
+        necessity="Belirsiz",
+        source="a.pdf",
+    )
+    s = Statement(
+        account="teb-2468",
+        cut_date=date(2026, 1, 10),
+        currency="TL",
+        source="a.pdf",
+        previous=0.0,
+        total=100.0,
+        transactions=[t],
+    )
+    return Dataset(
+        accounts={"teb-2468": account},
+        statements=[s],
+        transactions=[t],
+        documents=[],
+        groups=["Yeme & İçme", "Diğer"],
+        categories={"Diğer Harcamalar": "Diğer"},
+        coverage={"teb-2468": {"2026-01": 0.33}},
+        warnings=[],
+    )
 
 
 def test_payload_shape():

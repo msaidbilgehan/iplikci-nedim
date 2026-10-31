@@ -51,8 +51,9 @@ def parse(doc, pdf) -> ParseResult:
     lines = page_lines(pdf.pages[0])
     fields = _fields(lines)
     first = lines[0].words if lines else []
-    holder = "" if any(":" in w.text for w in first if w.x0 < _RIGHT) else " ".join(
-        w.text for w in first if w.x0 < _RIGHT)
+    holder = (
+        "" if any(":" in w.text for w in first if w.x0 < _RIGHT) else " ".join(w.text for w in first if w.x0 < _RIGHT)
+    )
     if is_business(holder):
         raise Skipped(BUSINESS_REASON, business=True)
     digits = re.sub(r"\D", "", fields.get("IBAN", ""))
@@ -66,23 +67,40 @@ def parse(doc, pdf) -> ParseResult:
     incoming = heading.startswith("GELEN")
     title = f"{'Gelen' if incoming else 'Giden'} {method.title() if method == 'HAVALE' else method}"
     account = bank_account("İş Bankası", f"{branch_account[1]}-{branch_account[2]}", "TL")
-    result = ParseResult(parser=NAME, accounts=[account], holder=holder, title=title,
-                         receipt_key=f"isbank-dekont-{fields.get('BELGE NO') or doc.sha256}")
+    result = ParseResult(
+        parser=NAME,
+        accounts=[account],
+        holder=holder,
+        title=title,
+        receipt_key=f"isbank-dekont-{fields.get('BELGE NO') or doc.sha256}",
+    )
     side = "GONDEREN" if incoming else "ALICI"
     party = fields.get(f"{side} ISIM\\UNVAN") or fields.get(f"{side} ISIM/UNVAN") or fields.get(f"{side} ADI", "")
     bank = bank_from_iban(fields.get(f"{side} IBAN", "")) or re.sub(r"^\d+\s*-\s*", "", fields.get(f"{side} BANKA", ""))
     note = fields.get("ACIKLAMA", "")
     text = f"{title} {'←' if incoming else '→'} {party}" + (f" ({bank})" if bank else "")
     text += f" — {note}" if note else ""
-    result.transactions.append(Transaction(
-        date=day, description=text, amount=-amount if incoming else amount, kind=CANDIDATE, account=account.id,
-        counterparty=party, source=doc.name,
-    ))
+    result.transactions.append(
+        Transaction(
+            date=day,
+            description=text,
+            amount=-amount if incoming else amount,
+            kind=CANDIDATE,
+            account=account.id,
+            counterparty=party,
+            source=doc.name,
+        )
+    )
     fee = _amount(next((v for k, v in fields.items() if k.endswith("UCRETI VE VERGI")), ""))
     if fee:
-        result.transactions.append(Transaction(
-            date=day, description=f"{title} ücreti ve vergisi", amount=fee, kind="faiz_ucret", account=account.id,
-            source=doc.name,
-        ))
+        result.transactions.append(
+            Transaction(
+                date=day,
+                description=f"{title} ücreti ve vergisi",
+                amount=fee,
+                kind="faiz_ucret",
+                account=account.id,
+                source=doc.name,
+            )
+        )
     return result
-
