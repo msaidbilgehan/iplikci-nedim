@@ -266,6 +266,9 @@ MVP 2026-10-31'de emekliye ayrıldı, bu yüzden ayrı bir geçiş aşaması yok
 
 ## İlk oturum (Aşama 0) için başlangıç
 
+Bu adımlar 2026-11-01'de `asama-0` dalında uygulandı ([revizyon 10](../REVISIONS.md#değişiklik-kaydı)). Aşağıdaki
+"henüz commit yok" gibi notlar o günün durumunu anlatır.
+
 1. **Oturumu nerede açmalı:** depoda.
    Sırayla okunacaklar: `CLAUDE.md`, `docs/README.md`, bu belge, [geçiş](migration.md) (MVP'nin arşivi ve Aşama 0).
 2. **MVP emekliye ayrıldı (2026-10-31):** arka plan görevi ve e-posta kaydı kaldırıldı. MVP'nin kodu, testleri ve

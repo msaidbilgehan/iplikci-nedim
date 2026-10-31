@@ -6,8 +6,9 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-10-31): the design is final and implementation starts with Phase 0 of `docs/v1/roadmap.md`. Until Phase 0
-lands, this repo holds only documentation. The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser
+Status (2026-11-01): Phase 0 of `docs/v1/roadmap.md` brought the MVP's code in as the `iplikci` package, cleaned of
+personal traces, with the shipped default rules, the verification baseline and the demo workspace; Phase 1 (data core)
+is next. The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser
 extension that reads Gmail's web interface); its feasibility check is the first task of Phase 3. The MVP was retired
 the same day (K17, ADR-0018): İplikçi Nedim starts with no migrated data and collects its own.
 
@@ -111,17 +112,31 @@ the same day (K17, ADR-0018): İplikçi Nedim starts with no migrated data and c
 
 The data dir layout is in architecture §9.
 
+Until Phase 1 splits it into the target modules, `src/iplikci/` keeps the MVP's flat layout (`cli`, `workspace`,
+`pipeline`, `parsers/`, `analysis`, `insights`, `month_end`, `panel`, `mcp_server`, …) plus `baseline` (the verification
+baseline) and `demo` (the fake document builders, shared with the tests). A workspace is still the MVP's: `ayarlar.toml`
+and `kategoriler.yaml` in `IPLIKCI_HOME` (else the working folder); the user's company names go in its
+`[identity] business_names`.
+
 ## Commands
 
-Fill this in as the phases land. Phase 0 targets:
+Fill this in as the phases land.
 
 ```bash
+uv sync                                        # Python 3.13 and the locked dependencies
+uv run pre-commit install                      # ruff and gitleaks on every commit
 uv run pytest -q                               # includes the demo workspace's golden baseline
-uv run iplikci dev demo                        # builds the demo workspace from fake documents
-uv run iplikci dogrula --taban                 # real documents in the data dir, once V1 has collected some
+uv run ruff check && uv run ruff format --check
+uv run iplikci dev demo /tmp/iplikci-demo      # demo workspace from fake documents; the folder must be new or empty
+IPLIKCI_HOME=/tmp/iplikci-demo uv run iplikci dogrula --taban --tarih 2026-11-15   # the demo's baseline
+IPLIKCI_UPDATE_GOLDEN=1 uv run pytest tests/test_baseline.py   # rewrite the golden baseline after a deliberate change
+uv run iplikci dogrula --taban                 # real documents once V1 has collected some; exits 1 on a regression
 uv run iplikci dev parser probe <file>        # from Phase 2
 uv run iplikci servis calistir                 # from Phase 3 (foreground service)
 ```
+
+`dogrula --taban` saves the baseline in the workspace's output folder (`cikti/taban.json`) and keeps the saved one
+when it finds a regression; `--kabul` saves it anyway, for a deliberate change only.
 
 ## Code conventions
 

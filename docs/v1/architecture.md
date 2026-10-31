@@ -717,7 +717,8 @@ Bağımlılıklar kilit dosyasıyla sabitlenir; CI'da güvenlik açığı tarama
 
 ## 24. Ölçek ve performans
 
-Bugün yaklaşık 13 aylık veri var:
+Ölçek, MVP'nin emekliye ayrıldığı gündeki verisinden tahmin edilir. V1 bu veriyi devralmaz; kutuyu baştan okuyunca
+benzerini kendisi toplar (K17). MVP'de yaklaşık 13 aylık veri vardı:
 
 - yaklaşık 150 belge (16 MB),
 - yaklaşık 2.500 işlem,

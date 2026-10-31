@@ -11,7 +11,7 @@ bin işlem, birkaç yüz belge).
 
 ## Karar
 
-Tek bir Python süreci (`iplikci serve`) işletim sisteminin servis yöneticisi altında sürekli çalışır: macOS'ta
+Tek bir Python süreci (`iplikci servis calistir`) işletim sisteminin servis yöneticisi altında sürekli çalışır: macOS'ta
 launchd, Linux'ta systemd kullanıcı servisi, Windows'ta Görev Zamanlayıcı. Aynı süreç şunları barındırır:
 
 - HTTP API ve PWA dosyaları,

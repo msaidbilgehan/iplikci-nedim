@@ -86,6 +86,18 @@ Okumanın üç sonucu vardır:
 Bir değişiklikten sonra daha az doğrulanan ekstre ya da yeni bir "okunamadı" belgesi çıkıyorsa bu bir gerilemedir ve
 önce o düzeltilir. Gerçek belgelerdeki taban, veri klasöründe saklanır ve `iplikci dogrula --taban` ile karşılaştırılır.
 
+Taban şunları kaydeder:
+
+- belge sayıları, durumları ve okunamayan belgeler,
+- doğrulanan ve toplam kart ekstreleri ile hesap dökümleri (hesap türlerine göre) ve doğrulanamayan ekstreler,
+- dekont satırlarının durumları,
+- ayların kapanış durumları,
+- son 12 ayın gideri.
+
+Aylar `--tarih` ile verilen güne göre kapanır (varsayılan: bugün). Gerileme bulunursa komut 1 ile biter ve kayıtlı taban
+değişmez; bilinçli bir değişiklik `--kabul` ile kaydedilir. Aşama 1'e dek taban çalışma alanının çıktı klasöründe
+(`cikti/taban.json`) durur.
+
 ## Kopyalar
 
 - Bir ekstrenin içindeki satırlar asla tekilleştirilmez. Aynı gün aynı tutarlı satırlar gerçek alışverişlerdir.

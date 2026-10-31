@@ -6,11 +6,19 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 | Revizyon | Konu | Durum | Belge |
 |---|---|---|---|
 | V0 | MVP `gider-analizi`: banka belgelerini okuyan, doğrulayan, yorumlayan yerel komut satırı programı, web paneli ve MCP sunucusu | 2026-10-31'de emekliye ayrıldı (K17) | Depo dışında, veri klasöründeki arşivde: `archive/mvp/CLAUDE.md` ve `README.md` |
-| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Belgeler son hâlinde; uygulama Aşama 0 ile başlar | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
+| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0 (v0.1.0) uygulandı; sırada Aşama 1 var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
 | V2 | Finansal strateji uzmanları ve yapay zekâ asistanı | Gelecek (V1'den sonra) | [`v2/requirements.md`](v2/requirements.md) |
 
 ## Değişiklik kaydı
 
+- 2026-11-01 (10) — Aşama 0 uygulandı (`asama-0` dalı); belgeler kodla uyumlu hâle getirildi:
+  - README'nin durum bölümü güncellendi; geliştiriciler için komutlar eklendi. `CHANGELOG.md` başladı.
+  - [Yol haritası](v1/roadmap.md)'nın ilk oturum bölümü, adımların uygulandığını söylüyor.
+  - [Geçiş](v1/migration.md#aşama-0-kod-arşivden-depoya) belgesindeki Aşama 0 adımları yapılanlarla işaretlendi.
+  - [Defter](domain/ledger.md#doğrulama-değişmezleri) belgesine doğrulama tabanının içeriği, `--tarih` ve `--kabul`
+    eklendi.
+  - [ADR-0001](adr/0001-modular-monolith-service.md)'deki servis komutu, mimarideki adıyla (`iplikci servis calistir`)
+    eşlendi. Mimarinin ölçek bölümü, verinin MVP'ye ait olduğunu ve V1'e devredilmediğini söylüyor.
 - 2026-11-01 (9) — İlk commit'ten önceki düzeltmeler:
   - [Kategori kuralları](domain/categorization.md)'ndaki örnek işyeri, kişisel kurallardan gelen bir ad yerine genel bir
     zincir oldu.
