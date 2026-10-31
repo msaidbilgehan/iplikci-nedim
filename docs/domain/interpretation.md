@@ -1,0 +1,189 @@
+# Yorum ve ay sonu kuralları
+
+Kaynak: MVP'nin `CLAUDE.md` dosyası (2026-10-31), kişisel bilgilerden arındırılmış ve V1 eklemeleriyle
+genişletilmiştir. Kod adları MVP'dekilerdir (`insights.py`, `month_end.py`).
+
+## İlke
+
+Kullanıcı yalnızca toplamları değil, yorumu ve stratejiyi istiyor. Kullanıcı bir yorumun yanlış olduğunu söylerse
+("X bitti", "Y sürekli değil") şöyle davranılır:
+
+1. Belgelerin ne gösterdiğine bakılır ve kullanıcıya söylenir.
+2. Kural genel olarak düzeltilir.
+3. Yalnızca kullanıcının bilebileceği bilgi kişisel kurallara yazılır.
+
+## Harcamayı ileriye taşımak
+
+- Düzensiz harcama yıllığa çevrilmez, ileriye taşınmaz ("× 12" yok).
+- Yalnızca süren alışkanlıkların aylık bir maliyeti vardır.
+- Ara sıra olan harcamalar pencereye yayılır.
+- Tek seferlik harcamalar ve durmuş alışkanlıklar bundan sonrası için hiçbir şeye mal olmaz.
+
+## Düzenli ödemeler
+
+**Seri tanımı**
+
+- Yaklaşık bir ay arayla yapılan ödemeler bir seri oluşturur: 15–50 gün; tutar değişmediyse 70 güne kadar.
+- `_düzenli` kategorilerinde:
+  - Ayda bir ödeme alan bir ödeme alanı, tutar ne olursa olsun tek bir seridir (faturalar mevsime göre değişir).
+  - 100 günlük bir aradan sonra seri bölünür.
+  - Aynı ödeme alanının birden çok aboneliği tutarlarından ayırt edilir.
+- 200 güne kadar bir aradan sonra gelen ve kendi başına seri olamayacak kadar az ödeme, ödeme alanının en yeni serisini
+  sürdürür. Ödeme alanı tutara göre zincirleniyorsa benzer tutardaki seri sürer. Bu, faturanın arada belgesi olmayan bir
+  hesaptan ödendiği, bitmediği anlamına gelir.
+- Diğer kategorilerde yalnızca aydan aya %10 içinde kalan bir tutar seri oluşturur.
+- Ayda 5'ten fazla ödeme alan bir ödeme alanı abonelik değil, alışveriş yeridir.
+
+**Durumlar**
+
+| MVP | V1 kodu | Kural |
+|---|---|---|
+| `bitti` | `ended` | Hesaplarının ekstreleri beklenen ödemeyi ve payını ödeme olmadan geçti, ya da beklenen tarihten bu yana 90 gün geçti. |
+| `iptal` | `cancelled` | `_biten`'de yazıyor. |
+| `iptal_sonrasi` | `paid_after_cancel` | O aydan sonra bir ödeme göründü; kullanıcı uyarılır. |
+| `devam` | `active` | Diğer durumlar. |
+
+Biten bir "Gerekli" fatura "Belgelerde yok" diye gösterilir: belgesi olmayan bir hesaptan ödeniyor olabilir.
+
+**Dönemsel seriler (V1 taslak kuralı)**
+
+- Aynı ödeme alanına ~182 gün (160–200) ya da ~365 gün (330–400) arayla en az iki ödeme.
+- `_düzenli` kategorilerinde tutar serbesttir; diğerlerinde ±%50.
+- Durum kuralları aynıdır; beklenen tarih dönem uzunluğuyla hesaplanır.
+- Eşikler gerçek veriyle ayarlanır.
+
+## Alışkanlıklar
+
+Kaçınılabilir maliyetler kategori başına, isteğe bağlı harcamalar işyeri başına izlenir.
+
+| MVP | V1 kodu | Kural |
+|---|---|---|
+| `duzenli` | `regular` | Penceredeki ayların en az %75'inde. |
+| `yeni` | `new` | İlk alışveriş pencerenin içinde, en az 3 ay ve o zamandan beri ayların en az %75'inde. |
+| `ara_sira` | `occasional` | Ara sıra. |
+| `durdu` | `stopped` | Ekstreler sürerken max(60 gün, işyerinin olağan aralığının 2 katı) süresince sessiz, ya da `_biten`'de yazıyor. |
+| `tek` | `one_off` | Tek seferlik. |
+
+## Tahmin
+
+Önümüzdeki aylar için tahmin üç kalemin toplamıdır:
+
+1. Süren düzenli ödemeler: son tutar; tutarlar oynuyorsa son üç tutarın medyanı.
+2. Kalan taksitler.
+3. Gereklilik düzeyi başına son altı tam ayın medyanı. Bu medyana seri ödemeleri, taksitler ve `_biten` işyerleri
+   girmez.
+
+İşyeri başına asla tahmin yapılmaz. Büyük tek seferlik alışverişler (≥ max(5.000 TL, ortalama ayın %10'u)) eğilimin
+nedenleri arasında sayılmaz.
+
+## Varlıklar ve borçlar
+
+- **Hesaplar:** hesap listelerinin kapanış bakiyesi.
+- **Kartlar:** ekstre borcundan kesimden sonra yapılan ödemeler düşülür.
+- **Döviz:** belgelerdeki en yeni kurla, tarihi yazılarak. V1'de TCMB kuruyla, tarihi yazılarak.
+- **Altın:** gram ve ödenen TL ile gösterilir; belgeler altın fiyatı taşımaz.
+- **Hisseler:** en yeni yatırım ekstresinin piyasa değeriyle, tarihi yazılarak.
+- **Eski belge:** en yeni belgesi en yeni ekstreden 180 günden eski olan bir bakiye TL değeri olmadan gösterilir ve
+  hiçbir toplama girmez. Örnek: yalnızca açılış cüzdanından bilinen bir vadeli hesap.
+- **Geçici dekontlar**
+  - Bir listenin son gününden sonra gelen geçici dekontlar o listenin bakiyesini değiştirir; not, listenin bakiyesini
+    ve değişikliği ayrıca yazar.
+  - Geçici kart ödemeleri kartın borcunu düşürür.
+
+## Bulgular ve adımlar
+
+- Her bulgu penceresini ve rakamlarını verir.
+- Bir adım aylık TL etkisini yalnızca veri onu fiyatlıyorsa taşır.
+- Bütçenin son satırı, gelirden diğer satırların düşülmesine eşittir.
+- Sayılardan ve yıllardan sonraki Türkçe ekler `pct`, `since`, `months_in` ve `year_suffix` ile kurulur; `'i` ya da
+  `'da` elle yazılmaz.
+- Yeni bir bulgu `_Context` ile beslenen bir yazar olarak eklenir. Rakamları tam aylardan gelir, testi yazılır;
+  arayüzde, MCP'de ve Excel'in Değerlendirme sayfasında görünür.
+
+## V1'de eklenen hesaplar
+
+- **Son ödemeler:** kart ekstresinden son ödeme tarihi, dönem borcu ve asgari tutar okunur; takvime ve
+  `payment.due_soon` olayına girer.
+- **Nakit akışı öngörüsü** (hesap başına, 60 gün)
+  - Başlangıç tahmini güncel bakiyedir: son belge artı geçici olaylar.
+  - Üstüne beklenen olaylar eklenir:
+    - maaş (serinin günü; son üç tutarın medyanı),
+    - düzenli ve dönemsel ödemeler (en son hangi hesaptan ödendiyse oradan),
+    - kart son ödemeleri (kullanıcının geçmiş ödeme davranışına göre tam ya da kısmi),
+    - taksitler.
+  - Seri dışı çıkışlar, son altı tam ayın aylık medyanıyla günlere yayılır.
+  - Öngörü her zaman "tahmin" diye işaretlenir. Eksiye düştüğü gün `balance.forecast_negative` olayı üretilir.
+- **Olağan dışı hareketler** (yalnızca işaret, satır silinmez)
+  - Geçmişte en az 3 ödemesi olan bir işyerinde, medyanının 3 katından büyük bir çekim.
+  - Aynı gün, aynı işyerinde, aynı tutarlı birden çok satır: olası çift çekim.
+  - İlk kez görülen bir işyerinde büyük harcama eşiğini geçen tutar.
+  - Son 12 ayda görülmemiş bir banka ücreti ya da kart aidatı; kart aidatı için iade talebi adımı önerilir.
+- **Kur makası**
+  - Kendi hesapları arasındaki her döviz alım ve satımında, bankanın kuru ile aynı günün yönüne uygun TCMB kuru
+    arasındaki fark döviz tutarıyla çarpılır. Bu, TL cinsinden makas maliyetidir.
+  - Son 12 ayın toplamı ve işlem listesi gösterilir.
+- **Döviz geliri:** döviz cinsinden gelen gelir serisinin güncel kurla TL karşılığı gösterilir. Kurun ±%5 değişmesinin
+  aylık bütçeye etkisi hesaplanır.
+- **Borç görünümü**
+  - Kart borçları; kalan taksitler (n/m etiketinden kalan × tutar); KMH (eksi bakiye) gösterilir.
+  - Krediler, e-dekontlardaki taksit bilgisinden gösterilir; kalan anapara bilinmiyorsa "bilinmiyor" yazar.
+- **Çoklu para birimi:** varlıklar aynı günün kurlarıyla EUR, USD ve gram altın cinsinden de gösterilir.
+
+## Ay sonu kapanışı
+
+Kullanıcı her ayın ekstreleriyle kapanmasını ve her ay için bir rapor istiyor. Dekontlardan bilinen transferler
+ekstre gelmeden sayılır.
+
+**Hesap ve ay başına kapanış** (`AccountClose`)
+
+- Ekstreleri o aya ulaşan her hesap kapanışa katılır. Belgeleri en yeni ekstreden `ACTIVE_DAYS` öncesinde bitmiş hesap
+  dışarıda kalır.
+- Hesabın durumu şöyle belirlenir:
+  - En yeni kapsanan gününden önceki kapsanmamış günler `eksik`tir; bu günlerin belgesi indirilmelidir.
+  - En yeni kapsanan gününden sonraki günler `bekleniyor`dur.
+  - Kendi kontrolünden geçmeyen bir ekstre ya da `eslesmedi` bir dekont, hesabı `kontrol` yapar.
+  - Bunların dışında hesap `kapandi`dır.
+- Kontrol edilecek bir şeyi olmayan bir belge ayı asla açık tutmaz. Örnekler: hareketsiz bir liste, toplamı yazmayan
+  bir ekstre. Bu belgeler `_fails` ile ayrılır ve `statement_check` bunları "–" olarak gösterir.
+- İçinde bulunulan ay yalnızca bugüne kadarki günleri ister. Ay içinde sıfır bakiyeyle açılan hesap, yalnızca açıldığı
+  günden sonrasını ister.
+
+**Ayın durumu**
+
+- Ay sürerken `suruyor` (`running`).
+- Sonra, ayı kapanmaktan alıkoyan hesaplar üzerinden şu öncelikle belirlenir: `eksik` (`missing`) > `kontrol`
+  (`check`) > `bekleniyor` (`waiting`) > `kapandi` (`closed`).
+- Yatırım hesabı ayı asla bekletmez; ay sonundan 10 gün sonra "gecikti" olur.
+
+**Beklenen belgeler**
+
+- Kart ve yatırım ekstreleri e-postayla gelir (`mailed`).
+- Hesap listelerini kullanıcı indirir; notları indirmeyi ister.
+- Kartın açık günleri bir sonraki kesimi bekler (son kesim + 1 ay, aynı gün). Kesimden 5 günden fazla geçerse
+  "gecikti" olur.
+
+**Toplamlar**
+
+- Toplamlar takvim ayı başınadır.
+- Gelir yalnızca bir banka listesi (kart ya da yatırım değil) ayın en az yarısını kapsıyorsa gösterilir. İçinde
+  bulunulan ayda bu, bugüne kadarki günlerin yarısıdır.
+- Maaş serisi ayda hiç ödeme yapmadıysa ya da iki kez ödediyse, not bunu söyler (`insights.salary_timing`).
+- Maaşı önceki ayın son günü yatan bir ay gelir 0 ve eksi "kalan" gösterir. Bu beklenen bir durumdur; sayfa ve dizin
+  nedenini söyler.
+- Yalnızca kapanmış aylar birbiriyle karşılaştırılır: açık bir ayda, ekstrelerin henüz ulaşmadığı günler eksiktir.
+
+**Sayfalar**
+
+- İçinde bulunulan ay ve önceki on iki ay için birer sayfa, artı bir dizin üretilir. Daha eski bir ay istenince
+  üretilir.
+- Sayfalar Python'da üretilir:
+  - Her metin `html.escape`'ten geçer; betik yoktur.
+  - CSP: `default-src 'none'; style-src 'unsafe-inline'; img-src data:`.
+  - Aylar arasındaki bağlantılar görelidir.
+- Durum etiketinin yanında her yerde `MonthEnd.summary` durur ve etiketi tekrarlamaz.
+- Raporun kapanış kartı son 7 ayı gösterir ve hiçbir süzgeçten etkilenmez.
+- Excel'de `Ay Sonu` ve `Kapanış` sayfaları vardır. CSV'de ve işlemler sayfasında geçici satırlar `Durum` sütununda
+  işaretlenir.
+- V1'de aynı sayfalar uygulama içinde de gösterilir. Durum değişince `month.ended`, `month.closed` ve
+  `month.needs_check` olayları her ay için bir kez üretilir.
+- Kapanmış bir ay yeni belge gelmeden yeniden açılırsa bu bir gerilemedir.

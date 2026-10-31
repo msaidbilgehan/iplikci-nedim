@@ -1,0 +1,35 @@
+# Personal data never enters this repo (docs/adr/0002-code-data-separation.md).
+# Bank documents, e-mails and archives (tests generate fake documents at run time):
+*.pdf
+*.xls
+*.xlsx
+*.mbox
+*.eml
+*.zip
+# Data folders, databases and secrets:
+/data/
+*.db
+*.db-wal
+*.db-shm
+.env
+.env.*
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+build/
+*.egg-info/
+# Frontend
+web/node_modules/
+web/dist/
+web/coverage/
+web/playwright-report/
+web/test-results/
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
