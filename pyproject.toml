@@ -1,0 +1,43 @@
+[project]
+name = "iplikci-nedim"
+version = "0.1.0"
+description = "İplikçi Nedim (Money-Grubber): banka belgelerini toplayan, doğrulayan ve yorumlayan kişisel finans asistanı"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "beautifulsoup4==4.15.0",
+    "keyring==25.7.0",
+    "openpyxl==3.1.5",
+    "pdfplumber==0.11.10",
+    "pyobjc-framework-vision==13.0 ; sys_platform == 'darwin'",
+    "pyyaml==6.0.3",
+    "xlrd==2.0.2",
+]
+
+[project.scripts]
+iplikci = "iplikci.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.9.0,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "iplikci"
+
+[dependency-groups]
+dev = [
+    "pre-commit==4.7.0",
+    "pytest==9.2.0",
+    "ruff==0.17.3",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint.isort]
+# Test helpers come last, after the package, as their own group.
+known-local-folder = ["conftest"]

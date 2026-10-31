@@ -1,8 +1,9 @@
 # Personal data never enters this repo (docs/adr/0002-code-data-separation.md).
-# Bank documents, e-mails and archives (tests generate fake documents at run time):
+# Bank documents, e-mails, archives and exports (tests generate fake documents at run time):
 *.pdf
 *.xls
 *.xlsx
+*.csv
 *.mbox
 *.eml
 *.zip
@@ -11,8 +12,17 @@
 *.db
 *.db-wal
 *.db-shm
+*.sqlite
+*.sqlite3
 .env
 .env.*
+# An MVP-style workspace created by running the CLI inside the repo (settings, rules, documents, outputs):
+/ayarlar.toml
+/kategoriler.yaml
+/personal.yaml
+/Bankalar/
+/cikti/
+.onbellek.json
 # Python
 .venv/
 __pycache__/
@@ -20,15 +30,24 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+.hypothesis/
+.coverage
+htmlcov/
 dist/
 build/
 *.egg-info/
-# Frontend
+# Frontend and the browser extension
 web/node_modules/
 web/dist/
 web/coverage/
 web/playwright-report/
 web/test-results/
+extension/node_modules/
+extension/dist/
+# Local tool state (Claude Code locks, logs and personal settings)
+.claude/locks/
+.claude/logs/
+.claude/settings.local.json
 # Editors and OS
 .DS_Store
 .idea/
