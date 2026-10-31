@@ -1,0 +1,327 @@
+# Uygulamayla gelen varsayılan kategori kuralları: Türkiye'de yaygın işyerleri, kurumlar ve anahtar kelimeler.
+# Kişiye özgü kararlar (kira ve aidat alıcıları, aile ve kişiler, gelir kaynakları, biten ödemeler, bir işyerinin
+# gerekliliği) bu dosyaya değil, kendi kural dosyanıza yazılır.
+#
+# Yapı:   Ana grup → Kategori → İşletme / kişi adı → [desenler]
+#
+#  • Desenler büyük/küçük harf ve Türkçe karakter duyarsızdır: "MİGROS" = "Migros" = "MIGROS".
+#  • Desen, açıklamada bir kelimenin başından itibaren aranır:
+#      "BIM" → "BIM A.S." ile eşleşir, "EBIM" ile eşleşmez.
+#  • "re:" ile başlayan desen düzenli ifadedir; büyük harfe ve ASCII'ye çevrilmiş açıklamaya uygulanır
+#    (ör. "MİGROS Şube" → "MIGROS SUBE").
+#  • İşletme adı yerine "_" yazılırsa genel anahtar kelimedir; işletme adı açıklamadan alınır.
+#    "_zayıf" en zayıf kelimelerdir; yalnızca başka hiçbir kural tutmazsa denenir.
+#  • Önce isimli kurallar (dosyadaki sırayla), sonra genel kelimeler denenir. Genel kelimelerde
+#    açıklamada en önce geçen kelime kazanır ("ÖRNEK PETROL MARKET" → PETROL → Akaryakıt).
+#  • Hesap hareketlerindeki havale/FAST satırlarında açıklamanın yanında alıcı/gönderen adı da aranır.
+#  • Bir kategoriye "_tür" yazılırsa o kategorideki para hareketinin türü değişir:
+#      gelir   → gelen para gelir sayılır (maaş)
+#      kişi    → giden para "kişilere gönderilen", gelen para gelir sayılır (aile, arkadaş)
+#      borç    → borç anaparası ödemesi / alınan borç
+#      yatırım → birikim (BES, sermaye); gider sayılmaz
+#  • Ana grupların sırası grafiklerdeki renkleri belirler. İlk 8 grup renklidir, sonrakiler gridir.
+#  • Faiz/ücret, kredi kartı ödemesi, nakit avans, kendi hesaplarınız arası transferler ve yatırım
+#    hesabı ekstrelerindeki hisse senedi alım-satımları işlem türüne göre otomatik olarak
+#    "Banka & Finans" grubuna yazılır.
+
+Yeme & İçme:
+  Kafe & Kahve:
+    Starbucks: [STARBUCKS, SBX, SBUX]
+    Espressolab: [ESPRESSOLAB, ESLAB]
+    Caffè Nero: [CAFFE NERO]
+    Gloria Jean's: [GLORIA JEANS]
+    Kahve Dünyası: [KAHVE DUNYASI]
+    Simit Sarayı: [SIMIT SARAYI]
+    MADO: ["re:\\bMADO\\b"]
+    _: [CAFE, CAFFE, CAFFEE, KAFE, KAHVE, COFFEE, COFFE, COFFY, PASTANE, PATISSERIE, MUHALLEBI, SIMIT,
+        BAKERY, FIRIN, UN MAMULLERI, LOKUM]
+  Restoran & Yemek:
+    Yemeksepeti: [YEMEK SEPETI, YEMEKSEPETI]
+    Uber Eats: [UBER EATS]
+    Getir Yemek: [GETIR YEMEK]
+    Trendyol Yemek: [TRENDYOL YEMEK]
+    Burger King: [BURGER KING, BURGERKING]
+    McDonald's: [MCDONALDS, MCD]
+    Domino's: [DOMINOS]
+    Pizza Hut: [PIZZA HUT]
+    Komagene: [KOMAGENE]
+    _: [RESTORAN, RESTAURANT, REST, LOKANT, YIYECEK, IZGARA, KANAT, KEBAP, KEBAB, OCAKBASI, PIDE, PIZZA,
+        BURGER, KOFTE, CIGER, DONER, MEYHANE, PILAV, BOREK, MANTI, TANTUNI, KUMPIR, MANGAL, CATERING,
+        YEMEK, BALIK, KOKOREC, ISKENDER, CORBA, LAHMACUN, FAST FOOD, BEER, PUB]
+  Market & Gıda:
+    Getir: ["re:(?<![A-Z])GETIR(?! ?ARAC)"]  # "GETIR ARAC" araç kiralamadır (Ulaşım)
+    Migros: [MIGROS, MJET, MACROCENTER]
+    BİM: ["re:\\bBIM\\b"]
+    A101: [A101]
+    Şok: ["re:\\bSOK\\b"]
+    CarrefourSA: [CARREFOUR]
+    _: [MARKET, BAKKAL, SARKUT, KASAP, MANAV, SUPERMARKET, HIPERMARKET, HIPERMAR, OTOMAT]
+    _zayıf: [GIDA]
+  Tekel & Büfe:
+    _: [TEKEL, TOBACCO, BUFE, KURUYEMIS]
+
+Ulaşım & Araç:
+  Akaryakıt:
+    Opet: [OPET]
+    Shell: [SHELL]
+    BP: ["re:\\bBP\\b"]
+    Petrol Ofisi: [PETROL OFISI, PETROL OFI]
+    Total: [TOTAL]
+    Aytemiz: [AYTEMIZ]
+    _: [PETROL, AKARYA, AKRT, BENZIN, ENERJI, PETRO, OTOGAZ, LPG, "re:\\bPET\\."]
+  Araç Bakım & Servis:
+    TÜVTÜRK: [TUVTURK]
+    _: [OTOMOTIV, OTO SANAYI, OTO KUAFOR, YEDEKPARCA, YEDEK PARCA, LASTIK, OTO YIKAMA]
+  Otopark, Yol & Köprü:
+    İSPARK: [ISPARK]
+    HGS / OGS: ["re:\\bHGS\\b", "re:\\bOGS\\b"]
+    Avrasya Tüneli: [AVRASYA TUNELI]
+    _: [OTOPARK, VALE, KOPRU, OTOYOL]
+  Toplu Taşıma & Taksi:
+    Getir Araç: [GETIR ARAC]
+    Moov: [MOOV]
+    BiTaksi: [BITAKSI]
+    Uber: [UBER]
+    Martı: ["re:\\bMARTI\\b"]
+    TikTak (araç paylaşımı): [TIKTAK]
+    İstanbulkart: [ISTANBULKART, BELBIM]
+    _: [TAKSI, DOLMUS]
+
+Ev & Faturalar:
+  Kira:
+    # Kira, ev sahibine giden havalelerden bulunur: ev sahibinin adını kendi kural dosyanıza yazın. Başka bir
+    # hesaptan alıcı adı yazılmadan aynı bankaya giden aynı tutarlı havaleler de buraya eşlenir.
+    _: [KIRA]
+  Konut & Aidat:
+    _: [SITE YONETIM, YONETIM, AIDAT, EMLAK, GAYRIMENKUL]
+  Elektrik, Su & Doğalgaz:
+    Elektrik (AYEDAŞ): [AESAS, AYEDAS]
+    Elektrik (Enerjisa): [ENERJISA]
+    Elektrik (CK Boğaziçi): [CK BOGAZICI]
+    Doğalgaz (İGDAŞ): [IGDAS]
+    Su (İSKİ): [ISKI]
+  İnternet & Telefon:
+    Millenicom: [MILLENI]
+    TurkNet: [TURKNET]
+    Turkcell: [TURKCELL, PAYCELL/TURKCELL]
+    Vodafone: [VODAFONE]
+    Türk Telekom: [TURK TELEKOM, TT MOBIL, TTNET, AVEA]
+    Superonline: [SUPERONLINE]
+
+Abonelik & Dijital:
+  Dijital Abonelikler:
+    Netflix: [NETFLIX]
+    YouTube Premium: [YOUTUBE]
+    Spotify: [SPOTIFY]
+    Amazon Prime: [AMAZONPRIME, AMAZON PRIME, AMAZONPRIM, AMAZON TURKEY PE]
+    Google One: [GOOGLE ONE, GOOGLE STORAGE, GOOGLE *GOOGLE]
+    Apple Abonelik: [APPLE.COM/BILL, ITUNES]
+    ChatGPT (OpenAI): [OPENAI, CHATGPT]
+    Claude (Anthropic): [ANTHROPIC, CLAUDE.AI]
+    Disney+: [DISNEY]
+    Exxen: [EXXEN]
+    BluTV: [BLUTV]
+  Yazılım, Bulut & Dijital Hizmet:
+    Google Workspace: [GSUITE, GOOGLE WORKSPACE, GOOGLE*WORKSPACE]
+    Google Cloud: [GOOGLE*CLOUD, "re:^CLOUD [A-Z0-9]{6}\\b"]
+    GitHub: [GITHUB]
+    GoDaddy: [GODADDY]
+    Microsoft: [MICROSOFT]
+    Canva: [GOOGLE *CANV, CANVA]
+    Cloudflare: [CLOUDFLARE]
+    LinkedIn: [LINKEDIN]
+  Oyun:
+    Steam: [STEAM]
+    _: [PLAYSTATION, NINTENDO, EPIC GAMES, RIOT]
+
+Alışveriş:
+  Elektronik:
+    Apple Store: [APPLE ONLINE STORE, APPLE STORE]
+    Teknosa: [TEKNOSA]
+    MediaMarkt: [MEDIA MARKT, MEDIAMARKT]
+    Vatan Bilgisayar: [VATAN BILGISAYAR]
+    _: [ELEKTRONIK, ELEKTROMARKET]
+  Online Alışveriş:
+    Trendyol: [TRENDYOL]
+    Hepsiburada: [HEPSIBURADA, HEPSIPAY, HEPSIEXPRES]
+    Amazon: [AMAZON]
+    n11: ["re:\\bN11\\b"]
+    PttAVM: [PTTAVM]
+    sahibinden.com: [SAHIBINDEN]
+    idefix: [IDEFIX]
+    _: [ALISVERIS]
+  Giyim & Aksesuar:
+    LC Waikiki: [LC WAIKIKI, LCWAIKIKI, LCW]
+    DeFacto: [DEFACTO]
+    Koton: [KOTON]
+    Zara: ["re:\\bZARA\\b"]
+    _: [GIYIM, TEKSTIL, MAGAZACILIK, AYAKKABI, CANTA]
+  Kitap, Kırtasiye & Eğitim:
+    D&R: ["re:\\bD&R\\b"]
+    Udemy: [UDEMY]
+    _: [KITAP, KIRTASIYE, UNIVERSITE, EGITIM, KURS, AKADEMI]
+  Ev & Yaşam:
+    Vivense: [VIVENSE]
+    IKEA: [IKEA]
+    Koçtaş: [KOCTAS]
+    _: [MOBILYA, ZUCCACIYE, HIRDAVAT, YAPI MARKET]
+  Diğer Alışveriş:
+    _: [FOTO, HEDIYE, AVM]
+
+Sağlık & Bakım:
+  Eczane:
+    _: [ECZANE, PHARMACY]
+  Sağlık Hizmetleri:
+    _: [HASTANE, KLINIK, LABORATUVAR, TIP MERKEZI, "re:\\bSAGLIK\\b", DIS HEKIMI, DOKTOR, OPTIK, POLIKLINIK]
+  Kuaför & Kişisel Bakım:
+    _: [KUAFOR, BERBER, SAC TASARIM, GUZELLIK, KOZMETIK, SPA, MASAJ]
+
+Eğlence & Seyahat:
+  Uçak, Tren & Otobüs:
+    Türk Hava Yolları: [TURKISH AIRLINES, "re:\\bTHY\\b"]
+    Pegasus: [PEGASUS]
+    AJet: [AJET, ANADOLUJET]
+    Enuygun: [ENUYGUN]
+    Obilet: [OBILET]
+    TCDD: [TCDD]
+    Havalimanı: [SABIHA GOKCEN, IGA HAVALIMANI, HAVALIMANI, AIRPORT]
+    _: [TURIZM, SEYAHAT, OTOBUS, AIRLINES]
+  Konaklama:
+    Agoda: [AGODA]
+    Booking.com: [BOOKING]
+    Airbnb: [AIRBNB]
+    _: [OTEL, HOTEL, HYATT, HILTON, CROWN PLAZA, RESORT, PANSIYON, SUITES]
+  Eğlence & Etkinlik:
+    Paribu Cineverse: [CINEVERSE, PARIBU]
+    _: [SINEMA, CINEMA, BOWLING, BILET, KONSER, TIYATRO, MUZE, CLUB, LUNAPARK]
+  Duty Free:
+    _: [DUTY FREE]
+
+Banka & Finans:
+  Kart Aidatı & Ücretleri:
+    Findeks: [FINDEKS]
+  # Faiz kategorileri (kart faizi, ek hesap faizi, kredi faizi, transfer ücretleri) ile kredi
+  # anaparası, nakit avans, kart ödemeleri ve kendi hesaplar arası transferler otomatik doldurulur.
+
+Birikim & Yatırım:
+  Bireysel Emeklilik (BES):
+    _tür: yatırım
+    AgeSA: [AGESA]
+    Allianz Yaşam ve Emeklilik: [ALLIANZ YASAM]
+    Anadolu Hayat: [ANADOLU HAYAT]
+    AXA Hayat ve Emeklilik: [AXA HAYAT]
+    Garanti Emeklilik: [GARANTI EMEKLILIK]
+    Türkiye Hayat ve Emeklilik: [TURKIYE HAYAT]
+  Şirket Sermayesi:
+    _tür: yatırım
+    _: [SERMAYE]
+
+Diğer:
+  Vergi & Resmi İşlemler:
+    _: [VERGI DAIRESI, V.D., VERGI, GELIR IDARESI, "re:\\bGIB\\b", "re:\\bMTV\\b", NOTER, EIMZA, E-IMZA,
+        PTT KEP, "re:\\bKEP\\b", TAPU, NUFUS, PASAPORT, EHLIYET, SOSYAL GUVENLIK, "re:\\bSGK\\b"]
+  Kargo & Posta:
+    Yurtiçi Kargo: [YURTICI KARGO]
+    DHL: [DHL]
+    PTT: ["re:\\bPTT\\b(?! KEP)"]
+    _: [KARGO, KURYE]
+  Muhasebe & Şirket Hizmetleri:
+    # Şahıs şirketi / serbest çalışma muhasebesi; gelirin yasal yükümlülüğü olduğu için "Gerekli".
+    Mükellef: [MUKELLEF]
+    Paraşüt: [PARASUT]
+    _: [MALI MUSAVIR, SMMM]
+  Bağış:
+    AFAD: [AFAD]
+    Ahbap: [AHBAP]
+    Darüşşafaka: [DARUSSAFAKA]
+    Kızılay: [KIZILAY]
+    LÖSEV: [LOSEV]
+    TEV: ["re:\\bTEV\\b"]
+    UNICEF: [UNICEF]
+    _: [DERNEK, VAKFI, BAGIS]
+  Evcil Hayvan:
+    _: [PET SHOP, PETSHOP, VETERINER]
+  Diğer Harcamalar: {}
+
+# Harcamaların ne kadar gerekli olduğu. Listede olmayan kategoriler "Belirsiz" sayılır.
+# Seviyeler: Gerekli · İsteğe bağlı · Gereksiz · Belirsiz
+_gereklilik:
+  Gerekli:
+    - Market & Gıda
+    - Kira
+    - Konut & Aidat
+    - Elektrik, Su & Doğalgaz
+    - İnternet & Telefon
+    - Akaryakıt
+    - Araç Bakım & Servis
+    - Otopark, Yol & Köprü
+    - Toplu Taşıma & Taksi
+    - Eczane
+    - Sağlık Hizmetleri
+    - Kitap, Kırtasiye & Eğitim
+    - Vergi & Resmi İşlemler
+    - Muhasebe & Şirket Hizmetleri
+    - Kargo & Posta
+  İsteğe bağlı:
+    - Kafe & Kahve
+    - Restoran & Yemek
+    - Tekel & Büfe
+    - Dijital Abonelikler
+    - Yazılım, Bulut & Dijital Hizmet
+    - Oyun
+    - Elektronik
+    - Online Alışveriş
+    - Giyim & Aksesuar
+    - Ev & Yaşam
+    - Diğer Alışveriş
+    - Kuaför & Kişisel Bakım
+    - Uçak, Tren & Otobüs
+    - Konaklama
+    - Eğlence & Etkinlik
+    - Duty Free
+    - Bağış
+    - Evcil Hayvan
+  # Kaçınılabilir maliyetler: borcu zamanında ve tam ödeyerek, ücretsiz kanalları seçerek sıfırlanabilir.
+  Gereksiz:
+    - Kredi Kartı Faizi
+    - Ek Hesap (KMH) Faizi
+    - Kredi Faizi
+    - Transfer & İşlem Ücretleri
+    - Kart Aidatı & Ücretleri
+
+# Düzenli ödeme (taahhüt) sayılan kategoriler. Bu kategorilerde ayda bir tekrarlanan ödemeler tutarı
+# değişse de (faturalar) tek bir düzenli ödeme olarak izlenir; raporda devam ettiği, bittiği ya da
+# iptal edildiği gösterilir ve tahmine son tutarıyla girer. Diğer kategorilerde yalnızca her ay
+# aynı tutarla tekrarlanan ödemeler (örneğin üyelikler) düzenli sayılır.
+_düzenli:
+  - Kira
+  - Konut & Aidat
+  - Elektrik, Su & Doğalgaz
+  - İnternet & Telefon
+  - Dijital Abonelikler
+  - Yazılım, Bulut & Dijital Hizmet
+
+# Garanti BBVA ekstrelerinde bankanın yazdığı kategori başlıkları.
+# Hiçbir kural tutmadığında bu eşleme kullanılır (soldaki metin başlıkta geçiyorsa).
+_banka_kategorileri:
+  CAFE & RESTAURANT: Restoran & Yemek
+  FAST FOOD: Restoran & Yemek
+  PASTANE: Kafe & Kahve
+  SUPERMARKET: Market & Gıda
+  MARKET: Market & Gıda
+  AKARYAKIT: Akaryakıt
+  OTOMOTIV: Araç Bakım & Servis
+  ULASIM: Toplu Taşıma & Taksi
+  SEYAHAT: Uçak, Tren & Otobüs
+  KONAKLAMA: Konaklama
+  GIYIM: Giyim & Aksesuar
+  ELEKTRONIK: Elektronik
+  BILGISAYAR: Yazılım, Bulut & Dijital Hizmet
+  KITAP: Kitap, Kırtasiye & Eğitim
+  KIRTASIYE: Kitap, Kırtasiye & Eğitim
+  KUAFOR: Kuaför & Kişisel Bakım
+  GUZELLIK: Kuaför & Kişisel Bakım
+  ECZANE: Eczane
+  SAGLIK: Sağlık Hizmetleri
+  OYUN: Eğlence & Etkinlik
+  MOBILYA: Ev & Yaşam
