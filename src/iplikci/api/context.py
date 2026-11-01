@@ -8,6 +8,7 @@ from typing import cast
 from fastapi import Request
 
 from ..app.access import LoginKeys
+from ..app.bridge import PairingCodes
 from ..app.workspace import Workspace
 
 
@@ -16,6 +17,7 @@ class Context:
     ws: Workspace
     token: str  # the API token of the command line and the MCP bridge
     keys: LoginKeys = field(default_factory=LoginKeys)
+    pairing: PairingCodes = field(default_factory=PairingCodes)
     started_at: str = field(default_factory=lambda: datetime.now(UTC).replace(microsecond=0).isoformat())
     pid: int = field(default_factory=os.getpid)
     stream_limit: float = 600.0  # an event stream closes after this many seconds; the browser reconnects

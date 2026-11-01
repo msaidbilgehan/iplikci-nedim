@@ -17,12 +17,16 @@ from starlette.requests import cookie_parser
 from starlette.responses import HTMLResponse, Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from ..app import access
+from ..app import access, bridge
 from . import pages
 from .context import Context
 from .problems import problem
 
-OPEN_PATHS = frozenset({"/healthz", "/giris"})
+# The health check and the login link need no session; an extension pairs with a code and checks the service it
+# paired with before it holds or sends anything (ADR-0016).
+OPEN_PATHS = frozenset({"/healthz", "/giris", "/api/bridge/pair", "/api/bridge/hello"})
+# A bridge's token opens the mail intake and nothing else.
+BRIDGE_PATHS = frozenset({"/api/ingest/mail", "/api/ingest/mail/cursor"})
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 CSP = (
     "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; "
@@ -41,6 +45,7 @@ SECURITY_HEADERS = (
 class Principal(StrEnum):
     BROWSER = "browser"  # a session cookie
     CLIENT = "client"  # the API token: the command line, the MCP bridge
+    BRIDGE = "bridge"  # a paired browser extension's token: the mail intake only
 
 
 def session_cookie(context: Context, token: str) -> str:
@@ -71,6 +76,9 @@ class Guard:
         if principal is None:
             await self._refuse(path)(scope, receive, send)
             return
+        if (principal is Principal.BRIDGE) != (path in BRIDGE_PATHS):
+            await problem(403, "forbidden", "Bu işlem bu oturumla yapılamaz.")(scope, receive, send)
+            return
         if scope["method"] not in SAFE_METHODS and principal is Principal.BROWSER and not self._own_page(headers):
             await problem(403, "write_denied", "Bu istek yalnızca İplikçi Nedim'in kendi sayfalarından yapılabilir.")(
                 scope, receive, send
@@ -85,7 +93,10 @@ class Guard:
         """Who sends the request, and the session token when its expiry was pushed back."""
         scheme, _, token = headers.get("authorization", "").partition(" ")
         if scheme.lower() == "bearer":
-            return (Principal.CLIENT if access.same_token(token.strip(), self.context.token) else None), None
+            token = token.strip()
+            if access.same_token(token, self.context.token):
+                return Principal.CLIENT, None
+            return (Principal.BRIDGE if bridge.identify(self.context.ws, token) else None), None
         session = cookie_parser(headers.get("cookie", "")).get(self.context.cookie, "")
         if not session:
             return None, None
