@@ -35,6 +35,12 @@ def restore(db: Database, event: Event) -> None:
         )
 
 
+def since(db: Database, after: int = 0, limit: int = 100) -> list[tuple[int, Event]]:
+    """The events after the one with id after, oldest first, with their ids: what a feed has not seen yet."""
+    rows = db.rows("SELECT * FROM events WHERE id > ? ORDER BY id LIMIT ?", (after, limit))
+    return [(int(r["id"]), Event(r["at"], r["kind"], r["target"], json.loads(r["detail"]))) for r in rows]
+
+
 def entries(db: Database, kind: str | None = None) -> list[Event]:
     rows = (
         db.rows("SELECT * FROM events ORDER BY id")

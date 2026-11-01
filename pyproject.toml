@@ -8,11 +8,14 @@ license-files = ["LICENSE.txt"]
 requires-python = ">=3.13"
 dependencies = [
     "beautifulsoup4==4.15.0",
+    "fastapi==0.162.0",
     "keyring==25.7.0",
     "openpyxl==3.1.5",
     "pdfplumber==0.11.10",
+    "pydantic==2.14.2",
     "pyobjc-framework-vision==13.0 ; sys_platform == 'darwin'",
     "pyyaml==6.0.3",
+    "uvicorn==0.54.0",
     "xlrd==2.0.2",
 ]
 
@@ -28,6 +31,7 @@ module-name = "iplikci"
 
 [dependency-groups]
 dev = [
+    "httpx2==2.16.0",
     "hypothesis==6.170.14",
     "pre-commit==4.7.0",
     "pyright==1.1.414",
@@ -53,6 +57,7 @@ pythonVersion = "3.13"
 # The modules written for V1 are checked strictly; the MVP's flat modules join as they move into the target
 # layout (architecture §6).
 include = [
+    "src/iplikci/api",
     "src/iplikci/app",
     "src/iplikci/domain",
     "src/iplikci/fakes",
@@ -62,11 +67,13 @@ include = [
     "src/iplikci/parsers/tools.py",
     "src/iplikci/parsers/wire.py",
     "src/iplikci/parsers/worker.py",
+    "src/iplikci/service",
     "src/iplikci/settings",
     "src/iplikci/storage",
     "src/iplikci/vault",
 ]
 strict = [
+    "src/iplikci/api",
     "src/iplikci/app",
     "src/iplikci/domain",
     "src/iplikci/fakes",
@@ -76,6 +83,7 @@ strict = [
     "src/iplikci/parsers/tools.py",
     "src/iplikci/parsers/wire.py",
     "src/iplikci/parsers/worker.py",
+    "src/iplikci/service",
     "src/iplikci/settings",
     "src/iplikci/storage",
     "src/iplikci/vault",

@@ -9,6 +9,8 @@ iplikci panel [--ac]            raporu ve belge ekleme yerini yerel web panelind
 iplikci eposta [--kur]          bankaların e-postayla gönderdiği belgeleri arşive al
 iplikci otomatik [--kur]        e-postayı al, gelen klasörünü arşive al (--kur: kendiliğinden)
 iplikci mcp                     Claude için MCP sunucusu (istemci başlatır)
+iplikci servis calistir         servisi ön planda çalıştır (API, 127.0.0.1)
+iplikci ac                      arayüzü tek kullanımlık giriş bağlantısıyla aç (servis çalışıyor olmalı)
 iplikci dogrula --taban         doğrulama tabanını al, öncekiyle karşılaştır (gerilemede çıkış kodu 1)
 iplikci dev demo [KLASÖR]       sahte belgelerle demo veri klasörü kur
 iplikci dev parser probe|debug DOSYA   okuyucular belgeyi tanıyor mu; okuyan okuyucu ne okuyor
@@ -78,6 +80,8 @@ def main(argv: list[str] | None = None) -> int:
         "aysonu": month_end_command,
         "islem": transaction_command,
         "dogrula": verify_command,
+        "servis": service_command,
+        "ac": open_command,
         "dev": dev_command,
     }
     if argv[:1] and argv[0] in commands:
@@ -271,6 +275,51 @@ def _verify_rebuild(ws: Workspace, day: date) -> int:
 
 def _shown(value: object) -> str:
     return "—" if value is None else str(value)
+
+
+# --- the service ---------------------------------------------------------------------------------------
+
+
+def service_command(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="iplikci servis",
+        description="İplikçi Nedim servisi: API ve olay akışı, yalnızca 127.0.0.1'de. calistir servisi ön planda "
+        "çalıştırır ve arayüz için tek kullanımlık bir giriş bağlantısı yazar.",
+    )
+    commands = parser.add_subparsers(dest="komut", required=True, metavar="KOMUT")
+    commands.add_parser("calistir", help="servisi ön planda çalıştır", description="Servisi ön planda çalıştırır.")
+    parser.parse_args(argv)
+    from .service import runner  # the web stack loads only for the service
+
+    ws = _workspace(parser)
+    try:
+        runner.run(ws)
+    except KeyboardInterrupt:
+        pass
+    return 0
+
+
+def open_command(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="iplikci ac",
+        description="Arayüzü tarayıcıda tek kullanımlık bir giriş bağlantısıyla açar. Servis çalışıyor olmalı.",
+    )
+    parser.add_argument("--yazdir", action="store_true", help="bağlantıyı tarayıcıda açmadan yazdır")
+    args = parser.parse_args(argv)
+    from .service import client
+
+    ws = _workspace(parser)
+    try:
+        url = str(client.call(ws, "POST", "/api/login-links")["url"])
+    except client.ServiceDown as exc:
+        print(f"{exc}. Geliştirme için servisi başlatın: uv run iplikci servis calistir", file=sys.stderr)
+        return 1
+    except client.ServiceError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    if args.yazdir or not webbrowser.open(url):
+        print(url)
+    return 0
 
 
 # --- transactions and the user's corrections ---------------------------------------------------------
