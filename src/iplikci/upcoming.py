@@ -351,7 +351,8 @@ def card_due_items(ds: Dataset, dues: Iterable[CardDue], start: date, end: date)
 
 def bill_items(ds: Dataset, start: date, end: date) -> list[Due]:
     """The non-bank bills not paid yet that fall due from start to end (F14), from the account that paid the seller's
-    bill last; on no account when none did."""
+    bill last; on no account when none did. A bill in another currency stays on the Bills screen only: what it costs
+    in TL is known when the bank charges it, and the calendar and the forecast count in TL."""
     paid_from = {
         fold(found.invoice.seller): found.row.account
         for found in sorted(ds.invoices, key=lambda f: f.invoice.issued)
@@ -362,7 +363,7 @@ def bill_items(ds: Dataset, start: date, end: date) -> list[Due]:
         invoice = waiting.invoice
         if waiting.status != InvoiceStatus.PENDING or invoice.kind != InvoiceKind.BILL or invoice.due is None:
             continue
-        if start <= invoice.due <= end and invoice.total > 0:
+        if start <= invoice.due <= end and invoice.total > 0 and invoice.currency == TRY:
             number = f"{invoice.number} numaralı " if invoice.number else ""
             basis = f"{number}fatura, {_day(invoice.issued)} tarihli; son ödeme {_day(invoice.due)}"
             account = paid_from.get(fold(invoice.seller), "")

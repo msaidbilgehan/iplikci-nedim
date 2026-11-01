@@ -385,3 +385,12 @@ def test_a_bill_not_paid_yet_falls_due_from_the_account_that_paid_its_seller_las
         Decimal("398.50"),
     )
     assert due.basis == "B2 numaralı fatura, 03.11.2026 tarihli; son ödeme 20.11.2026"
+
+
+def test_a_bill_in_another_currency_is_not_counted_on_the_calendar_as_if_it_were_tl():
+    abroad = Invoice(
+        InvoiceKind.BILL, "Örnekhost B.V.", date(2026, 11, 3), Decimal("19.99"), "EUR", due=date(2026, 11, 20)
+    )
+    window = (date(2026, 11, 3), date(2026, 11, 23))
+    ds = dataset([], invoices=[InvoiceMatch("s:0", abroad, "a.xml", InvoiceStatus.PENDING, window)])
+    assert bill_items(ds, date(2026, 11, 5), horizon_end(date(2026, 11, 5))) == []
