@@ -49,6 +49,8 @@ describe("collectList", () => {
       ],
       unknownRows: 0,
       settled: true,
+      main: true,
+      rows: 2,
     });
   });
 
@@ -85,7 +87,13 @@ describe("the search", () => {
   });
 
   it("takes nothing from the page that is not a list in shape", () => {
-    const list = (thread: string) => ({ conversations: [{ thread, last: "1", count: 0 }], unknownRows: 0, settled: true });
+    const list = (thread: string) => ({
+      conversations: [{ thread, last: "1", count: 0 }],
+      unknownRows: 0,
+      settled: true,
+      main: true,
+      rows: 1,
+    });
     expect(isListPage(list("18f0a1"))).toBe(true);
     for (const bad of [null, "x", list("<b>")]) {
       expect(isListPage(bad)).toBe(false);

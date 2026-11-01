@@ -25,7 +25,7 @@ function fakeTabs(pages: readonly ListPage[], trouble?: Error) {
         throw trouble;
       }
       calls.push(`collect after "${before}"`);
-      return pages[Math.min(shown, pages.length - 1)] ?? { conversations: [], unknownRows: 0, settled: false };
+      return pages[Math.min(shown, pages.length - 1)] ?? empty();
     },
     async go(_tab, hash) {
       calls.push(`go ${hash.slice(hash.lastIndexOf("/"))}`);
@@ -40,7 +40,11 @@ function fakeTabs(pages: readonly ListPage[], trouble?: Error) {
 
 function page(...conversations: Array<[string, string, number]>): ListPage {
   const listed = conversations.map(([thread, last, count]) => ({ thread, last, count }));
-  return { conversations: listed, unknownRows: 0, settled: true };
+  return { conversations: listed, unknownRows: 0, settled: true, main: true, rows: listed.length };
+}
+
+function empty(shown: Partial<ListPage> = {}): ListPage {
+  return { conversations: [], unknownRows: 0, settled: false, main: true, rows: 0, ...shown };
 }
 
 /** The service: proves itself, says where delivery stands, which ids it holds, and records what it is given. */
@@ -173,7 +177,7 @@ describe("scanGmail", () => {
   });
 
   it("stops on a list it cannot read, tells the service once, and waits for an update", async () => {
-    const { tabs, calls } = fakeTabs([{ conversations: [], unknownRows: 3, settled: true }]);
+    const { tabs, calls } = fakeTabs([empty({ unknownRows: 3, rows: 3, settled: true })]);
     const service = fakeService();
     const store = memoryStore({ paired: PAIRED });
     const summary = await scan(tabs, { service: service.fetcher, store });
@@ -186,6 +190,19 @@ describe("scanGmail", () => {
     expect(again.calls).toEqual([]); // no tab until a newer version
     const updated = fakeTabs([page(["10", "10", 0])]);
     expect((await scan(updated.tabs, { service: service.fetcher, store, version: "0.3.1" })).phase).toBe("done");
+  });
+
+  it("tells an empty search from a page it could not read", async () => {
+    expect((await scan(fakeTabs([empty()]).tabs)).detail).toBe(
+      "Gmail'in aramasında listedeki bankalardan ileti çıkmadı.",
+    );
+    expect((await scan(fakeTabs([empty({ rows: 4 })]).tabs)).detail).toBe(
+      "Gmail'in arama sayfasında 4 satır vardı ama hiçbiri bir konuşma gibi okunamadı; eklentinin güncellenmesi " +
+        "gerekebilir.",
+    );
+    expect((await scan(fakeTabs([empty({ main: false })]).tabs)).detail).toBe(
+      "Gmail sekmede açılamadı (ağ bağlantısı olmayabilir); tarama durdu, yeniden başlatılabilir.",
+    );
   });
 
   it("says when the chosen Google account is signed out or the tab was closed", async () => {

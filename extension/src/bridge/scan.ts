@@ -130,6 +130,7 @@ async function search(
 ): Promise<Map<string, Conversation>> {
   const found = new Map<string, Conversation>();
   const tab = await env.tabs.open(searchUrl(account, query));
+  let first: ListPage | null = null;
   try {
     let before = "";
     let shown = 0;
@@ -138,6 +139,7 @@ async function search(
         await env.tabs.go(tab, searchHash(query, page));
       }
       const list = await layer(2, () => env.tabs.collect(tab, page === 1 ? FIRST_WAIT_MS : PAGE_WAIT_MS, before));
+      first ??= list;
       if (list.unknownRows > 0 && list.conversations.length === 0) {
         throw new LayerStopped(2);
       }
@@ -158,7 +160,20 @@ async function search(
   } finally {
     await env.tabs.close(tab).catch(() => undefined); // closed by the user already
   }
+  if (found.size === 0 && first !== null && !first.main) {
+    throw new TabUnreadable("Gmail'in sayfasında ana bölüm yok"); // Gmail did not come up, or its page changed
+  }
+  if (found.size === 0 && first !== null && first.rows > 0) {
+    throw new NothingRecognised(first.rows);
+  }
   return found;
+}
+
+/** Gmail showed rows, none of them a conversation's: an empty search shows none, so its page may have changed. */
+class NothingRecognised extends Error {
+  constructor(readonly rows: number) {
+    super(`no conversation among ${rows} rows`);
+  }
 }
 
 async function download(
@@ -209,6 +224,9 @@ function between(found: ReadonlyMap<string, Conversation>): number {
 }
 
 function finished(summary: ScanSummary): string {
+  if (summary.found === 0) {
+    return "Gmail'in aramasında listedeki bankalardan ileti çıkmadı.";
+  }
   const found = `Gmail'de listedeki bankalardan ${summary.found} ileti bulundu`;
   const result =
     summary.missing === 0
@@ -237,6 +255,12 @@ async function scanTrouble(
   }
   if (error instanceof TabGone) {
     return stop("Tarama sekmesi kapatıldı; tarama durdu. Yeniden başlatılabilir.");
+  }
+  if (error instanceof NothingRecognised) {
+    return stop(
+      `Gmail'in arama sayfasında ${error.rows} satır vardı ama hiçbiri bir konuşma gibi okunamadı; ` +
+        "eklentinin güncellenmesi gerekebilir.",
+    );
   }
   if (error instanceof TabUnreadable) {
     return stop("Gmail sekmede açılamadı (ağ bağlantısı olmayabilir); tarama durdu, yeniden başlatılabilir.");

@@ -22,6 +22,9 @@ export interface ListPage {
   readonly conversations: readonly Conversation[];
   /** Rows of the list without the ids the collector knows: Gmail changed its page. */
   readonly unknownRows: number;
+  /** What the page showed, for a scan that finds nothing: its main area, and the rows shown there. */
+  readonly main: boolean;
+  readonly rows: number;
   /** Whether the list moved on from the page before and stopped changing before the wait ran out. */
   readonly settled: boolean;
 }
@@ -46,8 +49,10 @@ export function isListPage(value: unknown): value is ListPage {
   if (typeof value !== "object" || value === null) {
     return false;
   }
-  const { conversations, unknownRows, settled } = value as Record<string, unknown>;
+  const { conversations, unknownRows, settled, main, rows } = value as Record<string, unknown>;
   return (
+    typeof main === "boolean" &&
+    Number.isInteger(rows) &&
     Array.isArray(conversations) &&
     conversations.every(
       (c: unknown) =>
@@ -73,10 +78,11 @@ export async function collectList(waitMs: number, before: string): Promise<ListP
   const hex = /^[0-9a-f]{1,16}$/;
   const pause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
   const read = (): ListPage => {
-    // A conversation's row has a checkbox; rows of the lists Gmail keeps hidden behind the search have no box.
-    const rows = Array.from(document.querySelectorAll('div[role="main"] tr')).filter(
-      (row) => row.getClientRects().length > 0 && row.querySelector('[role="checkbox"]') !== null,
+    const shown = Array.from(document.querySelectorAll('div[role="main"] tr')).filter(
+      (row) => row.getClientRects().length > 0,
     );
+    // A conversation's row has a checkbox; rows of the lists Gmail keeps hidden behind the search are not shown.
+    const rows = shown.filter((row) => row.querySelector('[role="checkbox"]') !== null);
     const conversations: Conversation[] = [];
     let unknownRows = 0;
     for (const row of rows) {
@@ -90,7 +96,8 @@ export async function collectList(waitMs: number, before: string): Promise<ListP
       const count = Number.parseInt((row.querySelector(".bx0")?.textContent ?? "").replace(/\D/g, ""), 10);
       conversations.push({ thread, last: hex.test(last) ? last : thread, count: count > 0 ? count : 0 });
     }
-    return { conversations, unknownRows, settled: false };
+    const main = document.querySelector('div[role="main"]') !== null;
+    return { conversations, unknownRows, settled: false, main, rows: shown.length };
   };
   const deadline = Date.now() + waitMs;
   let previous = "";
