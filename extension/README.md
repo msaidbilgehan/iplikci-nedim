@@ -55,7 +55,10 @@ npm ci              # sabitlenmiş bağımlılıklar (package-lock.json)
 npm run typecheck   # TypeScript, katı denetim
 npm test            # vitest
 npm run build       # dist/: tarayıcıya yüklenecek klasör
+npm run package     # dist/ ve mağazaya yüklenecek iplikci-kopru.zip (macOS ve Linux)
 ```
 
-Geliştirme sırasında `dist/` klasörü tarayıcıda "Paketlenmemiş öğe yükle" ile yüklenir. Kullanıcılar eklentiyi Chrome
-Web Store'dan kuracak; bu yol yalnızca geliştirme ve doğrulama içindir.
+Geliştirme sırasında `dist/` klasörü tarayıcıda "Paketlenmemiş öğe yükle" ile yüklenir. `dist/` yeniden derlenince
+tarayıcının eklentiler sayfasında eklentiyi yeniden yükleyin; bunu bir tarama sürerken yapmayın. Kullanıcılar eklentiyi
+Chrome Web Store'dan kuracak; bu yol yalnızca geliştirme ve doğrulama içindir. Mağaza metni, gizlilik politikası ve
+yayın adımları [store/](store/README.md) klasöründedir.

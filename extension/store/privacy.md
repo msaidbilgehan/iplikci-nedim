@@ -1,0 +1,51 @@
+# İplikçi Nedim Köprüsü — Gizlilik politikası
+
+Bu politika, Chrome eklentisi "İplikçi Nedim Köprüsü"nün hangi verileri nasıl işlediğini anlatır.
+
+## Ne okunur
+
+Eklenti, tarayıcıdaki açık Gmail oturumuyla yalnızca şunları okur:
+
+- Gmail'in gelen kutusu akışını, yani en yeni okunmamış iletilerin listesini;
+- İplikçi Nedim'de listesi tutulan bankaların iletilerini, Gmail'in "Orijinali göster" sayfasından;
+- "Gmail'de eksikleri tara" sırasında, eklentinin açtığı sekmedeki arama listesinden yalnızca konuşma kimliklerini.
+
+Gmail'de hiçbir şey değişmez: iletiler okundu işaretlenmez, taşınmaz, etiketlenmez ve silinmez.
+
+## Nereye gider
+
+Okunan iletiler yalnızca aynı bilgisayarda çalışan İplikçi Nedim uygulamasına gider (127.0.0.1). Eklenti başka hiçbir
+sunucuya veri göndermez. Analiz, reklam ya da izleme yoktur; uzaktan kod yüklenmez.
+
+## Tarayıcıda ne saklanır
+
+- İplikçi Nedim ile eşleşmenin belirteci;
+- okunacak Gmail hesabının sırası (adres değil);
+- son denetimin ve taramanın özeti (sayılar; adres, konu ya da ileti metni değil);
+- İplikçi Nedim'in hiç alamayacağı iletilerin Gmail kimlikleri, yeniden indirilmesinler diye.
+
+Bunlar eklenti kaldırılınca tarayıcıdan silinir.
+
+## Paylaşım
+
+Veriler satılmaz, kimseyle paylaşılmaz ve eklentinin tek amacı dışında kullanılmaz: banka iletilerini kullanıcının kendi
+bilgisayarındaki İplikçi Nedim'e taşımak.
+
+## İletişim
+
+Sorular için: projenin sahibine, eklentinin mağaza sayfasındaki geliştirici iletişim adresinden.
+
+---
+
+## Privacy policy (English)
+
+The Chrome extension "İplikçi Nedim Köprüsü" reads, with the browser's signed-in Gmail session, only the inbox feed,
+the "Show original" page of messages from the bank senders the local İplikçi Nedim app lists, and, during a "scan
+Gmail for missing mail", the conversation ids of the search list in a tab it opens. Nothing in Gmail changes: no
+message is marked read, moved, labelled or deleted.
+
+What it reads goes only to the İplikçi Nedim app on the same computer (127.0.0.1). It sends no data to any other
+server, and has no analytics, ads, tracking or remote code. The browser keeps only the pairing token, which Gmail
+account to read (its position, not its address), counts from the last check and scan, and the Gmail ids of messages
+the app can never take. All of it goes when the extension is removed. Data is not sold, not shared and not used for
+anything but the extension's single purpose.

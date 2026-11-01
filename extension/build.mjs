@@ -22,3 +22,4 @@ await writeFile("dist/manifest.json", `${JSON.stringify(manifest, null, 2)}\n`);
 for (const file of ["verify.html", "verify.css", "options.html"]) {
   await cp(`static/${file}`, `dist/${file}`);
 }
+await cp("static/icons", "dist/icons", { recursive: true }); // drawn by tools/icons.py
