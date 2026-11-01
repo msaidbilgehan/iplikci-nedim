@@ -10,7 +10,7 @@ import pytest
 
 from iplikci.app import mail, reading
 from iplikci.domain.codes import DocumentKind, DocumentStatus, TransactionKind
-from iplikci.fakes import HOLDER, garanti, qnb, vakifbank
+from iplikci.fakes import HOLDER, garanti, isbank, qnb, vakifbank
 from iplikci.fakes.files import html_mail
 from iplikci.parsers import Skipped, Unreadable, messages, parse_document
 from iplikci.parsers.common import BUSINESS_REASON, MESSAGE_REASON, set_business_names
@@ -427,3 +427,33 @@ def test_a_qnb_notice_greeting_the_company_is_the_companys():
     with pytest.raises(Skipped) as raised:
         read(data)
     assert (raised.value.business, raised.value.parser) == (True, QNB)
+
+
+# --- İş Bankası's notices ---------------------------------------------------------------------------------------
+
+
+def test_an_isbank_card_debt_collected_from_an_account_is_a_payment_to_the_card():
+    data = isbank.collection_notice()
+    result = read(data)
+    [row] = result.transactions
+    assert (result.parser, result.title, result.accounts[0].id) == (
+        "isbank.notice.collection",
+        "Kart Borcu Tahsilatı",
+        "isbank-1234",
+    )
+    assert (row.date, row.amount, row.kind) == (
+        date(2026, 10, 16),
+        Decimal("1258.21"),
+        TransactionKind.CARD_PAYMENT_NO_STATEMENT,  # booked on the card, like a card payment receipt
+    )
+    assert row.description == "Maximum •1234 gecikmiş borç tahsilatı (1234-0123456 no'lu hesaptan)"
+    assert row.ref is not None and row.ref.span is not None
+    start, end = row.ref.span
+    assert read_mail(data).text[start:end] == "1.258,21"
+
+
+def test_a_body_without_amounts_that_opens_with_a_change_of_fees_is_an_announcement_whatever_its_subject():
+    text = "Değerli Müşterimiz, Örnek Mektup hizmetimize ait ücretler, 01.12.2026 tarihi itibarıyla güncellenecektir."
+    assert message_reason(mail_of("Örnek Mektup Dönem Ücreti", text=text)) == messages.ANNOUNCEMENT
+    with_amount = f"{text} Yeni dönem ücreti 150,00 TL olacaktır."
+    assert message_reason(mail_of("Örnek Mektup Dönem Ücreti", text=with_amount)) == MESSAGE_REASON

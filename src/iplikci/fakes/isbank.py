@@ -1,12 +1,13 @@
-"""İş Bankası's documents: the Maximum card statement, the account list, the FAST receipt and the e-cüzdan."""
+"""İş Bankası's documents: the Maximum card statement, the account list, the FAST receipt, the e-cüzdan and the
+notice of a card debt collected from an account."""
 
 from collections.abc import Sequence
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 from ..domain.labels import format_amount
 from . import HOLDER, CardRow, CardTerms, Move, Specimen, charged, with_balances
-from .files import Cell, Run, right, text_pdf, xls_file
+from .files import Cell, Run, html_mail, right, text_pdf, xls_file
 
 _DATE_X, _TEXT_X, _AMOUNT_X1, _INSTALLMENT_X, _POINTS_X = 40, 100, 400, 410, 520
 _LINE = 11
@@ -271,10 +272,36 @@ def passbook(holder: str = HOLDER) -> bytes:
     )
 
 
+# --- notices ----------------------------------------------------------------------------------------------------
+
+NOTICE_SENDER = "bilgilendirme@ileti.isbank.com.tr"
+COLLECTION_SUBJECT = "Hesabınızdan Gecikmedeki Kredi Kartı Borcunuzun Tahsilatı"
+_ISTANBUL = timezone(timedelta(hours=3))
+
+
+def collection_notice(
+    sent: datetime = datetime(2026, 10, 16, 9, 12, tzinfo=_ISTANBUL), amount: str = "1.258,21", account: str = "123456"
+) -> bytes:
+    """The bank took a Maximum card's overdue debt from account 1234-0123456, which the notice writes without its
+    leading zero."""
+    html = (
+        "<html><body><table><tr><td>İş Bankası</td></tr>"
+        "<tr><td>Bu mesajı düzgün görüntüleyemiyorsanız lütfen <a href='https://www.isbank.com.tr'>tıklayınız</a>."
+        "</td></tr><tr><td><p>Merhaba,</p>"
+        f"<p>1234 no ile biten kredi kartınıza ait son ödeme tarihinde ödenmeyen {amount} TL'lik borç tutarı, "
+        f"1234-{account} no'lu hesabınızdan takas yoluyla tahsil edilmiştir.</p>"
+        "<p>Kredi puanınızın düşmemesi ve gecikmenin devam etmemesi için kredi kartınıza ait borcun tamamının "
+        "ödendiğinden emin olunuz.</p><p>Güzel günler dileriz.</p></td></tr>"
+        "<tr><td>isbank.com.tr</td></tr></table></body></html>"
+    )
+    return html_mail(NOTICE_SENDER, COLLECTION_SUBJECT, html, sent)
+
+
 def specimens() -> list[Specimen]:
     return [
         Specimen("isbank-maximum-ekstre.pdf", maximum_statement(), "isbank.maximum_card", "isbank-1234", 8),
         Specimen("isbank-hesap-ozeti.xls", account_xls(), "isbank.account_xls", "isbank-1234-0123456", 6),
         Specimen("isbank-fast-dekont.pdf", fast_receipt(), "isbank.receipt", "isbank-1234-0123456", 2),
         Specimen("isbank-e-cuzdan.pdf", passbook(), "isbank.passbook", "isbank-1234-0765432", 1),
+        Specimen("isbank-kart-borcu-tahsilati.eml", collection_notice(), "isbank.notice.collection", "isbank-1234", 1),
     ]

@@ -26,6 +26,7 @@ from .isbank import account_xls as isbank_account_xls
 from .isbank import maximum_card as isbank_maximum_card
 from .isbank import passbook as isbank_passbook
 from .isbank import receipt as isbank_receipt
+from .isbank.notice import collection as isbank_notice_collection
 from .qnb import account_pdf as qnb_account_pdf
 from .qnb import card_pdf as qnb_card_pdf
 from .qnb import edekont as qnb_edekont
@@ -52,6 +53,7 @@ BUILTIN: tuple[Parser, ...] = (
     isbank_account_xls.PARSER,
     isbank_receipt.PARSER,
     isbank_passbook.PARSER,
+    isbank_notice_collection.PARSER,
     teb_bonus_card.PARSER,
     teb_card_payment_receipt.PARSER,
     teb_account_html.PARSER,

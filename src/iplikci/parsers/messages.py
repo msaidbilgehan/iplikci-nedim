@@ -18,7 +18,7 @@ from .common import MESSAGE_REASON
 from .mail import Mail
 
 # Raised whenever the rules change: the messages no reader took are then classified again (registry.signature).
-VERSION = 3
+VERSION = 4
 
 CAMPAIGN = "kampanya ve tanıtım — para hareketi yok"
 ANNOUNCEMENT = "duyuru ve bilgilendirme — para hareketi yok"
@@ -167,6 +167,10 @@ def message_reason(mail: Mail) -> str:
             return reason
     if _ELSEWHERE.search(fold(mail.text)) and not _AMOUNT.search(mail.text):
         return ELSEWHERE
+    # A body that holds no amount and opens with a change of fees announces it, whatever money words the subject has
+    # ("Dijital Teminat Mektubu Dönem Ücreti": the fees "güncellenecektir").
+    if _CHANGE.search(fold(mail.text[:_OPENING])) and not _AMOUNT.search(mail.text):
+        return ANNOUNCEMENT
     if _MONEY.search(subject):
         return MESSAGE_REASON
     if label == "bilgi":

@@ -32,6 +32,9 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 - `qnb.notice.transfer`: QNB'nin FAST, havale/EFT ve para çıkışı bildirimleri okunur. Hesap numarası yazmayan FAST
   bildiriminin satırı, QNB'deki tek banka hesabına gider; bildirim, hesabın türünü (ek hesap ya da değil) e-dekontun
   ya da listenin dediğine bırakır.
+- `isbank.notice.collection`: İş Bankası'nın gecikmiş kart borcunu hesaptan tahsil ettiği bildirim, karta yapılmış
+  bir ödeme olarak okunur.
+- Tutar içermeyen ve ücret değişikliğiyle açılan bir ileti, konusu para hareketi anlatsa da duyuru sayılır.
 - Yaklaşan bir ödemeyi hatırlatan iletiler (haftalık kart ödemeleri, kredinin vade tarihi) "ödeme hatırlatması" diye
   sınıflanır.
 - Okuyucusu olmayan bir iletinin selamlaması bir şirketi anıyorsa ("Merhaba ÖRNEK A.Ş.,") ileti şirket belgesi sayılır;

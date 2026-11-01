@@ -363,6 +363,7 @@ V1'in eklediği okuyucular:
 | Kimlik | Belge | Aşama |
 |---|---|---|
 | `garanti.notice.transfer` | Para transferi bildirimi (e-posta gövdesi) | 4 |
+| `isbank.notice.collection` | Gecikmiş kart borcu tahsilatı bildirimi (e-posta gövdesi) | 4 |
 | `qnb.notice.transfer` | FAST, havale/EFT ve para çıkışı bildirimi (e-posta gövdesi) | 4 |
 | `vakifbank.notice.transfer` | FAST ve para çıkışı bildirimi (e-posta gövdesi) | 4 |
 | `invoice.ubl_tr` | e-Fatura ve e-Arşiv faturası (UBL-TR XML) | 4 |

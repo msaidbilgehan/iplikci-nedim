@@ -199,6 +199,16 @@ de yoktur.
 - Açılış günü başlayan cüzdan sıfırdan başlar.
 - "HESAP AÇMA İŞLEMİ a -> b" kendi transferidir.
 
+**Gecikmiş kart borcu tahsilatı bildirimi** (`isbank.notice.collection`; "Hesabınızdan Gecikmedeki Kredi Kartı
+Borcunuzun Tahsilatı")
+
+- Tek cümledir: "1234 no ile biten kredi kartınıza ait son ödeme tarihinde ödenmeyen 1.258,21 TL'lik borç tutarı,
+  1234-123456 no'lu hesabınızdan takas yoluyla tahsil edilmiştir."
+- Gün yazmaz: gün, iletinin Türkiye saatine göre tarihidir.
+- Hesap numarası yedi hanesinin baştaki sıfırını yazmaz (listelerde 1234-0123456).
+- Satır, bir kart ödeme dekontu gibi karta yazılır: sonraki ekstre gösterir, o gelene dek kart borcunu düşürür.
+  Hesap tarafı hesabın listesindeki satırdır.
+
 ## TEB
 
 **Bonus kart PDF'i** (`KREDIKARTEKSTREOZETI`)
@@ -334,7 +344,8 @@ gönderenin alan adına ve konusuna göre adlandırılır (`parsers/messages.py`
 - `bilgi.` alt alan adından gelen ileti duyurudur. Kampanya kelimeleri (fırsat, davet, bonus, indirim, taksit…) ve
   duyuru kelimeleri (tatil, işlem saatleri, halka arz, ücret, tarife…) en son denenir.
 - Hiçbir şey söylemeyen bir konu ("BİLGİLENDİRME") için gövdenin ilk cümlesine bakılır. Bir ücret değişikliği
-  duyuruyorsa ileti duyurudur.
+  duyuruyorsa ileti duyurudur. Tutar içermeyen bir gövde ücret değişikliğiyle açılıyorsa, konusu para hareketi anlatsa
+  da ileti duyurudur ("Dijital Teminat Mektubu Dönem Ücreti").
 - Kampanya, duyuru, güvenlik ve kart bildirimleri ile ödeme hatırlatmaları "para hareketi yok" diye bilerek sınıflanır.
   F01'in kapsam ölçütü bunları sayar. Kurallar değişince okuyucusu olmayan iletiler yeniden sınıflanır
   (`messages.VERSION`).
