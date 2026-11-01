@@ -1,5 +1,6 @@
 """Card statements, read from fake PDFs laid out like the banks' own (iplikci.fakes)."""
 
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 
@@ -123,6 +124,11 @@ def test_isbank_maximum_statement_reads_its_due_date_the_minimum_behind_its_aste
     # The summary prints the due date with dots and the box under it again with slashes; the next statement's dates,
     # the minimum payment rate and the customer's, available and cash limits stand beside them.
     assert (s.due_date, s.minimum_payment, s.credit_limit) == (date(2026, 10, 15), Decimal("1258.21"), Decimal(60000))
+
+
+def test_a_maximum_minimum_under_a_thousand_is_read_through_the_asterisks_that_fill_its_width():
+    terms = replace(isbank.MAXIMUM_TERMS, minimum=Decimal("597.67"))
+    assert only(read(isbank.maximum_statement(terms=terms))).minimum_payment == Decimal("597.67")
 
 
 @pytest.mark.parametrize("printed", ["Son Ödeme Tarihi: 16.10.2026", "Son Ödeme Tarihi: 31.02.2026"])

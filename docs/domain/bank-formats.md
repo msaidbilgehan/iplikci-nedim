@@ -168,7 +168,8 @@ de yoktur.
 - "HESAP ÖZETİNE AKTARILAN" döviz bakiyesini TL ekstresine taşır (`transfer`).
 - Sol kenardaki `-` işaretleri katlama izidir, eksi işareti değildir.
 - Özet tarihleri noktayla yazar: "Hesap Kesim Tarihi: 05.10.2026", "Son Ödeme Tarihi: 15.10.2026".
-- Asgari tutarın önünde yıldız vardır: "Ödenmesi Gereken Asgari Tutar: *1.258,21 TL". Tutar yıldızdan sonra okunur.
+- Asgari tutar sabit genişlikte basılır, boş haneleri yıldızdır: "Ödenmesi Gereken Asgari Tutar: *1.258,21 TL", bin
+  liranın altında "*.597,67 TL". Tutar yıldızlardan ve öndeki noktadan sonra okunur.
 - Özetteki "Bir Sonraki Hesap Kesim Tarihi" ve "Bir Sonraki Son Ödeme Tarihi" gelecek ekstrenindir.
 - Son ödeme tarihi aşağıda, limit kutusunun üstünde bir kez daha, eğik çizgiyle yazar: "Son Ödeme Tarihi:
   15/10/2026".

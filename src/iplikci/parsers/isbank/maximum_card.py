@@ -37,10 +37,11 @@ def _amount(line: Line, edge: float):
 
 
 def _term(sq: str, label: str, currency: str) -> Decimal | None:
-    """The amount the first page (squashed) prints after label, in the statement's currency. The minimum due has an
-    asterisk before it ("Ödenmesi Gereken Asgari Tutar: *1.234,56 TL"), and the box of limits runs its two columns
-    into one line ("Toplam Kart Limiti: 60.000,00 TL Asgari Ödeme Oranı: %40,00")."""
-    found = re.findall(label + r":?\*?([\d.]+,\d{2})(TL|USD|EUR)?", sq)
+    """The amount the first page (squashed) prints after label, in the statement's currency. The minimum due is
+    printed in a fixed width, its empty places filled with asterisks ("Ödenmesi Gereken Asgari Tutar: *1.234,56 TL",
+    "*.597,67 TL"), and the box of limits runs its two columns into one line ("Toplam Kart Limiti: 60.000,00 TL Asgari
+    Ödeme Oranı: %40,00")."""
+    found = re.findall(label + r":?[*.]*(\d[\d.]*,\d{2})(TL|USD|EUR)?", sq)
     return agreed(parse_tr_amount(amount) if currency_code(unit) == currency else None for amount, unit in found)
 
 

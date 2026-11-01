@@ -96,10 +96,16 @@ def _maximum_head(cut: date, total: Decimal, last4: str, holder: str, terms: Car
             (40, 184, f"Son Ödeme Tarihi: {terms.due:%d/%m/%Y}"),
         ]
     if terms.minimum is not None:
-        runs.append((330, 136, f"Ödenmesi Gereken Asgari Tutar: *{format_amount(terms.minimum)} TL"))
+        runs.append((330, 136, f"Ödenmesi Gereken Asgari Tutar: {_padded(terms.minimum)} TL"))
     if terms.limit is not None:
         runs.append((40, 220, f"Toplam Kart Limiti: {format_amount(terms.limit)} TL"))
     return runs
+
+
+def _padded(value: Decimal) -> str:
+    """The minimum due as the statement prints it, in a fixed width whose empty places are asterisks: "*1.258,21",
+    and "*.597,67" for an amount under a thousand."""
+    return ("*." if value < 1000 else "*") + format_amount(value)
 
 
 def _amount(value: Decimal) -> str:
