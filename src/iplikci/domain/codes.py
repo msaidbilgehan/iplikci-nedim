@@ -153,3 +153,14 @@ class SeriesPeriod(StrEnum):
     MONTH = "month"
     HALF_YEAR = "half_year"
     YEAR = "year"
+
+
+class PaymentKind(StrEnum):
+    """What an item of the calendar is (F09)."""
+
+    REGULAR = "regular"  # a monthly series' next payment
+    PERIODIC = "periodic"  # a half-yearly or yearly series' next payment
+    INCOME = "income"  # the salary or another regular income
+    INSTALLMENT = "installment"  # a card purchase's installment still to come, on a later statement
+    LOAN = "loan"  # a loan's next installment, from its receipts
+    CARD_DUE = "card_due"  # a card statement's due date

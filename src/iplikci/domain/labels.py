@@ -17,6 +17,7 @@ from .codes import (
     EvidenceStatus,
     MonthStatus,
     Necessity,
+    PaymentKind,
     SeriesPeriod,
     SeriesStatus,
     SourceKind,
@@ -155,6 +156,15 @@ SERIES_PERIOD: dict[SeriesPeriod, str] = {
     SeriesPeriod.YEAR: "Yılda bir",
 }
 
+PAYMENT_KIND: dict[PaymentKind, str] = {
+    PaymentKind.REGULAR: "Düzenli ödeme",
+    PaymentKind.PERIODIC: "Dönemsel ödeme",
+    PaymentKind.INCOME: "Düzenli gelir",
+    PaymentKind.INSTALLMENT: "Kart taksiti",
+    PaymentKind.LOAN: "Kredi taksiti",
+    PaymentKind.CARD_DUE: "Kart son ödemesi",
+}
+
 
 def _table[K: StrEnum](labels: Mapping[K, str]) -> dict[StrEnum, str]:
     return {code: text for code, text in labels.items()}
@@ -177,6 +187,7 @@ TABLES: dict[type[StrEnum], dict[StrEnum, str]] = {
     BackupReason: _table(BACKUP_REASON),
     SeriesStatus: _table(SERIES_STATUS),
     SeriesPeriod: _table(SERIES_PERIOD),
+    PaymentKind: _table(PAYMENT_KIND),
 }
 
 # The interface writes the Turkish lira as "TL" (ADR-0006).

@@ -75,6 +75,7 @@ include = [
     "src/iplikci/service",
     "src/iplikci/settings",
     "src/iplikci/storage",
+    "src/iplikci/upcoming.py",
     "src/iplikci/vault",
 ]
 strict = [
@@ -95,6 +96,7 @@ strict = [
     "src/iplikci/service",
     "src/iplikci/settings",
     "src/iplikci/storage",
+    "src/iplikci/upcoming.py",
     "src/iplikci/vault",
 ]
 # An ignore comment that hides nothing is noise, like an unused import.
