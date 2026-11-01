@@ -93,6 +93,7 @@ class Privacy:
 @dataclass(frozen=True, slots=True)
 class Backup:
     keep_days: int = 14
+    folder: str = ""  # where the backups go; empty: backups/ in the data folder
 
 
 @dataclass(frozen=True, slots=True)
@@ -197,6 +198,13 @@ def _folder(where: str, value: Any) -> str:
     return text
 
 
+def _location(where: str, value: Any) -> str:
+    text = _text(where, value)
+    if text and not Path(text).expanduser().is_absolute():
+        raise SettingsError(f'{where} bir klasörün tam yolu olmalı, ör. "/Volumes/Yedek/iplikci" (boş: veri klasörü)')
+    return text
+
+
 def _quiet_hours(where: str, value: Any) -> str:
     text = _text(where, value)
     if text and not _HOURS.fullmatch(text):
@@ -246,7 +254,7 @@ _SCHEMA: dict[str, tuple[type, dict[str, Check]]] = {
     "notify": (Notify, {"quiet_hours": _quiet_hours, "detail": _detail}),
     "fx": (Fx, {"providers": _providers}),
     "privacy": (Privacy, {"mcp_masking": _one_of("off", "accounts", "accounts_and_names")}),
-    "backup": (Backup, {"keep_days": _days}),
+    "backup": (Backup, {"keep_days": _days, "folder": _location}),
 }
 
 

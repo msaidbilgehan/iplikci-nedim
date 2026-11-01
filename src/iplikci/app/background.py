@@ -1,19 +1,21 @@
 """The service's background work (ADR-0014): what each kind of job does, which ones recur, and how the other use
 cases ask for them. The analysis is made again after new documents and once a day, just after midnight (a new day
-can end a month); each time the feed compares it with the last one and records the difference as events."""
+can end a month); each time the feed compares it with the last one and records the difference as events. A backup
+is made every night and its restore rehearsed every month."""
 
+import sqlite3
 from datetime import UTC, date, datetime, time, timedelta
 
-from ..domain.codes import Actor
+from ..domain.codes import Actor, BackupReason
 from ..feed import snapshot
-from ..jobs.schedule import Periodic, daily, every
+from ..jobs.schedule import Periodic, daily, every, monthly
 from ..jobs.worker import Handler
 from ..storage import audit, events, feed_state, jobs
 from ..vault import trash
-from . import access, intake, mail, uploads
+from . import access, backup, intake, mail, uploads
 from .analysis import analyze
-from .kinds import INBOX_TAKE, PURGE, REFRESH
-from .workspace import Workspace
+from .kinds import BACKUP_DAILY, BACKUP_NOW, BACKUP_REHEARSAL, INBOX_TAKE, PURGE, REFRESH
+from .workspace import Busy, Workspace
 
 SNAPSHOT = "snapshot"
 JOBS_KEPT = timedelta(days=30)
@@ -24,6 +26,8 @@ PERIODIC = (
     Periodic(PURGE, daily(time(4, 0))),
     # ADR-0015: the IMAP connector's fallback beside IDLE; it finds nothing to do for the browser extension.
     Periodic(mail.FETCH_JOB, every(15)),
+    Periodic(BACKUP_DAILY, daily(backup.DAILY_AT)),
+    Periodic(BACKUP_REHEARSAL, monthly(time(4, 30))),
 )
 
 
@@ -34,6 +38,9 @@ def handlers(ws: Workspace) -> dict[str, Handler]:
         PURGE: lambda _payload: purge(ws),
         mail.FETCH_JOB: lambda _payload: poll_mail(ws),
         INBOX_TAKE: lambda _payload: take_inbox(ws),
+        BACKUP_DAILY: lambda _payload: back_up(ws, BackupReason.DAILY),
+        BACKUP_NOW: lambda _payload: back_up(ws, BackupReason.MANUAL),
+        BACKUP_REHEARSAL: lambda _payload: rehearse(ws),
     }
 
 
@@ -92,3 +99,39 @@ def purge(ws: Workspace) -> None:
         for batch in uploads.abandoned_batches(ws, UPLOADS_KEPT.total_seconds()):
             where = trash.move_to_system_trash(batch)
             audit.record(db, Actor.SYSTEM, "upload.abandoned", "", batch=batch.name, trash=where.name)
+
+
+def back_up(ws: Workspace, reason: BackupReason) -> str:
+    """Make a backup and delete the expired ones; the backup's name. A backup that cannot be made is told once a
+    day (backup.failed) and tried again later."""
+    try:
+        made = backup.take(ws, reason)
+        backup.prune(ws)
+    except (OSError, sqlite3.Error, backup.BackupError, Busy) as exc:
+        with ws.db() as db:
+            events.record(db, backup.FAILED, date.today().isoformat(), stage="backup", error=type(exc).__name__)
+        raise
+    return made.name
+
+
+def request_backup(ws: Workspace) -> None:
+    """Ask the service for a backup now; asked twice before it starts, it makes one."""
+    with ws.db() as db:
+        jobs.add(db, BACKUP_NOW)
+
+
+def rehearse(ws: Workspace) -> bool:
+    """Rehearse restoring the newest backup; a rehearsal that fails is told once that month (backup.failed). With no
+    backup yet, the attempt fails and runs again later, after the night's backup. Whether it passed."""
+    result = backup.rehearse(ws)
+    if not result.ok:
+        with ws.db() as db:
+            events.record(
+                db,
+                backup.FAILED,
+                result.at[:7],
+                stage="rehearsal",
+                problems=len(result.problems),
+                differences=len(result.differences),
+            )
+    return result.ok

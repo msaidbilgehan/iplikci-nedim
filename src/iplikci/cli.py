@@ -11,6 +11,7 @@ iplikci mcp                     Claude için MCP sunucusu (istemci başlatır)
 iplikci servis calistir         servisi ön planda çalıştır (API, 127.0.0.1)
 iplikci servis kur|kaldir|durum|yeniden-baslat   arka plan servisi (launchd, systemd, Görev Zamanlayıcı)
 iplikci ac                      arayüzü tek kullanımlık giriş bağlantısıyla aç (servis çalışıyor olmalı)
+iplikci yedek al|liste|geri-yukle|prova   yedek al, listele, geri yükle; geri yüklemenin provası
 iplikci dogrula --taban         doğrulama tabanını al, öncekiyle karşılaştır (gerilemede çıkış kodu 1)
 iplikci dev demo [KLASÖR]       sahte belgelerle demo veri klasörü kur
 iplikci dev parser probe|debug DOSYA   okuyucular belgeyi tanıyor mu; okuyan okuyucu ne okuyor
@@ -33,12 +34,12 @@ from typing import Any
 
 from . import baseline, demo, month_end
 from .analysis import Dataset
-from .app import annotate, checks, intake, rebuild
+from .app import annotate, backup, checks, intake, rebuild
 from .app.analysis import Analysis, analyze
 from .app.workspace import Busy, StalePlan, Workspace
 from .categorize import Categorizer
-from .domain.codes import DEFAULT_EXPENSE_KINDS, Actor, DocumentStatus
-from .domain.labels import DOCUMENT_STATUS, NECESSITY, format_amount
+from .domain.codes import DEFAULT_EXPENSE_KINDS, Actor, BackupReason, DocumentStatus
+from .domain.labels import BACKUP_REASON, DOCUMENT_STATUS, NECESSITY, format_amount
 from .domain.text import fold
 from .insights import Insights, receipt_amount, tl
 from .parsers import tools as parser_tools
@@ -83,6 +84,7 @@ def main(argv: list[str] | None = None) -> int:
         "dogrula": verify_command,
         "servis": service_command,
         "ac": open_command,
+        "yedek": backup_command,
         "dev": dev_command,
     }
     if argv[:1] and argv[0] in commands:
@@ -427,6 +429,8 @@ def _system_lines(found: dict[str, Any], ws: Workspace) -> list[str]:
     lines.append(f"Kuyruk: {counts.get('queued', 0)} bekleyen, {counts.get('failed', 0)} başarısız iş")
     if mail_state := found.get("mail"):
         lines.append(_mail_line(mail_state))
+    if backups := found.get("backup"):
+        lines.append(_backups_line(backups))
     if disk := found.get("disk"):
         lines.append(
             f"Disk: arşiv {_size(disk.get('vault', 0))} · veritabanı {_size(disk.get('database', 0))} · "
@@ -451,6 +455,16 @@ def _mail_line(state: dict[str, Any]) -> str:
     last = f"son alım {_local_time(state['last_run'])}" if state.get("last_run") else "henüz alım yok"
     error = f" · son hata: {state['last_error']}" if state.get("last_error") else ""
     return f"E-posta ({connector}): {last}{error}"
+
+
+def _backups_line(state: dict[str, Any]) -> str:
+    if not state.get("count"):
+        return "Yedek: henüz yok"
+    line = f"Yedek: son {_local_time(state['last'])} · {state['count']} yedek, {_size(state.get('size', 0))}"
+    if state.get("rehearsal"):
+        verdict = "geçti" if state.get("rehearsal_ok") else "sorun buldu"
+        line += f" · geri yükleme provası {_local_time(state['rehearsal'])}: {verdict}"
+    return line
 
 
 def _local_time(iso: str) -> str:
@@ -491,6 +505,112 @@ def open_command(argv: list[str]) -> int:
         return 1
     if args.yazdir or not webbrowser.open(url):
         print(url)
+    return 0
+
+
+# --- backups -------------------------------------------------------------------------------------------
+
+
+def backup_command(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="iplikci yedek",
+        description="Yedekler: veritabanının tutarlı bir kopyası, birincil verilerin dökümü, ayarlar, kurallar ve "
+        "belgelerin asılları. Servis her gece bir yedek alır ve yedekleri 14 gün saklar; ayda bir en yeni yedeği "
+        "geçici bir klasöre geri yükleyip denetler.",
+    )
+    commands = parser.add_subparsers(dest="komut", required=True, metavar="KOMUT")
+    commands.add_parser("al", help="şimdi bir yedek al", description="Şimdi bir yedek alır.")
+    commands.add_parser("liste", help="yedekleri listele", description="Yedekleri en yenisinden başlayarak listeler.")
+    restore = commands.add_parser(
+        "geri-yukle",
+        help="bir yedeği geri yükle",
+        description="Bir yedeği geri yükler: veritabanını, ayarları ve kuralları yedektekiyle değiştirir, arşivde "
+        "eksik olan belgeleri yedekten kopyalar. Önce şimdiki hâlin yedeğini alır; geri yükleme böylece geri "
+        "alınabilir. Servis çalışırken yapılamaz. --uygula verilmezse hiçbir şeye dokunmaz, yalnızca ne olacağını "
+        "yazar. --hedef ile yedek boş ya da yeni bir klasöre kurulur (örneğin başka bir bilgisayara taşırken).",
+    )
+    restore.add_argument("yedek", help="yedeğin adı (iplikci yedek liste) ya da klasörünün yolu")
+    restore.add_argument("--hedef", type=Path, help="boş ya da yeni bir veri klasörü")
+    restore.add_argument("--uygula", action="store_true", help="geri yüklemeyi yap")
+    rehearse = commands.add_parser(
+        "prova",
+        help="bir yedeğin geri yüklenebildiğini denetle",
+        description="Bir yedeği (verilmezse en yenisini) geçici bir klasöre geri yükler ve dogrula --arsiv ile "
+        "--yeniden-kur denetimlerinden geçirir. Sorun bulursa 1 ile biter.",
+    )
+    rehearse.add_argument("yedek", nargs="?", help="yedeğin adı ya da klasörünün yolu (varsayılan: en yenisi)")
+    args = parser.parse_args(argv)
+    ws = _workspace(parser)
+    try:
+        if args.komut == "al":
+            made = backup.take(ws, BackupReason.MANUAL)
+            print(f"Yedek alındı: {made.path}\n{_backup_line(made)}")
+            return 0
+        if args.komut == "liste":
+            return _backup_list(backup.every(ws), backup.folder(ws))
+        if args.komut == "geri-yukle":
+            return _backup_restore(ws, backup.find(ws, args.yedek), args.hedef, apply=args.uygula)
+        return _backup_rehearse(ws, backup.find(ws, args.yedek) if args.yedek else None)
+    except (backup.BackupError, Busy) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+
+def _backup_line(b: backup.Backup) -> str:
+    reason = BACKUP_REASON[b.reason]
+    return (
+        f"{_local_time(b.created_at)} · {reason} · {b.documents} belge, {b.annotations} düzeltme · {_size(b.size)}"
+        + (f" · {len(b.damaged)} bozuk asıl dışarıda kaldı" if b.damaged else "")
+    )
+
+
+def _backup_list(backups: list[backup.Backup], root: Path) -> int:
+    if not backups:
+        print(f"Henüz yedek yok ({root}).")
+        return 0
+    print(f"Yedekler ({root}):")
+    for b in backups:
+        print(f"  {b.name}  {_backup_line(b)}")
+    return 0
+
+
+def _backup_restore(ws: Workspace, chosen: backup.Backup, target: Path | None, *, apply: bool) -> int:
+    print(f"Yedek: {chosen.name}\n  {_backup_line(chosen)}")
+    if target is None:
+        holder = instance.current(ws.run)
+        if holder is not None:
+            print(
+                "Servis çalışırken geri yüklenemez: önce servisi durdurun (iplikci servis kaldir; ön plandaysa Ctrl+C).",
+                file=sys.stderr,
+            )
+            return 1
+        print(f"Bu veri klasörüne geri yüklenecek: {ws.home}\nÖnce şimdiki hâlin yedeği alınacak.")
+    else:
+        print(f"Bu klasöre kurulacak: {target}")
+    if not apply:
+        print("\nHiçbir şeye dokunulmadı. Geri yüklemek için aynı komutu --uygula ile çalıştırın.")
+        return 0
+    done = backup.restore(ws, chosen, target)
+    print(f"\nGeri yüklendi: {done.home} · arşive geri kopyalanan belge: {done.objects}")
+    if done.safety:
+        print(f"Önceki hâlin yedeği: {done.safety} (geri almak için onu geri yükleyin)")
+    if done.unknown:
+        print(f"{done.unknown} belge arşivde duruyor ama bu yedeğin veritabanında yok (yedekten sonra gelmişler).")
+    return 0
+
+
+def _backup_rehearse(ws: Workspace, chosen: backup.Backup | None) -> int:
+    print("Yedek geçici bir klasöre geri yükleniyor ve denetleniyor…", file=sys.stderr)
+    result = backup.rehearse(ws, chosen)
+    print(f"Yedek: {result.backup}")
+    for line in result.problems:
+        print(f"  ! {line}")
+    for line in result.differences:
+        print(f"  ! yeniden kurulunca: {line}")
+    if not result.ok:
+        print(f"\n{len(result.problems) + len(result.differences)} sorun var (!).", file=sys.stderr)
+        return 1
+    print("Geri yükleme provası geçti: arşiv sağlam, veritabanı arşivden aynı kuruluyor.")
     return 0
 
 

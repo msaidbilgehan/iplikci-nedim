@@ -10,6 +10,7 @@ from enum import StrEnum
 from .codes import (
     AccountType,
     Actor,
+    BackupReason,
     Certainty,
     DocumentKind,
     DocumentStatus,
@@ -132,6 +133,12 @@ ACTOR: dict[Actor, str] = {
 
 UNIT: dict[Unit, str] = {Unit.GRAM: "gram", Unit.SHARE: "adet"}
 
+BACKUP_REASON: dict[BackupReason, str] = {
+    BackupReason.DAILY: "Günlük",
+    BackupReason.MANUAL: "Elle",
+    BackupReason.BEFORE_RESTORE: "Geri yükleme öncesi",
+}
+
 
 def _table[K: StrEnum](labels: Mapping[K, str]) -> dict[StrEnum, str]:
     return {code: text for code, text in labels.items()}
@@ -151,6 +158,7 @@ TABLES: dict[type[StrEnum], dict[StrEnum, str]] = {
     Tone: _table(TONE),
     Actor: _table(ACTOR),
     Unit: _table(UNIT),
+    BackupReason: _table(BACKUP_REASON),
 }
 
 # The interface writes the Turkish lira as "TL" (ADR-0006).

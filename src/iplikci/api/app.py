@@ -6,7 +6,7 @@ from .. import __version__
 from . import pages, problems
 from .context import Context
 from .guard import Guard
-from .routes import auth, bridge, events, system, uploads
+from .routes import auth, backups, bridge, events, system, uploads
 
 
 def create_app(context: Context) -> FastAPI:
@@ -19,7 +19,8 @@ def create_app(context: Context) -> FastAPI:
     )
     app.state.context = context
     problems.install(app)
-    for router in (auth.router, system.router, events.router, bridge.router, uploads.router, pages.router):
-        app.include_router(router)
+    routers = (auth, system, events, bridge, uploads, backups, pages)
+    for module in routers:
+        app.include_router(module.router)
     app.add_middleware(Guard, context=context)
     return app

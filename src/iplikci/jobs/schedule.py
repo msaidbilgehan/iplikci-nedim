@@ -35,6 +35,17 @@ def daily(start: time) -> Period:
     return period
 
 
+def monthly(start: time) -> Period:
+    """One period a month that begins on its first day at `start`: before that it is still the month before's."""
+
+    def period(at: datetime) -> str:
+        if at.day == 1 and at.time() < start:
+            at -= timedelta(days=1)
+        return f"{at:%Y-%m}"
+
+    return period
+
+
 @dataclass(frozen=True)
 class Periodic:
     kind: str

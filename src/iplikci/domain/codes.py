@@ -127,3 +127,11 @@ class Actor(StrEnum):
     MCP = "mcp"
     SYSTEM = "system"
     MIGRATION = "migration"
+
+
+class BackupReason(StrEnum):
+    """Why a backup was made (architecture §19)."""
+
+    DAILY = "daily"
+    MANUAL = "manual"  # asked for by the user
+    BEFORE_RESTORE = "before_restore"  # what was there before a restore, so the restore can be undone

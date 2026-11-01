@@ -6,7 +6,7 @@ from starlette.responses import JSONResponse
 
 from ...app import system
 from ..context import context_of
-from ..models import DiskOut, MailOut, QueueOut, ReaderHealthOut, ServiceOut, SystemOut
+from ..models import BackupHealthOut, DiskOut, MailOut, QueueOut, ReaderHealthOut, ServiceOut, SystemOut
 
 router = APIRouter()
 
@@ -29,4 +29,5 @@ def system_status(request: Request) -> SystemOut:
         disk=DiskOut.model_validate(found.disk, from_attributes=True),
         queue=QueueOut.model_validate(found.queue, from_attributes=True),
         mail=MailOut.model_validate(found.mail, from_attributes=True),
+        backup=BackupHealthOut.model_validate(found.backup, from_attributes=True),
     )

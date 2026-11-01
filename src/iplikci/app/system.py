@@ -1,6 +1,6 @@
 """The service's health for the System screen and /api/system (architecture §22, F18): what the data folder holds,
-how each reader is doing, the job queue, the e-mail intake and how much disk it all takes. The service adds its own
-process details; the backups join as they land.
+how each reader is doing, the job queue, the e-mail intake, the backups and how much disk it all takes. The service
+adds its own process details.
 """
 
 import shutil
@@ -14,6 +14,8 @@ from ..settings import config
 from ..storage import bridges, jobs
 from ..storage import mail as mail_store
 from ..storage.db import Database
+from .backup import Health as BackupHealth
+from .backup import health as backup_health
 from .mail import BRIDGE
 from .reading import FORMAT_ALARM
 from .workspace import Workspace
@@ -72,6 +74,7 @@ class SystemStatus:
     disk: Disk
     queue: Queue
     mail: MailHealth
+    backup: BackupHealth
 
 
 def healthy(ws: Workspace) -> bool:
@@ -94,7 +97,7 @@ def status(ws: Workspace) -> SystemStatus:
             [FailedJob(j.id, j.kind, j.attempts, j.finished_at, j.last_error) for j in jobs.failures(db)],
         )
         mail = mail_health(ws, db)
-    return SystemStatus(__version__, str(ws.home), documents, readers, disk(ws), queue, mail)
+    return SystemStatus(__version__, str(ws.home), documents, readers, disk(ws), queue, mail, backup_health(ws))
 
 
 def mail_health(ws: Workspace, db: Database) -> MailHealth:

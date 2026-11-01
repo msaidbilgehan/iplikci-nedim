@@ -55,6 +55,15 @@ class MailOut(BaseModel):
     stopped: bool
 
 
+class BackupHealthOut(BaseModel):
+    last: str
+    next: str
+    count: int
+    size: int
+    rehearsal: str
+    rehearsal_ok: bool | None
+
+
 class SystemOut(BaseModel):
     service: ServiceOut
     documents: dict[str, int]
@@ -62,6 +71,18 @@ class SystemOut(BaseModel):
     disk: DiskOut
     queue: QueueOut
     mail: MailOut
+    backup: BackupHealthOut
+
+
+class BackupOut(BaseModel):
+    name: str
+    created_at: str
+    reason: str
+    app: str
+    documents: int
+    annotations: int
+    size: int  # bytes of its own files; the originals live in the shared store
+    damaged: int  # originals left out because their bytes no longer matched their names
 
 
 class EventOut(BaseModel):

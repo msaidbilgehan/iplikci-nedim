@@ -5,3 +5,6 @@ REFRESH = "analysis.refresh"  # read what needs reading, make the analysis again
 PURGE = "maintenance.purge"  # forget expired sessions and old finished jobs
 MAIL_FETCH = "mail.fetch"  # fetch the new messages over IMAP
 INBOX_TAKE = "inbox.take"  # take in what waits in the inbox folder, without a plan (F02)
+BACKUP_DAILY = "backup.daily"  # the day's backup, then the expired ones go
+BACKUP_NOW = "backup.take"  # a backup the user asked for
+BACKUP_REHEARSAL = "backup.rehearsal"  # the month's restore rehearsal

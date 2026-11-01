@@ -152,16 +152,30 @@ def _statements(sql: str) -> Iterator[str]:
 
 
 def backup(db: Database, target: Path) -> Path:
-    """A consistent copy of the database through SQLite's online backup API, safe while others write."""
+    """A consistent copy of the database through SQLite's online backup API, safe while others write. The copy is
+    one self-contained file: it leaves WAL mode, so it opens without -wal and -shm files beside it."""
     target.parent.mkdir(parents=True, exist_ok=True)
     copy = sqlite3.connect(target)
     try:
         db.connection.backup(copy)
+        copy.execute("PRAGMA journal_mode = DELETE")
     finally:
         copy.close()
     if sys.platform != "win32":
         os.chmod(target, 0o600)
     return target
+
+
+def open_copy(path: Path) -> Database:
+    """A copy of the database (a backup's) opened read-only, as it is: no migration, nothing written."""
+    connection = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)
+    connection.row_factory = sqlite3.Row
+    return Database(connection, path)
+
+
+def schema_version() -> int:
+    """The newest migration this program knows: a database at a higher one was made by a newer version."""
+    return migrations()[-1][0]
 
 
 def now() -> str:

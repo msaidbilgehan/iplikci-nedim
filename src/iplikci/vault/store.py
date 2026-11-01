@@ -111,6 +111,32 @@ class Vault:
             tmp.unlink(missing_ok=True)
         return sha256
 
+    def adopt(self, source: Path, sha256: str) -> bool:
+        """Copy an object of another store under its name (the archive's into the backups' store, a backup's back
+        into the archive); whether it was copied (False: it was here already). VaultError when the source's bytes do
+        not match the name: a damaged copy is never spread."""
+        target = self.path(sha256)
+        if target.exists():
+            return False
+        self.layout.objects.mkdir(parents=True, exist_ok=True)
+        self.layout.staging.mkdir(parents=True, exist_ok=True)
+        fd, tmp_name = tempfile.mkstemp(prefix=".nesne-", dir=self.layout.staging)
+        tmp = Path(tmp_name)
+        try:
+            digest = hashlib.sha256()
+            with os.fdopen(fd, "wb") as out, source.open("rb") as f:
+                for chunk in iter(lambda: f.read(_CHUNK), b""):
+                    digest.update(chunk)
+                    out.write(chunk)
+                out.flush()
+                os.fsync(out.fileno())
+            if digest.hexdigest() != sha256:
+                raise VaultError(f"{source} nesnesi bozulmuş: içeriği adıyla ({sha256}) uyuşmuyor")
+            self._install(tmp, target, sha256)
+        finally:
+            tmp.unlink(missing_ok=True)
+        return True
+
     def _install(self, tmp: Path, target: Path, sha256: str) -> None:
         for folder in (target.parent.parent, target.parent):
             folder.mkdir(exist_ok=True)
