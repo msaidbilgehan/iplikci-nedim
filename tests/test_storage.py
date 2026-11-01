@@ -9,7 +9,7 @@ from decimal import Decimal
 import pytest
 
 from iplikci.domain.codes import AccountType, Actor, DocumentKind, DocumentStatus, SourceKind, TransactionKind
-from iplikci.domain.models import Account, ParseResult, Security, Statement, Transaction
+from iplikci.domain.models import Account, ParseResult, Security, SourceRef, Statement, Transaction
 from iplikci.storage import audit, db, documents, readings
 
 SHA = "a" * 64
@@ -35,7 +35,8 @@ def test_a_new_database_gets_the_whole_schema(store, tmp_path):
     assert {"audit_log", "search", "schema_migrations"} <= tables(store)
     assert store.scalar("PRAGMA journal_mode") == "wal"
     assert store.scalar("PRAGMA foreign_keys") == 1
-    assert [r["version"] for r in store.rows("SELECT version FROM schema_migrations")] == [1]
+    shipped = [n for n, _, _ in db.migrations()]
+    assert [r["version"] for r in store.rows("SELECT version FROM schema_migrations ORDER BY version")] == shipped
     if sys.platform != "win32":
         assert stat.S_IMODE((tmp_path / "iplikci.db").stat().st_mode) == 0o600
 
@@ -51,11 +52,12 @@ def test_a_new_migration_backs_the_database_up_first(tmp_path, monkeypatch):
     with db.connect(tmp_path / "iplikci.db", tmp_path / "backups") as first:
         documents.add(first, SHA, "ekstre.pdf", 10)
     shipped = db.migrations()
-    monkeypatch.setattr(db, "migrations", lambda: [*shipped, (2, "deneme", "CREATE TABLE deneme (x INTEGER);\n")])
+    new = (len(shipped) + 1, "deneme", "CREATE TABLE deneme (x INTEGER);\n")
+    monkeypatch.setattr(db, "migrations", lambda: [*shipped, new])
     with db.connect(tmp_path / "iplikci.db", tmp_path / "backups") as second:
         assert "deneme" in tables(second)
     [copy] = (tmp_path / "backups").iterdir()
-    assert copy.name.startswith("iplikci göç öncesi 0001 ")
+    assert copy.name.startswith(f"iplikci göç öncesi {len(shipped):04d} ")
     old = sqlite3.connect(copy)
     try:
         assert old.execute("SELECT name FROM documents").fetchall() == [("ekstre.pdf",)]
@@ -135,10 +137,17 @@ def sample() -> ParseResult:
     )
     teb = Account("teb-123456789", "TEB Vadesiz TL 123456789", "TEB", AccountType.CURRENT, "TRY", "123456789")
     rows = [
-        Transaction(date(2026, 9, 10), "MIGROS ORNEK SUBE ISTANBUL", Decimal(2150), TransactionKind.PURCHASE, card.id),
+        Transaction(
+            date(2026, 9, 10),
+            "MIGROS ORNEK SUBE ISTANBUL",
+            Decimal(2150),
+            TransactionKind.PURCHASE,
+            card.id,
+            ref=SourceRef(page=1, box=(40.0, 301.5, 412.25, 310.5)),
+        ),
         Transaction(
             date(2026, 9, 10), "MIGROS ORNEK SUBE ISTANBUL", Decimal(2150), TransactionKind.PURCHASE, card.id
-        ),  # both real
+        ),  # both real; a row read before the readers kept their place has none
         Transaction(
             date(2026, 9, 12),
             "ODEMENIZ ICIN TESEKKUR",
@@ -164,6 +173,7 @@ def sample() -> ParseResult:
                 TransactionKind.TRANSFER_CANDIDATE,
                 teb.id,
                 counterparty="ÖRNEK İŞVEREN",
+                ref=SourceRef(sheet="Hesap Hareketleri", row=12),
             )
         ],
         start=date(2026, 10, 1),
@@ -173,7 +183,14 @@ def sample() -> ParseResult:
         securities=[Security("ORNEK", "ÖRNEK SANAYİ A.Ş.", Decimal(20), Decimal(1342), date(2026, 10, 30))],
     )
     receipt = [
-        Transaction(date(2026, 9, 10), "AİDAT ÖDEMESİ", Decimal(1250), TransactionKind.TRANSFER_CANDIDATE, teb.id)
+        Transaction(
+            date(2026, 9, 10),
+            "AİDAT ÖDEMESİ",
+            Decimal(1250),
+            TransactionKind.TRANSFER_CANDIDATE,
+            teb.id,
+            ref=SourceRef(page=1, span=(120, 168)),
+        )
     ]
     return ParseResult("deneme", [card, teb], [statement, listing], receipt, "dekont-1", "ÖRNEK KULLANICI", "Aidat")
 

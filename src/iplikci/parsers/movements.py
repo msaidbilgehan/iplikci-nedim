@@ -14,7 +14,7 @@ from decimal import Decimal
 
 from ..domain.codes import TransactionKind
 from ..domain.labels import format_amount
-from ..domain.models import TRY, Account, Statement, Transaction
+from ..domain.models import TRY, Account, SourceRef, Statement, Transaction
 from ..domain.money import CENT, TOLERANCE, round_half_up
 from ..domain.text import fold
 
@@ -30,6 +30,7 @@ class Movement:
     balance: Decimal | None = None
     label: str = ""  # the bank's own type column (Etiket, İşlem Tipi, İŞLEM)
     counterparty: str = ""
+    ref: SourceRef | None = None  # where the row is printed
 
 
 def check_balances(movements: list[Movement], oldest_first: bool, opening: Decimal | None = None) -> tuple[int, int]:
@@ -154,6 +155,7 @@ def build_statement(
             account=account.id,
             counterparty=m.counterparty.strip(),
             source=doc.name,
+            ref=m.ref,
             original=f"{format_amount(abs(m.amount))} {account.currency}" if account.currency != TRY else "",
         )
         stmt.transactions.append(t)

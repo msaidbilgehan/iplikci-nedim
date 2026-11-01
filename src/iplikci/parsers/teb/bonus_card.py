@@ -66,7 +66,7 @@ def _parse_statement(doc: SourceDocument, first: str) -> ParseResult:
     return ParseResult(parser=ID, accounts=[account], statements=[stmt], holder=holder[1] if holder else "")
 
 
-def _add(stmt: Statement, account: Account, doc: SourceDocument, date, desc: str, amount: Decimal) -> None:
+def _add(stmt: Statement, account: Account, doc: SourceDocument, line: Line, date, desc: str, amount: Decimal) -> None:
     desc, installment, original = _split_description(desc)
     stmt.transactions.append(
         Transaction(
@@ -78,6 +78,7 @@ def _add(stmt: Statement, account: Account, doc: SourceDocument, date, desc: str
             installment=installment or installment_label(desc),
             original=original,
             source=doc.name,
+            ref=line.ref,
         )
     )
 
@@ -97,7 +98,7 @@ def _parse_section(lines: list[Line], h: int, stmt: Statement, account: Account,
             if "DEVIR" in fold(desc):
                 stmt.previous = amount
             continue  # per-card subtotal lines
-        _add(stmt, account, doc, date, desc, amount)
+        _add(stmt, account, doc, line, date, desc, amount)
 
 
 # --- statements delivered as page images, read with OCR -------------------------
@@ -141,6 +142,7 @@ def _parse_ocr(doc: SourceDocument, pages: list[list[Line]]) -> ParseResult:
             stmt,
             account,
             doc,
+            line,
             parse_dmy(line.words[date_i].text),
             desc,
             parse_tr_amount(rest[amount_i].text.replace(" ", "")),

@@ -11,7 +11,7 @@ from functools import cached_property
 from typing import Any, Protocol, runtime_checkable
 
 from ..domain.codes import DocumentKind
-from ..domain.models import ParseResult
+from ..domain.models import ParseResult, SourceRef
 from ..sources import Document
 from .pdf import Line, ocr_page_lines, open_pdf
 from .sheet import decode_html, html_rows, html_text, read_xls, read_xlsx, sniff
@@ -66,13 +66,26 @@ class SourceDocument:
         return open_pdf(self.data)
 
     @cached_property
-    def rows(self) -> list[list[Any]]:
-        """A spreadsheet's rows: the first sheet of an XLS or XLSX file, or the innermost rows of an HTML table."""
+    def _sheet(self) -> tuple[str, list[list[Any]]]:
         if self.kind == "xls":
             return read_xls(self.data)
         if self.kind == "xlsx":
             return read_xlsx(self.data)
-        return [list(r) for r in html_rows(self.data)]
+        return "", [list(r) for r in html_rows(self.data)]
+
+    @property
+    def rows(self) -> list[list[Any]]:
+        """A spreadsheet's rows: the first sheet of an XLS or XLSX file, or the innermost rows of an HTML table."""
+        return self._sheet[1]
+
+    @property
+    def sheet_name(self) -> str:
+        """The name of the sheet rows come from; "" for an HTML table."""
+        return self._sheet[0]
+
+    def row_ref(self, index: int) -> SourceRef:
+        """Where rows[index] is: its sheet and its row number, counted from 1."""
+        return SourceRef(sheet=self.sheet_name, row=index + 1)
 
     @cached_property
     def html(self) -> str:

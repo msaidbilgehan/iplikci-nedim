@@ -10,7 +10,7 @@ from datetime import date
 from decimal import Decimal
 
 from ..domain.codes import AccountType, TransactionKind
-from ..domain.models import TRY, Account, ParseResult, Security, Statement, Transaction
+from ..domain.models import TRY, Account, ParseResult, Security, SourceRef, Statement, Transaction
 from ..domain.text import fold
 from .db import Database
 from .documents import DocumentRow
@@ -31,6 +31,36 @@ def _to_minor(amount: Decimal) -> int:
 
 def _from_minor(units: int) -> Decimal:
     return Decimal(units).scaleb(-_DIGITS)
+
+
+def _ref_text(ref: SourceRef | None) -> str:
+    """A row's place in its document as stored: JSON of the fields it has, "" when the reader gave none."""
+    if ref is None:
+        return ""
+    fields = {
+        "page": ref.page,
+        "box": list(ref.box) if ref.box else None,
+        "line": ref.line,
+        "sheet": ref.sheet,
+        "row": ref.row,
+        "span": list(ref.span) if ref.span else None,
+    }
+    return json.dumps({k: v for k, v in fields.items() if v is not None}, ensure_ascii=False, separators=(",", ":"))
+
+
+def _ref(text: str) -> SourceRef | None:
+    if not text:
+        return None
+    data = json.loads(text)
+    box, span = data.get("box"), data.get("span")
+    return SourceRef(
+        page=data.get("page"),
+        box=(box[0], box[1], box[2], box[3]) if box else None,
+        line=data.get("line"),
+        sheet=data.get("sheet"),
+        row=data.get("row"),
+        span=(span[0], span[1]) if span else None,
+    )
 
 
 def clear(db: Database, sha256: str) -> None:
@@ -95,16 +125,16 @@ def save(db: Database, sha256: str, result: ParseResult) -> None:
             for j, t in enumerate(s.transactions):
                 row_id = db.execute(
                     "INSERT INTO transactions (sha256, statement_id, position, date, description, amount, currency, "
-                    "kind, account, original, installment, bank_category, counterparty, source) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "kind, account, original, installment, bank_category, counterparty, source, ref) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (sha256, statement_id, j, *_row_values(t, s.currency)),
                 ).lastrowid
                 _index(db, sha256, "transaction", row_id, t)
         for i, t in enumerate(result.transactions):
             row_id = db.execute(
                 "INSERT INTO evidence (sha256, position, date, description, amount, currency, kind, account, "
-                "original, installment, bank_category, counterparty, source) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "original, installment, bank_category, counterparty, source, ref) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (sha256, i, *_row_values(t, currencies.get(t.account, TRY))),
             ).lastrowid
             _index(db, sha256, "evidence", row_id, t)
@@ -123,6 +153,7 @@ def _row_values(t: Transaction, currency: str) -> tuple[str | int, ...]:
         t.bank_category,
         t.counterparty,
         t.source,
+        _ref_text(t.ref),
     )
 
 
@@ -200,6 +231,7 @@ def _transaction(r: sqlite3.Row) -> Transaction:
         bank_category=r["bank_category"],
         counterparty=r["counterparty"],
         source=r["source"],
+        ref=_ref(r["ref"]),
     )
 
 

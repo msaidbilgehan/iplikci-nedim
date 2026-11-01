@@ -36,13 +36,14 @@ def read(doc: SourceDocument) -> ParseResult:
     account = bank_account("Garanti BBVA", m[2], m[3].upper())
     cols = {name: i for i, name in enumerate(str(v).strip() for v in rows[header])}
     moves = []
-    for r in rows[header + 1 :]:
+    for i, r in enumerate(rows[header + 1 :], header + 1):
         d = to_date(r[cols["Tarih"]])
         amount = to_number(r[cols["Tutar"]])
         if not d or amount is None:
             continue
         desc, label = str(r[cols["Açıklama"]]).strip(), str(r[cols["Etiket"]]).strip()
-        moves.append(Movement(d, desc, amount, to_number(r[cols["Bakiye"]]), label, _counterparty(desc, label)))
+        balance, party = to_number(r[cols["Bakiye"]]), _counterparty(desc, label)
+        moves.append(Movement(d, desc, amount, balance, label, party, doc.row_ref(i)))
     start, end = parse_dmy(info.get("Başlangıç", "")), parse_dmy(info.get("Bitiş", ""))
     stmt = build_statement(doc, account, moves, start, end, oldest_first=False)
     # Company accounts carry "Şirket Ünvanı" instead of "Ad Soyad".

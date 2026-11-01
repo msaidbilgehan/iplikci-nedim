@@ -22,6 +22,19 @@ class Account:
     note: str = ""
 
 
+@dataclass(frozen=True)
+class SourceRef:
+    """Where a row is printed in its document (architecture §10): a PDF page with the line's box or its line number
+    in the page's text, a spreadsheet's sheet and row, or a span of an HTML document's text."""
+
+    page: int | None = None  # 1-based
+    box: tuple[float, float, float, float] | None = None  # x0, top, x1, bottom in points from the page's top left
+    line: int | None = None  # 1-based line of the page's text, where the reader reads text rather than boxes
+    sheet: str | None = None  # the sheet's name; "" for an HTML table
+    row: int | None = None  # 1-based row of the sheet or table
+    span: tuple[int, int] | None = None  # start and end in the document's text, its whitespace collapsed
+
+
 @dataclass
 class Transaction:
     """A row. For every kind an amount above zero is money leaving the user, below zero money coming in."""
@@ -36,6 +49,7 @@ class Transaction:
     bank_category: str = ""  # category heading printed by the bank, if any
     counterparty: str = ""  # sender/receiver of a bank transfer
     source: str = ""
+    ref: SourceRef | None = None  # where the row is printed in the document
     # Filled in by categorize.py; necessity only for spending (purchases, refunds, fees, money sent to people).
     merchant: str = ""
     category: str = ""

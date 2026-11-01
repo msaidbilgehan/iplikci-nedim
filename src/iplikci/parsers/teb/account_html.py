@@ -28,7 +28,7 @@ def read(doc: SourceDocument) -> ParseResult:
     kind = fold(info.get("Hesap Türü", ""))
     currency = "GR" if kind.endswith("GR") else "TL"
     moves = []
-    for r in rows:
+    for i, r in enumerate(rows):
         if len(r) != 7 or not re.match(r"\d{2}/\d{2}/\d{4}$", r[0]):
             continue
         amount = to_number(r[4])
@@ -36,7 +36,8 @@ def read(doc: SourceDocument) -> ParseResult:
             continue
         desc = r[3]
         sender = re.match(r"(.+?)\s+den gelen", desc)
-        moves.append(Movement(parse_dmy(r[0]), desc, amount, to_number(r[5]), "", sender[1] if sender else ""))
+        party = sender[1] if sender else ""
+        moves.append(Movement(parse_dmy(r[0]), desc, amount, to_number(r[5]), "", party, doc.row_ref(i)))
     if not number:
         raise Skipped("TEB hesap bilgisi yok")
     # A TL account that runs below zero is the overdraft (KMH) account.

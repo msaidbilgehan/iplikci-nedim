@@ -122,6 +122,7 @@ def read(doc: SourceDocument) -> ParseResult:
                 account=account.id,
                 installment=installment_label(taksit_text),
                 source=doc.name,
+                ref=line.ref,
             )
             stmt.transactions.append(last)
 

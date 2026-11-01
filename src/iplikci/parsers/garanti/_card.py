@@ -126,6 +126,7 @@ def read_statement(doc: SourceDocument) -> ParseResult:
                     installment=installment_label(extra),
                     bank_category="" if in_cash_section else section,
                     source=doc.name,
+                    ref=line.ref,
                 )
             )
 

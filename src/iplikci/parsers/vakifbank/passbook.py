@@ -52,7 +52,7 @@ def read(doc: SourceDocument) -> ParseResult:
         amount, balance = parse_tr_amount(words[2]), parse_tr_amount(words[3])
         if amount is None or balance is None:
             continue
-        moves.append(Movement(parse_dmy(words[1]), " ".join(words[4:]), amount, balance))
+        moves.append(Movement(parse_dmy(words[1]), " ".join(words[4:]), amount, balance, ref=line.ref))
     if not moves:
         raise Skipped("e-cüzdanda hareket yok")
     opened = parse_dmy(info.get("HESAP ACILIS TARIHI", ""))

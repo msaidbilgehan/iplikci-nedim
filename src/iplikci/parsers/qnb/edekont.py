@@ -8,16 +8,18 @@ with the other documents (analysis.py).
 """
 
 import re
+from bisect import bisect_right
+from collections.abc import Callable
 from decimal import Decimal
 
 from ...domain.codes import AccountType, DocumentKind, TransactionKind
-from ...domain.models import Account, ParseResult, Transaction
+from ...domain.models import Account, ParseResult, SourceRef, Transaction
 from ...domain.money import round_half_up
 from ...domain.text import fold, title_tr
 from ..common import Skipped
 from ..contract import Detection, Format, Probe, SourceDocument
 from ..pdf import page_text
-from ..text import parse_dmy, parse_us_amount
+from ..text import parse_dmy, parse_us_amount, unfold_span
 
 ID = "qnb.edekont"
 
@@ -42,9 +44,27 @@ def _account_main(text: str) -> Account:
     )
 
 
-def read_text(doc: SourceDocument, text: str) -> ParseResult:
+def _locator(pages: list[str] | None) -> Callable[[tuple[int, int] | None], SourceRef]:
+    """Where a span of the text is: the span, and for a PDF (pages: each page's text) the page it is on."""
+    starts: list[int] = []
+    offset = 0
+    for page in pages or []:
+        flat = " ".join(page.split())
+        if flat:
+            starts.append(offset)
+            offset += len(flat) + 1
+
+    def ref(span: tuple[int, int] | None) -> SourceRef:
+        page = bisect_right(starts, span[0]) if span and starts else None
+        return SourceRef(page=page, span=span)
+
+    return ref
+
+
+def read_text(doc: SourceDocument, text: str, pages: list[str] | None = None) -> ParseResult:
     t = " ".join(text.split())
     f = fold(t)
+    where = _locator(pages)
     when = re.search(r"ISLEM TARIHI (\d{2}/\d{2}/\d{4})", f)
     fis = re.search(r"FIS NO ?: ?(\d+)", f)
     if not when:
@@ -52,8 +72,12 @@ def read_text(doc: SourceDocument, text: str) -> ParseResult:
     day = parse_dmy(when[1])
     key = f"qnb-{fis[1] if fis else doc.sha256}"
     holder = re.search(r"DEKONT\s+([A-ZÇĞİÖŞÜ ]+?)\s+(?:MUSTERI NO|[A-ZÇĞİÖŞÜ]+ MAH)", t)
-    table = t[f.find("PARA CINSI TUTAR") + len("PARA CINSI TUTAR") :] if "PARA CINSI TUTAR" in f else t
-    rows = [(m["desc"], m["ba"], m["cur"], parse_us_amount(m["amt"])) for m in _ROW.finditer(table)]
+    off = f.find("PARA CINSI TUTAR") + len("PARA CINSI TUTAR") if "PARA CINSI TUTAR" in f else 0
+    table = t[off:]
+    rows = [
+        (m["desc"], m["ba"], m["cur"], parse_us_amount(m["amt"]), (off + m.start(), off + m.end()))
+        for m in _ROW.finditer(table)
+    ]
     result = ParseResult(parser=ID, receipt_key=key, holder=holder[1] if holder else "")
 
     loan = re.search(r"(\d{5}-BT-\d+) REFERANSLI KREDI (\d{2}/\d{2}/\d{4}) TARIHLI TAKSIT ODEMESI", f)
@@ -81,6 +105,7 @@ def read_text(doc: SourceDocument, text: str) -> ParseResult:
                 kind=TransactionKind.LOAN_PRINCIPAL,
                 account=acct.id,
                 source=doc.name,
+                ref=where(unfold_span(t, parts.start(1), parts.end(1))),
             ),
             Transaction(
                 date=day,
@@ -89,6 +114,7 @@ def read_text(doc: SourceDocument, text: str) -> ParseResult:
                 kind=TransactionKind.INTEREST_FEE,
                 account=acct.id,
                 source=doc.name,
+                ref=where(unfold_span(t, parts.start(2), parts.end(4))),
             ),
         ]
         return result
@@ -112,6 +138,7 @@ def read_text(doc: SourceDocument, text: str) -> ParseResult:
                 kind=TransactionKind.CARD_PAYMENT_NO_STATEMENT,
                 account=acct.id,
                 source=doc.name,
+                ref=where(rows[0][4]),
             )
         )
         return result
@@ -124,7 +151,7 @@ def read_text(doc: SourceDocument, text: str) -> ParseResult:
     note = re.search(r"ACIKLAMA: ?(.+?) (?:GONDEREN|ALICI) ", f)
     bank = re.search(r"(?:KATILIMCI|BANKA ADI/SUBESI): ?([A-Z ]+?BANKASI)", f)
     bank_name = _BANKS.get(bank[1].strip(), title_tr(bank[1].strip())) if bank else ""
-    for desc, ba, cur, amount in rows:
+    for desc, ba, cur, amount, span in rows:
         if amount is None or cur != "TL":
             continue
         if "UCRET" in fold(desc):
@@ -136,6 +163,7 @@ def read_text(doc: SourceDocument, text: str) -> ParseResult:
                     kind=TransactionKind.INTEREST_FEE,
                     account=main.id,
                     source=doc.name,
+                    ref=where(span),
                 )
             )
             continue
@@ -154,6 +182,7 @@ def read_text(doc: SourceDocument, text: str) -> ParseResult:
                 account=main.id,
                 counterparty=_other_side(desc, t, incoming),
                 source=doc.name,
+                ref=where(span),
             )
         )
     return result
@@ -199,7 +228,8 @@ class Edekont:
     def parse(self, doc: SourceDocument) -> ParseResult:
         if doc.kind == "html" or doc.ext in (".html", ".htm"):
             return read_text(doc, doc.text)
-        return read_text(doc, " ".join(page_text(p) for p in doc.pdf.pages))
+        pages = [page_text(p) for p in doc.pdf.pages]
+        return read_text(doc, " ".join(pages), pages)
 
 
 PARSER = Edekont()

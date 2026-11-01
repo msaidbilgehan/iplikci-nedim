@@ -36,7 +36,7 @@ def read(doc: SourceDocument) -> ParseResult:
     col = {n: i for i, n in enumerate(names) if n}
     desc_start, desc_end = col["Açıklama"], col.get("Referans", len(names))
     moves = []
-    for r in rows[header + 1 :]:
+    for i, r in enumerate(rows[header + 1 :], header + 1):
         d = to_date(str(r[0]))
         amount = to_number(r[col["İşlem Tutarı*"]])
         if not d or amount is None:
@@ -44,7 +44,7 @@ def read(doc: SourceDocument) -> ParseResult:
         desc = " ".join(str(v).strip() for v in r[desc_start:desc_end] if str(v).strip())
         label = str(r[col["İşlem Tipi"]]).strip()
         counterparty = desc.split("*")[0].strip() if label in ("FAST", "EFT", "Havale") and "*" in desc else ""
-        moves.append(Movement(d, desc, amount, to_number(r[col["Bakiye"]]), label, counterparty))
+        moves.append(Movement(d, desc, amount, to_number(r[col["Bakiye"]]), label, counterparty, doc.row_ref(i)))
     start, end = period_of(info.get("Sorgulama Kriterleri", ""))
     stmt = build_statement(doc, account, moves, start, end, oldest_first=False)
     return ParseResult(parser=ID, accounts=[account], statements=[stmt], holder=holder)

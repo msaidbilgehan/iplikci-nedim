@@ -39,8 +39,9 @@ def _rows(lines: list[Line], holder: str) -> list[tuple[int, Movement]]:
         desc = " ".join(w.text for w in words[2:] if w.x1 <= used[0].x0)
         # "HESAP AÇMA İŞLEMİ 1234:0123456 -> 1234:0765432": money moved between the holder's own accounts.
         own = "->" in desc or "HESAP ACMA" in fold(desc)
+        party = holder if own else ""
         rows.append(
-            (int(words[0].text), Movement(parse_dmy(words[1].text), desc, amount, balance, "", holder if own else ""))
+            (int(words[0].text), Movement(parse_dmy(words[1].text), desc, amount, balance, "", party, line.ref))
         )
     return rows
 

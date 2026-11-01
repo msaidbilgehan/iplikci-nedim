@@ -1,14 +1,17 @@
 """The reader plugin contract (ADR-0005): the registry, and choosing the one reader that recognises a document."""
 
 from dataclasses import dataclass
+from datetime import date
+from decimal import Decimal
 
 import pytest
 
-from iplikci import parsers
+from iplikci import demo, parsers
 from iplikci.domain.codes import DocumentKind
 from iplikci.domain.models import ParseResult
 from iplikci.parsers import registry
 from iplikci.parsers.contract import Detection, Format, Parser, Probe, SourceDocument
+from iplikci.sources import Document
 
 # Architecture §10: the readers that come from the MVP.
 SHIPPED = {
@@ -116,3 +119,38 @@ def test_an_installed_reader_that_breaks_the_contract_is_refused(monkeypatch):
     monkeypatch.setattr(registry, "entry_points", lambda group: entries)
     with pytest.raises(registry.RegistryError, match="bozuk"):
         registry._installed()
+
+
+# --- where every row is printed ------------------------------------------------------------------------------
+
+
+def _rows(result: ParseResult) -> list:
+    return [t for s in result.statements for t in s.transactions] + result.transactions
+
+
+def test_every_row_of_the_demo_documents_says_where_it_is_printed():
+    read = 0
+    for path, data in demo.documents().items():
+        try:
+            result = parsers.parse_document(Document(path.rpartition("/")[2], "demo", data, "sha"))
+        except parsers.Skipped:
+            continue  # the company's list and the form that is no statement
+        rows = _rows(result)
+        read += len(rows)
+        assert all(t.ref and (t.ref.box or t.ref.line or t.ref.row or t.ref.span) for t in rows), path
+    assert read > 100
+
+
+def test_a_pdf_row_is_its_page_and_the_box_of_its_line():
+    fast = demo.garanti_fast_body("ŞUBAT AİDAT", "ÖRNEK SİTE YÖNETİMİ")
+    data = demo.garanti_receipt("HESAPTAN FAST", "106/1234567", demo.HOLDER, fast, "- 1.250,00 TL")
+    transfer, fee = parsers.parse_document(Document("dekont.pdf", "test", data, "sha")).transactions
+    assert transfer.ref.page == 1 and transfer.ref.box[1] == pytest.approx(563, abs=1)  # the SIRA NO … TUTAR line
+    assert fee.ref.page == 1 and fee.ref.box[1] == pytest.approx(407, abs=1)  # KOMİSYON TOPLAMI
+
+
+def test_a_table_row_is_its_row_number():
+    rows = demo.running_rows([demo.Move(date(2026, 1, 5), "ORNEK KAHVE", Decimal(-180))])
+    result = parsers.parse_document(Document("liste.xls", "test", demo.teb_export(rows), "sha"))
+    (coffee,) = result.statements[0].transactions
+    assert (coffee.ref.sheet, coffee.ref.row) == ("", 9)  # the HTML table's ninth row, under the header row

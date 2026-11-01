@@ -33,13 +33,18 @@ class _Fields:
         self.header_end = next((line.top for line in lines if line.folded.startswith("DUZENLENME")), 0.0)
 
     def get(self, label: str) -> str:
+        line = self.line(label)
+        if line is None:
+            return ""
+        words = [w for w in line.words if w.x0 < _RIGHT_COLUMN or line.top > self.header_end]
+        return " ".join(w.text for w in words).split(":", 1)[1].strip()
+
+    def line(self, label: str) -> Line | None:
         for line in self.lines:
             f = line.folded
-            if not f.startswith(label) or not f[len(label) :].lstrip().startswith(":"):
-                continue  # "ALACAKLI IBAN" is not "ALACAKLI"
-            words = [w for w in line.words if w.x0 < _RIGHT_COLUMN or line.top > self.header_end]
-            return " ".join(w.text for w in words).split(":", 1)[1].strip()
-        return ""
+            if f.startswith(label) and f[len(label) :].lstrip().startswith(":"):
+                return line  # "ALACAKLI IBAN" is not "ALACAKLI"
+        return None
 
 
 def _holder(lines: list[Line]) -> str:
@@ -51,13 +56,13 @@ def _holder(lines: list[Line]) -> str:
     return ""
 
 
-def _amount(lines: list[Line]) -> tuple[Decimal, str] | None:
-    """'TUTAR : - 500,00 TL' on the SIRA NO line: (signed amount as printed, currency)."""
+def _amount(lines: list[Line]) -> tuple[Decimal, str, Line] | None:
+    """'TUTAR : - 500,00 TL' on the SIRA NO line: (signed amount as printed, currency, the line)."""
     for line in lines:
         m = re.search(r"\bTUTAR\s*:\s*([+-])?\s*([\d.]+,\d{2})\s*(TL|EUR|USD|GBP)\b", line.folded)
         if m and line.folded.startswith("SIRA NO"):
             value = parse_tr_amount(m[2])
-            return (-value if m[1] == "-" else value), currency_code(m[3])
+            return (-value if m[1] == "-" else value), currency_code(m[3]), line
     return None
 
 
@@ -97,7 +102,7 @@ def read(doc: SourceDocument) -> ParseResult:
     amount = _amount(lines)
     if not (number and day and amount):
         raise ValueError("Garanti dekontunda hesap numarası, işlem tarihi ya da tutar bulunamadı")
-    printed, currency = amount
+    printed, currency, printed_on = amount
     branch = next((i for i, line in enumerate(lines) if line.folded.startswith("SUBE ADI")), 0)
     heading = lines[branch - 1].folded if branch else ""  # the receipt's title sits right above
     title = _TITLES.get(heading) or ("Gelen Transfer" if printed > 0 else title_tr(heading) or "Transfer")
@@ -129,10 +134,12 @@ def read(doc: SourceDocument) -> ParseResult:
             account=account.id,
             counterparty=party,
             source=doc.name,
+            ref=printed_on.ref,
             original=f"{format_amount(abs(printed))} {currency}" if currency != TRY else "",
         )
     )
-    fee_text = fields.get("KOMISYON TOPLAMI") or fields.get("MASRAF TOPLAMI")
+    fee_label = "KOMISYON TOPLAMI" if fields.get("KOMISYON TOPLAMI") else "MASRAF TOPLAMI"
+    fee_text = fields.get(fee_label)
     fee = re.match(r"([\d.]+,\d{2})\s*(TL|EUR|USD|GBP)?", fee_text)
     payer = _fee_account(fields, currency_code(fee[2] or ""), account) if fee and parse_tr_amount(fee[1]) else None
     if payer:
@@ -146,6 +153,7 @@ def read(doc: SourceDocument) -> ParseResult:
                 kind=TransactionKind.INTEREST_FEE,
                 account=payer.id,
                 source=doc.name,
+                ref=fields.line(fee_label).ref,
             )
         )
     return result

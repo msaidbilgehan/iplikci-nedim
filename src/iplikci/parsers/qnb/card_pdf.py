@@ -9,10 +9,10 @@ import re
 from decimal import Decimal
 
 from ...domain.codes import AccountType, DocumentKind
-from ...domain.models import TRY, Account, ParseResult, Statement, Transaction
+from ...domain.models import TRY, Account, ParseResult, SourceRef, Statement, Transaction
 from ..common import classify_kind
 from ..contract import Detection, Format, Probe, SourceDocument
-from ..pdf import page_text
+from ..pdf import numbered_lines, page_text
 from ..text import parse_dmy
 from ._amounts import US_AMOUNT, us_signed
 
@@ -37,7 +37,8 @@ def _repair(desc: str) -> str:
 
 
 def read(doc: SourceDocument) -> ParseResult:
-    text = _clean("\n".join(page_text(p) for p in doc.pdf.pages))
+    pages = [_clean(page_text(p)) for p in doc.pdf.pages]
+    text = "\n".join(pages)
     card = re.search(r"Kredi Kartı Numarası\s*:\s*\d{4}\s*\d{2}\*\*\s*\*{4}\s*(\d{4})", text)
     cut = re.search(r"Hesap Kesim Tarihi\s*:\s*(\d{2}/\d{2}/\d{4})", text)
     previous = re.search(r"nceki\s+D\S*nem\s+Bakiyeniz\s+(" + US_AMOUNT + ")", text)
@@ -56,7 +57,7 @@ def read(doc: SourceDocument) -> ParseResult:
         previous=_us(previous),
         total=_us(total),
     )
-    for line in text.splitlines():
+    for page, number, line in numbered_lines(pages):
         m = re.match(r"^(\d{2}/\d{2}/\d{4})\s+(.+?)\s+(" + US_AMOUNT + r")$", line.strip())
         if not m:
             continue
@@ -69,6 +70,7 @@ def read(doc: SourceDocument) -> ParseResult:
                 kind=classify_kind(desc, amount),
                 account=account.id,
                 source=doc.name,
+                ref=SourceRef(page=page, line=number),
             )
         )
     holder = re.search(r"Sn\.\s*([A-ZÇĞİÖŞÜa-zçğıöşü. ]+?)(?:\s{2,}|\n|$)", text)

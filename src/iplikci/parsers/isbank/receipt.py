@@ -28,15 +28,18 @@ def _columns(line: Line) -> list[list[Word]]:
     return [line.words]
 
 
-def _fields(lines: list[Line]) -> dict[str, str]:
+def _fields(lines: list[Line]) -> tuple[dict[str, str], dict[str, Line]]:
+    """The 'label : value' pairs by folded label, and the line each one is printed on."""
     out: dict[str, str] = {}
+    where: dict[str, Line] = {}
     for line in lines:
         for words in _columns(line):
             text = " ".join(w.text for w in words)
             if ":" in text:
                 label, value = text.split(":", 1)  # "İşlem Tarihi : 08.02.2024 / 14:32:05"
                 out.setdefault(fold(label), value.strip())
-    return out
+                where.setdefault(fold(label), line)
+    return out, where
 
 
 def _amount(text: str) -> Decimal | None:
@@ -46,7 +49,7 @@ def _amount(text: str) -> Decimal | None:
 
 def read(doc: SourceDocument) -> ParseResult:
     lines = page_lines(doc.pdf.pages[0])
-    fields = _fields(lines)
+    fields, where = _fields(lines)
     first = lines[0].words if lines else []
     holder = (
         "" if any(":" in w.text for w in first if w.x0 < _RIGHT) else " ".join(w.text for w in first if w.x0 < _RIGHT)
@@ -86,9 +89,11 @@ def read(doc: SourceDocument) -> ParseResult:
             account=account.id,
             counterparty=party,
             source=doc.name,
+            ref=where["ISLEM TUTARI"].ref,
         )
     )
-    fee = _amount(next((v for k, v in fields.items() if k.endswith("UCRETI VE VERGI")), ""))
+    fee_label = next((k for k in fields if k.endswith("UCRETI VE VERGI")), "")
+    fee = _amount(fields.get(fee_label, ""))
     if fee:
         result.transactions.append(
             Transaction(
@@ -98,6 +103,7 @@ def read(doc: SourceDocument) -> ParseResult:
                 kind=TransactionKind.INTEREST_FEE,
                 account=account.id,
                 source=doc.name,
+                ref=where[fee_label].ref,
             )
         )
     return result

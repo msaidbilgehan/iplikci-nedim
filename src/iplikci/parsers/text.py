@@ -84,3 +84,15 @@ def parse_tr_words_date(day: str, month: str, year: str) -> date | None:
         return date(int(year), mon, int(day))
     except ValueError:
         return None
+
+
+def unfold_span(text: str, start: int, end: int) -> tuple[int, int] | None:
+    """The span of text that fold(text)[start:end] came from. Folding can change a text's length (a letter with a
+    combining mark loses the mark, runs of spaces become one), so a span found in the folded text never cuts the
+    original directly; None when folding the letters one by one does not give fold(text)."""
+    where: list[int] = []
+    for i, c in enumerate(text):
+        where.extend([i] * len(" " if c.isspace() else fold(c)))
+    if len(where) != len(fold(text)) or not 0 <= start < end <= len(where):
+        return None
+    return where[start], where[end - 1] + 1

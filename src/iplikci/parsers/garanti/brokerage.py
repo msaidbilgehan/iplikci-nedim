@@ -115,7 +115,7 @@ def _cash_moves(lines: list[Line]) -> list[Movement]:
         if not (day and change and balance) or _us(change.text) is None:
             continue
         desc = " ".join(w.text for w in words[1:] if w.x1 <= change.x0)
-        moves.append(Movement(day, desc, _us(change.text), _us(balance.text)))
+        moves.append(Movement(day, desc, _us(change.text), _us(balance.text), ref=line.ref))
     return moves
 
 
@@ -267,9 +267,11 @@ def _form(doc: SourceDocument, lines: list[Line]) -> ParseResult:
                 description=f"Hisse {'satışı' if sale else 'alışı'}: {words[1]} {_count(quantity or 0)} adet × "
                 f"{_price(price or 0)} TL",
                 source=doc.name,
+                ref=line.ref,
             )
         )
     fees = _tr3(total[1]) if total else None
+    fees_on = next((line for line in lines if "GENEL TOPLAM" in line.folded), None)
     if fees:
         result.transactions.append(
             Transaction(
@@ -279,6 +281,7 @@ def _form(doc: SourceDocument, lines: list[Line]) -> ParseResult:
                 kind=TransactionKind.INTEREST_FEE,
                 account=account.id,
                 source=doc.name,
+                ref=fees_on.ref if fees_on else None,
             )
         )
     if not result.transactions:

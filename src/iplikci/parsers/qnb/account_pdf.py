@@ -3,12 +3,12 @@
 import re
 
 from ...domain.codes import AccountType, DocumentKind
-from ...domain.models import Account, ParseResult
+from ...domain.models import Account, ParseResult, SourceRef
 from ...domain.text import fold
 from ..accounts import bank_from_iban
 from ..contract import Detection, Format, Probe, SourceDocument
 from ..movements import Movement, build_statement
-from ..pdf import page_text
+from ..pdf import numbered_lines, page_text
 from ..text import parse_dmy
 from ._amounts import US_AMOUNT, us_signed
 
@@ -30,7 +30,8 @@ def _counterparty(head: str) -> str:
 
 
 def read(doc: SourceDocument) -> ParseResult:
-    text = "\n".join(page_text(p) for p in doc.pdf.pages)
+    pages = [page_text(p) for p in doc.pdf.pages]
+    text = "\n".join(pages)
     iban = re.search(r"Iban\s*:\s*(TR[\d ]+?)\s+Ad Soyad\s*:\s*(.+)", text)
     period = re.search(r"Tarih Aralığı\s*:\s*(\d{2}/\d{2}/\d{4})\s*-\s*(\d{2}/\d{2}/\d{4})", text)
     opening = re.search(r"DEVREDEN BAKİYE\s+(" + US_AMOUNT + ")", text)
@@ -49,7 +50,7 @@ def read(doc: SourceDocument) -> ParseResult:
     moves: list[Movement] = []
     head = ""
     last_from_head = False
-    for raw in text.splitlines():
+    for page, number, raw in numbered_lines(pages):
         line = raw.strip()
         m = re.match(r"^(\d{2}/\d{2}/\d{4})\s+(\S+)\s*(.*?)\s*(" + US_AMOUNT + r")\s+(" + US_AMOUNT + r")$", line)
         if m:
@@ -62,6 +63,7 @@ def read(doc: SourceDocument) -> ParseResult:
                     us_signed(m[5]),
                     m[2],
                     _counterparty(head) if not m[3] else "",
+                    SourceRef(page=page, line=number),
                 )
             )
             last_from_head, head = not m[3] and bool(head), ""

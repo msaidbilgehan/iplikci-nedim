@@ -25,19 +25,22 @@ def sniff(data: bytes) -> str:
     return ""
 
 
-def read_xls(data: bytes) -> list[list[Any]]:
+def read_xls(data: bytes) -> tuple[str, list[list[Any]]]:
+    """The first sheet's name and rows."""
     import xlrd
 
     sheet = xlrd.open_workbook(file_contents=data).sheet_by_index(0)
-    return [[sheet.cell_value(r, c) for c in range(sheet.ncols)] for r in range(sheet.nrows)]
+    return sheet.name, [[sheet.cell_value(r, c) for c in range(sheet.ncols)] for r in range(sheet.nrows)]
 
 
-def read_xlsx(data: bytes) -> list[list[Any]]:
+def read_xlsx(data: bytes) -> tuple[str, list[list[Any]]]:
+    """The first sheet's name and rows."""
     import openpyxl
 
     wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
     try:
-        return [list(r) for r in wb.worksheets[0].iter_rows(values_only=True)]
+        sheet = wb.worksheets[0]
+        return sheet.title, [list(r) for r in sheet.iter_rows(values_only=True)]
     finally:
         wb.close()
 

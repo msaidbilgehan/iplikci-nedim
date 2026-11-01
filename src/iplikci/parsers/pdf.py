@@ -7,10 +7,12 @@ that 0,04 sits in the reward-points column and 289,90 in the amount column.
 
 import io
 import re
+from bisect import bisect_right
 from dataclasses import dataclass
 
 import pdfplumber
 
+from ..domain.models import SourceRef
 from ..domain.text import fold
 from .text import parse_tr_amount
 
@@ -24,12 +26,14 @@ class Word:
     x0: float
     x1: float
     top: float
+    bottom: float | None = None
 
 
 @dataclass
 class Line:
     top: float
     words: list[Word]
+    page: int | None = None  # 1-based
 
     @property
     def text(self) -> str:
@@ -38,6 +42,13 @@ class Line:
     @property
     def folded(self) -> str:
         return fold(self.text)
+
+    @property
+    def ref(self) -> SourceRef:
+        """The line's page and the box around its words, in points rounded to a hundredth."""
+        x0, x1 = min(w.x0 for w in self.words), max(w.x1 for w in self.words)
+        bottom = max((w.bottom if w.bottom is not None else w.top) for w in self.words)
+        return SourceRef(page=self.page, box=(round(x0, 2), round(self.top, 2), round(x1, 2), round(bottom, 2)))
 
 
 def open_pdf(data: bytes):
@@ -48,13 +59,13 @@ def page_text(page) -> str:
     return page.extract_text(x_tolerance=1.5) or ""
 
 
-def _group_lines(words: list[Word], y_tolerance: float) -> list[Line]:
+def _group_lines(words: list[Word], y_tolerance: float, page: int | None = None) -> list[Line]:
     lines: list[Line] = []
     for w in sorted(words, key=lambda w: w.top):
         if lines and w.top - lines[-1].top <= y_tolerance:
             lines[-1].words.append(w)
         else:
-            lines.append(Line(w.top, [w]))
+            lines.append(Line(w.top, [w], page))
     for line in lines:
         line.words.sort(key=lambda w: w.x0)
     return lines
@@ -63,12 +74,12 @@ def _group_lines(words: list[Word], y_tolerance: float) -> list[Line]:
 def page_lines(page, x_tolerance: float = 1.0, y_tolerance: float = 2.0) -> list[Line]:
     raw = page.extract_words(x_tolerance=x_tolerance, y_tolerance=y_tolerance, keep_blank_chars=False)
     words = [
-        Word(w["text"], w["x0"], w["x1"], w["top"])
+        Word(w["text"], w["x0"], w["x1"], w["top"], w["bottom"])
         for w in raw
         # İş Bankası prints fold marks ("-") in the left page margin.
         if not _JUNK.fullmatch(w["text"]) and not (w["text"] == "-" and w["x1"] < 30)
     ]
-    return _group_lines(words, y_tolerance)
+    return _group_lines(words, y_tolerance, page.page_number)
 
 
 # --- OCR for statements delivered as page images (macOS Vision framework) ----
@@ -112,9 +123,10 @@ def ocr_page_lines(data: bytes, page_index: int, y_tolerance: float = 4.0) -> li
                 box.origin.x * width,
                 (box.origin.x + box.size.width) * width,
                 (1 - box.origin.y - box.size.height) * height,
+                (1 - box.origin.y) * height,
             )
         )
-    return _group_lines(words, y_tolerance)
+    return _group_lines(words, y_tolerance, page_index + 1)
 
 
 def label_values(lines: list[Line]) -> dict[str, str]:
@@ -173,3 +185,23 @@ def take_amount(line: Line, edge: float, align: str = "right", tolerance: float 
                     value = -abs(value)
         return value, used
     return None, []
+
+
+def numbered_lines(texts: list[str]) -> list[tuple[int, int, str]]:
+    """(page, line on that page, line) for every line of the pages' texts joined with line breaks, so a reader that
+    reads the joined text line by line still knows where each line is printed."""
+    joined = "\n".join(texts)
+    starts, offset = [], 0
+    for text in texts:
+        starts.append(offset)
+        offset += len(text) + 1
+    out: list[tuple[int, int, str]] = []
+    offset, page, counted = 0, 0, 0
+    for line in joined.splitlines(keepends=True):
+        here = bisect_right(starts, offset)
+        if here != page:
+            page, counted = here, 0
+        counted += 1
+        out.append((page, counted, line.rstrip("\r\n")))
+        offset += len(line)
+    return out

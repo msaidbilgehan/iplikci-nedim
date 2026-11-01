@@ -19,8 +19,9 @@ from .teb.account_html import holder_info
 __all__ = ["ENCRYPTED_REASON", "NO_OCR_REASON", "PARSER_VERSION", "Skipped", "Unreadable", "parse_document"]
 
 # Bump when what the readers make of a document changes: every stored document is read again. 13: English codes
-# and ISO currencies. 14: exact decimals, halves rounded up. 15: plugin readers, named by their ids.
-PARSER_VERSION = "15"
+# and ISO currencies. 14: exact decimals, halves rounded up. 15: plugin readers, named by their ids. 16: every row
+# knows where it is printed.
+PARSER_VERSION = "16"
 
 ENCRYPTED_REASON = (
     "şifreli PDF — Önizleme'de şifreyle açıp Dosya › PDF Olarak Dışa Aktar ile şifresiz kaydedin ve yeniden ekleyin"

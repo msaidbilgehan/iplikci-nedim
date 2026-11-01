@@ -31,7 +31,7 @@ def read(doc: SourceDocument) -> ParseResult:
         account.label += f" ({nickname})"
     col = {str(v).strip(): i for i, v in enumerate(rows[header]) if v is not None}
     moves = []
-    for r in rows[header + 1 :]:
+    for i, r in enumerate(rows[header + 1 :], header + 1):
         d = to_date(r[col["İŞLEM TARİHİ"]])
         amount = to_number(r[col["TUTAR"]])
         if not d or amount is None:
@@ -49,7 +49,15 @@ def read(doc: SourceDocument) -> ParseResult:
             if company:
                 counterparty = company[1]
         moves.append(
-            Movement(d, f"{label}: {desc}" if label else desc, amount, to_number(r[col["BAKİYE"]]), label, counterparty)
+            Movement(
+                d,
+                f"{label}: {desc}" if label else desc,
+                amount,
+                to_number(r[col["BAKİYE"]]),
+                label,
+                counterparty,
+                doc.row_ref(i),
+            )
         )
     start, end = period_of(info.get("TARİH ARALIĞI", ""))
     stmt = build_statement(doc, account, moves, start, end, oldest_first=True)
