@@ -13,8 +13,9 @@ from pathlib import Path
 
 import pytest
 
-from iplikci import email_fetch
+from iplikci import egress
 from iplikci.app import intake
+from iplikci.app import mail as mail_app
 from iplikci.app.workspace import Workspace
 from iplikci.domain.codes import SourceKind
 from iplikci.fakes import teb
@@ -100,8 +101,8 @@ def no_keyring_or_network(monkeypatch, tmp_path_factory):
         raise AssertionError("a test reached the system keyring or the network")
 
     monkeypatch.setattr(secrets, "_keyring", refuse)
-    monkeypatch.setattr(email_fetch, "connect", refuse)
-    monkeypatch.delenv(email_fetch.PASSWORD_ENV, raising=False)
+    monkeypatch.setattr(egress, "imap", refuse)
+    monkeypatch.delenv("IPLIKCI_MAIL_PASSWORD", raising=False)
     # A test that forgets to name its data folder gets an empty one, never the user's.
     monkeypatch.setenv(HOME_ENV, str(tmp_path_factory.mktemp("iplikci-bos")))
 
@@ -215,21 +216,28 @@ class FakeImap:
 
 @pytest.fixture
 def imap(monkeypatch) -> FakeImap:
-    """A fake mail server; passwords "stored in the keyring" land in imap.stored."""
+    """A fake mail server; passwords "stored in the keyring" land in imap.stored, by address."""
     server = FakeImap()
     server.stored = {}
-    monkeypatch.setattr(email_fetch, "connect", lambda acc: server)
-    monkeypatch.setattr(
-        email_fetch, "store_password", lambda address, secret: server.stored.update({address: secret}) or True
-    )
-    monkeypatch.setattr(email_fetch, "load_password", lambda address: server.stored[address])
-    monkeypatch.setattr(email_fetch, "delete_password", lambda address: server.stored.pop(address, None))
+    server.connections = 0
+
+    def connect(host, port, settings, timeout=60.0):
+        server.connections += 1
+        return server
+
+    def address(secret) -> str:
+        return secret.account.removeprefix("mail:")
+
+    monkeypatch.setattr(egress, "imap", connect)
+    monkeypatch.setattr(secrets, "store", lambda secret, value: server.stored.update({address(secret): value}) or True)
+    monkeypatch.setattr(secrets, "load", lambda secret: server.stored.get(address(secret)))
+    monkeypatch.setattr(secrets, "delete", lambda secret: server.stored.pop(address(secret), None))
     return server
 
 
 @pytest.fixture
 def mail(ws, imap) -> FakeImap:
-    """ws with an e-mail account set up (e-mails from 2026-01-01 on)."""
-    email_fetch.setup(ws, ADDRESS, APP_PASSWORD, date(2026, 1, 1))
+    """ws with an IMAP account set up (e-mails from 2026-01-01 on)."""
+    mail_app.setup_imap(ws, ADDRESS, APP_PASSWORD, date(2026, 1, 1))
     imap.commands.clear()
     return imap

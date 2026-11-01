@@ -26,8 +26,9 @@ from http.cookies import CookieError, SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from . import email_fetch, month_end
+from . import month_end
 from .app import intake
+from .app import mail as email
 from .app.analysis import Current, document_gaps
 from .app.uploads import MAX_UPLOAD_BYTES, UPLOAD_EXTENSIONS, inbox_files, save_upload
 from .app.workspace import Busy, StalePlan, Workspace
@@ -73,8 +74,8 @@ class Panel:
         """The report with the panel's parts, redone when a document, the inbox, the rules or the
         e-mail setup changed (`eposta --kur` may run while the panel is open)."""
         a = self.current.get()
-        status = email_fetch.status(self.ws)
-        mail = {k: status.get(k) for k in ("configured", "address", "lastRun", "lastResult", "lastError")}
+        status = email.status(self.ws)
+        mail = {k: status.get(k) for k in ("configured", "lastRun", "lastError", "stopped")}
         with self._lock:
             if self._page and self._page[0] is a and self._page[1] == mail:
                 return self._page[2]
@@ -140,11 +141,11 @@ class Panel:
         }
 
     def fetch_mail(self) -> dict:
-        """One e-mail fetch (at most email_fetch.MAX_MESSAGES e-mails; "more" asks for another)."""
-        got = email_fetch.fetch(self.ws, wait=10)
+        """One e-mail fetch (at most email.MAX_MESSAGES e-mails; "more" asks for another)."""
+        got = email.fetch(self.ws, wait=10)
         if got.stored:
             self.current.refresh()
-        return got.as_dict() | {"lastRun": email_fetch.status(self.ws).get("lastRun")}
+        return got.as_dict() | {"lastRun": email.status(self.ws).get("lastRun")}
 
 
 class _Body:
@@ -286,9 +287,9 @@ class _Handler(BaseHTTPRequestHandler):
             if path == "/api/eposta":
                 return self._json(self.panel.fetch_mail())
             return self._json({"error": "bulunamadı"}, 404)
-        except (Busy, StalePlan, email_fetch.NotConfigured) as exc:
+        except (Busy, StalePlan, email.NotConfigured) as exc:
             return self._json({"error": str(exc)}, 409)
-        except email_fetch.MailError as exc:  # the mail server refused or could not be reached
+        except email.MailError as exc:  # the mail server refused or could not be reached
             return self._json({"error": str(exc)}, 502)
         except ValueError as exc:
             return self._json({"error": str(exc)}, 400)

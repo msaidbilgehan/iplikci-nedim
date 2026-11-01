@@ -7,7 +7,8 @@ from urllib.parse import quote
 
 import pytest
 
-from iplikci import email_fetch
+from iplikci import egress
+from iplikci.app import mail as mail_app
 from iplikci.fakes import teb
 from iplikci.panel import make_server
 
@@ -118,29 +119,29 @@ def test_unsupported_upload_is_refused_and_answered(panel, ws):
 
 def test_the_mail_button_needs_an_account(panel):
     status, body = post_json(panel, "/api/eposta")
-    assert status == 409 and "eposta --kur" in body["error"]
+    assert status == 409 and body["error"] == mail_app.NOT_SET_UP
 
 
 def test_the_page_shows_an_account_set_up_while_the_panel_runs(panel, ws, imap):
     assert '"mail":{"configured":false' in request(panel, "GET", "/")[1].decode()
-    email_fetch.setup(ws, "kullanici@example.com", "abcdefghijklmnop")  # `eposta --kur` in a terminal
+    mail_app.setup_imap(ws, "kullanici@example.com", "abcdefghijklmnop")  # `eposta --kur` in a terminal
     assert '"mail":{"configured":true' in request(panel, "GET", "/")[1].decode()
 
 
 def test_mail_fetched_through_the_panel_goes_into_the_vault(panel, ws, mail):
     mail.messages[101] = bank_mail(teb.account_export(JANUARY))
     status, body = post_json(panel, "/api/eposta")
-    assert status == 200 and body["stored"] == ["HesapHareketleri.xls"] and body["lastRun"] and not body["more"]
+    assert status == 200 and (body["stored"], body["documents"]) == (1, 2) and body["lastRun"] and not body["more"]
     assert post_json(panel, "/api/plan")[1]["changes"] == 0  # not through the inbox
     page = request(panel, "GET", "/")[1].decode()
     assert '"mail":{"configured":true' in page and "KAHVECI DUKKAN" in page  # the button, and the new statement
 
 
 def test_mail_server_trouble_comes_back_as_an_error(panel, ws, mail, monkeypatch):
-    def offline(acc):
+    def offline(host, port, settings, timeout=60.0):
         raise OSError("ağ yok")
 
-    monkeypatch.setattr(email_fetch, "connect", offline)
+    monkeypatch.setattr(egress, "imap", offline)
     status, body = post_json(panel, "/api/eposta")
     assert status == 502 and "bağlanılamadı" in body["error"]
 

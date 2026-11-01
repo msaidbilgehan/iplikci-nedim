@@ -29,7 +29,7 @@ from ..storage.db import Database
 from ..storage.documents import Source
 from ..vault import trash
 from ..vault.store import sha256_of
-from . import background, reading
+from . import kinds, reading
 from .uploads import file_sha256, inbox_files
 from .workspace import StalePlan, Workspace
 
@@ -321,7 +321,7 @@ def apply(ws: Workspace, plan: Plan, actor: Actor = Actor.USER) -> Applied:
         if folder is not None:
             audit.record(db, actor, "inbox.set_aside", "", files=len(set_aside), trash=folder.name)
         if any(c.verdict is Verdict.STORE for c in plan.items):
-            jobs.add(db, background.REFRESH)  # the service makes the analysis again and tells what changed
+            jobs.add(db, kinds.REFRESH)  # the service makes the analysis again and tells what changed
     _remove_empty_folders(ws.inbox)
     return Applied(counts, plan.items, folder)
 

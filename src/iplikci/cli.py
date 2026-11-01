@@ -6,8 +6,7 @@ iplikci ekle [YOL ...]          belgeleri arşive al: önce plan, --uygula ile u
 iplikci aysonu [AY] [--ac]      ay sonu raporları: hangi ay kapandı, hangisi neyi bekliyor
 iplikci islem ara|duzelt|yetimler   işlem ara; nota, etikete, kategori ve gereklilik düzeltmesine bak ya da ekle
 iplikci panel [--ac]            raporu ve belge ekleme yerini yerel web panelinde aç
-iplikci eposta [--kur]          bankaların e-postayla gönderdiği belgeleri arşive al
-iplikci otomatik [--kur]        e-postayı al, gelen klasörünü arşive al (--kur: kendiliğinden)
+iplikci eposta [--kur]          bankaların e-postalarını IMAP ile al (uygulama şifresine izin veren hesaplar)
 iplikci mcp                     Claude için MCP sunucusu (istemci başlatır)
 iplikci servis calistir         servisi ön planda çalıştır (API, 127.0.0.1)
 iplikci ac                      arayüzü tek kullanımlık giriş bağlantısıyla aç (servis çalışıyor olmalı)
@@ -26,7 +25,7 @@ import shlex
 import sys
 import webbrowser
 from collections import Counter
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -75,7 +74,6 @@ def main(argv: list[str] | None = None) -> int:
         "ekle": add_command,
         "panel": panel_command,
         "eposta": mail_command,
-        "otomatik": automatic,
         "mcp": mcp_command,
         "aysonu": month_end_command,
         "islem": transaction_command,
@@ -644,66 +642,15 @@ def panel_command(argv: list[str]) -> int:
     return panel.serve(_workspace(parser), args.port, args.ac, _progress, _clear_progress)
 
 
-def automatic(argv: list[str]) -> int:
-    from . import automation
-
-    parser = argparse.ArgumentParser(
-        prog="iplikci otomatik",
-        description="E-posta kuruluysa bankaların yeni e-postalarını alır, gelen klasöründeki belgeleri plan "
-        "göstermeden arşive alır, raporu yeniden üretir ve bildirim gösterir. --kur ile kendiliğinden "
-        "çalışır: gelen klasörüne belge düştükçe (macOS, Linux) ve saatte bir.",
-    )
-    which = parser.add_mutually_exclusive_group()
-    which.add_argument(
-        "--kur",
-        action="store_true",
-        help="arka plan görevini kur (macOS: launchd, Linux: systemd, Windows: Görev Zamanlayıcı)",
-    )
-    which.add_argument("--kaldir", action="store_true", help="arka plan görevini kaldır")
-    which.add_argument("--durum", action="store_true", help="arka plan görevinin durumunu göster")
-    parser.add_argument("--kayit", help=argparse.SUPPRESS)  # the Windows task writes its own log
-    parser.add_argument("--ev", help=argparse.SUPPRESS)  # the data folder the installed job works on
-    args = parser.parse_args(argv)
-    if args.kayit:
-        log = open(args.kayit, "a", encoding="utf-8", buffering=1)  # noqa: SIM115 - open for the whole run
-        sys.stdout = sys.stderr = log
-    ws = _workspace(parser, Path(args.ev) if args.ev else None)
-    if args.kur:
-        try:
-            where = automation.install(ws)
-        except (OSError, RuntimeError) as exc:
-            print(f"Kurulamadı: {exc}", file=sys.stderr)
-            return 1
-        print(
-            f"Kuruldu: {where}\nİzlenen klasör: {ws.inbox}\nKayıt: {ws.logs / automation.LOG_NAME}\n"
-            "Kaldırmak için: uv run iplikci otomatik --kaldir"
-        )
-        return 0
-    if args.kaldir:
-        print("Kaldırıldı." if automation.uninstall() else "Kurulu bir arka plan görevi yok.")
-        return 0
-    if args.durum:
-        for key, value in automation.status(ws).items():
-            print(f"{key}: {value}")
-        return 0
-    out = automation.run(ws, notify=not sys.stdout.isatty())
-    print(f"{datetime.now():%Y-%m-%d %H:%M:%S} {out.message}")
-    if out.mail_log:
-        print(f"  {out.mail_log}")
-    if out.trash:
-        print(f"  çöp kutusuna taşınanlar: {out.trash}")
-    return 0
-
-
 def mail_command(argv: list[str]) -> int:
-    from . import email_fetch
+    from .app import mail
 
     parser = argparse.ArgumentParser(
         prog="iplikci eposta",
-        description="Bankaların e-postayla gönderdiği ekstreleri, hesap dökümlerini ve dekontları IMAP ile (Gmail) "
-        "alır ve arşive koyar. E-posta kutusu salt okunur açılır: orada hiçbir şey değişmez. Yalnızca "
-        "settings.toml [mail] bank_senders alan adlarından gelen ve sunucunun göndereni doğruladığı e-postalar "
-        "alınır.",
+        description="Bankaların ve listedeki diğer göndericilerin e-postalarını IMAP ile alır ve arşive koyar "
+        "(uygulama şifresine izin veren hesaplar; Gelişmiş Koruma'daki Gmail için tarayıcı eklentisi var). E-posta "
+        "kutusu salt okunur açılır: orada hiçbir şey değişmez. Yalnızca listedeki alan adlarından gelen ve sunucunun "
+        "göndereni doğruladığı e-postalar alınır.",
     )
     which = parser.add_mutually_exclusive_group()
     which.add_argument("--kur", action="store_true", help="e-posta hesabını kur (adres ve uygulama şifresi sorulur)")
@@ -721,38 +668,46 @@ def mail_command(argv: list[str]) -> int:
     if args.kur:
         try:
             return _mail_setup(ws, args)
-        except (email_fetch.MailError, Busy, argparse.ArgumentTypeError) as exc:
+        except (mail.MailError, Busy, argparse.ArgumentTypeError) as exc:
             print(f"Kurulamadı: {exc}", file=sys.stderr)
         except (EOFError, KeyboardInterrupt):
             print("\nKurulum yarıda bırakıldı; hiçbir şey kaydedilmedi.", file=sys.stderr)
         return 1
     try:
         if args.durum:
-            for key, value in email_fetch.status(ws).items():
+            for key, value in mail.status(ws).items():
                 print(f"{key}: {value}")
             return 0
         if args.kaldir:
-            print("Hesap ve şifresi silindi." if email_fetch.forget(ws) else "Kurulu bir e-posta hesabı yok.")
+            print("Hesap ve şifresi silindi." if mail.remove(ws) else "Kurulu bir IMAP hesabı yok.")
             return 0
         if args.baslangic:
-            email_fetch.set_start(ws, args.baslangic)
-        acc = email_fetch.account(ws)
+            mail.set_start(ws, args.baslangic)
+        acc = mail.account(ws)
         if acc is None:
-            raise email_fetch.NotConfigured(email_fetch.SETUP_HINT)
-        print(f"{acc.address} okunuyor ({acc.server}, {acc.start:%d.%m.%Y} sonrası)…", file=sys.stderr)
+            raise mail.NotConfigured(f"{mail.NOT_SET_UP} Kurmak için: uv run iplikci eposta --kur")
+        print(f"E-posta kutusu okunuyor ({acc.server}, {acc.start:%d.%m.%Y} sonrası)…", file=sys.stderr)
         while True:
-            out = email_fetch.fetch(ws, progress=_mail_progress)
+            out = mail.fetch(ws, progress=_mail_progress)
             _clear_progress()
             print(out.message)
-            for c in out.stored:
-                print(f"  + {c.name}")
             if not out.more:
                 break
-    except (email_fetch.MailError, Busy) as exc:
+    except (mail.MailError, Busy) as exc:
         _clear_progress()
         print(f"E-posta alınamadı: {exc}", file=sys.stderr)
         return 1
     return 0
+
+
+MAIL_PASSWORD_HELP = """\
+Gmail, programların girişi için uygulama şifresi ister (normal Gmail şifresi çalışmaz):
+  1. Google hesabınızda 2 Adımlı Doğrulama açık olmalı.
+  2. Google hesabınızın uygulama şifreleri sayfasında "iplikci" adıyla bir uygulama şifresi oluşturun ve
+     gösterilen 16 harfi aşağıya yapıştırın.
+Gelişmiş Koruma'daki hesaplarda uygulama şifresi yoktur; onlar için tarayıcı eklentisi var.
+Şifre bu bilgisayarın anahtar zincirinde saklanır; ayar dosyasına ya da kayıtlara yazılmaz.
+E-posta kutusu salt okunur açılır: orada hiçbir şey okundu işaretlenmez, taşınmaz, silinmez."""
 
 
 def _day(text: str) -> date:
@@ -762,15 +717,15 @@ def _day(text: str) -> date:
         raise argparse.ArgumentTypeError(f"tarih YYYY-AA-GG biçiminde olmalı: {text!r}") from None
 
 
-def _mail_progress(i: int, n: int, name: str) -> None:
+def _mail_progress(i: int, n: int) -> None:
     if sys.stderr.isatty():
         print(f"\r  e-postalar indiriliyor {i}/{n}", end="", file=sys.stderr, flush=True)
 
 
 def _mail_setup(ws: Workspace, args: argparse.Namespace) -> int:
-    from . import email_fetch
+    from .app import mail
 
-    print(email_fetch.APP_PASSWORD_HELP + "\n")
+    print(MAIL_PASSWORD_HELP + "\n")
     address = args.adres or input("E-posta adresi: ").strip()
     if sys.stdin.isatty():
         secret = getpass.getpass("Uygulama şifresi (yazarken görünmez): ")
@@ -778,23 +733,22 @@ def _mail_setup(ws: Workspace, args: argparse.Namespace) -> int:
         secret = sys.stdin.readline().rstrip("\r\n")
     start = args.baslangic
     if start is None and sys.stdin.isatty():
-        default = email_fetch.default_start()
+        default = mail.default_start()
         answer = input(f"Hangi günden sonra gelen e-postalar okunsun? [{default.isoformat()}]: ").strip()
         start = _day(answer) if answer else default
     print("Bağlanılıyor…", file=sys.stderr)
-    acc, stored, folder = email_fetch.setup(ws, address, secret, start)
+    acc, stored, folder = mail.setup_imap(ws, address, secret, start)
     print(f"Bağlandı: '{folder}' klasörü salt okunur açıldı.")
     if stored:
         print("Şifre bu bilgisayarın anahtar zincirinde saklandı.")
     else:
         print(
-            f"Bu sistemde kullanılabilir bir anahtar zinciri yok: şifreyi {email_fetch.PASSWORD_ENV} ortam "
-            "değişkeniyle verin (arka plan görevi için de)."
+            "Bu sistemde kullanılabilir bir anahtar zinciri yok: şifreyi IPLIKCI_MAIL_PASSWORD ortam değişkeniyle "
+            "verin (servis için de)."
         )
     print(
-        f"Kuruldu: {acc.address}, {acc.start:%d.%m.%Y} sonrası, {len(acc.senders)} banka alan adı.\n"
-        "E-postaları şimdi almak için: uv run iplikci eposta\n"
-        "Arka plan görevi kuruluysa (otomatik --kur) yeni e-postalar saatte bir kendiliğinden alınır."
+        f"Kuruldu: {acc.start:%d.%m.%Y} sonrası, {len(acc.senders)} gönderici alan adı.\n"
+        "Servis çalışıyorsa yeni e-postalar kendiliğinden alınır; şimdi almak için: uv run iplikci eposta"
     )
     return 0
 

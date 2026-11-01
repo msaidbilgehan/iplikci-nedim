@@ -8,11 +8,16 @@ business_names, which keeps company documents out.
 
 import re
 import tomllib
-from collections.abc import Callable
+from collections.abc import Callable, MutableMapping
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
+
+import tomlkit
+import tomlkit.exceptions
+
+from .paths import write_private
 
 DEFAULT_PORT = 8643
 # The domains the banks' statement e-mails come from, base domains included; a subdomain counts too.
@@ -261,6 +266,30 @@ def parse(data: dict[str, Any], name: str = "settings.toml") -> Settings:
             values[str(key)] = checks[str(key)](f"{name} [{section}] {key}", value)  # pyright: ignore[reportUnknownArgumentType] - key is a TOML key, a str
         sections[section] = model(**values)
     return Settings(**sections)
+
+
+def update(path: Path, section: str, values: dict[str, Any]) -> Settings:
+    """Set keys of one section of settings.toml, keeping everything else in the file as it was, comments too. The
+    result is checked before it is written, so a value the program would refuse never reaches the file. A value of
+    None removes its key. Returns the new settings."""
+    text = path.read_text(encoding="utf-8") if path.exists() else ""
+    try:
+        document = tomlkit.parse(text)
+    except tomlkit.exceptions.ParseError as exc:
+        raise SettingsError(f"{path} okunamadı: {exc}") from exc
+    tables: MutableMapping[str, Any] = document  # a TOML document is a mapping of its tables
+    table: MutableMapping[str, Any] = tables.setdefault(section, tomlkit.table())
+    for key, value in values.items():
+        if value is None:
+            table.pop(key, None)
+        else:
+            table[key] = list(cast(tuple[Any, ...], value)) if isinstance(value, tuple) else value
+    new_text = tomlkit.dumps(document)
+    settings = parse(tomllib.loads(new_text), str(path))
+    tmp = path.with_name(f".{path.name}.yeni")
+    write_private(tmp, new_text)
+    tmp.replace(path)
+    return settings
 
 
 def load(path: Path) -> Settings:

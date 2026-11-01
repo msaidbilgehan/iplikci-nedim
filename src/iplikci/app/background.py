@@ -5,21 +5,22 @@ can end a month); each time the feed compares it with the last one and records t
 from datetime import UTC, date, datetime, time, timedelta
 
 from ..feed import snapshot
-from ..jobs.schedule import Periodic, daily
+from ..jobs.schedule import Periodic, daily, every
 from ..jobs.worker import Handler
 from ..storage import events, feed_state, jobs
-from . import access
+from . import access, mail
 from .analysis import analyze
+from .kinds import PURGE, REFRESH
 from .workspace import Workspace
 
-REFRESH = "analysis.refresh"
-PURGE = "maintenance.purge"
 SNAPSHOT = "snapshot"
 JOBS_KEPT = timedelta(days=30)
 
 PERIODIC = (
     Periodic(REFRESH, daily(time(0, 5))),
     Periodic(PURGE, daily(time(4, 0))),
+    # ADR-0015: the IMAP connector's fallback beside IDLE; it finds nothing to do for the browser extension.
+    Periodic(mail.FETCH_JOB, every(15)),
 )
 
 
@@ -28,6 +29,7 @@ def handlers(ws: Workspace) -> dict[str, Handler]:
     return {
         REFRESH: lambda _payload: refresh(ws),
         PURGE: lambda _payload: purge(ws),
+        mail.FETCH_JOB: lambda _payload: poll_mail(ws),
     }
 
 
@@ -50,6 +52,18 @@ def refresh(ws: Workspace, today: date | None = None) -> list[str]:
             events.append(db, change.kind, change.target, **change.detail)
         feed_state.save(db, SNAPSHOT, after.dump())
     return [change.kind for change in changes]
+
+
+def poll_mail(ws: Workspace) -> None:
+    """Fetch the new messages over IMAP; with more waiting, the next fetch follows at once. Without an account, or
+    with the connector stopped by a refused login, there is nothing to do: the mail state holds the error and the
+    user was told once."""
+    try:
+        fetched = mail.fetch(ws, wait=5)
+    except mail.MailError:
+        return
+    if fetched.more:
+        mail.request_fetch(ws)
 
 
 def purge(ws: Workspace) -> None:

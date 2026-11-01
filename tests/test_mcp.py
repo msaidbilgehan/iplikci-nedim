@@ -88,7 +88,7 @@ def test_import_then_apply_keeps_the_documents_where_they_were(server, ws, tmp_p
 
 def test_fetch_email_without_an_account_says_how_to_set_it_up(server):
     text, failed = call(server, "fetch_email")
-    assert failed and "uv run iplikci eposta --kur" in text
+    assert failed and text == "E-posta bağlantısı kurulmadı."
     status, _ = call(server, "status")
     assert status["email"]["configured"] is False
 
@@ -97,8 +97,8 @@ def test_fetch_email_takes_new_documents_into_the_vault(server, ws, mail):
     mail.messages[101] = bank_mail(FEBRUARY)
     mail.messages[102] = bank_mail(teb.account_export(JANUARY))  # already in the vault
     got, failed = call(server, "fetch_email")
-    assert not failed and got["emails"] == 2 and [d["name"] for d in got["stored"]] == ["HesapHareketleri.xls"]
-    assert got["skipped"] == [{"name": "HesapHareketleri.xls", "label": "zaten arşivde", "reason": ""}]
+    # Both messages are kept whole; of the attachments only February's is new.
+    assert not failed and (got["emails"], got["stored"], got["documents"]) == (2, 2, 3)
     status, _ = call(server, "status")
     assert status["read"]["accountStatements"] == 2  # the answers that follow already count it
     hints = {t["name"]: t["annotations"] for t in rpc(server, "tools/list")["result"]["tools"]}

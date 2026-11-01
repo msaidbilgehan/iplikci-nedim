@@ -15,6 +15,7 @@ dependencies = [
     "pydantic==2.14.2",
     "pyobjc-framework-vision==13.0 ; sys_platform == 'darwin'",
     "pyyaml==6.0.3",
+    "tomlkit==0.15.2",
     "uvicorn==0.54.0",
     "xlrd==2.0.2",
 ]
@@ -58,6 +59,7 @@ pythonVersion = "3.13"
 # layout (architecture §6).
 include = [
     "src/iplikci/api",
+    "src/iplikci/egress.py",
     "src/iplikci/app",
     "src/iplikci/domain",
     "src/iplikci/fakes",
@@ -77,6 +79,7 @@ include = [
 ]
 strict = [
     "src/iplikci/api",
+    "src/iplikci/egress.py",
     "src/iplikci/app",
     "src/iplikci/domain",
     "src/iplikci/fakes",

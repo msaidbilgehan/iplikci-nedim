@@ -52,6 +52,30 @@ def test_a_package_imports_only_what_the_architecture_allows(package):
     assert {module: names for module, names in wrong.items() if names} == {}
 
 
+# What opens a connection to another computer. Only egress may (ADR-0009); the command line's client talks to the
+# service on 127.0.0.1 and nowhere else, and so does the MVP's panel looking for itself (it leaves with web/).
+OPENERS = (
+    "IMAP4_SSL(",
+    "IMAP4(",
+    "SMTP(",
+    "SMTP_SSL(",
+    "create_connection(",
+    "urlopen(",
+    "HTTPSConnection(",
+    "HTTPConnection(",
+    "build_opener(",
+)
+MAY_OPEN = {"iplikci/egress.py", "iplikci/service/client.py", "iplikci/panel.py"}
+
+
+def test_only_egress_opens_connections():
+    found = {
+        str(path.relative_to(SRC)): [o for o in OPENERS if o in path.read_text(encoding="utf-8")]
+        for path in (SRC / "iplikci").rglob("*.py")
+    }
+    assert {name: openers for name, openers in found.items() if openers and name not in MAY_OPEN} == {}
+
+
 def test_the_rule_check_sees_relative_imports():
     imports = internal_imports("iplikci.api")["iplikci.api.routes.auth"]
     assert {"iplikci.app", "iplikci.api.guard", "iplikci.api.context"} <= imports

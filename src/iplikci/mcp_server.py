@@ -24,9 +24,10 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
-from . import __version__, automation, email_fetch, month_end, rulefile
+from . import __version__, month_end, rulefile
 from .analysis import Dataset
 from .app import intake
+from .app import mail as email
 from .app.analysis import Current, document_gaps, summary
 from .app.uploads import inbox_files
 from .app.workspace import Busy, StalePlan, Workspace
@@ -166,7 +167,7 @@ class Server:
             raise _InvalidParams(f"bilinmeyen araç: {params.get('name')}")
         try:
             value = tool.run(self, _check(tool.schema, params.get("arguments") or {}))
-        except (ToolError, Busy, StalePlan, ValueError, FileNotFoundError, email_fetch.MailError) as exc:
+        except (ToolError, Busy, StalePlan, ValueError, FileNotFoundError, email.MailError) as exc:
             return {"content": [{"type": "text", "text": str(exc)}], "isError": True}
         except Exception as exc:  # reported to the model, details on stderr; the server keeps running  # noqa: BLE001
             traceback.print_exc(file=sys.stderr)
@@ -256,8 +257,7 @@ def _status(s: Server, args: dict) -> dict:
             for g in document_gaps(a.dataset)
         ],
         "report": {"html": str(html), "updated": updated},
-        "automation": automation.status(s.ws),
-        "email": email_fetch.status(s.ws),
+        "email": email.status(s.ws),
     }
 
 
@@ -278,21 +278,18 @@ def _import(s: Server, args: dict) -> dict:
 
 
 def _fetch_email(s: Server, args: dict) -> dict:
-    got = email_fetch.fetch(s.ws, wait=30)
+    got = email.fetch(s.ws, wait=30)
     out = {
         "message": got.message,
         "emails": got.scanned,
-        "withDocuments": got.with_documents,
+        "stored": got.stored,
+        "documents": got.documents,
+        "known": got.known,
         "unverifiedSkipped": got.unverified,
+        "businessSkipped": got.business,
         "tooLargeSkipped": got.too_large,
         "folder": got.folder,
         "more": got.more,
-        "stored": [intake.describe(c, s.ws) for c in got.stored],
-        "skipped": [
-            {"name": c.name, "label": intake.ACTION_LABELS.get(c.action, c.action), "reason": c.reason}
-            for c in got.found
-            if c.verdict is not intake.Verdict.STORE
-        ][:20],
     }
     if got.more:
         out["note"] = "Daha fazla e-posta var: fetch_email'i yeniden çağırın."
@@ -744,8 +741,7 @@ TOOLS = (
         "Durum",
         "Belgelerin ve hesapların durumu: kaç belge okundu ve bankanın toplamıyla/bakiyeyle tutarlı mı, "
         "okunamayanlar, gelen klasöründe bekleyenler, tam aylar, eksik ya da güncel olmayan belgeler "
-        "(hangi hesabın hangi belgesi indirilmeli), rapor dosyası, otomatik yükleme görevinin ve e-postadan "
-        "belge almanın durumu.",
+        "(hangi hesabın hangi belgesi indirilmeli), rapor dosyası ve e-postadan belge almanın durumu.",
         _schema(),
         _status,
     ),
