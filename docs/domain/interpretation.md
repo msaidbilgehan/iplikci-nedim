@@ -175,8 +175,10 @@ Her analizden sonra akış, bildirim kurallarının eşleştiği olayları üret
 kez söylenir; ilk analiz yalnızca not eder.
 
 - **Yaklaşan ödeme** (`payment.due_soon`)
-  - Takvimin giden kalemleri: kart son ödemesi, banka dışı fatura, kredi ve kart taksidi, düzenli ve dönemsel ödeme.
-    Gelir hiçbir zaman.
+  - Takvimin kullanıcının ilgilenmesi gereken kalemleri: kart son ödemesi, banka dışı fatura, kredi taksidi ve bir
+    hesaptan yapılan düzenli ya da dönemsel ödeme (kira gibi).
+  - Kart taksidi kartın ekstresiyle ödenir. Kartın kendiliğinden çekildiği ödeme (abonelik) kullanıcıdan bir şey
+    istemez; her ay söylemek gürültü olurdu. Gelir hiçbir zaman söylenmez.
   - Gününe 7, 3, 1 ve 0 gün kala söylenir; her eşik bir kez. Kalan günün girdiği en dar eşik söylenir: servis kapalı
     kaldıysa atlanan eşikler sonradan söylenmez.
 - **Eksiye düşen hesap** (`balance.forecast_negative`)
@@ -200,7 +202,8 @@ kez söylenir; ilk analiz yalnızca not eder.
     ödemesinin günüyle.
   - `subscription.paid_after_cancel`: iptal edilmiş serinin iptal ayından sonraki en son ödemesi; daha yeni bir ödeme
     yeniden söylenir.
-- **Gelen gelir** (`income.received`): bir gelir serisinin yeni satırı.
+- **Gelen gelir** (`income.received`): bir gelir serisinin yeni satırı. Büyük harcama gibi yalnızca analiz gününden en
+  çok 7 gün önceki satırlar haberdir.
 - **Büyük harcama** (`transaction.large`)
   - Seri dışındaki tek bir alışveriş, büyük alışveriş eşiğinden büyük ya da eşitse: ≥ max(5.000 TL, ortalama ayın
     %10'u) ("Tahmin"; `insights.large_purchase_threshold`).

@@ -1,17 +1,20 @@
 """What an analysis has to tell beyond its rows, months and bills (architecture §13), for the notification rules to
 match. Each finder returns what it finds with what its notification says; the snapshot decides what is news.
 
-- `payment.due_soon`: an outgoing item of the calendar (a card's due date, a non-bank bill, a loan's or a card's
-  installment, a regular or periodic payment; never income) seven, three, one or no days before its day. Each of
-  these thresholds is told once, the tightest one the days left reach: after a stop only that one, not those skipped.
+- `payment.due_soon`: an item of the calendar the user has to see to (a card's due date, a non-bank bill, a loan's
+  installment, a regular or periodic payment made from an account, as rent is) seven, three, one or no days before
+  its day. A card's installments are paid within its statement, and what a card is charged on its own (a
+  subscription) asks nothing of the user: telling them would be noise every month. Each of these thresholds is told
+  once, the tightest one the days left reach: after a stop only that one, not those skipped.
 - `balance.forecast_negative`: a bank account's forecast goes below zero within its days.
 - `expected_payment.missing`, `income.late`: the documents of the accounts a regular or periodic payment, or a regular
   income, was last seen on went past its expected day and its grace without it.
 - `subscription.price_changed`: a running series' new price; `subscription.paid_after_cancel`: a payment after the
   month the user's rules give a cancelled series as its last.
 - `income.received`: a row of a regular income; `transaction.large`: a single purchase outside the series from the
-  insights' large purchase threshold on, dated within NEWS_DAYS before the analysis day. A statement row that
-  confirms a receipt's row is that row told again, not a second one.
+  insights' large purchase threshold on; both dated within NEWS_DAYS before the analysis day, so that the history an
+  import or a statement brings tells nothing. A statement row that confirms a receipt's row is that row told again,
+  not a second one.
 - `evidence.unmatched`: a receipt's or a bank notice's row the statement covering its days does not show.
 
 Amounts are TL with two decimals, as strings, money out above zero as the ledger counts it; days are ISO dates.
@@ -25,7 +28,7 @@ from decimal import Decimal
 from typing import Any
 
 from ..analysis import CONFIRMED, NOT_ON_STATEMENT, Dataset, nearest_rate
-from ..domain.codes import PaymentKind, SeriesPeriod, TransactionKind
+from ..domain.codes import CARD_TYPES, PaymentKind, SeriesPeriod, TransactionKind
 from ..domain.models import TRY
 from ..domain.money import round_half_up
 from ..domain.text import fold
@@ -46,6 +49,11 @@ UNMATCHED = "evidence.unmatched"
 OCCURRENCES = (DUE_SOON, NEGATIVE, MISSING, LATE, REPRICED, PAID_AFTER_CANCEL)
 
 DUE_DAYS = (0, 1, 3, 7)  # a payment is told a week, three days and a day before its day, and on the day
+# The items the user has to see to; a regular or periodic one only when it is paid from an account, not a card.
+TO_PAY = frozenset(
+    {PaymentKind.CARD_DUE, PaymentKind.BILL, PaymentKind.LOAN, PaymentKind.REGULAR, PaymentKind.PERIODIC}
+)
+_FROM_ACCOUNT = frozenset({PaymentKind.REGULAR, PaymentKind.PERIODIC})
 NEWS_DAYS = 7  # a new row dated more than this many days before the analysis day is history, not news
 LATE_DAYS = HORIZON  # a payment or income that did not come is news as long after its grace as the calendar looks ahead
 _EXPECTED = ("devam", "bitti")  # running, or ended as its documents went past it; a cancelled series is not expected
@@ -79,13 +87,13 @@ def find(ds: Dataset, ins: Insights, today: date, dues: Sequence[CardDue] = ()) 
     items = upcoming(ds, ins, today, dues)
     confirmed = _confirmed(ds)
     return [
-        *due_soon(items, today),
+        *due_soon(items, today, {a.id for a in ds.accounts.values() if a.type in CARD_TYPES}),
         *negatives(forecast(ds, ins, today, items)),
         *missing(ds, ins, today),
         *late(ds, ins, today),
         *repriced(ins),
         *paid_after_cancelling(ds, ins),
-        *income_received(ins, confirmed),
+        *income_received(ins, today, confirmed),
         *large(ds, ins, today, confirmed),
         *unmatched(ds),
     ]
@@ -94,13 +102,15 @@ def find(ds: Dataset, ins: Insights, today: date, dues: Sequence[CardDue] = ()) 
 # --- the days ahead ----------------------------------------------------------------------------------------------
 
 
-def due_soon(items: Iterable[Due], today: date) -> list[Found]:
-    """The outgoing items of the calendar a week or less away, each at the tightest of DUE_DAYS its days left reach."""
+def due_soon(items: Iterable[Due], today: date, cards: Iterable[str] = ()) -> list[Found]:
+    """The items of the calendar the user has to see to (TO_PAY) a week or less away, each at the tightest of DUE_DAYS
+    its days left reach; a regular or periodic payment last made by one of the cards is the card's to pay."""
+    by_card = set(cards)
     found: list[Found] = []
     for item in items:
         days = (item.day - today).days
         threshold = next((t for t in DUE_DAYS if 0 <= days <= t), None)
-        if threshold is None or item.kind == PaymentKind.INCOME:
+        if threshold is None or item.kind not in TO_PAY or (item.kind in _FROM_ACCOUNT and item.account in by_card):
             continue
         detail: dict[str, Any] = {
             "payment": str(item.kind),
@@ -240,12 +250,14 @@ def _confirmed(ds: Dataset) -> dict[str, tuple[str, ...]]:
     return {fp: tuple(rows) for fp, rows in found.items()}
 
 
-def income_received(ins: Insights, confirmed: Mapping[str, tuple[str, ...]]) -> list[Found]:
-    """Every row of a regular income, as received: the snapshot tells the new ones."""
+def income_received(ins: Insights, today: date, confirmed: Mapping[str, tuple[str, ...]]) -> list[Found]:
+    """The rows of a regular income dated within NEWS_DAYS before today, as received: the snapshot tells the new
+    ones."""
+    since = today - timedelta(days=NEWS_DAYS)
     found: list[Found] = []
     for s in ins.income:
         for t in s.payments:
-            if not t.fingerprint:
+            if not t.fingerprint or not since <= t.date <= today:
                 continue
             detail: dict[str, Any] = {
                 "title": s.merchant,

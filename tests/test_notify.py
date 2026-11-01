@@ -636,3 +636,10 @@ def test_a_rule_may_send_in_the_quiet_hours_too(ws, desk):
     happen(ws, E.MONTH_CLOSED, "2026-10")
     notify.run(ws, NIGHT)
     assert [m.body for m in desk.got] == ["Yedek alınamadı; Sistem ekranına bakın."]  # the month waits for the digest
+
+
+def test_an_amount_the_event_keeps_in_its_currency_is_told_in_it():
+    detail = {"title": "ÖRNEK ALICI", "amount": "250", "account": "euro", "date": "2026-11-01", "currency": "EUR"}
+    assert content.render(E.EVIDENCE_UNMATCHED, "fp", detail, DetailLevel.SUMMARY).body == (
+        "Bir dekont ekstrede görünmüyor: 250,00 EUR."
+    )

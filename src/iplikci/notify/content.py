@@ -33,12 +33,13 @@ def label(kind: str) -> str:
         return kind
 
 
-def _tl(value: Any) -> str:
+def _tl(value: Any, currency: str = "TL") -> str:
+    """An amount the event carries as text ("1234.56"), as the interface writes it: "1.234,56 TL"."""
     try:
         amount = Decimal(str(value))
     except InvalidOperation:
         return ""
-    return f"{format_amount(amount)} TL" if amount.is_finite() else ""
+    return f"{format_amount(amount)} {currency}" if amount.is_finite() else ""
 
 
 def _day(value: Any) -> str:
@@ -80,7 +81,8 @@ def _where(d: Mapping[str, Any]) -> str:
 
 
 def _text(kind: EventKind, target: str, d: Mapping[str, Any], full: bool) -> str:
-    title, amount = str(d.get("title", "")), _tl(d.get("amount", ""))
+    # A row of a foreign-currency account no rate values stays in its currency, which the event names (§13).
+    title, amount = str(d.get("title", "")), _tl(d.get("amount", ""), str(d.get("currency") or "TL"))
     if kind is E.PAYMENT_DUE_SOON:
         when, payment = _when(d.get("days")), _payment(d.get("payment"))
         if not full:

@@ -178,6 +178,13 @@ def test_a_regular_payment_is_due_soon_without_a_minimum_and_income_never():
     }
 
 
+def test_what_a_card_is_charged_on_its_own_and_its_installments_are_not_due_soon():
+    netflix = [tx(d, "Örnekflix", 199, "Dijital Abonelikler", account="card") for d in monthly(date(2026, 5, 3), 6)]
+    ds = dataset([*RENT, *netflix], [account_list(date(2026, 10, 31)), card_statement(date(2026, 10, 31))])
+    found = finds(news.DUE_SOON, ds, date(2026, 11, 26))
+    assert [f.detail["title"] for f in found] == ["Ev kirası"]  # the rent goes from the account; the card pays Netflix
+
+
 def test_a_refresh_tells_a_cards_due_date_its_statement_prints(ws):
     add(ws, "teb-ekstre.pdf", teb.bonus_statement())  # cut on 5 October, due on 15 October
     assert background.refresh(ws, today=date(2026, 10, 7)) == []  # the first refresh only takes note
@@ -354,11 +361,11 @@ def test_a_payment_after_the_cancellation_month_is_told_once_at_the_latest_one()
 
 
 def test_a_new_row_of_a_regular_income_is_told_once_and_other_income_is_not():
-    one_off = tx(date(2026, 10, 15), "Örnek Danışmanlık", -3000, "Diğer Gelirler", INCOME)
+    one_off = tx(date(2026, 10, 3), "Örnek Danışmanlık", -3000, "Diğer Gelirler", INCOME)
     steps = [
         (dataset(SALARY[:5]), date(2026, 9, 5)),
-        (dataset([*SALARY, one_off]), date(2026, 10, 20)),
-        (dataset([*SALARY, one_off]), date(2026, 10, 21)),
+        (dataset([*SALARY, one_off]), date(2026, 10, 5)),
+        (dataset([*SALARY, one_off]), date(2026, 10, 6)),
     ]
     assert of(news.INCOME, feed(*steps)) == [
         [],
@@ -371,6 +378,11 @@ def test_a_new_row_of_a_regular_income_is_told_once_and_other_income_is_not():
         ],
         [],
     ]
+
+
+def test_an_income_row_older_than_a_week_that_a_statement_brings_is_history():
+    steps = [(dataset(SALARY[:5]), date(2026, 9, 5)), (dataset(SALARY), date(2026, 10, 20))]  # 1 October's salary
+    assert of(news.INCOME, feed(*steps)) == [[], []]
 
 
 def test_an_income_a_statement_confirms_after_its_notice_is_not_told_again():
