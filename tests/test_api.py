@@ -6,10 +6,12 @@ from datetime import UTC, date, datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
+from iplikci import demo
 from iplikci.api.app import create_app
 from iplikci.api.context import Context
 from iplikci.app import access, system
 from iplikci.app.access import LoginKeys, SessionState
+from iplikci.app.workspace import Busy, Workspace
 from iplikci.fakes import teb
 from iplikci.fakes.files import text_pdf
 from iplikci.parsers import registry
@@ -308,3 +310,96 @@ def test_the_interface_is_served_from_its_build(ws, tmp_path):
     assert client.get("/api/yok").json()["code"] == "http_404"
     outsider = TestClient(client.app, base_url=BASE)
     assert outsider.get("/belgeler").status_code == 401  # the interface itself is behind the session
+
+
+# --- the Subscriptions and Calendar screens (F08, F09) -------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def demo_client(tmp_path_factory) -> TestClient:
+    """The demo data folder's service, as on the day its baseline is taken, its analysis made once."""
+    ws = Workspace.load(demo.build(tmp_path_factory.mktemp("demo")))
+    context = Context(ws=ws, token=TOKEN, ui=tmp_path_factory.mktemp("arayuz"), today=lambda: demo.AS_OF)
+    context.analysis.get()
+    return TestClient(create_app(context), base_url=BASE)
+
+
+def tl(minor: int) -> dict[str, object]:
+    return {"minor": minor, "currency": "TRY"}
+
+
+def test_the_subscriptions_are_the_series_with_their_status_next_payment_and_rows(demo_client):
+    found = demo_client.get("/api/subscriptions", headers=bearer()).json()
+    assert found["as_of"] == "2026-10-31" and found["window"][-1] == "2026-10"
+    rent = next(s for s in found["series"] if s["payee"] == "Veli Örneksoy Kira Ödemesi")
+    assert (rent["period"], rent["status"], rent["listed"], rent["note"]) == ("month", "active", True, "")
+    assert (rent["amount"], rent["last_day"], rent["next_day"]) == (tl(1500000), "2026-10-03", "2026-11-03")
+    assert rent["account"] == {"id": "teb-123456789", "label": "TEB Vadesiz TL 123456789"}
+    assert len(rent["payments"]) == 9  # the first days of July were never downloaded: its rent is missing
+    first = rent["payments"][0]
+    assert (first["day"], first["amount"], first["certainty"]) == ("2026-01-03", tl(1500000), "confirmed")
+    assert len(first["fingerprint"]) == 20 and first["document"].endswith("Hesap Hareketleri.xls")
+    gas = next(s for s in found["series"] if s["payee"] == "Doğalgaz (İGDAŞ)")
+    assert gas["amount"] == tl(20000) and gas["last_amount"] == tl(60000)  # a moving bill: the last three's median
+    (salary,) = found["income"]
+    # The next salary after the last one: a past day, as the documents end on 31 October.
+    assert (salary["payee"], salary["amount"], salary["next_day"]) == ("Örnek İşveren A.Ş.", tl(4000000), "2026-11-01")
+    assert found["installments"] == []  # the demo has no card statements
+
+
+def test_the_calendar_lists_the_next_sixty_days_by_day(demo_client):
+    found = demo_client.get("/api/calendar", headers=bearer()).json()
+    assert (found["today"], found["end"]) == ("2026-11-15", "2027-01-13")
+    days = [item["day"] for item in found["items"]]
+    assert days == sorted(days) and days[0] == "2026-11-19"
+    salary = next(item for item in found["items"] if item["kind"] == "income")
+    assert (salary["day"], salary["direction"], salary["amount"]) == ("2026-12-01", "in", tl(4000000))
+    rent = next(item for item in found["items"] if item["title"] == "Veli Örneksoy Kira Ödemesi")
+    assert (rent["day"], rent["direction"], rent["amount"], rent["minimum"]) == ("2026-12-03", "out", tl(1500000), None)
+    assert rent["basis"] == "son ödeme 03.10.2026: 15.000,00 TL" and len(rent["fingerprints"]) == 3
+    subscriptions = demo_client.get("/api/subscriptions", headers=bearer()).json()
+    assert rent["series"] in {s["id"] for s in subscriptions["series"]}  # the item names the series it continues
+
+
+def test_the_forecast_runs_each_bank_account_day_by_day_as_an_estimate(demo_client):
+    found = demo_client.get("/api/forecast", headers=bearer()).json()
+    assert (found["label"], found["today"], found["end"]) == ("tahmin", "2026-11-15", "2027-01-13")
+    (teb_account,) = found["accounts"]
+    start = teb_account["start"]
+    assert (start["source"], start["day"], start["moves"]) == ("statement", "2026-10-31", 0)
+    assert start["balance"] == start["stated"] == tl(18438010)
+    assert len(teb_account["days"]) == 60 and teb_account["negative"] is None
+    assert teb_account["lowest"] == {"day": "2026-11-30", "balance": tl(18235583)}
+    assert teb_account["end_balance"] == tl(22452450)
+    assert teb_account["spend"] == {"monthly": tl(800), "months": found_months(), "after": None}  # the FAST fee
+    assert teb_account["cards"] is None and teb_account["interest"] is None
+    assert {item["kind"] for item in teb_account["items"]} == {"regular", "income"}
+    assert found["skipped"] == [
+        {
+            "account": {"id": "garanti-1234567", "label": "Garanti BBVA Vadesiz TL 1234567"},
+            "reason": "bakiyesi hiçbir belgede yazmıyor",  # known only from receipts
+        }
+    ]
+    assert found["notes"][0].startswith("Bu bir tahmindir")
+
+
+def found_months() -> list[str]:
+    return ["2026-04", "2026-05", "2026-06", "2026-08", "2026-09", "2026-10"]  # July is not a complete month
+
+
+def test_an_empty_folder_has_no_series_items_or_forecast(client):
+    assert client.get("/api/subscriptions", headers=bearer()).json()["series"] == []
+    assert client.get("/api/calendar", headers=bearer()).json()["items"] == []
+    found = client.get("/api/forecast", headers=bearer()).json()
+    assert found["accounts"] == [] and found["label"] == "tahmin"
+
+
+def test_the_outlook_needs_a_session_and_says_when_the_documents_are_busy(client, context, monkeypatch):
+    assert client.get("/api/calendar").status_code == 401
+
+    def busy():
+        raise Busy("başka bir işlem belgeleri işliyor; biraz sonra yeniden deneyin")
+
+    monkeypatch.setattr(context.analysis, "get", busy)
+    refused = client.get("/api/forecast", headers=bearer())
+    assert (refused.status_code, refused.json()["code"]) == (503, "busy")

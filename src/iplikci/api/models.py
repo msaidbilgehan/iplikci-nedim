@@ -9,6 +9,19 @@ class LoginLink(BaseModel):
     url: str
 
 
+class MoneyOut(BaseModel):
+    """An amount in its currency's smallest unit: {"minor": 123456, "currency": "TRY"} is 1.234,56 TL. The interface
+    formats it (architecture §16)."""
+
+    minor: int
+    currency: str
+
+
+class AccountRefOut(BaseModel):
+    id: str
+    label: str
+
+
 class ReaderHealthOut(BaseModel):
     parser: str
     name: str

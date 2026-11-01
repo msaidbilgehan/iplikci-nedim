@@ -3,14 +3,16 @@
 import os
 import threading
 from collections import OrderedDict
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import cast
 
 from fastapi import Request
 
 from ..app.access import LoginKeys
+from ..app.analysis import Current
 from ..app.bridge import PairingCodes
 from ..app.intake import Plan
 from ..app.workspace import Workspace
@@ -30,8 +32,15 @@ class Context:
     stream_limit: float = 600.0  # an event stream closes after this many seconds; the browser reconnects
     poll: float = 1.0  # how often an event stream looks for new events
     ui: Path = field(default_factory=lambda: UI)
+    today: Callable[[], date] = date.today  # the day the calendar and the forecast start from
     _plans: OrderedDict[str, Plan] = field(default_factory=OrderedDict[str, Plan])
     _plans_lock: threading.Lock = field(default_factory=threading.Lock)
+    # The analysis the screens read, as the MCP server keeps it: made again when the documents, the annotations, the
+    # rules or the settings changed (the background job makes the report's files; this one writes none).
+    analysis: Current = field(init=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "analysis", Current(self.ws, write=False))
 
     @property
     def port(self) -> int:

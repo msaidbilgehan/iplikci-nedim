@@ -107,7 +107,7 @@ class Forecast:
     end: date
     accounts: list[AccountForecast]
     elsewhere: list[Due]  # items no forecast account takes: paid by card, or from an account whose balance is unknown
-    skipped: list[tuple[str, str]]  # (account label, why it has no forecast)
+    skipped: list[tuple[str, str]]  # (account, why it has no forecast), by the accounts' labels
     notes: list[str]  # what every account's forecast assumes, in Turkish
     label: str = ESTIMATE
 
@@ -326,17 +326,15 @@ def forecast(
         if account.type in (AccountType.FX, AccountType.GOLD) or (
             account.type in BANK_TYPES and account.currency != TRY
         ):
-            skipped.append(
-                (account.label, "döviz ya da altın hesabı: değeri kurla değişir, öngörü TL hesapları içindir")
-            )
+            skipped.append((account.id, "döviz ya da altın hesabı: değeri kurla değişir, öngörü TL hesapları içindir"))
             continue
         if account.type not in BANK_TYPES:
             continue
         start = start_of(ds, account.id)
         if start is None:
-            skipped.append((account.label, "bakiyesi hiçbir belgede yazmıyor"))
+            skipped.append((account.id, "bakiyesi hiçbir belgede yazmıyor"))
         elif newest is not None and (newest - start.on).days > STALE_DAYS:
-            skipped.append((account.label, f"son bakiye {_day(start.on)} tarihli; bugünkü bakiyesi belgelerde yok"))
+            skipped.append((account.id, f"son bakiye {_day(start.on)} tarihli; bugünkü bakiyesi belgelerde yok"))
         else:
             starts[account.id] = start
     counted: dict[str, list[Due]] = defaultdict(list)

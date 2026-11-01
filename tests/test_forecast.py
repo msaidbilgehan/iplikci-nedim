@@ -284,10 +284,10 @@ def test_accounts_without_a_balance_known_today_are_left_out_and_say_why():
     ds = dataset(statements=statements, receipts=rows, accounts=(CASH, USD, OLD, GARANTI))
     result = forecast(ds, interpret(ds), date(2026, 11, 1), [])
     assert [a.account for a in result.accounts] == ["cash"]
-    assert result.skipped == [
-        (GARANTI.label, "bakiyesi hiçbir belgede yazmıyor"),
-        (USD.label, "döviz ya da altın hesabı: değeri kurla değişir, öngörü TL hesapları içindir"),
-        (OLD.label, "son bakiye 17.01.2024 tarihli; bugünkü bakiyesi belgelerde yok"),
+    assert result.skipped == [  # by the accounts' labels
+        ("garanti", "bakiyesi hiçbir belgede yazmıyor"),
+        ("usd", "döviz ya da altın hesabı: değeri kurla değişir, öngörü TL hesapları içindir"),
+        ("old", "son bakiye 17.01.2024 tarihli; bugünkü bakiyesi belgelerde yok"),
     ]
 
 

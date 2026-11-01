@@ -1,6 +1,25 @@
 // The service's API types, generated from its OpenAPI document by `iplikci dev api-tipleri` (ADR-0007).
 // Do not edit by hand: change the API's models and generate again; a test keeps this file current.
 
+export interface AccountForecastOut {
+  account: AccountRefOut;
+  start: StartOut;
+  end_balance: MoneyOut;
+  lowest: BalanceOut;
+  negative: BalanceOut | null;
+  spend: SpreadOut | null;
+  cards: SpreadOut | null;
+  interest: MoneyOut | null;
+  items: CalendarItemOut[];
+  days: BalanceOut[];
+  notes: string[];
+}
+
+export interface AccountRefOut {
+  id: string;
+  label: string;
+}
+
 export interface AlarmIn {
   layer: number;
   version?: string;
@@ -49,6 +68,11 @@ export interface BackupOut {
   damaged: number;
 }
 
+export interface BalanceOut {
+  day: string;
+  balance: MoneyOut;
+}
+
 export interface BridgeOut {
   id: string;
   name: string;
@@ -56,6 +80,29 @@ export interface BridgeOut {
   last_seen: string;
   active: boolean;
 }
+
+/** A payment or an income expected on a day, with what the day and the amount rest on. */
+export interface CalendarItemOut {
+  day: string;
+  kind: PaymentKind;
+  title: string;
+  account: AccountRefOut;
+  direction: "out" | "in";
+  amount: MoneyOut;
+  minimum: MoneyOut | null;
+  basis: string;
+  series: string;
+  fingerprints: string[];
+}
+
+export interface CalendarOut {
+  today: string;
+  end: string;
+  items: CalendarItemOut[];
+}
+
+/** How sure a row or a total is, and whether it counts (architecture §8). */
+export type Certainty = "confirmed" | "provisional" | "excluded" | "info";
 
 export interface CursorOut {
   last_id: string;
@@ -118,8 +165,31 @@ export interface FetchQueuedOut {
   queued: boolean;
 }
 
+export interface ForecastOut {
+  label: string;
+  today: string;
+  end: string;
+  accounts: AccountForecastOut[];
+  elsewhere: CalendarItemOut[];
+  skipped: SkippedOut[];
+  notes: string[];
+}
+
 export interface HTTPValidationError {
   detail?: ValidationError[];
+}
+
+/** A card purchase in installments with some still to come: the card's newest statement billed `number`. */
+export interface InstallmentOut {
+  card: AccountRefOut;
+  title: string;
+  number: number;
+  count: number;
+  amount: MoneyOut;
+  left: number;
+  remaining: MoneyOut;
+  last_day: string;
+  fingerprint: string;
 }
 
 export interface KnownIn {
@@ -161,6 +231,17 @@ export interface MailOut {
   coverage: MailCoverageOut;
 }
 
+/**
+ * An amount in its currency's smallest unit: {"minor": 123456, "currency": "TRY"} is 1.234,56 TL. The interface formats
+ * it (architecture §16).
+ */
+export interface MoneyOut {
+  minor: number;
+  currency: string;
+}
+
+export type Necessity = "required" | "optional" | "unnecessary" | "unknown";
+
 export interface PairIn {
   code: string;
   name?: string;
@@ -174,6 +255,18 @@ export interface PairedOut {
 export interface PairingOut {
   code: string;
   expires_in: number;
+}
+
+/** What an item of the calendar is (F09). */
+export type PaymentKind = "regular" | "periodic" | "income" | "installment" | "loan" | "card_due";
+
+/** A row a series rests on, and the document it is printed in. */
+export interface PaymentOut {
+  fingerprint: string;
+  day: string;
+  amount: MoneyOut;
+  document: string;
+  certainty: Certainty;
 }
 
 /** The document a plan item would add: a statement, an account statement or a receipt, and its check. */
@@ -212,6 +305,12 @@ export interface PlanOut {
   changes: number;
   by_action: Record<string, number>;
   items: PlanItemOut[];
+}
+
+export interface PriceChangeOut {
+  before: MoneyOut;
+  after: MoneyOut;
+  since: string;
 }
 
 export interface ProofOut {
@@ -257,11 +356,66 @@ export interface ScannedOut {
   history_due: boolean;
 }
 
+export interface SeriesOut {
+  id: string;
+  payee: string;
+  period: SeriesPeriod;
+  status: SeriesStatus;
+  note: string;
+  category: string;
+  necessity: Necessity | null;
+  kind: TransactionKind;
+  account: AccountRefOut;
+  amount: MoneyOut;
+  last_day: string;
+  last_amount: MoneyOut;
+  next_day: string | null;
+  price_change: PriceChangeOut | null;
+  listed: boolean;
+  payments: PaymentOut[];
+}
+
+/** How far apart a series' payments are: about a month, half a year or a year. */
+export type SeriesPeriod = "month" | "half_year" | "year";
+
+/** Whether a regular or periodic payment still runs (docs/domain/interpretation.md, "Düzenli ödemeler"). */
+export type SeriesStatus = "active" | "ended" | "cancelled" | "paid_after_cancel";
+
 export interface ServiceOut {
   version: string;
   started_at: string;
   pid: number;
   home: string;
+}
+
+export interface SkippedOut {
+  account: AccountRefOut;
+  reason: string;
+}
+
+/** Money out tied to no day: the median month of the complete months named, spread over each month's days. */
+export interface SpreadOut {
+  monthly: MoneyOut;
+  months: string[];
+  after: string | null;
+}
+
+/** Where an account's forecast starts: the newest balance a document prints, moved by the evidence after it. */
+export interface StartOut {
+  balance: MoneyOut;
+  stated: MoneyOut;
+  day: string;
+  source: "statement" | "notice";
+  moves: number;
+  through: string;
+}
+
+export interface SubscriptionsOut {
+  window: string[];
+  as_of: string;
+  series: SeriesOut[];
+  income: SeriesOut[];
+  installments: InstallmentOut[];
 }
 
 export interface SystemOut {
@@ -273,6 +427,12 @@ export interface SystemOut {
   mail: MailOut;
   backup: BackupHealthOut;
 }
+
+/**
+ * What a row is. For every kind, an amount above zero is money leaving the user and below zero money coming in (a
+ * refund, income, a transfer in).
+ */
+export type TransactionKind = "purchase" | "refund" | "interest_fee" | "p2p_transfer" | "loan_principal" | "cash_advance" | "investment" | "income" | "card_payment_no_statement" | "card_payment" | "own_transfer" | "transfer_candidate";
 
 export interface UnknownMailOut {
   domain: string;
