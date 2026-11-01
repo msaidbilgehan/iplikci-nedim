@@ -9,7 +9,7 @@ from iplikci import parsers
 from iplikci.domain.codes import TransactionKind
 from iplikci.domain.models import Transaction
 from iplikci.fakes.files import scan_pdf
-from iplikci.parsers import contract
+from iplikci.parsers import common, contract
 from iplikci.parsers.common import (
     business_names_signature,
     classify_kind,
@@ -117,7 +117,11 @@ def test_deferred_statement_is_not_spending():
 def test_business_products_mark_company_documents():
     assert is_business("Şirket Kredi Kartı Hesap Özeti")
     assert is_business("GİRİŞİMCİ KREDİ KARTI")
+    assert is_business("Kampanya: Ticari Kredi Kartları ile vergi ödemelerine taksit")
+    assert is_business("2026 Yılında Ticari Müşterilerimiz için Uygulanacak Masraflar")
+    assert is_business("Bankadan KOBİ'lere özel kredi")
     assert not is_business("ÖRNEK KULLANICI")
+    assert not is_business("Kredi Kartı Hesap Özetiniz")
 
 
 def test_a_company_name_counts_only_once_it_is_in_the_settings():
@@ -135,19 +139,23 @@ def test_a_company_name_matches_whatever_legal_form_the_document_prints(name):
 
 
 def test_a_company_name_of_fewer_than_three_letters_is_ignored():
+    none = business_names_signature()
     set_business_names(["AB", "A.Ş."])
     assert not is_business("AB YAPI ANONİM ŞİRKETİ")
-    assert business_names_signature() == ""
+    assert business_names_signature() == none
 
 
-def test_the_signature_changes_with_the_company_names():
-    assert business_names_signature() == ""
+def test_the_signature_changes_with_the_company_check(monkeypatch):
+    none = business_names_signature()
     set_business_names(["Örnek Teknoloji"])
     first = business_names_signature()
     set_business_names(["ÖRNEK TEKNOLOJİ A.Ş."])
     assert business_names_signature() == first  # the same name in another spelling
     set_business_names(["Başka Şirket"])
-    assert business_names_signature() not in ("", first)
+    assert business_names_signature() not in (none, first)
+    set_business_names([])
+    monkeypatch.setattr(common, "_BUSINESS_MARKS", (*common._BUSINESS_MARKS, "YENIISARET"))
+    assert business_names_signature() != none  # a new mark reads the kept documents again too
 
 
 def test_password_protected_pdf_is_kept_for_a_manual_look(monkeypatch):

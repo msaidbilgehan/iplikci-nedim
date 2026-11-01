@@ -57,6 +57,9 @@ def caused_by(exc: BaseException, kind: type[BaseException]) -> bool:
 _BUSINESS_MARKS = (
     "SIRKETKREDIKARTI",
     "GIRISIMCIKREDIKART",
+    "TICARIKREDIKART",  # banks write to a company's contact about its commercial cards …
+    "TICARIMUSTERI",  # … to their commercial customers …
+    "KOBI",  # … and to small businesses (KOBİ)
     "KREDILITICARIMEVDUAT",
     "UCRETBORDROSU",
     "AYLIKOZETRAPORU",
@@ -90,10 +93,9 @@ def business_names() -> tuple[str, ...]:
 
 
 def business_names_signature() -> str:
-    """Changes whenever the company names do: a parse cache made with other names is stale."""
-    if not _business_names:
-        return ""
-    return hashlib.sha256("\n".join(_business_names).encode()).hexdigest()[:16]
+    """Changes whenever the company check does, the company names or the marks in this module: a reading made with
+    another check is stale, so a company document kept before is found."""
+    return hashlib.sha256("\n".join(_BUSINESS_MARKS + ("",) + _business_names).encode()).hexdigest()[:16]
 
 
 BUSINESS_REASON = "şirket belgesi — kapsam dışı"
