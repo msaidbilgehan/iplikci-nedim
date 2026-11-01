@@ -390,12 +390,18 @@ def settle(s: Series, seen_until: dict[str, date], ended: dict[str, str], as_of:
     s.expected = s.last.date + timedelta(days=s.cadence)
     cancelled = ended.get(fold(s.merchant))
     if cancelled:
-        late = any(month_of(t.date) > cancelled for t in s.payments)
-        s.status = "iptal_sonrasi" if late else "iptal"
+        s.status = "iptal_sonrasi" if paid_after_cancel(s, ended) else "iptal"
         return
     seen = max(seen_until.get(t.account, t.date) for t in s.payments[-2:])
     over = seen >= s.expected + timedelta(days=s.grace) or as_of > s.expected + timedelta(days=_STALE)
     s.status = "bitti" if over else "devam"
+
+
+def paid_after_cancel(s: Series, ended: dict[str, str]) -> list[Transaction]:
+    """The payments of a series after the month the user's rules (`_biten`) give its payee as the last one; none
+    when they give it none."""
+    cancelled = ended.get(fold(s.merchant))
+    return [t for t in s.payments if month_of(t.date) > cancelled] if cancelled else []
 
 
 def _outgoing(ds: Dataset) -> list[Transaction]:
@@ -666,6 +672,19 @@ def _expenses(ds: Dataset, months: set[str]) -> list[Transaction]:
     return [t for t in ds.transactions if t.kind in DEFAULT_EXPENSE_KINDS and month_of(t.date) in months]
 
 
+LARGE_PURCHASE = Decimal(5000)  # TL: a single purchase this large is large, however much is spent in a month
+LARGE_SHARE = Decimal("0.1")  # or this share of the window's average month of spending, when that is more
+
+
+def large_purchase_threshold(ds: Dataset, window: list[str]) -> Decimal:
+    """The amount from which a single purchase counts as large (docs/domain/interpretation.md, "Tahmin"): 5.000 TL,
+    or a tenth of the window's average month of spending when that is more."""
+    if not window:
+        return LARGE_PURCHASE
+    average = sum((t.amount for t in _expenses(ds, set(window))), ZERO) / len(window)
+    return max(LARGE_PURCHASE, LARGE_SHARE * average)
+
+
 def trend(ds: Dataset, tl_: Timeline, in_series: set[int]) -> Trend | None:
     n = len(tl_.window)
     k = 6 if n >= 9 else n // 2
@@ -673,8 +692,7 @@ def trend(ds: Dataset, tl_: Timeline, in_series: set[int]) -> Trend | None:
         return None
     recent, before = tl_.window[-k:], tl_.window[:-k][-6:]
     spent = _expenses(ds, set(tl_.window))
-    average = sum((t.amount for t in spent), ZERO) / n
-    threshold = max(Decimal(5000), Decimal("0.1") * average)
+    threshold = large_purchase_threshold(ds, tl_.window)
     big = sorted(
         (t for t in spent if t.kind == TransactionKind.PURCHASE and id(t) not in in_series and t.amount >= threshold),
         key=lambda t: -t.amount,
@@ -1315,7 +1333,7 @@ def _regular_findings(c: _Context) -> None:
         ins.findings.append(Finding("bilgi", "Görünmeyen faturalar", text))
     for s in (s for s in ins.series if s.status == "iptal_sonrasi"):
         cancelled = c.ds.ended[fold(s.merchant)]
-        late = [t for t in s.payments if month_of(t.date) > cancelled]
+        late = paid_after_cancel(s, c.ds.ended)
         ins.findings.append(
             Finding(
                 "dikkat",

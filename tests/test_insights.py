@@ -17,6 +17,7 @@ from iplikci.insights import (
     habits,
     holdings,
     interpret,
+    large_purchase_threshold,
     listed,
     months_in,
     pct,
@@ -383,6 +384,15 @@ def test_a_habit_listed_as_ended_stopped():
     )
     (h,) = habits(ds, timeline(ds), [])
     assert (h.status, h.monthly) == ("durdu", Decimal(0))
+
+
+def test_a_single_purchase_is_large_from_5000_tl_or_a_tenth_of_the_average_month_when_that_is_more():
+    months = ["2026-01", "2026-02"]
+    modest = [tx(date(2026, m, 10), "Örnek Market", Decimal(20000), category="Market & Gıda") for m in (1, 2)]
+    assert large_purchase_threshold(dataset(modest, []), months) == Decimal(5000)  # a tenth of 20.000 is less
+    lavish = [tx(date(2026, m, 10), "Örnek Market", Decimal(80000), category="Market & Gıda") for m in (1, 2)]
+    assert large_purchase_threshold(dataset(lavish, []), months) == Decimal(8000)
+    assert large_purchase_threshold(dataset(lavish, []), []) == Decimal(5000)
 
 
 # --- months, balances and debt ---------------------------------------------------------------

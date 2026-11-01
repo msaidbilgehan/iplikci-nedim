@@ -448,6 +448,12 @@ def _rates(txns: list[Transaction]) -> dict[str, list[tuple[date, Decimal]]]:
     return rates
 
 
+def nearest_rate(rates: Mapping[str, Sequence[tuple[date, Decimal]]], currency: str, day: date) -> Decimal | None:
+    """The TL rate of currency the documents print nearest to day; None when they print none."""
+    known = rates.get(currency)
+    return min(known, key=lambda r: abs((r[0] - day).days))[1] if known else None
+
+
 def _to_tl(
     txns: list[Transaction], accounts: dict[str, Account], rates: dict, warnings: list[str]
 ) -> list[Transaction]:
@@ -460,11 +466,10 @@ def _to_tl(
             continue
         if t.kind == TransactionKind.OWN_TRANSFER:
             continue  # moving foreign currency between own accounts changes nothing
-        known = rates.get(currency)
-        if not known:
+        rate = nearest_rate(rates, currency, t.date)
+        if rate is None:
             warnings.append(f"{t.date} {currency} {t.amount}: kur bulunamadı, işlem dışarıda bırakıldı")
             continue
-        rate = min(known, key=lambda r: abs((r[0] - t.date).days))[1]
         t.amount = round_half_up(t.amount * rate)
         t.original = f"{t.original} × {format_amount(rate)}"
         out.append(t)
