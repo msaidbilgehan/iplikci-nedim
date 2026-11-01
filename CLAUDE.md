@@ -6,8 +6,8 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-01): Phases 0–2 of `docs/v1/roadmap.md` are done (v0.1.0, v0.2.0, v0.3.0); Phase 3 is under way on
-`asama-3`.
+Status (2026-11-01): Phases 0–3 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.4.0); Phase 4 (the whole mailbox) is
+next, on `asama-4`.
 - Phase 0 brought the MVP's code in as the `iplikci` package, cleaned of personal traces, with the shipped default
   rules, the verification baseline and the demo workspace.
 - Phase 1 (data core) moved everything into the data dir: `settings.toml`, the content-addressed vault, SQLite with the
@@ -17,11 +17,14 @@ Status (2026-11-01): Phases 0–2 of `docs/v1/roadmap.md` are done (v0.1.0, v0.2
 - Phase 3 (the service) has the API behind ADR-0007's gate, the job queue and the feed, the e-mail intake (IMAP with
   IDLE, the extension's intake, the trust rule, whole messages as `.eml`), the inbox watcher and confirmed uploads,
   egress, the service-manager registration with its single-instance lock, the nightly backup with its monthly
-  rehearsal, the CLI as the service's client and the interface's skeleton. The browser extension pairs and delivers
-  new bank messages (layers 1 and 3).
-- Phase 3 still waits on the user: ADR-0016's verification in Chrome on macOS and Windows decides layer 2 (the full
-  scan), then the mailbox is read from the start into the data dir and the first real baseline is taken. Publishing
-  the extension (Chrome Web Store, unlisted) is a paid account decision: ask first.
+  rehearsal, the CLI as the service's client and the interface's skeleton. The browser extension pairs, delivers new
+  bank messages (layers 1 and 3) and reads the history through "Gmail'de eksikleri tara" (layer 2 failed its check).
+  Messages with attachments come whole through "Download original"; the print view names the attached messages in
+  the middle of read conversations. The mailbox was read from the start and the first real baseline taken
+  (`baseline.json` in the data dir): from now on `iplikci dogrula --taban` must stay free of regressions locally.
+- Phase 3 closed with two open conditions (K19): the service's 7-day run (earliest 2026-11-08) and the Windows check.
+  macOS comes first; keep the code cross-platform. The extension stays unpacked (K20): publishing it on the Chrome
+  Web Store is a paid account decision, ask first.
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 
@@ -49,7 +52,7 @@ The MVP was retired on 2026-10-31 (K17, ADR-0018): İplikçi Nedim starts with n
 | Document | What it holds |
 |---|---|
 | `docs/README.md` | Map of the docs and reading order |
-| `docs/v1/requirements.md` | Requirements G1–G13, the user's decisions K1–K18, product principles |
+| `docs/v1/requirements.md` | Requirements G1–G13, the user's decisions K1–K20, product principles |
 | `docs/v1/architecture.md` | Target architecture: modules, data model, data dir, API, MCP, security, NFRs |
 | `docs/v1/features.md` | Feature specs with acceptance criteria and the MVP parity checklist |
 | `docs/v1/roadmap.md` | Phases 0–8 and the 1.0 release, exit criteria, MVP module mapping, first-session steps |

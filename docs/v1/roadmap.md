@@ -132,19 +132,24 @@ belgeleri hazır; demoya katılmaları altın tabanı değiştireceği için kul
 
 ## Aşama 3 — Servis
 
-Durum: `asama-3` dalında sürüyor ([değişiklik günlüğü](../../CHANGELOG.md)).
+Durum: 2026-11-01'de `asama-3` dalında uygulandı, `v0.4.0` ([değişiklik günlüğü](../../CHANGELOG.md)). Kullanıcı aşamayı
+iki koşulu açık bırakarak kapattı ([K19](requirements.md#kararlar)).
 
 - Hazır olanlar:
   - API, kuyruk ve olaylar;
   - e-posta alımı (IMAP ve eklentinin alım ucu, güven kuralı), gelen klasörü ve yükleme;
   - egress, servis yöneticisi ve yedek;
   - servisin istemcisi olan CLI ve arayüz iskeleti.
-- Eklenti eşleşir ve yeni banka iletilerini 1. ve 3. katmanla teslim eder
-  ([ADR-0016, uygulama notu](../adr/0016-mail-connectors.md#uygulama-notu-aşama-3-2026-11-01)).
-- Kullanıcıyı bekleyenler:
-  - ADR-0016'nın Chrome'da macOS ve Windows'ta doğrulanması; 2. katmanı bu belirler;
-  - kutunun baştan okunması ve ilk gerçek taban;
-  - eklentinin Chrome Web Store'da yayımlanması (ücretli bir hesap kararı).
+- Eklenti eşleşir, yeni banka iletilerini 1. ve 3. katmanla teslim eder ve geçmişi "Gmail'de eksikleri tara" ile okur
+  ([ADR-0016, uygulama notu](../adr/0016-mail-connectors.md#uygulama-notu-aşama-3-2026-11-01)). Tam tarama (2. katman)
+  doğrulamada tutmadı.
+- Kutu baştan okundu ve ilk gerçek taban alındı ([geçiş, Aşama 3](migration.md#aşama-3-e-posta-ve-geçmiş)).
+- Açık kalanlar:
+  - servisin yedi gün kendi başına çalışması: servis 2026-11-01'de kuruldu, en erken 2026-11-08'de tamamlanır;
+  - eklentinin Windows'ta denenmesi: önce macOS (K19);
+  - yeni bir banka iletisinin akışa düşme süresi, ilk yeni iletide ölçülecek. Eklenti gelen kutusuna dakikada bir bakar.
+- Eklenti şimdilik Chrome Web Store'da yayımlanmıyor, paketlenmemiş yükleniyor ([K20](requirements.md#kararlar)).
+  Mağaza metinleri `extension/store/`'da hazır.
 
 **Teslimler**
 

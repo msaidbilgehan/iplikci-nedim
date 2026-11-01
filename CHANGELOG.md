@@ -4,7 +4,10 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
-## [Yayımlanmamış] — Aşama 3: Servis
+## [0.4.0] — 2026-11-01 — Aşama 3: Servis
+
+Kutu baştan okundu ve ilk gerçek taban alındı. Aşama iki açık koşulla kapandı (K19): servisin yedi gün kendi başına
+çalışması (en erken 2026-11-08) ve eklentinin Windows'ta denenmesi. Eklenti şimdilik paketlenmemiş yüklenir (K20).
 
 ### Eklenenler
 
@@ -83,6 +86,19 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
   (`Document`) okuyucu sözleşmesine taşındı.
 - `servis kaldir` servisin süreci bitene dek bekler (en çok 30 saniye); bitmezse 1 ile çıkar. Program güncellemesi
   çalışan bir servisin dosyalarını değiştirmez.
+
+### Düzeltilenler
+
+İlk gerçek verilerle bulunanlar:
+
+- Şirket iletileri: ticari kartlar, ticari müşteriler ve KOBİ iletileri genel şirket işaretlerine eklendi. Saklanmış
+  bir e-postanın konusu yeniden okumada da denetlenir. Sonradan girilen bir şirket adı, önce saklanmış iletileri de
+  bulur. Şirket iletisi ekleriyle birlikte çöp kutusuna gider.
+- İki eklenti aynı yeni iletiyi teslim edince, şirketinki diye reddedilen tam iletinin ardından eki boş kopyası
+  saklanabiliyordu. Bu kopya artık reddin arkasında kalmaz ve tarama onu tamamlar.
+- Adı numaralı parçalarla gelen bir ek (RFC 2231, uzun ya da Türkçe adlar) eklentide tanınmıyordu; ileti artık tam
+  alınır.
+- Aynı tarayıcıdan iki eklenti Sistem ekranında eşleşme zamanlarıyla ayrılır.
 
 ### Kaldırılanlar
 

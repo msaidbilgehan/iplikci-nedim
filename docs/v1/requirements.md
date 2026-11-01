@@ -148,7 +148,8 @@ Kullanıcının koyduğu ilkeler (2026-10-31):
 - Aylık raporların yanında güncel akış anlık izlenir; e-postayla gelen ya da elle yüklenen her finansal bilgi
   analize girer.
 - Kullanıcı odaklıdır: son kullanıcı hiçbir iş için terminal açmaz; kurulum, ayarlar ve bakım arayüzden yapılır (K14).
-- Windows, macOS ve Linux'ta çalışır. Kullanıcıdan kullanmadığı bir uygulamayı kurması istenmez (K15).
+- Windows, macOS ve Linux'ta çalışır. Kullanıcıdan kullanmadığı bir uygulamayı kurması istenmez (K15). Deneme ve
+  cilalama önce macOS'ta yapılır (K19).
 
 ## Kararlar
 
@@ -172,6 +173,8 @@ Kullanıcının koyduğu ilkeler (2026-10-31):
 | K16 | Eklenti postayı Gmail'in web arayüzünden, açık oturumla okur (ADR-0016'nın B yolu). Apps Script yolu bırakıldı: kurulumu son kullanıcıya göre değil ve kendiliğinden kurulamıyor. | G1 |
 | K17 | İplikçi Nedim veriyi kendisi toplar. Kullanıcının elle taşıdığı belgelerle (`Bankalar/`), MVP'nin diğer klasörleriyle (`Gelen Belgeler/`, `gider-analizi/`) ve taşıma kayıtlarıyla (`belge-duzenleme-kaydi *.csv`) çalışmaz; bunlar kaldırılır. 2026-10-31'de çöp kutusuna taşındılar ve MVP emekliye ayrıldı. Neyin alındığı ve geçmişin nasıl kurulduğu [ADR-0018](../adr/0018-retire-mvp-clean-start.md)'dedir. | G1, G2 |
 | K18 | Depo GitHub'da özel (private) kalır; lisansı [BSD 3-Clause](../../LICENSE.txt)'tır (2026-11-01). Depo yine de herkese açıkmış gibi yazılır: kişisel veri girmez, her commit'ten önce ve CI'da gitleaks çalışır. | G6 |
+| K19 | Önce macOS (2026-11-01). Kod üç işletim sisteminde çalışacak biçimde kalır, ama deneme ve cilalama şimdilik yalnızca macOS'ta yapılır; Windows'ta deneme sonra gelir. Aşama 3, Windows denemesi ve servisin yedi günlük çalışması açık koşul olarak yazılıp kapatıldı ([yol haritası](roadmap.md#aşama-3--servis)). | G1, G4 |
+| K20 | Tarayıcı eklentisi şimdilik Chrome Web Store'da yayımlanmaz; geliştirici modunda, paketlenmemiş yüklenir (2026-11-01). Mağaza metinleri ve gizlilik politikası `extension/store/`'da hazırdır. Yayın ücretli bir hesap kararıdır; kullanıcıya sorulmadan yapılmaz. | G1, G6 |
 
 Mühendislik kararları (veri klasörü, veritabanı, API, ön yüz, bildirim içeriği, MVP'den geçiş…) gerekçeleriyle
 [ADR-0001 … ADR-0018](../adr/README.md)'dedir. Kullanıcı aksini söylemedikçe geçerlidirler.
@@ -200,7 +203,8 @@ Bugün:
   hesaplarda çalışmaz.
 
 Kararlar: K5 (yeni e-posta anında alınır), K12 (banka dışı e-postalar), K15 (platformdan bağımsız e-posta köprüsü),
-K16 (eklenti Gmail'in web arayüzünden okur), K17 (geçmiş, posta kutusu baştan okunarak kurulur). İlgili: G10, G13.
+K16 (eklenti Gmail'in web arayüzünden okur), K17 (geçmiş, posta kutusu baştan okunarak kurulur), K20 (eklenti
+şimdilik paketlenmemiş yüklenir). İlgili: G10, G13.
 Bağlantı yolu: ADR-0015 ve [ADR-0016](../adr/0016-mail-connectors.md).
 
 Dikkat: "elle yüklemeye gerek kalmaması" bankaların e-postayla gönderdikleriyle sınırlıdır. E-postayla gelmeyen

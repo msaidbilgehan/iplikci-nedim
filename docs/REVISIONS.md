@@ -6,10 +6,26 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 | Revizyon | Konu | Durum | Belge |
 |---|---|---|---|
 | V0 | MVP `gider-analizi`: banka belgelerini okuyan, doğrulayan, yorumlayan yerel komut satırı programı, web paneli ve MCP sunucusu | 2026-10-31'de emekliye ayrıldı (K17) | Depo dışında, veri klasöründeki arşivde: `archive/mvp/CLAUDE.md` ve `README.md` |
-| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–2 (v0.1.0–v0.3.0) uygulandı; sırada Aşama 3 var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
+| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–3 (v0.1.0–v0.4.0) uygulandı; sırada Aşama 4 var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
 | V2 | Finansal strateji uzmanları ve yapay zekâ asistanı | Gelecek (V1'den sonra) | [`v2/requirements.md`](v2/requirements.md) |
 
 ## Değişiklik kaydı
+
+- 2026-11-01 (14) — Aşama 3 uygulandı (`asama-3` dalı); belgeler kodla uyumlu hâle getirildi:
+  - README'nin durum bölümü güncellendi; `CHANGELOG.md`'ye 0.4.0 eklendi.
+  - Kullanıcı kararları: [K19](v1/requirements.md#kararlar), önce macOS; Aşama 3, servisin yedi günlük çalışması ve
+    Windows denemesi açık koşul olarak yazılıp kapatıldı. [K20](v1/requirements.md#kararlar), eklenti şimdilik
+    Chrome Web Store'da yayımlanmaz.
+  - [ADR-0016](adr/0016-mail-connectors.md)'ya uygulama notları: doğrulamanın sonuçları, "Gmail'de eksikleri tara",
+    geçmişin servisçe izlenmesi, alınmayan ve ekleri boş saklanan iletiler, ekler için "Orijinali indir" ve
+    konuşmaların ortası için yazdırma görünümü. Ek sunucusu [ADR-0009](adr/0009-network-egress-policy.md)'a da
+    eklendi.
+  - [ADR-0007](adr/0007-api-and-auth.md), [ADR-0014](adr/0014-event-log-and-jobs.md) ve
+    [ADR-0015](adr/0015-email-ingestion.md)'e uygulama notları; ADR-0015'e güven kuralının ana alan adı ayrıntısı.
+  - [Mimari](v1/architecture.md)'de API tablosu ve güvenlik; [özellikler](v1/features.md)'de e-posta, yükleme ve
+    Sistem ekranı.
+  - [Geçiş](v1/migration.md#aşama-3-e-posta-ve-geçmiş): kutunun baştan okunması ve ilk gerçek taban.
+  - [Yol haritası](v1/roadmap.md#aşama-3--servis): Aşama 3'ün durumu ve açık koşulları.
 
 - 2026-11-01 (13) — Aşama 2 uygulandı (`asama-2` dalı); belgeler kodla uyumlu hâle getirildi:
   - README'nin durum bölümü ve geliştirici komutları güncellendi; `CHANGELOG.md`'ye 0.3.0 eklendi.

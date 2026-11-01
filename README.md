@@ -34,7 +34,7 @@ Aşama 2 (Okuyucu eklentileri, v0.3.0) belgeleri okuyan okuyucuları ayrı eklen
 - Bir banka biçimini değiştirirse biçim alarmı kaydedilir.
 - Her okuyucunun kodla üretilen sahte belgeleri ve testleri vardır.
 
-Aşama 3 (Servis, v0.4.0) uygulamayı bilgisayarda kendi başına çalışan bir servise çevirir:
+Aşama 3 (Servis, v0.4.0) uygulamayı bilgisayarda kendi başına çalışan bir servise çevirdi:
 
 - Servis yalnızca bu bilgisayardan (127.0.0.1) erişilen bir API sunar. Tarayıcıdan giriş tek kullanımlık bir
   bağlantıyla yapılır.
@@ -42,16 +42,20 @@ Aşama 3 (Servis, v0.4.0) uygulamayı bilgisayarda kendi başına çalışan bir
 - E-posta iki yoldan gelir:
   - Uygulama şifresi olan hesaplar IMAP ile okunur: yalnızca okuma, yeni ileti IDLE ile anında.
   - Uygulama şifresi olmayan hesaplar, örneğin Gelişmiş Koruma'daki Gmail, tarayıcı eklentisiyle okunur. Eklenti
-    Gmail'in açık oturumunu kullanır ve Gmail'de hiçbir şeyi değiştirmez.
-  - İki yolda da yalnızca listedeki bankaların, DMARC'tan geçen iletileri alınır. İleti ekleriyle birlikte saklanır.
+    Gmail'in açık oturumunu kullanır ve Gmail'de hiçbir şeyi değiştirmez. Geçmişi "Gmail'de eksikleri tara" ile okur.
+  - İki yolda da yalnızca listedeki bankaların, DMARC'tan geçen iletileri alınır. İleti ekleriyle birlikte saklanır;
+    şirket iletileri saklanmaz.
 - Gelen klasörüne bırakılan dosyalar kendiliğinden alınır. Arayüzden yüklenenlerde ise önce ne olacağı gösterilir;
   onaylanınca alınır.
 - Her gece bir yedek alınır ve 14 gün saklanır. Her ay en yeni yedek geçici bir klasöre geri yüklenip denetlenir.
 - Servis macOS'ta launchd, Linux'ta systemd, Windows'ta Görev Zamanlayıcı ile kaydedilir. Her veri klasörü için tek bir
   servis çalışır.
 - Arayüzün iskeleti: Sistem ekranı, Belgeler listesi ve yükleme, tarayıcı eklentisinin eşleştirilmesi.
+- Posta kutusu baştan okundu ve ilk gerçek doğrulama tabanı alındı.
 
-Aşama 3 sürüyor: eklentinin Gmail'de doğrulanması, posta kutusunun baştan okunması ve ilk gerçek taban kaldı.
+İki koşul açık kaldı: servisin yedi gün kendi başına çalışması ve eklentinin Windows'ta denenmesi. Deneme önce
+macOS'ta yapılıyor. Eklenti şimdilik Chrome Web Store'da değil, geliştirici modunda yükleniyor. Sırada Aşama 4
+(E-postanın tamamı) var.
 
 MVP 2026-10-31'de emekliye ayrıldı. İplikçi Nedim onun kodundan başlar ama verisini devralmaz; belgeleri kendisi toplar.
 Uygulama henüz son kullanıcıya hazır değil: kurulum paketi, kurulum sihirbazı ve arayüzün tamamı sonraki aşamalarda
