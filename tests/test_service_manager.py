@@ -162,6 +162,12 @@ def test_a_development_folder_is_recognised_and_an_installed_copy_is_not(tmp_pat
     assert manager.development_folder(installed) is None
 
 
+def test_the_fixed_copy_is_installed_with_the_python_the_tests_run_on(tmp_path):
+    assert manager.install_command(tmp_path) == f"uv tool install --reinstall {tmp_path}"
+    (tmp_path / ".python-version").write_text("3.13\n", encoding="utf-8")
+    assert manager.install_command(tmp_path) == f"uv tool install --reinstall --python 3.13 {tmp_path}"
+
+
 def test_the_service_is_never_registered_from_a_development_folder(ws, monkeypatch, capsys):
     tools = Tools()
     monkeypatch.setattr(manager, "for_platform", lambda: manager.Launchd(ws.home, run=tools, uid=501))

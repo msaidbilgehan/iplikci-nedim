@@ -83,6 +83,14 @@ def development_folder(module: Path | None = None) -> Path | None:
     return None
 
 
+def install_command(source: Path) -> str:
+    """How a fixed copy is installed from a source folder: with the Python the tests run on (.python-version), as
+    uv tool install would otherwise take the newest Python it has."""
+    pinned = source / ".python-version"
+    version = pinned.read_text(encoding="utf-8").strip() if pinned.is_file() else ""
+    return f"uv tool install --reinstall{f' --python {version}' if version else ''} {source}"
+
+
 def installed_program(home: Path) -> Program:
     """The Python running this program, for the data folder at home; DevelopmentCopy when it runs a development
     folder."""
@@ -91,7 +99,7 @@ def installed_program(home: Path) -> Program:
         raise DevelopmentCopy(
             f"Servis geliştirme klasöründen kurulmaz: bu iplikci {source} klasöründen çalışıyor ve servis bir dal "
             "değişince ya da bir dosya yarım kalınca o kodu gerçek veriyle çalıştırırdı. Sabit bir kopya kurup servisi "
-            f"onunla kurun: uv tool install --reinstall {source} ve ardından ~/.local/bin/iplikci servis kur. "
+            f"onunla kurun: {install_command(source)} ve ardından ~/.local/bin/iplikci servis kur. "
             "Geliştirirken servis ön planda çalışır: uv run iplikci servis calistir"
         )
     # The python is not resolved: a virtual environment's python finds its packages through the path it has.

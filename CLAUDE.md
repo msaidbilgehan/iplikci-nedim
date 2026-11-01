@@ -179,10 +179,12 @@ uv run iplikci dev api-tipleri web/src/api/schema.ts   # the interface's API typ
 (cd extension && npm ci && npm run typecheck && npm test && npm run build)   # the extension; load extension/dist
 ```
 
-The service never runs from this folder when registered: `servis kur` needs a fixed copy (`uv tool install
---reinstall .`, built web interface included), so a checked-out branch never reaches the real data. During development
-it runs in the foreground. For a throwaway service set `IPLIKCI_HOME` to a temp folder and `IPLIKCI_API_TOKEN` to a
-made-up token, so the keychain is not touched. Never install the service on the user's computer without asking.
+The service never runs from this folder when registered: `servis kur` needs a fixed copy (`uv tool install --reinstall
+--python 3.13 .`, built web interface included; without `--python` uv takes its newest Python), so a checked-out branch
+never reaches the real data. During development it runs in the foreground. For a throwaway service set `IPLIKCI_HOME` to
+a temp folder and `IPLIKCI_API_TOKEN` to a made-up token, so the keychain is not touched. Never install the service on
+the user's computer without asking. Once a uv tool copy is registered, a change reaches it only when the fixed copy is installed again and the service restarted
+(`~/.local/bin/iplikci servis yeniden-baslat`).
 
 `dogrula --taban` saves the baseline in the data dir (`baseline.json`) and keeps the saved one when it finds a
 regression; `--kabul` saves it anyway, for a deliberate change only. `dogrula --arsiv` and `--yeniden-kur` exit 1 on
