@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>İplikçi Nedim Köprüsü — doğrulama</title>
+    <link rel="stylesheet" href="verify.css" />
+    <script type="module" src="verify.js"></script>
+  </head>
+  <body>
+    <main>
+      <h1>İplikçi Nedim Köprüsü</h1>
+      <p class="lead">Bu sayfa, eklentinin Gmail'i bu tarayıcıdaki açık oturumunuzla okuyabildiğini denetler.</p>
+      <ul class="facts">
+        <li>Gmail'de hiçbir şeyi değiştirmez: okundu işareti, etiket, taşıma ya da silme yoktur.</li>
+        <li>İletilerin içeriği bu sayfada gösterilmez ve hiçbir yere gönderilmez.</li>
+        <li>Sonuç metninde e-posta adresi, konu ya da ileti içeriği yoktur.</li>
+      </ul>
+
+      <h2>Başlamadan</h2>
+      <ol>
+        <li>Bu tarayıcıda Gmail'e girmiş olun.</li>
+        <li>
+          Gelen kutusunda okunmamış bir banka iletisi olsun. Yoksa Gmail'de bir banka iletisini seçip "Okunmadı olarak
+          işaretle" deyin.
+        </li>
+      </ol>
+
+      <form id="form">
+        <label for="account">Gmail hesabı</label>
+        <select id="account" aria-describedby="account-hint">
+          <option value="0">1. hesap</option>
+          <option value="1">2. hesap</option>
+          <option value="2">3. hesap</option>
+          <option value="3">4. hesap</option>
+          <option value="4">5. hesap</option>
+        </select>
+        <p class="hint" id="account-hint">
+          Tarayıcıda birden çok Google hesabı varsa, Gmail'in sağ üstündeki hesap listesindeki sırasını seçin.
+        </p>
+        <button id="start" type="submit">Doğrulamayı başlat</button>
+      </form>
+
+      <p id="status" role="status" aria-live="polite"></p>
+
+      <section id="summary" hidden>
+        <h2>Sonuç</h2>
+        <ol id="results" class="results"></ol>
+        <label for="output">Sohbete yapıştırılacak metin</label>
+        <textarea id="output" rows="16" readonly></textarea>
+        <p>
+          <button id="copy" type="button">Sonucu kopyala</button>
+          <span id="copied" role="status" aria-live="polite"></span>
+        </p>
+      </section>
+    </main>
+  </body>
+</html>
