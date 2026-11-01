@@ -26,14 +26,14 @@ from typing import Any
 
 from . import __version__, month_end, rulefile
 from .analysis import Dataset
-from .app import intake, outlook
+from .app import intake, invoices, outlook
 from .app import mail as email
 from .app.analysis import Current, document_gaps, summary
 from .app.uploads import inbox_files
 from .app.workspace import Busy, StalePlan, Workspace
 from .categorize import Categorizer
-from .domain.codes import Actor, Necessity, SeriesPeriod, TransactionKind
-from .domain.labels import PAYMENT_KIND, SERIES_PERIOD, SERIES_STATUS
+from .domain.codes import Actor, InvoiceStatus, Necessity, SeriesPeriod, TransactionKind
+from .domain.labels import INVOICE_KIND, INVOICE_STATUS, PAYMENT_KIND, SERIES_PERIOD, SERIES_STATUS
 from .domain.money import round_half_up, to_decimal
 from .domain.text import fold
 from .insights import HABIT_STATUS, STATUS, receipt_amount
@@ -64,6 +64,9 @@ gelir, gereklilik ve tahmin raporu üreten, bu bilgisayarda çalışan program.
 - Abonelikler (aylık ve dönemsel) subscriptions, önümüzdeki 60 gün upcoming_payments, hesap bakiyelerinin gün gün
   öngörüsü cash_flow_forecast ile gelir. Beklenen ödemeler ve öngörü tahmindir; kullanıcıya da tahmin diye söyleyin
   ve dayandığı pencereyi ve varsayımları (basis, notes) aktarın.
+- Banka dışı göndericilerin (telefon, internet, enerji, abonelik, alışveriş) faturaları ve makbuzları invoices ile
+  gelir: eşleşti (onu ödeyen banka satırıyla), bekliyor ya da eşleşmedi (yalnızca bilgi, olası nedenleriyle).
+  Hiçbiri toplamlara girmez; harcamayı onu ödeyen banka satırı sayar.
 - Bankanın e-postayla gönderdiği dekontlar, hesabın ekstresi ya da dökümü gelmeden işlenir: bu satırlar
   geçicidir (transactions → provisional: true) ve belge gelince onun satırıyla eşleşip kesinleşir. Bir ayın
   kapanıp kapanmadığını, neyi beklediğini ve ay sonu özetini month_end söyler.
@@ -612,6 +615,51 @@ def _cash_flow(s: Server, args: dict) -> dict:
     }
 
 
+def _invoice_view(v: invoices.InvoiceView, labels: dict[str, str]) -> dict:
+    row = v.row
+    return {
+        "key": v.key,
+        "kind": v.kind,
+        "kindLabel": INVOICE_KIND[v.kind],
+        "status": v.status,
+        "statusLabel": INVOICE_STATUS[v.status],
+        "seller": v.seller,
+        "number": v.number or None,
+        "issued": v.issued,
+        "due": v.due,
+        "total": v.total,
+        "currency": v.currency,
+        "lines": [
+            {"description": line.description, "amount": line.amount, "quantity": line.quantity} for line in v.lines
+        ],
+        "window": {"from": v.window[0], "to": v.window[1]},
+        "document": v.document,
+        "paidBy": row
+        and {
+            "fingerprint": row.fingerprint,
+            "day": row.day,
+            "account": labels.get(row.account, row.account),
+            "amount": row.amount,
+            "description": row.description,
+        },
+        "reasons": list(v.reasons),
+    }
+
+
+def _invoices(s: Server, args: dict) -> dict:
+    found = invoices.overview(s.current.get())
+    items = [v for v in found.items if args.get("status", v.status) == v.status]
+    return {
+        "counts": {str(status): n for status, n in found.counts.items()},
+        "invoices": [_invoice_view(v, found.labels) for v in items],
+        "note": "Banka dışı göndericilerin faturaları ve makbuzları hiçbir toplama girmez; harcamayı onu ödeyen banka "
+        "satırı sayar. total belgenin kendi para birimindedir (currency); paidBy onu ödeyen banka satırıdır, tutarı "
+        "TL. pending: penceresi (window) geçmedi ya da banka belgeleri o günlere henüz ulaşmadı; son ödemesi gelmemiş "
+        "fatura upcoming_payments takviminde de görünür. unmatched: yalnızca bilgi, reasons olası nedenleri söyler. "
+        "Sıra: bekleyenler son ödeme gününe göre, sonra eşleşmeyenler ve eşleşenler en yenisi önce.",
+    }
+
+
 def _habits(s: Server, args: dict) -> dict:
     ins = s.current.get().insights
     return {
@@ -1014,6 +1062,16 @@ TOOLS = (
         "düştüğü gün ve tutar, en düşük gün, varsayımlar. Öngörüye girmeyen hesaplar nedeniyle listelenir.",
         _schema(daily={"type": "boolean", "description": "bakiyeleri haftalık değil gün gün ver"}),
         _cash_flow,
+    ),
+    Tool(
+        "invoices",
+        "Faturalar ve makbuzlar",
+        "Banka dışı göndericilerin e-postayla gelen faturaları ve makbuzları (telefon, internet, enerji, abonelik, "
+        "alışveriş): satıcı, numara, tarih, son ödeme, tutar ve kalemler; her biri eşleşti (onu ödeyen banka "
+        "satırıyla), bekliyor (penceresi geçmedi ya da banka belgeleri o günlere henüz ulaşmadı) ya da eşleşmedi "
+        "(yalnızca bilgi, olası nedenleriyle). Hiçbiri toplamlara girmez.",
+        _schema(status={"type": "string", "enum": [s.value for s in InvoiceStatus]}),
+        _invoices,
     ),
     Tool(
         "habits",

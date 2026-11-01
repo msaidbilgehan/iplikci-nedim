@@ -10,7 +10,10 @@ import pytest
 
 from iplikci import demo
 from iplikci.app.workspace import Workspace
+from iplikci.domain.codes import InvoiceKind
+from iplikci.domain.models import Invoice, InvoiceLine
 from iplikci.fakes import Move, teb
+from iplikci.invoices import UNPAID_REASON, match
 from iplikci.mcp_server import PROTOCOL_VERSIONS, TOOLS, Server, serve
 
 from conftest import FEBRUARY, JANUARY, add, bank_mail, put
@@ -243,3 +246,53 @@ def test_a_tax_paid_twice_a_year_is_a_periodic_series(ws):
     assert [(i["day"], i["kind"], i["amount"]) for i in upcoming["items"] if i["title"] == "Mtv Odemesi"] == [
         ("2026-07-15", "periodic", 3800.0)
     ]
+
+
+# --- the non-bank bills and receipts (F14) ---------------------------------------------------------------------------
+
+
+def test_invoices_tell_each_bill_and_receipt_with_its_status_and_the_row_that_paid_it(server, monkeypatch):
+    analysis = server.current.get()  # January's account list, which pays the coffee on the 20th
+    coffee = Invoice(
+        InvoiceKind.RECEIPT, "Kahveci Dükkan Ltd. Şti.", date(2026, 1, 20), Decimal("120.00"), number="K-7"
+    )
+    phone = Invoice(
+        InvoiceKind.BILL,
+        "ÖRNEKCELL İLETİŞİM HİZMETLERİ A.Ş.",
+        date(2026, 1, 3),
+        Decimal("412.90"),
+        due=date(2026, 1, 20),
+        lines=[InvoiceLine("Aylık paket", Decimal("412.90"), Decimal(1))],
+    )
+    found = [(f"{'a' * 64}:0", coffee, "Kahveci makbuzu.eml"), (f"{'b' * 64}:0", phone, "Örnekcell faturası.xml")]
+    analysis.dataset.invoices = match(found, analysis.dataset.transactions, date(2026, 1, 31))
+    monkeypatch.setattr(server.current, "get", lambda: analysis)
+    listed, failed = call(server, "invoices")
+    assert not failed and listed["counts"] == {"matched": 1, "pending": 0, "unmatched": 1}
+    unpaid, paid = listed["invoices"]  # the unmatched before the matched
+    assert (unpaid["statusLabel"], unpaid["kindLabel"], unpaid["total"], unpaid["currency"], unpaid["due"]) == (
+        "Eşleşmedi",
+        "Fatura",
+        412.9,
+        "TRY",
+        "2026-01-20",
+    )
+    assert unpaid["paidBy"] is None and unpaid["reasons"][-1] == UNPAID_REASON
+    assert unpaid["lines"] == [{"description": "Aylık paket", "amount": 412.9, "quantity": 1.0}]
+    assert unpaid["window"] == {"from": "2026-01-03", "to": "2026-01-23"}
+    (account,) = analysis.dataset.accounts.values()
+    (row,) = [t for t in analysis.dataset.transactions if t.invoice]
+    assert (paid["status"], paid["number"], paid["reasons"]) == ("matched", "K-7", [])
+    assert paid["paidBy"] == {
+        "fingerprint": row.fingerprint,
+        "day": "2026-01-20",
+        "account": account.label,
+        "amount": 120.0,
+        "description": "KAHVECI DUKKAN",
+    }
+    matched, _ = call(server, "invoices", status="matched")
+    assert [i["seller"] for i in matched["invoices"]] == ["Kahveci Dükkan Ltd. Şti."]
+    text, failed = call(server, "invoices", status="ödendi")
+    assert failed and "'status' şunlardan biri olmalı" in text
+    hints = {t["name"]: t["annotations"] for t in rpc(server, "tools/list")["result"]["tools"]}
+    assert hints["invoices"]["readOnlyHint"]
