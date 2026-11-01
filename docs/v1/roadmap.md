@@ -132,6 +132,20 @@ belgeleri hazır; demoya katılmaları altın tabanı değiştireceği için kul
 
 ## Aşama 3 — Servis
 
+Durum: `asama-3` dalında sürüyor ([değişiklik günlüğü](../../CHANGELOG.md)).
+
+- Hazır olanlar:
+  - API, kuyruk ve olaylar;
+  - e-posta alımı (IMAP ve eklentinin alım ucu, güven kuralı), gelen klasörü ve yükleme;
+  - egress, servis yöneticisi ve yedek;
+  - servisin istemcisi olan CLI ve arayüz iskeleti.
+- Eklenti eşleşir ve yeni banka iletilerini 1. ve 3. katmanla teslim eder
+  ([ADR-0016, uygulama notu](../adr/0016-mail-connectors.md#uygulama-notu-aşama-3-2026-11-01)).
+- Kullanıcıyı bekleyenler:
+  - ADR-0016'nın Chrome'da macOS ve Windows'ta doğrulanması; 2. katmanı bu belirler;
+  - kutunun baştan okunması ve ilk gerçek taban;
+  - eklentinin Chrome Web Store'da yayımlanması (ücretli bir hesap kararı).
+
 **Teslimler**
 
 - `api`: FastAPI; kimlik doğrulama, Host ve Origin denetimi, SSE (ADR-0007).

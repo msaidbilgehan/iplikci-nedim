@@ -437,8 +437,10 @@ yaptığı her şeyin V1'de de olmasını güvenceye alır.
 - [x] **Kopyalar:** aynı sha256 ve aynı ekstre anahtarı kopya olarak tanınır; gelen kutusu planı ve uygulaması
   çalışır. (Aşama 1: aynı baytlar belgenin yeni bir gelişi olur; aynı ekstrenin başka bir dosyası kopyası olarak
   saklanır ve defterde birleşir.)
-- [ ] **E-posta:** kutu salt okunur; DMARC; okuma konumu; partiler.
-- [ ] **Otomatik çalışma:** e-posta, gelen klasörü ve bildirim (artık servisin içinde).
+- [x] **E-posta:** kutu salt okunur; DMARC; okuma konumu; partiler. (Aşama 3: IMAP `EXAMINE` ve `BODY.PEEK[]` ile;
+  konum veritabanında; bir alım en çok 300 ileti. Tarayıcı eklentisi de aynı güven kuralından geçer.)
+- [ ] **Otomatik çalışma:** e-posta, gelen klasörü ve bildirim (artık servisin içinde). (Aşama 3: e-posta ve gelen
+  klasörü servisin içinde; bildirimler Aşama 5'te.)
 - [ ] **Rapor bölümleri**
   - süzgeçler; özet kutuları;
   - değerlendirme ve strateji (öne çıkanlar, adımlar, bütçe);
@@ -452,8 +454,8 @@ yaptığı her şeyin V1'de de olmasını güvenceye alır.
 - [ ] **Çıktılar:** CSV, XLSX sayfaları, tek dosyalık HTML.
 - [ ] **Kurallar:** `kategoriler.yaml` yapısı ve bölümleri; MCP ile düzenleme, yedek, fark ve etkilenen işlemler.
 - [ ] **MCP:** MVP'nin 16 aracı.
-- [ ] **Güvenlik:** CSP; çerez akışı; Host ve Origin denetimleri; salt okunur e-posta; şifre yalnızca anahtar
-  zincirinde.
+- [x] **Güvenlik:** CSP; çerez akışı; Host ve Origin denetimleri; salt okunur e-posta; şifre yalnızca anahtar
+  zincirinde. (Aşama 3: servisin kapısı ADR-0007'deki gibi; testleri var.)
 - [ ] **Diğer sistemler:** Linux ve Windows'ta çalışma (OCR hariç); çöp kutusu davranışı.
 - [ ] **Doğrulama tabanı:** MVP'nin ölçütleriyle çalışır. Demo çalışma alanının altın tabanı tutar; gerçek belgelerin
   tabanı gerilemez (bkz. [yol haritası](roadmap.md#kurallar)).

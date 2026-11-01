@@ -15,6 +15,7 @@ listesinden geçer.
 | Amaç | Hedef | Giden veri |
 |---|---|---|
 | E-posta okuma | IMAP (Gmail): TLS, sertifika denetimi | giriş bilgisi; kutu salt okunur açılır |
+| E-posta okuma, tarayıcı eklentisiyle (ADR-0016) | `mail.google.com`: HTTPS, tarayıcının açık Gmail oturumuyla | yalnızca okuma istekleri (GET); iletiler yalnızca bu bilgisayardaki servise (127.0.0.1) gider |
 | Bildirim e-postası | SMTP (Gmail): TLS | kullanıcının kendi adresine, seçilen ayrıntı düzeyinde ileti |
 | Telegram | `api.telegram.org`: HTTPS | seçilen ayrıntı düzeyinde ileti; sohbet eşleştirmesi |
 | Döviz kurları | TCMB, ECB ya da Frankfurter | yalnızca tarih |
@@ -23,6 +24,8 @@ listesinden geçer.
 - Telemetri, güncelleme denetimi, dış yazı tipi ya da dış betik yoktur.
 - Ağ yoksa bu özellikler dışında her şey çalışır; kur çevirisi belgelerdeki kurlara döner.
 - Tailscale uygulamanın değil, kullanıcının ağ katmanıdır (ADR-0012).
+- Tarayıcı eklentisi servisin `egress` modülünden geçmez. Onun sınırı manifestteki iki adrestir: `mail.google.com` ve
+  `127.0.0.1:8643` (ADR-0016). Servisin kendisi eklenti yolunda e-posta için ağa çıkmaz.
 - Yeni bir dış bağlantı ancak yeni bir ADR ile eklenir.
 
 ## Sonuçlar

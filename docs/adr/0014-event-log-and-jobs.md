@@ -46,6 +46,21 @@ Anlık akış, bildirimler, denetim kaydı ve yeniden denenebilir işler gerekiy
 - Birincil veri dökümü (2. sürüm) olayları da taşır.
 - `jobs`, anlık görüntü farkı ve SSE yayını Aşama 3'te gelir.
 
+## Uygulama notu (Aşama 3, 2026-11-01)
+
+- **Tekrar engelleme:** anahtarı olan bir iş bir kez yapılır. Anahtarsız aynı iş zaten bekliyorsa ikinci kez eklenmez.
+- **Yeniden deneme:** başarısız deneme 30 sn, 1, 2 ve 4 dakika sonra yeniden çalışır. Beşinci başarısızlıkta iş hatasını
+  saklayarak kalır.
+- **İşçi:** tek bir iş parçacığı işleri yürütür. Yeniden başlatma, durdurulurken çalışmakta olan işleri kuyruğa geri
+  koyar.
+- **Zamanlayıcı:** periyodik işleri dönemleri anahtar olacak biçimde ekler. Dönem türleri: günlük (belli bir saatte),
+  her N dakika ve aylık. Uykudan sonra kaçan her iş bir kez çalışır; kaçan dönemler birikmez.
+- **Analiz** servis açılırken, yeni belgelerden sonra ve gece yarısından hemen sonra yeniden yapılır.
+- **Anlık görüntü farkı:** yeni satırlar (bir seferde 50'den fazlası tek olay), ekstrenin kesinleştirdiği dekont
+  satırları ve son üç ayın MVP'deki gibi haberleri (bitti, kapandı, kontrol gerekli). İlk anlık görüntü yalnızca not
+  alır.
+- **SSE:** `/api/events/stream` kopunca `Last-Event-ID` ile kaldığı yerden sürer.
+
 ## Değerlendirilen seçenekler
 
 - **Celery, RQ ya da Redis:** ek servis gerektirir; tek kullanıcı için gereksiz.

@@ -124,6 +124,34 @@ Sonuca göre:
   olur: açık bir Gmail sekmesinde içerik betiği görünen iletileri toplar.
 - 1 ya da 2 tutmazsa yeni bir ADR yazılır.
 
+## Uygulama notu (Aşama 3, 2026-11-01)
+
+- **Doğrulama sayfası** eklentinin içindedir (`extension/src/verify/`). Dört maddeyi servis çalışanında dener; raporu
+  adres, konu ya da ileti metni taşımaz.
+- **Eşleştirme:** servisin oturum açılmış bir sayfası 8 karakterlik, 10 dakika geçerli, tek kullanımlık bir kod verir;
+  beş yanlış kod açık kodları kapatır. Eklenti kodu kendi kökeninden belirtece çevirir. Servis belirtecin yalnızca
+  SHA-256'sını saklar. Belirteç yalnızca `/api/ingest/mail`, `/api/ingest/mail/cursor` ve `/api/ingest/mail/alarm`'ı
+  açar.
+- **Servisin kanıtı:** eklenti her çalışmada önce `/api/bridge/hello`'ya rastgele bir değer (nonce) gönderir. Servis,
+  belirtecin SHA-256'sının onaltılık yazımını anahtar alan HMAC-SHA256 ile yanıt verir. 127.0.0.1:8643'te servisin
+  yerinde başka bir program varsa eklenti ona hiçbir şey göndermez.
+- **1. ve 3. katman uygulandı.** Eklenti dakikada bir ve tarayıcı açılınca çalışır.
+  - Teslim en eski iletiden başlar. Servis konumu (Gmail'in ileti kimliği ve tarihi) her teslimde ilerletir; eklenti
+    konum tutmaz.
+  - Servisin hiç alamayacağı ileti (boş ya da 40 MB'tan büyük) atlanır ve son 50'si hatırlanır. Böylece aynı ileti her
+    dakika yeniden indirilmez.
+- **Seyrek istek:** Gmail istekleri arasında bir saniye vardır. 429'da ve başka bir sorunda bekleme bir dakikadan
+  başlar, her seferinde ikiye katlanır ve en çok bir saat olur. Kullanıcının elle istediği denetim beklemeyi bir kez
+  atlar.
+- **Biçim alarmı:** tanınmayan bir sayfa o katmanı, eklentinin o sürümü için durdurur. Eklenti bunu
+  `POST /api/ingest/mail/alarm` ile bildirir ve `mail.bridge_alarm` her katman ve sürüm için bir kez kaydedilir. Yeni
+  bir sürüm katmanı yeniden dener.
+- **Sağlık:** servis saatte bir bakar. Etkin bir eklenti bir gündür görünmediyse `mail.bridge_silent` bir kez
+  kaydedilir; eklenti dönüp yeniden susarsa yeniden kaydedilir.
+- **2. katman (tam tarama)** doğrulamanın 3. maddesini bekler. O gelene dek yalnızca gelen kutusundaki okunmamış
+  iletiler alınır. Gönderici listesi ya da başlangıç günü değişince yeniden tarama da, başlangıç gününün arayüzden
+  seçilmesi de o katmanla gelir.
+
 ## Sonuçlar
 
 - Olumlu:

@@ -46,6 +46,22 @@ modeli işe yaradı:
   olur.
 - Olumsuz: çerezin süresi dolarsa kullanıcı `iplikci ac` ile (ileride menü çubuğu simgesinden) yeniden girer.
 
+## Uygulama notu (Aşama 3, 2026-11-01)
+
+- **Giriş bağlantısı** iki dakika geçerlidir ve tek kullanımlıktır. Oturum çerezi 90 gün geçerlidir ve en çok günde bir
+  uzatılır. Giriş anahtarları servisin belleğinde, oturumlar veritabanında durur; ikisinden de yalnızca SHA-256
+  saklanır.
+- **Üç kimlik:**
+  - tarayıcı oturumu;
+  - API belirteci (CLI ve MCP): servisin ilk açılışında üretilir ve anahtar zincirine yazılır;
+  - tarayıcı eklentisinin belirteci: yalnızca e-posta alım uçlarını açar ([ADR-0016](0016-mail-connectors.md)).
+- **Kimlik istemeyen uçlar:** `/healthz`, `/giris` ve eklentinin eşleştirme ile kanıt uçları (`/api/bridge/pair`,
+  `/api/bridge/hello`). Eşleştirmeyi yalnızca bir eklenti kökeni ya da kökensiz bir istemci tamamlayabilir.
+- **Arayüz** servisin içinden, derlenmiş olarak sunulur (`src/iplikci/api/ui`); her sayfa oturum ister. İçerik
+  güvenlik politikası yalnızca servisin kendi kökenine izin verir.
+- **Yüklemeler** `vault/staging/` altında bir partiye yazılır. Bir dosya en çok 1 GiB, bir parti en çok 2.000 dosya ve
+  2 GiB'tır. Uygulanmayan parti bir gün sonra çöp kutusuna gider.
+
 ## Değerlendirilen seçenekler
 
 - **Yerelde kimliksiz API:** DNS rebinding ya da CSRF ile başka bir site veriye ulaşabilir.

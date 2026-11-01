@@ -34,10 +34,28 @@ Aşama 2 (Okuyucu eklentileri, v0.3.0) belgeleri okuyan okuyucuları ayrı eklen
 - Bir banka biçimini değiştirirse biçim alarmı kaydedilir.
 - Her okuyucunun kodla üretilen sahte belgeleri ve testleri vardır.
 
-Sıradaki Aşama 3, servistir.
+Aşama 3 (Servis, v0.4.0) uygulamayı bilgisayarda kendi başına çalışan bir servise çevirir:
+
+- Servis yalnızca bu bilgisayardan (127.0.0.1) erişilen bir API sunar. Tarayıcıdan giriş tek kullanımlık bir
+  bağlantıyla yapılır.
+- İşler bir kuyrukta yürür; yeniden başlatmada ya da uykudan sonra kaybolmaz. Analiz değişince olay akışı güncellenir.
+- E-posta iki yoldan gelir:
+  - Uygulama şifresi olan hesaplar IMAP ile okunur: yalnızca okuma, yeni ileti IDLE ile anında.
+  - Uygulama şifresi olmayan hesaplar, örneğin Gelişmiş Koruma'daki Gmail, tarayıcı eklentisiyle okunur. Eklenti
+    Gmail'in açık oturumunu kullanır ve Gmail'de hiçbir şeyi değiştirmez.
+  - İki yolda da yalnızca listedeki bankaların, DMARC'tan geçen iletileri alınır. İleti ekleriyle birlikte saklanır.
+- Gelen klasörüne bırakılan dosyalar kendiliğinden alınır. Arayüzden yüklenenlerde ise önce ne olacağı gösterilir;
+  onaylanınca alınır.
+- Her gece bir yedek alınır ve 14 gün saklanır. Her ay en yeni yedek geçici bir klasöre geri yüklenip denetlenir.
+- Servis macOS'ta launchd, Linux'ta systemd, Windows'ta Görev Zamanlayıcı ile kaydedilir. Her veri klasörü için tek bir
+  servis çalışır.
+- Arayüzün iskeleti: Sistem ekranı, Belgeler listesi ve yükleme, tarayıcı eklentisinin eşleştirilmesi.
+
+Aşama 3 sürüyor: eklentinin Gmail'de doğrulanması, posta kutusunun baştan okunması ve ilk gerçek taban kaldı.
 
 MVP 2026-10-31'de emekliye ayrıldı. İplikçi Nedim onun kodundan başlar ama verisini devralmaz; belgeleri kendisi toplar.
-Uygulama henüz son kullanıcıya hazır değil: kurulum sihirbazı ve arayüz sonraki aşamalarda gelir.
+Uygulama henüz son kullanıcıya hazır değil: kurulum paketi, kurulum sihirbazı ve arayüzün tamamı sonraki aşamalarda
+gelir.
 
 ## Belgeler
 
@@ -50,8 +68,9 @@ Uygulama henüz son kullanıcıya hazır değil: kurulum sihirbazı ve arayüz s
 
 ## Geliştiriciler için
 
-Son kullanıcı terminal kullanmaz; aşağıdaki komutlar geliştirme içindir. Gerekenler: [uv](https://docs.astral.sh/uv/)
-ve [gitleaks](https://github.com/gitleaks/gitleaks).
+Son kullanıcı terminal kullanmaz; aşağıdaki komutlar geliştirme içindir. Gerekenler: [uv](https://docs.astral.sh/uv/),
+[gitleaks](https://github.com/gitleaks/gitleaks) ve arayüzle eklenti için [Node.js](https://nodejs.org/) 24 (CI'ın
+sürümü).
 
 ```bash
 uv sync                                          # Python 3.13 ve kilitli bağımlılıklar
@@ -68,6 +87,23 @@ uv run iplikci dev parser probe belge.pdf        # okuyucular belgeyi tanıyor m
 uv run iplikci dev parser debug belge.pdf        # okuyan okuyucu ne okuyor: satır satır, yerleriyle
 uv run iplikci dev parser test                   # okuyucular sahte belgelerini doğru okuyor mu
 ```
+
+Servis, arayüz ve tarayıcı eklentisi:
+
+```bash
+(cd web && npm ci && npm run build)              # arayüz; çıktı pakete girer (src/iplikci/api/ui)
+uv run iplikci servis calistir                   # servis ön planda: http://127.0.0.1:8643
+uv run iplikci ac                                # arayüzü tek kullanımlık giriş bağlantısıyla açar
+uv run iplikci servis durum                      # servis çalışıyor mu; kuyruk, e-posta, yedek ve disk
+uv run iplikci yedek al | liste | geri-yukle | prova
+uv run iplikci eposta kur | durum | kaldir | al  # IMAP hesabı; şifre yalnızca anahtar zincirinde
+(cd extension && npm ci && npm test && npm run build)   # eklenti; extension/dist tarayıcıya yüklenir
+```
+
+`iplikci servis kur | kaldir | yeniden-baslat` servisi sistemin servis yöneticisine kaydeder. `kur` geliştirme
+klasöründen çalışmaz: servis, `uv tool install` ile kurulmuş sabit bir kopyayı çalıştırır. Böylece bir dal değişince ya
+da bir dosya yarım kalınca o kod gerçek veriyle çalışmaz. Eklentinin geliştirme ve doğrulama adımları
+[`extension/README.md`](extension/README.md)'dedir.
 
 Veri klasörü macOS'ta `~/Library/Application Support/iplikci/`'dir; `IPLIKCI_HOME` onu değiştirir. Gerçek belgeler
 depoya hiç girmez: testler ve demo, kodla üretilen sahte belgelerle ve kendi klasörlerinde çalışır.

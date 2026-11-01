@@ -67,6 +67,26 @@ V1'in istekleri:
   okuyucu geliştirmek için posta kutusuna yeniden gitmek gerekmez.
 - Olumsuz: ilk kurulumda bütün kutunun okunması zaman alır (partiler halinde, kaldığı yerden devam ederek).
 
+## Uygulama notu (Aşama 3, 2026-11-01)
+
+- **Tek hat, iki bağlayıcı:** IMAP (`ingest/mail/imap.py`, `app/mail.py`) ve tarayıcı eklentisinin alım ucu
+  (`POST /api/ingest/mail`, [ADR-0016](0016-mail-connectors.md)) iletiyi aynı yoldan geçirir. Seçili bağlayıcı
+  `settings.toml`'daki `[mail] connector`'dır.
+- **Güven kuralı** iki bağlayıcıda da aynıdır. Güvenilmeyen ileti sayılır, iz bırakmaz.
+- **İleti:** konusu ya da herhangi bir eki şirkete ait olan ileti saklanmaz. Diğerleri `.eml` olarak, her eki (zip
+  üyeleri dahil) iletiye bağlı ayrı bir belge olarak saklanır. `.eml`'ler Aşama 4'e dek "işlenmedi" kalır; gövdeler o
+  aşamada okunur. 40 MB'tan büyük ileti alınmaz.
+- **IDLE** elle yazıldı (Python 3.13'ün `imaplib`'inde yok). Yeni iletide işçiden bir alım ister ve 25 dakikada bir
+  yenilenir. Kopan bağlantıyı her seferinde iki katı bekleyerek, en çok 15 dakika arayla yeniden açar. Yedek yoklama 15
+  dakikada birdir; bir alım en çok 300 ileti alır, sonraki kaldığı yerden sürer.
+- **Konum** veritabanındaki bağlayıcı tablosundadır. Klasörün UIDVALIDITY'si, son UID ve bir tarama anahtarı tutulur.
+  Tarama anahtarı gönderici listelerini, başlangıç gününü ve klasörü kapsar; biri değişince kutu baştan taranır.
+- **Reddedilen giriş** bağlayıcıyı durdurur ve bir kez `mail.auth_failed` kaydedilir. Kullanıcı bağlantıyı yeniden
+  kurana dek ne yoklama ne IDLE yeniden dener.
+- **Kurulum:** IMAP şifresinin kurulum ekranı Aşama 6'nın kurulum sihirbazıyla gelir; o zamana dek hesap
+  `iplikci eposta kur` ile kurulur. Kullanıcının kendi hesabı tarayıcı eklentisini kullanır; eklentinin eşleştirmesi
+  arayüzdedir.
+
 ## Değerlendirilen seçenekler
 
 - **Gmail API (OAuth):** dar ve salt okunur yetki verir, ama uygulama doğrulaması ve belirteç süresi kişisel kullanımda

@@ -437,7 +437,8 @@ yazılır (ADR-0014), SSE ile arayüze iletilir ve bildirim kurallarına girer.
 | `month.ended`, `month.closed`, `month.needs_check` | ay bitti / kapandı / kontrol gerekli |
 | `deposit.maturity_soon` | vadeli hesabın vadesi yaklaşıyor |
 | `fx.threshold_crossed`, `budget.threshold` | kur eşiği; bütçe %80 / %100 (V1+) |
-| `parser.format_alarm`, `mail.auth_failed`, `backup.failed` | sistem olayları |
+| `parser.format_alarm`, `mail.auth_failed`, `mail.bridge_alarm`, `mail.bridge_silent`, `backup.failed` | sistem olayları: okuyucu biçim alarmı; e-posta girişi reddedildi; eklentinin bir katmanı Gmail'in sayfasını tanımadı; eklenti bir gündür görünmedi; yedek alınamadı |
+| `bridge.paired`, `bridge.revoked` | tarayıcı eklentisi eşleşti / eşleşmesi iptal edildi (denetim kaydına da yazılır) |
 
 Akış ekranı bu olayları ve "şu an" özetini (tahmini bakiyeler, ay içi tempo, beklenen olaylar) gösterir.
 
@@ -496,7 +497,10 @@ sorar:
 | Yol | Amaç |
 |---|---|
 | `GET /api/status` | servis, e-posta, kuyruk, son analiz |
-| `GET /api/events/stream` | SSE olay akışı |
+| `GET /api/events/stream`, `GET /api/events` | SSE olay akışı (`Last-Event-ID` ile kaldığı yerden); olay kaydı, sayfalı |
+| `GET /healthz` | servis ayakta mı; kimlik istemez |
+| `GET /giris`, `POST /api/login-links`, `POST /api/logout` | tek kullanımlık giriş bağlantısı, oturum çerezine döner; çıkış (ADR-0007) |
+| `GET /api/labels` | kodların Türkçe adları, tek eşleme modülünden |
 | `GET /api/feed` | akış (sayfalı, süzgeçli) |
 | `GET /api/dashboard` | pano özetleri |
 | `GET /api/accounts`, `GET /api/accounts/{id}` | hesap haritası; hesap ayrıntısı (akış, bakiye eğrisi, türe özel alanlar) |
@@ -511,10 +515,11 @@ sorar:
 | `GET/PUT /api/rules/categories`, `POST /api/rules/categories/preview` | kategori kuralları ve önizleme |
 | `GET/PUT /api/rules/alerts`, `GET /api/notifications` | bildirim kuralları ve geçmişi |
 | `GET /api/mail`, `POST /api/mail/fetch` | e-posta durumu; şimdi al |
-| `POST /api/bridge/pair`, `GET /api/bridge`, `DELETE /api/bridge/{id}` | tarayıcı eklentisini eşleştirme, durumu, iptali (ADR-0016) |
-| `GET /api/ingest/mail/cursor`, `POST /api/ingest/mail` | eklentinin konumu ve ham iletilerin teslimi; yalnızca eklenti belirteciyle |
+| `POST /api/bridge/pairings`, `POST /api/bridge/pair`, `GET /api/bridge/hello`, `GET /api/bridge`, `DELETE /api/bridge/{id}` | tarayıcı eklentisi: eşleştirme kodu, kodun belirtece dönmesi, servisin kanıtı (HMAC), eşleşmeler, iptal (ADR-0016) |
+| `GET /api/ingest/mail/cursor`, `POST /api/ingest/mail`, `POST /api/ingest/mail/alarm` | eklentinin konumu, ham iletilerin teslimi, bir katmanın biçim alarmı; yalnızca eklenti belirteciyle |
 | `GET/PUT /api/settings` | ayarlar (sır içermez) |
 | `GET /api/system` | sağlık, işler, okuyucu sağlığı, yedekler |
+| `GET /api/backups`, `POST /api/backups` | yedekler; şimdi yedek al |
 | `POST /api/exports` | CSV, XLSX, tek dosyalık rapor, ay sonu sayfaları |
 | `/mcp` | MCP Streamable HTTP |
 

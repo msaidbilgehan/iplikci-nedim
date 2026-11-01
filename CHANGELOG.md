@@ -4,6 +4,64 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [Yayımlanmamış] — Aşama 3: Servis
+
+### Eklenenler
+
+- Servis (ADR-0007): FastAPI, yalnızca `127.0.0.1:8643`'te; `iplikci servis calistir` onu ön planda çalıştırır.
+  - Her istek Host başlığında servisi anmalı ve kimliğini kanıtlamalıdır: komut satırının API belirteci, tarayıcının
+    oturum çerezi ya da eklentinin belirteci.
+  - Tarayıcının yazma istekleri ayrıca servisin kendi Origin'ini ve `X-Iplikci: 1` başlığını ister.
+  - Hatalar Türkçe başlıklı `application/problem+json`'dır.
+- Giriş: `iplikci ac` iki dakika geçerli, tek kullanımlık bir bağlantı açar. Bağlantı 90 gün geçerli,
+  `HttpOnly; SameSite=Strict` bir oturum çerezine döner.
+- İş kuyruğu ve zamanlayıcı (ADR-0014): işler SQLite'tadır. Başarısız deneme 30 sn, 1, 2 ve 4 dakika sonra yeniden
+  çalışır. Yeniden başlatmada iş kaybolmaz; uykudan sonra kaçan periyodik iş bir kez çalışır.
+- Olay akışı: her analiz bir öncekiyle karşılaştırılır. Yeni satırlar, ekstrenin kesinleştirdiği satırlar ve ay
+  haberleri olay olur. `/api/events/stream` (SSE) koptuğu yerden sürer.
+- E-posta alımı (ADR-0015): bir ileti, hangi bağlayıcı getirirse getirsin, aynı yoldan geçer.
+  - Gönderici listede olmalı ve en üstteki `Authentication-Results` From alan adı için DMARC pass göstermelidir.
+  - İleti `.eml` olarak, ekleri (zip üyeleri dahil) ayrı belgeler olarak saklanır. Şirket iletisi saklanmaz.
+- IMAP bağlayıcısı: salt okunur (`EXAMINE`, `BODY.PEEK[]`); yeni ileti IDLE ile anında, yedek yoklama 15 dakikada bir.
+  - Reddedilen giriş alımı durdurur ve bir kez `mail.auth_failed` kaydeder; yeniden denenmez.
+  - Komutlar: `iplikci eposta kur | durum | kaldir | al`.
+- Tarayıcı eklentisi (ADR-0016, `extension/`):
+  - doğrulama sayfası;
+  - arayüzden alınan tek kullanımlık kodla eşleştirme;
+  - servisin her çalışmada HMAC ile kendini kanıtlaması;
+  - gelen kutusundaki okunmamış banka iletilerinin dakikada bir, ham hâliyle servise teslimi;
+  - biçim alarmı (`mail.bridge_alarm`) ve bir gündür görünmeyen eklentinin bildirimi (`mail.bridge_silent`).
+- Gelen klasörü izleyicisi: değişmeden 20 saniye bekleyen dosyalar plansız alınır (F02).
+- Yükleme (F02): dosyalar bir partiye yüklenir ve plan her dosyaya ne olacağını gösterir. Yalnızca onaylanan plan
+  uygulanır; plandan sonra değişen bir dosya planı yeniler. Uygulanmayan parti bir gün sonra çöp kutusuna gider.
+- Ağ çıkışı (ADR-0009): dış bağlantıları yalnızca `egress` açar.
+- Servis yöneticisi: `iplikci servis kur | kaldir | durum | yeniden-baslat`; macOS'ta launchd, Linux'ta systemd,
+  Windows'ta Görev Zamanlayıcı.
+  - Servis geliştirme klasöründen kurulmaz.
+  - Her veri klasörünün tek bir servisi çalışır.
+  - Günlük, `logs/servis.log`'a JSON satırları olarak yazılır.
+- Yedek: her gece 03:30'da alınır ve 14 gün saklanır; en yenisi hep kalır.
+  - Belge asılları yedeklerin kendi nesne deposuna bir kez kopyalanır.
+  - Her ayın ilk günü en yeni yedek geçici bir klasöre geri yüklenir; arşiv ve yeniden kurma denetimlerinden geçer.
+  - Komutlar: `iplikci yedek al | liste | geri-yukle | prova`.
+- Arayüz iskeleti (ADR-0008, `web/`): Sistem ekranı (F18), Belgeler listesi ve yükleme (F03, F02), tarayıcı eklentisinin
+  eşleştirilmesi. Servis derlenmiş arayüzü oturumun arkasından sunar; olay akışı ekranları günceller.
+- API uçları: `/healthz`, `/api/system`, `/api/events`, `/api/documents`, `/api/labels`, `/api/backups`,
+  `/api/mail/fetch`, yükleme, plan ve uygulama, eklentinin eşleştirme ve alım uçları.
+
+### Değişenler
+
+- Komut satırı bir paket oldu (`iplikci.cli`) ve çalışan servisin istemcisine dönüştü. Servis çalışırken `eposta al`
+  servisten ister; ikinci bir IMAP bağlantısı açılmaz.
+- `sources.py`, `ingest/archives.py` oldu; zip, mbox ve e-posta ekleri daha sıkı denetlenir. Okuyucunun girdisi
+  (`Document`) okuyucu sözleşmesine taşındı.
+
+### Kaldırılanlar
+
+- MVP'nin paneli ve `iplikci panel`: yerini arayüzün yükleme bölümü ve Sistem ekranı aldı.
+- MVP'nin otomasyonu (launchd işi, gelen klasörü çalışması, ay haberleri): yerini servis, akış ve gelen klasörü
+  izleyicisi aldı.
+
 ## [0.3.0] — 2026-11-01 — Aşama 2: Okuyucu eklentileri
 
 ### Eklenenler

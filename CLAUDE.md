@@ -6,19 +6,27 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-01): Phases 0–2 of `docs/v1/roadmap.md` are done (v0.1.0, v0.2.0, v0.3.0).
+Status (2026-11-01): Phases 0–2 of `docs/v1/roadmap.md` are done (v0.1.0, v0.2.0, v0.3.0); Phase 3 is under way on
+`asama-3`.
 - Phase 0 brought the MVP's code in as the `iplikci` package, cleaned of personal traces, with the shipped default
   rules, the verification baseline and the demo workspace.
 - Phase 1 (data core) moved everything into the data dir: `settings.toml`, the content-addressed vault, SQLite with the
   readings and the user's annotations, exact decimal amounts and English codes, and the archive check and rebuild.
 - Phase 2 (parser plugins) turned the 17 readers into plugins with a version each, read every document in a process of
   its own, gave every row its place in its document, raised the format alarm and gave every reader fake documents.
-- Phase 3 (the service) is next. The card statements' fake documents are not in the demo yet: adding them changes the
-  golden baseline, which needs the user's approval.
+- Phase 3 (the service) has the API behind ADR-0007's gate, the job queue and the feed, the e-mail intake (IMAP with
+  IDLE, the extension's intake, the trust rule, whole messages as `.eml`), the inbox watcher and confirmed uploads,
+  egress, the service-manager registration with its single-instance lock, the nightly backup with its monthly
+  rehearsal, the CLI as the service's client and the interface's skeleton. The browser extension pairs and delivers
+  new bank messages (layers 1 and 3).
+- Phase 3 still waits on the user: ADR-0016's verification in Chrome on macOS and Windows decides layer 2 (the full
+  scan), then the mailbox is read from the start into the data dir and the first real baseline is taken. Publishing
+  the extension (Chrome Web Store, unlisted) is a paid account decision: ask first.
+- The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
+  the user's approval.
 
-The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's web interface); its
-feasibility check is the first task of Phase 3. The MVP was retired on 2026-10-31 (K17, ADR-0018): İplikçi Nedim starts
-with no migrated data and collects its own.
+The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's web interface).
+The MVP was retired on 2026-10-31 (K17, ADR-0018): İplikçi Nedim starts with no migrated data and collects its own.
 
 ## Names
 
@@ -105,7 +113,7 @@ with no migrated data and collects its own.
   - Phase 0 copies the code and tests from there and extracts the generic rules.
   - Never write there, and never copy its personal files into the repo.
   - V1 never reads it at runtime.
-- Until Phase 3 nothing collects documents; the bank e-mails wait in Gmail.
+- Until Phase 3's first real read nothing collects documents; the bank e-mails wait in Gmail.
 - Work happens only in this repo folder. Don't add files to `../`; the app's own data belongs in the data dir.
 
 ## Layout (target)
@@ -123,13 +131,18 @@ The data dir layout is in architecture §9.
 
 Phase 1 added the target packages `domain`, `settings`, `storage`, `vault` and `app` (intake, reading, analysis,
 annotations, archive checks, rebuild); pyright checks them strictly. Phase 2 put the readers in their target place:
-`parsers/<bank>/<document>.py` plugins (`garanti.bonus_card` is `parsers/garanti/bonus_card.py`), with the contract,
-the registry, the reading process (`worker.py`, `wire.py`) and the developer tools (`tools.py`) beside the shared
-helpers (`pdf`, `sheet`, `text`, `movements`, `accounts`, `common`). The rest keeps the MVP's flat layout (`cli`,
-`analysis`, `insights`, `month_end`, `report`, `panel`, `mcp_server`, …) until the phases in the roadmap's MVP module
-table move it. Next to them: `fakes` (the fake document builders and every reader's specimens, shared with the tests
-and the demo), `demo` (the demo data folder), `baseline` (the verification baseline) and `mvp_codes` (the MVP codes the
-report's script and baseline v1 still speak).
+`parsers/<bank>/<document>.py` plugins (`garanti.bonus_card` is `parsers/garanti/bonus_card.py`), with the contract, the
+registry, the reading process (`worker.py`, `wire.py`) and the developer tools (`tools.py`) beside the shared helpers
+(`pdf`, `sheet`, `text`, `movements`, `accounts`, `common`). Phase 3 added `api` (the FastAPI app, its gate in
+`guard.py`, `routes/` and the built interface in the git-ignored `ui/`), `jobs` (queue, scheduler, worker), `feed`
+(snapshot diff), `ingest` (`archives`, the inbox watcher, `mail/` with the IMAP protocol and the trust rule),
+`egress.py`, `service` (runner, single-instance lock, logs, service managers, the CLI's client) and turned `cli` into a
+package with a module per command group; `app` gained the background jobs, backups, the bridge, mail, uploads and the
+system status. The MVP's panel is gone. The rest keeps the MVP's flat layout (`analysis`, `insights`, `month_end`,
+`report` with its `templates`, `mcp_server`, …) until the phases in the roadmap's MVP module table move it. Next to
+them: `fakes` (the fake document builders and every reader's specimens, shared with the tests and the demo), `demo` (the
+demo data folder), `baseline` (the verification baseline) and `mvp_codes` (the MVP codes the report's script and
+baseline v1 still speak). `web/` builds into `src/iplikci/api/ui`; `extension/` builds into `extension/dist`.
 
 The workspace is the data dir (architecture §9). The user's company names go in its `settings.toml` under
 `[identity] business_names`; the user's category rules live in `rules/personal.yaml` over the shipped defaults.
@@ -155,8 +168,20 @@ uv run iplikci dogrula --taban                 # real documents once V1 has coll
 uv run iplikci dev parser probe <file>         # what the selection sees and what every reader says
 uv run iplikci dev parser debug <file>         # what the reader reads, row by row with each row's place
 uv run iplikci dev parser test [<id>]          # the readers' fake documents still read as they must; exits 1 if not
-uv run iplikci servis calistir                 # from Phase 3 (foreground service)
+uv run iplikci servis calistir                 # the service in the foreground, http://127.0.0.1:8643
+uv run iplikci ac                              # open the interface with a one-time login link (service running)
+uv run iplikci servis durum                    # running or not; queue, e-mail, backups and disk; exits 1 if not running
+uv run iplikci servis kur | kaldir | yeniden-baslat   # launchd, systemd or Task Scheduler; kur refuses a dev copy
+uv run iplikci yedek al | liste | prova        # backups; geri-yukle restores (--uygula acts, --hedef a new folder)
+uv run iplikci eposta kur | durum | kaldir | al   # the IMAP account; al asks the running service when there is one
+(cd web && npm ci && npm run typecheck && npm test && npm run build)         # the interface, built into the package
+(cd extension && npm ci && npm run typecheck && npm test && npm run build)   # the extension; load extension/dist
 ```
+
+The service never runs from this folder when registered: `servis kur` needs a fixed copy (`uv tool install
+--reinstall .`, built web interface included), so a checked-out branch never reaches the real data. During development
+it runs in the foreground. For a throwaway service set `IPLIKCI_HOME` to a temp folder and `IPLIKCI_API_TOKEN` to a
+made-up token, so the keychain is not touched. Never install the service on the user's computer without asking.
 
 `dogrula --taban` saves the baseline in the data dir (`baseline.json`) and keeps the saved one when it finds a
 regression; `--kabul` saves it anyway, for a deliberate change only. `dogrula --arsiv` and `--yeniden-kur` exit 1 on
