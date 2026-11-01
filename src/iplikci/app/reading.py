@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from ..domain.codes import Actor, DocumentKind, DocumentStatus
 from ..domain.models import ParseResult
 from ..parsers import Skipped, Unreadable, registry
-from ..parsers.common import business_names_signature
+from ..parsers.common import BUSINESS_REASON, business_names_signature
 from ..parsers.contract import Document
 from ..parsers.worker import parse_document
 from ..storage import audit, documents, events, readings
@@ -144,15 +144,27 @@ def read_pending(ws: Workspace, db: Database, progress: Progress | None = None, 
     """Read the stored documents whose reading is missing or out of date (every=True: all of them); returns how
     many were read."""
     todo = [d for d in documents.every(db) if d.status is not DocumentStatus.REMOVED and (every or stale(d))]
+    removed: set[str] = set()
     for i, doc in enumerate(todo, 1):
         if progress:
             progress(i, len(todo), doc.name)
+        if doc.sha256 in removed:
+            continue
         outcome = read(doc.name, ws.vault.read(doc.sha256), doc.sha256)
         if outcome.business:
             _remove_business(ws, db, doc, outcome.reason)
+            removed |= _remove_attachments(ws, db, doc)
         else:
             record(db, doc.sha256, doc.name, outcome)
     return len(todo)
+
+
+def _remove_attachments(ws: Workspace, db: Database, message: documents.DocumentRow) -> set[str]:
+    """The attachments of a company's message are the company's too: they go with it. Their sha256s."""
+    attached = [d for d in documents.every(db) if d.parent == message.sha256 and d.status is not DocumentStatus.REMOVED]
+    for doc in attached:
+        _remove_business(ws, db, doc, BUSINESS_REASON)
+    return {d.sha256 for d in attached}
 
 
 def _remove_business(ws: Workspace, db: Database, doc: documents.DocumentRow, reason: str) -> None:

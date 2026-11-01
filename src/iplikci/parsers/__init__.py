@@ -1,10 +1,13 @@
 """Choose the reader of a document and let it read (ADR-0005).
 
-Company documents are recognised first (by their file name, and by the header of a PDF's first page). Every reader
-of the document's format then looks at the same Probe: the one reader that recognises the document reads it. Two
-readers recognising it is an error, not a choice; none means the document is not one this program reads, and the
-reason says what it is when that shows.
+Company documents are recognised first (by their file name, a message's subject, and the header of a PDF's first
+page). Every reader of the document's format then looks at the same Probe: the one reader that recognises the document
+reads it. Two readers recognising it is an error, not a choice; none means the document is not one this program reads,
+and the reason says what it is when that shows.
 """
+
+import email.policy
+from email.parser import BytesHeaderParser
 
 from pdfminer.pdfdocument import PDFEncryptionError
 
@@ -57,6 +60,9 @@ def parse_document(doc: Document) -> ParseResult:
     if is_business(doc.name):
         raise Skipped(BUSINESS_REASON, business=True)
     if doc.ext == ".eml":  # kept whole (ADR-0015); its attachments are documents of their own
+        # The intake looks at the subject; a company name set later finds the messages kept before it.
+        if is_business(_subject(doc.data)):
+            raise Skipped(BUSINESS_REASON, business=True)
         raise Skipped(MESSAGE_REASON)
     if doc.ext == ".zip":  # only a zip the collector could not open is handed over as a document
         try:
@@ -69,6 +75,11 @@ def parse_document(doc: Document) -> ParseResult:
         return _read(source)
     finally:
         source.close()
+
+
+def _subject(data: bytes) -> str:
+    """A message's subject, decoded; only the header is read."""
+    return str(BytesHeaderParser(policy=email.policy.default).parsebytes(data).get("Subject", ""))
 
 
 def _read(source: SourceDocument) -> ParseResult:

@@ -6,11 +6,11 @@ import zipfile
 
 import pytest
 
-from iplikci.app import intake
+from iplikci.app import intake, reading
 from iplikci.app.mail import Taken, take
 from iplikci.domain.codes import DocumentStatus, SourceKind
 from iplikci.ingest.mail.trust import MAX_MESSAGE_BYTES
-from iplikci.parsers.common import MESSAGE_REASON
+from iplikci.parsers.common import BUSINESS_REASON, MESSAGE_REASON, set_business_names
 from iplikci.settings.config import BANK_SENDERS
 from iplikci.storage import audit, documents, events
 
@@ -174,6 +174,22 @@ def test_dmarc_passing_for_a_domain_that_does_not_cover_the_sender_does_not_coun
 def test_without_the_sender_check_a_listed_sender_is_enough(ws):
     raw = bank_mail(FEBRUARY, results=())
     assert take(ws, raw, SENDERS, verify=False).taken is Taken.STORED
+
+
+def test_a_company_mail_kept_before_its_name_was_set_goes_to_the_trash_with_its_attachments(ws, private_trash):
+    subject = b"Subject: ORNEK TEKNOLOJI VE BILISIM-01.02.2026 Hesap Ozeti"  # the bank cuts the company's name short
+    raw = bank_mail(FEBRUARY).replace(b"Subject: Hesap hareketleriniz", subject)
+    assert take(ws, raw, SENDERS).taken is Taken.STORED  # no company name set yet
+    personal = take(ws, bank_mail(None, sender="ekstre@isbank.com.tr"), SENDERS)
+    set_business_names(["Örnek Teknoloji"])
+    with ws.db() as db:
+        reading.read_pending(ws, db)
+    assert {d.sha256 for d in kept(ws) if d.status is not DocumentStatus.REMOVED} == {personal.sha256}
+    with ws.db() as db:
+        removed = documents.every(db, [DocumentStatus.REMOVED])
+        assert len(audit.targets(db, "document.business")) == 2  # the message and its attachment
+    assert {d.reason for d in removed} == {BUSINESS_REASON}
+    assert not any(ws.vault.has(d.sha256) for d in removed) and any(private_trash.iterdir())  # moved, not deleted
 
 
 def test_a_company_mail_is_not_kept(ws):
