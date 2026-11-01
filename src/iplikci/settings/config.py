@@ -144,6 +144,12 @@ def _bank_domains(where: str, value: Any) -> tuple[str, ...]:
     return _domains(where, value, required=True)
 
 
+def sender_domains(where: str, value: Any) -> tuple[str, ...]:
+    """A list of sender domains as settings.toml takes mail.other_senders: each in lower case without a leading @,
+    each once. A SettingsError names the first value that is no domain; where names the list in the message."""
+    return _domains(where, value)
+
+
 def _port(where: str, value: Any) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or not 0 < value < 65536:
         raise SettingsError(f"{where} 1 ile 65535 arasında bir sayı olmalı")

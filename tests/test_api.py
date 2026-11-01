@@ -19,7 +19,8 @@ from iplikci.fakes import teb
 from iplikci.fakes.files import text_pdf
 from iplikci.invoices import UNMATCHED_REASONS, UNPAID_REASON, match
 from iplikci.parsers import registry
-from iplikci.storage import events
+from iplikci.settings import config
+from iplikci.storage import audit, events
 
 from conftest import FEBRUARY, JANUARY, add
 
@@ -510,3 +511,73 @@ def test_the_invoices_come_pending_first_then_unmatched_then_matched_with_their_
     assert (streaming["total"], streaming["due"], streaming["row"]) == ({"minor": 999, "currency": "USD"}, None, None)
     assert (streaming["sha256"], streaming["key"]) == ("c" * 64, f"{'c' * 64}:1")
     assert energy["window"] == {"start": "2026-01-25", "end": "2026-02-13"}  # its due date and three days more
+
+
+def test_the_non_bank_senders_are_read_with_the_token_and_changed_only_from_the_services_own_pages(client, ws):
+    path = "/api/settings/mail/other-senders"
+    assert client.get(path).status_code == 401
+    assert client.get(path, headers=bearer()).json() == {"domains": []}
+    refused = client.put(path, json={"domains": ["fatura.example"]}, headers=bearer())
+    assert (refused.status_code, refused.json()["code"]) == (403, "forbidden")  # the command line and MCP only read
+    signed_in(client)
+    assert client.put(path, json={"domains": ["fatura.example"]}).json()["code"] == "write_denied"
+    saved = client.put(path, json={"domains": ["Fatura.Example", " @ornekcell.example"]}, headers=OWN_PAGE)
+    assert (saved.status_code, saved.json()) == (200, {"domains": ["fatura.example", "ornekcell.example"]})
+    assert config.load(ws.layout.settings).mail.other_senders == ("fatura.example", "ornekcell.example")
+    assert client.get(path).json() == {"domains": ["fatura.example", "ornekcell.example"]}
+    again = client.put(path, json={"domains": ["fatura.example", "ornekcell.example"]}, headers=OWN_PAGE)
+    assert again.json() == saved.json()  # the same list: nothing is written again
+    with ws.db() as db:
+        [entry] = audit.entries(db, "settings.changed")
+    assert (entry.actor, entry.target, entry.detail) == ("user", "mail.other_senders", {"count": 2})  # never a domain
+    assert client.put(path, json={"domains": []}, headers=OWN_PAGE).json() == {"domains": []}
+    assert config.load(ws.layout.settings).mail.other_senders == ()
+
+
+@pytest.mark.parametrize(
+    ("domains", "says"),
+    [
+        (["teb.com.tr"], "teb.com.tr bir bankanın alan adı"),
+        (["garantibbva.com.tr"], "garantibbva.com.tr bir bankanın alan adı"),  # a shipped bank off the bank list
+        (["bilgi.teb.com.tr"], "bilgi.teb.com.tr bir bankanın alan adı"),
+        (["com.tr"], "com.tr bankaların alan adlarını da kapsıyor"),
+        (["fatura.example", "FATURA.example"], "fatura.example listede zaten var"),
+        (["fatura example"], "“fatura example” bir alan adı değil"),
+        ([""], "“” bir alan adı değil"),
+    ],
+    ids=["bank", "shipped bank", "under a bank", "above a bank", "twice", "no domain", "empty"],
+)
+def test_a_banks_domain_a_domain_named_twice_or_no_domain_is_refused_and_nothing_is_saved(client, ws, domains, says):
+    config.update(ws.layout.settings, "mail", {"bank_senders": ["teb.com.tr"], "other_senders": ["eski.example"]})
+    before = ws.layout.settings.read_text(encoding="utf-8")
+    refused = signed_in(client).put("/api/settings/mail/other-senders", json={"domains": domains}, headers=OWN_PAGE)
+    assert (refused.status_code, refused.json()["code"]) == (400, "sender_invalid")
+    assert refused.json()["title"].startswith(says)
+    assert ws.layout.settings.read_text(encoding="utf-8") == before
+
+
+def test_a_sender_list_out_of_shape_or_a_settings_file_that_cannot_be_read_is_refused(client, ws):
+    path = "/api/settings/mail/other-senders"
+    signed_in(client)
+    for body in ({"domains": "fatura.example"}, {"domains": ["a.example"] * 201}, {"domains": ["a" * 254]}, {}):
+        refused = client.put(path, json=body, headers=OWN_PAGE)
+        assert (refused.status_code, refused.json()["code"]) == (422, "invalid_request")
+    ws.layout.settings.write_text("[mail\n", encoding="utf-8")
+    broken = client.get(path)
+    assert (broken.status_code, broken.json()["code"]) == (409, "settings_invalid")
+    assert client.put(path, json={"domains": ["fatura.example"]}, headers=OWN_PAGE).status_code == 409
+    assert ws.layout.settings.read_text(encoding="utf-8") == "[mail\n"
+
+
+def test_a_new_sender_list_makes_the_extension_read_the_history_again(client, context):
+    token = extension_token(client, context)
+    extension = TestClient(client.app, base_url=BASE)
+    cursor = extension.get("/api/ingest/mail/cursor", headers=bearer(token)).json()
+    searched = {"start_day": cursor["start_day"], "senders": cursor["senders"]}
+    assert extension.post("/api/ingest/mail/scanned", json=searched, headers=bearer(token)).json() == {
+        "history_due": False
+    }
+    signed_in(client).put("/api/settings/mail/other-senders", json={"domains": ["fatura.example"]}, headers=OWN_PAGE)
+    cursor = extension.get("/api/ingest/mail/cursor", headers=bearer(token)).json()
+    assert cursor["history_due"] and "fatura.example" in cursor["senders"]
+    assert client.get("/api/system").json()["mail"]["history_due"]

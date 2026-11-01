@@ -1,9 +1,9 @@
 """The API's answers (pydantic at the boundary). Amounts, when they come, are minor units with their currency."""
 
 from datetime import date
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, StringConstraints
 
 from ..app.invoices import InvoiceKind, InvoiceStatus
 
@@ -197,3 +197,16 @@ class InvoiceCountsOut(BaseModel):
 class InvoicesOut(BaseModel):
     items: list[InvoiceOut]  # pending first by due date; then unmatched, then matched, newest first
     counts: InvoiceCountsOut
+
+
+SenderDomain = Annotated[str, StringConstraints(max_length=253)]  # checked as settings.toml checks it
+
+
+class OtherSendersIn(BaseModel):
+    domains: list[SenderDomain] = Field(max_length=200)
+
+
+class OtherSendersOut(BaseModel):
+    """The domains whose bills and receipts are taken in beside the banks' messages (settings: mail.other_senders)."""
+
+    domains: list[str]

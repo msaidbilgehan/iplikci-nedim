@@ -296,6 +296,15 @@ export interface MoneyOut {
 
 export type Necessity = "required" | "optional" | "unnecessary" | "unknown";
 
+export interface OtherSendersIn {
+  domains: string[];
+}
+
+/** The domains whose bills and receipts are taken in beside the banks' messages (settings: mail.other_senders). */
+export interface OtherSendersOut {
+  domains: string[];
+}
+
 export interface PairIn {
   code: string;
   name?: string;
