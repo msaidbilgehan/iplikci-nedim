@@ -175,6 +175,7 @@ Kullanıcının koyduğu ilkeler (2026-10-31):
 | K18 | Depo GitHub'da özel (private) kalır; lisansı [BSD 3-Clause](../../LICENSE.txt)'tır (2026-11-01). Depo yine de herkese açıkmış gibi yazılır: kişisel veri girmez, her commit'ten önce ve CI'da gitleaks çalışır. | G6 |
 | K19 | Önce macOS (2026-11-01). Kod üç işletim sisteminde çalışacak biçimde kalır, ama deneme ve cilalama şimdilik yalnızca macOS'ta yapılır; Windows'ta deneme sonra gelir. Aşama 3, Windows denemesi ve servisin yedi günlük çalışması açık koşul olarak yazılıp kapatıldı ([yol haritası](roadmap.md#aşama-3--servis)). | G1, G4 |
 | K20 | Tarayıcı eklentisi şimdilik Chrome Web Store'da yayımlanmaz; geliştirici modunda, paketlenmemiş yüklenir (2026-11-01). Mağaza metinleri ve gizlilik politikası `extension/store/`'da hazırdır. Yayın ücretli bir hesap kararıdır; kullanıcıya sorulmadan yapılmaz. | G1, G6 |
+| K21 | Banka e-postayla göndermiyorsa döküm kullanıcıdan istenmez; hesabın hareketleri bankanın e-postalarından (bildirimler, e-cüzdan) kendiliğinden çıkarılır (2026-11-01). Kullanıcının sözü: "Bunun otomatik algılanması gerekiyor." Ayrıntılar [yorum kurallarında](../domain/interpretation.md#ay-sonu-kapanışı). | G1, G10 |
 
 Mühendislik kararları (veri klasörü, veritabanı, API, ön yüz, bildirim içeriği, MVP'den geçiş…) gerekçeleriyle
 [ADR-0001 … ADR-0018](../adr/README.md)'dedir. Kullanıcı aksini söylemedikçe geçerlidirler.

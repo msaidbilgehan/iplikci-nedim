@@ -191,6 +191,7 @@ def _statement(s: Statement) -> Json:
         "checks_ok": s.checks_ok,
         "checks_total": s.checks_total,
         "balances": {month: str(v) for month, v in s.balances.items()},
+        "one_off": s.one_off,
         "securities": [
             {
                 "code": x.code,
@@ -205,9 +206,9 @@ def _statement(s: Statement) -> Json:
 
 
 def _statement_from(data: Any) -> Statement:
-    total_is_sum = data["total_is_sum"]
-    if not isinstance(total_is_sum, bool):
-        raise TypeError(f"expected a boolean, got {type(total_is_sum).__name__}")
+    total_is_sum, one_off = data["total_is_sum"], data["one_off"]
+    if not isinstance(total_is_sum, bool) or not isinstance(one_off, bool):
+        raise TypeError(f"expected booleans, got {type(total_is_sum).__name__} and {type(one_off).__name__}")
     return Statement(
         account=_str(data["account"]),
         cut_date=_date(data["cut_date"]),
@@ -221,6 +222,7 @@ def _statement_from(data: Any) -> Statement:
         checks_ok=_int(data["checks_ok"]),
         checks_total=_int(data["checks_total"]),
         balances={_str(month): _decimal(v) for month, v in data["balances"].items()},
+        one_off=one_off,
         securities=[
             Security(_str(x["code"]), _str(x["name"]), _decimal(x["quantity"]), _decimal(x["value"]), _date(x["as_of"]))
             for x in data["securities"]

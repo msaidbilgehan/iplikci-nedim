@@ -150,6 +150,7 @@ def full_result() -> ParseResult:
         checks_total=4,
         balances={"2026-09": Decimal("12.30"), "2026-10": Decimal(0)},
         securities=[Security("ORNEK", "ÖRNEK SANAYİ A.Ş.", Decimal("20.5"), Decimal(1342), date(2026, 10, 30))],
+        one_off=True,
     )
     loose = Transaction(
         date(2026, 9, 10),
@@ -182,6 +183,8 @@ GONE = object()
         (("transactions", 0, "ref", "span"), [1, 2, 3]),
         (("statements", 0, "transactions", 0, "ref", "box"), [1, 2, "3", 4]),
         (("statements", 0, "total_is_sum"), "evet"),
+        (("statements", 0, "one_off"), 1),
+        (("statements", 0, "one_off"), GONE),
         (("statements", 0, "checks_ok"), True),
         (("statements", 0, "cut_date"), "2026-13-01"),
         (("statements", 0, "balances"), ["2026-09"]),

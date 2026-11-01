@@ -95,6 +95,9 @@ class Statement:
     balances: dict[str, Decimal] = field(default_factory=dict[str, Decimal])  # "YYYY-MM" -> month-end balance
     # Investment accounts: the securities held at the end of the statement (previous / total are the cash).
     securities: list[Security] = field(default_factory=list[Security])
+    # A passbook (e-cüzdan): the account as the bank sent it once, when it opened. Banks mail no monthly list after
+    # it, so the month-end does not wait for the account's later days.
+    one_off: bool = False
 
     @property
     def is_account(self) -> bool:

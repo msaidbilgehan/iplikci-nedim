@@ -166,6 +166,7 @@ class AccountClose:
     last: date  # newest day its statements cover
     next_cut: date | None = None  # cards: the cut date of the statement that will cover the open days
     late: bool = False  # that cut date passed days ago and the statement did not come
+    untracked: bool = False  # known only from a passbook: its days after it are not awaited
 
     @property
     def is_card(self) -> bool:
@@ -230,6 +231,8 @@ class AccountClose:
             ]
         elif self.status == CHECK:
             parts = []
+        elif self.untracked:
+            parts = [f"{_day(self.last)} tarihli e-cüzdandan sonrası için banka e-postayla döküm göndermiyor"]
         else:
             parts = ["ayın tamamı belgelerle kapsandı ve tutarlı"]
         parts += self.problems
@@ -330,8 +333,13 @@ class _Shared:
         self.ds, self.ins, self.today = ds, ins, today
         self.periods = statement_periods(ds.statements)
         self.days: dict[str, set[date]] = defaultdict(set)
+        tracked: set[str] = set()
         for s, a, b in self.periods:
             self.days[s.account].update(_days(a, b))
+            if not s.one_off:
+                tracked.add(s.account)
+        # Accounts known only from passbooks: the bank sent them once, and no monthly list follows by e-mail.
+        self.untracked = set(self.days) - tracked
         self.newest = max((s.cut_date for s in ds.statements), default=today)
         self.fresh = fresh_starts(ds)
         self.full = sorted(complete_months(ds))
@@ -379,7 +387,9 @@ class _Shared:
         for account, covered in self.days.items():
             acc = self.ds.accounts[account]
             first, last = min(covered), max(covered)
-            active = (self.newest - last).days <= ACTIVE_DAYS
+            untracked = account in self.untracked
+            # Its later days are awaited only while documents keep coming for it, never after a passbook alone.
+            active = (self.newest - last).days <= ACTIVE_DAYS and not untracked
             if first > hi or (last < lo and not active):
                 continue  # not open yet, or its documents stopped long before (closed)
             opened = month_of(first) == month and account in self.fresh  # opened this month: nothing before
@@ -407,6 +417,7 @@ class _Shared:
                 lines,
                 None,
                 last,
+                untracked=untracked,
             )
             if not ac.is_card:
                 covering = next((s for s, a, b in self.periods if s.account == account and a <= hi <= b), None)

@@ -164,6 +164,30 @@ def test_a_list_that_does_not_check_out_or_misses_a_receipt_needs_a_look(cat):
     assert by_label(me)["TEB Vadesiz TL 123456789"].note == "01.10–31.10 dökümünde bakiye 3/4 satır tutarlı"
 
 
+SAVINGS = Account("vakifbank-0012345", "Vakıfbank Vadesiz USD …012345", "Vakıfbank", AccountType.FX, "USD", "0012345")
+
+
+def passbook(day: date) -> ParseResult:
+    s = Statement(SAVINGS.id, day, "USD", "e-cuzdan.pdf", Decimal(0), Decimal(0), [], start=day, one_off=True)
+    return ParseResult("cuzdan", accounts=[SAVINGS], statements=[s])
+
+
+def test_an_account_known_only_from_its_passbook_holds_no_month_after_it(cat):
+    # The bank mailed the passbook once, when the account opened; no list of it ever comes by e-mail.
+    me = month(cat, date(2026, 11, 25), "2026-10", *autumn(passbook(date(2026, 9, 2))))
+    assert me.status == month_end.CLOSED
+    assert "Vakıfbank Vadesiz USD …012345" not in by_label(me)
+    me = month(cat, date(2026, 11, 25), "2026-09", *autumn(passbook(date(2026, 9, 2))))
+    savings = by_label(me)["Vakıfbank Vadesiz USD …012345"]
+    assert (savings.status, savings.needed, savings.covered) == (month_end.CLOSED, 1, 1)
+    assert savings.note == "02.09.2026 tarihli e-cüzdandan sonrası için banka e-postayla döküm göndermiyor"
+    # A list of the account that came after all is awaited again, as any other list.
+    later = listing(date(2026, 10, 1), date(2026, 10, 15))
+    later.accounts, later.statements[0].account = [SAVINGS], SAVINGS.id
+    me = month(cat, date(2026, 11, 25), "2026-10", *autumn(passbook(date(2026, 9, 2)), later))
+    assert by_label(me)["Vakıfbank Vadesiz USD …012345"].status == month_end.WAITING
+
+
 def test_the_brokerage_statement_never_holds_the_month_open(cat):
     me = month(cat, date(2026, 11, 25), "2026-10", *autumn(brokerage(date(2026, 9, 1), date(2026, 9, 30))))
     stocks = by_label(me)["Garanti BBVA Yatırım 1-101"]

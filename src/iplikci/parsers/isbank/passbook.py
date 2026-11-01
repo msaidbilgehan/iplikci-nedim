@@ -74,12 +74,13 @@ def read(doc: SourceDocument) -> ParseResult:
         oldest_first=True,
         opening=Decimal(0) if opened == moves[0].date else None,
     )
+    stmt.one_off = True  # sent once: no monthly list follows it by e-mail
     return ParseResult(parser=ID, accounts=[account], statements=[stmt], holder=holder)
 
 
 class Passbook:
     id = ID
-    version = 1
+    version = 2
     bank = "İş Bankası"
     name = "İş Bankası e-cüzdan"
     document_type = DocumentKind.ACCOUNT_STATEMENT

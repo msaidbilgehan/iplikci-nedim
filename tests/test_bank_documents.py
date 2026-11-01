@@ -166,6 +166,7 @@ def test_isbank_passbook_is_a_verified_list_of_a_new_term_deposit():
         Decimal(7500),
     )
     assert s.verified and (s.checks_ok, s.checks_total) == (3, 3)  # from zero: the account was opened that day
+    assert s.one_off  # sent once, when the account opened: no monthly list follows it
     [opening] = s.transactions  # rows of zero carry no money
     assert (opening.amount, opening.kind, opening.counterparty) == (
         Decimal(-7500),
@@ -182,7 +183,13 @@ def test_vakifbank_passbook_reads_the_account_page_after_the_terms():
         "USD",
         "Vakıfbank Vadesiz USD …012345 (Birikim)",
     )
-    assert (s.start, s.cut_date, s.verified, s.transactions) == (date(2026, 5, 2), date(2026, 5, 2), True, [])
+    assert (s.start, s.cut_date, s.verified, s.transactions, s.one_off) == (
+        date(2026, 5, 2),
+        date(2026, 5, 2),
+        True,
+        [],
+        True,
+    )
 
 
 # --- Garanti BBVA Yatırım ---------------------------------------------------------------------------

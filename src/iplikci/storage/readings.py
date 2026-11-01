@@ -91,7 +91,8 @@ def save(db: Database, sha256: str, result: ParseResult) -> None:
         for i, s in enumerate(result.statements):
             statement_id = db.execute(
                 "INSERT INTO statements (sha256, position, account, cut_date, currency, source, previous, total, "
-                "total_is_sum, start, checks_ok, checks_total, balances) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "total_is_sum, start, checks_ok, checks_total, balances, one_off) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     sha256,
                     i,
@@ -106,6 +107,7 @@ def save(db: Database, sha256: str, result: ParseResult) -> None:
                     s.checks_ok,
                     s.checks_total,
                     json.dumps({month: _to_minor(v) for month, v in s.balances.items()}),
+                    int(s.one_off),
                 ),
             ).lastrowid
             for j, sec in enumerate(s.securities):
@@ -192,6 +194,7 @@ def load(db: Database, documents: Iterable[DocumentRow]) -> dict[str, ParseResul
             checks_ok=r["checks_ok"],
             checks_total=r["checks_total"],
             balances={month: _from_minor(v) for month, v in json.loads(r["balances"]).items()},
+            one_off=bool(r["one_off"]),
         )
         statements[r["id"]] = s
         results[r["sha256"]].statements.append(s)

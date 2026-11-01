@@ -159,6 +159,10 @@ ekstre gelmeden sayılır.
 
 - Kart ve yatırım ekstreleri e-postayla gelir (`mailed`).
 - Hesap listelerini kullanıcı indirir; notları indirmeyi ister.
+- V1: banka e-postayla göndermiyorsa döküm elle istenmez; hesabın hareketleri bankanın e-postalarından çıkarılır (K21).
+  - E-cüzdan, hesap açılınca bir kez gönderilir (`Statement.one_off`); ardından aylık döküm gelmez. Yalnızca e-cüzdanı
+    olan bir hesabın sonraki günleri beklenmez; ay sayfası bunu yazar. Hesabın sonradan bir dökümü gelirse ondan
+    sonraki günler yine beklenir.
 - Kartın açık günleri bir sonraki kesimi bekler (son kesim + 1 ay, aynı gün). Kesimden 5 günden fazla geçerse
   "gecikti" olur.
 

@@ -52,7 +52,7 @@ The MVP was retired on 2026-10-31 (K17, ADR-0018): İplikçi Nedim starts with n
 | Document | What it holds |
 |---|---|
 | `docs/README.md` | Map of the docs and reading order |
-| `docs/v1/requirements.md` | Requirements G1–G13, the user's decisions K1–K20, product principles |
+| `docs/v1/requirements.md` | Requirements G1–G13, the user's decisions K1–K21, product principles |
 | `docs/v1/architecture.md` | Target architecture: modules, data model, data dir, API, MCP, security, NFRs |
 | `docs/v1/features.md` | Feature specs with acceptance criteria and the MVP parity checklist |
 | `docs/v1/roadmap.md` | Phases 0–8 and the 1.0 release, exit criteria, MVP module mapping, first-session steps |
