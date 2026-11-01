@@ -3,12 +3,14 @@ token that opens only the mail intake, revocation, and the messages it delivers.
 
 import hashlib
 import hmac
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 
 from iplikci.api.app import create_app
 from iplikci.api.context import Context
+from iplikci.app import bridge
 from iplikci.app.bridge import MAX_WRONG_CODES, PairingCodes
 from iplikci.settings import config
 from iplikci.storage import audit, documents, events
@@ -161,3 +163,35 @@ def test_the_intake_refuses_empty_and_too_large_messages(client, monkeypatch):
     assert other.post("/api/ingest/mail", content=b"", headers=bearer(token)).json()["code"] == "message_empty"
     huge = other.post("/api/ingest/mail", content=b"x" * 10, headers=bearer(token) | {"Content-Length": str(41 << 20)})
     assert huge.status_code == 413
+
+
+def test_a_layer_that_meets_an_unknown_gmail_page_is_told_once_per_version(client, ws):
+    token = paired(client)["token"]
+    other = TestClient(client.app, base_url=BASE)
+    first = other.post("/api/ingest/mail/alarm", json={"layer": 3, "version": "0.1.0"}, headers=bearer(token))
+    assert first.json() == {"news": True}
+    again = other.post("/api/ingest/mail/alarm", json={"layer": 3, "version": "0.1.0"}, headers=bearer(token))
+    assert again.json() == {"news": False}
+    assert other.post("/api/ingest/mail/alarm", json={"layer": 4}, headers=bearer(token)).status_code == 422
+    assert other.post("/api/ingest/mail/alarm", json={"layer": 1}, headers=bearer(TOKEN)).status_code == 403
+    with ws.db() as db:
+        [event] = events.entries(db, "mail.bridge_alarm")
+    assert (event.target, event.detail) == ("katman-3", {"version": "0.1.0"})
+    assert "ham ileti katmanı durdu" in client.get("/api/system", headers=bearer(TOKEN)).json()["mail"]["last_error"]
+
+
+def test_an_extension_not_seen_for_a_day_is_told_once(client, ws):
+    found = paired(client)
+    now = datetime.now(UTC)
+    assert bridge.check_silence(ws, now) == []  # just paired
+    with ws.db() as db:
+        db.execute(
+            "UPDATE bridges SET last_seen = ? WHERE id = ?", ((now - timedelta(days=2)).isoformat(), found["id"])
+        )
+    assert bridge.check_silence(ws, now) == [found["id"]]
+    assert bridge.check_silence(ws, now) == []  # once
+    with ws.db() as db:
+        db.execute(
+            "UPDATE bridges SET last_seen = ? WHERE id = ?", ((now - timedelta(hours=25)).isoformat(), found["id"])
+        )
+    assert bridge.check_silence(ws, now) == [found["id"]]  # back, then silent again

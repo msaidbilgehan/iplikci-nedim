@@ -4,10 +4,28 @@
   "version": "0.0.0",
   "description": "Gmail'deki banka iletilerini bu bilgisayardaki İplikçi Nedim'e taşır. Gmail'de hiçbir şeyi değiştirmez.",
   "minimum_chrome_version": "120",
-  "permissions": ["alarms", "storage"],
-  "host_permissions": ["https://mail.google.com/*", "http://127.0.0.1:8643/*"],
-  "background": { "service_worker": "background.js", "type": "module" },
-  "action": { "default_title": "İplikçi Nedim Köprüsü" },
-  "options_ui": { "page": "verify.html", "open_in_tab": true },
-  "externally_connectable": { "matches": ["http://127.0.0.1:8643/*"] }
+  "permissions": [
+    "alarms",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://mail.google.com/*",
+    "http://127.0.0.1:8643/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "İplikçi Nedim Köprüsü"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "externally_connectable": {
+    "matches": [
+      "http://127.0.0.1:8643/*"
+    ]
+  }
 }

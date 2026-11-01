@@ -6,9 +6,23 @@ açık Gmail oturumuyla okuyup bu bilgisayardaki İplikçi Nedim servisine taş�
 
 ## Durum
 
-Şu an yalnızca ADR-0016'nın doğrulama sayfası var (Aşama 3'ün ilk işi). Sayfa dört şeyi denetler: gelen kutusu
-akışını, ham iletiyi ve DMARC'ı, tam taramayı ve platformu. Eşleştirme, üç katmanlı okuma ve servise teslim, doğrulama
-geçince gelir.
+- **Doğrulama sayfası** (ADR-0016, Aşama 3'ün ilk işi) dört şeyi denetler: gelen kutusu akışını, ham iletiyi ve DMARC'ı,
+  tam taramayı ve platformu. Eklentinin penceresinden açılır.
+- **Eşleştirme:** eklentinin penceresine, İplikçi Nedim'in "Tarayıcı eklentisi" sayfasından alınan tek kullanımlık kod
+  girilir. Eklenti her istekten önce servisten bir kanıt ister (HMAC). Kanıtlayamayan bir programa hiçbir ileti
+  gönderilmez.
+- **Yeni iletiler (1. ve 3. katman):** eklenti her dakika ve tarayıcı açılınca gelen kutusu akışına bakar. Listedeki
+  bankalardan gelen ve servisin henüz almadığı okunmamış iletileri "Orijinali göster" yoluyla indirir ve servise ham
+  hâliyle teslim eder.
+  - Güven kuralını (DMARC) servis uygular. Teslimin nerede kaldığını da servis tutar.
+  - Servisin hiç alamayacağı bir ileti (boş ya da 40 MB'tan büyük) atlanır ve yeniden indirilmez.
+- **Sorunlar:**
+  - Tanınmayan bir Gmail sayfası o katmanı durdurur ve servise bir kez bildirilir (biçim alarmı). Düzeltme eklentinin
+    yeni sürümüyle gelir.
+  - Gmail yavaşlamayı isterse ya da başka bir sorun çıkarsa sonraki deneme her seferinde daha geç yapılır: önce bir
+    dakika sonra, en geç bir saat sonra.
+- **Tam tarama (2. katman)** doğrulamanın 3. maddesini bekliyor. Okunmuş ya da arşivlenmiş iletileri ve geçmişi o
+  getirecek. O gelene kadar yalnızca gelen kutusundaki okunmamış banka iletileri taşınır.
 
 ## İlkeler
 

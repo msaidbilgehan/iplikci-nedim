@@ -11,6 +11,7 @@ export interface FakeEntry {
   readonly id: bigint;
   readonly sender: string;
   readonly hexInLink?: boolean;
+  readonly issued?: string;
 }
 
 export function feedXml(entries: readonly FakeEntry[], unread = entries.length): string {
@@ -21,8 +22,8 @@ export function feedXml(entries: readonly FakeEntry[], unread = entries.length):
 <link rel="alternate" href="https://mail.google.com/mail?account_id=${ADDRESS}&amp;message_id=${
       entry.hexInLink === false ? "" : entry.id.toString(16)
     }&amp;view=conv&amp;extsrc=atom" type="text/html" />
-<modified>2026-10-31T09:00:00Z</modified>
-<issued>2026-10-31T09:00:00Z</issued>
+<modified>${entry.issued ?? "2026-10-31T09:00:00Z"}</modified>
+<issued>${entry.issued ?? "2026-10-31T09:00:00Z"}</issued>
 <id>tag:gmail.google.com,2004:${entry.id.toString()}</id>
 <author>
 <name>Banka</name>

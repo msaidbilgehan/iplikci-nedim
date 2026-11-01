@@ -54,6 +54,7 @@ label {
   font-weight: 600;
 }
 
+input,
 select,
 textarea,
 button {
@@ -61,6 +62,7 @@ button {
   color: inherit;
 }
 
+input,
 select,
 textarea {
   background: var(--surface);
@@ -130,4 +132,16 @@ button:disabled {
 #copied {
   margin-left: 0.75rem;
   color: var(--muted);
+}
+
+#code {
+  max-width: 12rem;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 1.25rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+section {
+  margin-top: 2rem;
 }

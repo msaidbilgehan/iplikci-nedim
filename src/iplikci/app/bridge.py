@@ -34,6 +34,10 @@ MAX_WRONG_CODES = 5
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O, 1/I: the user may type it
 _SEEN_EVERY = timedelta(minutes=1)
 PAIRED, REVOKED = "bridge.paired", "bridge.revoked"  # in the audit log, and as events for the pairing page
+ALARM = "mail.bridge_alarm"  # a layer of the extension met a Gmail page it does not know and stopped (ADR-0016)
+SILENT = "mail.bridge_silent"  # no paired extension was seen for a day: the browser stayed closed
+SILENCE = timedelta(days=1)
+LAYERS = {1: "gelen kutusu akışı", 2: "tam tarama", 3: "ham ileti"}  # the extension's three ways of reading Gmail
 
 
 def _hash(token: str) -> str:
@@ -147,6 +151,29 @@ def cursor(ws: Workspace) -> Cursor:
         state = mail_store.load(db, mail.BRIDGE)
     start = settings.mail.start_day or mail.default_start()
     return Cursor(state.last_id, state.last_date, start.isoformat(), mail.senders(settings))
+
+
+def alarm(ws: Workspace, layer: int, version: str) -> bool:
+    """A layer of the extension stopped on a Gmail page it does not know; told once per layer and extension version
+    (the fix comes with an update of the extension). Whether it was news."""
+    if layer not in LAYERS:
+        raise ValueError(f"bilinmeyen katman: {layer}")
+    with ws.db() as db:
+        added = events.record(db, ALARM, f"katman-{layer}", version=version)
+        state = mail_store.load(db, mail.BRIDGE)
+        state.last_error = f"eklentinin {LAYERS[layer]} katmanı durdu: Gmail'in sayfası tanınmadı"
+        mail_store.save(db, state)
+    return added
+
+
+def check_silence(ws: Workspace, at: datetime | None = None) -> list[str]:
+    """Tell once (mail.bridge_silent) about each paired extension not seen for a day; the ids told now. A bridge
+    that comes back and falls silent again is told again."""
+    at = at or datetime.now(UTC)
+    with ws.db() as db:
+        quiet = [b for b in bridges.every(db) if b.active and at - datetime.fromisoformat(b.last_seen) >= SILENCE]
+        told = [b.id for b in quiet if events.record(db, SILENT, b.id, since=b.last_seen)]
+    return told
 
 
 def deliver(ws: Workspace, raw: bytes, gmail_id: str = "", gmail_date: str = "") -> mail.MailOutcome:

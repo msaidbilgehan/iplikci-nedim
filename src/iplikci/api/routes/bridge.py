@@ -53,6 +53,15 @@ class CursorOut(BaseModel):
     senders: list[str]
 
 
+class AlarmIn(BaseModel):
+    layer: int = Field(ge=1, le=3)  # 1: inbox feed, 2: full search, 3: raw message
+    version: str = Field(default="", max_length=20)  # the extension's version: the fix comes with a newer one
+
+
+class AlarmOut(BaseModel):
+    news: bool  # false: this layer's alarm was told before for this version
+
+
 class DeliveredOut(BaseModel):
     taken: str  # stored, known, unlisted, unverified, business, too_large
     documents: int
@@ -112,6 +121,12 @@ def cursor(request: Request) -> CursorOut:
     return CursorOut(
         last_id=found.last_id, last_date=found.last_date, start_day=found.start_day, senders=list(found.senders)
     )
+
+
+@router.post("/api/ingest/mail/alarm")
+def layer_alarm(request: Request, body: AlarmIn) -> AlarmOut:
+    """A layer of the extension stopped on a Gmail page it does not know (ADR-0016's format alarm)."""
+    return AlarmOut(news=bridge.alarm(context_of(request).ws, body.layer, body.version))
 
 
 @router.post("/api/ingest/mail")

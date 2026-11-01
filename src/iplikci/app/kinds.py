@@ -8,6 +8,7 @@ INBOX_TAKE = "inbox.take"  # take in what waits in the inbox folder, without a p
 BACKUP_DAILY = "backup.daily"  # the day's backup, then the expired ones go
 BACKUP_NOW = "backup.take"  # a backup the user asked for
 BACKUP_REHEARSAL = "backup.rehearsal"  # the month's restore rehearsal
+BRIDGE_CHECK = "mail.bridge_check"  # whether the paired browser extension was seen in the last day
 
 # What each kind is, for the System screen (Turkish, as all user-facing text).
 LABELS = {
@@ -18,4 +19,5 @@ LABELS = {
     BACKUP_DAILY: "Günlük yedek",
     BACKUP_NOW: "Elle istenen yedek",
     BACKUP_REHEARSAL: "Geri yükleme provası",
+    BRIDGE_CHECK: "Tarayıcı eklentisi denetimi",
 }

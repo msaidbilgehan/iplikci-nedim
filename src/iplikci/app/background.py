@@ -12,9 +12,9 @@ from ..jobs.schedule import Periodic, daily, every, monthly
 from ..jobs.worker import Handler
 from ..storage import audit, events, feed_state, jobs
 from ..vault import trash
-from . import access, backup, intake, mail, uploads
+from . import access, backup, bridge, intake, mail, uploads
 from .analysis import analyze
-from .kinds import BACKUP_DAILY, BACKUP_NOW, BACKUP_REHEARSAL, INBOX_TAKE, PURGE, REFRESH
+from .kinds import BACKUP_DAILY, BACKUP_NOW, BACKUP_REHEARSAL, BRIDGE_CHECK, INBOX_TAKE, PURGE, REFRESH
 from .workspace import Busy, Workspace
 
 SNAPSHOT = "snapshot"
@@ -28,6 +28,7 @@ PERIODIC = (
     Periodic(mail.FETCH_JOB, every(15)),
     Periodic(BACKUP_DAILY, daily(backup.DAILY_AT)),
     Periodic(BACKUP_REHEARSAL, monthly(time(4, 30))),
+    Periodic(BRIDGE_CHECK, every(60)),
 )
 
 
@@ -41,6 +42,7 @@ def handlers(ws: Workspace) -> dict[str, Handler]:
         BACKUP_DAILY: lambda _payload: back_up(ws, BackupReason.DAILY),
         BACKUP_NOW: lambda _payload: back_up(ws, BackupReason.MANUAL),
         BACKUP_REHEARSAL: lambda _payload: rehearse(ws),
+        BRIDGE_CHECK: lambda _payload: bridge.check_silence(ws),
     }
 
 
