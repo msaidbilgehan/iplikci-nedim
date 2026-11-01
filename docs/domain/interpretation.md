@@ -118,8 +118,9 @@ nedenleri arasında sayılmaz.
 - **Nakit akışı öngörüsü** (hesap başına, 60 gün)
   - Başlangıç tahmini güncel bakiyedir: son belge artı geçici olaylar.
     - Son belge, bakiyeyi yazan en yeni belgedir: hesap dökümünün kapanış bakiyesi ya da bir banka bildiriminin
-      satırdan sonraki bakiyesi (şimdilik yalnızca Vakıfbank'ın FAST bildirimleri yazar). İkisi aynı günse döküm esas
-      alınır: günün tamamını kapatır. Sonraki günlerin henüz ekstreye girmemiş dekont ve bildirim satırları eklenir.
+      satırdan sonraki bakiyesi (Vakıfbank'ın FAST bildirimleri ile QNB'nin hareket bildirimleri yazar). İkisi aynı
+      günse döküm esas alınır: günün tamamını kapatır. Sonraki günlerin henüz ekstreye girmemiş dekont ve bildirim
+      satırları eklenir.
     - Bakiyesi hiçbir belgede yazmayan, bakiyesi en yeni belgeden 180 günden eski olan ve döviz ya da altın olan
       hesaplar öngörüye girmez; nedenleri yazılır.
   - Üstüne beklenen olaylar eklenir:
@@ -132,6 +133,9 @@ nedenleri arasında sayılmaz.
       göre sayılır (ayın son günü, sonraki ayın 1'inden bir gün öncedir); böylece 30'unda ya da 1'inde yatan maaş
       ayın ortasına kaymaz. Sonraki ödeme sonuncudan en az 15 gün sonradır. Dönemsel ödeme son ödemeden bir dönem
       sonradır.
+    - Kart son ödemesi, kredi kartının en yeni TL ekstresinden gelir: son ödeme tarihi, dönem borcu ve asgari tutar.
+      Kesimden sonra karta yapılan ödemeler borçtan da asgari tutardan da düşülür: hesapların bakiyesi onları zaten
+      saymıştır. Borcu kapanmış ya da son ödeme tarihini yazmayan ekstre takvime girmez.
     - Kart son ödemesi, kartı en son ödeyen hesaptan çıkar. Son altı ekstrede ödenen payın medyanı en az %99 ise
       tamamı sayılır; değilse o pay sayılır, asgari ödemeden az olmamak üzere. Ödeme geçmişi yoksa tamamı sayılır.
     - Kart taksitleri (n/m etiketinden, sonraki kesim günlerinde) ve kartla ödenen düzenli ödemeler kartın ekstresine

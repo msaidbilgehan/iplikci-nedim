@@ -45,12 +45,13 @@ class Due:
 
 @dataclass(frozen=True)
 class CardDue:
-    """A card statement's due date and what it asks, as the statement prints them."""
+    """A card statement's due date and what it still asks: what the statement prints, less what was paid since."""
 
     account: str  # the card
     due_date: date
-    total: Decimal  # the statement's balance (dönem borcu)
-    minimum: Decimal | None = None  # the minimum payment (asgari ödeme), when the statement prints it
+    total: Decimal  # the statement's balance (dönem borcu) still to pay
+    minimum: Decimal | None = None  # the minimum payment (asgari ödeme) still to pay, when the statement prints one
+    paid: Decimal = Decimal(0)  # paid on the card since the statement's cut, already taken off total and minimum
 
 
 @dataclass(frozen=True)
@@ -338,9 +339,9 @@ def card_due_items(ds: Dataset, dues: Iterable[CardDue], start: date, end: date)
         if not start <= d.due_date <= end or d.total <= 0:
             continue
         account = ds.accounts.get(d.account)
-        basis = f"ekstrenin dönem borcu {_tl(d.total)}" + (
-            f", asgari ödeme {_tl(d.minimum)}" if d.minimum is not None else ""
-        )
+        basis = f"ekstrenin dönem borcu {_tl(d.total + d.paid)}"
+        basis += f", kesimden sonra ödenen {_tl(d.paid)} düşüldü" if d.paid > 0 else ""
+        basis += f"; kalan asgari ödeme {_tl(d.minimum)}" if d.minimum is not None else ""
         title = account.label if account is not None else d.account
         found.append(Due(d.due_date, PaymentKind.CARD_DUE, title, d.account, d.total, basis, minimum=d.minimum))
     return found

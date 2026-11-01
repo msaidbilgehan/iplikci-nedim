@@ -800,7 +800,7 @@ def _latest_rate(ds: Dataset, currency: str) -> tuple[date, Decimal] | None:
     return max(found) if found else None
 
 
-def _paid_after(ds: Dataset, card: str, cut: date) -> Decimal:
+def paid_after(ds: Dataset, card: str, cut: date) -> Decimal:
     """Card payments after the statement's cut date: from bank accounts' lists, and from payment receipts
     (booked on the card itself) the next statement will show."""
     acc = ds.accounts[card]
@@ -874,7 +874,7 @@ def holdings(ds: Dataset) -> list[Holding]:
     for account, s in latest.items():
         a = ds.accounts[account]
         if not s.is_account:
-            paid = _paid_after(ds, account, s.cut_date)
+            paid = paid_after(ds, account, s.cut_date)
             owed = max(ZERO, s.total - paid)
             note = f"{_day(s.cut_date)} ekstresi {tl(s.total)}" + (f"; sonra {tl(paid)} ödendi" if paid >= 1 else "")
             h = Holding(a.label, "kart", TRY, -owed, -owed, s.cut_date, note)

@@ -8,12 +8,12 @@ from datetime import date
 from decimal import Decimal
 
 from ..analysis import Dataset
-from ..domain.codes import Certainty, Necessity, PaymentKind, SeriesPeriod, SeriesStatus, TransactionKind
-from ..domain.models import TRY, Transaction
+from ..domain.codes import AccountType, Certainty, Necessity, PaymentKind, SeriesPeriod, SeriesStatus, TransactionKind
+from ..domain.models import TRY, Statement, Transaction
 from ..domain.money import Money, round_half_up
 from ..domain.text import fold
 from ..forecast import AccountForecast, Forecast, Spread, Start, forecast
-from ..insights import V1_STATUS, PeriodicSeries, Series, listed, month_name
+from ..insights import V1_STATUS, PeriodicSeries, Series, listed, month_name, paid_after
 from ..upcoming import (
     CardDue,
     Due,
@@ -184,9 +184,26 @@ def subscriptions(a: Analysis) -> Subscriptions:
 
 
 def card_dues(ds: Dataset) -> list[CardDue]:
-    """The cards' due dates and what their statements ask. The statements' due-date fields are read on another
-    branch; until they arrive here, none is known."""
-    return []
+    """The credit cards' due dates and what their newest statements still ask: the statement's balance and its
+    minimum payment less what was paid on the card since the cut (insights.paid_after), which the bank accounts'
+    balances already count. A statement that prints no due date, or is paid off, asks nothing."""
+    newest: dict[str, Statement] = {}
+    for s in ds.statements:
+        account = ds.accounts.get(s.account)
+        if s.is_account or s.currency != TRY or account is None or account.type != AccountType.CREDIT_CARD:
+            continue
+        if s.account not in newest or s.cut_date > newest[s.account].cut_date:
+            newest[s.account] = s
+    dues: list[CardDue] = []
+    for card, s in sorted(newest.items()):
+        if s.due_date is None or s.total is None:
+            continue
+        paid = paid_after(ds, card, s.cut_date)
+        left = s.total - paid
+        if left > 0:
+            minimum = None if s.minimum_payment is None else max(Decimal(0), s.minimum_payment - paid)
+            dues.append(CardDue(card, s.due_date, left, minimum, paid))
+    return dues
 
 
 def calendar(a: Analysis, today: date) -> Calendar:

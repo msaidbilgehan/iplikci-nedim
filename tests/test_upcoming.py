@@ -4,6 +4,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from iplikci.analysis import NO_STATEMENT, Dataset, ReceiptLine
+from iplikci.app.outlook import card_dues
 from iplikci.domain.codes import AccountType, Necessity, PaymentKind, SeriesPeriod, TransactionKind
 from iplikci.domain.models import Account, Statement, Transaction
 from iplikci.insights import PeriodicSeries, find_series, interpret, settle, timeline
@@ -284,7 +285,31 @@ def test_card_dues_come_from_the_statements_the_caller_reads():
         "card",
     )
     assert (found.amount, found.minimum) == (Decimal("12500.75"), Decimal("2500.15"))
-    assert found.basis == "ekstrenin dönem borcu 12.500,75 TL, asgari ödeme 2.500,15 TL"
+    assert found.basis == "ekstrenin dönem borcu 12.500,75 TL; kalan asgari ödeme 2.500,15 TL"
+    paid = CardDue("card", date(2026, 11, 25), Decimal(10000), None, Decimal(2500))
+    (found,) = card_due_items(dataset([]), [paid], date(2026, 11, 1), date(2026, 12, 30))
+    assert (found.amount, found.basis) == (
+        Decimal(10000),
+        "ekstrenin dönem borcu 12.500,00 TL, kesimden sonra ödenen 2.500,00 TL düşüldü",
+    )
+
+
+def test_a_cards_due_comes_from_its_newest_statement_less_what_was_paid_since_the_cut():
+    def statement(cut: date, due: date | None, total: int, minimum: int | None) -> Statement:
+        s = card_statement(cut, [])
+        s.total, s.due_date = Decimal(total), due
+        s.minimum_payment = None if minimum is None else Decimal(minimum)
+        return s
+
+    older = statement(date(2026, 9, 15), date(2026, 9, 25), 8000, 1600)
+    newest = statement(date(2026, 10, 15), date(2026, 10, 25), 12000, 2400)
+    payment = tx(date(2026, 10, 20), "TEB KART •1234 ÖDEME", 3000, kind=TransactionKind.CARD_PAYMENT)
+    (due,) = card_dues(dataset([payment], [older, newest]))
+    assert due == CardDue("card", date(2026, 10, 25), Decimal(9000), Decimal(0), Decimal(3000))
+    paid_off = tx(date(2026, 10, 21), "TEB KART •1234 ÖDEME", 9000, kind=TransactionKind.CARD_PAYMENT)
+    assert card_dues(dataset([payment, paid_off], [older, newest])) == []
+    undated = statement(date(2026, 10, 15), None, 12000, None)  # a statement that prints no due date
+    assert card_dues(dataset([], [older, undated])) == []
 
 
 def test_the_calendar_lists_every_kind_by_day_for_sixty_days():

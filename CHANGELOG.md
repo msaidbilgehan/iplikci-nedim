@@ -37,6 +37,15 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 - Okuyucusu olmayan bir iletinin selamlaması bir şirketi anıyorsa ("Merhaba ÖRNEK A.Ş.,") ileti şirket belgesi sayılır;
   gövdenin daha aşağısında geçen şirket adı sayılmaz. SGK işyeri sicil numarası altında ödenen primleri anan ileti de
   bir bordronun parçasıdır, şirket belgesi sayılır.
+- Dönemsel seriler: aynı ödeme alanına yaklaşık altı ayda (160–200 gün) ya da yılda (330–400 gün) bir yapılan
+  ödemeler; durumları aylık serilerin kurallarıyla bulunur. Aylık seriler ve bulgular değişmez.
+- Takvim (F09): önümüzdeki 60 günün düzenli ve dönemsel ödemeleri, maaş ve düzenli gelirler (son üç tutarın
+  medyanı), kartlardaki kalan taksitler, dekontlardan kredi taksitleri ve kart ekstrelerinin son ödemeleri (kesimden
+  sonra yapılan ödemeler düşülür); her kalem hesabını, gününü, tutarını ve dayanağını yazar.
+- Nakit akışı öngörüsü (F09): her TL banka hesabının 60 günlük bakiyesi gün gün, "tahmin" diye işaretli; belgedeki
+  en yeni bakiyeden başlar, eksiye düştüğü günü ve tutarı gösterir.
+- API `GET /api/subscriptions`, `/api/calendar`, `/api/forecast`; MCP araçları `subscriptions`, `upcoming_payments`,
+  `cash_flow_forecast`; arayüzde Abonelikler (`/abonelikler`) ve Takvim (`/takvim`) ekranları.
 - Kart ekstrelerinde son ödeme tarihi, asgari ödeme ve kartın toplam limiti okunur (göç 0013):
   - İş Bankası Maximum üçünü de okur;
   - Garanti BBVA Bonus son ödeme tarihini ve kart limitini okur;
