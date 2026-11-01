@@ -7,19 +7,19 @@ import pytest
 
 from iplikci.analysis import CONFIRMED, NO_STATEMENT, NOT_ON_STATEMENT, PROVISIONAL, build
 from iplikci.categorize import Categorizer
+from iplikci.domain.codes import AccountType, TransactionKind
 from iplikci.domain.models import Account, ParseResult, Statement, Transaction
 from iplikci.insights import interpret
-from iplikci.parsers.hesap import CANDIDATE
 from iplikci.sources import Document
 
 from conftest import PEOPLE_RULES
 
 HOLDER = "ÖRNEK İSİM SOYADOĞLU"
 CHECKING = Account(
-    "garanti-1234567", "Garanti BBVA Vadesiz TL 1234567", "Garanti BBVA", "Vadesiz hesap", number="1234567"
+    "garanti-1234567", "Garanti BBVA Vadesiz TL 1234567", "Garanti BBVA", AccountType.CURRENT, number="1234567"
 )
-OVERDRAFT = Account("qnb-11112222", "QNB Ek Hesap 11112222", "QNB", "Ek hesap (KMH)", number="11112222")
-CARD = Account("qnb-4321", "QNB Mastercard •4321", "QNB", "Kredi kartı", number="4321")
+OVERDRAFT = Account("qnb-11112222", "QNB Ek Hesap 11112222", "QNB", AccountType.OVERDRAFT, number="11112222")
+CARD = Account("qnb-4321", "QNB Mastercard •4321", "QNB", AccountType.CREDIT_CARD, number="4321")
 
 
 @pytest.fixture(scope="module")
@@ -29,7 +29,14 @@ def cat(tmp_path_factory):
     return Categorizer(rules)
 
 
-def row(d: date, desc: str, amount: float, account: Account, kind: str = CANDIDATE, who: str = "") -> Transaction:
+def row(
+    d: date,
+    desc: str,
+    amount: float,
+    account: Account,
+    kind: TransactionKind = TransactionKind.TRANSFER_CANDIDATE,
+    who: str = "",
+) -> Transaction:
     return Transaction(d, desc, amount, kind, account.id, counterparty=who, source="belge")
 
 
@@ -39,7 +46,7 @@ def listing(account: Account, start: date, end: date, *rows: Transaction, closin
     s = Statement(
         account.id,
         end,
-        "TL",
+        "TRY",
         "liste.xls",
         opening,
         closing,
@@ -54,7 +61,7 @@ def listing(account: Account, start: date, end: date, *rows: Transaction, closin
 
 def card_statement(cut: date, *rows: Transaction, total: float = 4000.0) -> ParseResult:
     previous = round(total - sum(r.amount for r in rows), 2)
-    s = Statement(CARD.id, cut, "TL", "ekstre.pdf", previous, total, list(rows))
+    s = Statement(CARD.id, cut, "TRY", "ekstre.pdf", previous, total, list(rows))
     return ParseResult("ekstre", accounts=[CARD], statements=[s])
 
 
@@ -82,12 +89,12 @@ def test_a_receipt_after_the_newest_statement_counts_now_as_provisional(cat):
             "r1",
             CHECKING,
             row(date(2026, 11, 3), "Giden FAST → VELİ ÖRNEKSOY", 15000.0, CHECKING, who="VELİ ÖRNEKSOY"),
-            row(date(2026, 11, 3), "FAST ücreti", 5.0, CHECKING, kind="faiz_ucret"),
+            row(date(2026, 11, 3), "FAST ücreti", 5.0, CHECKING, kind=TransactionKind.INTEREST_FEE),
         ),
     )
     assert statuses(ds) == [("Giden FAST → VELİ ÖRNEKSOY", PROVISIONAL), ("FAST ücreti", PROVISIONAL)]
     by_kind = {t.kind: t for t in ds.transactions}
-    rent, fee = by_kind["harcama"], by_kind["faiz_ucret"]
+    rent, fee = by_kind[TransactionKind.PURCHASE], by_kind[TransactionKind.INTEREST_FEE]
     assert (rent.category, rent.provisional) == ("Kira", True)  # resolved like a list row
     assert fee.provisional
 
@@ -102,14 +109,14 @@ def test_the_statements_row_takes_the_place_of_a_confirmed_receipt(cat):
             date(2026, 11, 1),
             date(2026, 11, 30),
             booked,
-            row(date(2026, 11, 4), "FAST ÜCRETİ", 4.76, CHECKING, kind="faiz_ucret"),
-            row(date(2026, 11, 4), "BSMV", 0.24, CHECKING, kind="faiz_ucret"),
+            row(date(2026, 11, 4), "FAST ÜCRETİ", 4.76, CHECKING, kind=TransactionKind.INTEREST_FEE),
+            row(date(2026, 11, 4), "BSMV", 0.24, CHECKING, kind=TransactionKind.INTEREST_FEE),
         ),
         receipt(
             "r1",
             CHECKING,
             row(date(2026, 11, 3), "Giden FAST → VELİ ÖRNEKSOY", 15000.0, CHECKING),
-            row(date(2026, 11, 3), "FAST ücreti", 5.0, CHECKING, kind="faiz_ucret"),
+            row(date(2026, 11, 3), "FAST ücreti", 5.0, CHECKING, kind=TransactionKind.INTEREST_FEE),
         ),
     )
     assert statuses(ds) == [("Giden FAST → VELİ ÖRNEKSOY", CONFIRMED), ("FAST ücreti", CONFIRMED)]
@@ -166,19 +173,30 @@ def test_an_own_transfer_receipt_is_told_apart_by_the_senders_name(cat):
             "r2", OVERDRAFT, row(date(2026, 11, 5), "Gelen transfer ← TEB", -750.0, OVERDRAFT, who="AYŞE SOYADOĞLU")
         ),
     )
-    assert [(t.kind, t.provisional) for t in ds.transactions] == [("transfer", True), ("gelir", True)]
+    assert [(t.kind, t.provisional) for t in ds.transactions] == [
+        (TransactionKind.OWN_TRANSFER, True),
+        (TransactionKind.INCOME, True),
+    ]
 
 
 # --- card payments -----------------------------------------------------------------------------------
 
 
 def test_the_card_statement_confirms_a_card_payment_receipt(cat):
-    credit = row(date(2026, 10, 2), "ÖDEME - TEŞEKKÜRLER", -1500.0, CARD, kind="kart_odemesi")
+    credit = row(date(2026, 10, 2), "ÖDEME - TEŞEKKÜRLER", -1500.0, CARD, kind=TransactionKind.CARD_PAYMENT)
     ds = analyse(
         cat,
         card_statement(date(2026, 10, 18), credit),
         receipt(
-            "r1", CARD, row(date(2026, 10, 1), "QNB Mastercard •4321 borç ödemesi", 1500.0, CARD, kind="ekstresiz_kart")
+            "r1",
+            CARD,
+            row(
+                date(2026, 10, 1),
+                "QNB Mastercard •4321 borç ödemesi",
+                1500.0,
+                CARD,
+                kind=TransactionKind.CARD_PAYMENT_NO_STATEMENT,
+            ),
         ),
     )
     assert statuses(ds) == [("QNB Mastercard •4321 borç ödemesi", CONFIRMED)]
@@ -192,18 +210,26 @@ def test_a_payment_after_the_cut_lowers_the_card_debt_until_the_next_statement(c
         receipt(
             "r1",
             CARD,
-            row(date(2026, 10, 25), "QNB Mastercard •4321 borç ödemesi", 1500.0, CARD, kind="ekstresiz_kart"),
+            row(
+                date(2026, 10, 25),
+                "QNB Mastercard •4321 borç ödemesi",
+                1500.0,
+                CARD,
+                kind=TransactionKind.CARD_PAYMENT_NO_STATEMENT,
+            ),
         ),
     )
     [payment] = ds.transactions
     # The card's statements show its purchases: the payment is not spending on an unseen card.
-    assert (payment.kind, payment.provisional) == ("kart_odemesi", True)
+    assert (payment.kind, payment.provisional) == (TransactionKind.CARD_PAYMENT, True)
     [card] = interpret(ds).holdings
     assert card.amount == -2500.0 and "sonra ₺1.500 ödendi" in card.note
 
 
 def test_the_paying_accounts_list_confirms_a_card_payment_receipt(cat):
-    paid = row(date(2026, 10, 25), "123456******4321 NOLU KART ODEMESI", 1500.0, OVERDRAFT, kind="kart_odemesi")
+    paid = row(
+        date(2026, 10, 25), "123456******4321 NOLU KART ODEMESI", 1500.0, OVERDRAFT, kind=TransactionKind.CARD_PAYMENT
+    )
     ds = analyse(
         cat,
         card_statement(date(2026, 10, 18)),
@@ -211,7 +237,13 @@ def test_the_paying_accounts_list_confirms_a_card_payment_receipt(cat):
         receipt(
             "r1",
             CARD,
-            row(date(2026, 10, 25), "QNB Mastercard •4321 borç ödemesi", 1500.0, CARD, kind="ekstresiz_kart"),
+            row(
+                date(2026, 10, 25),
+                "QNB Mastercard •4321 borç ödemesi",
+                1500.0,
+                CARD,
+                kind=TransactionKind.CARD_PAYMENT_NO_STATEMENT,
+            ),
         ),
     )
     assert statuses(ds) == [("QNB Mastercard •4321 borç ödemesi", CONFIRMED)]
@@ -224,11 +256,19 @@ def test_a_payment_before_the_cards_statements_stays_a_payment_to_an_unseen_card
         cat,
         card_statement(date(2026, 10, 18)),
         receipt(
-            "r1", CARD, row(date(2024, 6, 7), "QNB Mastercard •4321 borç ödemesi", 900.0, CARD, kind="ekstresiz_kart")
+            "r1",
+            CARD,
+            row(
+                date(2024, 6, 7),
+                "QNB Mastercard •4321 borç ödemesi",
+                900.0,
+                CARD,
+                kind=TransactionKind.CARD_PAYMENT_NO_STATEMENT,
+            ),
         ),
     )
     assert statuses(ds) == [("QNB Mastercard •4321 borç ödemesi", NO_STATEMENT)]
-    assert ds.transactions[0].kind == "ekstresiz_kart"
+    assert ds.transactions[0].kind == TransactionKind.CARD_PAYMENT_NO_STATEMENT
 
 
 # --- balances and the interpretation -------------------------------------------------------------
@@ -242,7 +282,7 @@ def test_provisional_receipts_move_the_balance_their_list_closed_with(cat):
             "r1",
             CHECKING,
             row(date(2026, 11, 3), "Giden FAST → ALİ VELİ", 2500.0, CHECKING),
-            row(date(2026, 11, 3), "FAST ücreti", 5.0, CHECKING, kind="faiz_ucret"),
+            row(date(2026, 11, 3), "FAST ücreti", 5.0, CHECKING, kind=TransactionKind.INTEREST_FEE),
         ),
     )
     ins = interpret(ds)

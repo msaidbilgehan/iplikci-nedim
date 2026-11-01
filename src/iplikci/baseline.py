@@ -14,13 +14,19 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from .analysis import RECEIPT_STATUS, Dataset
-from .domain.models import DEFAULT_EXPENSE_KINDS, Statement
+from . import mvp_codes
+from .analysis import Dataset
+from .domain.codes import DEFAULT_EXPENSE_KINDS, MonthStatus
+from .domain.labels import ACCOUNT_TYPE
+from .domain.models import Statement
 from .insights import month_name, month_of, shift
-from .month_end import CLOSED, MONTH_STATUS, MonthEnd
+from .month_end import MonthEnd
 from .textutil import format_tr_amount
 
+# Version 1 writes the MVP's codes (mvp_codes) and the account types' Turkish labels: a saved baseline stays
+# comparable, and the demo's golden file is unchanged.
 VERSION = 1
+CLOSED = mvp_codes.MONTH[MonthStatus.CLOSED]
 UNREADABLE = "hata"
 DOCUMENT_STATUS = {
     "ekstre": "kart ekstresi",
@@ -56,12 +62,12 @@ def take(ds: Dataset, stats: dict[str, int], months: list[MonthEnd], day: date) 
             "lists": {
                 "verified": sum(s.verified for s in lists),
                 "total": len(lists),
-                "by_account_type": _counts(ds.accounts[s.account].type for s in lists),
+                "by_account_type": _counts(ACCOUNT_TYPE[ds.accounts[s.account].type] for s in lists),
             },
             "unverified": sorted(_unverified(ds, s) for s in ds.statements if not s.verified),
         },
-        "receipt_rows": _counts(line.status for line in ds.receipts),
-        "months": {me.month: me.status for me in months},
+        "receipt_rows": _counts(mvp_codes.RECEIPT[line.status] for line in ds.receipts),
+        "months": {me.month: mvp_codes.MONTH[me.status] for me in months},
         "expenses": {"total": _money(sum(spent.values())), "by_month": {m: _money(v) for m, v in spent.items()}},
     }
 
@@ -111,7 +117,8 @@ def compare(before: dict[str, Any], after: dict[str, Any]) -> list[Change]:
         note("Doğrulanamayan ekstre", None, line, regression=True)
     old_rows, new_rows = before["receipt_rows"], after["receipt_rows"]
     for status in sorted(old_rows.keys() | new_rows.keys()):
-        note(f"Dekont satırı: {RECEIPT_STATUS.get(status, status)}", old_rows.get(status, 0), new_rows.get(status, 0))
+        label = mvp_codes.RECEIPT_LABEL.get(status, status)
+        note(f"Dekont satırı: {label}", old_rows.get(status, 0), new_rows.get(status, 0))
     # A closed month reopens rightly only when new documents came (a new account's lists, a late statement).
     more_documents = new_docs["unique"] > old_docs["unique"]
     for month in sorted(before["months"].keys() & after["months"].keys()):
@@ -123,7 +130,7 @@ def compare(before: dict[str, Any], after: dict[str, Any]) -> list[Change]:
 
 
 def _status(code: str) -> str:
-    return MONTH_STATUS.get(code, code)
+    return mvp_codes.MONTH_LABEL.get(code, code)
 
 
 def describe(baseline: dict[str, Any]) -> list[str]:
@@ -131,7 +138,7 @@ def describe(baseline: dict[str, Any]) -> list[str]:
     docs, statements = baseline["documents"], baseline["statements"]
     by_status = " · ".join(f"{DOCUMENT_STATUS.get(k, k)} {v}" for k, v in docs["by_status"].items())
     cards, lists = statements["cards"], statements["lists"]
-    rows = " · ".join(f"{RECEIPT_STATUS.get(k, k).lower()} {v}" for k, v in baseline["receipt_rows"].items())
+    rows = " · ".join(f"{mvp_codes.RECEIPT_LABEL.get(k, k).lower()} {v}" for k, v in baseline["receipt_rows"].items())
     months = " · ".join(f"{m} {_status(s)}" for m, s in baseline["months"].items())
     lines = [
         f"Doğrulama tabanı ({date.fromisoformat(baseline['day']):%d.%m.%Y})",

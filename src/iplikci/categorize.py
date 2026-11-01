@@ -6,7 +6,9 @@ from pathlib import Path
 
 import yaml
 
-from .domain.models import NECESSITY, Account, Transaction
+from .domain.codes import CARD_TYPES, AccountType, Necessity, TransactionKind
+from .domain.labels import NECESSITY
+from .domain.models import Account, Transaction
 from .textutil import fold, nfc, title_tr
 
 # The generic rules shipped with the app. The user's own rules go above them in a file of their own.
@@ -29,7 +31,7 @@ TO_PEOPLE = "Kişilere Gönderilen"
 # order) take categorical slots 1-8, later groups and "Diğer" the neutral colour (0). Blue / yellow /
 # magenta passed the palette checks as an adjacent stack of necessity levels in both modes.
 MAX_COLORED_GROUPS = 8
-NECESSITY_SLOTS = {"Gerekli": 1, "İsteğe bağlı": 4, "Gereksiz": 5, "Belirsiz": 0}
+NECESSITY_SLOTS = {Necessity.REQUIRED: 1, Necessity.OPTIONAL: 4, Necessity.UNNECESSARY: 5, Necessity.UNKNOWN: 0}
 
 
 def group_slot(groups: list[str], group: str) -> int:
@@ -39,13 +41,13 @@ def group_slot(groups: list[str], group: str) -> int:
 
 # Kinds that are not purchases get a fixed category in the finance group.
 KIND_CATEGORY = {
-    "kredi_anapara": "Kredi & Borç Anapara",
-    "nakit_avans": "Nakit Avans & Çekim",
-    "ekstresiz_kart": "Ekstresiz Kart Ödemeleri",
-    "kart_odemesi": "Kart Borcu Ödemeleri",
-    "transfer": "Hesaplar Arası Transfer",
+    TransactionKind.LOAN_PRINCIPAL: "Kredi & Borç Anapara",
+    TransactionKind.CASH_ADVANCE: "Nakit Avans & Çekim",
+    TransactionKind.CARD_PAYMENT_NO_STATEMENT: "Ekstresiz Kart Ödemeleri",
+    TransactionKind.CARD_PAYMENT: "Kart Borcu Ödemeleri",
+    TransactionKind.OWN_TRANSFER: "Hesaplar Arası Transfer",
     # Trades a brokerage statement prints; a BES or capital payment gets its category from a rule instead.
-    "yatirim": "Hisse Senedi Alım-Satımı",
+    TransactionKind.INVESTMENT: "Hisse Senedi Alım-Satımı",
 }
 FX_CATEGORY = "Döviz & Altın Alım-Satımı"
 FEE_CATEGORIES = {
@@ -56,13 +58,13 @@ FEE_CATEGORIES = {
     "card_fee": "Kart Aidatı & Ücretleri",
 }
 
-# `_tür` of a category, per money direction (out, in).
+# `_tür` of a category, as the rule file writes it (folded), per money direction (out, in).
 _KIND_BY_TYPE = {
-    "": ("harcama", "iade"),
-    "gelir": ("kisiye_transfer", "gelir"),
-    "kisi": ("kisiye_transfer", "gelir"),
-    "borc": ("kredi_anapara", "kredi_anapara"),
-    "yatirim": ("yatirim", "yatirim"),
+    "": (TransactionKind.PURCHASE, TransactionKind.REFUND),
+    "gelir": (TransactionKind.P2P_TRANSFER, TransactionKind.INCOME),
+    "kisi": (TransactionKind.P2P_TRANSFER, TransactionKind.INCOME),
+    "borc": (TransactionKind.LOAN_PRINCIPAL, TransactionKind.LOAN_PRINCIPAL),
+    "yatirim": (TransactionKind.INVESTMENT, TransactionKind.INVESTMENT),
 }
 
 _GENERIC = "_"
@@ -97,10 +99,11 @@ def _compile(pattern: str) -> tuple[re.Pattern, str]:
     return re.compile(r"(?<![A-Z])" + re.escape(p)), (p.replace(" ", "") if " " in p else "")
 
 
-def _level(value: str, name: str) -> str:
-    level = {fold(n): n for n in NECESSITY}.get(fold(value))
+def _level(value: str, name: str) -> Necessity:
+    """A necessity level as the rule file writes it (its Turkish label)."""
+    level = {fold(label): code for code, label in NECESSITY.items()}.get(fold(value))
     if not level:
-        raise ValueError(f"{name}: bilinmeyen gereklilik '{value}' (seçenekler: {', '.join(NECESSITY)})")
+        raise ValueError(f"{name}: bilinmeyen gereklilik '{value}' (seçenekler: {', '.join(NECESSITY.values())})")
     return level
 
 
@@ -133,8 +136,8 @@ class RuleSet:
     groups: list[str] = field(default_factory=list)  # in file order
     categories: dict[str, str] = field(default_factory=dict)  # category -> group, in file order
     types: dict[str, str] = field(default_factory=dict)  # category -> `_tür`
-    necessity: dict[str, str] = field(default_factory=dict)  # category -> level
-    merchant_necessity: dict[str, str] = field(default_factory=dict)  # folded merchant -> level
+    necessity: dict[str, Necessity] = field(default_factory=dict)  # category -> level
+    merchant_necessity: dict[str, Necessity] = field(default_factory=dict)  # folded merchant -> level
     ended: dict[str, str] = field(default_factory=dict)  # folded merchant -> last month with a payment
     regular: set[str] = field(default_factory=set)  # categories of commitments: rent, dues, bills, subscriptions
     named: list[Rule] = field(default_factory=list)
@@ -225,8 +228,8 @@ class Categorizer:
         self.groups: list[str] = []
         self.categories: dict[str, str] = {}
         self.types: dict[str, str] = {}
-        self.necessity: dict[str, str] = {}
-        self.merchant_necessity: dict[str, str] = {}
+        self.necessity: dict[str, Necessity] = {}
+        self.merchant_necessity: dict[str, Necessity] = {}
         self.ended: dict[str, str] = {}
         self.regular: set[str] = set()
         # From the bottom layer up: an upper layer's value replaces the one below; the defaults' group order (and
@@ -265,7 +268,7 @@ class Categorizer:
                     return rule
         return None
 
-    def kind_for(self, category: str, amount: float) -> str:
+    def kind_for(self, category: str, amount: float) -> TransactionKind:
         out_kind, in_kind = _KIND_BY_TYPE.get(self.types.get(category, ""), _KIND_BY_TYPE[""])
         return out_kind if amount > 0 else in_kind
 
@@ -281,28 +284,32 @@ class Categorizer:
 
     def apply(self, txn: Transaction, account: Account | None) -> None:
         bank = account.bank if account else ""
-        if txn.kind == "faiz_ucret":
+        if txn.kind == TransactionKind.INTEREST_FEE:
             rule = self.match(txn.description, weak=False)
             txn.category = _fee_category(txn, account)
             txn.merchant = (
                 rule.merchant if rule and rule.merchant else f"{bank} faiz & ücretleri" if bank else "Faiz & ücretler"
             )
-        elif txn.kind == "transfer":
+        elif txn.kind == TransactionKind.OWN_TRANSFER:
             f = fold(txn.description)
-            txn.category = FX_CATEGORY if any(p in f for p in ("DOVIZ", "DVZ", "ALTIN")) else KIND_CATEGORY["transfer"]
+            txn.category = (
+                FX_CATEGORY
+                if any(p in f for p in ("DOVIZ", "DVZ", "ALTIN"))
+                else KIND_CATEGORY[TransactionKind.OWN_TRANSFER]
+            )
             txn.merchant = account.label if account else "Transfer"
         elif txn.category:
             pass  # decided while resolving transfers (rent, family, salary, ...)
         elif txn.kind in KIND_CATEGORY:
             txn.category = KIND_CATEGORY[txn.kind]
             txn.merchant = _finance_merchant(txn, account, bank)
-        elif txn.kind == "gelir":
+        elif txn.kind == TransactionKind.INCOME:
             rule = self.match(f"{txn.description} {txn.counterparty}", weak=False)
             txn.category = rule.category if rule else OTHER_INCOME
             txn.merchant = (rule.merchant if rule and rule.merchant else "") or display_name(
                 txn.counterparty or txn.description
             )
-        elif txn.kind == "kisiye_transfer":
+        elif txn.kind == TransactionKind.P2P_TRANSFER:
             txn.category, txn.merchant = TO_PEOPLE, display_name(txn.counterparty or txn.description)
         else:
             # Named merchants and keywords first, then the bank's own category
@@ -315,20 +322,20 @@ class Categorizer:
                 txn.category = rule.category
                 txn.merchant = rule.merchant or display_name(txn.description)
                 if self.types.get(rule.category) == "yatirim":
-                    txn.kind = "yatirim"  # e.g. a private pension paid by card
+                    txn.kind = TransactionKind.INVESTMENT  # e.g. a private pension paid by card
             else:
                 txn.category = hint or UNCATEGORIZED
                 txn.merchant = display_name(txn.description)
         txn.group = self.categories.get(txn.category, OTHER_GROUP)
         txn.necessity = self.necessity_for(txn)
 
-    def necessity_for(self, txn: Transaction) -> str:
-        """The necessity level the rules give a categorized row (empty for rows that are no spending)."""
-        if txn.kind == "faiz_ucret":
-            return self.necessity.get(txn.category, "Gereksiz")
-        if txn.kind not in ("harcama", "iade", "kisiye_transfer"):
-            return ""
-        return self.merchant_necessity.get(fold(txn.merchant)) or self.necessity.get(txn.category, "Belirsiz")
+    def necessity_for(self, txn: Transaction) -> Necessity | None:
+        """The necessity level the rules give a categorized row (None for rows that are no spending)."""
+        if txn.kind == TransactionKind.INTEREST_FEE:
+            return self.necessity.get(txn.category, Necessity.UNNECESSARY)
+        if txn.kind not in (TransactionKind.PURCHASE, TransactionKind.REFUND, TransactionKind.P2P_TRANSFER):
+            return None
+        return self.merchant_necessity.get(fold(txn.merchant)) or self.necessity.get(txn.category, Necessity.UNKNOWN)
 
     def _bank_hint(self, bank_category: str) -> str:
         if not bank_category:
@@ -344,20 +351,20 @@ class Categorizer:
 def _fee_category(txn: Transaction, account: Account | None) -> str:
     """Split bank costs into what caused them: card interest, overdraft, loan, transfers, card fees."""
     f = fold(txn.description)
-    kind = account.type if account else ""
-    card = kind in ("Kredi kartı", "Banka kartı")
+    kind = account.type if account else None
+    card = kind in CARD_TYPES
     if card and any(
         p in f for p in ("YILLIK", "UYELIK", "AIDAT", "NAKIT AVANS UCRETI", "KART UCRETI", "ODEME UCRETI", "ATM")
     ):
         return FEE_CATEGORIES["card_fee"]
     if (
         not card
-        and kind != "Kredi"
+        and kind != AccountType.LOAN
         and "FAIZ" not in f
         and any(p in f for p in ("UCRET", "EFT", "HAVALE", "KESINTI VE EKLERI", "KAMBIYO", "KMV", "MASRAF", "KOMISYON"))
     ):
         return FEE_CATEGORIES["transfer_fee"]
-    if kind == "Kredi":
+    if kind == AccountType.LOAN:
         return FEE_CATEGORIES["loan_interest"]
     if not card:
         return FEE_CATEGORIES["overdraft_interest"]
@@ -365,9 +372,9 @@ def _fee_category(txn: Transaction, account: Account | None) -> str:
 
 
 def _finance_merchant(txn: Transaction, account: Account | None, bank: str) -> str:
-    if txn.kind == "kredi_anapara":
-        return "QNB ihtiyaç kredisi" if account and account.type == "Kredi" else f"{bank} taksitli nakit avans"
-    if txn.kind == "nakit_avans":
+    if txn.kind == TransactionKind.LOAN_PRINCIPAL:
+        return "QNB ihtiyaç kredisi" if account and account.type == AccountType.LOAN else f"{bank} taksitli nakit avans"
+    if txn.kind == TransactionKind.CASH_ADVANCE:
         return f"{bank} nakit avans / çekim"
     if account:
         return account.label

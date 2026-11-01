@@ -23,29 +23,24 @@ from datetime import date, timedelta
 from typing import Any
 
 from .categorize import Categorizer, clean_description
+from .domain.codes import CARD_TYPES, AccountType, EvidenceStatus, TransactionKind
 from .domain.fingerprint import Fingerprints
-from .domain.models import Account, ParseResult, Statement, Transaction
-from .parsers.hesap import CANDIDATE
+from .domain.labels import EVIDENCE_STATUS
+from .domain.models import TRY, Account, ParseResult, Statement, Transaction
 from .textutil import fold, format_tr_amount
 
 # What the statements say about a receipt's row.
-PROVISIONAL = "gecici"  # after the account's newest statement: counts now, the next statement confirms it
-CONFIRMED = "eslesti"  # a statement shows the same transaction: the statement's row counts
-NOT_ON_STATEMENT = "eslesmedi"  # a statement covers its days but does not show it: left out, worth a look
-NO_STATEMENT = "ekstresiz"  # a period no statement of the account covers (older, or a loan): counts as it is
-RECEIPT_STATUS = {
-    PROVISIONAL: "Geçici — ekstre bekleniyor",
-    CONFIRMED: "Ekstreyle eşleşti",
-    NOT_ON_STATEMENT: "Ekstrede görünmüyor",
-    NO_STATEMENT: "Ekstresi olmayan dönem",
-}
+PROVISIONAL = EvidenceStatus.PROVISIONAL  # after the account's newest statement: counts now, the next one confirms it
+CONFIRMED = EvidenceStatus.MATCHED  # a statement shows the same transaction: the statement's row counts
+NOT_ON_STATEMENT = EvidenceStatus.UNMATCHED  # a statement covers its days but does not show it: left out, a look
+NO_STATEMENT = EvidenceStatus.NO_STATEMENT  # a period no statement of the account covers (older, or a loan)
+RECEIPT_STATUS = EVIDENCE_STATUS
 # A statement books a receipt's transaction from the day before (a late-evening transfer) to three days
 # after it (a weekend or holiday in between).
 POSTING_DAYS = (-1, 3)
 # An account whose statements stopped this long before the newest statement is closed or no longer
 # followed: no statement is expected for it any more.
 ACTIVE_DAYS = 180
-CARD_TYPES = ("Kredi kartı", "Banka kartı")
 
 
 @dataclass
@@ -62,7 +57,7 @@ class ReceiptLine:
 
     txn: Transaction
     key: str  # the receipt it came from
-    status: str  # PROVISIONAL, CONFIRMED, NOT_ON_STATEMENT or NO_STATEMENT
+    status: EvidenceStatus
     native: float  # amount in the account's currency (txn.amount is turned into TL for a foreign-currency account)
     match: Transaction | None = None  # the statement's row that confirmed it
 
@@ -90,15 +85,15 @@ def _one_month_before(d: date) -> date:
 
 def _link_foreign_currency(statements: list[Statement]) -> None:
     """Name the TL line that settles a card's USD/EUR balance after the purchases behind it."""
-    foreign = {(s.account, s.cut_date): s for s in statements if s.currency != "TL" and not s.is_account}
+    foreign = {(s.account, s.cut_date): s for s in statements if s.currency != TRY and not s.is_account}
     for s in statements:
-        if s.currency != "TL" or s.is_account:
+        if s.currency != TRY or s.is_account:
             continue
         for t in s.transactions:
             if "USD/EUR BORCUNUZUN" not in fold(t.description):
                 continue
             fx = foreign.get((s.account, t.date))
-            buys = [x for x in fx.transactions if x.kind == "harcama"] if fx else []
+            buys = [x for x in fx.transactions if x.kind == TransactionKind.PURCHASE] if fx else []
             if buys:
                 names = list(dict.fromkeys(clean_description(x.description) for x in buys))
                 t.description = "Yurt dışı harcama: " + ", ".join(names)
@@ -117,7 +112,7 @@ def statement_periods(statements: list[Statement]) -> list[tuple[Statement, date
     """
     by_account: dict[str, list[Statement]] = defaultdict(list)
     for s in statements:
-        if s.currency == "TL" or s.is_account:
+        if s.currency == TRY or s.is_account:
             by_account[s.account].append(s)
     periods = []
     for stmts in by_account.values():
@@ -170,7 +165,11 @@ def _coverage(days: dict[str, set[date]]) -> dict[str, dict[str, float]]:
 
 def _is_card_payment(t: Transaction, account: Account | None) -> bool:
     """A receipt of a payment to a credit card is booked on the card (QNB, TEB)."""
-    return account is not None and account.type in CARD_TYPES and t.kind in ("ekstresiz_kart", "kart_odemesi")
+    return (
+        account is not None
+        and account.type in CARD_TYPES
+        and t.kind in (TransactionKind.CARD_PAYMENT_NO_STATEMENT, TransactionKind.CARD_PAYMENT)
+    )
 
 
 class _Rows:
@@ -183,7 +182,7 @@ class _Rows:
         for s in statements:
             self.by_account[s.account].extend(s.transactions)
             if s.is_account:
-                self.payments += [t for t in s.transactions if t.kind == "kart_odemesi" and t.amount > 0]
+                self.payments += [t for t in s.transactions if t.kind == TransactionKind.CARD_PAYMENT and t.amount > 0]
         self.used: set[int] = set()
 
     def take(self, t: Transaction, card_payment: bool) -> Transaction | None:
@@ -231,7 +230,7 @@ def settle_receipts(
             covered = days.get(t.account, set())
             card_payment = _is_card_payment(t, account)
             if card_payment and covered and t.date >= min(covered):
-                t.kind = "kart_odemesi"  # the card's statements show the purchases it pays for
+                t.kind = TransactionKind.CARD_PAYMENT  # the card's statements show the purchases it pays for
             native = t.amount
             match = rows.take(t, card_payment)
             if match is not None:
@@ -273,7 +272,7 @@ class Own:
         self.numbers = {
             re.sub(r"\D", "", a.number)
             for a in accounts.values()
-            if a.type not in ("Kredi kartı", "Banka kartı", "Kredi") and len(re.sub(r"\D", "", a.number)) >= 6
+            if a.type not in (*CARD_TYPES, AccountType.LOAN) and len(re.sub(r"\D", "", a.number)) >= 6
         }
 
     def is_self(self, who: str) -> bool:
@@ -320,9 +319,9 @@ def _receiver_bank(t: Transaction) -> str:
 def _free_card_payments(card_txns: list[Transaction], account_txns: list[Transaction]) -> list[Transaction]:
     """Card payments seen on a card statement but not as a card-payment row of any account:
     paid by a transfer from another bank, so they can pair with that transfer."""
-    from_accounts = [t for t in account_txns if t.kind == "kart_odemesi"]
+    from_accounts = [t for t in account_txns if t.kind == TransactionKind.CARD_PAYMENT]
     free = []
-    for p in (t for t in card_txns if t.kind == "kart_odemesi"):
+    for p in (t for t in card_txns if t.kind == TransactionKind.CARD_PAYMENT):
         if not any(abs(a.amount + p.amount) < 0.011 and -1 <= (p.date - a.date).days <= 4 for a in from_accounts):
             free.append(p)
     return free
@@ -336,12 +335,12 @@ def _resolve_transfers(
     accounts: dict[str, Account],
     card_payments: list[Transaction],
 ) -> None:
-    candidates = [t for t in txns if t.kind == CANDIDATE]
+    candidates = [t for t in txns if t.kind == TransactionKind.TRANSFER_CANDIDATE]
     found_by_name: list[Transaction] = []  # own transfers whose other side may still be open
     open_: list[Transaction] = []
     for t in candidates:
         if own.is_self(t.counterparty) or own.mentions_own_account(t.description):
-            t.kind = "transfer"
+            t.kind = TransactionKind.OWN_TRANSFER
             found_by_name.append(t)
         elif categorizer.resolve_kind(t):
             pass  # a rule named the receiver/sender: rent, family, salary, ...
@@ -352,7 +351,11 @@ def _resolve_transfers(
     # on one account is the rent that another account pays to the landlord by name.
     known: dict[tuple, Transaction] = {}
     for t in candidates:
-        if t.kind not in (CANDIDATE, "transfer") and t.amount > 0 and t.counterparty:
+        if (
+            t.kind not in (TransactionKind.TRANSFER_CANDIDATE, TransactionKind.OWN_TRANSFER)
+            and t.amount > 0
+            and t.counterparty
+        ):
             bank = _receiver_bank(t)
             if bank:
                 known[(bank, round(t.amount))] = t
@@ -370,7 +373,7 @@ def _resolve_transfers(
     paired: set[int] = set()
     pool = still_open + found_by_name + card_payments
     for t in sorted(still_open, key=lambda x: x.date):
-        if t.kind != CANDIDATE or id(t) in paired:
+        if t.kind != TransactionKind.TRANSFER_CANDIDATE or id(t) in paired:
             continue
         best, best_gap = None, None
         for other in pool:
@@ -381,7 +384,7 @@ def _resolve_transfers(
             if -1 <= gap <= 4 and (best is None or abs(gap) < best_gap):
                 best, best_gap = other, abs(gap)
         if best:
-            t.kind = best.kind = "transfer"
+            t.kind = best.kind = TransactionKind.OWN_TRANSFER
             paired.update((id(t), id(best)))
 
     # A bank-only payment to a bank where the user has an account, on a date none of
@@ -391,16 +394,16 @@ def _resolve_transfers(
         if s.is_account and s.account in accounts:
             covered[accounts[s.account].bank].append((s.start, s.cut_date))
     for t in still_open:
-        if t.kind != CANDIDATE or t.amount <= 0 or not _bank_only(t):
+        if t.kind != TransactionKind.TRANSFER_CANDIDATE or t.amount <= 0 or not _bank_only(t):
             continue
         bank = next((name for key, name in _BANK_NAMES if key in fold(t.description)), "")
         if bank in covered and not any(a <= t.date <= b for a, b in covered[bank]):
-            t.kind = "transfer"
+            t.kind = TransactionKind.OWN_TRANSFER
             t.description += " (muhtemelen kendi hesabınıza)"
 
     for t in still_open:
-        if t.kind == CANDIDATE:
-            t.kind = "gelir" if t.amount < 0 else "kisiye_transfer"
+        if t.kind == TransactionKind.TRANSFER_CANDIDATE:
+            t.kind = TransactionKind.INCOME if t.amount < 0 else TransactionKind.P2P_TRANSFER
 
 
 # --- foreign currency -------------------------------------------------------------
@@ -426,11 +429,11 @@ def _to_tl(
     """Value foreign-currency account rows in TL with the nearest rate found in the documents."""
     out = []
     for t in txns:
-        currency = accounts[t.account].currency if t.account in accounts else "TL"
-        if currency == "TL":
+        currency = accounts[t.account].currency if t.account in accounts else TRY
+        if currency == TRY:
             out.append(t)
             continue
-        if t.kind == "transfer":
+        if t.kind == TransactionKind.OWN_TRANSFER:
             continue  # moving foreign currency between own accounts changes nothing
         known = rates.get(currency)
         if not known:
@@ -458,7 +461,7 @@ def _fingerprint(
             t.fingerprint = prints.next(t.account, t.date, round(t.amount * 100), s.currency, t.description)
     for key in sorted(receipts):
         for t in receipts[key]:
-            currency = accounts[t.account].currency if t.account in accounts else "TL"
+            currency = accounts[t.account].currency if t.account in accounts else TRY
             t.fingerprint = prints.next(t.account, t.date, round(t.amount * 100), currency, t.description)
 
 
@@ -521,7 +524,7 @@ def build(
     days = covered_days(stmts)
     coverage = _coverage(days)
 
-    card_txns = [t for s in stmts if not s.is_account and s.currency == "TL" for t in s.transactions]
+    card_txns = [t for s in stmts if not s.is_account and s.currency == TRY for t in s.transactions]
     account_txns = [t for s in stmts if s.is_account for t in s.transactions]
     # Receipts add what no statement shows yet (a transfer made today) or ever will (a 2022 card payment,
     # old loan installments); a statement's own row stands for what it shows.

@@ -3,36 +3,10 @@
 from dataclasses import dataclass, field
 from datetime import date
 
-# Transaction kinds. Sign convention for every kind: amount > 0 is money leaving
-# the user, amount < 0 is money coming in (refund, income, transfer in).
-KINDS = {
-    "harcama": "Harcama",
-    "iade": "İade / indirim",
-    "faiz_ucret": "Faiz & banka ücreti",
-    "kisiye_transfer": "Kişilere gönderilen para",
-    "kredi_anapara": "Kredi & borç anapara ödemesi",
-    "nakit_avans": "Nakit avans / çekim",
-    "yatirim": "Birikim & yatırım (döviz, altın, BES)",
-    "gelir": "Gelir",
-    "ekstresiz_kart": "Ekstresi olmayan kart ödemesi",
-    "kart_odemesi": "Kredi kartı borç ödemesi",
-    "transfer": "Kendi hesaplarım arası transfer",
-}
+from .codes import AccountType, Necessity, TransactionKind
 
-# Kinds counted as "gider" unless the user switches them on/off in the report.
-# Debt principal, cash advances, savings, card payments and transfers move money
-# between the user's own pockets (or repay earlier spending) and would double
-# count purchases; money sent to other people is shown but kept apart.
-DEFAULT_EXPENSE_KINDS = ("harcama", "iade", "faiz_ucret")
-
-# How necessary a spending category is; set per category in kategoriler.yaml.
-NECESSITY = ("Gerekli", "İsteğe bağlı", "Gereksiz", "Belirsiz")
-
-ACCOUNT_TYPES_WITH_STATEMENTS = ("Kredi kartı", "Banka kartı")
-
-# A brokerage account holds securities, not the user's income or bills: its statements never decide
-# which months are complete or whether a month's income is known.
-INVESTMENT_TYPE = "Yatırım hesabı"
+# The lira as the models carry it (ADR-0006); labels.currency_label writes it as "TL".
+TRY = "TRY"
 
 
 @dataclass
@@ -40,31 +14,31 @@ class Account:
     id: str
     label: str
     bank: str
-    # "Kredi kartı", "Banka kartı", "Vadesiz hesap", "Vadeli hesap", "Ek hesap (KMH)", "Döviz hesabı",
-    # "Altın hesabı", "Yatırım hesabı", "Kredi"
-    type: str
-    currency: str = "TL"
+    type: AccountType
+    currency: str = TRY
     number: str = ""  # card last digits or account number, for file names and own-account detection
     note: str = ""
 
 
 @dataclass
 class Transaction:
+    """A row. For every kind an amount above zero is money leaving the user, below zero money coming in."""
+
     date: date
     description: str
     amount: float
-    kind: str
+    kind: TransactionKind
     account: str
     original: str = ""  # foreign amount, e.g. "19,99 USD"
     installment: str = ""  # e.g. "8/12"
     bank_category: str = ""  # category heading printed by the bank, if any
     counterparty: str = ""  # sender/receiver of a bank transfer
     source: str = ""
-    # Filled in by categorize.py
+    # Filled in by categorize.py; necessity only for spending (purchases, refunds, fees, money sent to people).
     merchant: str = ""
     category: str = ""
     group: str = ""
-    necessity: str = ""
+    necessity: Necessity | None = None
     # Set by analysis.py: a receipt's row that no statement shows yet (it waits for the next one).
     provisional: bool = False
     # Set by analysis.py from the row as read (domain.fingerprint), and the user's note and tags bound to it.

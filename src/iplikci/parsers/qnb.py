@@ -11,10 +11,10 @@ import re
 
 from bs4 import BeautifulSoup
 
+from ..domain.codes import AccountType, TransactionKind
 from ..domain.models import Account, ParseResult, Transaction
 from ..textutil import fold, parse_dmy, parse_us_amount, title_tr
 from .common import Skipped
-from .hesap import CANDIDATE
 
 NAME = "QNB dekont"
 
@@ -53,7 +53,7 @@ def _account_main(text: str) -> Account:
         id=f"qnb-{number}",
         label=f"QNB Ek Hesap {number}",
         bank="QNB",
-        type="Ek hesap (KMH)",
+        type=AccountType.OVERDRAFT,
         number=number,
     )
 
@@ -82,7 +82,7 @@ def parse_text(doc, text: str) -> ParseResult:
             id=f"qnb-kredi-{ref[-4:]}",
             label=f"QNB İhtiyaç Kredisi …{ref[-4:]}",
             bank="QNB",
-            type="Kredi",
+            type=AccountType.LOAN,
             number=ref[-4:],
         )
         result.title = f"Kredi Taksiti {ref[-4:]}"
@@ -94,7 +94,7 @@ def parse_text(doc, text: str) -> ParseResult:
                 date=day,
                 description=f"QNB ihtiyaç kredisi taksiti ({loan[2]}) — anapara",
                 amount=round(principal, 2),
-                kind="kredi_anapara",
+                kind=TransactionKind.LOAN_PRINCIPAL,
                 account=acct.id,
                 source=doc.name,
             ),
@@ -102,7 +102,7 @@ def parse_text(doc, text: str) -> ParseResult:
                 date=day,
                 description=f"QNB ihtiyaç kredisi taksiti ({loan[2]}) — faiz, KKDF, BSMV",
                 amount=round(cost, 2),
-                kind="faiz_ucret",
+                kind=TransactionKind.INTEREST_FEE,
                 account=acct.id,
                 source=doc.name,
             ),
@@ -115,7 +115,7 @@ def parse_text(doc, text: str) -> ParseResult:
             id=f"qnb-{last4}",
             label=f"QNB Mastercard •{last4}",
             bank="QNB",
-            type="Kredi kartı",
+            type=AccountType.CREDIT_CARD,
             number=last4,
         )
         result.title = f"Kart Ödemesi {last4}"
@@ -125,7 +125,7 @@ def parse_text(doc, text: str) -> ParseResult:
                 date=day,
                 description=f"QNB Mastercard •{last4} borç ödemesi",
                 amount=rows[0][3],
-                kind="ekstresiz_kart",
+                kind=TransactionKind.CARD_PAYMENT_NO_STATEMENT,
                 account=acct.id,
                 source=doc.name,
             )
@@ -149,7 +149,7 @@ def parse_text(doc, text: str) -> ParseResult:
                     date=day,
                     description="QNB EFT ücreti",
                     amount=amount,
-                    kind="faiz_ucret",
+                    kind=TransactionKind.INTEREST_FEE,
                     account=main.id,
                     source=doc.name,
                 )
@@ -166,7 +166,7 @@ def parse_text(doc, text: str) -> ParseResult:
                 date=day,
                 description=text,
                 amount=-amount if incoming else amount,
-                kind=CANDIDATE,
+                kind=TransactionKind.TRANSFER_CANDIDATE,
                 account=main.id,
                 counterparty=_other_side(desc, t, incoming),
                 source=doc.name,

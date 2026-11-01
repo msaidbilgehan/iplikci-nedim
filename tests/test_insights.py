@@ -5,6 +5,7 @@ from datetime import date, timedelta
 import pytest
 
 from iplikci.analysis import Dataset
+from iplikci.domain.codes import AccountType, Necessity, TransactionKind
 from iplikci.domain.models import Account, Security, Statement, Transaction
 from iplikci.insights import (
     complete_months,
@@ -21,12 +22,12 @@ from iplikci.insights import (
     timeline,
 )
 
-CARD = Account("card", "Test Kart •1234", "TEB", "Kredi kartı", number="1234")
-OTHER_CARD = Account("old", "Eski Kart •9999", "QNB", "Kredi kartı", number="9999")
-CASH = Account("cash", "Test Vadesiz TL", "TEB", "Vadesiz hesap", number="111222333")
-USD = Account("usd", "Test Dolar", "TEB", "Döviz hesabı", currency="USD", number="555")
-STOCKS = Account("hisse", "Test Yatırım 1-101", "Garanti BBVA", "Yatırım hesabı", number="1-101")
-TERM = Account("vadeli", "Test Vadeli TL", "İş Bankası", "Vadeli hesap", number="1234-0765432")
+CARD = Account("card", "Test Kart •1234", "TEB", AccountType.CREDIT_CARD, number="1234")
+OTHER_CARD = Account("old", "Eski Kart •9999", "QNB", AccountType.CREDIT_CARD, number="9999")
+CASH = Account("cash", "Test Vadesiz TL", "TEB", AccountType.CURRENT, number="111222333")
+USD = Account("usd", "Test Dolar", "TEB", AccountType.FX, currency="USD", number="555")
+STOCKS = Account("hisse", "Test Yatırım 1-101", "Garanti BBVA", AccountType.BROKERAGE, number="1-101")
+TERM = Account("vadeli", "Test Vadeli TL", "İş Bankası", AccountType.DEPOSIT, number="1234-0765432")
 REGULAR = {"Dijital Abonelikler", "Elektrik, Su & Doğalgaz", "İnternet & Telefon", "Kira"}
 
 
@@ -35,8 +36,8 @@ def tx(
     merchant: str,
     amount: float,
     category: str = "Dijital Abonelikler",
-    necessity: str = "İsteğe bağlı",
-    kind: str = "harcama",
+    necessity: Necessity | None = Necessity.OPTIONAL,
+    kind: TransactionKind = TransactionKind.PURCHASE,
     account: str = "card",
     description: str = "",
 ) -> Transaction:
@@ -63,7 +64,7 @@ def monthly(first: date, count: int) -> list[date]:
 
 def card_statements(first_cut: date, count: int, account: str = "card", total: float = 0.0) -> list[Statement]:
     return [
-        Statement(account=account, cut_date=cut, currency="TL", source="e.pdf", previous=0.0, total=total)
+        Statement(account=account, cut_date=cut, currency="TRY", source="e.pdf", previous=0.0, total=total)
         for cut in monthly(first_cut, count)
     ]
 
@@ -138,14 +139,14 @@ def test_two_subscriptions_with_one_payee_are_told_apart_by_amount():
 def test_a_bill_moving_with_the_seasons_is_one_series_but_a_shop_is_none():
     amounts = [1500, 1200, 700, 320, 120, 80, 100, 150, 600]
     gas = [
-        tx(d, "Doğalgaz (İGDAŞ)", a, category="Elektrik, Su & Doğalgaz", necessity="Gerekli")
+        tx(d, "Doğalgaz (İGDAŞ)", a, category="Elektrik, Su & Doğalgaz", necessity=Necessity.REQUIRED)
         for d, a in zip(monthly(date(2026, 1, 20), 9), amounts)
     ]
     found = find_series(gas, REGULAR)
     assert len(found) == 1 and len(found[0].payments) == 9
     assert found[0].monthly == 150  # median of the last three: bills move from month to month
     market = [
-        tx(d, "Örnek Market", a, category="Market & Gıda", necessity="Gerekli")
+        tx(d, "Örnek Market", a, category="Market & Gıda", necessity=Necessity.REQUIRED)
         for d, a in zip(monthly(date(2026, 1, 3), 9), amounts)
     ]
     assert find_series(market, REGULAR) == []
@@ -153,7 +154,7 @@ def test_a_bill_moving_with_the_seasons_is_one_series_but_a_shop_is_none():
 
 def test_an_unchanged_monthly_amount_is_regular_in_any_category():
     gym = [
-        tx(d, "Spor Salonu", 900.0, category="Diğer Harcamalar", necessity="Belirsiz")
+        tx(d, "Spor Salonu", 900.0, category="Diğer Harcamalar", necessity=Necessity.UNKNOWN)
         for d in monthly(date(2026, 1, 5), 5)
     ]
     assert len(find_series(gym, REGULAR)) == 1
@@ -161,7 +162,8 @@ def test_an_unchanged_monthly_amount_is_regular_in_any_category():
 
 def test_old_series_on_an_account_without_statements_is_over():
     loan = [
-        tx(d, "QNB ihtiyaç kredisi", 2500.0, kind="kredi_anapara", account="old") for d in monthly(date(2024, 1, 15), 5)
+        tx(d, "QNB ihtiyaç kredisi", 2500.0, kind=TransactionKind.LOAN_PRINCIPAL, account="old")
+        for d in monthly(date(2024, 1, 15), 5)
     ]
     recent = card_statements(date(2026, 1, 14), 9)
     assert series_status(dataset(loan, recent)) == {("QNB ihtiyaç kredisi", 2500.0): "bitti"}
@@ -180,7 +182,9 @@ def test_a_bill_paid_elsewhere_for_a_few_months_goes_on():
         (date(2026, 9, 9), 657.8),
     ]
     fees = [(date(2026, 1, 9), 17.5), (date(2026, 9, 9), 23.02)]
-    txns = [tx(d, "Türk Telekom", a, category="İnternet & Telefon", necessity="Gerekli") for d, a in bills + fees]
+    txns = [
+        tx(d, "Türk Telekom", a, category="İnternet & Telefon", necessity=Necessity.REQUIRED) for d, a in bills + fees
+    ]
     ds = dataset(txns, card_statements(date(2026, 1, 10), 10))  # statements until 10.10.2026
     assert series_status(ds) == {("Türk Telekom", 657.8): "devam"}
     assert not any(f.title == "Görünmeyen faturalar" for f in interpret(ds).findings)
@@ -188,17 +192,17 @@ def test_a_bill_paid_elsewhere_for_a_few_months_goes_on():
 
 def test_a_once_a_month_bill_goes_on_after_a_pause_but_not_after_a_long_one():
     water = [
-        tx(d, "Su (İSKİ)", a, category="Elektrik, Su & Doğalgaz", necessity="Gerekli")
+        tx(d, "Su (İSKİ)", a, category="Elektrik, Su & Doğalgaz", necessity=Necessity.REQUIRED)
         for d, a in zip(monthly(date(2026, 1, 20), 4), [200, 210, 170, 140])
     ]
     later = [
-        tx(d, "Su (İSKİ)", a, category="Elektrik, Su & Doğalgaz", necessity="Gerekli")
+        tx(d, "Su (İSKİ)", a, category="Elektrik, Su & Doğalgaz", necessity=Necessity.REQUIRED)
         for d, a in zip(monthly(date(2026, 8, 25), 2), [85, 290])
     ]
     (s,) = find_series(water + later, REGULAR)
     assert s.last.date == date(2026, 9, 25) and len(s.payments) == 6
     years_later = [
-        tx(d, "Su (İSKİ)", 280, category="Elektrik, Su & Doğalgaz", necessity="Gerekli")
+        tx(d, "Su (İSKİ)", 280, category="Elektrik, Su & Doğalgaz", necessity=Necessity.REQUIRED)
         for d in monthly(date(2027, 1, 25), 2)
     ]
     (s,) = find_series(water + years_later, REGULAR)
@@ -207,7 +211,7 @@ def test_a_once_a_month_bill_goes_on_after_a_pause_but_not_after_a_long_one():
 
 def test_price_change_needs_the_new_price_to_hold():
     rent = [
-        tx(d, "Ev kirası", a, category="Kira", necessity="Gerekli", account="cash")
+        tx(d, "Ev kirası", a, category="Kira", necessity=Necessity.REQUIRED, account="cash")
         for d, a in zip(monthly(date(2026, 1, 5), 10), [15000] * 6 + [16400] * 4)
     ]
     (s,) = find_series(rent, REGULAR)
@@ -292,7 +296,7 @@ def test_complete_months_skip_a_partial_month_but_not_a_new_account():
 def test_holdings_value_foreign_currency_and_subtract_card_payments_after_the_cut():
     statements = [
         Statement(
-            account="card", cut_date=date(2026, 10, 13), currency="TL", source="k.pdf", previous=50.0, total=90000.5
+            account="card", cut_date=date(2026, 10, 13), currency="TRY", source="k.pdf", previous=50.0, total=90000.5
         ),
         Statement(
             account="usd",
@@ -307,7 +311,7 @@ def test_holdings_value_foreign_currency_and_subtract_card_payments_after_the_cu
         Statement(
             account="cash",
             cut_date=date(2026, 10, 31),
-            currency="TL",
+            currency="TRY",
             source="v.xls",
             previous=0.0,
             total=-21000.75,
@@ -320,7 +324,7 @@ def test_holdings_value_foreign_currency_and_subtract_card_payments_after_the_cu
             date(2026, 10, 14),
             "Kart ödemesi",
             40000.25,
-            kind="kart_odemesi",
+            kind=TransactionKind.CARD_PAYMENT,
             account="cash",
             description="123456******1234 no.lu Kredi Kartına Ödenen Tutar",
         ),
@@ -328,7 +332,7 @@ def test_holdings_value_foreign_currency_and_subtract_card_payments_after_the_cu
             date(2026, 10, 17),
             "Kart ödemesi",
             50000.25,
-            kind="kart_odemesi",
+            kind=TransactionKind.CARD_PAYMENT,
             account="cash",
             description="123456******1234 no.lu Kredi Kartına Ödenen Tutar",
         ),
@@ -359,7 +363,7 @@ def test_stocks_count_at_market_value_and_an_old_balance_is_shown_but_not_counte
         Statement(
             account="cash",
             cut_date=date(2026, 10, 31),
-            currency="TL",
+            currency="TRY",
             source="v.xls",
             previous=0.0,
             total=1000.0,
@@ -368,7 +372,7 @@ def test_stocks_count_at_market_value_and_an_old_balance_is_shown_but_not_counte
         Statement(
             account="hisse",
             cut_date=date(2026, 9, 30),
-            currency="TL",
+            currency="TRY",
             source="h.pdf",
             previous=0.0,
             total=5.0,
@@ -378,7 +382,7 @@ def test_stocks_count_at_market_value_and_an_old_balance_is_shown_but_not_counte
         Statement(
             account="vadeli",
             cut_date=date(2024, 1, 17),
-            currency="TL",
+            currency="TRY",
             source="c.pdf",
             previous=0.0,
             total=7500.0,
@@ -400,7 +404,7 @@ def test_interpretation_prices_the_steps_and_balances_the_budget():
         Statement(
             account="cash",
             cut_date=date(2026, 10, 31),
-            currency="TL",
+            currency="TRY",
             source="v.xls",
             previous=0.0,
             total=-20000.0,
@@ -413,11 +417,19 @@ def test_interpretation_prices_the_steps_and_balances_the_budget():
         "cash": full_coverage("cash", "2025-12", "2026-10"),
     }
     txns = [
-        tx(d, "Örnek (maaş)", -100000.0, kind="gelir", category="Maaş & İş Geliri", necessity="", account="cash")
+        tx(
+            d,
+            "Örnek (maaş)",
+            -100000.0,
+            kind=TransactionKind.INCOME,
+            category="Maaş & İş Geliri",
+            necessity=None,
+            account="cash",
+        )
         for d in monthly(date(2025, 12, 1), 11)
     ]
     txns += [
-        tx(d, "Ev kirası", 20000.0, category="Kira", necessity="Gerekli", account="cash")
+        tx(d, "Ev kirası", 20000.0, category="Kira", necessity=Necessity.REQUIRED, account="cash")
         for d in monthly(date(2025, 12, 5), 11)
     ]
     txns += [
@@ -430,9 +442,9 @@ def test_interpretation_prices_the_steps_and_balances_the_budget():
             d,
             "TEB faiz & ücretleri",
             1000.0,
-            kind="faiz_ucret",
+            kind=TransactionKind.INTEREST_FEE,
             category="Ek Hesap (KMH) Faizi",
-            necessity="Gereksiz",
+            necessity=Necessity.UNNECESSARY,
             account="cash",
         )
         for d in monthly(date(2025, 12, 28), 10)

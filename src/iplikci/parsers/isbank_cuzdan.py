@@ -7,6 +7,7 @@ The first page names the account ("Hesap No: 1234-0765432", "Hesap Türü: Vadel
 
 import re
 
+from ..domain.codes import AccountType
 from ..domain.models import ParseResult
 from ..pdfutil import Line, find_header, find_word, label_values, page_lines, take_amount
 from ..textutil import fold, parse_dmy, squash
@@ -53,12 +54,11 @@ def parse(doc, pdf) -> ParseResult:
     if is_business(holder):
         raise Skipped(BUSINESS_REASON, business=True)
     number = re.search(r"\d{4}-\d{7}", info.get("HESAP NO", ""))
-    currency = (info.get("PARA BIRIMI", "").split() or ["TL"])[0].upper()
-    currency = "TL" if currency in ("TL", "TRY") else currency
+    currency = (info.get("PARA BIRIMI", "").split() or ["TL"])[0]
     opened = parse_dmy(info.get("ACILIS TARIHI", ""))
     if not number:
         raise ValueError("İş Bankası e-cüzdanında hesap numarası bulunamadı")
-    kind = "Vadeli hesap" if "VADELI" in fold(info.get("HESAP TURU", "")) else ""
+    kind = AccountType.DEPOSIT if "VADELI" in fold(info.get("HESAP TURU", "")) else None
     account = bank_account("İş Bankası", number[0], currency, kind)
     rows = [row for page in pdf.pages for row in _rows(page_lines(page), holder)]
     moves = [m for _, m in sorted(rows, key=lambda r: -r[0])]  # "#" counts from the newest

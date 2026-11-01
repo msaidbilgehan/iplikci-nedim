@@ -6,11 +6,12 @@ receiver on the right. The holder's name opens the first line.
 
 import re
 
+from ..domain.codes import TransactionKind
 from ..domain.models import ParseResult, Transaction
 from ..pdfutil import Line, Word, page_lines
 from ..textutil import fold, parse_dmy, parse_tr_amount, squash
 from .common import BUSINESS_REASON, Skipped, is_business
-from .hesap import CANDIDATE, bank_from_iban
+from .hesap import bank_from_iban
 from .hesaplar import bank_account
 
 NAME = "İş Bankası dekont"
@@ -85,7 +86,7 @@ def parse(doc, pdf) -> ParseResult:
             date=day,
             description=text,
             amount=-amount if incoming else amount,
-            kind=CANDIDATE,
+            kind=TransactionKind.TRANSFER_CANDIDATE,
             account=account.id,
             counterparty=party,
             source=doc.name,
@@ -98,7 +99,7 @@ def parse(doc, pdf) -> ParseResult:
                 date=day,
                 description=f"{title} ücreti ve vergisi",
                 amount=fee,
-                kind="faiz_ucret",
+                kind=TransactionKind.INTEREST_FEE,
                 account=account.id,
                 source=doc.name,
             )

@@ -5,6 +5,7 @@ from pdfminer.pdfdocument import PDFPasswordIncorrect
 from pdfplumber.utils.exceptions import PdfminerException
 
 from iplikci import parsers
+from iplikci.domain.codes import TransactionKind
 from iplikci.domain.models import Transaction
 from iplikci.parsers.common import (
     business_names_signature,
@@ -43,28 +44,28 @@ def test_take_amount_left_aligned():
 
 
 def test_classify_kind():
-    assert classify_kind("9999-123456 HESAPTAN AKTARIM 1234 İNTERAKTİF", -12345.67) == "kart_odemesi"
-    assert classify_kind("9999-123456HESAPTANAKTARIM1234İNTERAKTİF", -275.5) == "kart_odemesi"
-    assert classify_kind("FAIZ TUTARI FZ:500.00 VR/FN:150.00", 650.0) == "faiz_ucret"
-    assert classify_kind("TNA FAIZ İPTALI", -30.5) == "faiz_ucret"
-    assert classify_kind("NAKİTAVANSÜCRETİ", 34.5) == "faiz_ucret"
-    assert classify_kind("4321 KARTTAN AKTARIM 9999/0123456 İSCEP", 1006.0) == "nakit_avans"
-    assert classify_kind("ORNEK PETROL ISTANBUL TR İŞLEM İPTALI", -1234.56) == "iade"
-    assert classify_kind("0001234567 TURKNET ILETISI FAT.ÖDE.", 289.9) == "harcama"
-    assert classify_kind("TURKNET ILETISIM HIZMET FATURA ÖDEME ÜCRETI", 17.5) == "faiz_ucret"
+    assert classify_kind("9999-123456 HESAPTAN AKTARIM 1234 İNTERAKTİF", -12345.67) == TransactionKind.CARD_PAYMENT
+    assert classify_kind("9999-123456HESAPTANAKTARIM1234İNTERAKTİF", -275.5) == TransactionKind.CARD_PAYMENT
+    assert classify_kind("FAIZ TUTARI FZ:500.00 VR/FN:150.00", 650.0) == TransactionKind.INTEREST_FEE
+    assert classify_kind("TNA FAIZ İPTALI", -30.5) == TransactionKind.INTEREST_FEE
+    assert classify_kind("NAKİTAVANSÜCRETİ", 34.5) == TransactionKind.INTEREST_FEE
+    assert classify_kind("4321 KARTTAN AKTARIM 9999/0123456 İSCEP", 1006.0) == TransactionKind.CASH_ADVANCE
+    assert classify_kind("ORNEK PETROL ISTANBUL TR İŞLEM İPTALI", -1234.56) == TransactionKind.REFUND
+    assert classify_kind("0001234567 TURKNET ILETISI FAT.ÖDE.", 289.9) == TransactionKind.PURCHASE
+    assert classify_kind("TURKNET ILETISIM HIZMET FATURA ÖDEME ÜCRETI", 17.5) == TransactionKind.INTEREST_FEE
 
 
 def test_split_interest_of_installment_cash_advance():
     t = Transaction(
         date=date(2024, 10, 7),
         amount=1500.0,
-        kind="nakit_avans",
+        kind=TransactionKind.CASH_ADVANCE,
         account="x",
         description="TAKSİTLİ NAKİT AVANS - HESABA HAVALE KALAN:3,000.00 FZ:120.00 VR/FN:36.00",
     )
     principal, interest = split_interest(t)
-    assert (principal.kind, principal.amount) == ("kredi_anapara", 1344.0)
-    assert (interest.kind, interest.amount) == ("faiz_ucret", 156.0)
+    assert (principal.kind, principal.amount) == (TransactionKind.LOAN_PRINCIPAL, 1344.0)
+    assert (interest.kind, interest.amount) == (TransactionKind.INTEREST_FEE, 156.0)
     assert round(principal.amount + interest.amount, 2) == t.amount
 
 
@@ -95,12 +96,16 @@ def test_deferred_statement_is_not_spending():
         date=date(2025, 10, 1),
         description="ÖDEMENİZ İÇİN TEŞEKKÜR EDERİZ",
         amount=-20000.0,
-        kind="kart_odemesi",
+        kind=TransactionKind.CARD_PAYMENT,
         account="x",
     )
-    assert (charge.kind, payment.kind) == ("transfer", "kart_odemesi")
+    assert (charge.kind, payment.kind) == (TransactionKind.OWN_TRANSFER, TransactionKind.CARD_PAYMENT)
     pair_deferrals([charge, payment, real])
-    assert (charge.kind, payment.kind, real.kind) == ("transfer", "transfer", "kart_odemesi")
+    assert (charge.kind, payment.kind, real.kind) == (
+        TransactionKind.OWN_TRANSFER,
+        TransactionKind.OWN_TRANSFER,
+        TransactionKind.CARD_PAYMENT,
+    )
 
 
 def test_business_products_mark_company_documents():

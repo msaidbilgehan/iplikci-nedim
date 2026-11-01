@@ -4,10 +4,10 @@ from datetime import date
 
 import pytest
 
+from iplikci.domain.codes import AccountType, TransactionKind
 from iplikci.parsers import Skipped, hesaplar
 from iplikci.parsers.common import set_business_names
 from iplikci.parsers.hesap import (
-    CANDIDATE,
     Movement,
     bank_from_iban,
     check_balances,
@@ -38,15 +38,21 @@ def test_check_balances_newest_first():
 @pytest.mark.parametrize(
     "desc, amount, label, currency, kind",
     [
-        ("FAST Ücreti", -7.97, "", "TL", "faiz_ucret"),
-        ("Elektronik Fon Transferi (EFT) Ücreti", -12.5, "", "TL", "faiz_ucret"),
-        ("MAAŞ ÖDEMESİ ÖRNEK A.Ş.", 100000.0, "", "TL", "gelir"),
-        ("KRE.KART BORC ODEME 2468", -5000.0, "", "TL", "kart_odemesi"),
-        ("DÖVİZ ALIŞ EUR", -10000.0, "", "TL", "transfer"),  # currency bought into an own account
+        ("FAST Ücreti", -7.97, "", "TRY", TransactionKind.INTEREST_FEE),
+        ("Elektronik Fon Transferi (EFT) Ücreti", -12.5, "", "TRY", TransactionKind.INTEREST_FEE),
+        ("MAAŞ ÖDEMESİ ÖRNEK A.Ş.", 100000.0, "", "TRY", TransactionKind.INCOME),
+        ("KRE.KART BORC ODEME 2468", -5000.0, "", "TRY", TransactionKind.CARD_PAYMENT),
+        ("DÖVİZ ALIŞ EUR", -10000.0, "", "TRY", TransactionKind.OWN_TRANSFER),  # currency bought into an own account
         ("DÖVİZ ALIŞ EUR", 200.0, "", "EUR", None),  # its EUR side is dropped
-        ("BAKİYE YETERSİZ", 0.0, "", "TL", None),
-        ("İGDAŞ", -118.0, "Fatura", "TL", "harcama"),
-        ("Veli Örneksoy", -15000.0, "FAST", "TL", CANDIDATE),  # decided later, with all accounts known
+        ("BAKİYE YETERSİZ", 0.0, "", "TRY", None),
+        ("İGDAŞ", -118.0, "Fatura", "TRY", TransactionKind.PURCHASE),
+        (
+            "Veli Örneksoy",
+            -15000.0,
+            "FAST",
+            "TRY",
+            TransactionKind.TRANSFER_CANDIDATE,
+        ),  # decided later, with all accounts known
     ],
 )
 def test_classify(desc, amount, label, currency, kind):
@@ -92,10 +98,10 @@ def test_teb_export_end_to_end():
     s = result.statements[0]
     assert (s.start, s.cut_date) == (date(2026, 1, 1), date(2026, 1, 31))
     assert s.verified and (s.checks_ok, s.checks_total) == (2, 2)
-    assert result.accounts[0].type == "Vadesiz hesap" and result.holder == "ÖRNEK İSİM SOYADOĞLU"
+    assert result.accounts[0].type == AccountType.CURRENT and result.holder == "ÖRNEK İSİM SOYADOĞLU"
     kinds = {t.description: (t.kind, t.amount) for t in s.transactions}
-    assert kinds["FAST Ücreti"] == ("faiz_ucret", 8.0)  # money out is a positive expense
-    assert kinds["YAPI VE KREDI BANKASI A.Ş."] == (CANDIDATE, 15000.0)
+    assert kinds["FAST Ücreti"] == (TransactionKind.INTEREST_FEE, 8.0)  # money out is a positive expense
+    assert kinds["YAPI VE KREDI BANKASI A.Ş."] == (TransactionKind.TRANSFER_CANDIDATE, 15000.0)
     assert s.transactions[-1].counterparty == "ÖRNEK İSİM SOYADOĞLU"
     # Opening and closing balance and the balance at the end of each month, for the balance sheet.
     assert (s.previous, s.total, s.balances) == (0.0, 10000.0, {"2026-01": 10000.0})

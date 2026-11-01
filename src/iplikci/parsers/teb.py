@@ -2,7 +2,8 @@
 
 import re
 
-from ..domain.models import Account, ParseResult, Statement, Transaction
+from ..domain.codes import AccountType, TransactionKind
+from ..domain.models import TRY, Account, ParseResult, Statement, Transaction
 from ..pdfutil import Line, find_header, find_word, page_lines, page_text, take_amount
 from ..textutil import fold, parse_dmy, parse_tr_amount, squash
 from .common import Skipped, classify_kind, installment_label
@@ -37,7 +38,9 @@ def detect(first_page: str) -> bool:
 
 
 def _account(last4: str) -> Account:
-    return Account(id=f"teb-{last4}", label=f"TEB Bonus •{last4}", bank="TEB", type="Kredi kartı", number=last4)
+    return Account(
+        id=f"teb-{last4}", label=f"TEB Bonus •{last4}", bank="TEB", type=AccountType.CREDIT_CARD, number=last4
+    )
 
 
 def parse(doc, pdf) -> ParseResult:
@@ -61,7 +64,7 @@ def _parse_statement(doc, pdf, first: str) -> ParseResult:
     stmt = Statement(
         account=account.id,
         cut_date=parse_dmy(cut[1]),
-        currency="TL",
+        currency=TRY,
         source=doc.name,
         previous=0.0,
         total=parse_tr_amount(total[1]) if total else None,
@@ -137,7 +140,7 @@ def parse_ocr(doc, pages: list[list[Line]]) -> ParseResult:
         raise ValueError("OCR: kart numarası / hesap kesim tarihi okunamadı")
     account = _account(card[1])
     stmt = Statement(
-        account=account.id, cut_date=parse_dmy(cut[0]), currency="TL", source=doc.name, previous=0.0, total=total
+        account=account.id, cut_date=parse_dmy(cut[0]), currency=TRY, source=doc.name, previous=0.0, total=total
     )
     for line in lines:
         if "ÖNCEKİ DÖNEM" in line.text.upper():
@@ -178,7 +181,7 @@ def _parse_payment_receipt(doc, first: str) -> ParseResult:
         date=parse_dmy(when[1]),
         description=f"TEB Bonus •{card[3]} borç ödemesi",
         amount=abs(parse_tr_amount(amount[1])),
-        kind="ekstresiz_kart",
+        kind=TransactionKind.CARD_PAYMENT_NO_STATEMENT,
         account=account.id,
         source=doc.name,
     )

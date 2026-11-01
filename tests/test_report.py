@@ -4,29 +4,30 @@ from openpyxl import load_workbook
 
 from iplikci import month_end
 from iplikci.analysis import Dataset
+from iplikci.domain.codes import AccountType, Necessity, TransactionKind
 from iplikci.domain.models import Account, Statement, Transaction
 from iplikci.insights import interpret
-from iplikci.report import NECESSITY_SLOTS, build_payload, write_html, write_xlsx
+from iplikci.report import build_payload, write_html, write_xlsx
 
 
 def dataset() -> Dataset:
-    account = Account("teb-2468", "TEB Bonus •2468", "TEB", "Kredi kartı", number="2468")
+    account = Account("teb-2468", "TEB Bonus •2468", "TEB", AccountType.CREDIT_CARD, number="2468")
     t = Transaction(
         date=date(2026, 1, 5),
         description="</script><script>alert(1)</script>",
         amount=100.0,
-        kind="harcama",
+        kind=TransactionKind.PURCHASE,
         account="teb-2468",
         merchant="Kötü <b>",
         category="Diğer Harcamalar",
         group="Diğer",
-        necessity="Belirsiz",
+        necessity=Necessity.UNKNOWN,
         source="a.pdf",
     )
     s = Statement(
         account="teb-2468",
         cut_date=date(2026, 1, 10),
-        currency="TL",
+        currency="TRY",
         source="a.pdf",
         previous=0.0,
         total=100.0,
@@ -46,9 +47,9 @@ def dataset() -> Dataset:
 
 def test_payload_shape():
     payload = build_payload(dataset(), {"documents": 1, "duplicates": 0})
-    assert [lvl["name"] for lvl in payload["levels"]] == list(NECESSITY_SLOTS)
+    assert [lvl["name"] for lvl in payload["levels"]] == ["Gerekli", "İsteğe bağlı", "Gereksiz", "Belirsiz"]
     tx = payload["tx"][0]
-    assert (tx["n"], tx["v"]) == (3, 100.0)  # "Belirsiz"
+    assert (tx["n"], tx["v"]) == (3, 100.0)  # Necessity.UNKNOWN
     assert payload["statements"][0]["ok"] and payload["statements"][0]["checks"] is None
     assert payload["groups"][-1] == {"name": "Diğer", "slot": 0}  # "Diğer" takes the neutral color
     ins = payload["insights"]

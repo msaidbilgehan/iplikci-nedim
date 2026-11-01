@@ -8,6 +8,7 @@ import sqlite3
 from collections.abc import Iterable
 from datetime import date
 
+from ..domain.codes import AccountType, TransactionKind
 from ..domain.models import Account, ParseResult, Security, Statement, Transaction
 from ..domain.text import fold
 from .db import Database
@@ -137,7 +138,7 @@ def load(db: Database, documents: Iterable[DocumentRow]) -> dict[str, ParseResul
     marks = ",".join("?" * len(wanted))
     for r in db.rows(f"SELECT * FROM document_accounts WHERE sha256 IN ({marks}) ORDER BY sha256, position", wanted):
         results[r["sha256"]].accounts.append(
-            Account(r["id"], r["label"], r["bank"], r["type"], r["currency"], r["number"], r["note"])
+            Account(r["id"], r["label"], r["bank"], AccountType(r["type"]), r["currency"], r["number"], r["note"])
         )
     statements: dict[int, Statement] = {}
     for r in db.rows(f"SELECT * FROM statements WHERE sha256 IN ({marks}) ORDER BY sha256, position", wanted):
@@ -181,7 +182,7 @@ def _transaction(r: sqlite3.Row) -> Transaction:
         date=date.fromisoformat(r["date"]),
         description=r["description"],
         amount=_from_minor(r["amount"]),
-        kind=r["kind"],
+        kind=TransactionKind(r["kind"]),
         account=r["account"],
         original=r["original"],
         installment=r["installment"],

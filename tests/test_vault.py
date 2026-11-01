@@ -8,6 +8,7 @@ from datetime import date
 
 import pytest
 
+from iplikci.domain.codes import AccountType
 from iplikci.domain.models import Account, ParseResult, Statement, Transaction
 from iplikci.settings.paths import Layout
 from iplikci.vault import trash
@@ -120,13 +121,15 @@ def test_an_invalid_name_is_never_a_path(vault):
 
 
 def test_documents_are_named_after_the_organizer_scheme():
-    card = Account("garanti-bonus-4321", "Garanti BBVA Bonus •4321", "Garanti BBVA", "Kredi kartı", "TL", "4321")
-    statement = Statement(card.id, date(2026, 10, 5), "TL", "x.pdf", 0.0, 0.0)
+    card = Account(
+        "garanti-bonus-4321", "Garanti BBVA Bonus •4321", "Garanti BBVA", AccountType.CREDIT_CARD, "TRY", "4321"
+    )
+    statement = Statement(card.id, date(2026, 10, 5), "TRY", "x.pdf", 0.0, 0.0)
     result = ParseResult("garanti", [card], [statement])
     assert str(display_path(result, ".pdf")) == (
         "Garanti BBVA/Bonus Kredi Kartı 4321/2026-10-05 Garanti Bonus 4321 Ekstre.pdf"
     )
-    teb = Account("teb-123456789", "TEB Vadesiz TL 123456789", "TEB", "Vadesiz hesap", "TL", "123456789")
+    teb = Account("teb-123456789", "TEB Vadesiz TL 123456789", "TEB", AccountType.CURRENT, "TRY", "123456789")
     receipt = Transaction(date(2026, 2, 14), "AİDAT", 1250.0, "aday", teb.id)
     assert display_name(ParseResult("teb", [teb], transactions=[receipt], title="Giden/FAST"), ".pdf") == (
         "2026-02-14 TEB Giden-FAST Dekont.pdf"
@@ -134,18 +137,24 @@ def test_documents_are_named_after_the_organizer_scheme():
 
 
 def test_folder_and_file_names():
-    card = Account("garanti-4321", "Garanti BBVA Garanti Bonus •4321", "Garanti BBVA", "Kredi kartı", number="4321")
+    card = Account(
+        "garanti-4321", "Garanti BBVA Garanti Bonus •4321", "Garanti BBVA", AccountType.CREDIT_CARD, number="4321"
+    )
     assert account_names(card) == ("Garanti Bonus Kredi Kartı 4321", "Garanti Bonus 4321")
-    loan = Account("qnb-5678", "QNB İhtiyaç Kredisi …5678", "QNB", "Kredi", number="")
+    loan = Account("qnb-5678", "QNB İhtiyaç Kredisi …5678", "QNB", AccountType.LOAN, number="")
     assert account_names(loan) == ("İhtiyaç Kredisi 5678", "Kredi 5678")
     salary = Account(
-        "vakifbank-1", "Vakıfbank Vadesiz TL …123456 (Maaş)", "Vakıfbank", "Vadesiz hesap", number="0999000000123456"
+        "vakifbank-1",
+        "Vakıfbank Vadesiz TL …123456 (Maaş)",
+        "Vakıfbank",
+        AccountType.CURRENT,
+        number="0999000000123456",
     )
     assert account_names(salary)[0] == "Vadesiz Hesap TL 0999000000123456 (Maaş)"
 
 
 def test_names_hold_nothing_windows_or_a_path_would_split_on():
-    card = Account("x-1", 'Banka Kart: "Özel" <1> •1', "Banka", "Kredi kartı", number="1")
+    card = Account("x-1", 'Banka Kart: "Özel" <1> •1', "Banka", AccountType.CREDIT_CARD, number="1")
     folder, short = account_names(card)
     assert not any(ch in folder + short for ch in '/\\:*?"<>|')
 

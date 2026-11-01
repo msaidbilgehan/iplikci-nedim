@@ -12,7 +12,7 @@ from iplikci.app import intake, reading, uploads
 from iplikci.app.analysis import analyze, document_gaps
 from iplikci.app.uploads import inbox_files, safe_upload_path, save_upload
 from iplikci.app.workspace import Busy, file_lock
-from iplikci.domain.codes import DocumentStatus
+from iplikci.domain.codes import AccountType, DocumentStatus
 from iplikci.domain.models import Account, Statement
 from iplikci.parsers import ENCRYPTED_REASON, Unreadable
 from iplikci.sources import ZIP_DAMAGED, ZIP_ENCRYPTED
@@ -128,10 +128,10 @@ def test_a_zip_that_cannot_be_opened_is_kept_for_a_manual_look(ws, data, reason)
 
 def test_document_gaps_name_missing_and_stale_statements():
     def acc(n):
-        return Account(f"a{n}", f"Hesap {n}", "TEB", "Kredi kartı", number=str(n))
+        return Account(f"a{n}", f"Hesap {n}", "TEB", AccountType.CREDIT_CARD, number=str(n))
 
     def stmt(n, cut):
-        return Statement(f"a{n}", cut, "TL", "x.pdf", 0.0, 0.0)
+        return Statement(f"a{n}", cut, "TRY", "x.pdf", 0.0, 0.0)
 
     ds = Dataset(
         accounts={"a1": acc(1), "a2": acc(2), "a3": acc(3)},

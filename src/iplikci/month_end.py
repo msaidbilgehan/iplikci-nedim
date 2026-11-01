@@ -24,7 +24,6 @@ from statistics import median
 
 from .analysis import (
     ACTIVE_DAYS,
-    CARD_TYPES,
     CONFIRMED,
     NOT_ON_STATEMENT,
     PROVISIONAL,
@@ -33,7 +32,18 @@ from .analysis import (
     statement_periods,
 )
 from .categorize import NECESSITY_SLOTS, group_slot
-from .domain.models import DEFAULT_EXPENSE_KINDS, INVESTMENT_TYPE, KINDS, NECESSITY, Account, Statement, Transaction
+from .domain.codes import (
+    CARD_TYPES,
+    DEFAULT_EXPENSE_KINDS,
+    AccountType,
+    EvidenceStatus,
+    MonthStatus,
+    Necessity,
+    TransactionKind,
+)
+from .domain.labels import ACCOUNT_MONTH_STATUS, KIND, NECESSITY
+from .domain.labels import MONTH_STATUS as _MONTH_LABELS
+from .domain.models import TRY, Account, Statement, Transaction
 from .insights import (
     MONTHS_TR,
     NOT_BANK_ACCOUNTS,
@@ -57,15 +67,15 @@ INDEX = "index.html"
 MONTHS_KEPT = 12  # finished months that get a page, besides the current one
 CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src data:"
 
-CLOSED, WAITING, MISSING, CHECK, RUNNING = "kapandi", "bekleniyor", "eksik", "kontrol", "suruyor"
-ACCOUNT_STATUS = {CLOSED: "Kapandı", WAITING: "Bekleniyor", MISSING: "Belge eksik", CHECK: "Kontrol edin"}
-MONTH_STATUS = {
-    CLOSED: "Kapandı",
-    WAITING: "Ekstre bekleniyor",
-    MISSING: "Belge eksik",
-    CHECK: "Kontrol gerekli",
-    RUNNING: "Ay sürüyor",
-}
+CLOSED, WAITING, MISSING, CHECK, RUNNING = (
+    MonthStatus.CLOSED,
+    MonthStatus.WAITING,
+    MonthStatus.MISSING,
+    MonthStatus.CHECK,
+    MonthStatus.RUNNING,
+)
+ACCOUNT_STATUS = ACCOUNT_MONTH_STATUS
+MONTH_STATUS = _MONTH_LABELS
 _LATE_DAYS = 5  # a card statement this long past its expected cut date is late (the e-mail did not come)
 INCOME_NOTE = "hesap dökümlerindeki gelen para"  # the income note when there is nothing to add
 
@@ -145,7 +155,7 @@ class AccountClose:
     """One account in one month: how far its statements cover the month and whether they check out."""
 
     account: Account
-    status: str
+    status: MonthStatus
     blocking: bool  # the month waits for it (a brokerage account does not: no bill or salary passes through it)
     needed: int  # days of the month its statements should cover (up to today in the current month)
     covered: int
@@ -165,9 +175,9 @@ class AccountClose:
     def mailed(self) -> bool:
         """Its statements come by e-mail every month (cards, the brokerage account); account movement lists
         are downloaded from the bank."""
-        return self.is_card or self.account.type == INVESTMENT_TYPE
+        return self.is_card or self.account.type == AccountType.BROKERAGE
 
-    def count(self, status: str) -> int:
+    def count(self, status: EvidenceStatus) -> int:
         return sum(line.status == status for line in self.receipts)
 
     @property
@@ -253,7 +263,7 @@ class Totals:
 @dataclass
 class MonthEnd:
     month: str
-    status: str
+    status: MonthStatus
     accounts: list[AccountClose]
     totals: Totals
     previous: Totals | None
@@ -349,11 +359,16 @@ class _Shared:
         sums: dict[str, float] = defaultdict(float)
         for t in self.by_month.get(month, []):
             sums["expense" if t.kind in DEFAULT_EXPENSE_KINDS else t.kind] += t.amount
-            if t.kind == "faiz_ucret":
+            if t.kind == TransactionKind.INTEREST_FEE:
                 sums["fees"] += t.amount
-        income = -sums["gelir"] if self.income_known(month) else None
+        income = -sums[TransactionKind.INCOME] if self.income_known(month) else None
         return Totals(
-            income, sums["expense"], sums["kisiye_transfer"], sums["kredi_anapara"], sums["yatirim"], sums["fees"]
+            income,
+            sums["expense"],
+            sums[TransactionKind.P2P_TRANSFER],
+            sums[TransactionKind.LOAN_PRINCIPAL],
+            sums[TransactionKind.INVESTMENT],
+            sums["fees"],
         )
 
     # -- closing --------------------------------------------------------------------------------
@@ -384,7 +399,7 @@ class _Shared:
             ac = AccountClose(
                 acc,
                 status,
-                acc.type != INVESTMENT_TYPE,
+                acc.type != AccountType.BROKERAGE,
                 len(needed),
                 len(needed) - len(holes),
                 _ranges(missing or waiting),
@@ -395,7 +410,7 @@ class _Shared:
             )
             if not ac.is_card:
                 covering = next((s for s, a, b in self.periods if s.account == account and a <= hi <= b), None)
-                if covering is not None and acc.type == INVESTMENT_TYPE:
+                if covering is not None and acc.type == AccountType.BROKERAGE:
                     # Cash plus the securities at the market value the month's statement prints.
                     ac.balance = round((covering.total or 0.0) + sum(x.value for x in covering.securities), 2)
                 elif covering is not None:
@@ -407,7 +422,7 @@ class _Shared:
                 while ac.next_cut < waiting[-1]:
                     ac.next_cut = _next_cut(ac.next_cut)
                 ac.late = (self.today - ac.next_cut).days > _LATE_DAYS
-            if acc.type == INVESTMENT_TYPE and status == WAITING:
+            if acc.type == AccountType.BROKERAGE and status == WAITING:
                 # The brokerage statement covers a calendar month and comes in the first days of the next.
                 ac.late = (self.today - last_day(month_of(waiting[-1]))).days > 2 * _LATE_DAYS
             out.append(ac)
@@ -444,8 +459,8 @@ class _Shared:
             return sorted(((k, v, n) for k, (v, n) in sums.items() if v >= 1), key=lambda x: -x[1])
 
         groups = [(g, group_slot(ds.groups, g), v) for g, v, _ in ranked(lambda t: t.group)]
-        by_level = {level: v for level, v, _ in ranked(lambda t: t.necessity or "Belirsiz")}
-        levels = [(level, NECESSITY_SLOTS[level], by_level[level]) for level in NECESSITY if level in by_level]
+        by_level = {level: v for level, v, _ in ranked(lambda t: t.necessity or Necessity.UNKNOWN)}
+        levels = [(NECESSITY[code], NECESSITY_SLOTS[code], by_level[code]) for code in Necessity if code in by_level]
         group_of = {t.category: t.group for t in spent}
         categories = [(c, group_slot(ds.groups, group_of[c]), v, n) for c, v, n in ranked(lambda t: t.category)[:10]]
         merchant_group = {t.merchant: t.group for t in spent}
@@ -464,7 +479,9 @@ class _Shared:
 
         expense = self.expense(month)
         threshold = max(5000.0, 0.1 * (typical or expense))
-        big = sorted((t for t in spent if t.kind == "harcama" and t.amount >= threshold), key=lambda t: -t.amount)[:8]
+        big = sorted(
+            (t for t in spent if t.kind == TransactionKind.PURCHASE and t.amount >= threshold), key=lambda t: -t.amount
+        )[:8]
         totals = self.totals(month)
         return MonthEnd(
             month=month,
@@ -491,7 +508,7 @@ class _Shared:
             debt_end=debt_at(ds, last_day(month)) if status != RUNNING else None,
         )
 
-    def income_note(self, month: str, totals: Totals, accounts: list[AccountClose], status: str) -> str:
+    def income_note(self, month: str, totals: Totals, accounts: list[AccountClose], status: MonthStatus) -> str:
         if totals.income is None:
             return "bu ay için hesap dökümü yok: gelir bilinmiyor"
         partial = [a.account.label for a in accounts if a.blocking and not a.is_card and a.status in (WAITING, MISSING)]
@@ -571,7 +588,7 @@ def _page(title: str, body: str) -> str:
     return _PAGE.format(csp=_e(CSP), title=_e(title), css=css, body=body)
 
 
-def _badge(status: str, label: str) -> str:
+def _badge(status: MonthStatus, label: str) -> str:
     tone, icon = _TONES[status]
     return f'<span class="tone {tone}"><span class="icon" aria-hidden="true">{icon}</span>{_e(label)}</span>'
 
@@ -581,7 +598,7 @@ def _money(value: float | None) -> str:
 
 
 def _amount(value: float, currency: str) -> str:
-    if currency == "TL":
+    if currency == TRY:
         return _e(tl(value))
     return _e(("−" if value < 0 else "") + f"{format_tr_amount(abs(value))} {currency}")
 
@@ -738,7 +755,7 @@ def _txn_table(rows: list[Transaction], ds: Dataset) -> str:
                 _e(_day(t.date)),
                 _e(ds.accounts[t.account].label),
                 _e(t.merchant or t.description),
-                _e(KINDS.get(t.kind, t.kind)),
+                _e(KIND.get(t.kind, t.kind)),
                 f'<span class="{"neg" if t.amount < 0 else ""}">{_e(tl(t.amount))}</span>',
             ]
             for t in rows

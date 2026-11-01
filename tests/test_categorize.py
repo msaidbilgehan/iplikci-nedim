@@ -3,12 +3,13 @@ from datetime import date
 import pytest
 
 from iplikci.categorize import DEFAULT_RULES, OTHER_INCOME, TO_PEOPLE, Categorizer, clean_description, display_name
+from iplikci.domain.codes import AccountType, Necessity, TransactionKind
 from iplikci.domain.models import Account, Transaction
 
 from conftest import PEOPLE_RULES
 
-CARD = Account(id="a", label="Test Kart", bank="İş Bankası", type="Kredi kartı")
-OVERDRAFT = Account(id="b", label="Test Ek Hesap", bank="QNB", type="Ek hesap (KMH)")
+CARD = Account(id="a", label="Test Kart", bank="İş Bankası", type=AccountType.CREDIT_CARD)
+OVERDRAFT = Account(id="b", label="Test Ek Hesap", bank="QNB", type=AccountType.OVERDRAFT)
 
 
 @pytest.fixture(scope="module")
@@ -16,7 +17,7 @@ def cat():
     return Categorizer(DEFAULT_RULES)
 
 
-def categorize(cat, description, kind="harcama", bank_category="", amount=100.0, account=CARD):
+def categorize(cat, description, kind=TransactionKind.PURCHASE, bank_category="", amount=100.0, account=CARD):
     t = Transaction(
         date=date(2025, 1, 1),
         description=description,
@@ -61,34 +62,46 @@ def test_bank_category_beats_weak_keyword(cat):
 
 def test_unmatched_falls_back(cat):
     t = categorize(cat, "XYZ QWERTY LTD ISTANBUL TR")
-    assert (t.category, t.group, t.merchant, t.necessity) == ("Diğer Harcamalar", "Diğer", "Xyz Qwerty Ltd", "Belirsiz")
+    assert (t.category, t.group, t.merchant, t.necessity) == (
+        "Diğer Harcamalar",
+        "Diğer",
+        "Xyz Qwerty Ltd",
+        Necessity.UNKNOWN,
+    )
 
 
 def test_fees_split_by_cause(cat):
-    t = categorize(cat, "FAIZ TUTARI FZ:1.00 VR/FN:0.30", kind="faiz_ucret")
+    t = categorize(cat, "FAIZ TUTARI FZ:1.00 VR/FN:0.30", kind=TransactionKind.INTEREST_FEE)
     assert (t.category, t.group, t.merchant) == ("Kredi Kartı Faizi", "Banka & Finans", "İş Bankası faiz & ücretleri")
-    assert categorize(cat, "YILLIK UYELIK UCRETI", kind="faiz_ucret").category == "Kart Aidatı & Ücretleri"
     assert (
-        categorize(cat, "Mevduat İşlemleri - Faiz Tahakkuku", kind="faiz_ucret", account=OVERDRAFT).category
+        categorize(cat, "YILLIK UYELIK UCRETI", kind=TransactionKind.INTEREST_FEE).category == "Kart Aidatı & Ücretleri"
+    )
+    assert (
+        categorize(
+            cat, "Mevduat İşlemleri - Faiz Tahakkuku", kind=TransactionKind.INTEREST_FEE, account=OVERDRAFT
+        ).category
         == "Ek Hesap (KMH) Faizi"
     )
-    assert categorize(cat, "FAST Ücreti", kind="faiz_ucret", account=OVERDRAFT).category == "Transfer & İşlem Ücretleri"
+    assert (
+        categorize(cat, "FAST Ücreti", kind=TransactionKind.INTEREST_FEE, account=OVERDRAFT).category
+        == "Transfer & İşlem Ücretleri"
+    )
 
 
 def test_other_kinds_get_finance_categories(cat):
-    t = categorize(cat, "9999-123456 HESAPTAN AKTARIM", kind="kart_odemesi", amount=-500)
-    assert (t.category, t.necessity) == ("Kart Borcu Ödemeleri", "")
-    t = categorize(cat, "DOVIZ ALIS EUR", kind="transfer")
+    t = categorize(cat, "9999-123456 HESAPTAN AKTARIM", kind=TransactionKind.CARD_PAYMENT, amount=-500)
+    assert (t.category, t.necessity) == ("Kart Borcu Ödemeleri", None)
+    t = categorize(cat, "DOVIZ ALIS EUR", kind=TransactionKind.OWN_TRANSFER)
     assert t.category == "Döviz & Altın Alım-Satımı"
 
 
 @pytest.mark.parametrize(
     "description, kind, level",
     [
-        ("MIGROS ORNEK SUBE", "harcama", "Gerekli"),
-        ("STEAMGAMES.COM 1234567", "harcama", "İsteğe bağlı"),
-        ("FAIZ TUTARI", "faiz_ucret", "Gereksiz"),
-        ("XYZ QWERTY", "harcama", "Belirsiz"),
+        ("MIGROS ORNEK SUBE", TransactionKind.PURCHASE, Necessity.REQUIRED),
+        ("STEAMGAMES.COM 1234567", TransactionKind.PURCHASE, Necessity.OPTIONAL),
+        ("FAIZ TUTARI", TransactionKind.INTEREST_FEE, Necessity.UNNECESSARY),
+        ("XYZ QWERTY", TransactionKind.PURCHASE, Necessity.UNKNOWN),
     ],
 )
 def test_necessity_levels(cat, description, kind, level):
@@ -103,8 +116,8 @@ def test_a_merchant_necessity_beats_its_category(tmp_path):
         encoding="utf-8",
     )
     c = Categorizer(rules)
-    assert categorize(c, "ORNEK MARKET ISTANBUL TR").necessity == "İsteğe bağlı"
-    assert categorize(c, "BASKA MARKET").necessity == "Gerekli"
+    assert categorize(c, "ORNEK MARKET ISTANBUL TR").necessity == Necessity.OPTIONAL
+    assert categorize(c, "BASKA MARKET").necessity == Necessity.REQUIRED
 
 
 def test_category_type_decides_transfer_kind(tmp_path):
@@ -123,14 +136,14 @@ def test_category_type_decides_transfer_kind(tmp_path):
         )
 
     rent = candidate("FAST", 15000.0, "VELİ ÖRNEKSOY")
-    assert cat.resolve_kind(rent) and (rent.kind, rent.category) == ("harcama", "Kira")
+    assert cat.resolve_kind(rent) and (rent.kind, rent.category) == (TransactionKind.PURCHASE, "Kira")
     family_out, family_in = candidate("FAST", 500.0, "Ayşe Soyadoğlu"), candidate("FAST", -500.0, "Ayşe Soyadoğlu")
-    assert cat.resolve_kind(family_out) and family_out.kind == "kisiye_transfer"
-    assert cat.resolve_kind(family_in) and family_in.kind == "gelir"
+    assert cat.resolve_kind(family_out) and family_out.kind == TransactionKind.P2P_TRANSFER
+    assert cat.resolve_kind(family_in) and family_in.kind == TransactionKind.INCOME
     debt = candidate("Ayşe Soyadoğlu borç iade", 1000.0)  # a named purpose beats the person
-    assert cat.resolve_kind(debt) and debt.kind == "kredi_anapara"
+    assert cat.resolve_kind(debt) and debt.kind == TransactionKind.LOAN_PRINCIPAL
     pension = candidate("ANADOLU HAYAT EMEKLILIK", 750.0)
-    assert cat.resolve_kind(pension) and pension.kind == "yatirim"
+    assert cat.resolve_kind(pension) and pension.kind == TransactionKind.INVESTMENT
     assert not cat.resolve_kind(candidate("FAST", 300.0, "Tanımadığım Kişi"))
 
 
@@ -148,9 +161,11 @@ def test_custom_rules_file(tmp_path):
         encoding="utf-8",
     )
     c = Categorizer(rules)
-    t = Transaction(date=date(2025, 1, 1), description="Mehmet Yılmaz kira", amount=10, kind="harcama", account="a")
+    t = Transaction(
+        date=date(2025, 1, 1), description="Mehmet Yılmaz kira", amount=10, kind=TransactionKind.PURCHASE, account="a"
+    )
     c.apply(t, None)
-    assert (t.group, t.category, t.merchant, t.necessity) == ("Ev", "Kira", "Ev sahibi", "Gerekli")
+    assert (t.group, t.category, t.merchant, t.necessity) == ("Ev", "Kira", "Ev sahibi", Necessity.REQUIRED)
     assert c.groups == ["Ev", "Banka & Finans", "Diğer"]
 
 
@@ -254,8 +269,8 @@ def test_the_defaults_keep_their_group_order_and_colours(layered, cat):
 
 
 def test_personal_decisions_override_the_defaults(layered, cat):
-    assert cat.necessity["Kafe & Kahve"] != "Gereksiz"
-    assert layered.necessity["Kafe & Kahve"] == "Gereksiz"
+    assert cat.necessity["Kafe & Kahve"] != Necessity.UNNECESSARY
+    assert layered.necessity["Kafe & Kahve"] == Necessity.UNNECESSARY
     assert layered.ended == {"STARBUCKS": "2026-09"}
     assert layered.regular == cat.regular  # the commitments of the defaults stay
 

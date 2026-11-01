@@ -8,11 +8,12 @@ and the customer's name; analysis.resolve_masked points them at the account the 
 
 import re
 
-from ..domain.models import Account, ParseResult, Transaction
+from ..domain.codes import TransactionKind
+from ..domain.models import TRY, Account, ParseResult, Transaction
 from ..pdfutil import Line, page_lines
 from ..textutil import fold, format_tr_amount, parse_dmy, parse_tr_amount, squash, title_tr
-from .common import BUSINESS_REASON, Skipped, is_business
-from .hesap import CANDIDATE, bank_from_iban
+from .common import BUSINESS_REASON, Skipped, currency_code, is_business
+from .hesap import bank_from_iban
 from .hesaplar import bank_account
 
 NAME = "Garanti BBVA dekont"
@@ -58,7 +59,7 @@ def _amount(lines: list[Line]) -> tuple[float, str] | None:
         m = re.search(r"\bTUTAR\s*:\s*([+-])?\s*([\d.]+,\d{2})\s*(TL|EUR|USD|GBP)\b", line.folded)
         if m and line.folded.startswith("SIRA NO"):
             value = parse_tr_amount(m[2])
-            return (-value if m[1] == "-" else value), m[3]
+            return (-value if m[1] == "-" else value), currency_code(m[3])
     return None
 
 
@@ -126,16 +127,16 @@ def parse(doc, pdf) -> ParseResult:
             date=day,
             description=text,
             amount=round(-printed, 2),
-            kind=CANDIDATE,
+            kind=TransactionKind.TRANSFER_CANDIDATE,
             account=account.id,
             counterparty=party,
             source=doc.name,
-            original=f"{format_tr_amount(abs(printed))} {currency}" if currency != "TL" else "",
+            original=f"{format_tr_amount(abs(printed))} {currency}" if currency != TRY else "",
         )
     )
     fee_text = fields.get("KOMISYON TOPLAMI") or fields.get("MASRAF TOPLAMI")
     fee = re.match(r"([\d.]+,\d{2})\s*(TL|EUR|USD|GBP)?", fee_text)
-    payer = _fee_account(fields, fee[2] or "TL", account) if fee and parse_tr_amount(fee[1]) else None
+    payer = _fee_account(fields, currency_code(fee[2] or ""), account) if fee and parse_tr_amount(fee[1]) else None
     if payer:
         if payer.id != account.id:
             result.accounts.append(payer)
@@ -144,7 +145,7 @@ def parse(doc, pdf) -> ParseResult:
                 date=day,
                 description=f"{title} masrafı ve BSMV",
                 amount=parse_tr_amount(fee[1]),
-                kind="faiz_ucret",
+                kind=TransactionKind.INTEREST_FEE,
                 account=payer.id,
                 source=doc.name,
             )

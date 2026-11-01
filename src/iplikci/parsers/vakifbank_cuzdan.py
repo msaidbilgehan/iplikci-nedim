@@ -7,6 +7,7 @@ oldest first ("NO", "İŞLEM TARİHİ", "İŞLEM TUTARI", "BAKİYE", "AÇIKLAMA"
 
 import re
 
+from ..domain.codes import AccountType
 from ..domain.models import ParseResult
 from ..pdfutil import label_values, page_lines, page_text
 from ..textutil import fold, parse_dmy, parse_tr_amount, squash
@@ -38,8 +39,8 @@ def parse(doc, pdf) -> ParseResult:
     account = bank_account(
         "Vakıfbank",
         iban[-16:],
-        "TL" if currency in ("TL", "TRY") else currency,
-        "Vadeli hesap" if "VADELI" in kind else "",
+        currency,
+        AccountType.DEPOSIT if "VADELI" in kind else None,
     )
     nickname = info.get("RUMUZ", "")
     if nickname:

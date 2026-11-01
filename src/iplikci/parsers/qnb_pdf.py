@@ -8,7 +8,8 @@ labels that matter for classification are repaired by pattern.
 
 import re
 
-from ..domain.models import Account, ParseResult, Statement, Transaction
+from ..domain.codes import AccountType
+from ..domain.models import TRY, Account, ParseResult, Statement, Transaction
 from ..pdfutil import page_text
 from ..textutil import fold, parse_dmy, parse_us_amount
 from .common import classify_kind
@@ -53,11 +54,13 @@ def parse_card(doc, pdf) -> ParseResult:
     if not (card and cut):
         raise ValueError("QNB kart numarası / hesap kesim tarihi bulunamadı")
     last4 = card[1]
-    account = Account(id=f"qnb-{last4}", label=f"QNB Mastercard •{last4}", bank="QNB", type="Kredi kartı", number=last4)
+    account = Account(
+        id=f"qnb-{last4}", label=f"QNB Mastercard •{last4}", bank="QNB", type=AccountType.CREDIT_CARD, number=last4
+    )
     stmt = Statement(
         account=account.id,
         cut_date=parse_dmy(cut[1]),
-        currency="TL",
+        currency=TRY,
         source=doc.name,
         previous=_us(previous),
         total=_us(total),
@@ -118,7 +121,7 @@ def parse_account(doc, pdf) -> ParseResult:
         id=f"qnb-{number}",
         label=f"QNB {'Ek Hesap' if overdraft else 'Vadesiz TL'} {number}",
         bank="QNB",
-        type="Ek hesap (KMH)" if overdraft else "Vadesiz hesap",
+        type=AccountType.OVERDRAFT if overdraft else AccountType.CURRENT,
         number=number,
     )
     moves: list[Movement] = []

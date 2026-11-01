@@ -7,7 +7,7 @@ from datetime import date
 
 import pytest
 
-from iplikci.domain.codes import Actor, DocumentKind, DocumentStatus, SourceKind
+from iplikci.domain.codes import AccountType, Actor, DocumentKind, DocumentStatus, SourceKind, TransactionKind
 from iplikci.domain.models import Account, ParseResult, Security, Statement, Transaction
 from iplikci.storage import audit, db, documents, readings
 
@@ -129,29 +129,49 @@ def test_a_reading_is_recorded_on_the_document(store):
 
 
 def sample() -> ParseResult:
-    card = Account("garanti-bonus-1234", "Garanti BBVA Bonus •1234", "Garanti BBVA", "Kredi kartı", "TL", "1234")
-    teb = Account("teb-123456789", "TEB Vadesiz TL 123456789", "TEB", "Vadesiz hesap", "TL", "123456789")
+    card = Account(
+        "garanti-bonus-1234", "Garanti BBVA Bonus •1234", "Garanti BBVA", AccountType.CREDIT_CARD, "TRY", "1234"
+    )
+    teb = Account("teb-123456789", "TEB Vadesiz TL 123456789", "TEB", AccountType.CURRENT, "TRY", "123456789")
     rows = [
-        Transaction(date(2026, 9, 10), "MIGROS ORNEK SUBE ISTANBUL", 2150.0, "harcama", card.id),
-        Transaction(date(2026, 9, 10), "MIGROS ORNEK SUBE ISTANBUL", 2150.0, "harcama", card.id),  # both real
-        Transaction(date(2026, 9, 12), "ODEMENIZ ICIN TESEKKUR", -4300.0, "kart_odemesi", card.id, installment="1/3"),
+        Transaction(date(2026, 9, 10), "MIGROS ORNEK SUBE ISTANBUL", 2150.0, TransactionKind.PURCHASE, card.id),
+        Transaction(
+            date(2026, 9, 10), "MIGROS ORNEK SUBE ISTANBUL", 2150.0, TransactionKind.PURCHASE, card.id
+        ),  # both real
+        Transaction(
+            date(2026, 9, 12),
+            "ODEMENIZ ICIN TESEKKUR",
+            -4300.0,
+            TransactionKind.CARD_PAYMENT,
+            card.id,
+            installment="1/3",
+        ),
     ]
-    statement = Statement(card.id, date(2026, 10, 5), "TL", "ekstre.pdf", 1000.0, 1000.0, rows)
+    statement = Statement(card.id, date(2026, 10, 5), "TRY", "ekstre.pdf", 1000.0, 1000.0, rows)
     listing = Statement(
         teb.id,
         date(2026, 10, 31),
-        "TL",
+        "TRY",
         "liste.xls",
         0.0,
         39.99,
-        [Transaction(date(2026, 10, 1), "ÖRNEK İŞVEREN A.Ş.", -40000.0, "aday", teb.id, counterparty="ÖRNEK İŞVEREN")],
+        [
+            Transaction(
+                date(2026, 10, 1),
+                "ÖRNEK İŞVEREN A.Ş.",
+                -40000.0,
+                TransactionKind.TRANSFER_CANDIDATE,
+                teb.id,
+                counterparty="ÖRNEK İŞVEREN",
+            )
+        ],
         start=date(2026, 10, 1),
         checks_ok=1,
         checks_total=1,
         balances={"2026-10": 39.99},
         securities=[Security("ORNEK", "ÖRNEK SANAYİ A.Ş.", 20.0, 1342.0, date(2026, 10, 30))],
     )
-    receipt = [Transaction(date(2026, 9, 10), "AİDAT ÖDEMESİ", 1250.0, "aday", teb.id)]
+    receipt = [Transaction(date(2026, 9, 10), "AİDAT ÖDEMESİ", 1250.0, TransactionKind.TRANSFER_CANDIDATE, teb.id)]
     return ParseResult("deneme", [card, teb], [statement, listing], receipt, "dekont-1", "ÖRNEK KULLANICI", "Aidat")
 
 

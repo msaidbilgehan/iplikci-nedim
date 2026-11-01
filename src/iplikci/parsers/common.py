@@ -4,7 +4,8 @@ import hashlib
 import re
 from collections.abc import Iterable
 
-from ..domain.models import Transaction
+from ..domain.codes import TransactionKind
+from ..domain.models import TRY, Transaction
 from ..textutil import fold, parse_us_amount, squash
 
 
@@ -139,36 +140,38 @@ def _has(patterns: tuple[str, ...], f: str, sq: str) -> bool:
     return any(p in f or (" " in p.strip() and p.replace(" ", "") in sq) for p in patterns)
 
 
-def classify_kind(description: str, amount: float) -> str:
+def classify_kind(description: str, amount: float) -> TransactionKind:
     """Decide the transaction kind from a statement line."""
     f = fold(description)
     sq = f.replace(" ", "")
     if _has(_DEFERRAL_PATTERNS, f, sq):
-        return "transfer"
+        return TransactionKind.OWN_TRANSFER
     if amount < 0 and _has(_PAYMENT_PATTERNS, f, sq):
-        return "kart_odemesi"
+        return TransactionKind.CARD_PAYMENT
     if _has(_FEE_PATTERNS, f, sq):
-        return "faiz_ucret"
+        return TransactionKind.INTEREST_FEE
     if _has(_CASH_PATTERNS, f, sq):
-        return "nakit_avans"
+        return TransactionKind.CASH_ADVANCE
     if amount < 0:
-        return "iade"
-    return "harcama"
+        return TransactionKind.REFUND
+    return TransactionKind.PURCHASE
 
 
 def pair_deferrals(txns: list[Transaction]) -> None:
     """The payment line a deferral books against the old balance is not a real payment either."""
-    for deferred in [t for t in txns if t.kind == "transfer" and t.amount > 0]:
+    for deferred in [t for t in txns if t.kind == TransactionKind.OWN_TRANSFER and t.amount > 0]:
         payment = next(
             (
                 t
                 for t in txns
-                if t.kind == "kart_odemesi" and t.date == deferred.date and abs(t.amount + deferred.amount) < 0.01
+                if t.kind == TransactionKind.CARD_PAYMENT
+                and t.date == deferred.date
+                and abs(t.amount + deferred.amount) < 0.01
             ),
             None,
         )
         if payment:
-            payment.kind = "transfer"
+            payment.kind = TransactionKind.OWN_TRANSFER
 
 
 _FZ = re.compile(r"FZ:\s*([\d.,]+)\s+VR/FN:\s*([\d.,]+)")
@@ -188,19 +191,25 @@ def split_interest(txn: Transaction) -> list[Transaction]:
     principal = round(txn.amount - interest, 2)
     out = []
     if principal:
-        out.append(Transaction(**{**txn.__dict__, "amount": principal, "kind": "kredi_anapara"}))
+        out.append(Transaction(**{**txn.__dict__, "amount": principal, "kind": TransactionKind.LOAN_PRINCIPAL}))
     if interest:
         out.append(
             Transaction(
                 **{
                     **txn.__dict__,
                     "amount": interest,
-                    "kind": "faiz_ucret",
+                    "kind": TransactionKind.INTEREST_FEE,
                     "description": txn.description + " (faiz ve vergi payı)",
                 }
             )
         )
     return out
+
+
+def currency_code(token: str) -> str:
+    """The ISO code of a currency as a document prints it: "TL", "TRY" and "YTL" are the lira; gold stays "GR"."""
+    token = token.strip().upper()
+    return TRY if token in ("", "TL", "TRY", "YTL") else token
 
 
 _INSTALLMENT = re.compile(r"(\d{1,2})\s*/\s*(\d{1,2})\s*TAKS", re.IGNORECASE)

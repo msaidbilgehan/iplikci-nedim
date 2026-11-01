@@ -13,15 +13,26 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-from . import month_end
+from . import month_end, mvp_codes
 from .analysis import CONFIRMED, NOT_ON_STATEMENT, PROVISIONAL, Dataset
 from .categorize import NECESSITY_SLOTS, group_slot
-from .domain.models import DEFAULT_EXPENSE_KINDS, KINDS, NECESSITY
+from .domain.codes import DEFAULT_EXPENSE_KINDS, Necessity, TransactionKind
+from .domain.labels import ACCOUNT_TYPE, KIND, NECESSITY, currency_label
 from .insights import HABIT_STATUS, STATUS, Insights, interpret, month_of
 from .textutil import fold
 
 CLOSING_MONTHS = 7  # months the report's closing card lists: the current one and six before it
 PROVISIONAL_LABEL = "Geçici (ekstre bekleniyor)"
+LEVELS = list(Necessity)  # the report's levels, in this order
+KINDS = [k for k in TransactionKind if k is not TransactionKind.TRANSFER_CANDIDATE]  # the ledger resolves those
+
+# The report's script still speaks the MVP's codes (mvp_codes); the exports write the Turkish labels.
+
+
+def _script_filter(found: dict[str, Any]) -> dict[str, Any]:
+    """A finding's filter as the report's script reads it."""
+    kind = found.get("kind")
+    return found | {"kind": mvp_codes.KIND[kind]} if kind in mvp_codes.KIND else found
 
 
 def _closing_payload(months: list[month_end.MonthEnd]) -> list[dict]:
@@ -29,7 +40,7 @@ def _closing_payload(months: list[month_end.MonthEnd]) -> list[dict]:
     return [
         {
             "m": me.month,
-            "status": me.status,
+            "status": mvp_codes.MONTH[me.status],
             "label": me.label,
             "summary": me.summary,
             "expense": round(me.totals.expense, 2),
@@ -51,7 +62,7 @@ def build_payload(
     months = month_end.build(ds, ins) if months is None else months
     account_ids = sorted(ds.accounts, key=lambda a: (ds.accounts[a].bank, ds.accounts[a].type, a))
     account_index = {a: i for i, a in enumerate(account_ids)}
-    kinds = list(KINDS)
+    kinds = KINDS
     groups = ds.groups
     group_index = {g: i for i, g in enumerate(groups)}
     categories = list(ds.categories)
@@ -84,7 +95,7 @@ def build_payload(
                 "i": t.installment,
                 "o": t.original,
                 "s": src(t.source),
-                "n": NECESSITY.index(t.necessity) if t.necessity in NECESSITY else -1,
+                "n": _level(t.necessity),
                 # r: regular payment it belongs to; x: merchant listed as ended (`_biten`);
                 # p: from a receipt no statement shows yet (provisional)
                 "r": series_of.get(id(t)),
@@ -112,8 +123,8 @@ def build_payload(
                 for status in (PROVISIONAL, CONFIRMED, NOT_ON_STATEMENT)
             },
         },
-        "kinds": [{"id": k, "label": KINDS[k], "on": k in DEFAULT_EXPENSE_KINDS} for k in kinds],
-        "levels": [{"name": n, "slot": NECESSITY_SLOTS[n]} for n in NECESSITY],
+        "kinds": [{"id": mvp_codes.KIND[k], "label": KIND[k], "on": k in DEFAULT_EXPENSE_KINDS} for k in kinds],
+        "levels": [{"name": NECESSITY[n], "slot": NECESSITY_SLOTS[n]} for n in LEVELS],
         "groups": [{"name": g, "slot": group_slot(groups, g)} for g in groups],
         "categories": [
             {"name": c, "group": group_index.get(ds.categories.get(c, ""), len(groups) - 1)} for c in categories
@@ -123,8 +134,8 @@ def build_payload(
                 "id": a,
                 "label": ds.accounts[a].label,
                 "bank": ds.accounts[a].bank,
-                "type": ds.accounts[a].type,
-                "currency": ds.accounts[a].currency,
+                "type": ACCOUNT_TYPE[ds.accounts[a].type],
+                "currency": currency_label(ds.accounts[a].currency),
                 "note": ds.accounts[a].note,
                 "statements": a in with_statements,
             }
@@ -136,7 +147,7 @@ def build_payload(
             {
                 "a": account_index[s.account],
                 "cut": s.cut_date.isoformat(),
-                "cur": s.currency,
+                "cur": currency_label(s.currency),
                 "start": s.start.isoformat() if s.start else None,
                 "n": len(s.transactions),
                 "total": s.total,
@@ -157,8 +168,8 @@ def build_payload(
     }
 
 
-def _level(name: str) -> int:
-    return NECESSITY.index(name) if name in NECESSITY else -1
+def _level(level: Necessity | None) -> int:
+    return LEVELS.index(level) if level in LEVELS else -1
 
 
 def _insights_payload(ds: Dataset, ins: Insights, account_index: dict, category_index: dict) -> dict:
@@ -171,13 +182,13 @@ def _insights_payload(ds: Dataset, ins: Insights, account_index: dict, category_
         shown = s.running or s.status == "iptal" and month_of(s.last.date) >= tl_.window[0]
         if s.status == "bitti":
             shown = month_of(s.last.date) >= tl_.window[0] and (
-                s.last.category in ds.regular or s.last.kind != "harcama"
+                s.last.category in ds.regular or s.last.kind != TransactionKind.PURCHASE
             )
         return {
             "m": s.merchant,
             "c": category_index[s.last.category],
             "lv": _level(s.last.necessity),
-            "k": s.last.kind,
+            "k": mvp_codes.KIND[s.last.kind],
             "a": sorted({account_index[t.account] for t in s.payments}),
             "v": round(s.monthly, 2),
             "lastv": round(abs(s.last.amount), 2),
@@ -251,7 +262,7 @@ def _insights_payload(ds: Dataset, ins: Insights, account_index: dict, category_
             {
                 "label": h.label,
                 "kind": h.kind,
-                "cur": h.currency,
+                "cur": currency_label(h.currency),
                 "amount": h.amount,
                 "value": h.value,
                 "asOf": h.as_of.isoformat(),
@@ -260,7 +271,9 @@ def _insights_payload(ds: Dataset, ins: Insights, account_index: dict, category_
             }
             for h in ins.holdings
         ],
-        "findings": [{"tone": f.tone, "title": f.title, "text": f.text, "filter": f.filter} for f in ins.findings],
+        "findings": [
+            {"tone": f.tone, "title": f.title, "text": f.text, "filter": _script_filter(f.filter)} for f in ins.findings
+        ],
         "steps": [{"title": st.title, "text": st.text, "monthly": st.monthly} for st in ins.steps],
         "budget": [{"label": b.label, "now": b.now, "plan": b.plan, "note": b.note} for b in ins.budget],
     }
@@ -336,10 +349,10 @@ def _rows(ds: Dataset):
             t.date.strftime("%Y-%m"),
             a.bank,
             a.label,
-            KINDS[t.kind],
+            KIND[t.kind],
             t.group,
             t.category,
-            t.necessity,
+            NECESSITY[t.necessity] if t.necessity else "",
             t.merchant,
             t.description,
             t.amount,
@@ -420,11 +433,11 @@ def write_xlsx(
         ws.append([month, *values, round(sum(values), 2)])
     _money(ws)
 
-    by_level = _monthly(ds, lambda t: (t.necessity or "Belirsiz") if expense(t) else None)
+    by_level = _monthly(ds, lambda t: (t.necessity or Necessity.UNKNOWN) if expense(t) else None)
     ws = wb.create_sheet("Gereklilik")
-    _sheet_header(ws, ["Ay", *NECESSITY, "Toplam"], [10] + [16] * (len(NECESSITY) + 1))
+    _sheet_header(ws, ["Ay", *(NECESSITY[n] for n in LEVELS), "Toplam"], [10] + [16] * (len(LEVELS) + 1))
     for month in sorted(by_level):
-        values = [round(by_level[month].get(n, 0.0), 2) for n in NECESSITY]
+        values = [round(by_level[month].get(n, 0.0), 2) for n in LEVELS]
         ws.append([month, *values, round(sum(values), 2)])
     _money(ws)
 
@@ -437,7 +450,7 @@ def write_xlsx(
     )
     for month in sorted(flows):
         f = flows[month]
-        income = -f.get("gelir", 0.0)
+        income = -f.get(TransactionKind.INCOME, 0.0)
         spent = sum(f.get(k, 0.0) for k in DEFAULT_EXPENSE_KINDS)
         ws.append(
             [
@@ -445,9 +458,9 @@ def write_xlsx(
                 round(income, 2),
                 round(spent, 2),
                 round(income - spent, 2),
-                round(f.get("kisiye_transfer", 0.0), 2),
-                round(f.get("kredi_anapara", 0.0), 2),
-                round(f.get("yatirim", 0.0), 2),
+                round(f.get(TransactionKind.P2P_TRANSFER, 0.0), 2),
+                round(f.get(TransactionKind.LOAN_PRINCIPAL, 0.0), 2),
+                round(f.get(TransactionKind.INVESTMENT, 0.0), 2),
             ]
         )
     _money(ws)
@@ -482,7 +495,7 @@ def write_xlsx(
                 ds.accounts[s.account].label,
                 s.start,
                 s.cut_date,
-                s.currency,
+                currency_label(s.currency),
                 len(s.transactions),
                 s.previous,
                 s.total,
@@ -577,7 +590,7 @@ def _month_end_sheets(wb: Workbook, months: list[month_end.MonthEnd]) -> None:
                     docs,
                     receipts,
                     a.balance,
-                    a.account.currency,
+                    currency_label(a.account.currency),
                     a.note,
                 ]
             )
@@ -628,7 +641,7 @@ def _insight_sheets(wb: Workbook, ds: Dataset, ins: Insights) -> None:
             [
                 sr.merchant,
                 sr.last.category,
-                sr.last.necessity,
+                NECESSITY[sr.last.necessity] if sr.last.necessity else "",
                 STATUS[sr.status],
                 round(sr.monthly, 2),
                 sr.last.date,
@@ -663,7 +676,7 @@ def _insight_sheets(wb: Workbook, ds: Dataset, ins: Insights) -> None:
             [
                 h.name,
                 h.category,
-                h.necessity,
+                NECESSITY[h.necessity] if h.necessity else "",
                 HABIT_STATUS[h.status],
                 h.pattern,
                 round(h.recent, 2),

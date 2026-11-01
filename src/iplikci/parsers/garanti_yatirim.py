@@ -15,11 +15,12 @@ import calendar
 import re
 from datetime import date
 
-from ..domain.models import INVESTMENT_TYPE, Account, ParseResult, Security, Statement, Transaction
+from ..domain.codes import AccountType, TransactionKind
+from ..domain.models import TRY, Account, ParseResult, Security, Statement, Transaction
 from ..pdfutil import Line, page_lines
 from ..textutil import fold, parse_dmy, parse_us_amount, squash
 from .common import BUSINESS_REASON, Skipped, is_business
-from .hesap import CANDIDATE, Movement, check_balances, month_end_balances
+from .hesap import Movement, check_balances, month_end_balances
 
 NAME = "Garanti BBVA Yatırım"
 _HOLDER_X = 300  # the customer's name and address are printed right of this
@@ -36,7 +37,7 @@ def _account(number: str) -> Account:
         id=f"garanti-yatirim-{number}",
         label=f"Garanti BBVA Yatırım {number}",
         bank="Garanti BBVA",
-        type=INVESTMENT_TYPE,
+        type=AccountType.BROKERAGE,
         number=number,
     )
 
@@ -119,21 +120,24 @@ def _cash_moves(lines: list[Line]) -> list[Movement]:
     return moves
 
 
-def _kind(m: Movement) -> tuple[str, str]:
+def _kind(m: Movement) -> tuple[TransactionKind, str]:
     """(kind, description) of a cash move; the bank side of a move is left to analysis.py."""
     f = fold(m.description)
     dividend = re.match(r"(\w+)\.E TEMETTU (\d+) ADET", f)
     trade = re.search(r"HS ([\d.]+)X([\d.]+) (\w+)", f)
     if dividend and m.amount > 0:
-        return "gelir", f"{dividend[1]} temettüsü ({dividend[2]} adet)"
+        return TransactionKind.INCOME, f"{dividend[1]} temettüsü ({dividend[2]} adet)"
     if trade:
         side = "satışı" if m.amount > 0 else "alışı"
-        return "yatirim", f"Hisse {side}: {trade[3]} {_count(float(trade[2]))} adet × {_price(float(trade[1]))} TL"
+        return (
+            TransactionKind.INVESTMENT,
+            f"Hisse {side}: {trade[3]} {_count(float(trade[2]))} adet × {_price(float(trade[1]))} TL",
+        )
     if "KOMISYON" in f:
-        return "faiz_ucret", "Hisse işlem komisyonu"
+        return TransactionKind.INTEREST_FEE, "Hisse işlem komisyonu"
     if "MKK" in f and m.amount < 0 or any(p in f for p in ("UCRET", "STOPAJ", "VERGI")):
-        return "faiz_ucret", m.description  # MKK fees, a dividend's withholding tax
-    return CANDIDATE, m.description
+        return TransactionKind.INTEREST_FEE, m.description  # MKK fees, a dividend's withholding tax
+    return TransactionKind.TRANSFER_CANDIDATE, m.description
 
 
 def _statement(doc, pdf, first: list[Line]) -> ParseResult:
@@ -191,7 +195,7 @@ def _statement(doc, pdf, first: list[Line]) -> ParseResult:
     stmt = Statement(
         account=account.id,
         cut_date=end,
-        currency="TL",
+        currency=TRY,
         source=doc.name,
         previous=opening,
         total=cash,
@@ -213,7 +217,8 @@ def _statement(doc, pdf, first: list[Line]) -> ParseResult:
                 source=doc.name,
                 # Proceeds, dividends and fee money moved to or from the user's bank account: their own transfer.
                 counterparty=holder
-                if kind == CANDIDATE and any(p in fold(m.description) for p in ("NOLU HESABIN BANKA", "TEMETTU"))
+                if kind == TransactionKind.TRANSFER_CANDIDATE
+                and any(p in fold(m.description) for p in ("NOLU HESABIN BANKA", "TEMETTU"))
                 else "",
             )
         )
@@ -258,7 +263,7 @@ def _form(doc, lines: list[Line]) -> ParseResult:
             Transaction(
                 date=parse_dmy(words[0]),
                 amount=-amount if sale else amount,
-                kind="yatirim",
+                kind=TransactionKind.INVESTMENT,
                 account=account.id,
                 description=f"Hisse {'satışı' if sale else 'alışı'}: {words[1]} {_count(quantity or 0)} adet × "
                 f"{_price(price or 0)} TL",
@@ -272,7 +277,7 @@ def _form(doc, lines: list[Line]) -> ParseResult:
                 date=when,
                 description="Hisse senedi komisyon ve MKK ücretleri",
                 amount=round(fees, 2),
-                kind="faiz_ucret",
+                kind=TransactionKind.INTEREST_FEE,
                 account=account.id,
                 source=doc.name,
             )

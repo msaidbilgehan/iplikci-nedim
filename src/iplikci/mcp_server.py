@@ -30,8 +30,7 @@ from .app.analysis import Current, document_gaps, summary
 from .app.uploads import inbox_files
 from .app.workspace import Busy, StalePlan, Workspace
 from .categorize import Categorizer
-from .domain.codes import Actor
-from .domain.models import KINDS, NECESSITY
+from .domain.codes import Actor, Necessity, TransactionKind
 from .insights import HABIT_STATUS, STATUS, receipt_amount
 from .textutil import fold
 
@@ -41,9 +40,11 @@ INSTRUCTIONS = """\
 İplikçi Nedim: kullanıcının kişisel banka belgelerinden (kart ekstreleri, hesap hareketleri, dekontlar) gider,
 gelir, gereklilik ve tahmin raporu üreten, bu bilgisayarda çalışan program.
 
-- Tutar işareti: amount > 0 para çıkışı, amount < 0 para girişi (gelir, iade). Gider sayılan türler yalnızca
-  harcama, iade ve faiz_ucret; kisiye_transfer, kredi_anapara, nakit_avans, yatirim, gelir, ekstresiz_kart,
-  kart_odemesi ve transfer ayrı tutulur, gidere eklemek çift sayım olur.
+- Tutar işareti: amount > 0 para çıkışı, amount < 0 para girişi (gelir, iade). Gider sayılan türler (kind)
+  yalnızca purchase (harcama), refund (iade) ve interest_fee (faiz ve banka ücreti); p2p_transfer (kişilere
+  giden), loan_principal (kredi anaparası), cash_advance (nakit avans), investment (birikim ve yatırım), income
+  (gelir), card_payment_no_statement, card_payment (kart borcu ödemesi) ve own_transfer (kendi hesapları arası)
+  ayrı tutulur, gidere eklemek çift sayım olur. Gereklilik (necessity): required, optional, unnecessary, unknown.
 - Ortalamalar ve eğilimler yalnızca tam aylardan (status → completeMonths): kart ekstreleri kesim tarihinde
   bittiği için son ay eksiktir. Düzensiz harcamaları yıllığa çevirmeyin ya da 12 ile çarpmayın.
 - Bankanın e-postayla gönderdiği dekontlar, hesabın ekstresi ya da dökümü gelmeden işlenir: bu satırlar
@@ -346,7 +347,7 @@ def _transactions(s: Server, args: dict) -> dict:
     ds = a.dataset
     lo, hi = _bound(args.get("from"), False), _bound(args.get("to"), True)
     text = fold(args.get("text", ""))
-    kinds = set(args.get("kinds") or KINDS)
+    kinds = set(args.get("kinds") or _KINDS)
     picked = []
     for t in ds.transactions:
         if lo and t.date < lo or hi and t.date > hi or t.kind not in kinds:
@@ -359,7 +360,7 @@ def _transactions(s: Server, args: dict) -> dict:
             continue
         if "account" in args and fold(args["account"]) not in fold(ds.accounts[t.account].label):
             continue
-        if "necessity" in args and (t.necessity or "Belirsiz") != args["necessity"]:
+        if "necessity" in args and (t.necessity or Necessity.UNKNOWN) != args["necessity"]:
             continue
         if "min_amount" in args and t.amount < args["min_amount"]:
             continue
@@ -380,7 +381,7 @@ def _transactions(s: Server, args: dict) -> dict:
             "group": lambda t: t.group,
             "merchant": lambda t: t.merchant,
             "kind": lambda t: t.kind,
-            "necessity": lambda t: t.necessity or "Belirsiz",
+            "necessity": lambda t: t.necessity or Necessity.UNKNOWN,
             "account": lambda t: ds.accounts[t.account].label,
         }
         totals: dict[str, list] = defaultdict(lambda: [0.0, 0])
@@ -548,7 +549,7 @@ def _month_end(s: Server, args: dict) -> dict:
                 }
                 for me in reversed(months)
             ],
-            "note": "status: kapandi (bütün belgeler geldi ve tutarlı), bekleniyor, eksik, kontrol, suruyor (bu ay). "
+            "note": "status: closed (bütün belgeler geldi ve tutarlı), waiting, missing, check, running (bu ay). "
             "Ayrıntı için month ile çağırın.",
         }
     me = next((m for m in months if m.month == args["month"]), None)
@@ -720,6 +721,8 @@ def _schema(required: tuple[str, ...] = (), **properties) -> dict:
 _TEXT = {"type": "string"}
 _MONTH_OR_DAY = {"type": "string", "pattern": r"\d{4}-\d{2}(-\d{2})?", "description": "YYYY-AA ya da YYYY-AA-GG"}
 _GROUP_BY = ["month", "category", "group", "merchant", "kind", "account", "necessity"]
+# The kinds a ledger row can have: transfer candidates are resolved before.
+_KINDS = [k.value for k in TransactionKind if k is not TransactionKind.TRANSFER_CANDIDATE]
 _SORT = ["date_desc", "date_asc", "amount_desc", "amount_asc"]
 
 TOOLS = (
@@ -803,7 +806,7 @@ TOOLS = (
         "transactions",
         "İşlemler",
         "İşlemleri süzer, sıralar ya da gruplar (group_by ile aylık, kategori, işyeri… toplamları). amount > 0 para "
-        "çıkışı, < 0 para girişi. Gider toplamı için kinds = [harcama, iade, faiz_ucret] verin; varsayılan bütün "
+        "çıkışı, < 0 para girişi. Gider toplamı için kinds = [purchase, refund, interest_fee] verin; varsayılan bütün "
         "türlerdir.",
         _schema(
             **{
@@ -816,9 +819,9 @@ TOOLS = (
                 },
                 "category": _TEXT,
                 "group": {"type": "string", "description": "ana grup"},
-                "kinds": {"type": "array", "items": {"type": "string", "enum": list(KINDS)}},
+                "kinds": {"type": "array", "items": {"type": "string", "enum": _KINDS}},
                 "account": {"type": "string", "description": "hesap adında geçen metin"},
-                "necessity": {"type": "string", "enum": list(NECESSITY)},
+                "necessity": {"type": "string", "enum": [n.value for n in Necessity]},
                 "min_amount": {"type": "number"},
                 "max_amount": {"type": "number"},
                 "group_by": {"type": "string", "enum": _GROUP_BY},
@@ -855,9 +858,9 @@ TOOLS = (
     Tool(
         "month_end",
         "Ay sonu ve kapanış",
-        "Ay sonu raporu ve ekstre ile kapanış. month verilmezse son aylar: her ayın durumu (kapandi: bütün "
-        "hesapların ekstresi/dökümü ayın tamamını kapsıyor, tutarlı ve dekontlar eşleşti; bekleniyor; eksik; "
-        "kontrol; suruyor), gider, gelir, kalan. month ile o ayın ayrıntısı: hesap hesap hangi ekstre ya da döküm "
+        "Ay sonu raporu ve ekstre ile kapanış. month verilmezse son aylar: her ayın durumu (closed: bütün "
+        "hesapların ekstresi/dökümü ayın tamamını kapsıyor, tutarlı ve dekontlar eşleşti; waiting: ekstre "
+        "bekleniyor; missing: belge eksik; check: kontrol gerekli; running: ay sürüyor), gider, gelir, kalan. month ile o ayın ayrıntısı: hesap hesap hangi ekstre ya da döküm "
         "bekleniyor (sonraki kesim tarihi), ay sonu bakiyeleri, gider dağılımı, düzenli ödemeler, ekstresi gelmeden "
         "dekontlardan işlenen geçici kayıtlar ve ekstrede görünmeyen dekontlar.",
         _schema(month={"type": "string", "pattern": r"\d{4}-\d{2}", "description": "YYYY-AA"}),

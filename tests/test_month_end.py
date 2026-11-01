@@ -8,6 +8,7 @@ from iplikci import cli, month_end
 from iplikci.analysis import build
 from iplikci.categorize import Categorizer
 from iplikci.demo import teb_export
+from iplikci.domain.codes import AccountType, TransactionKind
 from iplikci.domain.models import Account, ParseResult, Security, Statement, Transaction
 from iplikci.insights import interpret
 from iplikci.sources import Document
@@ -15,10 +16,10 @@ from iplikci.sources import Document
 from conftest import JANUARY, RULES, add
 
 HOLDER = "ÖRNEK KULLANICI"
-CHECKING = Account("teb-123456789", "TEB Vadesiz TL 123456789", "TEB", "Vadesiz hesap", number="123456789")
-CARD = Account("teb-4321", "TEB Bonus •4321", "TEB", "Kredi kartı", number="4321")
+CHECKING = Account("teb-123456789", "TEB Vadesiz TL 123456789", "TEB", AccountType.CURRENT, number="123456789")
+CARD = Account("teb-4321", "TEB Bonus •4321", "TEB", AccountType.CREDIT_CARD, number="4321")
 STOCKS = Account(
-    "garanti-yatirim-1-101", "Garanti BBVA Yatırım 1-101", "Garanti BBVA", "Yatırım hesabı", number="1-101"
+    "garanti-yatirim-1-101", "Garanti BBVA Yatırım 1-101", "Garanti BBVA", AccountType.BROKERAGE, number="1-101"
 )
 
 
@@ -29,7 +30,9 @@ def cat(tmp_path_factory):
     return Categorizer(rules)
 
 
-def spend(d: date, desc: str, amount: float, account: Account = CARD, kind: str = "harcama") -> Transaction:
+def spend(
+    d: date, desc: str, amount: float, account: Account = CARD, kind: TransactionKind = TransactionKind.PURCHASE
+) -> Transaction:
     return Transaction(d, desc, amount, kind, account.id, source="belge")
 
 
@@ -40,7 +43,7 @@ def listing(
     s = Statement(
         CHECKING.id,
         end,
-        "TL",
+        "TRY",
         f"liste-{end}.xls",
         opening,
         closing,
@@ -55,7 +58,7 @@ def listing(
 
 def card(cut: date, *rows: Transaction, previous: float = 0.0) -> ParseResult:
     s = Statement(
-        CARD.id, cut, "TL", f"ekstre-{cut}.pdf", previous, round(previous + sum(r.amount for r in rows), 2), list(rows)
+        CARD.id, cut, "TRY", f"ekstre-{cut}.pdf", previous, round(previous + sum(r.amount for r in rows), 2), list(rows)
     )
     return ParseResult("ekstre", accounts=[CARD], statements=[s])
 
@@ -64,7 +67,7 @@ def brokerage(month_start: date, month_last: date) -> ParseResult:
     s = Statement(
         STOCKS.id,
         month_last,
-        "TL",
+        "TRY",
         "hisse.pdf",
         100.0,
         100.0,
@@ -186,7 +189,7 @@ def test_income_is_unknown_in_a_month_only_card_statements_cover(cat):
 
 
 def test_the_current_month_knows_its_income_from_a_list_of_its_days_so_far(cat):
-    pay = Transaction(date(2026, 11, 3), "MAAS ODEMESI", -1000.0, "gelir", CHECKING.id, source="belge")
+    pay = Transaction(date(2026, 11, 3), "MAAS ODEMESI", -1000.0, TransactionKind.INCOME, CHECKING.id, source="belge")
     me = month(cat, date(2026, 11, 12), "2026-11", listing(date(2026, 11, 1), date(2026, 11, 12), pay))
     assert (me.status, me.totals.income, me.income_note) == (month_end.RUNNING, 1000.0, month_end.INCOME_NOTE)
 

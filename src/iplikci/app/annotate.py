@@ -42,7 +42,7 @@ def _put(t: Transaction, annotation: Annotation, categorizer: Categorizer) -> No
         t.group = categorizer.categories.get(annotation.category, OTHER_GROUP)
         t.necessity = categorizer.necessity_for(t)
     if annotation.necessity:
-        t.necessity = NECESSITY[annotation.necessity]
+        t.necessity = annotation.necessity
 
 
 def subject(t: Transaction, label: str) -> Subject:

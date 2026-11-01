@@ -11,10 +11,12 @@ import re
 from dataclasses import dataclass
 from datetime import date
 
-from ..domain.models import Account, Statement, Transaction
+from ..domain.codes import TransactionKind
+from ..domain.models import TRY, Account, Statement, Transaction
 from ..textutil import fold, format_tr_amount
 
-CANDIDATE = "aday"
+# A cancelled transfer: it and its reversal turn out to be own transfers once the rows are all read.
+CANCELLED = "iptal"
 
 # Five-digit bank codes inside a Turkish IBAN (TRkk BBBBB ...).
 BANK_CODES = {
@@ -93,33 +95,33 @@ _FX = ("DOVIZ AL", "DOVIZ SAT", "DVZ AL", "ALTIN")
 _BILL_LABELS = ("FATURA", "TELEKOMUNIKASYON", "KURUM ODEMESI")
 
 
-def classify(m: Movement, currency: str) -> str | None:
+def classify(m: Movement, currency: str) -> TransactionKind | str | None:
     """Preliminary kind of a movement, or None when the row should be dropped."""
     f = fold(f"{m.description} {m.label}")
     if not m.amount:
         return None  # failed or informational rows ("BAKIYE YETERSIZ")
     fx_row = any(p in f for p in _FX)
-    if currency != "TL" and fx_row:
+    if currency != TRY and fx_row:
         return None  # the TL side of the same conversion carries it
     if any(p in f for p in _FEES):
-        return "faiz_ucret"
+        return TransactionKind.INTEREST_FEE
     if "MAAS ODEMESI" in f or "MAASODEMESI" in f:
-        return "gelir"
+        return TransactionKind.INCOME
     if any(p in f for p in _CARD_PAYMENT):
-        return "kart_odemesi"
+        return TransactionKind.CARD_PAYMENT
     if fx_row:
-        return "transfer"  # buying or selling currency/gold between own accounts
+        return TransactionKind.OWN_TRANSFER  # buying or selling currency/gold between own accounts
     if "NAKIT AVANS" in f and m.amount > 0:
-        return "transfer"  # cash advance landing in the account; the card statement has the debt
+        return TransactionKind.OWN_TRANSFER  # cash advance landing in the account; the card statement has the debt
     if "IPTAL" in f:
-        return "iptal"
+        return CANCELLED
     if any(p in fold(m.label) for p in _BILL_LABELS) or " FATURA NO" in f:
-        return "harcama"
+        return TransactionKind.PURCHASE
     if fold(m.label) == "ALISVERIS" or re.search(r"\bSATIS-\d", f):
-        return "harcama"
+        return TransactionKind.PURCHASE
     if f.startswith("IADE") and m.amount > 0:
-        return "iade"
-    return CANDIDATE
+        return TransactionKind.REFUND
+    return TransactionKind.TRANSFER_CANDIDATE
 
 
 def month_end_balances(movements: list[Movement], oldest_first: bool) -> dict[str, float]:
@@ -157,40 +159,39 @@ def build_statement(
         checks_total=total,
         balances=month_end_balances(movements, oldest_first),
     )
+    cancelled: list[Transaction] = []
     for m in movements:
         kind = classify(m, account.currency)
         if kind is None:
             continue
-        stmt.transactions.append(
-            Transaction(
-                date=m.date,
-                description=m.description.strip(),
-                amount=round(-m.amount, 2),
-                kind=kind,
-                account=account.id,
-                counterparty=m.counterparty.strip(),
-                source=doc.name,
-                original=f"{format_tr_amount(abs(m.amount))} {account.currency}" if account.currency != "TL" else "",
-            )
+        t = Transaction(
+            date=m.date,
+            description=m.description.strip(),
+            amount=round(-m.amount, 2),
+            kind=TransactionKind.OWN_TRANSFER if kind == CANCELLED else TransactionKind(kind),
+            account=account.id,
+            counterparty=m.counterparty.strip(),
+            source=doc.name,
+            original=f"{format_tr_amount(abs(m.amount))} {account.currency}" if account.currency != TRY else "",
         )
-    _pair_cancellations(stmt.transactions)
+        stmt.transactions.append(t)
+        if kind == CANCELLED:
+            cancelled.append(t)
+    _pair_cancellations(stmt.transactions, cancelled)
     return stmt
 
 
-def _pair_cancellations(txns: list[Transaction]) -> None:
-    """A cancelled transfer and its reversal cancel out; both become plain transfers."""
-    for t in txns:
-        if t.kind != "iptal":
-            continue
-        t.kind = "transfer"
+def _pair_cancellations(txns: list[Transaction], cancelled: list[Transaction]) -> None:
+    """A cancelled transfer and its reversal cancel out; both are own transfers."""
+    for t in cancelled:
         for other in txns:
             if (
                 other is not t
                 and other.date == t.date
-                and other.kind == CANDIDATE
+                and other.kind == TransactionKind.TRANSFER_CANDIDATE
                 and abs(other.amount + t.amount) < 0.01
             ):
-                other.kind = "transfer"
+                other.kind = TransactionKind.OWN_TRANSFER
                 break
 
 

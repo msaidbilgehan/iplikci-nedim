@@ -9,6 +9,8 @@ can be laid out for browsing.
 import re
 from pathlib import PurePosixPath
 
+from ..domain.codes import AccountType
+from ..domain.labels import currency_label
 from ..domain.models import Account, ParseResult
 
 _BANK_SHORT = {"Garanti BBVA": "Garanti"}
@@ -24,16 +26,17 @@ def account_names(a: Account) -> tuple[str, str]:
     number = (a.label.split()[-1] if a.label.split()[-1].startswith("…") else a.number).lstrip("…")
     nickname = a.label[a.label.index("(") :] if a.label.endswith(")") and "(" in a.label else ""
     product = a.label.replace(a.bank, "", 1).split("•")[0].strip()
+    cur = currency_label(a.currency)
     folders = {
-        "Kredi kartı": (f"{product} Kredi Kartı {number}", f"{product} {number}"),
-        "Banka kartı": (f"{product} Banka Kartı {number}", f"{product} {number}"),
-        "Vadesiz hesap": (f"Vadesiz Hesap {a.currency} {number}", f"Vadesiz {a.currency} {number}"),
-        "Vadeli hesap": (f"Vadeli Hesap {a.currency} {number}", f"Vadeli {a.currency} {number}"),
-        "Yatırım hesabı": (f"Yatırım Hesabı {number}", f"Yatırım {number}"),
-        "Döviz hesabı": (f"Döviz Hesabı {a.currency} {number}", f"Döviz {a.currency} {number}"),
-        "Ek hesap (KMH)": (f"Ek Hesap (KMH) {number}", f"Ek Hesap {number}"),
-        "Altın hesabı": (f"Altın Hesabı {number}", f"Altın {number}"),
-        "Kredi": (f"İhtiyaç Kredisi {number}", f"Kredi {number}"),
+        AccountType.CREDIT_CARD: (f"{product} Kredi Kartı {number}", f"{product} {number}"),
+        AccountType.DEBIT_CARD: (f"{product} Banka Kartı {number}", f"{product} {number}"),
+        AccountType.CURRENT: (f"Vadesiz Hesap {cur} {number}", f"Vadesiz {cur} {number}"),
+        AccountType.DEPOSIT: (f"Vadeli Hesap {cur} {number}", f"Vadeli {cur} {number}"),
+        AccountType.BROKERAGE: (f"Yatırım Hesabı {number}", f"Yatırım {number}"),
+        AccountType.FX: (f"Döviz Hesabı {cur} {number}", f"Döviz {cur} {number}"),
+        AccountType.OVERDRAFT: (f"Ek Hesap (KMH) {number}", f"Ek Hesap {number}"),
+        AccountType.GOLD: (f"Altın Hesabı {number}", f"Altın {number}"),
+        AccountType.LOAN: (f"İhtiyaç Kredisi {number}", f"Kredi {number}"),
     }
     folder, short = folders.get(a.type, (a.label, a.label))
     if nickname:

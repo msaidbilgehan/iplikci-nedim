@@ -2,24 +2,27 @@
 
 import re
 
-from ..domain.models import Account, ParseResult
+from ..domain.codes import AccountType
+from ..domain.models import TRY, Account, ParseResult
 from ..tables import cells, decode_html, html_rows, key_values, read_xls, read_xlsx, sniff, to_date, to_number
 from ..textutil import fold, parse_dmy, title_tr
-from .common import BUSINESS_REASON, Skipped, is_business
+from .common import BUSINESS_REASON, Skipped, currency_code, is_business
 from .hesap import Movement, bank_from_iban, build_statement, receiver_after_bank, sender_after_bank
 
 NAME = "Hesap hareketleri"
 
 
-def bank_account(bank: str, number: str, currency: str, kind: str = "") -> Account:
-    """The account as every document of that bank names it: lists, receipts and passbooks share its id."""
+def bank_account(bank: str, number: str, currency: str, kind: AccountType | None = None) -> Account:
+    """The account as every document of that bank names it: lists, receipts and passbooks share its id. currency is
+    as the document prints it ("TL", "USD", "GR")."""
+    currency = currency_code(currency)
     if currency == "GR":
-        type_, word = "Altın hesabı", "Altın"
-    elif currency != "TL":
-        type_, word = "Döviz hesabı", f"Vadesiz {currency}"
+        type_, word = AccountType.GOLD, "Altın"
+    elif currency != TRY:
+        type_, word = AccountType.FX, f"Vadesiz {currency}"
     else:
-        type_ = kind or "Vadesiz hesap"
-        word = {"Ek hesap (KMH)": "Ek Hesap", "Vadeli hesap": "Vadeli TL"}.get(type_, "Vadesiz TL")
+        type_ = kind or AccountType.CURRENT
+        word = {AccountType.OVERDRAFT: "Ek Hesap", AccountType.DEPOSIT: "Vadeli TL"}.get(type_, "Vadesiz TL")
     slug = {"Garanti BBVA": "garanti", "İş Bankası": "isbank", "TEB": "teb", "Vakıfbank": "vakifbank", "QNB": "qnb"}[
         bank
     ]
@@ -162,7 +165,7 @@ def _teb(doc, rows, info: dict, html: str) -> ParseResult:
         raise Skipped("TEB hesap bilgisi yok")
     # A TL account that runs below zero is the overdraft (KMH) account.
     overdraft = currency == "TL" and any((m.balance or 0) < -1 for m in moves)
-    account = bank_account("TEB", number, currency, "Ek hesap (KMH)" if overdraft else "")
+    account = bank_account("TEB", number, currency, AccountType.OVERDRAFT if overdraft else None)
     period = re.search(r"\d{2}/\d{2}/\d{4}\s*-\s*\d{2}/\d{2}/\d{4}(?=\s*tarihleri)", html)
     start, end = _period(period[0] if period else "")
     stmt = build_statement(doc, account, moves, start, end, oldest_first=False)

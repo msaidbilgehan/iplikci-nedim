@@ -2,10 +2,11 @@
 
 import re
 
-from ..domain.models import Account, ParseResult, Statement, Transaction
+from ..domain.codes import AccountType, TransactionKind
+from ..domain.models import TRY, Account, ParseResult, Statement, Transaction
 from ..pdfutil import Line, find_header, find_word, page_lines, page_text, take_amount
 from ..textutil import fold, parse_dmy, parse_tr_amount, squash
-from .common import Skipped, classify_kind, installment_label, split_interest
+from .common import Skipped, classify_kind, currency_code, installment_label, split_interest
 
 NAME = "İş Bankası kredi kartı"
 _DATE_PREFIX = re.compile(r"^(\d{2}/\d{2}/\d{4})(.*)$")
@@ -21,7 +22,7 @@ def _account(card_last4: str) -> Account:
         id=f"isbank-{card_last4}",
         label=f"İş Bankası Maximum •{card_last4}",
         bank="İş Bankası",
-        type="Kredi kartı",
+        type=AccountType.CREDIT_CARD,
         number=card_last4,
     )
 
@@ -60,7 +61,7 @@ def parse(doc, pdf) -> ParseResult:
         raise ValueError("kart numarası / hesap kesim tarihi bulunamadı")
     last4 = card[2]
     account = _account(last4)
-    currency = total_m[2] if total_m and total_m[2] else "TL"
+    currency = currency_code(total_m[2]) if total_m and total_m[2] else TRY
     total = None
     if total_m:
         # A leading '+' marks a credit balance in the bank's favour of the customer.
@@ -112,7 +113,7 @@ def parse(doc, pdf) -> ParseResult:
             date = parse_dmy(m[1])
             f = fold(desc)
             if "HESAP OZETINE AKTARILAN" in f or "HESAPOZETINEAKTARILAN" in f:
-                kind = "transfer"  # foreign-currency balance moved to the TL statement
+                kind = TransactionKind.OWN_TRANSFER  # foreign-currency balance moved to the TL statement
             else:
                 kind = classify_kind(desc, amount)
             last = Transaction(
@@ -127,7 +128,9 @@ def parse(doc, pdf) -> ParseResult:
             stmt.transactions.append(last)
 
     stmt.transactions = [
-        part for t in stmt.transactions for part in (split_interest(t) if t.kind == "nakit_avans" else [t])
+        part
+        for t in stmt.transactions
+        for part in (split_interest(t) if t.kind == TransactionKind.CASH_ADVANCE else [t])
     ]
     holder = re.search(r"SN\.\s*([A-ZÇĞİÖŞÜ ]+?)\s+Hesap Kesim", first)
     return ParseResult(parser=NAME, accounts=[account], statements=[stmt], holder=holder[1] if holder else "")

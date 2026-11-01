@@ -2,7 +2,8 @@
 
 import re
 
-from ..domain.models import Account, ParseResult, Statement, Transaction
+from ..domain.codes import AccountType, TransactionKind
+from ..domain.models import TRY, Account, ParseResult, Statement, Transaction
 from ..pdfutil import find_header, find_word, page_lines, page_text, take_amount
 from ..textutil import fold, parse_tr_amount, parse_tr_words_date, squash
 from .common import classify_kind, installment_label, pair_deferrals
@@ -44,7 +45,7 @@ def parse(doc, pdf) -> ParseResult:
             id=f"garanti-{last4}",
             label=f"Garanti Paracard •{last4}",
             bank="Garanti BBVA",
-            type="Banka kartı",
+            type=AccountType.DEBIT_CARD,
             number=last4,
         )
     else:
@@ -53,14 +54,14 @@ def parse(doc, pdf) -> ParseResult:
             id=f"garanti-{last4}",
             label=f"Garanti {product} •{last4}",
             bank="Garanti BBVA",
-            type="Kredi kartı",
+            type=AccountType.CREDIT_CARD,
             number=last4,
         )
     cut_date = parse_tr_words_date(cut[1], cut[2], cut[3])
     stmt = Statement(
         account=account.id,
         cut_date=cut_date,
-        currency="TL",
+        currency=TRY,
         source=doc.name,
         previous=None if paracard else 0.0,
         total=total,
@@ -112,8 +113,8 @@ def parse(doc, pdf) -> ParseResult:
             # "NAKİT ÇEKİM" on debit cards, "NAKİT AVANS BİLGİLERİ" on credit cards: ATM lines
             # print only the machine's location ("İBB ÖRNEK METROBÜS").
             in_cash_section = any(k in fold(section) for k in ("NAKIT CEKIM", "NAKIT AVANS"))
-            if in_cash_section and kind == "harcama":
-                kind = "nakit_avans"  # debit-card ATM withdrawal
+            if in_cash_section and kind == TransactionKind.PURCHASE:
+                kind = TransactionKind.CASH_ADVANCE  # debit-card ATM withdrawal
             stmt.transactions.append(
                 Transaction(
                     date=date,

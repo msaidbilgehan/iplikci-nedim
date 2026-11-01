@@ -66,7 +66,7 @@ def test_status_and_transactions(server):
     assert rows["count"] == 1 and rows["rows"][0]["amount"] == 120.0 and rows["rows"][0]["category"] == "Kafe & Kahve"
     assert len(rows["rows"][0]["fingerprint"]) == 20 and "note" not in rows["rows"][0]  # what a note would bind to
     by_kind, _ = call(server, "transactions", group_by="kind")
-    assert {g["key"]: g["total"] for g in by_kind["groups"]} == {"harcama": 120.0, "gelir": -1000.0}
+    assert {g["key"]: g["total"] for g in by_kind["groups"]} == {"purchase": 120.0, "income": -1000.0}
     january, _ = call(server, "transactions", **{"from": "2026-01", "to": "2026-01-10"})
     assert january["count"] == 1  # only the income on the 5th
 
@@ -158,7 +158,7 @@ def test_month_end_tells_what_closed_a_month(server):
     assert not failed and overview["months"] and "status" in overview["months"][0]
     january, _ = call(server, "month_end", month="2026-01")
     [account] = january["accounts"]
-    assert (january["status"], account["status"], account["coveredDays"]) == ("kapandi", "kapandi", 31)
+    assert (january["status"], account["status"], account["coveredDays"]) == ("closed", "closed", 31)
     assert (january["totals"]["expense"], january["totals"]["income"]) == (120.0, 1000.0)
     text, failed = call(server, "month_end", month="Ocak")
     assert failed and "'month' biçimi" in text

@@ -31,9 +31,8 @@ from .app import annotate, checks, intake, rebuild
 from .app.analysis import Analysis, analyze
 from .app.workspace import Busy, StalePlan, Workspace
 from .categorize import Categorizer
-from .domain.codes import Actor
+from .domain.codes import DEFAULT_EXPENSE_KINDS, Actor
 from .domain.labels import NECESSITY
-from .domain.models import DEFAULT_EXPENSE_KINDS
 from .domain.text import fold
 from .insights import Insights, receipt_amount, tl
 from .settings.config import DEFAULT_PORT, SettingsError
@@ -314,7 +313,7 @@ def transaction_command(argv: list[str]) -> int:
 
 
 def _row_line(t, label: str) -> str:
-    what = t.category + (f" · {t.necessity}" if t.necessity else "")
+    what = t.category + (f" · {NECESSITY[t.necessity]}" if t.necessity else "")
     line = f"{t.fingerprint[:10]}  {t.date:%d.%m.%Y}  {format_tr_amount(t.amount):>12} TL  {t.merchant[:30]:30}  {what}"
     extra = [f"not: {t.note}"] if t.note else []
     extra += [f"#{tag}" for tag in t.tags]
