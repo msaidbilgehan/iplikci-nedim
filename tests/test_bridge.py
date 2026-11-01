@@ -292,6 +292,24 @@ def test_a_held_copy_goes_when_its_whole_message_shows_a_companys_attachment(cli
         assert [d.status for d in documents.every(db)] == [DocumentStatus.REMOVED]
 
 
+def test_a_copy_kept_after_its_whole_message_was_refused_is_asked_for_again(client, ws, private_trash):
+    # two extensions deliver the same new message: the whole one is refused as a company's, then an older version's
+    # copy with the attachments left out passes
+    token = paired(client)["token"]
+    other = TestClient(client.app, base_url=BASE)
+    company = teb.account_export(teb.running_rows(list(teb.ACCOUNT_MOVES)), holder="ÖRNEK TEKNOLOJİ A.Ş.")
+    whole = bank_mail(company)
+    set_business_names(["Örnek Teknoloji"])
+    headers = bearer(token) | {"X-Gmail-Id": "5002"}
+    assert other.post("/api/ingest/mail", content=whole, headers=headers).json()["taken"] == "business"
+    assert other.post("/api/ingest/mail", content=left_out(whole), headers=headers).json()["taken"] == "stored"
+    asked = other.post("/api/ingest/mail/known", json={"ids": ["5002"]}, headers=bearer(token))
+    assert asked.json() == {"missing": ["5002"]}  # not hidden behind the refusal before it
+    assert other.post("/api/ingest/mail", content=whole, headers=headers).json()["taken"] == "business"
+    with ws.db() as db:
+        assert [d.status for d in documents.every(db)] == [DocumentStatus.REMOVED]
+
+
 def test_a_refused_message_is_asked_for_again_once_the_settings_it_was_refused_under_change(client, ws):
     token = paired(client)["token"]
     other = TestClient(client.app, base_url=BASE)

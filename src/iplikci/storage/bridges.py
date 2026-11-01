@@ -73,12 +73,14 @@ def revoke(db: Database, bridge_id: str) -> bool:
 
 def remember(db: Database, gmail_id: str, sha256: str, complete: bool) -> None:
     """A message the service holds, by Gmail's id: a scan of Gmail does not download it again, unless it came with
-    its attachments left out."""
+    its attachments left out. A refusal of it before is history: two extensions may deliver the same message, the
+    whole one refused and an older version's copy without attachments kept after it, which a scan must complete."""
     with db.transaction():
         db.execute(
             "INSERT OR REPLACE INTO bridge_messages (gmail_id, sha256, delivered_at, complete) VALUES (?, ?, ?, ?)",
             (gmail_id, sha256, now(), int(complete)),
         )
+        db.execute("DELETE FROM bridge_refused WHERE gmail_id = ?", (gmail_id,))
 
 
 @dataclass(frozen=True, slots=True)
