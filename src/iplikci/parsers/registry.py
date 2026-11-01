@@ -38,7 +38,7 @@ from .vakifbank.notice import transfer as vakifbank_notice_transfer
 GROUP = "iplikci.parsers"
 # Raise when choosing the reader itself changes (what the selector looks at, the checks before the readers): every
 # document is then read again.
-SELECTION = 1
+SELECTION = 2  # 2: a kept e-mail's greeting names a company
 BUILTIN: tuple[Parser, ...] = (
     garanti_bonus_card.PARSER,
     garanti_paracard.PARSER,

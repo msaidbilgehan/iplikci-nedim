@@ -100,6 +100,19 @@ def business_names_signature() -> str:
     return hashlib.sha256("\n".join(_BUSINESS_MARKS + ("",) + _business_names).encode()).hexdigest()[:16]
 
 
+# An SGK workplace number: 26 digits, given to whoever employs someone. Premiums paid under one are an employer's, part
+# of a payroll; the premiums a person pays for themselves go under their identity number. (A household that employs a
+# domestic worker has one too: such a message is set aside as well, and it moves no money of its own.)
+_WORKPLACE_NUMBER = re.compile(r"(?<![\d.,])\d{26}(?![\d.,])")
+_SGK = re.compile(r"\b(?:SGK|SSK)\b")
+
+
+def pays_as_employer(text: str) -> bool:
+    """Whether a message's body is about premiums paid as an employer: SGK named beside a workplace number. Only pass
+    a message's body no reader took here: a reader's row may name anything."""
+    return bool(_WORKPLACE_NUMBER.search(text)) and bool(_SGK.search(fold(text)))
+
+
 BUSINESS_REASON = "şirket belgesi — kapsam dışı"
 # An e-mail is kept whole; a message no reader of bodies took (Phase 4) is kept with this reason.
 MESSAGE_REASON = "e-posta iletisi; bu tür iletinin gövdesi henüz okunmuyor"

@@ -3,15 +3,24 @@
 Company documents are recognised first (by their file name, a message's subject, and the header of a PDF's first
 page). Every reader of the document's format then looks at the same Probe: the one reader that recognises the document
 reads it. Two readers recognising it is an error, not a choice; none means the document is not one this program reads,
-and the reason says what it is when that shows.
+and the reason says what it is when that shows (a message no reader takes is a company's when its greeting names one).
 """
 
 from pdfminer.pdfdocument import PDFEncryptionError
 
 from ..domain.models import ParseResult
 from ..ingest.archives import UnreadableArchive, from_zip
-from .common import BUSINESS_REASON, Skipped, Unreadable, caused_by, is_business, not_a_statement
+from .common import (
+    BUSINESS_REASON,
+    Skipped,
+    Unreadable,
+    caused_by,
+    is_business,
+    not_a_statement,
+    pays_as_employer,
+)
 from .contract import THRESHOLD, Document, Format, Parser, Probe, SourceDocument
+from .mail import Mail
 from .messages import message_reason
 from .pdf import ocr_available, page_text
 from .registry import readers
@@ -89,14 +98,23 @@ def mail_probe(source: SourceDocument) -> Probe:
 
 
 def _read_mail(source: SourceDocument) -> ParseResult:
-    # The intake looks at the subject; a company name set later finds the messages kept before it. A body is left to
-    # its reader: a personal account's notice may name the company as the other side of a transfer.
+    # The intake looks at the subject; a company name set later finds the messages kept before it.
     if is_business(source.mail.subject):
         raise Skipped(BUSINESS_REASON, business=True)
     reader = choose(mail_probe(source))
-    if reader is None:
-        raise Skipped(message_reason(source.mail))
-    return _parse(reader, source)
+    if reader is not None:  # a reader looks for the holder where its bank prints it
+        return _parse(reader, source)
+    raise Skipped(*without_reader(source.mail))
+
+
+def without_reader(mail: Mail) -> tuple[str, bool]:
+    """Why a message no reader takes is kept unprocessed, and whether it is a company's. Of its body the greeting is
+    looked at for a company, which names whom the message is for ("Merhaba ÖRNEK TEKNOLOJİ A.Ş.,"), not the text
+    further down, where a personal account's message may name the company as the other side of a transfer; and
+    premiums paid as an employer are a payroll's."""
+    if is_business(mail.addressee) or pays_as_employer(mail.text):
+        return BUSINESS_REASON, True
+    return message_reason(mail), False
 
 
 def _read_sheet(source: SourceDocument) -> ParseResult:

@@ -29,6 +29,11 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
   yazdığı bakiyeyi alır.
 - Ayrıntıyı internet şubesine bırakan, tutar içermeyen iletiler (Garanti'nin HGS iletisi) "e-postada para hareketi yok"
   diye sınıflanır.
+- Yaklaşan bir ödemeyi hatırlatan iletiler (haftalık kart ödemeleri, kredinin vade tarihi) "ödeme hatırlatması" diye
+  sınıflanır.
+- Okuyucusu olmayan bir iletinin selamlaması bir şirketi anıyorsa ("Merhaba ÖRNEK A.Ş.,") ileti şirket belgesi sayılır;
+  gövdenin daha aşağısında geçen şirket adı sayılmaz. SGK işyeri sicil numarası altında ödenen primleri anan ileti de
+  bir bordronun parçasıdır, şirket belgesi sayılır.
 - Kart ekstrelerinde son ödeme tarihi, asgari ödeme ve kartın toplam limiti okunur (göç 0013):
   - İş Bankası Maximum üçünü de okur;
   - Garanti BBVA Bonus son ödeme tarihini ve kart limitini okur;

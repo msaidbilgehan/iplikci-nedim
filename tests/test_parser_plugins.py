@@ -222,7 +222,11 @@ def test_a_reader_that_recognises_a_document_and_fails_on_it_raises_a_format_ala
     broken = garanti.receipt("HESAPTAN FAST", "106/1234567", HOLDER, [], "TUTAR YOK")  # its amount line changed
     [stored] = add(ws, "bozuk.pdf", broken).stored
     [(target, detail)] = _alarms(ws)
-    assert (target, detail["parser"], detail["version"]) == (stored.sha256, "garanti.receipt", "1.1")
+    assert (target, detail["parser"], detail["version"]) == (
+        stored.sha256,
+        "garanti.receipt",
+        f"{registry.SELECTION}.1",
+    )
     assert detail["reason"].startswith("ValueError: Garanti dekontunda")
     with ws.db() as db:
         reading.read_pending(ws, db, every=True)
@@ -230,13 +234,18 @@ def test_a_reader_that_recognises_a_document_and_fails_on_it_raises_a_format_ala
     reader = registry.find("garanti.receipt")
     monkeypatch.setattr(reader, "version", reader.version + 1)
     _reread(ws)
-    assert [d["version"] for _, d in _alarms(ws)] == ["1.1", "1.2"]  # the new version fails too
+    assert [d["version"] for _, d in _alarms(ws)] == [
+        f"{registry.SELECTION}.{n}" for n in (1, 2)
+    ]  # the new version fails too
 
 
 def test_a_statement_that_does_not_verify_raises_a_format_alarm(ws):
     [stored] = add(ws, "ekstre.pdf", garanti.bonus_statement(total=Decimal("3900.00"))).stored
     assert _alarms(ws) == [
-        (stored.sha256, {"parser": "garanti.bonus_card", "version": "1.2", "unverified": ["garanti-1234"]})
+        (
+            stored.sha256,
+            {"parser": "garanti.bonus_card", "version": f"{registry.SELECTION}.2", "unverified": ["garanti-1234"]},
+        )
     ]
 
 

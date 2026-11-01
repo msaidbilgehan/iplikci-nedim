@@ -61,7 +61,7 @@ def test_the_coverage_counts_the_bank_messages_read_or_knowingly_classified(ws):
         mail.take(ws, vakifbank.fast_in(), BANK_SENDERS),  # a notice its reader reads
         mail.take(ws, bank_mail(FEBRUARY), BANK_SENDERS),  # read through the statement it carries
         mail.take(ws, notice("Size özel %5 bonus!", "firsat@kampanya.garantibbva.com.tr"), BANK_SENDERS),
-        mail.take(ws, notice("Haftası Ödeme Bilgileriniz", "bilgi@ileti.isbank.com.tr"), BANK_SENDERS),
+        mail.take(ws, notice("Kredi Kartı Borcunuzun Tahsilatı", "bilgi@ileti.isbank.com.tr"), BANK_SENDERS),
         mail.take(ws, notice("ÖRNEK TEKNOLOJİ hesap bilgileri", "bilgi@isbank.com.tr"), BANK_SENDERS),
     ]
     assert all(t.taken is mail.Taken.STORED for t in taken)
@@ -71,6 +71,6 @@ def test_the_coverage_counts_the_bank_messages_read_or_knowingly_classified(ws):
         found = mail_coverage(db, BANK_SENDERS)
     assert (found.read, found.attached, found.no_money, found.business, found.unknown) == (1, 1, 1, 1, 1)
     assert (found.total, found.share) == (5, 0.8)
-    assert found.left == {("ileti.isbank.com.tr", "Haftası Ödeme Bilgileriniz"): 1}
+    assert found.left == {("ileti.isbank.com.tr", "Kredi Kartı Borcunuzun Tahsilatı"): 1}
     with ws.db() as db:
         assert mail_coverage(db, ("teb.com.tr",)).total == 1  # only the bank senders' messages count

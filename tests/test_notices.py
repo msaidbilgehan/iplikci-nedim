@@ -204,6 +204,52 @@ def test_only_documents_count_as_attached_never_an_image_or_a_file_left_out():
     assert read_mail(msg.as_bytes()).attached
 
 
+@pytest.mark.parametrize(
+    "subject",
+    ["Mart Ayının 2. Haftası Ödeme Bilgileriniz", "Kredi Vade Tarihi Bilgilendirme", "Kredi Kartı Ödeme Hatırlatması"],
+)
+def test_a_reminder_of_a_payment_due_moves_no_money_whatever_money_words_it_holds(subject):
+    assert message_reason(mail_of(subject)) == messages.REMINDER
+
+
+def test_a_message_no_reader_takes_is_a_companys_when_its_greeting_names_the_company():
+    set_business_names(["Örnek Teknoloji A.Ş."])
+    sent = datetime(2026, 10, 15, tzinfo=timezone(timedelta(hours=3)))
+    greeted = "<p>Merhaba ÖRNEK TEKNOLOJİ ANONİM ŞİRKETİ,</p><p>Bugün son ödeme tarihi olan primleriniz var.</p>"
+    with pytest.raises(Skipped) as raised:
+        read(html_mail("bilgi@ornekbank.example", "SGK Prim Bilgileriniz", greeted, sent))
+    assert (str(raised.value), raised.value.business) == (BUSINESS_REASON, True)
+    # Named further down, the company is the other side of the user's own movement: the message stays the user's.
+    named = "<p>Sayın ÖRNEK KULLANICI,</p><p>ÖRNEK TEKNOLOJİ A.Ş. hesabınıza 1.000,00 TL gönderdi.</p>"
+    with pytest.raises(Skipped) as raised:
+        read(html_mail("bilgi@ornekbank.example", "Para Girişi", named, sent))
+    assert (str(raised.value), raised.value.business) == (MESSAGE_REASON, False)
+    # A greeting without its comma is not read on into the sentence after it.
+    unpunctuated = "<p>Sayın ÖRNEK KULLANICI</p><p>ÖRNEK TEKNOLOJİ A.Ş. hesabınıza para gönderdi, iyi günler.</p>"
+    with pytest.raises(Skipped) as raised:
+        read(html_mail("bilgi@ornekbank.example", "Para Girişi", unpunctuated, sent))
+    assert not raised.value.business
+
+
+def test_premiums_paid_under_a_workplace_number_are_a_payrolls_and_a_persons_own_are_not():
+    sent = datetime(2026, 10, 15, tzinfo=timezone(timedelta(hours=3)))
+    cells = ["SGK", "SSK Prim", "15-10-2026", "1" * 26, "1234-****567", "1,234.56 TL"]
+    table = "<p>Sayın Müşterimiz,</p><table><tr>" + "".join(f"<td>{c}</td>" for c in cells) + "</tr></table>"
+    with pytest.raises(Skipped) as raised:
+        read(html_mail("bilgi@ornekbank.example", "Son Ödeme Tarihi Bugün Olan SGK Prim Bilgileriniz", table, sent))
+    assert (str(raised.value), raised.value.business) == (BUSINESS_REASON, True)
+    own = table.replace("1" * 26, "1" * 11).replace("SSK Prim", "İsteğe Bağlı Prim")  # under an identity number
+    with pytest.raises(Skipped) as raised:
+        read(html_mail("bilgi@ornekbank.example", "Son Ödeme Tarihi Bugün Olan SGK Prim Bilgileriniz", own, sent))
+    assert not raised.value.business
+
+
+def test_a_notice_a_reader_takes_stays_the_users_when_the_company_sent_the_money():
+    set_business_names(["Örnek Teknoloji A.Ş."])
+    [row] = read(vakifbank.fast_in(sender="ÖRNEK TEKNOLOJİ A.Ş.")).transactions
+    assert row.counterparty == "ÖRNEK TEKNOLOJİ A.Ş."
+
+
 def test_a_body_that_leaves_the_details_to_online_banking_moves_no_money_unless_it_holds_an_amount():
     pointer = "HGS ürününüzün aylık geçiş bilgilerini İnternet/Mobil Şube'den kontrol edebilirsiniz."
     assert message_reason(mail_of("HGS EKSTRE BİLGİLENDİRME", text=pointer)) == messages.ELSEWHERE

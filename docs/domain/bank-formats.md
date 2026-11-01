@@ -301,16 +301,26 @@ gönderenin alan adına ve konusuna göre adlandırılır (`parsers/messages.py`
   kampanyadır.
 - Konu şifre, cihaz, e-posta doğrulama, adres ya da tercih anıyorsa güvenlik ve hesap ayarı bildirimidir. Kart teslimi,
   başvuru ya da limit artışı anıyorsa kart bildirimidir. Ücret, oran ya da koşul değişikliği anıyorsa duyurudur.
+- Konu yaklaşan bir ödemeyi hatırlatıyorsa (İş Bankası'nın haftalık kart ödemeleri, kredinin vade tarihi
+  bilgilendirmesi, "hatırlatma") ödeme hatırlatmasıdır. Ödeme yapılınca hesabın kendi hareketlerinde görünür.
 - Konuda para hareketi ya da borç geçiyorsa ileti tanınmamış kalır: ekstre, hesap özeti, dekont, transfer, para
   çıkışı, tahsilat, prim, SGK, borç, fatura, vade tarihi, dönem ücreti, bakiye, maaş, havale, EFT, FAST. Henüz
   okuyucusu olmayan bir bildirim olabilir; okuyucusu yazılana dek gözden kaybolmaz.
-- `bilgi.` alt alan adından gelen ileti duyurudur. Kampanya kelimeleri (fırsat, davet, bonus, indirim, taksit…) ve duyuru
-  kelimeleri (tatil, işlem saatleri, halka arz, ücret, tarife…) en son denenir.
+- `bilgi.` alt alan adından gelen ileti duyurudur. Kampanya kelimeleri (fırsat, davet, bonus, indirim, taksit…) ve
+  duyuru kelimeleri (tatil, işlem saatleri, halka arz, ücret, tarife…) en son denenir.
 - Hiçbir şey söylemeyen bir konu ("BİLGİLENDİRME") için gövdenin ilk cümlesine bakılır. Bir ücret değişikliği
   duyuruyorsa ileti duyurudur.
-- Kampanya, duyuru, güvenlik ve kart bildirimleri "para hareketi yok" diye bilerek sınıflanır. F01'in kapsam ölçütü
-  bunları sayar. Kurallar değişince okuyucusu olmayan iletiler yeniden sınıflanır (`messages.VERSION`).
+- Kampanya, duyuru, güvenlik ve kart bildirimleri ile ödeme hatırlatmaları "para hareketi yok" diye bilerek sınıflanır.
+  F01'in kapsam ölçütü bunları sayar. Kurallar değişince okuyucusu olmayan iletiler yeniden sınıflanır
+  (`messages.VERSION`).
 - İmza sirküleri ve genel kurul, şirketin belgeleridir: konusunda bunları anan ileti şirket belgesi sayılır.
+- Okuyucusu olmayan iletinin gövdesinde şirket için yalnızca selamlamaya bakılır. "Sayın …," ya da "Merhaba …," bir
+  şirketi anıyorsa ileti o şirketin belgesidir. Daha aşağıda geçen bir şirket adı, kişisel bir hesabın hareketinde
+  karşı taraf olabilir. Selamlama virgülde, satırın sonunda ya da ilk küçük harfli kelimede biter, cümleye uzanmaz.
+  Bildirim okuyucuları hesap sahibini bankanın yazdığı yerde arar.
+- SGK işyeri sicil numarası (26 hane) altında ödenen prim işverenindir, yani bir bordronun parçasıdır. SGK'yı ve böyle
+  bir numarayı anan ileti şirket belgesi sayılır. Kişinin kendi primi kimlik numarası altında ödenir. Ev hizmetlerinde
+  birini çalıştıran hanenin de işyeri numarası vardır: böyle bir ileti de ayrılır, kendisi para hareketi taşımaz.
 
 ## V1'de eklenecek bilgiler
 

@@ -9,9 +9,10 @@ import traceback
 from .. import parsers
 from ..domain.labels import currency_label, format_amount, label
 from ..domain.models import ParseResult, SourceRef, Statement, Transaction
-from . import Skipped, Unreadable, choose, mail_probe, parse_document, registry
+from . import Skipped, Unreadable, choose, mail_probe, parse_document, registry, without_reader
 from .common import is_business
 from .contract import Document, Format, Probe, SourceDocument
+from .mail import read_mail
 from .pdf import ocr_available, page_text
 
 
@@ -50,6 +51,11 @@ def probe(doc: Document) -> list[str]:
             lines.append(f"Okuyamaz: {exc}")
         else:
             lines.append(f"Okuyacak: {chosen.id} — {chosen.name}" if chosen else "Okuyacak: hiçbiri")
+            if chosen is None and seen.format is Format.EMAIL:
+                reason, business = without_reader(read_mail(doc.data))
+                lines.append(
+                    "Şirket belgesi (selamlamadaki muhatap ya da işveren primi)" if business else f"İleti: {reason}"
+                )
     return lines
 
 
