@@ -236,7 +236,7 @@ def test_a_reader_that_recognises_a_document_and_fails_on_it_raises_a_format_ala
 def test_a_statement_that_does_not_verify_raises_a_format_alarm(ws):
     [stored] = add(ws, "ekstre.pdf", garanti.bonus_statement(total=Decimal("3900.00"))).stored
     assert _alarms(ws) == [
-        (stored.sha256, {"parser": "garanti.bonus_card", "version": "1.1", "unverified": ["garanti-1234"]})
+        (stored.sha256, {"parser": "garanti.bonus_card", "version": "1.2", "unverified": ["garanti-1234"]})
     ]
 
 

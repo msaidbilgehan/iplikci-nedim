@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from ..domain.labels import format_amount
 from ..parsers.pdf import Line, Word
-from . import HOLDER, CardRow, Move, Specimen, charged, with_balances
+from . import HOLDER, CardRow, CardTerms, Move, Specimen, charged, with_balances
 from .files import CHAR, Run, text_pdf
 
 
@@ -93,6 +93,10 @@ BONUS_CARDS: tuple[tuple[CardRow, ...], ...] = (
 )
 
 
+# A Bonus statement's terms: the due date ten days after the cut, the only one the layout the MVP knew prints.
+BONUS_TERMS = CardTerms(date(2026, 10, 15))
+
+
 def bonus_statement(
     cards: Sequence[Sequence[CardRow]] = BONUS_CARDS,
     cut: date = date(2026, 10, 5),
@@ -100,9 +104,11 @@ def bonus_statement(
     last4: str = "1234",
     holder: str = HOLDER,
     note: str = "",
+    terms: CardTerms = BONUS_TERMS,
 ) -> bytes:
     """A TEB Bonus card statement ("Kredi Kart Ekstre Özeti") with a text layer: a section per card, each under
-    its own header and closed by the card's subtotal, and the period's debt; note goes at the foot of the page."""
+    its own header and closed by the card's subtotal, and the period's debt and due date; note goes at the foot of
+    the page."""
     total = previous + sum((charged(c) for c in cards), Decimal(0))
     runs: list[Run] = [
         (40, 40, "TÜRK EKONOMİ BANKASI A.Ş."),
@@ -110,7 +116,7 @@ def bonus_statement(
         (40, 100, f"SAYIN {holder}"),
         (40, 112, f"Hesap Kesim Tarihi: {cut:%d/%m/%Y}"),
         (330, 112, f"Kart Numarası: 545616******{last4}"),
-        (40, 124, f"Son Ödeme Tarihi: {cut + timedelta(days=10):%d/%m/%Y}"),
+        *([(40, 124, f"Son Ödeme Tarihi: {terms.due:%d/%m/%Y}")] if terms.due is not None else []),
         (330, 124, f"Dönem Borcu: {_amount(total)}"),
         (40, 136, f"Sonraki Hesap Kesim Tarihi: {cut + timedelta(days=31):%d/%m/%Y}"),
     ]

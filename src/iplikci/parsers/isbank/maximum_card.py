@@ -1,17 +1,21 @@
 """Türkiye İş Bankası Maximum credit card statements (PDF); the company card is out of scope."""
 
 import re
+from decimal import Decimal
 
 from ...domain.codes import AccountType, DocumentKind, TransactionKind
 from ...domain.models import TRY, Account, ParseResult, Statement, Transaction
 from ...domain.text import fold
-from ..common import BUSINESS_REASON, Skipped, classify_kind, currency_code, installment_label, split_interest
+from ..common import BUSINESS_REASON, Skipped, agreed, classify_kind, currency_code, installment_label, split_interest
 from ..contract import Detection, Format, Probe, SourceDocument
 from ..pdf import Line, find_header, find_word, page_lines, page_text, take_amount
 from ..text import parse_dmy, parse_tr_amount, squash
 
 ID = "isbank.maximum_card"
 _DATE_PREFIX = re.compile(r"^(\d{2}/\d{2}/\d{4})(.*)$")
+# This statement's due date: the summary prints it with dots and the box of limits under it again with slashes.
+# "Bir Sonraki Son Ödeme Tarihi" is the next statement's.
+_DUE = re.compile(r"(?<!SONRAKI)SONODEMETARIHI:?(\d{2}[./]\d{2}[./]\d{4})")
 
 
 def _account(card_last4: str) -> Account:
@@ -30,6 +34,14 @@ def _amount(line: Line, edge: float):
     if amount is not None and (used[-1].text.startswith("+") or used[0].text == "+"):
         amount = -abs(amount)
     return amount, used
+
+
+def _term(sq: str, label: str, currency: str) -> Decimal | None:
+    """The amount the first page (squashed) prints after label, in the statement's currency. The minimum due has an
+    asterisk before it ("Ödenmesi Gereken Asgari Tutar: *1.234,56 TL"), and the box of limits runs its two columns
+    into one line ("Toplam Kart Limiti: 60.000,00 TL Asgari Ödeme Oranı: %40,00")."""
+    found = re.findall(label + r":?\*?([\d.]+,\d{2})(TL|USD|EUR)?", sq)
+    return agreed(parse_tr_amount(amount) if currency_code(unit) == currency else None for amount, unit in found)
 
 
 def _row_description(line: Line, first_rest: str, amount_x0: float, ref_right: float | None) -> str:
@@ -75,6 +87,10 @@ def read(doc: SourceDocument) -> ParseResult:
         source=doc.name,
         previous=None,
         total=total,
+        due_date=agreed(parse_dmy(d) for d in _DUE.findall(sq)),
+        minimum_payment=_term(sq, "ODENMESIGEREKENASGARITUTAR", currency),
+        # The card's own limit, not the customer's, what is left of it or the cash limit printed beside it.
+        credit_limit=_term(sq, "TOPLAMKARTLIMITI", currency),
     )
 
     for page in pdf.pages:
@@ -137,7 +153,7 @@ def read(doc: SourceDocument) -> ParseResult:
 
 class MaximumCard:
     id = ID
-    version = 2
+    version = 3
     bank = "İş Bankası"
     name = "İş Bankası Maximum kart hesap özeti"
     document_type = DocumentKind.CARD_STATEMENT

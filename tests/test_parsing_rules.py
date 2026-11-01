@@ -11,6 +11,7 @@ from iplikci.domain.models import Transaction
 from iplikci.fakes.files import scan_pdf
 from iplikci.parsers import common, contract
 from iplikci.parsers.common import (
+    agreed,
     business_names_signature,
     classify_kind,
     installment_label,
@@ -80,6 +81,14 @@ def test_installment_label():
     assert installment_label("1/12taksidi(12.345,67)") == "1/12"
     assert installment_label("250,00x12=3.000,00 8.Taksit") == "8/12"
     assert installment_label("0,07") == ""
+
+
+def test_a_term_printed_more_than_once_counts_only_when_every_printing_agrees():
+    due, other = date(2026, 10, 15), date(2026, 11, 15)
+    assert agreed([due, due]) == due
+    assert agreed([due, other]) is None  # never one of two
+    assert agreed([due, None]) is None  # one printing malformed
+    assert agreed([]) is None
 
 
 def test_deferred_statement_is_not_spending():

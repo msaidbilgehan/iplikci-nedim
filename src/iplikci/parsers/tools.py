@@ -113,7 +113,7 @@ def _result(name: str, result: ParseResult) -> list[str]:
     lines += [f"Dekont anahtarı: {result.receipt_key}"] if result.receipt_key else []
     lines += [f"Hesap {a.id}: {a.label} ({label(a.type)}, {currency_label(a.currency)})" for a in result.accounts]
     for s in result.statements:
-        lines += ["", _statement(s), *(_row(t) for t in s.transactions)]
+        lines += ["", _statement(s), *_terms(s), *(_row(t) for t in s.transactions)]
     if result.transactions:
         lines += ["", "Ekstresiz satırlar:", *(_row(t) for t in result.transactions)]
     return lines
@@ -128,6 +128,14 @@ def _statement(s: Statement) -> str:
         check = f"bankanın toplamı {printed}, satırlarla {format_amount(s.computed_total)}"
     verdict = "doğrulandı" if s.verified else "DOĞRULANMADI"
     return f"{s.account} {period}: {check} — {verdict} ({len(s.transactions)} satır)"
+
+
+def _terms(s: Statement) -> list[str]:
+    """What a card statement prints for paying it, as much of it as it prints."""
+    terms = [f"son ödeme {s.due_date}"] if s.due_date else []
+    terms += [f"asgari tutar {format_amount(s.minimum_payment)}"] if s.minimum_payment is not None else []
+    terms += [f"kart limiti {format_amount(s.credit_limit)}"] if s.credit_limit is not None else []
+    return [f"Ödeme: {', '.join(terms)}"] if terms else []
 
 
 def _row(t: Transaction) -> str:

@@ -10,7 +10,7 @@ from decimal import Decimal
 
 from ...domain.codes import AccountType, DocumentKind
 from ...domain.models import TRY, Account, ParseResult, SourceRef, Statement, Transaction
-from ..common import classify_kind
+from ..common import agreed, classify_kind
 from ..contract import Detection, Format, Probe, SourceDocument
 from ..pdf import numbered_lines, page_text
 from ..text import parse_dmy
@@ -18,6 +18,8 @@ from ._amounts import US_AMOUNT, us_signed
 
 ID = "qnb.card_pdf"
 _CID = re.compile(r"\(cid:\d+\)")
+# This statement's due date. The font may lose the "Ö" of "Ödeme" as it loses that of "Önceki".
+_DUE = re.compile(r"Son\s+\S?deme\s+Tarihi\s*:\s*(\d{2}/\d{2}/\d{4})")
 _REPAIRS = (
     (re.compile(r"^\s*\S?deme\s*-\s*Tesekk\S*r\s+Ederiz\s*-?\s*$", re.IGNORECASE), "ÖDEME TEŞEKKÜR EDERİZ"),
     (re.compile(r"Al\S*ver\S*\s+faizi", re.IGNORECASE), "Alışveriş faizi"),
@@ -56,6 +58,8 @@ def read(doc: SourceDocument) -> ParseResult:
         source=doc.name,
         previous=_us(previous),
         total=_us(total),
+        # The layout known prints no minimum payment or limit.
+        due_date=agreed(parse_dmy(d) for d in _DUE.findall(text)),
     )
     for page, number, line in numbered_lines(pages):
         m = re.match(r"^(\d{2}/\d{2}/\d{4})\s+(.+?)\s+(" + US_AMOUNT + r")$", line.strip())
@@ -83,7 +87,7 @@ def _us(match: re.Match[str] | None) -> Decimal | None:
 
 class CardPdf:
     id = ID
-    version = 1
+    version = 2
     bank = "QNB"
     name = "QNB kredi kartı ekstre hareketleri (PDF)"
     document_type = DocumentKind.CARD_STATEMENT

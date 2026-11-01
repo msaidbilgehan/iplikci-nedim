@@ -5,7 +5,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from ..domain.labels import format_amount
-from . import HOLDER, CardRow, Move, Specimen, charged, with_balances
+from . import HOLDER, CardRow, CardTerms, Move, Specimen, charged, with_balances
 from .files import Cell, Run, right, text_pdf, xls_file
 
 _DATE_X, _TEXT_X, _AMOUNT_X1, _INSTALLMENT_X, _POINTS_X = 40, 100, 400, 410, 520
@@ -28,6 +28,13 @@ MAXIMUM_PAGES: tuple[tuple[CardRow, ...], ...] = (
 )
 
 
+# A Maximum statement's terms: the due date ten days after the cut, a minimum of the 40 % its box of limits prints as
+# the rate, and the card's limit.
+MAXIMUM_TERMS = CardTerms(date(2026, 10, 15), Decimal("1258.21"), Decimal(60000))
+# The customer's limit and the cash limit, printed in the box beside the card's own.
+_CUSTOMER_LIMIT, _CASH_LIMIT = Decimal(75000), Decimal(24000)
+
+
 def maximum_statement(
     pages: Sequence[Sequence[CardRow]] = MAXIMUM_PAGES,
     cut: date = date(2026, 10, 5),
@@ -35,26 +42,17 @@ def maximum_statement(
     last4: str = "1234",
     holder: str = HOLDER,
     note: str = "",
+    terms: CardTerms = MAXIMUM_TERMS,
 ) -> bytes:
-    """An İş Bankası Maximum card statement ("Kredi Kartı Hesap Özeti"): the previous debt, the rows page by page,
-    and the debt they add up to; note goes at the foot of the first page. A fold mark sits in the left margin of
-    every page."""
+    """An İş Bankası Maximum card statement ("Kredi Kartı Hesap Özeti"): its summary with terms and its box of limits,
+    the previous debt, the rows page by page, and the debt they add up to; note goes at the foot of the first page. A
+    fold mark sits in the left margin of every page."""
     total = previous + sum((charged(p) for p in pages), Decimal(0))
-    summary: list[Run] = [
-        (40, 40, "TÜRKİYE İŞ BANKASI A.Ş."),
-        (40, 52, "Kredi Kartı Hesap Özeti"),
-        (40, 100, f"SN. {holder}"),
-        (40, 112, f"Hesap Kesim Tarihi: {cut:%d/%m/%Y}"),
-        (330, 112, f"Kart Numarası: 4543 **** **** {last4}"),
-        (40, 124, f"Son Ödeme Tarihi: {cut + timedelta(days=10):%d/%m/%Y}"),
-        (330, 124, f"Hesap Özeti Borcu: {_amount(total)} TL"),
-        (40, 136, f"Sonraki Hesap Kesim Tarihi: {cut + timedelta(days=31):%d/%m/%Y}"),
-        (330, 136, f"Asgari Ödeme Tutarı: {format_amount(total * Decimal('0.4'))} TL"),
-    ]
     out: list[list[Run]] = []
     for i, rows in enumerate(pages):
-        top = 200 if i == 0 else 60
-        runs = [*(summary if i == 0 else []), (12, 420, "-"), *_table(top, rows)]
+        top = 290 if i == 0 else 60
+        head = _maximum_head(cut, total, last4, holder, terms) if i == 0 else []
+        runs = [*head, (12, 420, "-"), *_table(top, rows)]
         if i == 0 and note:
             runs.append((40, 800, note))
         if i == 0:
@@ -64,6 +62,44 @@ def maximum_statement(
             ]
         out.append(runs)
     return text_pdf(*out)
+
+
+def _maximum_head(cut: date, total: Decimal, last4: str, holder: str, terms: CardTerms) -> list[Run]:
+    """The first page's head: the summary in the right column beside the holder's name, its dates with dots, and the
+    box of limits and rates under it in two columns, which a page's text runs into one line. The summary prints the
+    next statement's dates too, and the box prints the due date again with slashes."""
+    later = cut + timedelta(days=31)
+    left = (terms.limit if terms.limit is not None else _CUSTOMER_LIMIT) - total
+    runs: list[Run] = [
+        (40, 40, "TÜRKİYE İŞ BANKASI A.Ş."),
+        (40, 52, "Kredi Kartı Hesap Özeti"),
+        (40, 76, f"Kart Numarası: 4543 **** **** {last4}"),
+        (40, 100, f"SN. {holder}"),
+        (330, 100, f"Hesap Kesim Tarihi: {cut:%d.%m.%Y}"),
+        (330, 124, f"Hesap Özeti Borcu: {_amount(total)} TL"),
+        (330, 148, f"Bir Sonraki Hesap Kesim Tarihi: {later:%d.%m.%Y}"),
+        (330, 160, f"Bir Sonraki Son Ödeme Tarihi: {later + timedelta(days=10):%d.%m.%Y}"),
+        (40, 196, f"Müşteri Limiti: {format_amount(_CUSTOMER_LIMIT)} TL"),
+        (330, 196, "Alışveriş Faiz Oranı: %4,25"),
+        (40, 208, f"Kullanılabilir Müşteri Limiti: {format_amount(_CUSTOMER_LIMIT - total)} TL"),
+        (330, 208, "Nakit Çekme Faiz Oranı: %4,25"),
+        (330, 220, "Asgari Ödeme Oranı: %40,00"),
+        (40, 232, f"Toplam Kullanılabilir Kart Limiti: {format_amount(left)} TL"),
+        (330, 232, "Alışveriş Gecikme Faizi: %4,55"),
+        (40, 244, f"Nakit Çekme Limiti: {format_amount(_CASH_LIMIT)} TL"),
+        (330, 244, "Nakit Gecikme Faizi: %4,55"),
+        (40, 256, f"Kullanılabilir Nakit Çekme Limiti: {format_amount(_CASH_LIMIT - total)} TL"),
+    ]
+    if terms.due is not None:
+        runs += [
+            (330, 112, f"Son Ödeme Tarihi: {terms.due:%d.%m.%Y}"),
+            (40, 184, f"Son Ödeme Tarihi: {terms.due:%d/%m/%Y}"),
+        ]
+    if terms.minimum is not None:
+        runs.append((330, 136, f"Ödenmesi Gereken Asgari Tutar: *{format_amount(terms.minimum)} TL"))
+    if terms.limit is not None:
+        runs.append((40, 220, f"Toplam Kart Limiti: {format_amount(terms.limit)} TL"))
+    return runs
 
 
 def _amount(value: Decimal) -> str:

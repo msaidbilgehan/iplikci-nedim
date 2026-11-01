@@ -251,6 +251,14 @@ def currency_code(token: str) -> str:
     return TRY if token in ("", "TL", "TRY", "YTL") else token
 
 
+def agreed[T](values: Iterable[T | None]) -> T | None:
+    """The value a statement prints for one of its terms (its due date, its minimum payment, the card's limit), however
+    often it prints it: None when it prints none, a malformed one, or two that differ. Statements print their due
+    date twice, and a reader never picks one of two different values."""
+    found = set(values)
+    return found.pop() if len(found) == 1 else None
+
+
 _INSTALLMENT = re.compile(r"(\d{1,2})\s*/\s*(\d{1,2})\s*TAKS", re.IGNORECASE)
 _INSTALLMENT_GARANTI = re.compile(r"x(\d{1,2})=.*?(\d{1,2})\.\s*Taksit", re.IGNORECASE)
 

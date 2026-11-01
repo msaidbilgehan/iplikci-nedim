@@ -8,7 +8,7 @@ import pytest
 from iplikci import parsers
 from iplikci.domain.codes import AccountType, TransactionKind
 from iplikci.domain.models import ParseResult, Statement
-from iplikci.fakes import HOLDER, garanti, isbank, qnb, teb
+from iplikci.fakes import HOLDER, CardTerms, garanti, isbank, qnb, teb
 from iplikci.fakes.files import scan_pdf
 from iplikci.parsers import contract
 from iplikci.parsers.common import BUSINESS_REASON, is_business
@@ -70,15 +70,24 @@ def test_garanti_bonus_statement_adds_its_rows_to_the_debt_it_carries_over():
     assert [t.ref.page for t in s.transactions] == [1] * 6 + [2] * 5
 
 
+def test_garanti_bonus_statement_reads_the_due_date_it_prints_twice_and_the_card_limit():
+    s = only(read(garanti.bonus_statement()))
+    # The heading and the summary print the due date, a sentence under them the next one; the customer's limit and the
+    # cash advance limit stand around the card's. No minimum payment is printed.
+    assert (s.due_date, s.minimum_payment, s.credit_limit) == (date(2026, 10, 15), None, Decimal(45000))
+
+
 def test_garanti_paracard_has_no_debt_only_its_purchases_and_withdrawals():
     r = read(garanti.paracard_statement())
     s = only(r)
-    assert (r.parser, r.accounts[0].type, s.previous, s.total, s.total_is_sum) == (
+    assert (r.parser, r.accounts[0].type, s.previous, s.total, s.total_is_sum, s.due_date, s.credit_limit) == (
         "garanti.paracard",
         AccountType.DEBIT_CARD,
         None,
         Decimal("1734.50"),
         True,
+        None,
+        None,
     )
     assert s.verified and [t.kind for t in s.transactions] == [K.PURCHASE] * 3 + [K.CASH_ADVANCE]
 
@@ -109,6 +118,19 @@ def test_isbank_maximum_statement_splits_an_installment_cash_advance_into_princi
     assert s.transactions[2].installment == "2/6"
 
 
+def test_isbank_maximum_statement_reads_its_due_date_the_minimum_behind_its_asterisk_and_the_card_limit():
+    s = only(read(isbank.maximum_statement()))
+    # The summary prints the due date with dots and the box under it again with slashes; the next statement's dates,
+    # the minimum payment rate and the customer's, available and cash limits stand beside them.
+    assert (s.due_date, s.minimum_payment, s.credit_limit) == (date(2026, 10, 15), Decimal("1258.21"), Decimal(60000))
+
+
+@pytest.mark.parametrize("printed", ["Son Ödeme Tarihi: 16.10.2026", "Son Ödeme Tarihi: 31.02.2026"])
+def test_a_due_date_printed_once_more_as_another_or_an_impossible_date_is_left_empty(printed):
+    s = only(read(isbank.maximum_statement(note=printed)))
+    assert (s.due_date, s.minimum_payment, s.verified) == (None, Decimal("1258.21"), True)
+
+
 # --- TEB -------------------------------------------------------------------------------------------------------
 
 
@@ -128,6 +150,11 @@ def test_teb_bonus_statement_reads_every_card_section():
     ]
     teknosa, abroad, whole = s.transactions[2:5]
     assert (teknosa.installment, abroad.original, whole.amount) == ("8/9", "25,75 EUR", Decimal(1500))
+
+
+def test_teb_bonus_statement_reads_the_due_date_its_layout_prints():
+    s = only(read(teb.bonus_statement()))
+    assert (s.due_date, s.minimum_payment, s.credit_limit) == (date(2026, 10, 15), None, None)
 
 
 def test_a_teb_statement_delivered_as_page_images_is_read_with_ocr(monkeypatch):
@@ -154,6 +181,23 @@ def test_qnb_card_statement_repairs_the_labels_its_font_breaks():
         "Yıllık üyelik ücreti",
     ]
     assert [(t.ref.page, t.ref.line) for t in s.transactions[-2:]] == [(2, 2), (2, 3)]
+
+
+def test_qnb_card_statement_reads_the_due_date_its_layout_prints():
+    s = only(read(qnb.card_statement()))
+    assert (s.due_date, s.minimum_payment, s.credit_limit) == (date(2026, 10, 15), None, None)
+
+
+# --- every bank ------------------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "statement", [garanti.bonus_statement, isbank.maximum_statement, teb.bonus_statement, qnb.card_statement]
+)
+def test_a_card_statement_that_prints_none_of_its_terms_leaves_them_empty_and_still_verifies(statement):
+    # The next statement's due date, the other limits and the minimum payment rate are still on the page.
+    s = only(read(statement(terms=CardTerms())))
+    assert (s.due_date, s.minimum_payment, s.credit_limit, s.verified) == (None, None, None, True)
 
 
 def test_a_company_card_that_shows_only_late_on_the_page_is_still_a_company_document():

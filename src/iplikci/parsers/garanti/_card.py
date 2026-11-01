@@ -7,7 +7,7 @@ from ...domain.codes import AccountType, TransactionKind
 from ...domain.models import TRY, Account, ParseResult, Statement, Transaction
 from ...domain.money import round_half_up
 from ...domain.text import fold
-from ..common import classify_kind, installment_label, pair_deferrals
+from ..common import agreed, classify_kind, installment_label, pair_deferrals
 from ..contract import SourceDocument
 from ..pdf import find_header, find_word, page_lines, page_text, take_amount
 from ..text import parse_tr_amount, parse_tr_words_date, squash
@@ -17,6 +17,12 @@ BONUS_ID, PARACARD_ID = "garanti.bonus_card", "garanti.paracard"
 # Section headings Garanti prints above groups of purchases that are not categories.
 _NON_CATEGORY_SECTIONS = ("BONUS PROGRAM", "DIGER HARCAMALARINIZ", "YURT DISI HARCAMALARINIZ", "HARCAMALARINIZ")
 _FOREIGN = re.compile(r"([\d.]+,\d{2})\s*(USD|EUR|GBP)")
+# A Bonus statement's due date, spelled with the month's name, in its heading ("… Bilgileriniz Son Ödeme Tarihi:
+# 15 Ağustos 2026") and again in the summary. The sentence under the summary names the next statement's ("… ve son
+# ödemeniz 15 Eylül 2026 Pazartesi 'dir").
+_DUE = re.compile(r"SON ODEME TARIHI:? ?(\d{1,2}) (\w+) (\d{4})")
+# The card's limit, between the customer's limit and the cash advance limit.
+_LIMIT = re.compile(r"\bKART LIMITI ([\d.]+,\d{2})")
 
 
 def read_statement(doc: SourceDocument) -> ParseResult:
@@ -66,6 +72,10 @@ def read_statement(doc: SourceDocument) -> ParseResult:
         previous=None if paracard else Decimal(0),
         total=total,
         total_is_sum=paracard,
+        # A debit card has neither, and the Paracard reader's readings stay as they were. A Bonus statement prints no
+        # minimum payment on the pages read here.
+        due_date=None if paracard else agreed(parse_tr_words_date(*m) for m in _DUE.findall(f)),
+        credit_limit=None if paracard else agreed(parse_tr_amount(m) for m in _LIMIT.findall(f)),
     )
 
     section = ""

@@ -22,6 +22,15 @@ düzeltirken önce buraya bakılır; yeni bir tuzak bulununca buraya eklenir.
 **Kart PDF'leri:** sütun konumuyla okunur (`parsers.pdf.page_lines`, `find_header`, `take_amount`). Düz metin üzerinde
 düzenli ifadeyle okunmaz.
 
+**Kart ekstresinin ödeme bilgileri** (`Statement.due_date`, `minimum_payment`, `credit_limit`)
+
+- Kesim tarihi ve dönem borcu gibi, ilk sayfanın metnindeki etiketlerinden okunur.
+- Son ödeme tarihi bu ekstrenin son ödeme tarihidir. "Bir Sonraki Son Ödeme Tarihi" ve "son ödemeniz …" gelecek
+  ekstrenindir; alınmaz.
+- Limit, kartın toplam limitidir; müşteri limiti, kullanılabilir limit ve nakit limiti değildir.
+- Ekstrenin yazmadığı ya da bozuk yazdığı bilgi boş kalır; tahmin edilmez ve ekstre yine okunur.
+- Bir bilgi birden çok kez yazıyorsa hepsi aynı olmalıdır; ayrışırsa bilgi boş kalır (`common.agreed`).
+
 **Şirket belgesi işaretleri**
 
 - İşaretler yalnızca dosya adlarında, belge başlıklarında ve hesap sahibi alanında aranır. Kişisel ekstreler işlem
@@ -74,8 +83,20 @@ hareketi taşımaz. V1'de çöpe gitmez; "işlenmedi" durumunda saklanır (K11).
   gelir.
 - Taksitler `250,00x12=… 8.Taksit` biçiminde yazar (8/12).
 - Görünmez `bosluk` kelimeleri atılır.
+- Tarihler ay adıyla yazar ("5 Temmuz 2026"); ay adı katlanarak (`TEMMUZ`, `AGUSTOS`) sayıya çevrilir.
+- Özet soldadır, adres sağda. Sayfanın metni adresin son satırlarını özetin satırlarına ekler: "Nakit Avans Limiti
+  18.000,00 TL KAT:3 D:5", "Hesap Kesim Tarihi 5 Temmuz 2026 34000 <İLÇE> <İL>". Yıldan sonraki beş haneli sayı
+  posta kodudur, tarihin parçası değildir.
+- Son ödeme tarihi iki kez yazar: ilk satırdaki başlıkta ("… Bilgileriniz Son Ödeme Tarihi: 15 Ağustos 2026") ve
+  özette ("Son Ödeme Tarihi 15 Ağustos 2026").
+- "EKSTRE ÖZETİ" cümlesi gelecek ekstreyi anlatır: "Bir sonraki hesap kesiminiz … ve son ödemeniz 15 Eylül 2026
+  Pazartesi 'dir." Bu tarih alınmaz.
+- Kart limiti "Kart Limiti" satırıdır; üstündeki "Müşteri Limiti", altındaki "Nakit Avans Limiti" ve cümledeki
+  "kullanılabilir limitiniz" değildir.
+- İlk iki sayfada asgari ödeme tutarı yazmaz; boş kalır.
 
-**Paracard banka kartı PDF'i:** bakiye yoktur; toplam, alışverişler ile nakit çekimlerin toplamıdır.
+**Paracard banka kartı PDF'i:** bakiye yoktur; toplam, alışverişler ile nakit çekimlerin toplamıdır. Ödeme bilgisi
+de yoktur.
 
 **Hesap XLS'i**
 
@@ -146,6 +167,16 @@ hareketi taşımaz. V1'de çöpe gitmez; "işlenmedi" durumunda saklanır (K11).
   faize (`faiz_ucret`) bölünür.
 - "HESAP ÖZETİNE AKTARILAN" döviz bakiyesini TL ekstresine taşır (`transfer`).
 - Sol kenardaki `-` işaretleri katlama izidir, eksi işareti değildir.
+- Özet tarihleri noktayla yazar: "Hesap Kesim Tarihi: 05.10.2026", "Son Ödeme Tarihi: 15.10.2026".
+- Asgari tutarın önünde yıldız vardır: "Ödenmesi Gereken Asgari Tutar: *1.258,21 TL". Tutar yıldızdan sonra okunur.
+- Özetteki "Bir Sonraki Hesap Kesim Tarihi" ve "Bir Sonraki Son Ödeme Tarihi" gelecek ekstrenindir.
+- Son ödeme tarihi aşağıda, limit kutusunun üstünde bir kez daha, eğik çizgiyle yazar: "Son Ödeme Tarihi:
+  15/10/2026".
+- Limit ve faiz kutusu iki sütundur; sayfanın metni iki sütunu tek satırda birleştirir ("Toplam Kart Limiti:
+  60.000,00 TL Asgari Ödeme Oranı: %40,00").
+  - Kart limiti "Toplam Kart Limiti"dir; "Müşteri Limiti", "Toplam Kullanılabilir Kart Limiti" ve "Nakit Çekme
+    Limiti" değildir.
+  - "Asgari Ödeme Oranı" bir orandır, asgari tutar değildir.
 
 **Hesap XLS'i**
 
@@ -177,6 +208,10 @@ hareketi taşımaz. V1'de çöpe gitmez; "işlenmedi" durumunda saklanır (K11).
 - Bir ekstrede birden çok kart bölümü olabilir.
 - OCR, temassız ikonunu `)))` olarak okur. Okuyucu bunu satırın sonundan atar; metni bitiren kapama parantezi
   (`(9/8. Taksit)` gibi) kalır.
+- MVP'nin bildiği düzen, ödeme bilgilerinden yalnızca son ödeme tarihini yazar: "Son Ödeme Tarihi: 15/10/2026".
+  "Sonraki" ile başlayan tarih gelecek ekstrenindir. Asgari tutar ve limit boş kalır; gerçek bir ekstre gelince
+  denetlenmeli.
+- Sayfa resmi olarak gelen ekstrede (OCR) ödeme bilgileri okunmaz.
 
 **Kart ödeme dekontu PDF'i:** `ekstresiz_kart` (`card_payment_no_statement`) türündedir; ekstresi olmayan bir karta
 yapılan ödemedir.
@@ -239,6 +274,9 @@ yapılan ödemedir.
   `parsers/qnb/card_pdf.py` içindeki `_REPAIRS` ile onarılır.
 - Hesap listesi `DEVREDEN BAKİYE` ile açılır.
 - `Transfer İşlemleri - Alıcı/Gönderen :` başlıkları sonraki satırlara taşar.
+- MVP'nin bildiği kart PDF'i, ödeme bilgilerinden yalnızca son ödeme tarihini yazar: "Son Ödeme Tarihi : 15/10/2026".
+  "Ö" harfi yazı tipinde düşebilir ("Önceki"nin düştüğü gibi); etiket `Son …deme Tarihi` olarak aranır. Asgari tutar
+  ve limit boş kalır; gerçek bir ekstre gelince denetlenmeli.
 
 **e-dekont** (HTML; utf-8 ya da windows-1254; ya da PDF)
 

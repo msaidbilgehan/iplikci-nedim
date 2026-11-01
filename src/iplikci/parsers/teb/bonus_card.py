@@ -6,7 +6,7 @@ from decimal import Decimal
 from ...domain.codes import DocumentKind
 from ...domain.models import TRY, Account, ParseResult, Statement, Transaction
 from ...domain.text import fold
-from ..common import BUSINESS_REASON, Skipped, classify_kind, installment_label
+from ..common import BUSINESS_REASON, Skipped, agreed, classify_kind, installment_label
 from ..contract import Detection, Format, Probe, SourceDocument
 from ..pdf import Line, find_header, find_word, page_lines, page_text, take_amount
 from ..text import parse_dmy, parse_tr_amount, squash
@@ -19,6 +19,8 @@ _ORIGINAL_DATE = re.compile(r"^\d{2}/\d{2}\s+")
 _INSTALLMENT = re.compile(r"\((\d{1,2})/(\d{1,2})\.\s*taksit\)", re.IGNORECASE)
 _FOREIGN = re.compile(r"\(Yurt\s*dışı\s*işlem\s*tutarı\s*([A-Z]{3})\.([\d.]+,(?:\d{1,2}|-))\)", re.IGNORECASE)
 _CARD = re.compile(r"KARTNUMARASI:?(\d{6,8})\*{4,6}(\d{4})")
+# This statement's due date; as with "Sonraki Hesap Kesim Tarihi", a date after "Sonraki" is the next statement's.
+_DUE = re.compile(r"(?<!SONRAKI)SONODEMETARIHI:?(\d{2}/\d{2}/\d{4})")
 
 
 def _split_description(desc: str) -> tuple[str, str, str]:
@@ -51,6 +53,8 @@ def _parse_statement(doc: SourceDocument, first: str) -> ParseResult:
         source=doc.name,
         previous=Decimal(0),
         total=parse_tr_amount(total[1]) if total else None,
+        # The layout known prints no minimum payment or limit.
+        due_date=agreed(parse_dmy(d) for d in _DUE.findall(sq)),
     )
     for page in doc.pdf.pages:
         lines = page_lines(page)
@@ -154,7 +158,7 @@ def _parse_ocr(doc: SourceDocument, pages: list[list[Line]]) -> ParseResult:
 
 class BonusCard:
     id = ID
-    version = 3
+    version = 4
     bank = "TEB"
     name = "TEB Bonus kart ekstresi"
     document_type = DocumentKind.CARD_STATEMENT

@@ -9,7 +9,7 @@ from ._card import BONUS_ID, read_statement
 
 class BonusCard:
     id = BONUS_ID
-    version = 1
+    version = 2
     bank = "Garanti BBVA"
     name = "Garanti BBVA Bonus kart ekstresi"
     document_type = DocumentKind.CARD_STATEMENT

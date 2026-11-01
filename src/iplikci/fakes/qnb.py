@@ -2,10 +2,10 @@
 
 import textwrap
 from collections.abc import Sequence
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
 
-from . import HOLDER, CardRow, Move, Specimen, charged
+from . import HOLDER, CardRow, CardTerms, Move, Specimen, charged
 from .files import Run, right, text_pdf
 
 # QNB prints its rows in a font with no Unicode map for Turkish letters: pdfminer shows each as "(cid:N)". The
@@ -29,12 +29,17 @@ CARD_PAGES: tuple[tuple[CardRow, ...], ...] = (
 )
 
 
+# A card statement's terms: the due date ten days after the cut, the only one the layout the MVP knew prints.
+CARD_TERMS = CardTerms(date(2026, 10, 15))
+
+
 def card_statement(
     pages: Sequence[Sequence[CardRow]] = CARD_PAGES,
     cut: date = date(2026, 10, 5),
     previous: Decimal = Decimal(3250),
     last4: str = "1234",
     holder: str = HOLDER,
+    terms: CardTerms = CARD_TERMS,
 ) -> bytes:
     """A QNB card statement exported as PDF ("Ekstre Hareketleri"): US-format amounts, a leading minus for a
     credit, and the rows' Turkish letters lost to the font."""
@@ -44,7 +49,7 @@ def card_statement(
         (40, 70, f"Sn. {holder}"),
         (40, 90, f"Kredi Kartı Numarası : 5400 12** **** {last4}"),
         (40, 102, f"Hesap Kesim Tarihi : {cut:%d/%m/%Y}"),
-        (40, 114, f"Son Ödeme Tarihi : {cut + timedelta(days=10):%d/%m/%Y}"),
+        *([(40, 114, f"Son Ödeme Tarihi : {terms.due:%d/%m/%Y}")] if terms.due is not None else []),
         (40, 140, f"Önceki Dönem Bakiyeniz {us_amount(previous)}"),
         (40, 152, f"Genel Toplam - TL Hesap Ekstresi {us_amount(total)}"),
     ]

@@ -8,7 +8,7 @@ from html import escape
 
 from ..domain.labels import MONTHS, format_amount
 from ..domain.text import fold
-from . import HOLDER, CardRow, Move, Specimen, charged, with_balances
+from . import HOLDER, CardRow, CardTerms, Move, Specimen, charged, with_balances
 from .files import Cell, Run, html_mail, right, text_pdf, xls_file
 
 
@@ -170,28 +170,69 @@ PARACARD_PAGES: tuple[tuple[CardRow, ...], ...] = (
 )
 
 
+# A Bonus statement's terms: the due date ten days after the cut and the card's limit. Garanti prints no minimum
+# payment on the pages the reader reads.
+BONUS_TERMS = CardTerms(date(2026, 10, 15), limit=Decimal(45000))
+# The customer's limit and the cash advance limit, printed above and below the card's own.
+_CUSTOMER_LIMIT, _CASH_LIMIT = Decimal(50000), Decimal(18000)
+_WEEKDAYS = ("Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar")
+
+
 def bonus_statement(
     pages: Sequence[Sequence[CardRow]] = BONUS_PAGES,
     cut: date = date(2026, 10, 5),
     previous: Decimal = Decimal(3250),
     last4: str = "1234",
     total: Decimal | None = None,
+    terms: CardTerms = BONUS_TERMS,
 ) -> bytes:
-    """A Garanti BBVA Bonus card statement: the debt carried over (DEVİR), the rows page by page, and the debt it
-    ends with, which they add up to unless total says otherwise, as when the reader would miss a row."""
+    """A Garanti BBVA Bonus card statement: its summary with terms, the debt carried over (DEVİR), the rows page by
+    page, and the debt it ends with, which they add up to unless total says otherwise, as when the reader would miss
+    a row."""
     if total is None:
         total = previous + sum((charged(p) for p in pages), Decimal(0))
-    summary = [
+    head = _bonus_head(cut, total, last4, terms)
+    return text_pdf(*_card_pages(head, pages, CardRow(None, "DEVİR", previous), CardRow(None, "TOPLAM", total)))
+
+
+def _bonus_head(cut: date, total: Decimal, last4: str, terms: CardTerms) -> list[Run]:
+    """The first page's head as Garanti prints it: the due date in the heading too, the summary on the left with its
+    dates spelled out, and the address on the right, whose last lines fall on the summary's. The sentence under the
+    summary names the next cut and the next due date."""
+    next_cut = cut + timedelta(days=31)
+    next_due = next_cut + timedelta(days=10)
+    left = (terms.limit if terms.limit is not None else _CUSTOMER_LIMIT) - total
+    later = (
+        f"EKSTRE ÖZETİ Bir sonraki hesap kesiminiz {_spelled(next_cut)} {_WEEKDAYS[next_cut.weekday()]} ve son "
+        f"ödemeniz {_spelled(next_due)} {_WEEKDAYS[next_due.weekday()]} 'dir."
+    )
+    available = (
+        f"Hesap kesim tarihinizde kullanılabilir limitiniz {format_amount(left)} TL ,kullanılabilir nakit "
+        f"limitiniz {format_amount(_CASH_LIMIT)} TL'dir."
+    )
+    runs: list[Run] = [
         (40, 40, "Garanti BBVA"),
-        (40, 52, "Bonus Kredi Kartı Ekstresi"),
-        *_address(),
-        (330, 80, f"Kart Numarası 5555 12** **** {last4}"),
-        (330, 92, f"Hesap Kesim Tarihi {_spelled(cut)}"),
-        (330, 104, f"Son Ödeme Tarihi {_spelled(cut + timedelta(days=10))}"),
-        (330, 116, f"Dönem Borcunuz {format_amount(total)}"),
-        (330, 128, f"Asgari Ödeme Tutarı {format_amount(total * Decimal('0.4'))}"),
+        (40, 64, "Bonus Platinum Örnek Kart Bilgileriniz"),
+        (40, 80, f"Kart Numarası 5555 12** **** {last4}"),
+        (330, 86, HOLDER),
+        (40, 92, f"Müşteri Limiti {format_amount(_CUSTOMER_LIMIT)} TL"),
+        (330, 98, "DENEME MAH. 1. SOK. NO:1"),
+        (40, 116, f"Nakit Avans Limiti {format_amount(_CASH_LIMIT)} TL"),
+        (330, 116, "KAT:3 D:5"),
+        (40, 128, f"Hesap Kesim Tarihi {_spelled(cut)}"),
+        (330, 128, "34000 ÖRNEKKÖY İSTANBUL"),
+        (40, 152, f"Dönem Borcunuz {format_amount(total)} TL"),
+        (40, 170, later),
+        (40, 182, available),
     ]
-    return text_pdf(*_card_pages(summary, pages, CardRow(None, "DEVİR", previous), CardRow(None, "TOPLAM", total)))
+    if terms.due is not None:
+        runs += [
+            (330, 64, f"Son Ödeme Tarihi: {_spelled(terms.due)}"),
+            (40, 140, f"Son Ödeme Tarihi {_spelled(terms.due)}"),
+        ]
+    if terms.limit is not None:
+        runs.append((40, 104, f"Kart Limiti {format_amount(terms.limit)} TL"))
+    return runs
 
 
 def paracard_statement(

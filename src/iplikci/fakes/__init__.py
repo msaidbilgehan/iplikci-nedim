@@ -81,6 +81,16 @@ class CardRow:
     extra: str = ""  # the installment or the foreign amount, in a column of its own
 
 
+@dataclass(frozen=True)
+class CardTerms:
+    """What a card statement prints for paying it. A term left None is not printed, and neither is one the bank's
+    layout has no place for."""
+
+    due: date | None = None  # this statement's due date
+    minimum: Decimal | None = None  # the minimum payment
+    limit: Decimal | None = None  # the card's limit
+
+
 def charged(rows: Iterable[CardRow]) -> Decimal:
     """What rows add to a card's debt."""
     return sum((r.amount for r in rows if r.amount is not None), Decimal(0))
