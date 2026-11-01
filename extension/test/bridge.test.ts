@@ -14,12 +14,19 @@ import {
   prove,
 } from "../src/bridge/service";
 import { memoryStore } from "../src/bridge/state";
+import { scansFirst } from "../src/bridge/steps";
 import type { Fetcher as GmailFetcher } from "../src/gmail/http";
 import { IK, type FakeEntry, feedXml, gmailPage, originalPage, rawMessage } from "./fixtures";
 
 const PAIRED: Paired = { id: "k1", token: "belirtec-123" };
 const BANK = "garantibbva.com.tr";
-const START: Cursor = { lastId: "", lastDate: "", startDay: "2026-01-01", senders: [BANK, "isbank.com.tr"] };
+const START: Cursor = {
+  lastId: "",
+  lastDate: "",
+  startDay: "2026-01-01",
+  senders: [BANK, "isbank.com.tr"],
+  historyDue: false,
+};
 
 describe("proof", () => {
   it("answers as the service does: HMAC-SHA256 keyed with the token's SHA-256", async () => {
@@ -72,6 +79,7 @@ function fakeService(options: ServiceOptions = {}) {
         last_date: where.lastDate,
         start_day: where.startDay,
         senders: where.senders,
+        history_due: where.historyDue,
       });
     }
     if (url.pathname === "/api/ingest/mail") {
@@ -170,6 +178,32 @@ describe("deliverNew", () => {
     const { env } = environment(gmail.fetcher, service.fetcher);
     await deliverNew(env, memoryStore({ paired: PAIRED, keys: { "0": IK } }));
     expect(service.deliveries.map((d) => d.id)).toEqual(["1002"]);
+  });
+
+  it("keeps what the service says of the history: a check by hand then scans Gmail first", async () => {
+    const store = memoryStore({ paired: PAIRED });
+    const due = fakeService({ cursor: { ...START, historyDue: true } });
+    await deliverNew(environment(fakeGmail([]).fetcher, due.fetcher).env, store);
+    expect([store.current.historyDue, store.current.startDay]).toEqual([true, "2026-01-01"]);
+    expect(scansFirst(store.current, "0.2.0")).toBe(true);
+    expect(scansFirst({ ...store.current, stopped: { "2": "0.2.0" } }, "0.2.0")).toBe(false); // no scan can run
+    expect(scansFirst({ ...store.current, paired: null }, "0.2.0")).toBe(false);
+    await deliverNew(environment(fakeGmail([]).fetcher, fakeService().fetcher).env, store);
+    expect(scansFirst(store.current, "0.2.0")).toBe(false); // scanned meanwhile
+  });
+
+  it("takes a service that says nothing of the history as having none to scan", async () => {
+    const older: Fetcher = async (address, init) => {
+      const answer = await fakeService().fetcher(address, init);
+      if (!address.includes("/cursor")) {
+        return answer;
+      }
+      const { history_due: _, ...rest } = (await answer.json()) as Record<string, unknown>;
+      return Response.json(rest);
+    };
+    const store = memoryStore({ paired: PAIRED, historyDue: true });
+    await deliverNew(environment(fakeGmail([]).fetcher, older).env, store);
+    expect(store.current.historyDue).toBe(false);
   });
 
   it("asks nothing of Gmail when the feed has nothing new", async () => {

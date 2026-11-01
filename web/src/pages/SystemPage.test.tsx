@@ -21,13 +21,20 @@ describe("SystemPage", () => {
   });
 
   it("says a refused login stopped the mail and is never tried again", async () => {
-    const stopped = systemStatus({
-      mail: { connector: "imap", configured: true, last_run: "", last_error: "giriş reddedildi", stopped: true },
-    });
-    server.use(http.get("/api/system", () => HttpResponse.json(stopped)));
+    const mail = { ...systemStatus().mail, last_run: "", last_error: "giriş reddedildi", stopped: true };
+    server.use(http.get("/api/system", () => HttpResponse.json(systemStatus({ mail }))));
     renderScreen(<SystemPage />);
     expect(await screen.findByText("Giriş reddedildi; e-posta alımı durdu")).toBeInTheDocument();
     expect(screen.getByText("Durdu")).toBeInTheDocument();
+  });
+
+  it("says the extension has not scanned the history since the start day yet", async () => {
+    const mail = { ...systemStatus().mail, connector: "browser_bridge" as const, history_due: true };
+    server.use(http.get("/api/system", () => HttpResponse.json(systemStatus({ mail }))));
+    renderScreen(<SystemPage />);
+    const card = await screen.findByRole("region", { name: "E-posta" });
+    expect(within(card).getByText("Geçmiş iletilerin taraması tamamlanmadı")).toBeInTheDocument();
+    expect(within(card).getByText(/başlangıç günü: 01\.01\.2024/)).toBeInTheDocument();
   });
 
   it("asks the service for a backup now", async () => {

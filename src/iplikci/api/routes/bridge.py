@@ -53,9 +53,12 @@ class CursorOut(BaseModel):
     last_date: str
     start_day: str
     senders: list[str]
+    history_due: bool  # no finished scan of Gmail searched this start day and these senders: the extension scans
 
 
 GmailId = Annotated[str, StringConstraints(pattern=r"^[0-9]{1,25}$")]  # Gmail's message id, in decimal
+Day = Annotated[str, StringConstraints(pattern=r"^([0-9]{4}-[0-9]{2}-[0-9]{2})?$")]  # YYYY-MM-DD; "" for all
+Domain = Annotated[str, StringConstraints(min_length=1, max_length=253)]
 
 
 class KnownIn(BaseModel):
@@ -64,6 +67,17 @@ class KnownIn(BaseModel):
 
 class KnownOut(BaseModel):
     missing: list[str]  # the ids the service holds no message for, in the order asked
+
+
+class ScannedIn(BaseModel):
+    """What a finished scan of Gmail searched, as the cursor said when it began."""
+
+    start_day: Day
+    senders: list[Domain] = Field(max_length=500)
+
+
+class ScannedOut(BaseModel):
+    history_due: bool  # the settings changed while the scan ran: the history needs another one
 
 
 class AlarmIn(BaseModel):
@@ -132,7 +146,11 @@ def revoke(request: Request, bridge_id: str) -> Response:
 def cursor(request: Request) -> CursorOut:
     found = bridge.cursor(context_of(request).ws)
     return CursorOut(
-        last_id=found.last_id, last_date=found.last_date, start_day=found.start_day, senders=list(found.senders)
+        last_id=found.last_id,
+        last_date=found.last_date,
+        start_day=found.start_day,
+        senders=list(found.senders),
+        history_due=found.history_due,
     )
 
 
@@ -140,6 +158,13 @@ def cursor(request: Request) -> CursorOut:
 def known(request: Request, body: KnownIn) -> KnownOut:
     """Which of the messages a scan of Gmail found the service holds already: only the missing are downloaded."""
     return KnownOut(missing=bridge.missing(context_of(request).ws, body.ids))
+
+
+@router.post("/api/ingest/mail/scanned")
+def scan_finished(request: Request, body: ScannedIn) -> ScannedOut:
+    """A scan of Gmail finished; the service remembers what it searched, so the history is not scanned again until
+    the start day or the senders change."""
+    return ScannedOut(history_due=bridge.scanned(context_of(request).ws, body.start_day, body.senders))
 
 
 @router.post("/api/ingest/mail/alarm")

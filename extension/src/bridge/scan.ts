@@ -4,14 +4,15 @@
  * conversations page by page and the tab closes. The service says which of the messages it lacks; those are
  * downloaded through "Show original" (layer 3) and delivered, oldest first, a second apart. Nothing in Gmail changes:
  * no conversation is opened, so nothing is marked read. Where the scan stands is kept for the extension's window; a
- * scan cut short goes on from what the service holds when it is started again.
+ * scan cut short goes on from what the service holds when it is started again. A finished scan tells the service what
+ * it searched: the history is scanned again only when the start day or the senders change.
  */
 
 import { HttpError, Redirected } from "../gmail/http";
 import { type Conversation, type ListPage, searchHash, searchQuery, searchUrl } from "../gmail/list";
 import { readOriginal } from "../gmail/original";
 import { decimalId } from "../gmail/search";
-import { type Cursor, MAX_MESSAGE_BYTES, type Paired, cursor, missing, prove } from "./service";
+import { type Cursor, MAX_MESSAGE_BYTES, type Paired, cursor, missing, prove, scanned } from "./service";
 import type { ScanSummary, Store } from "./state";
 import {
   type Environment,
@@ -101,6 +102,7 @@ export async function scanGmail(env: ScanEnvironment, store: Store): Promise<Sca
   } catch (error) {
     return stop(serviceProblem(error)?.[1] ?? `İplikçi Nedim beklenmeyen bir yanıt verdi (${trouble(error)}).`);
   }
+  await store.update({ historyDue: where.historyDue, startDay: where.startDay });
   if (where.senders.length === 0) {
     return stop("İplikçi Nedim'deki banka göndericisi listesi boş.");
   }
@@ -116,6 +118,9 @@ export async function scanGmail(env: ScanEnvironment, store: Store): Promise<Sca
       detail: lacking.length === 0 ? "Eksik ileti yok." : `${lacking.length} eksik ileti indiriliyor…`,
     });
     await download(env, store, report, paired, state.account, lacking);
+    // A service that cannot record it now, or knows no such record, leaves the history as its cursor said.
+    const due = await scanned(env.service, paired, where.startDay, where.senders).catch(() => where.historyDue);
+    await store.update({ historyDue: due });
     return report({ phase: "done", detail: finished(summary) });
   } catch (error) {
     return scanTrouble(env, store, paired, error, stop);

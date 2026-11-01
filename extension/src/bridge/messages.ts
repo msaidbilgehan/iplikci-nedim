@@ -18,6 +18,9 @@ export interface Status {
   readonly lastRun: RunSummary | null;
   /** The scan of Gmail ("Gmail'de eksikleri tara"): the one running, or the last one. */
   readonly scan: ScanSummary | null;
+  /** The service lacks the history from this day on (YYYY-MM-DD): a check asked for by hand scans Gmail first. */
+  readonly historyDue: boolean;
+  readonly startDay: string;
   readonly stopped: readonly string[];
   /** The answer to a pairing attempt, in Turkish; "" when it worked or none was made. */
   readonly problem: string;

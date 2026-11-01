@@ -53,6 +53,8 @@ class MailOut(BaseModel):
     last_run: str
     last_error: str
     stopped: bool
+    start_day: str  # where the history begins
+    history_due: bool  # the extension has not scanned Gmail for this start day and these senders yet
 
 
 class BackupHealthOut(BaseModel):

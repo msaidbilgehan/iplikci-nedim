@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
 
-import { server } from "../test/server";
+import { server, systemStatus } from "../test/server";
 import { renderScreen } from "../test/render";
 import ExtensionPage from "./ExtensionPage";
 
@@ -32,5 +32,12 @@ describe("ExtensionPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "İptal et" }));
     expect(ask).toHaveBeenCalledTimes(2);
     await vi.waitFor(() => expect(revoked).toEqual(["k1"]));
+  });
+
+  it("says when the paired extension has not scanned the history yet", async () => {
+    const mail = { ...systemStatus().mail, connector: "browser_bridge" as const, history_due: true };
+    server.use(http.get("/api/system", () => HttpResponse.json(systemStatus({ mail }))));
+    renderScreen(<ExtensionPage />);
+    expect(await screen.findByText("Geçmiş iletilerin taraması tamamlanmadı")).toBeInTheDocument();
   });
 });

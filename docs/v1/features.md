@@ -65,6 +65,9 @@ G1, G10, G13 · Çekirdek
   - Gmail'i üç katmanla okur. Yeni iletiler gelen kutusu akışından, okunmuş ve arşivlenmiş iletilerle geçmiş tam
     taramadan, iletinin kendisi "Orijinali göster"den alınır. İndirilen ileti okunmamış kalır (test edilir).
   - Tam tarama bozulursa yeni okunmamış iletiler alınmaya devam eder ve kullanıcıya bir kez bildirilir (test edilir).
+  - Tam tarama doğrulamada tutmadı (2026-11-01). Bu yüzden geçmiş ve kaçan iletiler "Gmail'de eksikleri tara" ile
+    alınır. Tarama eşleşince kendiliğinden başlar; başlangıç günü ya da gönderici listesi değişince yeniden istenir
+    (test edilir).
   - Eşleştirme arayüzden iptal edilir; iptal edilen belirteçle gelen istek reddedilir (test edilir).
   - Sistem ekranında eklentinin son görülme zamanı görünür; tarayıcı bir günden uzun kapalıysa bir kez bildirilir.
 - **Salt okunur kutu:** hiçbir ileti okundu işaretlenmez, taşınmaz ya da silinmez. IMAP sahte bir sunucuyla, eklenti

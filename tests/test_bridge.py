@@ -3,7 +3,7 @@ token that opens only the mail intake, revocation, and the messages it delivers.
 
 import hashlib
 import hmac
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -220,3 +220,49 @@ def test_only_a_paired_extension_asks_which_messages_are_missing_and_only_with_i
     assert other.post("/api/ingest/mail/known", json={"ids": ["1"]}, headers=bearer(TOKEN)).status_code == 403
     for ids in (["18f0a1"], ["1"] * 1001, [""]):
         assert other.post("/api/ingest/mail/known", json={"ids": ids}, headers=bearer(token)).status_code == 422
+
+
+def test_the_history_is_scanned_once_until_the_start_day_or_the_senders_change(client, ws):
+    token = paired(client)["token"]
+    other = TestClient(client.app, base_url=BASE)
+
+    def cursor() -> dict:
+        return other.get("/api/ingest/mail/cursor", headers=bearer(token)).json()
+
+    def system_mail() -> dict:
+        return client.get("/api/system", headers=bearer(TOKEN)).json()["mail"]
+
+    first = cursor()
+    assert first["history_due"] and system_mail()["history_due"]  # just paired: Gmail was never scanned
+    searched = {"start_day": first["start_day"], "senders": [s.upper() for s in reversed(first["senders"])]}
+    assert other.post("/api/ingest/mail/scanned", json=searched, headers=bearer(token)).json() == {
+        "history_due": False  # the same senders in any order and case
+    }
+    assert not cursor()["history_due"]
+    assert (system_mail()["history_due"], system_mail()["start_day"]) == (False, first["start_day"])
+    config.update(ws.layout.settings, "mail", {"start_day": date(2020, 1, 1)})
+    assert cursor()["history_due"]  # an earlier start day: scanned again
+    config.update(ws.layout.settings, "mail", {"start_day": date.fromisoformat(first["start_day"])})
+    assert not cursor()["history_due"]
+    config.update(ws.layout.settings, "mail", {"other_senders": ["fatura.example"]})
+    assert cursor()["history_due"]  # a new sender: scanned again
+
+
+def test_a_scan_that_searched_what_the_settings_no_longer_ask_for_leaves_the_history_due(client):
+    token = paired(client)["token"]
+    other = TestClient(client.app, base_url=BASE)
+    old = {"start_day": "2019-01-01", "senders": ["teb.com.tr"]}  # the settings changed while it ran
+    assert other.post("/api/ingest/mail/scanned", json=old, headers=bearer(token)).json() == {"history_due": True}
+
+
+def test_only_a_paired_extension_reports_a_scan_and_only_in_shape(client):
+    token = paired(client)["token"]
+    other = TestClient(client.app, base_url=BASE)
+    searched = {"start_day": "2024-01-01", "senders": ["teb.com.tr"]}
+    assert other.post("/api/ingest/mail/scanned", json=searched, headers=bearer(TOKEN)).status_code == 403
+    for bad in (
+        {"start_day": "1 Ocak 2024", "senders": ["teb.com.tr"]},
+        {"start_day": "", "senders": [""]},
+        {"start_day": "", "senders": ["teb.com.tr"] * 501},
+    ):
+        assert other.post("/api/ingest/mail/scanned", json=bad, headers=bearer(token)).status_code == 422

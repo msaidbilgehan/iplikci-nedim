@@ -47,11 +47,15 @@ function empty(shown: Partial<ListPage> = {}): ListPage {
   return { conversations: [], unknownRows: 0, settled: false, main: true, rows: 0, ...shown };
 }
 
-/** The service: proves itself, says where delivery stands, which ids it holds, and records what it is given. */
+/**
+ * The service: proves itself, says where delivery stands and that the history was never scanned, which ids it holds,
+ * and records what it is given.
+ */
 function fakeService(held: ReadonlySet<string> = new Set(), down = false, older = false) {
   const delivered: Array<{ id: string; date: string | null }> = [];
   const alarms: unknown[] = [];
   const asked: string[][] = [];
+  const scans: unknown[] = [];
   const fetcher: Fetcher = async (address, init) => {
     if (down) {
       throw new TypeError("Failed to fetch");
@@ -62,7 +66,13 @@ function fakeService(held: ReadonlySet<string> = new Set(), down = false, older 
       case "/api/bridge/hello":
         return Response.json({ proof: await expectedProof(PAIRED.token, url.searchParams.get("nonce") ?? "") });
       case "/api/ingest/mail/cursor":
-        return Response.json({ last_id: "", last_date: "", start_day: "2026-01-01", senders: SENDERS });
+        return Response.json({
+          last_id: "",
+          last_date: "",
+          start_day: "2026-01-01",
+          senders: SENDERS,
+          history_due: scans.length === 0,
+        });
       case "/api/ingest/mail/known": {
         if (older) {
           return Response.json({ code: "http_404", title: "Bulunamadı." }, { status: 404 });
@@ -71,6 +81,9 @@ function fakeService(held: ReadonlySet<string> = new Set(), down = false, older 
         asked.push(ids);
         return Response.json({ missing: ids.filter((id) => !held.has(id)) });
       }
+      case "/api/ingest/mail/scanned":
+        scans.push(JSON.parse(String(init.body)));
+        return Response.json({ history_due: false });
       case "/api/ingest/mail": {
         const headers = new Headers(init.headers);
         delivered.push({ id: headers.get("X-Gmail-Id") ?? "", date: headers.get("X-Gmail-Date") });
@@ -83,7 +96,7 @@ function fakeService(held: ReadonlySet<string> = new Set(), down = false, older 
         return new Response(null, { status: 404 });
     }
   };
-  return { fetcher, delivered, alarms, asked };
+  return { fetcher, delivered, alarms, asked, scans };
 }
 
 /** Gmail: its page with the account key, and every message's "Show original". */
@@ -164,6 +177,25 @@ describe("scanGmail", () => {
       'collect after "10"',
     ]);
     expect([summary.pages, summary.conversations]).toEqual([2, 2]);
+  });
+
+  it("tells the service what a finished scan searched, so the history is not scanned again", async () => {
+    const service = fakeService();
+    const store = memoryStore({ paired: PAIRED });
+    await scan(fakeTabs([page(["10", "10", 0])]).tabs, { service: service.fetcher, store });
+    expect(service.scans).toEqual([{ start_day: "2026-01-01", senders: SENDERS }]);
+    expect([store.current.historyDue, store.current.startDay]).toEqual([false, "2026-01-01"]);
+  });
+
+  it("leaves the history due when a scan stops, or as the cursor said when the service cannot record it", async () => {
+    const service = fakeService();
+    const store = memoryStore({ paired: PAIRED });
+    await scan(fakeTabs([], new TabGone("x")).tabs, { service: service.fetcher, store });
+    expect([service.scans, store.current.historyDue]).toEqual([[], true]);
+    const forgetful: Fetcher = async (address, init) =>
+      address.endsWith("/scanned") ? new Response(null, { status: 500 }) : service.fetcher(address, init);
+    const summary = await scan(fakeTabs([page(["10", "10", 0])]).tabs, { service: forgetful, store });
+    expect([summary.phase, store.current.historyDue]).toEqual(["done", true]); // the messages came all the same
   });
 
   it("downloads nothing when the service holds every message", async () => {

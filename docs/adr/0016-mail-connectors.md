@@ -130,8 +130,8 @@ Sonuca göre:
   adres, konu ya da ileti metni taşımaz.
 - **Eşleştirme:** servisin oturum açılmış bir sayfası 8 karakterlik, 10 dakika geçerli, tek kullanımlık bir kod verir;
   beş yanlış kod açık kodları kapatır. Eklenti kodu kendi kökeninden belirtece çevirir. Servis belirtecin yalnızca
-  SHA-256'sını saklar. Belirteç yalnızca `/api/ingest/mail`, `/api/ingest/mail/cursor` ve `/api/ingest/mail/alarm`'ı
-  açar.
+  SHA-256'sını saklar. Belirteç yalnızca eklentinin alım uçlarını açar: `/api/ingest/mail`, `/api/ingest/mail/cursor`,
+  `/api/ingest/mail/known`, `/api/ingest/mail/scanned` ve `/api/ingest/mail/alarm`.
 - **Servisin kanıtı:** eklenti her çalışmada önce `/api/bridge/hello`'ya rastgele bir değer (nonce) gönderir. Servis,
   belirtecin SHA-256'sının onaltılık yazımını anahtar alan HMAC-SHA256 ile yanıt verir. 127.0.0.1:8643'te servisin
   yerinde başka bir program varsa eklenti ona hiçbir şey göndermez.
@@ -165,8 +165,16 @@ Sonuca göre:
   - Bir konuşmayı açmak iletilerini okundu yapar, bu yüzden tarama hiçbir konuşmayı açmaz. Liste bir konuşmanın ilk
     (konuşmanın kimliği) ve son iletisini adlandırır; aradakiler bu yolla alınamaz ve raporda sayılır.
   - Tanınmayan bir liste 2. katmanın biçim alarmıdır. İzinlere `scripting` eklendi; adresler değişmedi.
-- Gönderici listesi ya da başlangıç günü değişince yeniden tarama ve başlangıç gününün arayüzden seçilmesi sonra
-  gelecek; tarama her çalıştığında güncel listeyi ve başlangıç gününü kullanır.
+- **Geçmişin taranıp taranmadığını servis bilir** (eklenti konum tutmaz).
+  - Biten bir tarama neyi aradığını `POST /api/ingest/mail/scanned` ile bildirir: başlangıç gününü ve gönderici
+    listesini. Servis bunu eklentinin e-posta durumunda saklar (`scan_key`, IMAP'in baştan okuma anahtarı gibi).
+  - İmleç (`/api/ingest/mail/cursor`) `history_due` ile geçmişin yeniden taranması gerekip gerekmediğini söyler.
+    Gerekir: hiç taranmadıysa ya da başlangıç günü veya gönderici listesi o zamandan beri değiştiyse.
+  - Eşleşme bitince, servis geçmişi istiyorsa tarama kendiliğinden başlar. Aynı servise yeniden eşleşmek taramayı
+    yinelemez.
+  - Kendiliğinden başka tarama yoktur: sekmesi kullanıcının işinin önüne çıkardı. Geçmiş gerekiyorsa eklentinin
+    penceresi, Sistem sayfası ve eklenti sayfası bunu söyler; "Şimdi denetle" de önce taramayı yapar.
+- Başlangıç gününün arayüzden seçilmesi sonra gelecek; varsayılanı iki yıl öncesinin 1 Ocak'ıdır.
 
 ## Sonuçlar
 

@@ -30,6 +30,9 @@ açık Gmail oturumuyla okuyup bu bilgisayardaki İplikçi Nedim servisine taş�
   - Servis hangi iletilerin eksik olduğunu söyler. Eksikler "Orijinali göster" yoluyla indirilip teslim edilir.
   - Hiçbir konuşma açılmaz, çünkü açmak iletileri okundu yapar. Bu yüzden bir konuşmanın yalnızca ilk ve son iletisi
     alınır; aradakilerin sayısı raporda yazar.
+  - Tarama eşleşince kendiliğinden başlar. Biten bir tarama neyi aradığını servise bildirir: başlangıç gününü ve banka
+    listesini. İkisinden biri değişince pencere yeniden taramayı ister ve "Şimdi denetle" önce onu yapar.
+    Kendiliğinden başka tarama yoktur, çünkü sekmesi o an yapılan işin önüne çıkardı.
 
 ## İlkeler
 

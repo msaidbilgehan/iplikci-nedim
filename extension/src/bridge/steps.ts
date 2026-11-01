@@ -50,6 +50,14 @@ export function stoppedNow(state: BridgeState, version: string, ...layers: Layer
   return layers.some((which) => state.stopped[String(which)] === version);
 }
 
+/**
+ * Whether a check asked for by hand, or the first after pairing, scans Gmail rather than reading the inbox feed: the
+ * service lacks the history (the scan delivers the new messages too), and the scan's layers can run.
+ */
+export function scansFirst(state: BridgeState, version: string): boolean {
+  return state.paired !== null && state.historyDue && !stoppedNow(state, version, 2, 3);
+}
+
 /** Stop a layer for this version and tell the service once; the stop holds even when the service does not hear. */
 export async function stopLayer(env: Environment, store: Store, paired: Paired, which: Layer): Promise<void> {
   await store.update({ stopped: { ...(await store.get()).stopped, [String(which)]: env.version } });

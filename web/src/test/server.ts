@@ -29,7 +29,15 @@ export function systemStatus(overrides: Partial<SystemStatus> = {}): SystemStatu
     ],
     disk: { vault: 1536, database: 2 * 1024 * 1024, free: 50 * 1024 ** 3 },
     queue: { counts: { queued: 1, done: 9 }, next_run: "", failures: [] },
-    mail: { connector: "imap", configured: true, last_run: "2026-11-01T07:45:00+00:00", last_error: "", stopped: false },
+    mail: {
+      connector: "imap",
+      configured: true,
+      last_run: "2026-11-01T07:45:00+00:00",
+      last_error: "",
+      stopped: false,
+      start_day: "2024-01-01",
+      history_due: false,
+    },
     backup: {
       last: "2026-11-01T00:30:00+00:00",
       next: "2026-11-02T00:30:00+00:00",

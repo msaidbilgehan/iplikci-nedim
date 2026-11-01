@@ -3,13 +3,14 @@
 
 import { useBackupNow, useBridges, useLabels, useSystem } from "../api/queries";
 import type { Bridge, Labels, SystemStatus } from "../api/types";
+import { HistoryDue } from "../components/HistoryDue";
 import { Failure, Loading } from "../components/QueryState";
 import { Alert } from "../components/ui/Alert";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card, Facts } from "../components/ui/Card";
 import { Table, Td, Th } from "../components/ui/Table";
-import { formatSize, formatTime } from "../lib/format";
+import { formatDay, formatSize, formatTime } from "../lib/format";
 
 export default function SystemPage() {
   const system = useSystem();
@@ -74,8 +75,10 @@ function MailCard({ status }: { status: SystemStatus }) {
             ["Bağlantı", byExtension ? "Tarayıcı eklentisi" : "IMAP"],
             ["Durum", mailBadge(status)],
             ["Son alım", mail.last_run ? formatTime(mail.last_run) : "Henüz yok"],
+            ["Başlangıç günü", formatDay(mail.start_day)],
           ]}
         />
+        {mail.history_due ? <HistoryDue startDay={mail.start_day} /> : null}
         {mail.stopped ? (
           <Alert tone="critical" title="Giriş reddedildi; e-posta alımı durdu">
             <p>Hesabın kilitlenmemesi için yeniden denenmez. E-posta bağlantısını yeniden kurun.</p>

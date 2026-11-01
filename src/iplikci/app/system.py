@@ -14,9 +14,10 @@ from ..settings import config
 from ..storage import bridges, jobs
 from ..storage import mail as mail_store
 from ..storage.db import Database
+from . import bridge
 from .backup import Health as BackupHealth
 from .backup import health as backup_health
-from .mail import BRIDGE
+from .mail import BRIDGE, default_start
 from .reading import FORMAT_ALARM
 from .workspace import Workspace
 
@@ -63,6 +64,8 @@ class MailHealth:
     last_run: str  # the last fetch or delivery; "" if none yet
     last_error: str
     stopped: bool  # a refused login stopped the IMAP connector until it is set up again
+    start_day: str  # where the history begins
+    history_due: bool  # the extension has not scanned Gmail for this start day and these senders (ADR-0016)
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,13 +106,17 @@ def status(ws: Workspace) -> SystemStatus:
 def mail_health(ws: Workspace, db: Database) -> MailHealth:
     """How the chosen connector is doing; never the address (ADR-0015). The settings as the file says now: pairing
     an extension or setting up an account changes them while the service runs."""
-    settings = config.load(ws.layout.settings).mail
-    state = mail_store.load(db, settings.connector)
-    if settings.connector == BRIDGE:
+    settings = config.load(ws.layout.settings)
+    connector = settings.mail.connector
+    state = mail_store.load(db, connector)
+    if connector == BRIDGE:
         configured = any(b.active for b in bridges.every(db))
+        due = configured and bridge.history_due(settings, state)
     else:
-        configured = bool(settings.address)
-    return MailHealth(settings.connector, configured, state.last_run, state.last_error, state.stopped)
+        configured = bool(settings.mail.address)
+        due = False  # the service reads the mailbox from the start day by itself
+    start = (settings.mail.start_day or default_start()).isoformat()
+    return MailHealth(connector, configured, state.last_run, state.last_error, state.stopped, start, due)
 
 
 def reader_health(db: Database) -> list[ReaderHealth]:

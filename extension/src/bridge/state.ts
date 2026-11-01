@@ -1,7 +1,7 @@
 /**
  * What the extension keeps in the browser (chrome.storage.local): its pairing, which Google account to read, what the
- * last run did and which layers stopped. Where delivery stands lives in the service (ADR-0016: the extension keeps
- * no position); the account's address is never kept.
+ * last run did and which layers stopped. Where delivery stands, and whether the history was scanned, lives in the
+ * service (ADR-0016: the extension keeps no position); the account's address is never kept.
  */
 
 import type { Paired } from "./service";
@@ -58,6 +58,12 @@ export interface BridgeState {
   /** Gmail ids of messages the service can never take (too large, empty), so they are not downloaded again. */
   readonly skipped: readonly string[];
   readonly scan: ScanSummary | null;
+  /**
+   * What the service said last about the history: whether it still needs a scan of Gmail (the service keeps what the
+   * last finished scan searched) and the day it begins (YYYY-MM-DD).
+   */
+  readonly historyDue: boolean;
+  readonly startDay: string;
 }
 
 export const INITIAL: BridgeState = {
@@ -70,6 +76,8 @@ export const INITIAL: BridgeState = {
   failures: 0,
   skipped: [],
   scan: null,
+  historyDue: false,
+  startDay: "",
 };
 
 export interface Store {

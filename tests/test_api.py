@@ -1,7 +1,7 @@
 """The HTTP API (ADR-0007): the gate (Host, session or token, and a browser's writes from the service's own pages),
 the login link, the System screen's data and the event stream."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -194,6 +194,8 @@ def test_the_system_status_names_every_reader_and_what_it_read(client, ws):
         "last_run": "",
         "last_error": "",
         "stopped": False,
+        "start_day": f"{date.today().year - 2}-01-01",  # two years back by default
+        "history_due": False,  # the IMAP connector reads its history by itself
     }
 
 

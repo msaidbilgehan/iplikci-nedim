@@ -72,6 +72,7 @@ async function attempt(env: RunEnvironment, store: Store, state: BridgeState): P
     const [outcome, detail] = serviceProblem(error) ?? ["failed", unexpected(error)];
     return done(outcome, detail);
   }
+  await store.update({ historyDue: where.historyDue, startDay: where.startDay });
   try {
     const delivered = await deliverFresh(env, store, state, paired, where);
     await store.update({ calmUntil: 0, failures: 0 });

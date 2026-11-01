@@ -1,14 +1,16 @@
 /**
  * The bridge's service worker (ADR-0016): every minute (and when the browser starts) it delivers the inbox's new
- * bank messages to the paired service; it pairs with a code typed into the extension's window; and it runs the
- * ADR-0016 verification for its own page. All network work happens here, never in a page or a content script.
+ * bank messages to the paired service; it pairs with a code typed into the extension's window and then scans Gmail
+ * for the history the service lacks; and it runs the ADR-0016 verification for its own page. All network work
+ * happens here, never in a page or a content script.
  */
 
 import { type Request, type Status, asRequest } from "./bridge/messages";
 import { type RunEnvironment, deliverNew } from "./bridge/run";
 import { scanGmail } from "./bridge/scan";
-import { NotTheService, Refused, ServiceDown, pair, prove } from "./bridge/service";
+import { NotTheService, Refused, ServiceDown, cursor, pair, prove } from "./bridge/service";
 import { type RunSummary, type ScanSummary, chromeStore } from "./bridge/state";
+import { scansFirst } from "./bridge/steps";
 import { chromeTabs } from "./bridge/tabs";
 import { type Environment, verify } from "./verify/run";
 
@@ -79,6 +81,19 @@ function scanOnce(returnTo: number | undefined): Promise<ScanSummary> {
   return scanning;
 }
 
+/**
+ * A check asked for by hand, or the first after pairing: while the service lacks the history, a scan of Gmail (it
+ * delivers the new messages too), else a delivery run. A scan is not awaited: it runs for minutes and the window
+ * follows it through the stored state. No scan starts unasked, as its tab would come up over whatever the user does.
+ */
+async function checkNow(from: number | undefined): Promise<void> {
+  if (scansFirst(await chromeStore.get(), chrome.runtime.getManifest().version)) {
+    void scanOnce(from);
+    return;
+  }
+  await runOnce();
+}
+
 /** A scan that was under way when the worker stopped (the browser closed, the extension reloaded) is over. */
 async function forgetUnfinishedScan(): Promise<void> {
   const { scan } = await chromeStore.get();
@@ -95,8 +110,13 @@ async function answer(request: Request, from: number | undefined): Promise<unkno
       return verify(await verifyEnvironment(), request.account);
     case "status":
       return status("");
-    case "pair":
-      return status(await pairWith(request.code));
+    case "pair": {
+      const problem = await pairWith(request.code);
+      if (problem === "") {
+        void checkNow(from);
+      }
+      return status(problem);
+    }
     case "account":
       // another account starts afresh: a wait Gmail asked for was for the one before
       await chromeStore.update({ account: request.account, calmUntil: 0, failures: 0 });
@@ -104,7 +124,7 @@ async function answer(request: Request, from: number | undefined): Promise<unkno
     case "run":
       // asked for by hand: the wait after a trouble does not hold back a single check
       await chromeStore.update({ calmUntil: 0 });
-      await runOnce();
+      await checkNow(from);
       return status("");
     case "scan":
       void scanOnce(from); // it runs for minutes: the window follows it through the stored state
@@ -123,18 +143,32 @@ async function status(problem: string): Promise<Status> {
     account: state.account,
     lastRun: state.lastRun,
     scan: state.scan,
+    historyDue: state.paired !== null && state.historyDue,
+    startDay: state.startDay,
     stopped: Object.keys(state.stopped).filter((layer) => state.stopped[layer] === version),
     problem,
   };
 }
 
-/** Pair with a code; the problem in Turkish, "" when it worked. The new service proves itself before it is kept. */
+/**
+ * Pair with a code; the problem in Turkish, "" when it worked. The new service proves itself before it is kept, and
+ * says whether it lacks the history.
+ */
 async function pairWith(code: string): Promise<string> {
   const env = await environment();
   try {
     const paired = await pair(env.service, code, await browserLabel());
     await prove(env.service, paired);
-    await chromeStore.update({ paired, stopped: {}, calmUntil: 0, failures: 0, lastRun: null });
+    const where = await cursor(env.service, paired);
+    await chromeStore.update({
+      paired,
+      stopped: {},
+      calmUntil: 0,
+      failures: 0,
+      lastRun: null,
+      historyDue: where.historyDue,
+      startDay: where.startDay,
+    });
   } catch (error) {
     if (error instanceof ServiceDown) {
       return "İplikçi Nedim bu bilgisayarda çalışmıyor; açıp yeniden deneyin.";
@@ -147,7 +181,6 @@ async function pairWith(code: string): Promise<string> {
     }
     return "Eşleştirilemedi; yeniden deneyin.";
   }
-  void runOnce();
   return "";
 }
 

@@ -516,7 +516,7 @@ sorar:
 | `GET/PUT /api/rules/alerts`, `GET /api/notifications` | bildirim kuralları ve geçmişi |
 | `GET /api/mail`, `POST /api/mail/fetch` | e-posta durumu; şimdi al |
 | `POST /api/bridge/pairings`, `POST /api/bridge/pair`, `GET /api/bridge/hello`, `GET /api/bridge`, `DELETE /api/bridge/{id}` | tarayıcı eklentisi: eşleştirme kodu, kodun belirtece dönmesi, servisin kanıtı (HMAC), eşleşmeler, iptal (ADR-0016) |
-| `GET /api/ingest/mail/cursor`, `POST /api/ingest/mail`, `POST /api/ingest/mail/known`, `POST /api/ingest/mail/alarm` | eklentinin konumu, ham iletilerin teslimi, taramanın bulduğu iletilerden eksik olanlar, bir katmanın biçim alarmı; yalnızca eklenti belirteciyle |
+| `GET /api/ingest/mail/cursor`, `POST /api/ingest/mail`, `POST /api/ingest/mail/known`, `POST /api/ingest/mail/scanned`, `POST /api/ingest/mail/alarm` | eklentinin konumu ve geçmişin taranması gerekip gerekmediği, ham iletilerin teslimi, taramanın bulduğu iletilerden eksik olanlar, biten bir taramanın neyi aradığı, bir katmanın biçim alarmı; yalnızca eklenti belirteciyle |
 | `GET/PUT /api/settings` | ayarlar (sır içermez) |
 | `GET /api/system` | sağlık, işler, okuyucu sağlığı, yedekler |
 | `GET /api/backups`, `POST /api/backups` | yedekler; şimdi yedek al |

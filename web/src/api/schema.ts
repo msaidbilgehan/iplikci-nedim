@@ -53,6 +53,7 @@ export interface CursorOut {
   last_date: string;
   start_day: string;
   senders: string[];
+  history_due: boolean;
 }
 
 export interface DeliveredOut {
@@ -133,6 +134,8 @@ export interface MailOut {
   last_run: string;
   last_error: string;
   stopped: boolean;
+  start_day: string;
+  history_due: boolean;
 }
 
 export interface PairIn {
@@ -211,6 +214,16 @@ export interface ReaderHealthOut {
   verified: number;
   last_read: string;
   alarms: number;
+}
+
+/** What a finished scan of Gmail searched, as the cursor said when it began. */
+export interface ScannedIn {
+  start_day: string;
+  senders: string[];
+}
+
+export interface ScannedOut {
+  history_due: boolean;
 }
 
 export interface ServiceOut {

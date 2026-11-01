@@ -3,8 +3,9 @@
 
 import { useEffect, useState } from "react";
 
-import { useBridges, useRevokeBridge, useStartPairing } from "../api/queries";
+import { useBridges, useRevokeBridge, useStartPairing, useSystem } from "../api/queries";
 import type { Bridge } from "../api/types";
+import { HistoryDue } from "../components/HistoryDue";
 import { Empty, Failure, Loading } from "../components/QueryState";
 import { Alert } from "../components/ui/Alert";
 import { Badge } from "../components/ui/Badge";
@@ -82,6 +83,7 @@ function useCountdown(seconds: number | undefined, since: number): number {
 
 function PairedCard() {
   const bridges = useBridges();
+  const mail = useSystem().data?.mail;
   return (
     <Card title="Eşleşmiş eklentiler">
       {bridges.isPending ? <Loading /> : null}
@@ -89,7 +91,12 @@ function PairedCard() {
       {bridges.data?.length === 0 ? (
         <Empty title="Henüz eşleşmiş bir eklenti yok">Eşleşince e-postalar eklentiyle gelir.</Empty>
       ) : null}
-      {bridges.data && bridges.data.length > 0 ? <BridgeTable bridges={bridges.data} /> : null}
+      {bridges.data && bridges.data.length > 0 ? (
+        <div className="flex flex-col gap-3">
+          {mail?.history_due ? <HistoryDue startDay={mail.start_day} /> : null}
+          <BridgeTable bridges={bridges.data} />
+        </div>
+      ) : null}
     </Card>
   );
 }

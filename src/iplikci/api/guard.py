@@ -27,7 +27,13 @@ from .problems import problem
 OPEN_PATHS = frozenset({"/healthz", "/giris", "/api/bridge/pair", "/api/bridge/hello"})
 # A bridge's token opens the mail intake and nothing else.
 BRIDGE_PATHS = frozenset(
-    {"/api/ingest/mail", "/api/ingest/mail/cursor", "/api/ingest/mail/known", "/api/ingest/mail/alarm"}
+    {
+        "/api/ingest/mail",
+        "/api/ingest/mail/cursor",
+        "/api/ingest/mail/known",
+        "/api/ingest/mail/scanned",
+        "/api/ingest/mail/alarm",
+    }
 )
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 CSP = (

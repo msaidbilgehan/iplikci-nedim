@@ -12,10 +12,11 @@ process listening on 127.0.0.1:8643 in the service's place cannot answer, so it 
 
 import hashlib
 import hmac
+import json
 import secrets
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -143,6 +144,19 @@ class Cursor:
     last_date: str
     start_day: str  # where the history begins
     senders: tuple[str, ...]  # whose messages to deliver
+    history_due: bool  # no finished scan of Gmail searched this start day and these senders
+
+
+def history_key(start_day: str, senders: Iterable[str]) -> str:
+    """What a scan of Gmail searched. The bridge's state keeps the key of the last finished scan, as the IMAP
+    connector keeps what it read from the start; another key means the history needs a scan again."""
+    return json.dumps([start_day, sorted({s.lower() for s in senders})])
+
+
+def history_due(settings: config.Settings, state: mail_store.MailState) -> bool:
+    """Whether no finished scan of Gmail searched the start day and the senders the settings ask for now."""
+    start = settings.mail.start_day or mail.default_start()
+    return state.scan_key != history_key(start.isoformat(), mail.senders(settings))
 
 
 def cursor(ws: Workspace) -> Cursor:
@@ -150,13 +164,26 @@ def cursor(ws: Workspace) -> Cursor:
     with ws.db() as db:
         state = mail_store.load(db, mail.BRIDGE)
     start = settings.mail.start_day or mail.default_start()
-    return Cursor(state.last_id, state.last_date, start.isoformat(), mail.senders(settings))
+    return Cursor(
+        state.last_id, state.last_date, start.isoformat(), mail.senders(settings), history_due(settings, state)
+    )
 
 
 def missing(ws: Workspace, gmail_ids: list[str]) -> list[str]:
     """Which of the Gmail ids a scan of Gmail found the service does not hold yet."""
     with ws.db() as db:
         return bridges.missing(db, gmail_ids)
+
+
+def scanned(ws: Workspace, start_day: str, senders: Iterable[str]) -> bool:
+    """A scan of Gmail finished: it searched the senders' messages from start_day on, as the cursor said when it
+    began. Whether the history still needs a scan: the settings may have changed while it ran."""
+    settings = config.load(ws.layout.settings)
+    with ws.db() as db:
+        state = mail_store.load(db, mail.BRIDGE)
+        state.scan_key = history_key(start_day, senders)
+        mail_store.save(db, state)
+    return history_due(settings, state)
 
 
 def alarm(ws: Workspace, layer: int, version: str) -> bool:

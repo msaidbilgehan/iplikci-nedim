@@ -27,6 +27,8 @@ export interface Cursor {
   readonly startDay: string;
   /** The sender domains whose messages are delivered. */
   readonly senders: readonly string[];
+  /** No finished scan of Gmail searched this start day and these senders (false from a service that does not say). */
+  readonly historyDue: boolean;
 }
 
 /** The service does not answer: it is not running on this computer. */
@@ -122,6 +124,7 @@ export async function cursor(fetcher: Fetcher, paired: Paired): Promise<Cursor> 
     lastDate: typeof found["last_date"] === "string" ? found["last_date"] : "",
     startDay: typeof found["start_day"] === "string" ? found["start_day"] : "",
     senders,
+    historyDue: found["history_due"] === true,
   };
 }
 
@@ -158,6 +161,25 @@ export async function missing(fetcher: Fetcher, paired: Paired, ids: readonly st
     out.push(...found.missing.filter((id): id is string => typeof id === "string"));
   }
   return out;
+}
+
+/**
+ * Tell the service a scan of Gmail finished, with what it searched (as the cursor said when it began); whether the
+ * history still needs a scan, as the settings may have changed meanwhile.
+ */
+export async function scanned(
+  fetcher: Fetcher,
+  paired: Paired,
+  startDay: string,
+  senders: readonly string[],
+): Promise<boolean> {
+  const response = await call(fetcher, "/api/ingest/mail/scanned", {
+    method: "POST",
+    headers: { ...bearer(paired), "Content-Type": "application/json" },
+    body: JSON.stringify({ start_day: startDay, senders }),
+  });
+  const found = (await response.json()) as { history_due?: unknown };
+  return found.history_due === true;
 }
 
 /** Tell the service a layer stopped on a Gmail page it does not know (ADR-0016's format alarm). */
