@@ -15,8 +15,16 @@ RULES = {
     "iplikci.domain": (),
     "iplikci.api": ("iplikci.app",),
     "iplikci.jobs": ("iplikci.storage",),
-    # The feed compares analyses and touches no storage; the analysis still lives in the MVP's flat modules.
-    "iplikci.feed": ("iplikci.domain", "iplikci.analysis", "iplikci.insights", "iplikci.month_end"),
+    # The feed compares analyses and touches no storage; the analysis still lives in the MVP's flat modules. The
+    # calendar and the forecast are pure too: what falls due soon, or goes below zero, is news.
+    "iplikci.feed": (
+        "iplikci.domain",
+        "iplikci.analysis",
+        "iplikci.insights",
+        "iplikci.month_end",
+        "iplikci.upcoming",
+        "iplikci.forecast",
+    ),
     # The days ahead are interpretation: the ledger and the insights only, no storage, files or network.
     "iplikci.upcoming": ("iplikci.domain", "iplikci.analysis", "iplikci.insights"),
     "iplikci.forecast": ("iplikci.domain", "iplikci.analysis", "iplikci.insights", "iplikci.upcoming"),

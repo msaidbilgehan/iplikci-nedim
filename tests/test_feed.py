@@ -101,15 +101,20 @@ def test_a_refresh_records_what_changed_since_the_last_one(ws):
     assert background.refresh(ws, today=date(2026, 11, 15)) == []  # nothing before it: it only takes note
     add(ws, "teb.xls", teb.account_export(teb.running_rows(teb.ACCOUNT_MOVES)))
     changed = background.refresh(ws, today=date(2026, 11, 15))
-    # The rows, and October: it ended, and its page waits for the documents still due.
-    assert set(changed) == {"transaction.created", "month.ended"}
+    # The rows; October: it ended, and its page waits for the documents still due; and the account's forecast:
+    # January's money out, spread over the days ahead, takes its balance below zero.
+    assert set(changed) == {"transaction.created", "month.ended", "balance.forecast_negative"}
     assert background.refresh(ws, today=date(2026, 11, 15)) == []  # nothing new: nothing to tell
+    # A day later the same balance lasts a day longer: the same news, not told again.
+    assert background.refresh(ws, today=date(2026, 11, 16)) == []
     with ws.db() as db:
         created = events.entries(db, "transaction.created")
         [ended] = events.entries(db, "month.ended")
+        [negative] = events.entries(db, "balance.forecast_negative")
     assert len(created) == changed.count("transaction.created") == len(teb.ACCOUNT_MOVES)
     assert all(e.target and e.detail["account"].startswith("teb-") for e in created)
     assert ended.target == "2026-10"
+    assert (negative.target, negative.detail["days"]) == ("teb-123456789|2026-12-25", 40)
 
 
 def test_the_worker_does_a_queued_refresh(ws):

@@ -13,7 +13,7 @@ from ..jobs.schedule import Periodic, daily, every, monthly
 from ..jobs.worker import Handler
 from ..storage import audit, events, feed_state, jobs
 from ..vault import trash
-from . import access, backup, bridge, intake, mail, notify, uploads
+from . import access, backup, bridge, intake, mail, notify, outlook, uploads
 from .analysis import analyze
 from .kinds import BACKUP_DAILY, BACKUP_NOW, BACKUP_REHEARSAL, BRIDGE_CHECK, INBOX_TAKE, NOTIFY, PURGE, REFRESH
 from .workspace import Busy, Workspace
@@ -58,17 +58,18 @@ def request_refresh(ws: Workspace) -> int | None:
 
 
 def refresh(ws: Workspace, today: date | None = None) -> list[str]:
-    """Read what needs reading, make the analysis and its outputs again, and record what changed since the last
-    time as events; the kinds recorded. The events and the new snapshot are saved together, so a stop between them
-    can neither lose a change nor tell it twice."""
+    """Read what needs reading, make the analysis and its outputs again, and record as events what changed since the
+    last time and what the days ahead hold that was not told yet; the kinds recorded. The events and the new
+    snapshot are saved together, so a stop between them can neither lose a change nor tell it twice."""
     day = today or date.today()
     a = analyze(ws, write=True, today=day)
-    after = snapshot.take(a.dataset, a.months, day)
+    after = snapshot.take(a.dataset, a.insights, a.months, day, outlook.card_dues(a.dataset))
     with ws.db() as db, db.transaction():
-        changes = snapshot.diff(snapshot.Snapshot.load(feed_state.load(db, SNAPSHOT)), after)
+        before = snapshot.Snapshot.load(feed_state.load(db, SNAPSHOT))
+        changes = snapshot.diff(before, after)
         for change in changes:
             events.append(db, change.kind, change.target, **change.detail)
-        feed_state.save(db, SNAPSHOT, after.dump())
+        feed_state.save(db, SNAPSHOT, after.keeping(before).dump())
     return [change.kind for change in changes]
 
 
