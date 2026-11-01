@@ -141,6 +141,39 @@ def every(db: Database, statuses: Iterable[DocumentStatus] | None = None) -> lis
     return [doc for doc in map(_row, rows) if wanted is None or doc.status in wanted]
 
 
+def newest_first(
+    db: Database, statuses: Iterable[DocumentStatus], after: tuple[str, str] | None, limit: int
+) -> list[DocumentRow]:
+    """A page of the documents with one of statuses, newest arrival first; after is the (added_at, sha256) of the
+    last one on the page before (keyset paging: a document arriving meanwhile shifts nothing)."""
+    wanted = [s.value for s in statuses]
+    marks = ", ".join("?" * len(wanted))
+    where = f"status IN ({marks})"
+    params: list[object] = [*wanted]
+    if after is not None:
+        where += " AND (added_at, sha256) < (?, ?)"
+        params += [after[0], after[1]]
+    rows = db.rows(
+        f"SELECT * FROM documents WHERE {where} ORDER BY added_at DESC, sha256 DESC LIMIT ?", [*params, limit]
+    )
+    return [_row(row) for row in rows]
+
+
+def source_kinds(db: Database, shas: Iterable[str]) -> dict[str, list[SourceKind]]:
+    """How each of the documents arrived: the kinds of its arrivals, first arrival first, each once."""
+    wanted = list(shas)
+    found: dict[str, list[SourceKind]] = {sha: [] for sha in wanted}
+    if not wanted:
+        return found
+    marks = ", ".join("?" * len(wanted))
+    for row in db.rows(f"SELECT sha256, kind FROM document_sources WHERE sha256 IN ({marks}) ORDER BY id", wanted):
+        kinds = found[row["sha256"]]
+        kind = SourceKind(row["kind"])
+        if kind not in kinds:
+            kinds.append(kind)
+    return found
+
+
 def add_source(db: Database, sha256: str, source: Source) -> bool:
     """Record one arrival of a document; False when exactly this arrival was recorded before."""
     with db.transaction():

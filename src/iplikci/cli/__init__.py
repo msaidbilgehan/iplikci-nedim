@@ -7,7 +7,6 @@ iplikci                         raporu üret (exports/)
 iplikci ekle [YOL ...]          belgeleri arşive al: önce plan, --uygula ile uygula (yol yoksa gelen klasörü)
 iplikci aysonu [AY] [--ac]      ay sonu raporları: hangi ay kapandı, hangisi neyi bekliyor
 iplikci islem ara|duzelt|yetimler   işlem ara; nota, etikete, kategori ve gereklilik düzeltmesine bak ya da ekle
-iplikci panel [--ac]            raporu ve belge ekleme yerini yerel web panelinde aç
 iplikci eposta kur|durum|kaldir|al   IMAP hesabı (uygulama şifresine izin veren hesaplar) ve şimdi alım
 iplikci mcp                     Claude için MCP sunucusu (istemci başlatır)
 iplikci servis calistir         servisi ön planda çalıştır (API, 127.0.0.1)
@@ -26,7 +25,7 @@ from collections.abc import Callable
 
 from .backup import backup_command
 from .dev import dev_command
-from .documents import add_command, panel_command
+from .documents import add_command
 from .mail import mail_command
 from .mcp import mcp_command
 from .report import month_end_command, report
@@ -36,7 +35,6 @@ from .verify import verify_command
 
 COMMANDS: dict[str, Callable[[list[str]], int]] = {
     "ekle": add_command,
-    "panel": panel_command,
     "eposta": mail_command,
     "mcp": mcp_command,
     "aysonu": month_end_command,

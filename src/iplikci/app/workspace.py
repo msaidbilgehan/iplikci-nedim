@@ -1,7 +1,7 @@
 """The user's data folder as the program works with it: its layout, its settings, the vault and the database.
 
-Every entry point opens one Workspace; all of them may run at once (the panel, the MCP server, the automatic
-run, the command line), so writes take the workspace's lock and the database serializes them again.
+Every entry point opens one Workspace; all of them may run at once (the service, the MCP server, the command
+line), so writes take the workspace's lock and the database serializes them again.
 """
 
 import os

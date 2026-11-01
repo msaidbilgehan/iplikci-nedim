@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from iplikci import egress
+from iplikci.api import context as api_context
 from iplikci.app import intake
 from iplikci.app import mail as mail_app
 from iplikci.app.workspace import Workspace
@@ -107,6 +108,8 @@ def no_keyring_or_network(monkeypatch, tmp_path_factory):
     monkeypatch.delenv("IPLIKCI_MAIL_PASSWORD", raising=False)
     # A test that forgets to name its data folder gets an empty one, never the user's.
     monkeypatch.setenv(HOME_ENV, str(tmp_path_factory.mktemp("iplikci-bos")))
+    # The interface as a development copy without its build, whether web/ was built here or not.
+    monkeypatch.setattr(api_context, "UI", tmp_path_factory.mktemp("arayuz") / "derlenmemis")
 
 
 @pytest.fixture

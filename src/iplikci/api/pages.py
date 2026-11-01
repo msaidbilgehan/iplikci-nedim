@@ -1,11 +1,23 @@
-"""The few pages the service serves before the interface (web/) exists: the home page's stand-in and the pages a
-browser sees when it cannot come in. No script, no style, no external resource (the CSP allows none inline); the
-user never needs a terminal (K14)."""
+"""The interface (web/, ADR-0008) as the service serves it, and the pages a browser sees when it cannot come in.
 
-from fastapi import APIRouter
-from starlette.responses import HTMLResponse
+The interface is built into the package's ui/ folder (`npm run build` in web/): its files are served as they are,
+and every other page address gets index.html, so the single-page app opens on any of its addresses. Its hashed
+files never change and may be kept by the browser. A development copy that was never built says so on its home
+page. The pages here carry no script, no style and no external resource (the CSP allows none inline); the user
+never needs a terminal (K14)."""
+
+from pathlib import Path
+
+from fastapi import APIRouter, Request
+from starlette.exceptions import HTTPException
+from starlette.responses import FileResponse, HTMLResponse, Response
+
+from .context import context_of
 
 router = APIRouter(include_in_schema=False)
+
+_IMMUTABLE = {"cache-control": "private, max-age=31536000, immutable"}
+_NOT_PAGES = ("api/", "giris", "healthz")
 
 _PAGE = """<!doctype html>
 <html lang="tr">
@@ -30,12 +42,33 @@ LOGIN_EXPIRED = _PAGE.format(
     ),
 )
 
-HOME = _PAGE.format(
+NOT_BUILT = _PAGE.format(
     title="İplikçi Nedim çalışıyor",
-    body="<p>Servis bu bilgisayarda çalışıyor. Arayüz yakında bu sayfada açılacak.</p>",
+    body="<p>Servis bu bilgisayarda çalışıyor. Bu geliştirme kopyasında arayüz derlenmemiş (web/ klasöründe"
+    " <code>npm run build</code>).</p>",
 )
 
 
-@router.get("/")
-def home() -> HTMLResponse:
-    return HTMLResponse(HOME)
+@router.get("/{path:path}")
+def interface(request: Request, path: str) -> Response:
+    if path.startswith(_NOT_PAGES):  # an address of the API, answered as its own unknown addresses are
+        raise HTTPException(404)
+    ui = context_of(request).ui
+    index = ui / "index.html"
+    if not index.is_file():
+        return HTMLResponse(NOT_BUILT)
+    found = _file(ui, path)
+    if found is not None:
+        return FileResponse(found, headers=_IMMUTABLE if path.startswith("assets/") else None)
+    if "." in path.rsplit("/", 1)[-1]:  # a file the build does not have, not a page address
+        raise HTTPException(404)
+    return FileResponse(index)
+
+
+def _file(ui: Path, path: str) -> Path | None:
+    """The built file at path, never one outside ui."""
+    if not path:
+        return None
+    root = ui.resolve()
+    candidate = (root / path).resolve()
+    return candidate if candidate.is_relative_to(root) and candidate.is_file() else None

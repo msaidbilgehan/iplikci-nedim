@@ -6,7 +6,7 @@ from .. import __version__
 from . import pages, problems
 from .context import Context
 from .guard import Guard
-from .routes import auth, backups, bridge, events, mail, system, uploads
+from .routes import auth, backups, bridge, documents, events, mail, system, uploads
 
 
 def create_app(context: Context) -> FastAPI:
@@ -19,7 +19,8 @@ def create_app(context: Context) -> FastAPI:
     )
     app.state.context = context
     problems.install(app)
-    routers = (auth, system, events, bridge, uploads, backups, mail, pages)
+    # The interface's pages last: any address no route above takes is a page of the single-page app.
+    routers = (auth, system, events, bridge, uploads, backups, mail, documents, pages)
     for module in routers:
         app.include_router(module.router)
     app.add_middleware(Guard, context=context)

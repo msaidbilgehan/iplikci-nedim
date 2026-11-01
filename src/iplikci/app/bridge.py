@@ -19,8 +19,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+from ..domain.codes import Actor
 from ..settings import config
-from ..storage import bridges
+from ..storage import audit, bridges, events
 from ..storage import mail as mail_store
 from ..storage.db import now
 from . import mail
@@ -32,6 +33,7 @@ CODE_LENGTH = 8
 MAX_WRONG_CODES = 5
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O, 1/I: the user may type it
 _SEEN_EVERY = timedelta(minutes=1)
+PAIRED, REVOKED = "bridge.paired", "bridge.revoked"  # in the audit log, and as events for the pairing page
 
 
 def _hash(token: str) -> str:
@@ -80,8 +82,10 @@ def pair(ws: Workspace, name: str) -> Paired:
     """Make a bridge for an extension whose code was redeemed, and make the browser extension the mail connector."""
     token = secrets.token_urlsafe(32)
     bridge_id = secrets.token_hex(6)
-    with ws.db() as db:
+    with ws.db() as db, db.transaction():
         bridges.add(db, bridge_id, _hash(token), name.strip()[:80])
+        audit.record(db, Actor.USER, PAIRED, bridge_id)
+        events.record(db, PAIRED, bridge_id)  # the pairing page sees it at once
     settings = config.load(ws.layout.settings)
     config.update(
         ws.layout.settings,
@@ -121,8 +125,12 @@ def every(ws: Workspace) -> list[bridges.Bridge]:
 
 
 def revoke(ws: Workspace, bridge_id: str) -> bool:
-    with ws.db() as db:
-        return bridges.revoke(db, bridge_id)
+    with ws.db() as db, db.transaction():
+        if not bridges.revoke(db, bridge_id):
+            return False
+        audit.record(db, Actor.USER, REVOKED, bridge_id)
+        events.record(db, REVOKED, bridge_id)
+    return True
 
 
 @dataclass(frozen=True)

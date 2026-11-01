@@ -5,6 +5,7 @@ import threading
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import cast
 
 from fastapi import Request
@@ -15,6 +16,7 @@ from ..app.intake import Plan
 from ..app.workspace import Workspace
 
 PLANS_KEPT = 8  # plans shown and not yet applied
+UI = Path(__file__).parent / "ui"  # the interface, as `npm run build` in web/ writes it (ADR-0008)
 
 
 @dataclass(frozen=True)
@@ -27,6 +29,7 @@ class Context:
     pid: int = field(default_factory=os.getpid)
     stream_limit: float = 600.0  # an event stream closes after this many seconds; the browser reconnects
     poll: float = 1.0  # how often an event stream looks for new events
+    ui: Path = field(default_factory=lambda: UI)
     _plans: OrderedDict[str, Plan] = field(default_factory=OrderedDict[str, Plan])
     _plans_lock: threading.Lock = field(default_factory=threading.Lock)
 

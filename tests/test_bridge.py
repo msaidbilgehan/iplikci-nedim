@@ -11,7 +11,7 @@ from iplikci.api.app import create_app
 from iplikci.api.context import Context
 from iplikci.app.bridge import MAX_WRONG_CODES, PairingCodes
 from iplikci.settings import config
-from iplikci.storage import documents
+from iplikci.storage import audit, documents, events
 
 from conftest import FEBRUARY, bank_mail
 
@@ -63,6 +63,9 @@ def test_an_extension_pairs_with_a_code_and_becomes_the_mail_connector(client, w
     assert "token" not in listed[0]
     mail = client.get("/api/system").json()["mail"]
     assert (mail["connector"], mail["configured"], mail["last_run"]) == ("browser_bridge", True, "")
+    with ws.db() as db:
+        assert [e.kind for e in events.entries(db, "bridge.paired")] == ["bridge.paired"]  # the page refreshes on it
+        assert audit.targets(db, "bridge.paired") == {found["id"]}
 
 
 def test_a_code_works_once(client):
@@ -140,7 +143,7 @@ def test_delivered_messages_go_through_the_trust_rule_and_move_the_cursor(client
         assert len(documents.every(db)) == 2
 
 
-def test_a_revoked_bridge_is_refused(client):
+def test_a_revoked_bridge_is_refused(client, ws):
     found = paired(client)
     assert client.delete(f"/api/bridge/{found['id']}", headers=OWN_PAGE).status_code == 204
     other = TestClient(client.app, base_url=BASE)
@@ -148,6 +151,8 @@ def test_a_revoked_bridge_is_refused(client):
     assert client.get("/api/bridge/hello", params={"id": found["id"], "nonce": "b" * 32}).status_code == 404
     assert [b["active"] for b in client.get("/api/bridge").json()] == [False]
     assert client.delete(f"/api/bridge/{found['id']}", headers=OWN_PAGE).status_code == 404
+    with ws.db() as db:
+        assert audit.targets(db, "bridge.revoked") == {found["id"]} and events.entries(db, "bridge.revoked")
 
 
 def test_the_intake_refuses_empty_and_too_large_messages(client, monkeypatch):

@@ -1,8 +1,8 @@
-"""Files the user drops into the inbox, through the panel or the file manager, and uploads through the interface,
-which wait in vault/staging until the user confirms their plan (ADR-0007).
+"""Files the user drops into the inbox with the file manager, and uploads through the interface, which wait in
+vault/staging until the user confirms their plan (ADR-0007).
 
 An upload is written under a hidden name first and gets its real name only when complete, so a plan or the
-automatic run never sees half a file. Nothing in the inbox is ever replaced: a second file with a taken name
+inbox watcher never sees half a file. Nothing in the inbox is ever replaced: a second file with a taken name
 gets "(2)" and so on.
 """
 

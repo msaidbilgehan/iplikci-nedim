@@ -11,10 +11,11 @@ from iplikci.api.context import Context
 from iplikci.app import access, system
 from iplikci.app.access import LoginKeys, SessionState
 from iplikci.fakes import teb
+from iplikci.fakes.files import text_pdf
 from iplikci.parsers import registry
 from iplikci.storage import events
 
-from conftest import add
+from conftest import FEBRUARY, JANUARY, add
 
 TOKEN = "deneme-belirteci"
 BASE = "http://127.0.0.1:8643"
@@ -234,3 +235,61 @@ def test_the_schema_is_for_signed_in_callers_only(client):
     paths = client.get("/api/openapi.json", headers=bearer()).json()["paths"]
     assert {"/api/system", "/api/events", "/api/events/stream", "/api/login-links", "/api/logout"} <= set(paths)
     assert "/giris" not in paths
+
+
+# --- the Documents screen and the interface ------------------------------------------------------------------
+
+
+def test_the_documents_come_newest_first_a_page_at_a_time(client, ws):
+    add(ws, "ocak.xls", teb.account_export(JANUARY))
+    add(ws, "subat.xls", FEBRUARY)
+    add(ws, "bilgi.pdf", text_pdf([(72, 72, "Bilgilendirme")]))  # nothing a reader takes: kept, not processed
+    first = client.get("/api/documents", params={"limit": 2}, headers=bearer()).json()
+    assert len(first["items"]) == 2 and first["next"]
+    second = client.get("/api/documents", params={"limit": 2, "cursor": first["next"]}, headers=bearer()).json()
+    assert len(second["items"]) == 1 and second["next"] == ""
+    listed = first["items"] + second["items"]
+    assert [d["added_at"] for d in listed] == sorted((d["added_at"] for d in listed), reverse=True)
+    statement = next(d for d in listed if d["file"] == "ocak.xls")
+    assert (statement["status"], statement["kind"], statement["sources"]) == (
+        "processed",
+        "account_statement",
+        ["import"],
+    )
+    assert statement["verified"] is True and statement["period_start"].startswith("2026-01")
+    assert statement["reader"] == registry.label("teb.account_html")
+    [kept] = client.get("/api/documents", params={"status": "unprocessed"}, headers=bearer()).json()["items"]
+    assert kept["file"] == "bilgi.pdf" and kept["reason"]
+
+
+def test_a_page_asks_only_what_it_may(client):
+    bad = client.get("/api/documents", params={"cursor": "bozuk"}, headers=bearer())
+    assert (bad.status_code, bad.json()["code"]) == (400, "cursor_invalid")
+    unknown = client.get("/api/documents", params={"status": "hepsi"}, headers=bearer())
+    assert (unknown.status_code, unknown.json()["code"]) == (400, "status_invalid")
+    assert client.get("/api/documents").status_code == 401
+
+
+def test_the_interface_gets_the_codes_labels_from_the_one_mapping(client):
+    found = client.get("/api/labels", headers=bearer()).json()
+    assert found["DocumentStatus"]["processed"] == "İşlendi" and found["SourceKind"]["email"]
+    assert found["JobKind"]["backup.daily"] == "Günlük yedek"
+
+
+def test_the_interface_is_served_from_its_build(ws, tmp_path):
+    ui = tmp_path / "ui"
+    (ui / "assets").mkdir(parents=True)
+    (ui / "index.html").write_text("<!doctype html><title>arayüz</title>", encoding="utf-8")
+    (ui / "assets" / "giris-1a2b.js").write_text("export {};", encoding="utf-8")
+    (tmp_path / "gizli.toml").write_text("sir = 1", encoding="utf-8")
+    client = signed_in(TestClient(create_app(Context(ws=ws, token=TOKEN, ui=ui)), base_url=BASE))
+    for page in ("/", "/belgeler", "/sistem", "/kurulum/eklenti"):
+        assert "arayüz" in client.get(page).text  # every page address opens the single-page app
+    script = client.get("/assets/giris-1a2b.js")
+    assert script.headers["content-type"].startswith("text/javascript")
+    assert script.headers["cache-control"] == "private, max-age=31536000, immutable"
+    assert client.get("/assets/yok-9z.js").status_code == 404
+    assert "sir" not in client.get("/../gizli.toml").text and "sir" not in client.get("/%2e%2e/gizli.toml").text
+    assert client.get("/api/yok").json()["code"] == "http_404"
+    outsider = TestClient(client.app, base_url=BASE)
+    assert outsider.get("/belgeler").status_code == 401  # the interface itself is behind the session

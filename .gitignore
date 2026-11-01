@@ -42,6 +42,8 @@ web/dist/
 web/coverage/
 web/playwright-report/
 web/test-results/
+# the interface as `npm run build` in web/ writes it into the package (ADR-0008)
+src/iplikci/api/ui/
 extension/node_modules/
 extension/dist/
 # Local tool state (Claude Code locks, logs and personal settings)

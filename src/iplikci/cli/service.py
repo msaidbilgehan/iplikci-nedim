@@ -91,6 +91,13 @@ def _service_install(ws: Workspace) -> int:
     holder = instance.current(ws.run)
     if holder is not None and holder.pid:
         print(f"Bu veri klasörünü şu an süreç {holder.pid} sunuyor; o durunca arka plan servisi devralır.")
+    from ..api.context import UI
+
+    if not (UI / "index.html").is_file():
+        print(
+            "Uyarı: bu kopyada arayüz derlenmemiş; servis çalışır, arayüz açılmaz. Önce web/ klasöründe npm run build, "
+            "sonra kopyayı yeniden kurun."
+        )
     return 0
 
 

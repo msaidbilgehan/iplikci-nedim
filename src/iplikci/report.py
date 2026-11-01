@@ -292,8 +292,6 @@ def _template(name: str) -> str:
 
 
 REPORT_CSP = "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:"
-# The page the local panel serves may also talk to that panel (and nothing else).
-PANEL_CSP = REPORT_CSP + "; connect-src 'self'; form-action 'none'; base-uri 'none'"
 
 
 def _json_block(value) -> str:
@@ -308,24 +306,12 @@ def _json_number(value: object) -> float:
     raise TypeError(f"{type(value).__name__} JSON'a yazılamaz")
 
 
-def render_html(payload: dict[str, Any], panel: dict[str, Any] | None = None) -> str:
-    """The self-contained report. With panel (data for the web panel) it also carries the place to
-    add documents; that page only works when the local panel serves it."""
+def render_html(payload: dict[str, Any]) -> str:
+    """The self-contained report: one file that opens anywhere, with nothing fetched from elsewhere."""
     html = _template("rapor.html")
-    css, extra, scripts = _template("rapor.css"), "", ""
-    if panel is not None:
-        html = html.replace(REPORT_CSP, PANEL_CSP)
-        css += "\n" + _template("panel.css")
-        extra = _template("panel.html")
-        scripts = (
-            f'<script type="application/json" id="panel-veri">{_json_block(panel)}</script>\n'
-            f"<script>{_template('panel.js')}</script>"
-        )
     values = {
-        "/*__CSS__*/": css,
-        "<!--__PANEL__-->": extra,
+        "/*__CSS__*/": _template("rapor.css"),
         "/*__JS__*/": _template("rapor.js"),
-        "<!--__PANEL_SCRIPT__-->": scripts,
         "__DATA__": _json_block(payload),
     }
     # One pass over the template: text inserted from the data is never searched for placeholders.

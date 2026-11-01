@@ -53,7 +53,7 @@ def test_a_package_imports_only_what_the_architecture_allows(package):
 
 
 # What opens a connection to another computer. Only egress may (ADR-0009); the command line's client talks to the
-# service on 127.0.0.1 and nowhere else, and so does the MVP's panel looking for itself (it leaves with web/).
+# service on 127.0.0.1 and nowhere else.
 OPENERS = (
     "IMAP4_SSL(",
     "IMAP4(",
@@ -65,7 +65,7 @@ OPENERS = (
     "HTTPConnection(",
     "build_opener(",
 )
-MAY_OPEN = {"iplikci/egress.py", "iplikci/service/client.py", "iplikci/panel.py"}
+MAY_OPEN = {"iplikci/egress.py", "iplikci/service/client.py"}
 
 
 def test_only_egress_opens_connections():

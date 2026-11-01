@@ -402,7 +402,7 @@ def _remove_empty_folders(inbox: Path, keep_root: bool = True) -> None:
 
 
 def describe(c: Candidate, ws: Workspace) -> dict[str, object]:
-    """A plan item for the panel and the MCP client: what it is and what happens to it."""
+    """A plan item for the interface and the MCP client: what it is and what happens to it."""
     where = c.source.origin or c.name
     source = f"{where} › {c.name}" if c.container is not None or c.source.kind is SourceKind.EMAIL else where
     out: dict[str, object] = {

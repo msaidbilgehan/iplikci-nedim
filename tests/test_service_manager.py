@@ -179,7 +179,8 @@ def test_the_command_line_registers_the_installed_copy_for_its_data_folder(ws, m
     monkeypatch.setenv("IPLIKCI_HOME", str(ws.home))
     assert cli.main(["servis", "kur"]) == 0
     assert plistlib.loads(launchd.path.read_bytes())["ProgramArguments"][-2:] == ["--ev", str(ws.home)]
-    assert "Arka plan servisi kuruldu (launchd)" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "Arka plan servisi kuruldu (launchd)" in out and "arayüz derlenmemiş" in out  # this copy has no build
     assert cli.main(["servis", "kaldir"]) == 0 and not launchd.path.exists()
     assert cli.main(["servis", "yeniden-baslat"]) == 1
     assert "kurulu değil" in capsys.readouterr().err

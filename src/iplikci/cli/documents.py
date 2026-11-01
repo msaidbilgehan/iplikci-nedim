@@ -1,4 +1,4 @@
-"""`iplikci ekle` and the MVP's panel: documents into the archive through a plan the user sees first."""
+"""`iplikci ekle`: documents into the archive through a plan the user sees first."""
 
 import argparse
 import sys
@@ -6,8 +6,7 @@ from collections import Counter
 
 from ..app import intake
 from ..app.workspace import Busy, StalePlan
-from ..settings.config import DEFAULT_PORT
-from .common import clear_progress, open_workspace, show_progress
+from .common import open_workspace
 
 
 def add_command(argv: list[str]) -> int:
@@ -41,20 +40,6 @@ def add_command(argv: list[str]) -> int:
     if done.trash:
         print(f"Çöp kutusuna taşınanlar (geri alınabilir): {done.trash}")
     return 0
-
-
-def panel_command(argv: list[str]) -> int:
-    from .. import panel
-
-    parser = argparse.ArgumentParser(
-        prog="iplikci panel",
-        description="Raporu ve yeni belge ekleme yerini (tek dosya, çok dosya ya da klasör) yerel bir web panelinde "
-        "açar. Yalnızca bu bilgisayardan erişilir (127.0.0.1); internete hiçbir şey gönderilmez.",
-    )
-    parser.add_argument("--port", type=int, help=f"port (varsayılan: settings.toml [server] port ya da {DEFAULT_PORT})")
-    parser.add_argument("--ac", action="store_true", help="paneli tarayıcıda aç")
-    args = parser.parse_args(argv)
-    return panel.serve(open_workspace(parser), args.port, args.ac, show_progress, clear_progress)
 
 
 def _print_plan(plan: intake.Plan) -> None:
