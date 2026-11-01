@@ -81,8 +81,8 @@ gelir, gereklilik ve tahmin raporu üreten, bu bilgisayarda çalışan program.
   Kurulu değilse kullanıcı kendi terminalinde `uv run iplikci eposta --kur` çalıştırmalı; e-posta
   şifresini ya da uygulama şifresini asla sohbette istemeyin, almayın.
 - Kullanıcı bir yorumu düzeltirse ("X bitti", "Y yanlış kategoride"): mark_ended ya da add_rule ile
-  kategoriler.yaml'a yazın; araç değişikliğin hangi işlemleri etkilediğini döndürür. Başka değişiklikler için
-  read_rules ve write_rules.
+  kişisel kural dosyasına yazın; araç değişikliğin hangi işlemleri etkilediğini döndürür. Başka değişiklikler
+  için read_rules ve write_rules. Uygulamayla gelen genel kurallar kişisel kuralların altındadır ve değişmez.
 - Şirket belgeleri (ayarlardaki şirket adları, şirket ve girişimci kartları, ticari hesaplar, bordro) kapsam
   dışıdır.
 - Kullanıcıya söylediğiniz her rakam bu araçların sonucundan gelmeli. Kullanıcıya Türkçe yanıt verin."""
@@ -644,14 +644,20 @@ def _month_end(s: Server, args: dict) -> dict:
     }
 
 
+def _personal_text(s: Server) -> str:
+    return s.ws.rules.read_text(encoding="utf-8") if s.ws.rules.exists() else ""
+
+
 def _read_rules(s: Server, args: dict) -> dict:
-    rules = Categorizer(s.ws.rules)
+    rules = Categorizer.layered(s.ws.rules)
     groups: dict[str, list[str]] = defaultdict(list)
     for category, group in rules.categories.items():
         groups[group].append(category)
     return {
         "path": str(s.ws.rules),
-        "content": s.ws.rules.read_text(encoding="utf-8"),
+        "content": _personal_text(s),
+        "layers": "content kişisel kurallardır; uygulamayla gelen genel kuralların üstüne biner, tutan kişisel "
+        "kural önce gelir. categories ikisinin birleşimidir.",
         "categories": dict(groups),
         "necessity": rules.necessity,
         "regular": sorted(rules.regular),
@@ -701,24 +707,25 @@ def _effect(before: Dataset, after: Dataset) -> dict:
 
 
 def _change_rules(s: Server, new: str) -> dict:
-    old = s.ws.rules.read_text(encoding="utf-8")
+    old = _personal_text(s)
     if new == old:
         raise ToolError("değişiklik yok: kural zaten dosyada")
-    rulefile.validate(new, s.ws.output)
+    rulefile.validate(new, s.ws.rules.name)
     before = s.current.get()
-    backup = rulefile.replace(s.ws.rules, new, s.ws.output / "kategoriler-yedekleri")
+    backup = rulefile.replace(s.ws.rules, new, s.ws.rules_history)
     after = s.current.refresh(write=True)
     return {
         "diff": rulefile.diff(old, new, s.ws.rules.name),
-        "backup": str(backup),
+        "backup": str(backup) if backup else None,
         "effect": _effect(before.dataset, after.dataset),
         "report": str(after.outputs.html),
     }
 
 
 def _add_rule(s: Server, args: dict) -> dict:
-    text = s.ws.rules.read_text(encoding="utf-8")
-    return _change_rules(s, rulefile.add_merchant_rule(text, args["category"], args["merchant"], args["patterns"]))
+    homes = Categorizer.layered(s.ws.rules).categories
+    text = rulefile.add_merchant_rule(_personal_text(s), args["category"], args["merchant"], args["patterns"], homes)
+    return _change_rules(s, text)
 
 
 def _mark_ended(s: Server, args: dict) -> dict:
@@ -730,8 +737,7 @@ def _mark_ended(s: Server, args: dict) -> dict:
             f"'{args['merchant']}' adlı işyeri işlemlerde yok; raporda göründüğü adı kullanın"
             + (f" (yakın adlar: {', '.join(close)})" if close else "")
         )
-    text = s.ws.rules.read_text(encoding="utf-8")
-    return _change_rules(s, rulefile.add_ended(text, match, args["month"], args.get("note", "")))
+    return _change_rules(s, rulefile.add_ended(_personal_text(s), match, args["month"], args.get("note", "")))
 
 
 def _write_rules(s: Server, args: dict) -> dict:
@@ -891,8 +897,9 @@ TOOLS = (
     Tool(
         "read_rules",
         "Kategori kurallarını oku",
-        "kategoriler.yaml dosyasının metni ve özeti: ana gruplar ve kategoriler, gereklilik seviyeleri, düzenli "
-        "ödeme kategorileri, bitti olarak işaretlenen ödemeler.",
+        "Kişisel kural dosyasının metni ve kuralların özeti (kişisel kurallar ve uygulamayla gelen genel kurallar "
+        "birlikte): ana gruplar ve kategoriler, gereklilik seviyeleri, düzenli ödeme kategorileri, bitti olarak "
+        "işaretlenen ödemeler.",
         _schema(),
         _read_rules,
     ),
@@ -905,7 +912,7 @@ TOOLS = (
         "Değişikliğin hangi işlemleri taşıdığını döndürür; dosyanın yedeği alınır.",
         _schema(
             ("category", "merchant", "patterns"),
-            category={"type": "string", "description": "var olan kategori (read_rules)"},
+            category={"type": "string", "description": "var olan kategori (read_rules → categories)"},
             merchant={"type": "string", "description": "raporda görünecek işyeri adı"},
             patterns={"type": "array", "minItems": 1, "items": _TEXT},
         ),
@@ -930,9 +937,9 @@ TOOLS = (
     Tool(
         "write_rules",
         "Kategori kurallarını yaz",
-        "kategoriler.yaml dosyasının tamamını verilen metinle değiştirir (önce read_rules ile okuyun, yorumları "
-        "koruyun). Metin programın okuyabileceği kurallar değilse hiçbir şey yazılmaz. Eski dosyanın yedeği alınır; "
-        "değişikliğin farkı ve etkilediği işlemler döner.",
+        "Kişisel kural dosyasının tamamını verilen metinle değiştirir (önce read_rules ile okuyun, yorumları "
+        "koruyun). Metin programın okuyabileceği kurallar değilse hiçbir şey yazılmaz. Eski dosyanın kopyası "
+        "kural geçmişine alınır; değişikliğin farkı ve etkilediği işlemler döner.",
         _schema(("content",), content=_TEXT),
         _write_rules,
         read_only=False,

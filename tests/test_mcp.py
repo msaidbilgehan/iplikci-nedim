@@ -115,6 +115,14 @@ def test_a_rule_change_reports_what_it_moved(server, ws):
     assert failed and "değişiklik yok" in text
 
 
+def test_a_rule_for_a_default_category_lands_in_the_personal_file(server, ws):
+    effect, failed = call(server, "add_rule", category="Restoran & Yemek", merchant="Kahveci", patterns=["KAHVECI"])
+    assert not failed and effect["effect"]["moves"][0]["to"] == "Restoran & Yemek"
+    assert "  Restoran & Yemek:\n    Kahveci: [KAHVECI]\n" in ws.rules.read_text(encoding="utf-8")
+    rules, _ = call(server, "read_rules")
+    assert "Restoran & Yemek" in rules["categories"]["Yeme & İçme"] and "kişisel" in rules["layers"]
+
+
 def test_mark_ended_needs_a_merchant_from_the_data(server, ws):
     text, failed = call(server, "mark_ended", merchant="Kahveci Dukan", month="2026-01")
     assert failed and "Kahveci Dukkan" in text  # suggests the name the report shows

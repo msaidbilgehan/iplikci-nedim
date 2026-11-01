@@ -1,8 +1,8 @@
-"""Edit kategoriler.yaml as text, so the user's comments and layout survive.
+"""Edit the user's rule file (rules/personal.yaml) as text, so the user's comments and layout survive.
 
-Two narrow edits are automated: a named merchant rule under an existing category, and an entry in
-`_biten`. Anything else is a whole new text the caller writes. Every change is validated by building a
-Categorizer from it before the file is replaced, and the previous file is kept as a backup.
+Two narrow edits are automated: a named merchant rule under a category, and an entry in `_biten`. Anything
+else is a whole new text the caller writes. Every change is validated by building the categorizer from it,
+over the rules shipped with the app, before the file is replaced; the previous file goes to the history.
 """
 
 import difflib
@@ -10,12 +10,13 @@ import json
 import os
 import re
 import tempfile
+from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
 
 import yaml
 
-from .categorize import Categorizer
+from .categorize import DEFAULT_RULES, Categorizer, RuleSet
 from .duzenle import _free
 from .textutil import fold
 
@@ -89,7 +90,7 @@ def _lines(text: str) -> list[str]:
     return lines
 
 
-def _find_category(lines: list[str], category: str) -> int:
+def _find_category(lines: list[str], category: str) -> int | None:
     group, found = None, []
     for i, line in enumerate(lines):
         if not _is_content(line):
@@ -99,22 +100,44 @@ def _find_category(lines: list[str], category: str) -> int:
             group = key
         elif _indent(line) == 2 and key and group and not group.startswith("_") and fold(key) == fold(category):
             found.append(i)
-    if not found:
-        raise ValueError(f"'{category}' adlı kategori yok; var olan kategoriler için read_rules")
     if len(found) > 1:
         raise ValueError(f"'{category}' birden çok grupta var; dosyayı write_rules ile düzenleyin")
-    return found[0]
+    return found[0] if found else None
 
 
-def add_merchant_rule(text: str, category: str, merchant: str, patterns: list[str]) -> str:
-    """Add a named merchant (or more patterns for one) to a category. Named rules are tried before
-    every keyword, in file order."""
+def _add_category(lines: list[str], category: str, group: str) -> list[str]:
+    """An empty category under its group, the group made when the file has none yet (at the end: the order of
+    the groups, and so their colours, comes from the rules shipped with the app)."""
+    entry = f"  {_scalar(category, key=True)}:\n"
+    for i, line in enumerate(lines):
+        if _is_content(line) and _indent(line) == 0 and fold(_key(line) or "") == fold(group):
+            if re.match(r"^[^#]*:\s*\{\}", line):
+                lines[i] = re.sub(r":\s*\{\}", ":", line, count=1)
+            end = _block_end(lines, i)
+            return [*lines[:end], entry, *lines[end:]]
+    gap = ["\n"] if lines and lines[-1].strip() else []
+    return [*lines, *gap, f"{_scalar(group, key=True)}:\n", entry]
+
+
+def add_merchant_rule(
+    text: str, category: str, merchant: str, patterns: list[str], homes: Mapping[str, str] | None = None
+) -> str:
+    """Add a named merchant (or more patterns for one) to a category. Named rules are tried before every keyword,
+    in file order. homes (category -> group, e.g. the categorizer's categories) lets the rule go to a category the
+    file does not have yet: one of the rules shipped with the app."""
     patterns = [p.strip() for p in patterns if p.strip()]
     if not merchant.strip() or not patterns:
         raise ValueError("işyeri adı ve en az bir desen gerekli")
     merchant = merchant.strip()
     lines = _lines(text)
     start = _find_category(lines, category)
+    if start is None:
+        home = next(((c, g) for c, g in (homes or {}).items() if fold(c) == fold(category)), None)
+        if home is None:
+            raise ValueError(f"'{category}' adlı kategori yok; var olan kategoriler için read_rules")
+        lines = _add_category(lines, *home)
+        start = _find_category(lines, home[0])
+        assert start is not None
     if re.match(r"^\s*[^#]*:\s*\{\}", lines[start]):  # "Diğer Harcamalar: {}": the block is empty so far
         lines[start] = re.sub(r":\s*\{\}", ":", lines[start], count=1)
     end = _block_end(lines, start)
@@ -179,34 +202,36 @@ def add_ended(text: str, merchant: str, month: str, note: str = "") -> str:
     return "".join(lines)
 
 
-def validate(text: str, workdir: Path) -> None:
-    """Raise ValueError (with the reason, in Turkish) unless the text is a rule file the program reads."""
+def validate(text: str, name: str = "personal.yaml", defaults: Path | None = DEFAULT_RULES) -> None:
+    """Raise ValueError (with the reason, in Turkish) unless the text is a rule file the program reads over the
+    rules below it (defaults)."""
     try:
         data = yaml.safe_load(text)
     except yaml.YAMLError as exc:
         raise ValueError(f"YAML okunamadı: {exc}") from exc
     if data is not None and not isinstance(data, dict):
-        raise ValueError("kategoriler.yaml 'Ana grup: …' eşlemelerinden oluşmalı")
-    workdir.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(dir=workdir) as tmp:
-        path = Path(tmp) / "kategoriler.yaml"
-        path.write_text(text, encoding="utf-8")
-        try:
-            Categorizer(path)
-        except Exception as exc:  # any failure here means the program could not read these rules
-            raise ValueError(f"kurallar okunamadı: {type(exc).__name__}: {exc}") from exc
+        raise ValueError(f"{name} 'Ana grup: …' eşlemelerinden oluşmalı")
+    try:
+        Categorizer.from_layers(RuleSet.parse(text, name), *([RuleSet.read(defaults)] if defaults else []))
+    except Exception as exc:  # any failure here means the program could not read these rules
+        raise ValueError(f"kurallar okunamadı: {type(exc).__name__}: {exc}") from exc
 
 
-def replace(path: Path, text: str, backups: Path) -> Path:
-    """Write the new rules atomically, keeping the previous file in backups. Returns the backup."""
-    backups.mkdir(parents=True, exist_ok=True)
-    backup = _free(backups / f"kategoriler {datetime.now():%Y-%m-%d %H.%M.%S}.yaml")
-    backup.write_bytes(path.read_bytes())
-    fd, tmp = tempfile.mkstemp(prefix=".kategoriler-", suffix=".yaml", dir=path.parent)
+def replace(path: Path, text: str, history: Path) -> Path | None:
+    """Write the new rules atomically, the previous file kept in history; returns that copy (None for a first
+    file)."""
+    backup = None
+    if path.exists():
+        history.mkdir(parents=True, exist_ok=True)
+        backup = _free(history / f"{path.stem} {datetime.now():%Y-%m-%d %H.%M.%S}{path.suffix}")
+        backup.write_bytes(path.read_bytes())
+    path.parent.mkdir(parents=True, exist_ok=True)
+    mode = path.stat().st_mode & 0o777 if path.exists() else 0o600
+    fd, tmp = tempfile.mkstemp(prefix=f".{path.stem}-", suffix=path.suffix, dir=path.parent)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(text)
-        os.chmod(tmp, path.stat().st_mode & 0o777)
+        os.chmod(tmp, mode)
         os.replace(tmp, path)
     finally:
         Path(tmp).unlink(missing_ok=True)

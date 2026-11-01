@@ -163,6 +163,11 @@ class Workspace:
             return [*self.sources, self.inbox]
         return list(self.sources)
 
+    @property
+    def rules_history(self) -> Path:
+        """The rule file as it was before each change."""
+        return self.output / "kategoriler-yedekleri"
+
     def lock(self, timeout: float = 120.0):
         return output_lock(self.output, timeout)
 

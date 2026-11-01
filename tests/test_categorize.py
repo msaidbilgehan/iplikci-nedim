@@ -211,3 +211,60 @@ def test_shipped_rules_hold_no_personal_decisions(cat):
 def test_shipped_rules_name_the_commitment_categories(cat):
     assert {"Kira", "Elektrik, Su & Doğalgaz", "Dijital Abonelikler"} <= cat.regular <= set(cat.categories)
     assert set(cat.necessity) <= set(cat.categories)
+
+
+# --- layers: the user's rules over the defaults ---------------------------------------------------------
+
+PERSONAL = """\
+Yeme & İçme:
+  Restoran & Yemek:
+    Ofis Kantini: [MIGROS JET OFIS]
+Kendi Grubum:
+  Kulüp Aidatı:
+    _: [MARKET KULUBU]
+_gereklilik:
+  Gereksiz: [Kafe & Kahve]
+_biten:
+  Starbucks: 2026-09
+_banka_kategorileri:
+  MARKET: Restoran & Yemek
+"""
+
+
+@pytest.fixture
+def layered(tmp_path):
+    personal = tmp_path / "personal.yaml"
+    personal.write_text(PERSONAL, encoding="utf-8")
+    return Categorizer.layered(personal)
+
+
+def test_a_personal_rule_comes_before_the_defaults(layered):
+    # The defaults' named Migros rule would take it; the user's rule is tried first.
+    assert categorize(layered, "MIGROS JET OFIS ISTANBUL").category == "Restoran & Yemek"
+    # Even a personal keyword beats a default named merchant: the whole personal layer goes first.
+    assert categorize(layered, "MIGROS MARKET KULUBU").category == "Kulüp Aidatı"
+    # Where no personal rule matches, the defaults decide as before.
+    assert categorize(layered, "MIGROS ORNEK SUBE").merchant == "Migros"
+
+
+def test_the_defaults_keep_their_group_order_and_colours(layered, cat):
+    shared = [g for g in cat.groups if g != "Diğer"]
+    assert layered.groups[: len(shared)] == shared
+    assert layered.groups[-2:] == ["Kendi Grubum", "Diğer"]
+
+
+def test_personal_decisions_override_the_defaults(layered, cat):
+    assert cat.necessity["Kafe & Kahve"] != "Gereksiz"
+    assert layered.necessity["Kafe & Kahve"] == "Gereksiz"
+    assert layered.ended == {"STARBUCKS": "2026-09"}
+    assert layered.regular == cat.regular  # the commitments of the defaults stay
+
+
+def test_a_personal_bank_heading_wins(layered):
+    assert categorize(layered, "ORNEK DUKKAN", bank_category="MARKET ALISVERISI").category == "Restoran & Yemek"
+
+
+def test_without_a_personal_file_the_defaults_alone_decide(tmp_path, cat):
+    alone = Categorizer.layered(tmp_path / "yok.yaml")
+    assert alone.groups == cat.groups and alone.categories == cat.categories
+    assert categorize(alone, "SBX ORNEK").merchant == "Starbucks"

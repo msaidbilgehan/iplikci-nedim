@@ -134,7 +134,7 @@ def report(argv: list[str]) -> int:
     sources = _sources(parser, args.kaynak, settings, base)
     out = Path(args.cikti) if args.cikti else base / settings.get("cikti", "cikti")
     rules = Path(args.kurallar) if args.kurallar else base / settings.get("kurallar", "kategoriler.yaml")
-    if not rules.exists():
+    if args.kurallar and not rules.exists():
         parser.error(f"kategori dosyası bulunamadı: {rules}")
     out.mkdir(parents=True, exist_ok=True)
 
@@ -220,8 +220,6 @@ def verify_command(argv: list[str]) -> int:
     args = parser.parse_args(argv)
     day = args.tarih or date.today()
     ws = _workspace(parser)
-    if not ws.rules.exists():
-        parser.error(f"kategori dosyası bulunamadı: {ws.rules}")
     path = ws.output / baseline.FILE
     try:
         previous = baseline.load(path)

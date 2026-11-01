@@ -66,6 +66,6 @@ def run(
 ) -> tuple[Dataset, dict]:
     docs, duplicates = collect(sources)
     results = parse_all(docs, cache_dir, progress)
-    dataset = build(results, Categorizer(rules), settings or {})
+    dataset = build(results, Categorizer.layered(rules), settings or {})
     stats = {"documents": len(docs), "duplicates": duplicates}
     return dataset, stats

@@ -9,7 +9,20 @@ Kaynak: MVP'nin `CLAUDE.md` ve `README.md` dosyaları (2026-10-31), kişisel kar
 | Varsayılan | `src/iplikci/rules/default.yaml` (depoda) | Türkiye'de yaygın işyerleri için genel kurallar. Kişisel bilgi içermez. |
 | Kişisel | `<veri klasörü>/rules/personal.yaml` | Kullanıcının kararları ve kişileri: kira, aile, işveren, `_biten`, işyerine göre gereklilik… |
 
-Kişisel katman önce denenir. Her değişiklik yazılmadan önce doğrulanır (kurallar kurulabiliyor mu); önceki sürüm
+Kişisel katman önce denenir:
+
+- Bir açıklama önce kişisel kurallarla eşleştirilir (isimli işyerleri, sonra genel kelimeler). Biri tutarsa o geçerlidir;
+  varsayılan katmanın isimli bir işyeri de olsa. Hiçbiri tutmazsa varsayılan kurallar aynı sırayla denenir.
+- Bankanın kategori başlığı ve `_zayıf` kelimeler, hiçbir katmanın isimli kuralı ya da genel kelimesi tutmazsa denenir;
+  yine önce kişisel katman.
+- Ana grupların sırası, dolayısıyla renkleri, varsayılan dosyadan gelir. Yalnızca kişisel dosyada olan gruplar onlardan
+  sonra gelir.
+- Kişisel dosyadaki gereklilik, `_tür`, `_biten`, `_gereklilik_işyeri` ve `_banka_kategorileri` değerleri varsayılanların
+  üstüne yazılır; `_düzenli` listeleri birleşir.
+- Kişisel dosyada olmayan bir varsayılan kategoriye kural eklenirse kategori, varsayılandaki grubuyla kişisel dosyaya
+  eklenir.
+
+Her değişiklik yazılmadan önce doğrulanır: kişisel dosya, varsayılanların üstünde kurulabiliyor mu. Önceki sürüm
 `rules/history/`'ye alınır. Sonuç olarak hangi işlemlerin kategorisinin değiştiği döner.
 
 ## Yapı

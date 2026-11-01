@@ -1,4 +1,4 @@
-"""Editing kategoriler.yaml as text: the user's comments and layout survive every change."""
+"""Editing the user's rule file as text: the user's comments and layout survive every change."""
 
 import pytest
 import yaml
@@ -44,19 +44,41 @@ def test_ended_payment_is_added_updated_and_created():
         rulefile.add_ended(RULES, "Örnek Dergi", "2026-13")
 
 
-def test_validate_reads_the_rules_like_the_program(tmp_path):
-    rulefile.validate(RULES, tmp_path)
+def test_validate_reads_the_rules_like_the_program():
+    rulefile.validate(RULES)
+    rulefile.validate("")  # an empty personal file: the defaults alone
     with pytest.raises(ValueError, match="YAML"):
-        rulefile.validate("Yeme: [", tmp_path)
+        rulefile.validate("Yeme: [")
     with pytest.raises(ValueError, match="gereklilik"):
-        rulefile.validate("_gereklilik:\n  Şart: [Kira]\n", tmp_path)
+        rulefile.validate("_gereklilik:\n  Şart: [Kira]\n")
     with pytest.raises(ValueError, match="kurallar okunamadı"):
-        rulefile.validate('Grup:\n  Kategori:\n    İşyeri: ["re:("]\n', tmp_path)
+        rulefile.validate('Grup:\n  Kategori:\n    İşyeri: ["re:("]\n')
+    with pytest.raises(ValueError, match="eşlemelerinden"):
+        rulefile.validate("- bir liste\n")
 
 
-def test_replace_keeps_a_backup(tmp_path):
-    rules = tmp_path / "kategoriler.yaml"
+def test_a_rule_can_go_to_a_category_only_the_defaults_have():
+    homes = {"Restoran & Yemek": "Yeme & İçme", "Akaryakıt": "Ulaşım & Araç"}
+    text = rulefile.add_merchant_rule(RULES, "restoran & yemek", "Ofis Kantini", ["OFIS KANTIN"], homes)
+    assert yaml.safe_load(text)["Yeme & İçme"]["Restoran & Yemek"] == {"Ofis Kantini": ["OFIS KANTIN"]}
+    assert "# Deneme kuralları" in text  # the rest of the file is untouched
+    text = rulefile.add_merchant_rule("", "Akaryakıt", "Ornek Petrol", ["ORNEK PETROL"], homes)
+    assert text == "Ulaşım & Araç:\n  Akaryakıt:\n    Ornek Petrol: [ORNEK PETROL]\n"
+    with pytest.raises(ValueError, match="kategori yok"):
+        rulefile.add_merchant_rule("", "Uydurma", "X", ["X"], homes)
+
+
+def test_replace_keeps_the_previous_file_in_the_history(tmp_path):
+    rules = tmp_path / "personal.yaml"
     rules.write_text(RULES, encoding="utf-8")
-    backup = rulefile.replace(rules, RULES + "\n# yeni\n", tmp_path / "yedek")
+    backup = rulefile.replace(rules, RULES + "\n# yeni\n", tmp_path / "history")
+    assert backup is not None and backup.name.startswith("personal ")
     assert backup.read_text(encoding="utf-8") == RULES and rules.read_text(encoding="utf-8").endswith("# yeni\n")
-    assert sorted(p.name for p in tmp_path.iterdir()) == ["kategoriler.yaml", "yedek"]  # no temp file left
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["history", "personal.yaml"]  # no temp file left
+
+
+def test_the_first_personal_file_has_nothing_to_keep(tmp_path):
+    rules = tmp_path / "rules" / "personal.yaml"
+    assert rulefile.replace(rules, RULES, tmp_path / "rules" / "history") is None
+    assert rules.read_text(encoding="utf-8") == RULES
+    assert not (tmp_path / "rules" / "history").exists()

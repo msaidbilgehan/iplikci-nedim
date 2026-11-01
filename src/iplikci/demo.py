@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
-from .categorize import DEFAULT_RULES
+from .categorize import PERSONAL_TEMPLATE
 from .textutil import format_tr_amount
 from .workspace import SETTINGS
 
@@ -394,5 +394,5 @@ def build(target: Path) -> Path:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
     (target / SETTINGS).write_text(_SETTINGS, encoding="utf-8")
-    (target / "kategoriler.yaml").write_bytes(DEFAULT_RULES.read_bytes())
+    (target / "kategoriler.yaml").write_text(PERSONAL_TEMPLATE, encoding="utf-8")
     return target

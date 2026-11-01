@@ -1,7 +1,7 @@
 """Assign merchant, category, group and necessity to transactions using kategoriler.yaml."""
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
@@ -9,8 +9,15 @@ import yaml
 from .models import NECESSITY, Account, Transaction
 from .textutil import fold, nfc, title_tr
 
-# The generic rules shipped with the app; a new workspace starts its own rules file from a copy.
+# The generic rules shipped with the app. The user's own rules go above them in a file of their own.
 DEFAULT_RULES = Path(__file__).parent / "rules" / "default.yaml"
+PERSONAL_TEMPLATE = """\
+# Kişisel kategori kurallarınız. Uygulamayla gelen genel kuralların üstüne biner: burada tutan bir kural
+# onlardan önce gelir. Yapı aynıdır: Ana grup → Kategori → İşletme ya da kişi adı → [desenler].
+#
+# Kişiye özgü kararlar buraya yazılır: kira ve aidat alıcıları, aile ve kişiler, gelir kaynakları, biten
+# ödemeler (_biten), bir işyerinin gerekliliği (_gereklilik_işyeri).
+"""
 
 FINANCE_GROUP = "Banka & Finans"
 OTHER_GROUP = "Diğer"
@@ -90,80 +97,148 @@ def _compile(pattern: str) -> tuple[re.Pattern, str]:
     return re.compile(r"(?<![A-Z])" + re.escape(p)), (p.replace(" ", "") if " " in p else "")
 
 
-def _level(value: str) -> str:
+def _level(value: str, name: str) -> str:
     level = {fold(n): n for n in NECESSITY}.get(fold(value))
     if not level:
-        raise ValueError(f"kategoriler.yaml: bilinmeyen gereklilik '{value}' (seçenekler: {', '.join(NECESSITY)})")
+        raise ValueError(f"{name}: bilinmeyen gereklilik '{value}' (seçenekler: {', '.join(NECESSITY)})")
     return level
 
 
-def _ended(entries: dict) -> dict[str, str]:
+def _ended(entries: dict, name: str) -> dict[str, str]:
     """`_biten`: merchant -> month ("YYYY-MM") after which no payment is expected.
     YAML reads 2026-10-12 as a date, so only the year and month are kept."""
     out = {}
     for merchant, when in entries.items():
         month = str(when)[:7]
         if not _MONTH.fullmatch(month):
-            raise ValueError(
-                f"kategoriler.yaml: _biten altında '{merchant}' için ay YYYY-AA biçiminde olmalı (ör. 2026-10)"
-            )
+            raise ValueError(f"{name}: _biten altında '{merchant}' için ay YYYY-AA biçiminde olmalı (ör. 2026-10)")
         out[fold(str(merchant))] = month
     return out
 
 
-class Categorizer:
-    def __init__(self, path: Path):
-        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-        self.groups: list[str] = []
-        self.categories: dict[str, str] = {}  # category -> group, in file order
-        self.types: dict[str, str] = {}  # category -> `_tür`
-        self.necessity: dict[str, str] = {}  # category -> level
-        self.merchant_necessity: dict[str, str] = {}  # folded merchant -> level
-        self.ended: dict[str, str] = {}  # folded merchant -> last month with a payment
-        self.regular: set[str] = set()  # categories of commitments: rent, dues, bills, subscriptions
-        self.named: list[Rule] = []
-        self.generic: list[Rule] = []
-        self.weak: list[Rule] = []
-        self.bank_categories: dict[str, str] = {}
+def _earliest(rules: list[Rule], f: str, sq: str) -> Rule | None:
+    best, best_pos = None, None
+    for rule in rules:
+        pos = rule.find(f, sq)
+        if pos is not None and (best_pos is None or pos < best_pos):
+            best, best_pos = rule, pos
+    return best
+
+
+@dataclass
+class RuleSet:
+    """The rules of one rule file (a layer)."""
+
+    name: str
+    groups: list[str] = field(default_factory=list)  # in file order
+    categories: dict[str, str] = field(default_factory=dict)  # category -> group, in file order
+    types: dict[str, str] = field(default_factory=dict)  # category -> `_tür`
+    necessity: dict[str, str] = field(default_factory=dict)  # category -> level
+    merchant_necessity: dict[str, str] = field(default_factory=dict)  # folded merchant -> level
+    ended: dict[str, str] = field(default_factory=dict)  # folded merchant -> last month with a payment
+    regular: set[str] = field(default_factory=set)  # categories of commitments: rent, dues, bills, subscriptions
+    named: list[Rule] = field(default_factory=list)
+    generic: list[Rule] = field(default_factory=list)
+    weak: list[Rule] = field(default_factory=list)
+    bank_categories: dict[str, str] = field(default_factory=dict)
+
+    @classmethod
+    def read(cls, path: Path) -> "RuleSet":
+        return cls.parse(path.read_text(encoding="utf-8"), path.name)
+
+    @classmethod
+    def parse(cls, text: str, name: str) -> "RuleSet":
+        data = yaml.safe_load(text) or {}
+        if not isinstance(data, dict):
+            raise ValueError(f"{name} 'Ana grup: …' eşlemelerinden oluşmalı")  # noqa: TRY004 - the user's file, not a bug
+        rules = cls(name)
         for group, categories in data.items():
             group = nfc(str(group))
             key = fold(group)
             if key == "_BANKA_KATEGORILERI":
-                self.bank_categories = {fold(k): nfc(str(v)) for k, v in (categories or {}).items()}
+                rules.bank_categories = {fold(k): nfc(str(v)) for k, v in (categories or {}).items()}
                 continue
             if key == "_GEREKLILIK":
                 for level, names in (categories or {}).items():
-                    for name in names or []:
-                        self.necessity[nfc(str(name))] = _level(str(level))
+                    for category in names or []:
+                        rules.necessity[nfc(str(category))] = _level(str(level), name)
                 continue
             if key == "_GEREKLILIK_ISYERI":
-                self.merchant_necessity = {fold(str(k)): _level(str(v)) for k, v in (categories or {}).items()}
+                rules.merchant_necessity = {fold(str(k)): _level(str(v), name) for k, v in (categories or {}).items()}
                 continue
             if key == "_BITEN":
-                self.ended = _ended(categories or {})
+                rules.ended = _ended(categories or {}, name)
                 continue
             if key == "_DUZENLI":
-                self.regular = {nfc(str(c)) for c in categories or []}
+                rules.regular = {nfc(str(c)) for c in categories or []}
                 continue
             if group.startswith("_"):
                 continue
-            self.groups.append(group)
+            rules.groups.append(group)
             for category, merchants in (categories or {}).items():
                 category = nfc(str(category))
-                self.categories[category] = group
+                rules.categories[category] = group
                 for merchant, patterns in (merchants or {}).items():
                     merchant = nfc(str(merchant))
                     if fold(merchant) == _TYPE_KEY:
-                        self.types[category] = fold(str(patterns)).lower()
+                        rules.types[category] = fold(str(patterns)).lower()
                         continue
                     if isinstance(patterns, str):
                         patterns = [patterns]
-                    target = {_GENERIC: self.generic, _WEAK: self.weak}.get(fold(merchant), self.named)
+                    target = {_GENERIC: rules.generic, _WEAK: rules.weak}.get(fold(merchant), rules.named)
                     for p in patterns or []:
                         regex, squashed = _compile(p)
                         target.append(
-                            Rule(group, category, "" if target is not self.named else merchant, regex, squashed)
+                            Rule(group, category, "" if target is not rules.named else merchant, regex, squashed)
                         )
+        return rules
+
+    def strong(self, f: str, sq: str) -> Rule | None:
+        """Named merchants in file order, then the generic keyword found first in the description."""
+        for rule in self.named:
+            if rule.find(f, sq) is not None:
+                return rule
+        return _earliest(self.generic, f, sq)
+
+
+class Categorizer:
+    """The rules of one or more layers, the first layer first: the user's own rules go above the ones shipped
+    with the app (docs/domain/categorization.md). A rule of an upper layer that matches wins; only when none does
+    are the layers below tried."""
+
+    def __init__(self, *paths: Path):
+        self._combine([RuleSet.read(p) for p in paths])
+
+    @classmethod
+    def layered(cls, personal: Path | None, defaults: Path | None = DEFAULT_RULES) -> "Categorizer":
+        """The user's rules over the defaults; a personal file that does not exist yet is simply left out."""
+        return cls(*(p for p in (personal, defaults) if p is not None and (p is defaults or p.exists())))
+
+    @classmethod
+    def from_layers(cls, *layers: RuleSet) -> "Categorizer":
+        c = cls.__new__(cls)
+        c._combine(list(layers))
+        return c
+
+    def _combine(self, layers: list[RuleSet]) -> None:
+        self.layers = layers
+        self.groups: list[str] = []
+        self.categories: dict[str, str] = {}
+        self.types: dict[str, str] = {}
+        self.necessity: dict[str, str] = {}
+        self.merchant_necessity: dict[str, str] = {}
+        self.ended: dict[str, str] = {}
+        self.regular: set[str] = set()
+        # From the bottom layer up: an upper layer's value replaces the one below; the defaults' group order (and
+        # so the colours) stays, and groups only an upper layer has come after them.
+        for layer in reversed(layers):
+            self.groups += [g for g in layer.groups if g not in self.groups]
+            self.categories.update(layer.categories)
+            self.types.update(layer.types)
+            self.necessity.update(layer.necessity)
+            self.merchant_necessity.update(layer.merchant_necessity)
+            self.ended.update(layer.ended)
+            self.regular |= layer.regular
         for group in (FINANCE_GROUP, OTHER_GROUP):
             if group not in self.groups:
                 self.groups.append(group)
@@ -176,22 +251,19 @@ class Categorizer:
         # "Diğer" always sorts last so it can take the neutral color.
         self.groups = [g for g in self.groups if g != OTHER_GROUP] + [OTHER_GROUP]
 
-    @staticmethod
-    def _earliest(rules: list[Rule], f: str, sq: str) -> Rule | None:
-        best, best_pos = None, None
-        for rule in rules:
-            pos = rule.find(f, sq)
-            if pos is not None and (best_pos is None or pos < best_pos):
-                best, best_pos = rule, pos
-        return best
-
     def match(self, description: str, weak: bool = True) -> Rule | None:
         f = fold(description)
         sq = f.replace(" ", "")
-        for rule in self.named:
-            if rule.find(f, sq) is not None:
+        for layer in self.layers:
+            rule = layer.strong(f, sq)
+            if rule:
                 return rule
-        return self._earliest(self.generic, f, sq) or (self._earliest(self.weak, f, sq) if weak else None)
+        if weak:
+            for layer in self.layers:
+                rule = _earliest(layer.weak, f, sq)
+                if rule:
+                    return rule
+        return None
 
     def kind_for(self, category: str, amount: float) -> str:
         out_kind, in_kind = _KIND_BY_TYPE.get(self.types.get(category, ""), _KIND_BY_TYPE[""])
@@ -261,9 +333,10 @@ class Categorizer:
         if not bank_category:
             return ""
         f = fold(bank_category)
-        for key, category in self.bank_categories.items():
-            if key in f:
-                return category
+        for layer in self.layers:
+            for key, category in layer.bank_categories.items():
+                if key in f:
+                    return category
         return ""
 
 
