@@ -125,6 +125,13 @@ describe('"Show original" (layer 3)', () => {
     expect(namesAFile(rawMessage({ from: "ekstre@garantibbva.com.tr" }))).toBe(false);
   });
 
+  it("knows a file whose name comes in numbered pieces", () => {
+    const pieces = "Content-Disposition: attachment;\r\n filename*0*=UTF-8''Hesap%20%C3%96zeti;\r\n filename*1=.pdf\r\n";
+    expect(namesAFile(pieces)).toBe(true);
+    expect(namesAFile("Content-Type: application/pdf;\r\n name*0*=UTF-8''Ekstre;\r\n name*1*=.pdf\r\n")).toBe(true);
+    expect(namesAFile("Content-Type: text/plain; charset=utf-8\r\n\r\nfilenames, names = none\r\n")).toBe(false);
+  });
+
   it("takes the whole message byte for byte from Gmail's attachment server", async () => {
     const whole = attachedMessage("ekstre@garantibbva.com.tr", "JVBERi0xLjQK");
     const link = `https://mail.google.com/mail/u/0/?ui=2&ik=${IK}&attid=0&view=att&disp=comp&safe=1&zw`;

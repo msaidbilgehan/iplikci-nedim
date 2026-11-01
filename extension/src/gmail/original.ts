@@ -59,9 +59,12 @@ export async function readOriginal(fetcher: Fetcher, account: number, id: string
   return parseOriginal(await response.text(), url);
 }
 
-/** Whether the raw text names a file of its own: "Show original" has left the file's contents out. */
+/**
+ * Whether the raw text names a file of its own: "Show original" has left the file's contents out. A long or Turkish
+ * name may come in numbered pieces (RFC 2231: `filename*0*=UTF-8''…`).
+ */
 export function namesAFile(raw: string): boolean {
-  return /\bfilename\*?\s*=|;\s*name\*?\s*=/i.test(raw);
+  return /\bfilename(?:\*\d+)?\*?\s*=|;\s*name(?:\*\d+)?\*?\s*=/i.test(raw);
 }
 
 /** The whole message, attachments included, byte for byte, as "Download original" gives it. */
