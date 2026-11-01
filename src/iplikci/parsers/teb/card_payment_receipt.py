@@ -3,14 +3,21 @@
 import re
 
 from ...domain.codes import DocumentKind, TransactionKind
-from ...domain.models import ParseResult, Transaction
+from ...domain.models import ParseResult, SourceRef, Transaction
 from ...domain.text import fold
 from ..contract import Detection, Format, Probe, SourceDocument
-from ..pdf import page_text
+from ..pdf import numbered_lines, page_text
 from ..text import parse_dmy, parse_tr_amount, squash
 from ._card import card_account
 
 ID = "teb.card_payment_receipt"
+
+
+def _paid_line(text: str, amount: str) -> SourceRef | None:
+    """Where the paid total is printed: the TOPLAM line that holds it, else the first line that does."""
+    holding = [(n, line) for _, n, line in numbered_lines([text]) if amount in line]
+    n = next((n for n, line in holding if "TOPLAM" in fold(line)), holding[0][0] if holding else None)
+    return SourceRef(page=1, line=n) if n is not None else None
 
 
 def read(doc: SourceDocument) -> ParseResult:
@@ -29,6 +36,7 @@ def read(doc: SourceDocument) -> ParseResult:
         kind=TransactionKind.CARD_PAYMENT_NO_STATEMENT,
         account=account.id,
         source=doc.name,
+        ref=_paid_line(first, amount[1]),
     )
     receipt = re.search(r"ISLEM NO: ?(\d+)", f)
     holder = re.search(r"HESAP SAHIBI:\s*([A-Z ]+?)\s+HESAP", f)
@@ -44,7 +52,7 @@ def read(doc: SourceDocument) -> ParseResult:
 
 class CardPaymentReceipt:
     id = ID
-    version = 1
+    version = 2
     bank = "TEB"
     name = "TEB kredi kartı ödeme dekontu"
     document_type = DocumentKind.RECEIPT

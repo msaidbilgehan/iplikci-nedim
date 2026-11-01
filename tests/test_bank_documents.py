@@ -12,8 +12,8 @@ from iplikci.analysis import resolve_masked
 from iplikci.app import intake
 from iplikci.app.analysis import analyze
 from iplikci.domain.codes import AccountType, TransactionKind
-from iplikci.domain.models import Account, ParseResult, Statement
-from iplikci.fakes import HOLDER, garanti
+from iplikci.domain.models import Account, ParseResult, SourceRef, Statement
+from iplikci.fakes import HOLDER, garanti, teb
 from iplikci.fakes.files import right, text_pdf
 from iplikci.parsers.common import not_a_statement, set_business_names
 from iplikci.sources import Document
@@ -136,6 +136,22 @@ def test_qnb_transfer_receipt_names_the_other_side_and_leaves_the_rest_to_the_an
         "qnb-12345678",
     )
     assert (t.description, r.receipt_key) == (text, "qnb-202611000000001")
+
+
+# --- TEB card payment receipt -------------------------------------------------------------------------
+
+
+def test_teb_card_payment_receipt_is_a_payment_to_a_card_with_no_statement_and_points_at_its_total():
+    r = read(teb.card_payment_receipt(Decimal("3250.00"), date(2026, 10, 15)))
+    [payment] = r.transactions
+    assert (payment.date, payment.amount, payment.kind, payment.account) == (
+        date(2026, 10, 15),
+        Decimal(3250),
+        TransactionKind.CARD_PAYMENT_NO_STATEMENT,
+        "teb-1234",
+    )
+    assert (r.receipt_key, r.title) == ("teb-123456789", "Kart Ödemesi 1234")
+    assert payment.ref == SourceRef(page=1, line=7)  # the TOPLAM line, not the first line holding the amount
 
 
 # --- İş Bankası receipt and passbook ------------------------------------------------------------------
@@ -363,6 +379,7 @@ def test_brokerage_statement_holds_the_securities_and_the_cash_moves():
         Decimal(10),
         HOLDER,
     )  # on to the user's bank account
+    assert [(t.ref.page, t.ref.box[1]) for t in s.transactions] == [(2, 272), (2, 283)]  # their lines on the cash page
 
 
 def test_a_quiet_month_is_checked_against_the_totals_it_prints():

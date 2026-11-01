@@ -1,9 +1,11 @@
-"""TEB's documents: the CEPTETEB account export."""
+"""TEB's documents: the CEPTETEB account export and the card payment receipt."""
 
+from datetime import date
 from decimal import Decimal
 
 from ..domain.labels import format_amount
 from . import HOLDER, Move, with_balances
+from .files import text_pdf
 
 
 def account_export(
@@ -42,3 +44,24 @@ def running_rows(moves: list[Move], opening: Decimal = Decimal(0)) -> list[tuple
         for m, b in with_balances(moves, opening)
     ]
     return rows[::-1]
+
+
+def card_payment_receipt(
+    amount: Decimal, day: date, last4: str = "1234", number: str = "123456789", holder: str = HOLDER
+) -> bytes:
+    """A TEB "Kredi Kartı Ödeme Dekontu": a payment to a card, its total printed twice."""
+    paid = format_amount(amount)
+    return text_pdf(
+        [
+            (40, 40, "Türk Ekonomi Bankası A.Ş."),
+            (200, 70, "KREDİ KARTI ÖDEME DEKONTU"),
+            (40, 110, f"TARİH-SAAT: {day:%d/%m/%Y} 14:22:05"),
+            (330, 110, f"İŞLEM NO: {number}"),
+            (40, 124, f"HESAP SAHİBİ: {holder}"),
+            (330, 124, "HESAP NO: 999-123456789"),
+            (40, 160, f"5456 16** **** {last4} NO.LU KREDİ KARTINA YAPILAN ÖDEME"),
+            (40, 190, "ÖDEME TUTARI"),
+            (330, 190, f"TL {paid}"),
+            (40, 204, f"TOPLAM TL {paid}"),
+        ]
+    )

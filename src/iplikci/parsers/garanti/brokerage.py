@@ -214,6 +214,7 @@ def _statement(doc: SourceDocument, first: list[Line]) -> ParseResult:
                 kind=kind,
                 account=account.id,
                 source=doc.name,
+                ref=m.ref,
                 # Proceeds, dividends and fee money moved to or from the user's bank account: their own transfer.
                 counterparty=holder
                 if kind == TransactionKind.TRANSFER_CANDIDATE
@@ -291,7 +292,7 @@ def _form(doc: SourceDocument, lines: list[Line]) -> ParseResult:
 
 class Brokerage:
     id = ID
-    version = 1
+    version = 2
     bank = "Garanti BBVA"
     name = "Garanti BBVA Yatırım hesap ekstresi ve işlem sonuç formu"
     document_type = DocumentKind.ACCOUNT_STATEMENT
