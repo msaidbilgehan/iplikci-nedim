@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
@@ -86,6 +86,85 @@ describe("SystemPage", () => {
     const card = await screen.findByRole("region", { name: "E-posta" });
     expect(within(card).getByText("Geçmiş iletilerin taraması tamamlanmadı")).toBeInTheDocument();
     expect(within(card).getByText(/başlangıç günü: 01\.01\.2024/)).toBeInTheDocument();
+  });
+
+  it("lists the non-bank senders, saying only verified senders are taken and the history is read again", async () => {
+    renderScreen(<SystemPage />);
+    const card = await screen.findByRole("region", { name: "Banka dışı göndericiler" });
+    const listed = await within(card).findByRole("list", { name: "Banka dışı gönderici alan adları" });
+    expect(within(listed).getAllByRole("listitem").map((item) => item.querySelector("code")?.textContent)).toEqual([
+      "ornekcell.example",
+      "fatura.example",
+    ]);
+    const about = within(card).getByText(/^Fatura, abonelik ve alışveriş e-postalarının geldiği alan adları/);
+    expect(about).toHaveTextContent("Yalnızca göndereni doğrulanan (DMARC denetiminden geçen) e-postalar alınır");
+    expect(about).toHaveTextContent("Liste değişince tarayıcı eklentisi geçmiş e-postaları yeniden okur.");
+  });
+
+  it("adds a sender from the service's own page and shows the list the service saved", async () => {
+    let sent: unknown;
+    let fromOwnPage = false;
+    server.use(
+      http.put("/api/settings/mail/other-senders", async ({ request }) => {
+        sent = await request.json();
+        fromOwnPage = request.headers.get("x-iplikci") === "1";
+        return HttpResponse.json({ domains: ["ornekcell.example", "fatura.example", "magaza.example"] });
+      }),
+    );
+    renderScreen(<SystemPage />);
+    const card = await screen.findByRole("region", { name: "Banka dışı göndericiler" });
+    const field = await within(card).findByLabelText("Alan adı");
+    await userEvent.type(field, " magaza.example {Enter}");
+    expect(await within(card).findByText("magaza.example")).toBeInTheDocument();
+    expect(sent).toEqual({ domains: ["ornekcell.example", "fatura.example", "magaza.example"] });
+    expect(fromOwnPage).toBe(true);
+    expect(field).toHaveValue("");
+    expect(within(card).getByText("Liste kaydedildi")).toBeInTheDocument();
+  });
+
+  it("removes a sender", async () => {
+    let sent: unknown;
+    server.use(
+      http.put("/api/settings/mail/other-senders", async ({ request }) => {
+        sent = await request.json();
+        return HttpResponse.json({ domains: ["fatura.example"] });
+      }),
+    );
+    renderScreen(<SystemPage />);
+    const card = await screen.findByRole("region", { name: "Banka dışı göndericiler" });
+    await userEvent.click(await within(card).findByRole("button", { name: "ornekcell.example alan adını kaldır" }));
+    await waitFor(() => expect(within(card).queryByText("ornekcell.example")).toBeNull());
+    expect(sent).toEqual({ domains: ["fatura.example"] });
+    expect(within(card).getByText("fatura.example")).toBeInTheDocument();
+  });
+
+  it("shows why the service refused a sender and keeps what was typed", async () => {
+    const why = "garantibbva.com.tr bir bankanın alan adı; bankaların e-postaları zaten alınıyor.";
+    server.use(
+      http.put("/api/settings/mail/other-senders", () =>
+        HttpResponse.json({ code: "sender_invalid", title: why }, { status: 400 }),
+      ),
+    );
+    renderScreen(<SystemPage />);
+    const card = await screen.findByRole("region", { name: "Banka dışı göndericiler" });
+    const field = await within(card).findByLabelText("Alan adı");
+    await userEvent.type(field, "garantibbva.com.tr");
+    await userEvent.click(within(card).getByRole("button", { name: "Ekle" }));
+    expect(await within(card).findByText(why)).toBeInTheDocument();
+    expect(within(card).getByText("Liste kaydedilemedi")).toBeInTheDocument();
+    expect(field).toHaveValue("garantibbva.com.tr");
+    expect(field).toHaveAttribute("aria-invalid", "true");
+    expect(field).toHaveAccessibleDescription(expect.stringContaining(why));
+    await userEvent.type(field, "x"); // typing again clears the refusal
+    expect(within(card).queryByText(why)).toBeNull();
+  });
+
+  it("says when no non-bank sender is set and adds nothing empty", async () => {
+    server.use(http.get("/api/settings/mail/other-senders", () => HttpResponse.json({ domains: [] })));
+    renderScreen(<SystemPage />);
+    const card = await screen.findByRole("region", { name: "Banka dışı göndericiler" });
+    expect(await within(card).findByText("Henüz banka dışı gönderici yok.")).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "Ekle" })).toBeDisabled();
   });
 
   it("asks the service for a backup now", async () => {

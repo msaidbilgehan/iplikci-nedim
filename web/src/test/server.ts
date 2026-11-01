@@ -9,8 +9,11 @@ import type {
   CalendarItem,
   DocumentPage,
   Forecast,
+  InvoiceItem,
+  Invoices,
   Labels,
   Money,
+  OtherSenders,
   Series,
   Subscriptions,
   SystemStatus,
@@ -34,8 +37,11 @@ export const LABELS: Labels = {
     installment: "Kart taksiti",
     loan: "Kredi taksiti",
     card_due: "Kart son ödemesi",
+    bill: "Fatura",
   },
   Certainty: { confirmed: "Kesin", provisional: "Geçici", excluded: "Toplama girmez", info: "Bilgi" },
+  InvoiceKind: { bill: "Fatura", receipt: "Makbuz" },
+  InvoiceStatus: { matched: "Eşleşti", pending: "Bekliyor", unmatched: "Eşleşmedi" },
 };
 
 /** An amount in TL from its kuruş. */
@@ -242,6 +248,89 @@ export const FORECAST: Forecast = {
   notes: ["Bu bir tahmindir: belgelerdeki son bakiyeden ve geçmiş ödemelerden çıkarıldı."],
 };
 
+function invoice(overrides: Partial<InvoiceItem>): InvoiceItem {
+  return {
+    key: `${"a".repeat(64)}:0`,
+    kind: "bill",
+    status: "pending",
+    seller: "Örnekenerji Elektrik Perakende Satış A.Ş.",
+    number: "OE2026000000045",
+    issued: "2026-11-05",
+    due: "2026-11-25",
+    total: tl(64250),
+    lines: [],
+    window: { start: "2026-11-05", end: "2026-11-28" },
+    document: "Örnekenerji faturası.xml",
+    sha256: "a".repeat(64),
+    row: null,
+    reasons: [],
+    ...overrides,
+  };
+}
+
+// As /api/invoices orders them: pending by the last day their row is looked for, then unmatched, then matched.
+export const INVOICES: Invoices = {
+  items: [
+    invoice({
+      key: `${"d".repeat(64)}:0`,
+      kind: "receipt",
+      seller: "Örnekflix International B.V.",
+      number: "",
+      issued: "2026-11-12",
+      due: null,
+      total: { minor: 999, currency: "USD" },
+      window: { start: "2026-11-11", end: "2026-11-15" },
+      document: "Örnekflix makbuzu.eml",
+      sha256: "d".repeat(64),
+    }),
+    invoice({}),
+    invoice({
+      key: `${"b".repeat(64)}:0`,
+      status: "unmatched",
+      seller: "ÖRNEKCELL İLETİŞİM HİZMETLERİ A.Ş.",
+      number: "OC2026000000101",
+      issued: "2026-10-03",
+      due: "2026-10-20",
+      total: tl(41290),
+      lines: [
+        { description: "Aylık paket", amount: tl(40000), quantity: "1" },
+        { description: "Ek internet", amount: tl(1290), quantity: null },
+      ],
+      window: { start: "2026-10-03", end: "2026-10-23" },
+      document: "Örnekcell faturası.xml",
+      sha256: "b".repeat(64),
+      reasons: [
+        "Başkası ödemiş olabilir.",
+        "Belgesi olmayan bir hesaptan ya da nakit ödenmiş olabilir.",
+        "Henüz ödenmemiş olabilir.",
+      ],
+    }),
+    invoice({
+      key: `${"c".repeat(64)}:0`,
+      kind: "receipt",
+      status: "matched",
+      seller: "Örnek Uygulama Mağazası",
+      number: "R-1",
+      issued: "2026-10-10",
+      due: null,
+      total: tl(5999),
+      window: { start: "2026-10-09", end: "2026-10-13" },
+      document: "Örnek Uygulama Mağazası makbuzu.eml",
+      sha256: "c".repeat(64),
+      row: {
+        fingerprint: "fp-uygulama",
+        day: "2026-10-11",
+        account: CARD,
+        amount: tl(5999),
+        description: "ORNEKUYGULAMA.COM/BILL",
+      },
+    }),
+  ],
+  counts: { pending: 2, unmatched: 1, matched: 1 },
+};
+
+export const OTHER_SENDERS: OtherSenders = { domains: ["ornekcell.example", "fatura.example"] };
+
 export function systemStatus(overrides: Partial<SystemStatus> = {}): SystemStatus {
   return {
     service: { version: "0.4.0", started_at: "2026-11-01T07:30:00+00:00", pid: 4242, home: "/veri/iplikci" },
@@ -344,6 +433,8 @@ export const handlers = [
   http.get("/api/subscriptions", () => HttpResponse.json(SUBSCRIPTIONS)),
   http.get("/api/calendar", () => HttpResponse.json(CALENDAR)),
   http.get("/api/forecast", () => HttpResponse.json(FORECAST)),
+  http.get("/api/invoices", () => HttpResponse.json(INVOICES)),
+  http.get("/api/settings/mail/other-senders", () => HttpResponse.json(OTHER_SENDERS)),
   http.get("/api/system", () => HttpResponse.json(systemStatus())),
   http.get("/api/bridge", () => HttpResponse.json(BRIDGES)),
   http.get("/api/documents", ({ request }) => {

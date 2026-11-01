@@ -68,6 +68,7 @@ export const api = {
   get: <T>(path: string): Promise<T> => request<T>("GET", path),
   post: <T>(path: string, json?: unknown): Promise<T> =>
     request<T>("POST", path, json === undefined ? {} : { json }),
+  put: <T>(path: string, json: unknown): Promise<T> => request<T>("PUT", path, { json }),
   send: <T>(path: string, body: BodyInit, headers: Record<string, string>): Promise<T> =>
     request<T>("POST", path, { body, headers }),
   delete: (path: string): Promise<void> => request<void>("DELETE", path),

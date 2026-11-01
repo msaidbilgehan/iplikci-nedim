@@ -1,7 +1,9 @@
-// The System screen (F18): the service, the e-mail intake, the queue, the backups, the disk and how each reader is
-// doing. Every number comes from /api/system; the event stream keeps it current.
+// The System screen (F18): the service, the e-mail intake and its non-bank senders, the queue, the backups, the disk
+// and how each reader is doing. Every number comes from /api/system; the event stream keeps it current.
 
-import { useBackupNow, useBridges, useLabels, useSystem } from "../api/queries";
+import { type FormEvent, useId, useState } from "react";
+
+import { useBackupNow, useBridges, useLabels, useOtherSenders, useSetOtherSenders, useSystem } from "../api/queries";
 import type { Bridge, Labels, MailCoverage, RefusedMail, SystemStatus } from "../api/types";
 import { HistoryDue } from "../components/HistoryDue";
 import { Failure, Loading } from "../components/QueryState";
@@ -40,6 +42,7 @@ function SystemCards({ status, labels }: { status: SystemStatus; labels: Labels 
         />
       </Card>
       <MailCard status={status} />
+      <OtherSendersCard />
       <QueueCard status={status} jobKinds={labels["JobKind"] ?? {}} />
       <BackupCard status={status} />
       <Card title="Belgeler">
@@ -181,6 +184,100 @@ function BridgeSeen({ bridges }: { bridges: Bridge[] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+const FIELD = "min-h-11 rounded-md border border-zinc-300 bg-white px-3 dark:border-zinc-600 dark:bg-zinc-900";
+
+/**
+ * The non-bank senders (F14): the domains whose bills and receipts are taken in beside the banks' messages. The
+ * service checks each domain and refuses a bank's; its message is shown as it says it.
+ */
+function OtherSendersCard() {
+  const senders = useOtherSenders();
+  const save = useSetOtherSenders();
+  const [draft, setDraft] = useState("");
+  const aboutId = useId();
+  const errorId = useId();
+  const domains = senders.data?.domains ?? [];
+  // An added domain sends one more than the list holds: the error is then about what was typed.
+  const addFailed = save.isError && (save.variables?.length ?? 0) > domains.length;
+
+  function add(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const domain = draft.trim();
+    if (domain) {
+      save.mutate([...domains, domain], { onSuccess: () => setDraft("") });
+    }
+  }
+
+  return (
+    <Card title="Banka dışı göndericiler">
+      <div className="flex flex-col gap-3">
+        <p id={aboutId} className="text-sm text-zinc-700 dark:text-zinc-300">
+          Fatura, abonelik ve alışveriş e-postalarının geldiği alan adları: gönderen adresinde @ işaretinden sonra
+          gelen kısım. Yalnızca göndereni doğrulanan (DMARC denetiminden geçen) e-postalar alınır; bu adları taklit
+          eden e-postalar alınmaz. Liste değişince tarayıcı eklentisi geçmiş e-postaları yeniden okur.
+        </p>
+        {senders.isPending ? <Loading /> : null}
+        {senders.isError ? <Failure error={senders.error} onRetry={() => void senders.refetch()} /> : null}
+        {senders.data && domains.length === 0 ? (
+          <p className="text-sm text-zinc-600 dark:text-zinc-300">Henüz banka dışı gönderici yok.</p>
+        ) : null}
+        {domains.length > 0 ? (
+          <ul aria-label="Banka dışı gönderici alan adları" className="flex flex-col gap-1">
+            {domains.map((domain) => (
+              <li key={domain} className="flex items-center justify-between gap-2 text-sm">
+                <code className="break-all">{domain}</code>
+                <Button
+                  variant="secondary"
+                  aria-label={`${domain} alan adını kaldır`}
+                  disabled={save.isPending}
+                  onClick={() => save.mutate(domains.filter((d) => d !== domain))}
+                >
+                  Kaldır
+                </Button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {senders.data ? (
+          <form onSubmit={add} className="flex flex-wrap items-end gap-2">
+            <label className="flex flex-col gap-1 text-sm">
+              <span>Alan adı</span>
+              <input
+                type="text"
+                value={draft}
+                onChange={(e) => {
+                  setDraft(e.target.value);
+                  if (save.isError) {
+                    save.reset();
+                  }
+                }}
+                placeholder="ör. ornekcell.example"
+                autoComplete="off"
+                spellCheck={false}
+                inputMode="url"
+                aria-describedby={addFailed ? `${aboutId} ${errorId}` : aboutId}
+                aria-invalid={addFailed ? true : undefined}
+                className={FIELD}
+              />
+            </label>
+            <Button type="submit" disabled={save.isPending || draft.trim() === ""}>
+              Ekle
+            </Button>
+          </form>
+        ) : null}
+        {save.isError ? (
+          <div id={errorId}>
+            <Alert tone="critical" title="Liste kaydedilemedi" live>
+              <p>{save.error.message}</p>
+            </Alert>
+          </div>
+        ) : null}
+        {save.isSuccess ? <Alert tone="good" title="Liste kaydedildi" live /> : null}
+      </div>
+    </Card>
   );
 }
 

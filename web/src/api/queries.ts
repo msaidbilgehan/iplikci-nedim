@@ -9,7 +9,9 @@ import type {
   Calendar,
   DocumentPage,
   Forecast,
+  Invoices,
   Labels,
+  OtherSenders,
   Pairing,
   Queued,
   Subscriptions,
@@ -25,7 +27,11 @@ export const keys = {
   subscriptions: ["subscriptions"] as const,
   calendar: ["calendar"] as const,
   forecast: ["forecast"] as const,
+  invoices: ["invoices"] as const,
+  otherSenders: ["settings", "mail", "other-senders"] as const,
 };
+
+const OTHER_SENDERS = "/api/settings/mail/other-senders";
 
 export type DocumentFilter = "all" | "unprocessed";
 
@@ -86,6 +92,28 @@ export function useCalendar() {
 /** Each bank account's balance day by day for the next 60 days: an estimate (F09). */
 export function useForecast() {
   return useQuery({ queryKey: keys.forecast, queryFn: () => api.get<Forecast>("/api/forecast") });
+}
+
+/** The bills and receipts non-bank senders mailed, each with what the bank's rows say of it (F14). */
+export function useInvoices() {
+  return useQuery({ queryKey: keys.invoices, queryFn: () => api.get<Invoices>("/api/invoices") });
+}
+
+/** The domains whose bills and receipts are taken in beside the banks' messages (F14). */
+export function useOtherSenders() {
+  return useQuery({ queryKey: keys.otherSenders, queryFn: () => api.get<OtherSenders>(OTHER_SENDERS) });
+}
+
+/** Save the whole list of non-bank senders; a new list makes the history be read again (the System screen says so). */
+export function useSetOtherSenders() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (domains: string[]) => api.put<OtherSenders>(OTHER_SENDERS, { domains }),
+    onSuccess: (saved) => {
+      client.setQueryData(keys.otherSenders, saved);
+      void client.invalidateQueries({ queryKey: keys.system });
+    },
+  });
 }
 
 export function useStartPairing() {

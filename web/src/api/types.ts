@@ -13,9 +13,12 @@ import type {
   EventOut,
   ForecastOut,
   InstallmentOut,
+  InvoiceOut,
+  InvoicesOut,
   LabelsOut,
   MailCoverageOut,
   MoneyOut,
+  OtherSendersOut,
   PairingOut,
   PlanOut,
   QueuedOut,
@@ -47,3 +50,6 @@ export type Calendar = CalendarOut;
 export type CalendarItem = CalendarItemOut;
 export type Forecast = ForecastOut;
 export type AccountForecast = AccountForecastOut;
+export type Invoices = InvoicesOut;
+export type InvoiceItem = InvoiceOut;
+export type OtherSenders = OtherSendersOut;

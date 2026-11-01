@@ -7,6 +7,7 @@ const LINKS = [
   { to: "/belgeler", label: "Belgeler" },
   { to: "/abonelikler", label: "Abonelikler" },
   { to: "/takvim", label: "Takvim" },
+  { to: "/faturalar", label: "Faturalar" },
   { to: "/sistem", label: "Sistem" },
   { to: "/kurulum/eklenti", label: "Tarayıcı eklentisi" },
 ] as const;
