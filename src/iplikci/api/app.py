@@ -8,10 +8,10 @@ from .. import __version__
 from . import pages, problems
 from .context import Context
 from .guard import Guard
-from .routes import auth, backups, bridge, documents, events, invoices, mail, outlook, settings, system, uploads
+from .routes import auth, backups, bridge, documents, events, invoices, mail, notify, outlook, settings, system, uploads
 
 # The interface's pages last: any address no route before them takes is a page of the single-page app.
-ROUTERS = (auth, system, events, bridge, uploads, backups, mail, settings, documents, outlook, invoices, pages)
+ROUTERS = (auth, system, events, bridge, uploads, backups, mail, settings, documents, outlook, invoices, notify, pages)
 
 
 def _routes() -> FastAPI:

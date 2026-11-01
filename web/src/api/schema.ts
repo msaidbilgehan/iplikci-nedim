@@ -38,6 +38,43 @@ export interface AlarmPageIn {
   raw_id: boolean;
 }
 
+export interface AlertConditionModel {
+  days?: number | null;
+  amount?: number | null;
+  text?: string;
+}
+
+export interface AlertPreviewIn {
+  rule: AlertRuleModel;
+}
+
+export interface AlertPreviewOut {
+  count: number;
+  days: number;
+  examples: NotifyMessageOut[];
+}
+
+/** An alert rule (architecture §14); rules/alerts.yaml writes it with Turkish keys. */
+export interface AlertRuleModel {
+  name: string;
+  event: EventKind;
+  condition?: AlertConditionModel;
+  channels: Channel[];
+  detail?: DetailLevel | null;
+  enabled?: boolean;
+}
+
+export interface AlertRulesIn {
+  rules: AlertRuleModel[];
+}
+
+export interface AlertRulesOut {
+  rules: AlertRuleModel[];
+  own: boolean;
+  problem: string;
+  events: EventInfoOut[];
+}
+
 export interface AppliedOut {
   stored: number;
   counts: Record<string, number>;
@@ -113,6 +150,16 @@ export interface CalendarOut {
 /** How sure a row or a total is, and whether it counts (architecture §8). */
 export type Certainty = "confirmed" | "provisional" | "excluded" | "info";
 
+/** Where a notification goes (ADR-0010). */
+export type Channel = "in_app" | "desktop" | "email" | "telegram";
+
+export interface ChannelStateOut {
+  channel: Channel;
+  on: boolean;
+  ready: boolean;
+  note: string;
+}
+
 export interface CursorOut {
   last_id: string;
   last_date: string;
@@ -125,6 +172,12 @@ export interface DeliveredOut {
   taken: string;
   documents: number;
 }
+
+/** Where a notification stands on its channel (ADR-0010). */
+export type DeliveryStatus = "pending" | "sent" | "held" | "digested" | "failed";
+
+/** How much a notification says (ADR-0010). */
+export type DetailLevel = "full" | "summary" | "minimal";
 
 export interface DiskOut {
   vault: number;
@@ -153,6 +206,18 @@ export interface DocumentPageOut {
   items: DocumentOut[];
   next: string;
 }
+
+/** An event a rule may watch, and the conditions it allows. */
+export interface EventInfoOut {
+  kind: EventKind;
+  label: string;
+  days: boolean;
+  amount: boolean;
+  text: boolean;
+}
+
+/** What the event log records (architecture §13); the alert rules name these (architecture §14). */
+export type EventKind = "document.received" | "document.processed" | "document.unprocessed" | "document.unreadable" | "transaction.created" | "transaction.confirmed" | "transaction.large" | "evidence.unmatched" | "invoice.matched" | "invoice.pending" | "invoice.unmatched" | "payment.due_soon" | "expected_payment.missing" | "balance.forecast_negative" | "subscription.price_changed" | "subscription.paid_after_cancel" | "income.received" | "income.late" | "month.ended" | "month.closed" | "month.needs_check" | "parser.format_alarm" | "mail.auth_failed" | "mail.bridge_alarm" | "mail.bridge_silent" | "backup.failed" | "bridge.paired" | "bridge.revoked";
 
 export interface EventOut {
   id: number;
@@ -295,6 +360,59 @@ export interface MoneyOut {
 }
 
 export type Necessity = "required" | "optional" | "unnecessary" | "unknown";
+
+/** A notification as it was sent on its channel. */
+export interface NotificationOut {
+  id: number;
+  created_at: string;
+  rule: string;
+  kind: string;
+  channel: Channel;
+  detail: DetailLevel;
+  title: string;
+  body: string;
+  status: DeliveryStatus;
+  attempts: number;
+  sent_at: string;
+  error: string;
+  read: boolean;
+}
+
+export interface NotificationsOut {
+  items: NotificationOut[];
+  unread: number;
+}
+
+export interface NotificationsReadIn {
+  up_to?: number | null;
+}
+
+export interface NotificationsReadOut {
+  marked: number;
+}
+
+export interface NotifyMessageOut {
+  title: string;
+  body: string;
+}
+
+export interface NotifySettingsIn {
+  quiet_hours: string;
+  detail: Record<string, DetailLevel>;
+  channels: Channel[];
+}
+
+export interface NotifySettingsOut {
+  quiet_hours: string;
+  detail: Record<string, DetailLevel>;
+  channels: ChannelStateOut[];
+  counts: Record<string, number>;
+  unread: number;
+}
+
+export interface NotifyTestIn {
+  channel: Channel;
+}
 
 export interface OtherSendersIn {
   domains: string[];
@@ -489,6 +607,26 @@ export interface SystemOut {
   queue: QueueOut;
   mail: MailOut;
   backup: BackupHealthOut;
+}
+
+export interface TelegramCheckOut {
+  paired: boolean;
+}
+
+export interface TelegramPairingOut {
+  code: string;
+  expires: string;
+  bot: string;
+  link: string;
+}
+
+export interface TelegramTokenIn {
+  token: string;
+}
+
+export interface TelegramTokenOut {
+  bot: string;
+  in_keyring: boolean;
 }
 
 /**

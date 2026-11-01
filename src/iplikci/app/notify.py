@@ -19,14 +19,16 @@ from pathlib import Path
 from typing import Any, cast
 
 from .. import egress, rulefile
-from ..domain.codes import Actor, Channel, DeliveryStatus, DetailLevel
+from ..domain.codes import Actor, Channel, DeliveryStatus, DetailLevel, EventKind
+from ..domain.labels import EVENT_KIND
 from ..ingest.mail.imap import clean_password
 from ..notify import content, timing
 from ..notify import rules as alert_rules
 from ..notify.channels import Desktop, Email, Post, Sender, SendError, Telegram, bot_name, starts
 from ..notify.content import Message
-from ..notify.rules import DEFAULTS, AlertRule, RulesError, Seen
+from ..notify.rules import DEFAULTS, AlertRule, Condition, RulesError, Seen
 from ..settings import config, secrets
+from ..settings.config import SettingsError
 from ..storage import audit, events, feed_state
 from ..storage import notifications as stored
 from ..storage.db import Database
@@ -36,6 +38,47 @@ from . import mail
 from .workspace import Workspace
 
 log = logging.getLogger("iplikci.notify")
+
+# What the API, the command line and the MCP server name from here: the codes and records their answers carry.
+__all__ = [
+    "Actor",
+    "AlertRule",
+    "Channel",
+    "ChannelState",
+    "Condition",
+    "DeliveryStatus",
+    "DetailLevel",
+    "EventInfo",
+    "EventKind",
+    "Message",
+    "Notification",
+    "NotifyError",
+    "Pairing",
+    "Preview",
+    "Rules",
+    "RulesError",
+    "Sent",
+    "SettingsError",
+    "Status",
+    "TokenSet",
+    "channel_states",
+    "check_pairing",
+    "deliver",
+    "event_catalog",
+    "history",
+    "load_rules",
+    "mark_read",
+    "preview",
+    "remove_telegram",
+    "run",
+    "save_rules",
+    "send_test",
+    "set_preferences",
+    "set_telegram_token",
+    "start_pairing",
+    "status",
+    "take_events",
+]
 
 CURSOR = "notify.cursor"  # the last event the notifications looked at
 STOPPED = "notify.stopped"  # channel → why a refused login or token stopped it
@@ -105,6 +148,25 @@ def save_rules(ws: Workspace, found: Sequence[AlertRule], actor: Actor) -> Path 
     with ws.db() as db:
         audit.record(db, actor, RULES_CHANGED, ws.layout.alert_rules.name, rules=len(found))
     return previous
+
+
+@dataclass(frozen=True)
+class EventInfo:
+    """An event a rule may watch, and the conditions it allows."""
+
+    kind: EventKind
+    label: str
+    days: bool
+    amount: bool
+    text: bool
+
+
+def event_catalog() -> list[EventInfo]:
+    found: list[EventInfo] = []
+    for kind in EventKind:
+        can = alert_rules.applicable(kind)
+        found.append(EventInfo(kind, EVENT_KIND[kind], can.days, can.amount, can.text))
+    return found
 
 
 @dataclass(frozen=True)
