@@ -140,14 +140,14 @@ class Money:
         return Money(abs(self.amount), self.currency)
 
     def __mul__(self, factor: Decimal | int) -> "Money":
-        if isinstance(factor, float):  # pyright: ignore[reportUnnecessaryIsInstance] - see __post_init__
+        if isinstance(factor, float):  # see __post_init__
             raise TypeError("tutar float ile çarpılmaz; Decimal kullanın")
         return Money(self.amount * factor, self.currency)
 
     __rmul__ = __mul__
 
     def __truediv__(self, divisor: Decimal | int) -> "Money":
-        if isinstance(divisor, float):  # pyright: ignore[reportUnnecessaryIsInstance] - see __post_init__
+        if isinstance(divisor, float):  # see __post_init__
             raise TypeError("tutar float ile bölünmez; Decimal kullanın")
         return Money(self.amount / divisor, self.currency)
 
