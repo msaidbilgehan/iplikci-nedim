@@ -13,8 +13,9 @@ from dataclasses import dataclass
 
 from ..domain.codes import Actor, DocumentKind, DocumentStatus
 from ..domain.models import ParseResult
-from ..parsers import Skipped, Unreadable, parse_document, registry
+from ..parsers import Skipped, Unreadable, registry
 from ..parsers.common import business_names_signature
+from ..parsers.worker import parse_document
 from ..sources import Document
 from ..storage import audit, documents, readings
 from ..storage.db import Database
@@ -77,8 +78,8 @@ def _version(parser_id: str) -> str:
 
 
 def read(name: str, data: bytes, sha256: str, origin: str = "") -> Outcome:
-    """Read one document in memory. A broken document never stops the others: it is unreadable, with the
-    reason."""
+    """Read one document in the reading process (ADR-0005). A broken document never stops the others: it is
+    unreadable, with the reason. Only a reading process that cannot start stops the run (worker.WorkerError)."""
     try:
         result = parse_document(Document(name=name, origin=origin, data=data, sha256=sha256))
     except Skipped as exc:
@@ -87,8 +88,6 @@ def read(name: str, data: bytes, sha256: str, origin: str = "") -> Outcome:
         return Outcome(DocumentStatus.UNPROCESSED, str(exc), parser=exc.parser)
     except Unreadable as exc:
         return Outcome(DocumentStatus.UNREADABLE, str(exc), parser=exc.parser)
-    except Exception as exc:  # a reader that fails on one document must not stop the run  # noqa: BLE001
-        return Outcome(DocumentStatus.UNREADABLE, f"{type(exc).__name__}: {exc}")
     return Outcome(DocumentStatus.PROCESSED, result=result)
 
 

@@ -10,7 +10,7 @@ from pdfminer.pdfdocument import PDFEncryptionError
 
 from ..domain.models import ParseResult
 from ..sources import Document, UnreadableArchive, from_zip
-from .common import BUSINESS_REASON, Skipped, Unreadable, is_business, not_a_statement
+from .common import BUSINESS_REASON, Skipped, Unreadable, caused_by, is_business, not_a_statement
 from .contract import THRESHOLD, Format, Parser, Probe, SourceDocument
 from .pdf import ocr_available, page_text
 from .registry import readers
@@ -25,11 +25,6 @@ NO_OCR_REASON = (
     "sayfa görüntüsü olarak gelmiş PDF: metin tanıma (OCR) yalnızca macOS'ta var — belgeyi bir Mac'te "
     "ekleyin ya da bankadan metinli PDF indirin"
 )
-
-
-def _encrypted(exc: Exception) -> bool:
-    # pdfplumber wraps pdfminer's password error in its own exception.
-    return any(isinstance(e, PDFEncryptionError) for e in (exc, exc.__context__, *exc.args))
 
 
 def choose(probe: Probe) -> Parser | None:
@@ -113,7 +108,7 @@ def _read_pdf(source: SourceDocument) -> ParseResult:
         pdf = source.pdf
     except Exception as exc:  # malformed or encrypted PDF
         # Some banks e-mail statements as password-protected PDFs: still a bank document, never "unused".
-        if _encrypted(exc):
+        if caused_by(exc, PDFEncryptionError):
             raise Unreadable(ENCRYPTED_REASON) from exc
         raise Skipped(f"PDF açılamadı: {exc}") from exc
     if not pdf.pages:

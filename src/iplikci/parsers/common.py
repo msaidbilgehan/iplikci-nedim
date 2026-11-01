@@ -36,6 +36,22 @@ class Unreadable(Exception):
         self.parser = parser
 
 
+def caused_by(exc: BaseException, kind: type[BaseException]) -> bool:
+    """Whether exc is a kind, or was raised from one or wraps one: pdfplumber hands on what pdfminer raises inside an
+    exception of its own (a password error, a failed allocation)."""
+    seen: set[int] = set()
+    todo: list[object] = [exc]
+    while todo:
+        e = todo.pop()
+        if not isinstance(e, BaseException) or id(e) in seen:
+            continue
+        if isinstance(e, kind):
+            return True
+        seen.add(id(e))
+        todo += [e.__cause__, e.__context__, *e.args]
+    return False
+
+
 # Marks of company documents: business card and account products, payroll. The user's company names come from
 # the settings (identity.business_names), never from the code.
 _BUSINESS_MARKS = (
@@ -45,6 +61,7 @@ _BUSINESS_MARKS = (
     "UCRETBORDROSU",
     "AYLIKOZETRAPORU",
 )
+_given_names: tuple[str, ...] = ()
 _business_names: tuple[str, ...] = ()
 # Legal forms after a company's name, written in any spelling ("A.Ş.", "ANONİM ŞİRKETİ", "SAN. VE TİC. LTD. ŞTİ."):
 # a name is looked for without them, so a document that spells the form another way still matches it.
@@ -62,8 +79,14 @@ def set_business_names(names: Iterable[str]) -> None:
     """The user's company names, squashed like the headers they are looked for in. The readers have no
     settings of their own, so the workspace hands the names over when it loads them. A name shorter than
     three letters would mark nearly every document as a company's: it is left out."""
-    global _business_names
-    _business_names = tuple(sorted({s for s in map(_business_name, names) if len(s) >= 3}))
+    global _given_names, _business_names
+    _given_names = tuple(names)
+    _business_names = tuple(sorted({s for s in map(_business_name, _given_names) if len(s) >= 3}))
+
+
+def business_names() -> tuple[str, ...]:
+    """The names as set_business_names got them: the reading process gets them with every document (worker.py)."""
+    return _given_names
 
 
 def business_names_signature() -> str:

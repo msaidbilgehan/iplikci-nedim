@@ -87,6 +87,11 @@ def text_pdf(*pages: list[tuple[float, float, str]], size: float = 9.0) -> bytes
             )
         )
     objects[1] = b"<< /Type /Pages /Kids [%s] /Count %d >>" % (b" ".join(b"%d 0 R" % k for k in kids), len(kids))
+    return pdf_file(objects)
+
+
+def pdf_file(objects: list[bytes]) -> bytes:
+    """A PDF of the given objects, numbered from 1 with the catalog first, and its cross-reference table."""
     out, offsets = b"%PDF-1.4\n", []
     for number, body in enumerate(objects, 1):
         offsets.append(len(out))
