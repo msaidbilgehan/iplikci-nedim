@@ -16,7 +16,8 @@ düzeltirken önce buraya bakılır; yeni bir tuzak bulununca buraya eklenir.
   `parsers.text.squash()` (boşluksuz) üzerinden eşleştirilir.
 - `fold()` boşlukları birleştirir ve birleşik işaretleri atar; bu yüzden metnin uzunluğunu korumaz.
   - Katlanmış metinde bulunan bir konumla özgün metin asla kesilmez.
-  - Bunun yerine kelime kelime katlanır ve özgün kelimeler tutulur (örnek: `parsers/qnb/edekont.py` içindeki `_other_side`).
+  - Bunun yerine kelime kelime katlanır ve özgün kelimeler tutulur (örnek: `parsers/qnb/edekont.py` içindeki
+    `_other_side`).
 
 **Kart PDF'leri:** sütun konumuyla okunur (`parsers.pdf.page_lines`, `find_header`, `take_amount`). Düz metin üzerinde
 düzenli ifadeyle okunmaz.
@@ -33,6 +34,9 @@ düzenli ifadeyle okunmaz.
   - ÜCRET BORDROSU
   - AYLIK ÖZET RAPORU
 - Kullanıcının şirket adları ayarlardan gelir (`identity.business_names`); koda yazılmaz.
+- Seçim, PDF'lerde işaretleri ilk sayfanın ilk 600 karakterinde arar. Girişimci ve şirket kartı işareti sayfanın
+  ilerisinde de çıkabilir; TEB Bonus ve İş Bankası Maximum okuyucuları bütün ilk sayfaya bakar ve belgeyi şirket belgesi
+  olarak bildirir.
 
 **Arşivler**
 
@@ -149,7 +153,8 @@ hareketi taşımaz. V1'de çöpe gitmez; "işlenmedi" durumunda saklanır (K11).
 - `(9/8. Taksit)` "9 taksitten 8'incisi" demektir.
 - `(Yurt dışı işlem tutarı EUR.25,75)` orijinal tutardır.
 - Bir ekstrede birden çok kart bölümü olabilir.
-- OCR, temassız ikonunu `)))` olarak okur.
+- OCR, temassız ikonunu `)))` olarak okur. Okuyucu bunu satırın sonundan atar; metni bitiren kapama parantezi
+  (`(9/8. Taksit)` gibi) kalır.
 
 **Kart ödeme dekontu PDF'i:** `ekstresiz_kart` (`card_payment_no_statement`) türündedir; ekstresi olmayan bir karta
 yapılan ödemedir.

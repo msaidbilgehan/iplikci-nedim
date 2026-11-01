@@ -6,12 +6,15 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-01): Phases 0 and 1 of `docs/v1/roadmap.md` are done (v0.1.0, v0.2.0).
+Status (2026-11-01): Phases 0–2 of `docs/v1/roadmap.md` are done (v0.1.0, v0.2.0, v0.3.0).
 - Phase 0 brought the MVP's code in as the `iplikci` package, cleaned of personal traces, with the shipped default
   rules, the verification baseline and the demo workspace.
 - Phase 1 (data core) moved everything into the data dir: `settings.toml`, the content-addressed vault, SQLite with the
   readings and the user's annotations, exact decimal amounts and English codes, and the archive check and rebuild.
-- Phase 2 (parser plugins) is next.
+- Phase 2 (parser plugins) turned the 17 readers into plugins with a version each, read every document in a process of
+  its own, gave every row its place in its document, raised the format alarm and gave every reader fake documents.
+- Phase 3 (the service) is next. The card statements' fake documents are not in the demo yet: adding them changes the
+  golden baseline, which needs the user's approval.
 
 The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's web interface); its
 feasibility check is the first task of Phase 3. The MVP was retired on 2026-10-31 (K17, ADR-0018): İplikçi Nedim starts
@@ -119,10 +122,14 @@ with no migrated data and collects its own.
 The data dir layout is in architecture §9.
 
 Phase 1 added the target packages `domain`, `settings`, `storage`, `vault` and `app` (intake, reading, analysis,
-annotations, archive checks, rebuild); pyright checks them strictly. The rest keeps the MVP's flat layout (`cli`,
-`analysis`, `insights`, `month_end`, `report`, `panel`, `mcp_server`, `parsers/`, …) until the phases in the roadmap's
-MVP module table move it. Next to them: `baseline` (the verification baseline), `demo` (the fake document builders,
-shared with the tests) and `mvp_codes` (the MVP codes the report's script and baseline v1 still speak).
+annotations, archive checks, rebuild); pyright checks them strictly. Phase 2 put the readers in their target place:
+`parsers/<bank>/<document>.py` plugins (`garanti.bonus_card` is `parsers/garanti/bonus_card.py`), with the contract,
+the registry, the reading process (`worker.py`, `wire.py`) and the developer tools (`tools.py`) beside the shared
+helpers (`pdf`, `sheet`, `text`, `movements`, `accounts`, `common`). The rest keeps the MVP's flat layout (`cli`,
+`analysis`, `insights`, `month_end`, `report`, `panel`, `mcp_server`, …) until the phases in the roadmap's MVP module
+table move it. Next to them: `fakes` (the fake document builders and every reader's specimens, shared with the tests
+and the demo), `demo` (the demo data folder), `baseline` (the verification baseline) and `mvp_codes` (the MVP codes the
+report's script and baseline v1 still speak).
 
 The workspace is the data dir (architecture §9). The user's company names go in its `settings.toml` under
 `[identity] business_names`; the user's category rules live in `rules/personal.yaml` over the shipped defaults.
@@ -136,7 +143,7 @@ uv sync                                        # Python 3.13 and the locked depe
 uv run pre-commit install                      # ruff and gitleaks on every commit
 uv run pytest -q                               # includes the demo workspace's golden baseline
 uv run ruff check && uv run ruff format --check
-uv run pyright                                 # strict on domain, settings, storage, vault and app
+uv run pyright                                 # strict on the V1 packages and the new parsers modules
 uv run iplikci dev demo /tmp/iplikci-demo      # demo data dir from fake documents; the folder must be new or empty
 IPLIKCI_HOME=/tmp/iplikci-demo uv run iplikci dogrula --taban --tarih 2026-11-15   # the demo's baseline
 IPLIKCI_HOME=/tmp/iplikci-demo uv run iplikci dogrula --arsiv        # vault integrity, database against the vault
@@ -145,7 +152,9 @@ IPLIKCI_HOME=/tmp/iplikci-demo uv run iplikci islem ara MIGROS       # rows with
 IPLIKCI_HOME=/tmp/iplikci-demo uv run iplikci islem duzelt <fingerprint> --not "…"   # a note that survives re-reads
 IPLIKCI_UPDATE_GOLDEN=1 uv run pytest tests/test_baseline.py   # rewrite the golden baseline after a deliberate change
 uv run iplikci dogrula --taban                 # real documents once V1 has collected some; exits 1 on a regression
-uv run iplikci dev parser probe <file>        # from Phase 2
+uv run iplikci dev parser probe <file>         # what the selection sees and what every reader says
+uv run iplikci dev parser debug <file>         # what the reader reads, row by row with each row's place
+uv run iplikci dev parser test [<id>]          # the readers' fake documents still read as they must; exits 1 if not
 uv run iplikci servis calistir                 # from Phase 3 (foreground service)
 ```
 
@@ -173,11 +182,13 @@ damage, loss or a different result.
 
 ## Adding or changing a parser
 
-1. Implement the plugin contract (ADR-0005) under `src/iplikci/parsers/<bank>/`, emitting a `SourceRef` for every row.
-2. Write its fake-document factory and tests, then register it.
+1. Implement the plugin contract (ADR-0005) in `src/iplikci/parsers/<bank>/<document>.py`, ending with `PARSER`, and
+   emit a `SourceRef` for every row. A company document the reader finds is `Skipped(BUSINESS_REASON, business=True)`.
+2. Write its fake-document builder in `src/iplikci/fakes/<bank>.py`, add a `Specimen` to that module's `specimens()`
+   and write its tests; then register it in `parsers/registry.py`.
 3. Bump only that parser's version.
-4. Run the tests, which include the demo baseline. Once the data dir holds real documents, also run
-   `iplikci dogrula --taban` locally. Both must meet the verification invariants.
+4. Run `iplikci dev parser test <id>` and the tests, which include every specimen and the demo baseline. Once the data
+   dir holds real documents, also run `iplikci dogrula --taban` locally. All must meet the verification invariants.
 5. Record new format traps in `docs/domain/bank-formats.md`.
 
 ## Done means

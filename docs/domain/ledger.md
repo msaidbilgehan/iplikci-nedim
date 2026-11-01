@@ -86,6 +86,10 @@ Okumanın üç sonucu vardır:
 Bir değişiklikten sonra daha az doğrulanan ekstre ya da yeni bir "okunamadı" belgesi çıkıyorsa bu bir gerilemedir ve
 önce o düzeltilir. Gerçek belgelerdeki taban, veri klasöründe saklanır ve `iplikci dogrula --taban` ile karşılaştırılır.
 
+Bir okuyucu belgesini tanıyıp okuyamazsa ya da okuduğu ekstre doğrulanmazsa banka biçimini değiştirmiş olabilir: okuma
+işi olay kaydına `parser.format_alarm` yazar (ADR-0005). Bakiyesini denetleyecek kadar satırı olmayan hesap dökümü
+alarm vermez.
+
 Taban şunları kaydeder:
 
 - belge sayıları, durumları ve okunamayan belgeler,
@@ -102,8 +106,9 @@ Taban sonuçlara bakar; arşivin kendisini iki komut daha denetler:
 - `iplikci dogrula --arsiv`: arşivdeki her nesneyi yeniden özetler ve veritabanını arşivle karşılaştırır. Nesnesi
   kaybolmuş belge, hiçbir belgenin anmadığı nesne, SQLite'ın kendi denetimleri ve arama dizini buna dahildir. Bozulma ya
   da kayıp 1 ile biter.
-- `iplikci dogrula --yeniden-kur`: birincil verileri (belgelerin adları ve gelişleri, düzeltmeler, denetim kaydı) dışa
-  aktarır, yanında yeni bir veritabanı kurar, her belgeyi arşivden yeniden okur ve iki analizin aynı çıktığını denetler.
+- `iplikci dogrula --yeniden-kur`: birincil verileri (belgelerin adları ve gelişleri, düzeltmeler, denetim ve olay
+  kayıtları) dışa aktarır, yanında yeni bir veritabanı kurar, her belgeyi arşivden yeniden okur ve iki analizin aynı
+  çıktığını denetler.
 
 ## Kopyalar
 

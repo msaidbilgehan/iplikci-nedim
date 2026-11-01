@@ -6,10 +6,22 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 | Revizyon | Konu | Durum | Belge |
 |---|---|---|---|
 | V0 | MVP `gider-analizi`: banka belgelerini okuyan, doğrulayan, yorumlayan yerel komut satırı programı, web paneli ve MCP sunucusu | 2026-10-31'de emekliye ayrıldı (K17) | Depo dışında, veri klasöründeki arşivde: `archive/mvp/CLAUDE.md` ve `README.md` |
-| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0 (v0.1.0) uygulandı; sırada Aşama 1 var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
+| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–2 (v0.1.0–v0.3.0) uygulandı; sırada Aşama 3 var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
 | V2 | Finansal strateji uzmanları ve yapay zekâ asistanı | Gelecek (V1'den sonra) | [`v2/requirements.md`](v2/requirements.md) |
 
 ## Değişiklik kaydı
+
+- 2026-11-01 (13) — Aşama 2 uygulandı (`asama-2` dalı); belgeler kodla uyumlu hâle getirildi:
+  - README'nin durum bölümü ve geliştirici komutları güncellendi; `CHANGELOG.md`'ye 0.3.0 eklendi.
+  - [ADR-0005](adr/0005-parser-plugins.md)'e uygulama notu: okuyucuların yeri, seçim eşiği, sürüm, kalıcı okuma süreci
+    (bellek sınırı yalnızca Linux'ta), kaynak konumu, biçim alarmı, sahte belgeler ve araçlar.
+  - [ADR-0014](adr/0014-event-log-and-jobs.md)'e uygulama notu: `events` tablosu biçim alarmı için Aşama 2'de açıldı.
+  - [Mimari §10](v1/architecture.md#10-okuyucular): okuyucuların modülleri, kaynak konumunun biçimleri, okuma süreci ve
+    alarm.
+  - [Defter](domain/ledger.md#doğrulama-değişmezleri): biçim alarmı; yeniden kurma olay kaydını da taşır.
+  - [Banka biçimleri](domain/bank-formats.md): sayfanın ilerisindeki şirket kartı işareti ve OCR'ın temassız simgesi.
+  - [Eşitlik listesi](v1/features.md#mvp-eşitlik-listesi)'nde belge okuma işaretlendi; yol haritası ve geçiş belgesi
+    Aşama 2'nin durumunu söylüyor. Tablodaki V1 durumu Aşama 1'den beri güncel değildi; düzeltildi.
 
 - 2026-11-01 (12) — Aşama 1 uygulandı (`asama-1` dalı); belgeler kodla uyumlu hâle getirildi:
   - README'nin durum bölümü ve geliştirici komutları güncellendi; `CHANGELOG.md`'ye 0.2.0 eklendi.

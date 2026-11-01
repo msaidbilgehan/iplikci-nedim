@@ -431,8 +431,9 @@ Veri kalitesi · Çekirdek
 Sürüm 1.0'dan önce bunların hepsi İplikçi Nedim'de çalışmalıdır. MVP 2026-10-31'de emekliye ayrıldı; bu liste onun
 yaptığı her şeyin V1'de de olmasını güvenceye alır.
 
-- [ ] **Belge okuma:** MVP'nin bütün okuyucuları ve doğrulama kuralları; macOS'ta OCR; şifreli PDF ve bozuk zip
-  "okunamadı" olur; şirket belgesi tanınır.
+- [x] **Belge okuma:** MVP'nin bütün okuyucuları ve doğrulama kuralları; macOS'ta OCR; şifreli PDF ve bozuk zip
+  "okunamadı" olur; şirket belgesi tanınır. (Aşama 2: 17 okuyucu eklentidir; her birinin sahte belgeleri ve testi
+  vardır.)
 - [x] **Kopyalar:** aynı sha256 ve aynı ekstre anahtarı kopya olarak tanınır; gelen kutusu planı ve uygulaması
   çalışır. (Aşama 1: aynı baytlar belgenin yeni bir gelişi olur; aynı ekstrenin başka bir dosyası kopyası olarak
   saklanır ve defterde birleşir.)

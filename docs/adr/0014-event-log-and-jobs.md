@@ -37,6 +37,15 @@ Anlık akış, bildirimler, denetim kaydı ve yeniden denenebilir işler gerekiy
 - Olumlu: ek servis gerekmez; iş ve olay geçmişi sorgulanabilir; akış, bildirimler ve denetim aynı kaynaktan beslenir.
 - Olumsuz: kuyruk SQLite'ın tek yazarına bağlıdır; bu ölçekte sorun değildir.
 
+## Uygulama notu (Aşama 2, 2026-11-01)
+
+- `events` tablosu, okuyucuların biçim alarmı (`parser.format_alarm`, [ADR-0005](0005-parser-plugins.md)) için
+  Aşama 2'de açıldı (göç 3).
+- Tür, hedef ve ayrıntısı aynı olan bir olay ikinci kez eklenmez. Böylece aynı belgenin yeniden okunması aynı alarmı
+  çoğaltmaz.
+- Birincil veri dökümü (2. sürüm) olayları da taşır.
+- `jobs`, anlık görüntü farkı ve SSE yayını Aşama 3'te gelir.
+
 ## Değerlendirilen seçenekler
 
 - **Celery, RQ ya da Redis:** ek servis gerektirir; tek kullanıcı için gereksiz.

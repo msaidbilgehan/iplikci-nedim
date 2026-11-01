@@ -4,6 +4,41 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.3.0] — 2026-11-01 — Aşama 2: Okuyucu eklentileri
+
+### Eklenenler
+
+- Okuyucu sözleşmesi ve kayıt defteri (ADR-0005): 17 okuyucu, mimarideki kimlikleriyle (`garanti.bonus_card` …)
+  ayrı eklentilerdir. Kurulu paketler `iplikci.parsers` giriş noktasıyla okuyucu ekleyebilir; aynı kimlik iki kez
+  olamaz.
+- Seçim: her okuyucu belgeyi ucuzca tanır ya da tanımaz. Tanıyan tek okuyucu okur; iki okuyucu tanırsa belge
+  "okunamadı: birden çok okuyucu tanıdı" olur.
+- Okuyucu başına sürüm: bir okuyucu değişince yalnızca onun belgeleri yeniden okunur. Hiçbir okuyucunun almadığı
+  belgeler, okuyucular değişince onlara yeniden gösterilir. Yeni bir okuyucu artık posta kutusunu baştan taratmaz.
+- Okuma ayrı bir süreçte: belge başına 60 saniye ve Linux'ta 1 GiB bellek sınırı. Sınırı aşan, süreci düşüren ya da
+  yanıtı anlaşılmayan belge "okunamadı" olur; uygulama sürer. Sonuç JSON olarak döner, pickle kullanılmaz.
+- Her satırın belgedeki yeri: PDF'de sayfa ve kutu ya da satır numarası, tabloda sayfa adı ve satır, HTML'de metindeki
+  aralık. Veritabanı yeri saklar (göç 2).
+- Biçim alarmı: bir okuyucu belgesini tanıyıp okuyamazsa ya da okuduğu ekstre doğrulanmazsa olay kaydına
+  `parser.format_alarm` yazılır (göç 3). Olay kaydı birincil veridir; döküm (2. sürüm) onu da taşır.
+- Sahte belgeler (`iplikci.fakes`): her bankanın belgeleri kodla, bankanın düzeninde üretilir; kart ekstreleri,
+  XLS (BIFF8) ve XLSX hesap dökümleri dahil. Her okuyucunun en az bir örneği vardır ve okunuşu denetlenir.
+- `iplikci dev parser probe | debug | test`: okuyucuların bir belgeyi tanıyıp tanımadığı, okuyanın ne okuduğu
+  (satır satır, yerleriyle; hata izi dahil) ve sahte belgelerin hâlâ doğru okunup okunmadığı.
+
+### Düzeltilenler
+
+- Garanti Yatırım ekstresinin nakit satırları ve TEB kart ödeme dekontu satırı belgedeki yerini taşımıyordu.
+- OCR'ın `)))` diye okuduğu temassız ödeme simgesi TEB Bonus satırlarının sonunda kalıyordu.
+- TEB Bonus ve İş Bankası Maximum okuyucuları ilk sayfanın ilerisinde gördükleri şirket kartını yalnızca "işlenmedi"
+  sayıyordu; belge arşivde kalıyordu. Artık şirket belgesidir ve saklanmaz.
+
+### Değişenler
+
+- Okuyucular ve yardımcıları `parsers/<banka>/<belge>.py` düzenine taşındı; sahte belge üreticileri demodan
+  `iplikci.fakes` paketine geçti. Demonun belgeleri ve altın tabanı değişmedi.
+- v0.2.0'ın tek sürümüyle okunmuş belgeler, okuyucu başına sürüme geçmek için bir kez yeniden okunur.
+
 ## [0.2.0] — 2026-11-01 — Aşama 1: Veri çekirdeği
 
 ### Eklenenler

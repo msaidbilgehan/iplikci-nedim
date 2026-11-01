@@ -334,7 +334,9 @@ Klasörün izni 0700, dosyalarınki 0600'dür. Uygulamayla gelen genel kategori 
 
 ## 10. Okuyucular
 
-Sözleşme, seçim, sürüm ve yalıtım ADR-0005'tedir. Başlangıçtaki eklentiler MVP'nin okuyucularından çıkar:
+Sözleşme, seçim, sürüm ve yalıtım ADR-0005'tedir. Her okuyucu `src/iplikci/parsers/<banka>/<belge>.py` modülündedir:
+kimlikteki nokta klasörü ayırır (`garanti.bonus_card` → `parsers/garanti/bonus_card.py`). Başlangıçtaki eklentiler
+MVP'nin okuyucularından çıkar:
 
 | Kimlik | Belge | MVP'deki yeri |
 |---|---|---|
@@ -363,9 +365,16 @@ limit alanları, banka dışı göndericiler (`invoice.ubl_tr`, `receipt.<kurum>
 
 Her satırın kaynağı (`SourceRef`) okuyucu çıktısında zorunludur:
 
-- PDF'de sayfa ve satırın kutusu (x0, top, x1, bottom).
-- Tabloda sayfa adı ve satır numarası.
-- E-postada gövdedeki konum.
+- PDF'de sayfa ve satırın kutusu (x0, top, x1, bottom); metni satır satır okuyan okuyucularda sayfa ve satır numarası.
+- Tabloda sayfa adı ve satır numarası; HTML tablosunda sayfa adı boştur.
+- HTML belgede ve e-postada metindeki aralık (başlangıç, bitiş).
+
+Konum veritabanında satırla birlikte JSON olarak durur (`transactions.ref`, `evidence.ref`).
+
+Okuma kalıcı bir alt süreçte yapılır (`parsers/worker.py`); sonuç JSON olarak döner ve her değerin türü denetlenir. Bir
+okuyucu belgesini tanıyıp okuyamazsa ya da okuduğu ekstre doğrulanmazsa okuma işi `parser.format_alarm` olayını yazar
+(§13). Her okuyucunun sahte belgeleri `iplikci.fakes` paketindedir; `iplikci dev parser probe | debug | test`
+okuyucuları geliştiricinin sürecinde dener.
 
 ## 11. Defter ve kesinlik
 

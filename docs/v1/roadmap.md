@@ -109,13 +109,18 @@ Durum: 2026-11-01'de `asama-1` dalında uygulandı, `v0.2.0` ([değişiklik gün
 
 ## Aşama 2 — Okuyucu eklentileri
 
+Durum: 2026-11-01'de `asama-2` dalında uygulandı, `v0.3.0` ([değişiklik günlüğü](../../CHANGELOG.md)). Okuma tek bir
+kalıcı alt süreçte yapılır; bellek sınırını yalnızca Linux uygular. Biçim alarmı için `events` tablosu bu aşamada açıldı
+([ADR-0005, uygulama notu](../adr/0005-parser-plugins.md#uygulama-notu-aşama-2-2026-11-01)). Kart ekstrelerinin sahte
+belgeleri hazır; demoya katılmaları altın tabanı değiştireceği için kullanıcının onayını bekler.
+
 **Teslimler**
 
 - Sözleşme, kayıt defteri, tespit çakışmasının hata olarak raporlanması (ADR-0005).
 - Okuyucu başına sürüm; okumanın alt süreçte, süre ve bellek sınırıyla yapılması.
 - Bütün MVP okuyucularının eklentiye dönüşmesi ([mimari §10](architecture.md#10-okuyucular)).
 - Her satırda `SourceRef`: PDF'de sayfa ve kutu, tabloda sayfa adı ve satır numarası.
-- Her okuyucu için sahte belge üreticisi; temel MVP'deki `conftest.text_pdf`.
+- Her okuyucu için sahte belge üreticisi; temeli MVP'deki `conftest.text_pdf` (şimdi `iplikci.fakes`).
 - `iplikci dev parser probe | debug | test`; biçim değişikliği alarmı.
 
 **Çıkış koşulu**
