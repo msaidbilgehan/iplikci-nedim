@@ -28,7 +28,9 @@ module-name = "iplikci"
 
 [dependency-groups]
 dev = [
+    "hypothesis==6.170.14",
     "pre-commit==4.7.0",
+    "pyright==1.1.414",
     "pytest==9.2.0",
     "ruff==0.17.3",
 ]

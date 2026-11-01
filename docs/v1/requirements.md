@@ -420,7 +420,6 @@ Hâlâ kullanıcıda olanlar:
 
 - Ücretli hesaplar ([ADR-0017](../adr/0017-no-terminal-install.md)): eklenti için Chrome Web Store geliştirici kaydı
   (tek seferlik); kurulum paketleri için Apple ve Windows imzası. İmzasız paket ilk açılışta uyarı verir.
-- Deponun GitHub'daki görünürlüğü ve lisansı. Tasarım her iki duruma da uyar.
 - EVDS API anahtarının alınıp alınmayacağı (isteğe bağlı).
 - V2'deki "uzmanlar"ın anlamı (V2'ye başlarken).
 
