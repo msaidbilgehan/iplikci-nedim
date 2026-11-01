@@ -1,42 +1,24 @@
 """Turkish text folding plus amount and date parsing shared by all parsers."""
 
 import re
-import unicodedata
 from datetime import date
 
-_TR_FOLD = str.maketrans(
-    {
-        "ı": "i",
-        "İ": "I",
-        "ş": "s",
-        "Ş": "S",
-        "ğ": "g",
-        "Ğ": "G",
-        "ü": "u",
-        "Ü": "U",
-        "ö": "o",
-        "Ö": "O",
-        "ç": "c",
-        "Ç": "C",
-        "â": "a",
-        "Â": "A",
-        "î": "i",
-        "Î": "I",
-        "û": "u",
-        "Û": "U",
-    }
-)
+# Folding lives in the domain so every layer compares text the same way; the parsers keep importing it here.
+from .domain.text import fold, nfc
 
-
-def nfc(s: str) -> str:
-    return unicodedata.normalize("NFC", s)
-
-
-def fold(s: str) -> str:
-    """Uppercase ASCII form used for matching: 'Migros Örnek Şube' -> 'MIGROS ORNEK SUBE'."""
-    s = nfc(s).translate(_TR_FOLD)
-    s = "".join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c))
-    return re.sub(r"\s+", " ", s.upper()).strip()
+__all__ = [
+    "TR_MONTHS",
+    "fold",
+    "format_tr_amount",
+    "is_tr_amount",
+    "nfc",
+    "parse_dmy",
+    "parse_tr_amount",
+    "parse_tr_words_date",
+    "parse_us_amount",
+    "squash",
+    "title_tr",
+]
 
 
 def squash(s: str) -> str:

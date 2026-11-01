@@ -1,0 +1,201 @@
+"""What the readers read, kept as tables (architecture §8): a document's accounts, statements with their rows
+and securities, and a receipt's rows. Saving replaces a document's previous reading; loading gives back the
+reader's result as it was, for the ledger to combine in memory.
+"""
+
+import json
+import sqlite3
+from collections.abc import Iterable
+from datetime import date
+
+from ..domain.text import fold
+from ..models import Account, ParseResult, Security, Statement, Transaction
+from .db import Database
+from .documents import DocumentRow
+
+# Every currency the banks print has two decimals (domain.money.MINOR_DIGITS).
+_MINOR = 100
+
+
+def _to_minor(amount: float) -> int:
+    return round(amount * _MINOR)
+
+
+def _from_minor(units: int) -> float:
+    return units / _MINOR
+
+
+def clear(db: Database, sha256: str) -> None:
+    """Forget what was read from a document (its rows and their search entries)."""
+    with db.transaction():
+        db.execute("DELETE FROM search WHERE sha256 = ? AND kind != 'document'", (sha256,))
+        db.execute(
+            "DELETE FROM securities WHERE statement_id IN (SELECT id FROM statements WHERE sha256 = ?)", (sha256,)
+        )
+        db.execute("DELETE FROM transactions WHERE sha256 = ?", (sha256,))
+        db.execute("DELETE FROM statements WHERE sha256 = ?", (sha256,))
+        db.execute("DELETE FROM evidence WHERE sha256 = ?", (sha256,))
+        db.execute("DELETE FROM document_accounts WHERE sha256 = ?", (sha256,))
+
+
+def save(db: Database, sha256: str, result: ParseResult) -> None:
+    """Replace what was read from a document with result."""
+    with db.transaction():
+        clear(db, sha256)
+        currencies: dict[str, str] = {}
+        for i, a in enumerate(result.accounts):
+            currencies.setdefault(a.id, a.currency)
+            db.execute(
+                "INSERT INTO document_accounts (sha256, position, id, label, bank, type, currency, number, note) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (sha256, i, a.id, a.label, a.bank, a.type, a.currency, a.number, a.note),
+            )
+        for i, s in enumerate(result.statements):
+            statement_id = db.execute(
+                "INSERT INTO statements (sha256, position, account, cut_date, currency, source, previous, total, "
+                "total_is_sum, start, checks_ok, checks_total, balances) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    sha256,
+                    i,
+                    s.account,
+                    s.cut_date.isoformat(),
+                    s.currency,
+                    s.source,
+                    None if s.previous is None else _to_minor(s.previous),
+                    None if s.total is None else _to_minor(s.total),
+                    int(s.total_is_sum),
+                    s.start.isoformat() if s.start else "",
+                    s.checks_ok,
+                    s.checks_total,
+                    json.dumps({month: _to_minor(v) for month, v in s.balances.items()}),
+                ),
+            ).lastrowid
+            for j, sec in enumerate(s.securities):
+                db.execute(
+                    "INSERT INTO securities (statement_id, position, code, name, quantity, value, as_of) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        statement_id,
+                        j,
+                        sec.code,
+                        sec.name,
+                        repr(sec.quantity),
+                        _to_minor(sec.value),
+                        sec.as_of.isoformat(),
+                    ),
+                )
+            for j, t in enumerate(s.transactions):
+                row_id = db.execute(
+                    "INSERT INTO transactions (sha256, statement_id, position, date, description, amount, currency, "
+                    "kind, account, original, installment, bank_category, counterparty, source) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (sha256, statement_id, j, *_row_values(t, s.currency)),
+                ).lastrowid
+                _index(db, sha256, "transaction", row_id, t)
+        for i, t in enumerate(result.transactions):
+            row_id = db.execute(
+                "INSERT INTO evidence (sha256, position, date, description, amount, currency, kind, account, "
+                "original, installment, bank_category, counterparty, source) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (sha256, i, *_row_values(t, currencies.get(t.account, "TL"))),
+            ).lastrowid
+            _index(db, sha256, "evidence", row_id, t)
+
+
+def _row_values(t: Transaction, currency: str) -> tuple[str | int, ...]:
+    return (
+        t.date.isoformat(),
+        t.description,
+        _to_minor(t.amount),
+        currency,
+        t.kind,
+        t.account,
+        t.original,
+        t.installment,
+        t.bank_category,
+        t.counterparty,
+        t.source,
+    )
+
+
+def _index(db: Database, sha256: str, kind: str, row_id: int | None, t: Transaction) -> None:
+    db.execute(
+        "INSERT INTO search (text, sha256, kind, ref) VALUES (?, ?, ?, ?)",
+        (fold(f"{t.description} {t.counterparty}"), sha256, kind, str(row_id)),
+    )
+
+
+def load(db: Database, documents: Iterable[DocumentRow]) -> dict[str, ParseResult]:
+    """The readings of documents as reader results, by sha256."""
+    results = {
+        doc.sha256: ParseResult(doc.parser, receipt_key=doc.receipt_key, holder=doc.holder, title=doc.title)
+        for doc in documents
+    }
+    wanted = list(results)
+    if not wanted:
+        return results
+    marks = ",".join("?" * len(wanted))
+    for r in db.rows(f"SELECT * FROM document_accounts WHERE sha256 IN ({marks}) ORDER BY sha256, position", wanted):
+        results[r["sha256"]].accounts.append(
+            Account(r["id"], r["label"], r["bank"], r["type"], r["currency"], r["number"], r["note"])
+        )
+    statements: dict[int, Statement] = {}
+    for r in db.rows(f"SELECT * FROM statements WHERE sha256 IN ({marks}) ORDER BY sha256, position", wanted):
+        s = Statement(
+            account=r["account"],
+            cut_date=date.fromisoformat(r["cut_date"]),
+            currency=r["currency"],
+            source=r["source"],
+            previous=None if r["previous"] is None else _from_minor(r["previous"]),
+            total=None if r["total"] is None else _from_minor(r["total"]),
+            total_is_sum=bool(r["total_is_sum"]),
+            start=date.fromisoformat(r["start"]) if r["start"] else None,
+            checks_ok=r["checks_ok"],
+            checks_total=r["checks_total"],
+            balances={month: _from_minor(v) for month, v in json.loads(r["balances"]).items()},
+        )
+        statements[r["id"]] = s
+        results[r["sha256"]].statements.append(s)
+    if statements:
+        ids = ",".join("?" * len(statements))
+        for r in db.rows(
+            f"SELECT * FROM securities WHERE statement_id IN ({ids}) ORDER BY statement_id, position", list(statements)
+        ):
+            statements[r["statement_id"]].securities.append(
+                Security(
+                    r["code"], r["name"], float(r["quantity"]), _from_minor(r["value"]), date.fromisoformat(r["as_of"])
+                )
+            )
+        for r in db.rows(
+            f"SELECT * FROM transactions WHERE statement_id IN ({ids}) ORDER BY statement_id, position",
+            list(statements),
+        ):
+            statements[r["statement_id"]].transactions.append(_transaction(r))
+    for r in db.rows(f"SELECT * FROM evidence WHERE sha256 IN ({marks}) ORDER BY sha256, position", wanted):
+        results[r["sha256"]].transactions.append(_transaction(r))
+    return results
+
+
+def _transaction(r: sqlite3.Row) -> Transaction:
+    return Transaction(
+        date=date.fromisoformat(r["date"]),
+        description=r["description"],
+        amount=_from_minor(r["amount"]),
+        kind=r["kind"],
+        account=r["account"],
+        original=r["original"],
+        installment=r["installment"],
+        bank_category=r["bank_category"],
+        counterparty=r["counterparty"],
+        source=r["source"],
+    )
+
+
+def search(db: Database, query: str, limit: int = 50) -> list[tuple[str, str, str]]:
+    """(kind, ref, sha256) of the rows and documents whose text holds every word of query, as prefixes."""
+    words = fold(query).split()
+    if not words:
+        return []
+    match = " ".join('"' + w.replace('"', '""') + '"*' for w in words)
+    rows = db.rows("SELECT kind, ref, sha256 FROM search WHERE search MATCH ? ORDER BY rank LIMIT ?", (match, limit))
+    return [(r["kind"], r["ref"], r["sha256"]) for r in rows]
