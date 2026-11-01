@@ -53,11 +53,21 @@ def dev_command(argv: list[str]) -> int:
         "web/src/api/schema.ts'dir; API'nin modelleri değişince yeniden üretilir.",
     )
     types.add_argument("dosya", type=Path, help="yazılacak dosya (ör. web/src/api/schema.ts)")
+    inventory = commands.add_parser(
+        "eposta-envanteri",
+        help="arşivdeki e-postaları göndericiye ve konu kalıbına göre say",
+        description="Arşivdeki e-postaları gönderenin alan adına ve konu kalıbına (sayılar ve ay adları maskeli) göre "
+        "sayar; her kalıbın ilk ve son günü, ekli ileti sayısı ve iletilerin ne olduğu yazar. E-posta gövdelerinin "
+        "okuyucuları bu listeye göre önceliklenir. İletiler kişisel veridir: CSV yalnızca veri klasörüne yazılır.",
+    )
+    inventory.add_argument("--csv", action="store_true", help="listeyi veri klasörüne de yaz (exports/)")
     args = parser.parse_args(argv)
     if args.komut == "parser":
         return _parser_tool(args, readers)
     if args.komut == "api-tipleri":
         return _api_types(args.dosya)
+    if args.komut == "eposta-envanteri":
+        return _mail_inventory(args.csv)
     given = args.klasor or os.environ.get(HOME_ENV, "").strip()
     if not given:
         demo_parser.error(f"klasör verilmedi ve {HOME_ENV} tanımlı değil")
@@ -88,6 +98,33 @@ def _parser_tool(args: argparse.Namespace, parser: argparse.ArgumentParser) -> i
         set_business_names(config.load(layout.settings).identity.business_names)
     doc = Document(path.name, str(path.parent), data, sha256_of(data))
     print("\n".join(parser_tools.probe(doc) if args.arac == "probe" else parser_tools.debug(doc)))
+    return 0
+
+
+INVENTORY_FILE = "eposta-envanteri.csv"
+
+
+def _mail_inventory(write: bool) -> int:
+    from ..app.inventory import mail_inventory, write_csv
+    from ..app.workspace import Workspace
+
+    ws = Workspace.load()
+    kinds = mail_inventory(ws)
+    by_domain: dict[str, int] = {}
+    for k in kinds:
+        by_domain[k.domain] = by_domain.get(k.domain, 0) + k.count
+    shown = ""
+    for k in kinds:
+        if k.domain != shown:
+            shown = k.domain
+            print(f"\n{k.domain or '(gönderen yok)'}: {by_domain[k.domain]} ileti")
+        states = "; ".join(f"{state} ({n})" for state, n in k.states.most_common())
+        print(f"  {k.count:>4}  {k.template}  [{k.first_day} – {k.last_day}, ekli {k.with_files}] {states}")
+    print(f"\nToplam: {sum(by_domain.values())} ileti, {len(kinds)} kalıp, {len(by_domain)} gönderen alan adı")
+    if write:
+        target = ws.layout.exports / INVENTORY_FILE
+        write_csv(kinds, target)
+        print(f"Yazıldı: {target}")
     return 0
 
 
