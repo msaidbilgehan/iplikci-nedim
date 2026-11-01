@@ -73,6 +73,10 @@ V1'in istekleri:
   (`POST /api/ingest/mail`, [ADR-0016](0016-mail-connectors.md)) iletiyi aynı yoldan geçirir. Seçili bağlayıcı
   `settings.toml`'daki `[mail] connector`'dır.
 - **Güven kuralı** iki bağlayıcıda da aynıdır. Güvenilmeyen ileti sayılır, iz bırakmaz.
+  - `Authentication-Results` RFC 8601'e göre okunur: yorumlar çıkarılır, tırnak içindeki noktalı virgül başlığı
+    bölmez ve yalnızca `dmarc=` ile başlayan bölüm sayılır.
+  - Böylece göndericinin yazabildiği bir yere konmuş sahte bir "dmarc=pass header.from=banka" metni eşleşmez. Bu
+    yer, SPF yorumundaki zarf adresi ya da tırnaklı bir adres olabilir.
 - **İleti:** konusu ya da herhangi bir eki şirkete ait olan ileti saklanmaz. Diğerleri `.eml` olarak, her eki (zip
   üyeleri dahil) iletiye bağlı ayrı bir belge olarak saklanır. `.eml`'ler Aşama 4'e dek "işlenmedi" kalır; gövdeler o
   aşamada okunur. 40 MB'tan büyük ileti alınmaz.

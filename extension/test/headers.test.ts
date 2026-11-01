@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  clauses,
   field,
   headers,
   listed,
@@ -49,9 +50,25 @@ describe("the trust rule's header half", () => {
     ["another server added it", "mail.example.net; dmarc=pass header.from=garantibbva.com.tr"],
     ["DMARC failed", "mx.google.com; dmarc=fail (p=REJECT) header.from=garantibbva.com.tr"],
     ["DMARC passed for another domain", "mx.google.com; dmarc=pass header.from=example.net"],
+    [
+      "a pass is forged in a comment",
+      'mx.google.com; spf=pass (google.com: domain of "dmarc=pass header.from=garantibbva.com.tr"@evil.example ' +
+        "designates 192.0.2.1 as permitted sender) smtp.mailfrom=x@evil.example; " +
+        "dmarc=fail header.from=garantibbva.com.tr",
+    ],
+    [
+      "a pass is forged in a quoted address",
+      'mx.google.com; spf=pass smtp.mailfrom="a;dmarc=pass header.from=garantibbva.com.tr"@evil.example; ' +
+        "dmarc=fail header.from=garantibbva.com.tr",
+    ],
     ["there is none", null],
   ])("refuses a message when %s", (_case, authentication) => {
     expect(verifiedByGmail(headers(rawMessage({ from: "ekstre@garantibbva.com.tr", authentication })))).toBe(false);
+  });
+
+  it("splits the header at semicolons outside quotes and leaves its comments out", () => {
+    const value = 'mx.google.com; spf=pass (a (nested; comment)) smtp.mailfrom="x;y\\"z"@a.example; dmarc=pass';
+    expect(clauses(value)).toEqual(["mx.google.com", 'spf=pass  smtp.mailfrom="x;y\\"z"@a.example', "dmarc=pass"]);
   });
 
   it("counts a listed domain and its subdomains, nothing that only ends alike", () => {

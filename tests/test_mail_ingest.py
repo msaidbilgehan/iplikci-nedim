@@ -70,8 +70,38 @@ def test_the_same_mail_again_adds_nothing(ws):
             ("mx.google.com; dmarc=fail header.from=teb.com.tr", "mx.google.com; dmarc=pass header.from=teb.com.tr"),
             Taken.UNVERIFIED,
         ),
+        (
+            "bilgi@teb.com.tr",
+            (
+                (
+                    'mx.google.com; spf=pass (google.com: domain of "dmarc=pass header.from=teb.com.tr"@evil.example '
+                    "designates 192.0.2.1 as permitted sender) smtp.mailfrom=x@evil.example; "
+                    "dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=teb.com.tr"
+                ),
+            ),
+            Taken.UNVERIFIED,
+        ),
+        (
+            "bilgi@teb.com.tr",
+            (
+                (
+                    'mx.google.com; spf=pass smtp.mailfrom="a;dmarc=pass header.from=teb.com.tr"@evil.example; '
+                    "dmarc=fail header.from=teb.com.tr"
+                ),
+            ),
+            Taken.UNVERIFIED,
+        ),
     ],
-    ids=["unlisted", "dmarc fail", "another domain", "another server", "no header", "pass only further down"],
+    ids=[
+        "unlisted",
+        "dmarc fail",
+        "another domain",
+        "another server",
+        "no header",
+        "pass only further down",
+        "pass forged in a comment",
+        "pass forged in a quoted address",
+    ],
 )
 def test_an_untrusted_mail_leaves_no_trace(ws, sender, results, expected):
     outcome = take(ws, bank_mail(FEBRUARY, sender=sender, results=results), SENDERS)

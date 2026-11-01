@@ -16,7 +16,8 @@ export interface Authentication {
   readonly dmarcPassFor: string;
 }
 
-const DMARC = /\bdmarc\s*=\s*pass\b[^;]*?\bheader\.from\s*=\s*"?([a-z0-9.-]+)/i;
+const DMARC_PASS = /^dmarc\s*=\s*pass\b/i;
+const HEADER_FROM = /(?:^|\s)header\.from\s*=\s*"?([a-z0-9.-]+)/i;
 const SERVER_HEADERS = ["received", "delivered-to", "message-id", "mime-version"];
 
 /** The header fields in order, folded lines joined; the header ends at the first empty line. */
@@ -58,17 +59,58 @@ export function senderDomain(fields: readonly Header[]): string {
   return at < 0 ? "" : (/^[a-z0-9.-]+/i.exec(address.slice(at + 1).trim())?.[0] ?? "").toLowerCase();
 }
 
-/** What the topmost Authentication-Results says; null when the message has none. */
+/**
+ * What the topmost Authentication-Results says; null when the message has none. Only the clause that begins with
+ * dmarc= counts: a comment or a quoted string may hold anything a sender typed, such as an envelope address that
+ * reads "dmarc=pass header.from=bank" (RFC 8601).
+ */
 export function topAuthentication(fields: readonly Header[]): Authentication | null {
   const top = field(fields, "Authentication-Results");
   if (top === null) {
     return null;
   }
-  const value = top.replace(/\s+/g, " ");
+  const [server = "", ...rest] = clauses(top.replace(/\s+/g, " "));
+  const pass = rest.find((clause) => DMARC_PASS.test(clause));
   return {
-    server: (value.split(";", 1)[0] ?? "").trim().toLowerCase(),
-    dmarcPassFor: DMARC.exec(value)?.[1]?.toLowerCase() ?? "",
+    server: server.toLowerCase(),
+    dmarcPassFor: (pass === undefined ? undefined : HEADER_FROM.exec(pass)?.[1]?.toLowerCase()) ?? "",
   };
+}
+
+/**
+ * The parts of an Authentication-Results value between semicolons, its comments taken out (nested ones too); inside
+ * a quoted string a semicolon or a parenthesis is only text. The first part names the server that added the header.
+ */
+export function clauses(value: string): string[] {
+  const parts: string[] = [];
+  let part = "";
+  let depth = 0;
+  let quoted = false;
+  let escaped = false;
+  for (const char of value) {
+    if (escaped) {
+      escaped = false;
+      part += depth === 0 ? char : "";
+    } else if (char === "\\" && (depth > 0 || quoted)) {
+      escaped = true;
+      part += depth === 0 ? char : "";
+    } else if (depth > 0) {
+      depth += char === "(" ? 1 : char === ")" ? -1 : 0;
+    } else if (quoted) {
+      part += char;
+      quoted = char !== '"';
+    } else if (char === "(") {
+      depth = 1;
+    } else if (char === ";") {
+      parts.push(part.trim());
+      part = "";
+    } else {
+      part += char;
+      quoted = char === '"';
+    }
+  }
+  parts.push(part.trim());
+  return parts;
 }
 
 /** Gmail's own topmost Authentication-Results shows DMARC pass for the From domain. */

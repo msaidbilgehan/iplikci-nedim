@@ -21,6 +21,8 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
   haberleri olay olur. `/api/events/stream` (SSE) koptuğu yerden sürer.
 - E-posta alımı (ADR-0015): bir ileti, hangi bağlayıcı getirirse getirsin, aynı yoldan geçer.
   - Gönderici listede olmalı ve en üstteki `Authentication-Results` From alan adı için DMARC pass göstermelidir.
+    Başlık RFC 8601'e göre bölümlerine ayrılır; yorumlardaki ya da tırnaklı adreslerdeki sahte bir "dmarc=pass"
+    sayılmaz.
   - İleti `.eml` olarak, ekleri (zip üyeleri dahil) ayrı belgeler olarak saklanır. Şirket iletisi saklanmaz.
 - IMAP bağlayıcısı: salt okunur (`EXAMINE`, `BODY.PEEK[]`); yeni ileti IDLE ile anında, yedek yoklama 15 dakikada bir.
   - Reddedilen giriş alımı durdurur ve bir kez `mail.auth_failed` kaydeder; yeniden denenmez.
