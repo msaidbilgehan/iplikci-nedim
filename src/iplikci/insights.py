@@ -2,7 +2,7 @@
 
 * Regular payments (rent, bills, subscriptions, pension) and whether each one
   still runs, ended (the card's statements go on without it) or was cancelled
-  (listed under `_biten` in kategoriler.yaml).
+  (listed under `_biten` in the user's rules).
 * Discretionary spending per merchant: a monthly habit, a new habit, an
   occasional purchase, a one-off or a habit that stopped. Only habits get a
   monthly cost; an occasional purchase is spread over the months it was seen
@@ -1195,8 +1195,8 @@ def _regular_findings(c: _Context) -> None:
         text = (
             "Bir süredir hiçbir belgede görünmeyen düzenli ödemeler: "
             + ", ".join(f"{s.merchant} (son {_day(s.last.date)}, {tl(s.monthly)})" for s in missing)
-            + ". Başka bir hesaptan ödeniyorsa o hesabın dökümünü de ekleyin; bittiyse kategoriler.yaml'daki "
-            "_biten listesine yazın."
+            + ". Başka bir hesaptan ödeniyorsa o hesabın dökümünü de ekleyin; bittiyse kişisel kurallarınızda "
+            "_biten listesine ekleyin."
         )
         ins.findings.append(Finding("bilgi", "Görünmeyen faturalar", text))
     for s in (s for s in ins.series if s.status == "iptal_sonrasi"):
@@ -1206,7 +1206,7 @@ def _regular_findings(c: _Context) -> None:
             Finding(
                 "dikkat",
                 f"{s.merchant}: iptalden sonra ödeme",
-                f"kategoriler.yaml'da son ödemenin {month_name(cancelled)} olduğu yazıyor ama sonrasında {len(late)} ödeme "
+                f"Kişisel kurallarınızda son ödemenin {month_name(cancelled)} olduğu yazıyor ama sonrasında {len(late)} ödeme "
                 f"daha alınmış (son {_day(late[-1].date)}, {tl(late[-1].amount)}). Aboneliği kontrol edin.",
                 {"merchant": s.merchant},
             )
@@ -1221,7 +1221,7 @@ def _people_finding(c: _Context) -> None:
     if fl.unnamed_people >= 1:
         text += (
             f"; bunun {tl(fl.unnamed_people)} kadarında belgede alıcının adı yok, yalnızca bankası yazıyor. "
-            "Kime gittiğini kategoriler.yaml'a eklerseniz kira, aile ya da borç olarak ayrılır"
+            "Kime gittiğini kişisel kurallarınıza eklerseniz kira, aile ya da borç olarak ayrılır"
         )
     c.ins.findings.append(
         Finding("bilgi", "Kişilere gönderilen para", text + ".", {"kind": TransactionKind.P2P_TRANSFER})
@@ -1361,7 +1361,7 @@ def _write_steps(c: _Context) -> None:
             Step(
                 "Abonelikleri gözden geçirin",
                 f"İsteğe bağlı abonelikler ayda {tl(sum((s.monthly for s in subs), ZERO))}: {_payee_list(subs)}. "
-                "İptal ettiklerinizi kategoriler.yaml'daki _biten listesine ekleyin; tahmin ona göre düşer.",
+                "İptal ettiklerinizi kişisel kurallarınızda _biten listesine ekleyin; tahmin ona göre düşer.",
             )
         )
 
@@ -1442,7 +1442,7 @@ def _write_budget(c: _Context) -> None:
         ),
         BudgetLine("İsteğe bağlı harcamalar", optional, optional - cut, "öneri: aylık sınır"),
         BudgetLine("Yazılım, bulut ve muhasebe (abonelik dışı)", work, work, "işinizse şirkete taşınabilir"),
-        BudgetLine("Sınıflanmamış harcamalar", unsure, unsure, "kategoriler.yaml ile netleşir"),
+        BudgetLine("Sınıflanmamış harcamalar", unsure, unsure, "kişisel kurallarla netleşir"),
         BudgetLine("Faiz ve banka ücretleri", fees, ZERO, "öneri: borcu tam ödeyerek sıfırlayın"),
         BudgetLine("BES ve düzenli birikim", saving, saving, "düzenli ödemelerden"),
     ]

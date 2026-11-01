@@ -1,4 +1,4 @@
-"""Assign merchant, category, group and necessity to transactions using kategoriler.yaml."""
+"""Assign merchant, category, group and necessity to transactions using the category rules."""
 
 import re
 from dataclasses import dataclass, field

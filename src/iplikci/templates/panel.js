@@ -365,7 +365,7 @@
     }
     headerButtons();
     renderGaps();
-    $("footer").append(" Panelde kategoriler.yaml'ı değiştirdikten sonra sayfayı yenilemeniz yeterli.");
+    $("footer").append(" Kişisel kuralları değiştirdikten sonra sayfayı yenilemeniz yeterli.");
     let notice = null;
     try {
       notice = sessionStorage.getItem("iplikci-panel-sonuc");

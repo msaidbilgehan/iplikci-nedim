@@ -80,6 +80,10 @@ temizlik taraması temizdir; CI yeşildir.
 
 ## Aşama 1 — Veri çekirdeği
 
+Durum: 2026-11-01'de `asama-1` dalında uygulandı, `v0.2.0` ([değişiklik günlüğü](../../CHANGELOG.md)). Satırlar
+şimdilik `Decimal` tutar taşır; defter ve yorum hesapları kendi paketlerine taşınırken `Money`'ye geçerler
+([ADR-0006, uygulama notu](../adr/0006-money-and-codes.md#uygulama-notu-aşama-1-2026-11-01)).
+
 **Teslimler**
 
 - `settings`: veri klasörü, `settings.toml`, anahtar zinciri.

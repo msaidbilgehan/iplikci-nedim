@@ -433,8 +433,9 @@ yaptığı her şeyin V1'de de olmasını güvenceye alır.
 
 - [ ] **Belge okuma:** MVP'nin bütün okuyucuları ve doğrulama kuralları; macOS'ta OCR; şifreli PDF ve bozuk zip
   "okunamadı" olur; şirket belgesi tanınır.
-- [ ] **Kopyalar:** aynı sha256 ve aynı ekstre anahtarı kopya olarak tanınır; gelen kutusu planı ve uygulaması
-  çalışır.
+- [x] **Kopyalar:** aynı sha256 ve aynı ekstre anahtarı kopya olarak tanınır; gelen kutusu planı ve uygulaması
+  çalışır. (Aşama 1: aynı baytlar belgenin yeni bir gelişi olur; aynı ekstrenin başka bir dosyası kopyası olarak
+  saklanır ve defterde birleşir.)
 - [ ] **E-posta:** kutu salt okunur; DMARC; okuma konumu; partiler.
 - [ ] **Otomatik çalışma:** e-posta, gelen klasörü ve bildirim (artık servisin içinde).
 - [ ] **Rapor bölümleri**

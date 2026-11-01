@@ -95,8 +95,15 @@ Taban şunları kaydeder:
 - son 12 ayın gideri.
 
 Aylar `--tarih` ile verilen güne göre kapanır (varsayılan: bugün). Gerileme bulunursa komut 1 ile biter ve kayıtlı taban
-değişmez; bilinçli bir değişiklik `--kabul` ile kaydedilir. Aşama 1'e dek taban çalışma alanının çıktı klasöründe
-(`cikti/taban.json`) durur.
+değişmez; bilinçli bir değişiklik `--kabul` ile kaydedilir. Taban veri klasöründe `baseline.json` olarak durur.
+
+Taban sonuçlara bakar; arşivin kendisini iki komut daha denetler:
+
+- `iplikci dogrula --arsiv`: arşivdeki her nesneyi yeniden özetler ve veritabanını arşivle karşılaştırır. Nesnesi
+  kaybolmuş belge, hiçbir belgenin anmadığı nesne, SQLite'ın kendi denetimleri ve arama dizini buna dahildir. Bozulma ya
+  da kayıp 1 ile biter.
+- `iplikci dogrula --yeniden-kur`: birincil verileri (belgelerin adları ve gelişleri, düzeltmeler, denetim kaydı) dışa
+  aktarır, yanında yeni bir veritabanı kurar, her belgeyi arşivden yeniden okur ve iki analizin aynı çıktığını denetler.
 
 ## Kopyalar
 

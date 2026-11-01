@@ -11,6 +11,15 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 
 ## Değişiklik kaydı
 
+- 2026-11-01 (12) — Aşama 1 uygulandı (`asama-1` dalı); belgeler kodla uyumlu hâle getirildi:
+  - README'nin durum bölümü ve geliştirici komutları güncellendi; `CHANGELOG.md`'ye 0.2.0 eklendi.
+  - [Mimari §9](v1/architecture.md#9-veri-klasörü): doğrulama tabanının yeri (`baseline.json`).
+  - [Defter](domain/ledger.md#doğrulama-değişmezleri): taban veri klasöründe; `--arsiv` ve `--yeniden-kur` eklendi.
+  - [ADR-0006](adr/0006-money-and-codes.md)'ya uygulama notu: satır tutarları `Decimal`; satırlar `Money`'yi, defter
+    ve yorum hesapları kendi paketlerine taşınırken alır. Geçişte demonun tabanı değişmedi.
+  - [Geçiş](v1/migration.md#aşama-1-çalışma-alanından-veri-klasörüne) belgesine Aşama 1 adımı eklendi.
+  - [Eşitlik listesi](v1/features.md#mvp-eşitlik-listesi)'nde kopyalar işaretlendi.
+  - Kullanıcıya görünen metinler `kategoriler.yaml` yerine kişisel kuralları anıyor.
 - 2026-11-01 (11) — Kullanıcı kararı [K18](v1/requirements.md#kararlar): depo özel kalır, lisans BSD 3-Clause
   (`LICENSE.txt`, kullanıcı ekledi). CLAUDE.md, gereksinimlerdeki açık soru, README ve `pyproject.toml`'un lisans
   alanları buna göre güncellendi.

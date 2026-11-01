@@ -2,7 +2,7 @@
 
 Account movement lists bring the hard part: a transfer row only says "money
 went to X" or "came from Y". Each candidate is resolved in this order:
-own name or own account number -> rules in kategoriler.yaml -> the same
+own name or own account number -> the category rules -> the same
 receiver bank and amount as an earlier, named payment (rent paid from another
 account) -> a matching opposite row in another own account -> money from or
 to another person.
@@ -75,8 +75,8 @@ class Dataset:
     coverage: dict[str, dict[str, float]] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
     rates: dict[str, list[tuple[date, Decimal]]] = field(default_factory=dict)  # currency -> (date, TRY rate)
-    ended: dict[str, str] = field(default_factory=dict)  # folded merchant -> last month (kategoriler.yaml `_biten`)
-    regular: set[str] = field(default_factory=set)  # commitment categories (kategoriler.yaml `_düzenli`)
+    ended: dict[str, str] = field(default_factory=dict)  # folded merchant -> last month (the rules' `_biten`)
+    regular: set[str] = field(default_factory=set)  # commitment categories (the rules' `_düzenli`)
     receipts: list[ReceiptLine] = field(default_factory=list)  # every receipt row, counted or not
 
 

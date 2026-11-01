@@ -16,8 +16,16 @@ Kişisel finans asistanı platformu:
 
 Uygulama [yol haritası](docs/v1/roadmap.md)'nı izler. Aşama 0 (Zemin, v0.1.0) başlangıç sürümünün (MVP,
 `gider-analizi`) kodunu `iplikci` paketi olarak depoya getirdi. Kod kişisel izlerden temizlendi; uygulamayla gelen genel
-kategori kuralları, bir doğrulama tabanı ve sahte belgelerle bir demo çalışma alanı eklendi. Sıradaki Aşama 1, veri
-çekirdeğidir (veri klasörü, veritabanı, belge arşivi).
+kategori kuralları, bir doğrulama tabanı ve sahte belgelerle bir demo çalışma alanı eklendi.
+
+Aşama 1 (Veri çekirdeği, v0.2.0) her şeyi bilgisayardaki veri klasörüne taşıdı:
+
+- Belgeler içerik adresli bir arşivde aslıyla durur.
+- Okunan satırlar ve kullanıcının düzeltmeleri SQLite veritabanındadır.
+- Tutarlar kesin ondalık sayılardır.
+- Arşivin bozulmadığı ve veritabanının arşivden aynen yeniden kurulabildiği birer komutla denetlenir.
+
+Sıradaki Aşama 2, okuyucu eklentileridir.
 
 MVP 2026-10-31'de emekliye ayrıldı. İplikçi Nedim onun kodundan başlar ama verisini devralmaz; belgeleri kendisi toplar.
 Uygulama henüz son kullanıcıya hazır değil: kurulum sihirbazı ve arayüz sonraki aşamalarda gelir.
@@ -40,11 +48,17 @@ ve [gitleaks](https://github.com/gitleaks/gitleaks).
 uv sync                                          # Python 3.13 ve kilitli bağımlılıklar
 uv run pre-commit install                        # her commit'ten önce ruff ve gitleaks
 uv run pytest -q                                 # testler; demo çalışma alanının altın tabanı dahil
-uv run iplikci dev demo /tmp/iplikci-demo        # sahte belgelerle demo çalışma alanı (boş ya da yeni klasör)
+uv run ruff check && uv run ruff format --check  # biçim ve kod denetimi
+uv run pyright                                   # yeni paketlerde katı tip denetimi
+uv run iplikci dev demo /tmp/iplikci-demo        # sahte belgelerle demo veri klasörü (boş ya da yeni klasör)
 IPLIKCI_HOME=/tmp/iplikci-demo uv run iplikci dogrula --taban --tarih 2026-11-15   # demonun doğrulama tabanı
+IPLIKCI_HOME=/tmp/iplikci-demo uv run iplikci dogrula --arsiv                      # arşiv ve veritabanı tutarlı mı
+IPLIKCI_HOME=/tmp/iplikci-demo uv run iplikci dogrula --yeniden-kur                # veritabanı arşivden aynen kurulur mu
+IPLIKCI_HOME=/tmp/iplikci-demo uv run iplikci islem ara MIGROS                     # işlemler, parmak izleriyle
 ```
 
-Gerçek belgeler depoya hiç girmez: testler ve demo, kodla üretilen sahte belgelerle çalışır.
+Veri klasörü macOS'ta `~/Library/Application Support/iplikci/`'dir; `IPLIKCI_HOME` onu değiştirir. Gerçek belgeler
+depoya hiç girmez: testler ve demo, kodla üretilen sahte belgelerle ve kendi klasörlerinde çalışır.
 
 ## İlkeler
 

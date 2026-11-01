@@ -324,6 +324,7 @@ Durumların kuralları [domain/ledger.md](../domain/ledger.md)'dedir.
 ├── exports/               # CSV, XLSX, tek dosyalık rapor, ay sonu sayfaları
 ├── backups/               # günlük tutarlı yedekler (yer ayarlanabilir)
 ├── logs/                  # JSON günlükler, dönerek
+├── baseline.json          # doğrulama tabanı (iplikci dogrula --taban)
 ├── archive/mvp/           # MVP'nin kodu, testleri, kuralları ve ayarları (2026-10-31); salt başvuru, V1 okumaz
 └── run/                   # kilit, servis durumu
 ```

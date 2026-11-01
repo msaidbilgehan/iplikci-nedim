@@ -952,7 +952,7 @@
   // ---------------------------------------------------- recurring payments
   /* Regular payments and their status come from the interpretation: a series is over when the
      statements of its card or account go on past the next expected payment without it, and
-     cancelled when kategoriler.yaml lists it under _biten. They follow every filter except the
+     cancelled when the user's rules list it under _biten. They follow every filter except the
      period: the status is about today. */
   const RUNNING = new Set(["devam", "iptal_sonrasi"]);
   const STATUS_ICON = { devam: "●", bitti: "■", iptal: "✕", iptal_sonrasi: "!" };
@@ -1004,7 +1004,7 @@
 
   function renderRecurring(F) {
     $("recurring-hint").textContent = "Yaklaşık ayda bir tekrarlanan ödemeler: kira, aidat, faturalar, abonelikler ve BES. " +
-      "Kartın ya da hesabın belgeleri beklenen ödeme tarihini geçtiği hâlde ödeme yoksa \"Bitti\", kategoriler.yaml'daki _biten " +
+      "Kartın ya da hesabın belgeleri beklenen ödeme tarihini geçtiği hâlde ödeme yoksa \"Bitti\", kişisel kurallardaki _biten " +
       "listesindeyse \"İptal edildi\" yazar. Aylık tutar faturalarda son üç ödemenin ortası, aboneliklerde son tutardır. " +
       "Dönem filtresinden bağımsızdır; durum bugüne göredir.";
     const visible = SERIES.filter((r) => r.show && seriesVisible(r));
@@ -1488,7 +1488,7 @@
       ? `${mLong(months[0])} – ${mLong(months.at(-1))} · ${nf0.format(TX.length)} işlem · ${meta.statements} kart ekstresi, ${meta.accountStatements} hesap dökümü, ${meta.receipts} dekont`
       : "Veri bulunamadı";
     $("footer").textContent = `Oluşturulma: ${meta.generated}. Rapor tamamen bu dosyanın içindedir; hiçbir veri internete gönderilmez. ` +
-      "Kategorileri ve gereklilik seviyelerini değiştirmek için kategoriler.yaml dosyasını düzenleyip programı yeniden çalıştırın.";
+      "Kategorileri ve gereklilik seviyelerini kişisel kurallarınızda değiştirebilirsiniz; Claude'dan da isteyebilirsiniz.";
     buildStaticFilters();
     $("export").addEventListener("click", exportCSV);
     setupTheme();

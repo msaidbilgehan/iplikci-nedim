@@ -120,7 +120,7 @@ def _closing(months: list[month_end.MonthEnd]) -> None:
 def month_end_command(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
         prog="iplikci aysonu",
-        description="Ay sonu raporlarını üretir (cikti/ay-sonu/) ve her ayın ekstrelerle kapanıp kapanmadığını "
+        description="Ay sonu raporlarını üretir (exports/ay-sonu/) ve her ayın ekstrelerle kapanıp kapanmadığını "
         "yazar: hangi hesabın hangi ekstresi ya da dökümü bekleniyor, dekontlar eşleşti mi. Ay verilirse "
         "o ayın ayrıntısını gösterir.",
     )

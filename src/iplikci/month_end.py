@@ -1,7 +1,7 @@
 """Month-end reports: how far each month is closed by its statements, and what happened in it.
 
-    cikti/ay-sonu/2026-10.html   one page per month: the last twelve and the current one
-    cikti/ay-sonu/index.html     every month with its status
+    exports/ay-sonu/2026-10.html   one page per month: the last twelve and the current one
+    exports/ay-sonu/index.html     every month with its status
 
 A month closes ("kapandı") when every account with documents has statements for all of its days, they
 check out (card totals, running balances) and every receipt of the month was found on them. Until then
@@ -926,7 +926,7 @@ def render_month(me: MonthEnd, ds: Dataset, months: list[str], made: datetime, h
     sections.append("</main>")
     sections.append(
         '<footer class="foot">Bu sayfa bu bilgisayarda, belgelerinizden üretildi; hiçbir veri internete '
-        "gönderilmez. Rakamlar ana raporla aynı kaynaktan; kategoriler kategoriler.yaml dosyasından."
+        "gönderilmez. Rakamlar ana raporla aynı kaynaktan; kategoriler kural dosyalarından."
         "</footer>"
     )
     return _page(f"{title} — İplikçi Nedim", "\n".join(sections))
