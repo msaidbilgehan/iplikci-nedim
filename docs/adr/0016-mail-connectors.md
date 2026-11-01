@@ -163,6 +163,20 @@ Sonuca göre:
     bağlantısı yönlendirdi; yol "Orijinali göster"dir.
   - 3. madde tutmadı: konu listesi adresi (`view=tl`) oturum açma sayfasına yönlendiriyor.
   - Windows (4. madde) henüz denenmedi.
+- **2. madde ekler için tutmadı (2026-11-01, ilk gerçek tarama):**
+  - "Orijinali göster" ek parçasını başlıklarıyla verir ama içeriğini boş bırakır. Örneğin bir dekont iletisinin
+    sayfası 10 KB'tı, iletinin tamamı ise 103 KB. Doğrulama yalnızca başlıklara ve DMARC'a baktığı için bu
+    görünmemişti.
+  - Sayfadaki "Orijinali indir" bağlantısı (`view=att&attid=0&disp=comp`) Gmail'in ek sunucusuna,
+    `mail-attachment.googleusercontent.com`'a yönlendirir. Oradan iletinin tamamı, bayt bayt gelir: Gmail'in eklediği
+    en üstteki `Authentication-Results` dahil, yani güven kuralı aynen çalışır.
+- **Karar (kullanıcı, 2026-11-01):** eklentiye bu ek sunucusu için izin eklendi (eklenti 0.4.0). Dosya adı geçen bir
+  ileti "Orijinali indir" ile tam alınır; indirme yalnızca Gmail'de ya da ek sunucusunda biterse kabul edilir.
+  Oturum kapalıysa giriş sayfasına yönlendirilen bir indirme reddedilir. Yeni bir dış adres olduğu için ADR-0009'un
+  listesine eklendi.
+- **Eksik saklanan iletiler** (göç 10): servis, ekleri boş saklanmış iletileri tanır ve taramada yeniden ister.
+  İletinin tamamı gelince eksik kopya çöp kutusuna gider (ADR-0003). Eksik kopyanın Gmail'in gösterdiği metin ekleri
+  tam iletiye bağlanır. İkisi birden kalsaydı ileti iki kez okunurdu.
 - **"Gmail'de eksikleri tara"** (yalnız 3. madde tutmadığında öngörülen yol) uygulandı.
   - Eklentinin penceresindeki düğme Gmail'i yeni bir sekmede, listedeki göndericilerin başlangıç gününden beri gelen
     iletilerinin aramasıyla açar.

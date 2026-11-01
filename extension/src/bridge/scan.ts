@@ -17,7 +17,7 @@ import {
   type Environment,
   LayerStopped,
   PACE_MS,
-  Unshown,
+  Originals,
   accountKey,
   deliverOne,
   layer,
@@ -191,16 +191,15 @@ async function download(
   account: number,
   lacking: readonly string[],
 ): Promise<void> {
-  const unshown = new Unshown(env, store);
+  const originals = new Originals(env, store);
   let delivered = 0;
   for (const id of lacking) {
     await env.sleep(PACE_MS);
     const ik = await accountKey(env, store, account);
-    const original = await unshown.read(account, id, ik);
-    if (original === null) {
+    const raw = await originals.read(account, id, ik);
+    if (raw === null) {
       continue;
     }
-    const raw = new TextEncoder().encode(original.raw);
     if (raw.byteLength > MAX_MESSAGE_BYTES) {
       await skip(store, id);
       continue;
@@ -210,8 +209,8 @@ async function download(
       await report({ delivered, detail: `${delivered}/${lacking.length} ileti teslim edildi…` });
     }
   }
-  await unshown.settle();
-  await report({ unshown: unshown.count });
+  await originals.settle();
+  await report({ unshown: originals.unshown });
 }
 
 /**

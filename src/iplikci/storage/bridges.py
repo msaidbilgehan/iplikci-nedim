@@ -71,13 +71,40 @@ def revoke(db: Database, bridge_id: str) -> bool:
         )
 
 
-def remember(db: Database, gmail_id: str, sha256: str) -> None:
-    """A message the service holds, by Gmail's id: a scan of Gmail does not download it again."""
+def remember(db: Database, gmail_id: str, sha256: str, complete: bool) -> None:
+    """A message the service holds, by Gmail's id: a scan of Gmail does not download it again, unless it came with
+    its attachments left out."""
     with db.transaction():
         db.execute(
-            "INSERT OR REPLACE INTO bridge_messages (gmail_id, sha256, delivered_at) VALUES (?, ?, ?)",
-            (gmail_id, sha256, now()),
+            "INSERT OR REPLACE INTO bridge_messages (gmail_id, sha256, delivered_at, complete) VALUES (?, ?, ?, ?)",
+            (gmail_id, sha256, now(), int(complete)),
         )
+
+
+@dataclass(frozen=True, slots=True)
+class Held:
+    sha256: str
+    complete: bool | None  # None: not looked at yet
+
+
+def held(db: Database, gmail_id: str) -> Held | None:
+    row = db.one("SELECT sha256, complete FROM bridge_messages WHERE gmail_id = ?", (gmail_id,))
+    if row is None:
+        return None
+    return Held(str(row["sha256"]), None if row["complete"] is None else bool(row["complete"]))
+
+
+def unchecked(db: Database) -> list[tuple[str, str]]:
+    """(Gmail id, sha256) of the held messages not looked at yet for attachments left out."""
+    return [
+        (str(r["gmail_id"]), str(r["sha256"]))
+        for r in db.rows("SELECT gmail_id, sha256 FROM bridge_messages WHERE complete IS NULL")
+    ]
+
+
+def set_complete(db: Database, gmail_id: str, complete: bool) -> None:
+    with db.transaction():
+        db.execute("UPDATE bridge_messages SET complete = ? WHERE gmail_id = ?", (int(complete), gmail_id))
 
 
 def refuse(db: Database, gmail_id: str, taken: str, reason: str, domain: str, key: str) -> None:
@@ -92,22 +119,22 @@ def refuse(db: Database, gmail_id: str, taken: str, reason: str, domain: str, ke
 
 
 def missing(db: Database, gmail_ids: Sequence[str], key: str) -> list[str]:
-    """The ids of gmail_ids no delivered message carries and none refused under key, in the order given and without
-    repeats."""
+    """The ids of gmail_ids no whole delivered message carries and none refused under key, in the order given and
+    without repeats: a message held with its attachments left out is missing too."""
     wanted = list(dict.fromkeys(gmail_ids))
-    held: set[str] = set()
+    known: set[str] = set()
     for start in range(0, len(wanted), 500):  # SQLite allows a limited number of parameters
         chunk = wanted[start : start + 500]
         marks = ", ".join("?" * len(chunk))
-        held |= {
+        known |= {
             str(r["gmail_id"])
             for r in db.rows(
-                f"SELECT gmail_id FROM bridge_messages WHERE gmail_id IN ({marks}) "
+                f"SELECT gmail_id FROM bridge_messages WHERE gmail_id IN ({marks}) AND complete IS NOT 0 "
                 f"UNION SELECT gmail_id FROM bridge_refused WHERE key = ? AND gmail_id IN ({marks})",
                 [*chunk, key, *chunk],
             )
         }
-    return [i for i in wanted if i not in held]
+    return [i for i in wanted if i not in known]
 
 
 @dataclass(frozen=True, slots=True)

@@ -17,7 +17,7 @@ import {
   type Environment,
   LayerStopped,
   PACE_MS,
-  Unshown,
+  Originals,
   accountKey,
   deliverOne,
   layer,
@@ -98,16 +98,15 @@ async function deliverFresh(
   const fresh = feed.entries
     .filter((entry) => listed(entry.senderDomain, where.senders) && isNew(entry, where, state.skipped))
     .sort((a, b) => a.issued.localeCompare(b.issued)); // oldest first: the service's position only moves forward
-  const unshown = new Unshown(env, store);
+  const originals = new Originals(env, store);
   let delivered = 0;
   for (const entry of fresh) {
     await env.sleep(PACE_MS);
     const ik = await accountKey(env, store, state.account);
-    const original = await unshown.read(state.account, entry.id, ik);
-    if (original === null) {
+    const raw = await originals.read(state.account, entry.id, ik);
+    if (raw === null) {
       continue;
     }
-    const raw = new TextEncoder().encode(original.raw);
     if (raw.byteLength > MAX_MESSAGE_BYTES) {
       await skip(store, entry.id);
       continue;
@@ -116,8 +115,8 @@ async function deliverFresh(
       delivered += 1;
     }
   }
-  await unshown.settle();
-  return { delivered, unshown: unshown.count };
+  await originals.settle();
+  return { delivered, unshown: originals.unshown };
 }
 
 function unexpected(error: unknown): string {

@@ -1,10 +1,13 @@
 /**
  * Layer 3 (ADR-0016): a message as Gmail's "Show original" page shows it, the raw RFC 822 text in a `<pre>`, and
  * the page's "Download original" link. Not documented by Google: an unknown page is a format error.
+ *
+ * The page leaves the contents of attachments out: an attachment's part keeps its headers and comes empty. A message
+ * that names a file is therefore taken whole, byte for byte, through "Download original".
  */
 
 import { FormatError } from "./errors";
-import { type Fetcher, ORIGIN, get } from "./http";
+import { type Fetcher, ORIGIN, download, get } from "./http";
 import { attribute, decodeEntities } from "./xml";
 
 export interface Original {
@@ -54,6 +57,20 @@ export async function readOriginal(fetcher: Fetcher, account: number, id: string
   const url = originalUrl(account, id, ik);
   const response = await get(fetcher, url);
   return parseOriginal(await response.text(), url);
+}
+
+/** Whether the raw text names a file of its own: "Show original" has left the file's contents out. */
+export function namesAFile(raw: string): boolean {
+  return /\bfilename\*?\s*=|;\s*name\*?\s*=/i.test(raw);
+}
+
+/** The whole message, attachments included, byte for byte, as "Download original" gives it. */
+export async function downloadOriginal(fetcher: Fetcher, link: string): Promise<Uint8Array<ArrayBuffer>> {
+  const bytes = new Uint8Array(await (await download(fetcher, link)).arrayBuffer());
+  if (bytes.byteLength === 0) {
+    throw new FormatError('"Orijinali indir" boş döndü');
+  }
+  return bytes;
 }
 
 export function parseOriginal(html: string, pageUrl: string): Original {

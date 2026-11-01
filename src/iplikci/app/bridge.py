@@ -10,6 +10,7 @@ and the service answers with an HMAC of it keyed with the token's SHA-256, which
 process listening on 127.0.0.1:8643 in the service's place cannot answer, so it receives no message.
 """
 
+import email
 import hashlib
 import hmac
 import json
@@ -21,18 +22,20 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from ..domain.codes import Actor
+from ..domain.codes import Actor, DocumentStatus
+from ..ingest.archives import attachments_left_out
 from ..ingest.mail import trust
 from ..parsers.common import business_names_signature
 from ..settings import config
-from ..storage import audit, bridges, events
+from ..storage import audit, bridges, documents, events
 from ..storage import mail as mail_store
-from ..storage.db import now
-from . import mail
+from ..storage.db import Database, now
+from . import mail, reading
 from .workspace import Workspace
 
 MAX_MESSAGE_BYTES = mail.MAX_MESSAGE_BYTES  # what the intake takes at most
 _REFUSED = frozenset({mail.Taken.UNLISTED, mail.Taken.UNVERIFIED, mail.Taken.BUSINESS})  # remembered, not kept
+INCOMPLETE_REASON = "eksik kopya: Gmail eklerin içeriğini göstermemişti; iletinin tamamı alındı"
 log = logging.getLogger("iplikci.bridge")
 CODE_SECONDS = 600
 CODE_LENGTH = 8
@@ -182,10 +185,37 @@ def refusal_key(settings: config.Settings) -> str:
 
 
 def missing(ws: Workspace, gmail_ids: list[str]) -> list[str]:
-    """Which of the Gmail ids a scan of Gmail found the service neither holds nor refused under its settings now."""
+    """Which of the Gmail ids a scan of Gmail found the service neither holds whole nor refused under its settings
+    now. The messages held but not looked at yet for attachments left out are looked at first."""
     key = refusal_key(config.load(ws.layout.settings))
     with ws.db() as db:
+        for gmail_id, sha in bridges.unchecked(db):
+            bridges.set_complete(db, gmail_id, not _left_out(ws, sha))
         return bridges.missing(db, gmail_ids, key)
+
+
+def _left_out(ws: Workspace, sha: str) -> bool:
+    """Whether the kept message sha holds its attachments empty, as Gmail's "Show original" gives them."""
+    if not ws.vault.has(sha):
+        return False  # removed meanwhile: nothing to complete
+    return attachments_left_out(email.message_from_bytes(ws.vault.read(sha)))
+
+
+def _remove_business(ws: Workspace, db: Database, sha: str) -> None:
+    doc = documents.get(db, sha)
+    if doc is not None and doc.status is not DocumentStatus.REMOVED:
+        reading.remove_company(ws, db, doc)
+
+
+def _replace(ws: Workspace, db: Database, old: str, new: str) -> None:
+    """The whole copy of a message takes its incomplete copy's place: what came in the copy (the attachments Gmail
+    did show) came in the whole one, and the copy goes to the Trash with an audit entry (ADR-0003). Kept both, the
+    message would be read twice."""
+    where = ws.vault.remove(old) if ws.vault.has(old) else None
+    with db.transaction():
+        documents.reparent(db, old, new)
+        documents.set_status(db, old, DocumentStatus.REMOVED, INCOMPLETE_REASON)
+        audit.record(db, Actor.SYSTEM, "document.removed", old, trash=where.parent.name if where else "", by=new)
 
 
 def refused(ws: Workspace) -> list[bridges.Refusals]:
@@ -239,9 +269,16 @@ def deliver(ws: Workspace, raw: bytes, gmail_id: str = "", gmail_date: str = "")
     settings = config.load(ws.layout.settings)
     outcome = mail.take(ws, raw, mail.senders(settings), verify=settings.mail.verify_sender, gmail=True)
     with ws.db() as db:
+        before = bridges.held(db, gmail_id) if gmail_id else None
+        incomplete = before is not None and before.sha256 != outcome.sha256 and _left_out(ws, before.sha256)
         if gmail_id and outcome.sha256:
-            bridges.remember(db, gmail_id, outcome.sha256)
+            whole = not attachments_left_out(email.message_from_bytes(raw))
+            if before is not None and incomplete and whole:
+                _replace(ws, db, before.sha256, outcome.sha256)
+            bridges.remember(db, gmail_id, outcome.sha256, whole)
         elif gmail_id and outcome.taken in _REFUSED:
+            if before is not None and incomplete and outcome.taken is mail.Taken.BUSINESS:
+                _remove_business(ws, db, before.sha256)  # its attachments, shown whole now, are a company's
             # the domain of a sender on no list is not kept: it may be anyone's
             domain = "" if outcome.taken is mail.Taken.UNLISTED else outcome.domain
             bridges.refuse(db, gmail_id, outcome.taken, outcome.reason, domain, refusal_key(settings))

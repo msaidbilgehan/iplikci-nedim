@@ -39,8 +39,11 @@ açık Gmail oturumuyla okuyup bu bilgisayardaki İplikçi Nedim servisine taş�
 
 ## İlkeler
 
-- İzinler yalnızca `alarms`, `scripting` (taramada Gmail sekmesindeki listeyi okumak için) ve `storage`, artı iki
-  adres: `https://mail.google.com/*` ve `http://127.0.0.1:8643/*`.
+- İzinler yalnızca `alarms`, `scripting` (taramada Gmail sekmesindeki listeyi okumak için) ve `storage`, artı üç
+  adres: `https://mail.google.com/*`, Gmail'in ek sunucusu `https://mail-attachment.googleusercontent.com/*` ve
+  `http://127.0.0.1:8643/*`.
+- "Orijinali göster" eklerin içeriğini boş verir. Bu yüzden bir dosya adı geçen ileti "Orijinali indir" ile, bayt bayt
+  ve tam alınır; Gmail bu indirmeyi ek sunucusuna yönlendirir.
 - Gmail'e yalnızca okuma istekleri gider: okundu işareti, etiket, taşıma ya da silme yoktur.
 - İstekler sıralıdır ve aralarında en az bir saniye vardır.
 - Uzaktan yüklenen kod, dış yazı tipi ya da dış betik yoktur.

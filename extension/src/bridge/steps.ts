@@ -5,7 +5,14 @@
 
 import { FormatError } from "../gmail/errors";
 import { type Fetcher as GmailFetcher, HttpError } from "../gmail/http";
-import { NoRawText, type Original, type PageTraits, readOriginal } from "../gmail/original";
+import {
+  NoRawText,
+  type Original,
+  type PageTraits,
+  downloadOriginal,
+  namesAFile,
+  readOriginal,
+} from "../gmail/original";
 import { readAccountKey } from "../gmail/session";
 import { type Fetcher, NotTheService, type Paired, Refused, ServiceDown, alarm, deliver } from "./service";
 import type { BridgeState, Outcome, Store } from "./state";
@@ -78,27 +85,28 @@ const UNSHOWN_IN_A_ROW = 3;
 export const UNSHOWN_WAIT_MS = 10_000;
 
 /**
- * The messages whose "Show original" page showed no raw text. One such message among shown ones is that message's
- * own trouble (Gmail does not show a message too large, it may be): it is skipped, counted and left for the user to
- * download from Gmail. Several in a row mean the page changed: the layer stops, and those messages are tried again
- * by the version that fixes it.
+ * The messages as layer 3 reads them, byte for byte. "Show original" gives a message's raw text but leaves the
+ * contents of its attachments out, so a message that names a file comes whole through "Download original".
+ *
+ * A page that shows no raw text at all, among pages that do, is that message's own trouble: it is skipped, counted
+ * and left for the user to download from Gmail. Several in a row mean the page changed: the layer stops, and those
+ * messages are tried again by the version that fixes it.
  */
-export class Unshown {
+export class Originals {
   private streak: string[] = [];
-  /** The messages skipped so far. */
-  count = 0;
+  /** The messages skipped so far because their page showed no raw text. */
+  unshown = 0;
 
   constructor(
     private readonly env: Environment,
     private readonly store: Store,
   ) {}
 
-  /** The message's original, or null when its page showed no raw text (LayerStopped after too many in a row). */
-  async read(account: number, id: string, ik: string | null): Promise<Original | null> {
+  /** The message's bytes, or null when its page showed no raw text (LayerStopped after too many in a row). */
+  async read(account: number, id: string, ik: string | null): Promise<Uint8Array<ArrayBuffer> | null> {
+    let original: Original;
     try {
-      const original = await readOriginal(this.env.gmail, account, id, ik);
-      await this.settle();
-      return original;
+      original = await readOriginal(this.env.gmail, account, id, ik);
     } catch (error) {
       if (!(error instanceof NoRawText)) {
         throw error instanceof FormatError ? new LayerStopped(3) : error;
@@ -110,6 +118,13 @@ export class Unshown {
       await this.env.sleep(UNSHOWN_WAIT_MS);
       return null;
     }
+    await this.settle();
+    const link = original.download;
+    if (link === null || !namesAFile(original.raw)) {
+      return new TextEncoder().encode(original.raw);
+    }
+    await this.env.sleep(PACE_MS);
+    return layer(3, () => downloadOriginal(this.env.gmail, link));
   }
 
   /** The run is over, or a message was shown: the messages not shown before are judged to be their own trouble. */
@@ -117,7 +132,7 @@ export class Unshown {
     for (const id of this.streak) {
       await skip(this.store, id);
     }
-    this.count += this.streak.length;
+    this.unshown += this.streak.length;
     this.streak = [];
   }
 }

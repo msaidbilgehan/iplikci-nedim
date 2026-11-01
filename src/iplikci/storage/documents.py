@@ -263,6 +263,12 @@ def set_status(db: Database, sha256: str, status: DocumentStatus, reason: str) -
         db.execute("UPDATE documents SET status = ?, reason = ? WHERE sha256 = ?", (status, reason, sha256))
 
 
+def reparent(db: Database, old: str, new: str) -> None:
+    """What came in the message old came in new: the whole copy of a message takes its incomplete copy's place."""
+    with db.transaction():
+        db.execute("UPDATE documents SET parent = ? WHERE parent = ?", (new, old))
+
+
 def _index(db: Database, sha256: str, text: str) -> None:
     db.execute("DELETE FROM search WHERE kind = 'document' AND ref = ?", (sha256,))
     db.execute(

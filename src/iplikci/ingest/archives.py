@@ -84,6 +84,15 @@ def attachments(msg: Message) -> Iterator[tuple[str, bytes]]:
             yield nfc(decode_header_text(filename)), data
 
 
+def attachments_left_out(msg: Message) -> bool:
+    """Whether a part names a file but carries nothing: Gmail's "Show original" leaves the contents of attachments
+    out, and a message read there is incomplete (ADR-0016)."""
+    for part in msg.walk():
+        if not part.is_multipart() and part.get_filename() and not part.get_payload(decode=True):
+            return True
+    return False
+
+
 def sender_domain(msg: Message) -> str:
     """The domain of the From address, lower case; "" when there is none."""
     return parseaddr(str(msg.get("From", "")))[1].rpartition("@")[2].strip().lower()

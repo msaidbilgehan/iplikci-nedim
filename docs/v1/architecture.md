@@ -697,7 +697,7 @@ komut satırı argümanına ya da günlüğe yazılmaz.
 | İnkâr | Kim neyi değiştirdi? | `audit_log` (kullanıcı, MCP, sistem, taşıma) |
 | Bilgi sızması | Depo, günlük, bildirim, model | Veri depo dışında; günlükte kimlik ve sayı, değer yok; bildirim ayrıntı düzeyi; MCP maskeleme; çıkış izin listesi |
 | Bilgi sızması | Belgedeki betik | PDF resim olarak, HTML metin ya da betiksiz çerçevede gösterilir; CSP |
-| Bilgi sızması | Eklentinin Gmail'e geniş erişimi | En az izin (yalnızca `mail.google.com` ve 127.0.0.1); yalnızca okuma istekleri; uzaktan yüklenen kod yok; yalnızca listedeki göndericiler; açık kaynak |
+| Bilgi sızması | Eklentinin Gmail'e geniş erişimi | En az izin (yalnızca `mail.google.com`, Gmail'in ek sunucusu ve 127.0.0.1); yalnızca okuma istekleri; uzaktan yüklenen kod yok; yalnızca listedeki göndericiler; açık kaynak |
 | Hizmet engelleme | Dev ya da kötü niyetli belge | Alt süreçte süre ve bellek sınırı; boyut sınırları; zip bombasına karşı üye sınırı |
 | Yetki yükseltme | Belgedeki "talimat" | Belge metni veridir; yazan araçlar yalnızca kullanıcı onayıyla; `eval`, `shell=True` yok |
 | Yetki yükseltme | Eklenti belirtecinin çalınması | Belirteç yalnızca e-posta alım ucuna yetkili; arayüzden iptal edilir |

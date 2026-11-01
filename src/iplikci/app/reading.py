@@ -152,18 +152,19 @@ def read_pending(ws: Workspace, db: Database, progress: Progress | None = None, 
             continue
         outcome = read(doc.name, ws.vault.read(doc.sha256), doc.sha256)
         if outcome.business:
-            _remove_business(ws, db, doc, outcome.reason)
-            removed |= _remove_attachments(ws, db, doc)
+            removed |= remove_company(ws, db, doc, outcome.reason)
         else:
             record(db, doc.sha256, doc.name, outcome)
     return len(todo)
 
 
-def _remove_attachments(ws: Workspace, db: Database, message: documents.DocumentRow) -> set[str]:
-    """The attachments of a company's message are the company's too: they go with it. Their sha256s."""
-    attached = [d for d in documents.every(db) if d.parent == message.sha256 and d.status is not DocumentStatus.REMOVED]
-    for doc in attached:
-        _remove_business(ws, db, doc, BUSINESS_REASON)
+def remove_company(ws: Workspace, db: Database, doc: documents.DocumentRow, reason: str = BUSINESS_REASON) -> set[str]:
+    """A kept document that turned out to be a company's goes, and so do the attachments of a company's message:
+    they are the company's too. The sha256s of the attachments that went."""
+    _remove_business(ws, db, doc, reason)
+    attached = [d for d in documents.every(db) if d.parent == doc.sha256 and d.status is not DocumentStatus.REMOVED]
+    for child in attached:
+        _remove_business(ws, db, child, BUSINESS_REASON)
     return {d.sha256 for d in attached}
 
 

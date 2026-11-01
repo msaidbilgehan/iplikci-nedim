@@ -2,12 +2,23 @@ import { describe, expect, it } from "vitest";
 
 import { FormatError } from "../src/gmail/errors";
 import { feedUrl, parseFeed, sameMessage } from "../src/gmail/feed";
-import { HttpError, Redirected, get } from "../src/gmail/http";
-import { NoRawText, originalUrl, parseOriginal } from "../src/gmail/original";
+import { ATTACHMENTS_ORIGIN, type Fetcher, HttpError, Redirected, get } from "../src/gmail/http";
+import { NoRawText, downloadOriginal, namesAFile, originalUrl, parseOriginal } from "../src/gmail/original";
 import { answerKind, decimalId, senderQuery, threadIds, threadListUrl } from "../src/gmail/search";
 import { appUrl, parseAccountKey } from "../src/gmail/session";
 import { attribute, decodeEntities, elements, text } from "../src/gmail/xml";
-import { ADDRESS, IK, SUBJECT, feedXml, gmailPage, originalPage, rawMessage, threadList } from "./fixtures";
+import {
+  ADDRESS,
+  IK,
+  SUBJECT,
+  arrivedAt,
+  attachedMessage,
+  feedXml,
+  gmailPage,
+  originalPage,
+  rawMessage,
+  threadList,
+} from "./fixtures";
 
 const BANK_ID = 1799999999999999999n;
 const OTHER_ID = 1799999999999999000n;
@@ -107,6 +118,32 @@ describe('"Show original" (layer 3)', () => {
     );
     const page = parseOriginal(originalPage("From: a@b.c", 1n, false), "https://mail.google.com/mail/u/0/");
     expect(page.download).toBeNull();
+  });
+
+  it("knows a message that names a file: the page shows its attachment empty", () => {
+    expect(namesAFile(attachedMessage("ekstre@garantibbva.com.tr", ""))).toBe(true);
+    expect(namesAFile(rawMessage({ from: "ekstre@garantibbva.com.tr" }))).toBe(false);
+  });
+
+  it("takes the whole message byte for byte from Gmail's attachment server", async () => {
+    const whole = attachedMessage("ekstre@garantibbva.com.tr", "JVBERi0xLjQK");
+    const link = `https://mail.google.com/mail/u/0/?ui=2&ik=${IK}&attid=0&view=att&disp=comp&safe=1&zw`;
+    const asked: RequestInit[] = [];
+    const fetcher: Fetcher = async (_url, init) => {
+      asked.push(init);
+      return arrivedAt(`${ATTACHMENTS_ORIGIN}/attachment/u/0/?attid=0`, new Response(whole));
+    };
+    expect(new TextDecoder().decode(await downloadOriginal(fetcher, link))).toBe(whole);
+    expect(asked.map((i) => [i.method, i.redirect, i.credentials])).toEqual([["GET", "follow", "include"]]);
+  });
+
+  it("refuses a download that ends anywhere but Gmail and its attachment server", async () => {
+    const link = "https://mail.google.com/mail/u/0/?view=att&attid=0&disp=comp";
+    const signIn: Fetcher = async () =>
+      arrivedAt("https://accounts.google.com/v3/signin/identifier", new Response("<html>Sign in</html>"));
+    await expect(downloadOriginal(signIn, link)).rejects.toThrow(Redirected);
+    const empty: Fetcher = async () => arrivedAt(`${ATTACHMENTS_ORIGIN}/attachment/u/0/`, new Response(""));
+    await expect(downloadOriginal(empty, link)).rejects.toThrow(FormatError);
   });
 
   it("tells what a page without the message showed, but no text of it except its title, masked", () => {

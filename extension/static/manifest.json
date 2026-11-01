@@ -17,6 +17,7 @@
   ],
   "host_permissions": [
     "https://mail.google.com/*",
+    "https://mail-attachment.googleusercontent.com/*",
     "http://127.0.0.1:8643/*"
   ],
   "background": {

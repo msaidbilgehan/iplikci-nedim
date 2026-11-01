@@ -1,6 +1,8 @@
 """The browser extension's side of the service (ADR-0016): pairing with a code, the proof of the paired service, a
 token that opens only the mail intake, revocation, and the messages it delivers."""
 
+import email
+import email.policy
 import hashlib
 import hmac
 from datetime import UTC, date, datetime, timedelta
@@ -12,6 +14,9 @@ from iplikci.api.app import create_app
 from iplikci.api.context import Context
 from iplikci.app import bridge
 from iplikci.app.bridge import MAX_WRONG_CODES, PairingCodes
+from iplikci.domain.codes import DocumentStatus
+from iplikci.fakes import teb
+from iplikci.parsers.common import set_business_names
 from iplikci.settings import config
 from iplikci.storage import audit, documents, events
 
@@ -227,6 +232,64 @@ def test_a_scan_of_gmail_learns_which_messages_the_service_lacks(client, ws):
     assert asked.json() == {"missing": ["1003"]}  # held, or refused under these settings: not downloaded again
     cursor = other.get("/api/ingest/mail/cursor", headers=bearer(token)).json()
     assert (cursor["last_id"], cursor["last_date"]) == ("", "")  # a scan's messages leave the feed's cursor alone
+
+
+def left_out(raw: bytes) -> bytes:
+    """The message as Gmail's "Show original" gives it: every attachment's part keeps its headers and comes empty."""
+    msg = email.message_from_bytes(raw, policy=email.policy.default)
+    for part in msg.walk():
+        if part.get_filename() and part.get_content_type() != "text/html":
+            part.set_payload("")
+    return msg.as_bytes()
+
+
+def test_a_message_held_with_its_attachments_left_out_is_asked_for_again_and_replaced_whole(client, ws, private_trash):
+    token = paired(client)["token"]
+    other = TestClient(client.app, base_url=BASE)
+
+    def deliver(raw: bytes) -> dict:
+        return other.post("/api/ingest/mail", content=raw, headers=bearer(token) | {"X-Gmail-Id": "3001"}).json()
+
+    def missing() -> list[str]:
+        return other.post("/api/ingest/mail/known", json={"ids": ["3001"]}, headers=bearer(token)).json()["missing"]
+
+    whole = bank_mail(FEBRUARY)
+    incomplete = left_out(whole)
+    assert deliver(incomplete) == {"taken": "stored", "documents": 1}  # the message alone: its statement came empty
+    assert missing() == ["3001"]
+    assert deliver(whole) == {"taken": "stored", "documents": 2}
+    assert missing() == []
+    with ws.db() as db:
+        kept = {d.name: d for d in documents.every(db)}
+        copy = documents.get(db, hashlib.sha256(incomplete).hexdigest())
+        assert audit.targets(db, "document.removed") == {copy.sha256}
+    assert (copy.status, copy.reason) == (DocumentStatus.REMOVED, bridge.INCOMPLETE_REASON)
+    assert not ws.vault.has(copy.sha256) and any(private_trash.iterdir())  # to the Trash, not deleted
+    assert kept["HesapHareketleri.xls"].parent == hashlib.sha256(whole).hexdigest()
+
+
+def test_messages_held_before_are_looked_at_for_attachments_left_out(client, ws):
+    token = paired(client)["token"]
+    other = TestClient(client.app, base_url=BASE)
+    for gmail_id, raw in (("4001", left_out(bank_mail(FEBRUARY))), ("4002", bank_mail(None))):
+        other.post("/api/ingest/mail", content=raw, headers=bearer(token) | {"X-Gmail-Id": gmail_id})
+    with ws.db() as db:
+        db.execute("UPDATE bridge_messages SET complete = NULL")  # kept before the service looked
+    asked = other.post("/api/ingest/mail/known", json={"ids": ["4001", "4002"]}, headers=bearer(token))
+    assert asked.json() == {"missing": ["4001"]}
+
+
+def test_a_held_copy_goes_when_its_whole_message_shows_a_companys_attachment(client, ws, private_trash):
+    token = paired(client)["token"]
+    other = TestClient(client.app, base_url=BASE)
+    company = teb.account_export(teb.running_rows(list(teb.ACCOUNT_MOVES)), holder="ÖRNEK TEKNOLOJİ A.Ş.")
+    whole = bank_mail(company)
+    set_business_names(["Örnek Teknoloji"])
+    headers = bearer(token) | {"X-Gmail-Id": "5001"}
+    assert other.post("/api/ingest/mail", content=left_out(whole), headers=headers).json()["taken"] == "stored"
+    assert other.post("/api/ingest/mail", content=whole, headers=headers).json()["taken"] == "business"
+    with ws.db() as db:
+        assert [d.status for d in documents.every(db)] == [DocumentStatus.REMOVED]
 
 
 def test_a_refused_message_is_asked_for_again_once_the_settings_it_was_refused_under_change(client, ws):

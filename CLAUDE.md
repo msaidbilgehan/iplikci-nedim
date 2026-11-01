@@ -79,8 +79,9 @@ The MVP was retired on 2026-10-31 (K17, ADR-0018): İplikçi Nedim starts with n
   chat) never require a terminal; when the MVP needs a command, offer to run it for the user.
 - **Network:** only the connections ADR-0009 lists (IMAP read-only, SMTP to the user's own address, the Telegram Bot
   API, exchange rates from TCMB/ECB/Frankfurter, optional EVDS), all through the `egress` module. The browser extension
-  talks only to `mail.google.com` and 127.0.0.1, with read-only requests (ADR-0016). No telemetry, no external fonts or
-  scripts. A new outbound host needs a new ADR.
+  talks only to `mail.google.com`, Gmail's attachment server `mail-attachment.googleusercontent.com` (where "Download
+  original" leads) and 127.0.0.1, with read-only requests (ADR-0016). No telemetry, no external fonts or scripts. A new
+  outbound host needs a new ADR.
 - **E-mail:**
   - Read-only: `EXAMINE` and `BODY.PEEK[]`; nothing is flagged, moved or deleted.
   - Trust: the sender domain is on an allowlist and the topmost `Authentication-Results` shows DMARC pass for the From

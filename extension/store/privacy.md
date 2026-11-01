@@ -7,7 +7,8 @@ Bu politika, Chrome eklentisi "İplikçi Nedim Köprüsü"nün hangi verileri na
 Eklenti, tarayıcıdaki açık Gmail oturumuyla yalnızca şunları okur:
 
 - Gmail'in gelen kutusu akışını, yani en yeni okunmamış iletilerin listesini;
-- İplikçi Nedim'de listesi tutulan bankaların iletilerini, Gmail'in "Orijinali göster" sayfasından;
+- İplikçi Nedim'de listesi tutulan bankaların iletilerini, Gmail'in "Orijinali göster" sayfasından; eki olan bir
+  iletinin tamamını "Orijinali indir" ile, Gmail'in ek sunucusundan (mail-attachment.googleusercontent.com);
 - "Gmail'de eksikleri tara" sırasında, eklentinin açtığı sekmedeki arama listesinden yalnızca konuşma kimliklerini.
 
 Gmail'de hiçbir şey değişmez: iletiler okundu işaretlenmez, taşınmaz, etiketlenmez ve silinmez.
@@ -40,7 +41,8 @@ Sorular için: projenin sahibine, eklentinin mağaza sayfasındaki geliştirici 
 ## Privacy policy (English)
 
 The Chrome extension "İplikçi Nedim Köprüsü" reads, with the browser's signed-in Gmail session, only the inbox feed,
-the "Show original" page of messages from the bank senders the local İplikçi Nedim app lists, and, during a "scan
+the "Show original" page of messages from the bank senders the local İplikçi Nedim app lists (and, for a message
+with attachments, the whole message through "Download original", from Gmail's attachment server), and, during a "scan
 Gmail for missing mail", the conversation ids of the search list in a tab it opens. Nothing in Gmail changes: no
 message is marked read, moved, labelled or deleted.
 

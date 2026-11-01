@@ -45,6 +45,10 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
   - "Orijinali göster"in metnini göstermediği tek bir ileti katmanı durdurmaz. İleti atlanır ve kullanıcıya Gmail'den
     indirmesi söylenir; ancak art arda üç ileti gösterilmezse katman durur. Biçim alarmı sayfanın metnini değil,
     özelliklerini taşır.
+  - Ekler: "Orijinali göster" eklerin içeriğini boş veriyor. Dosya adı geçen bir ileti artık "Orijinali indir" ile,
+    Gmail'in ek sunucusundan (`mail-attachment.googleusercontent.com`, yeni izin, eklenti 0.4.0) tam ve bayt bayt
+    alınır. Servis ekleri boş saklanmış iletileri taramada yeniden ister; tam hâli gelince eksik kopya çöp kutusuna
+    gider.
   - Servisin almadığı iletiler Gmail kimliği ve nedeniyle hatırlanır. Ayarlar değişmedikçe yeniden indirilmezler.
     Sistem ekranı onları nedenleriyle sayar: listede olmayan gönderici, şirket iletisi ya da güven kuralının gördüğü
     (DMARC sonucu yok, "pass" değil, başka bir alan adı için geçti…).

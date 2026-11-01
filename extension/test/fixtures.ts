@@ -77,6 +77,43 @@ export function rawMessage(message: FakeMessage): string {
   return lines.join("\r\n");
 }
 
+/**
+ * A bank message with a statement attached; `base64` "" is how "Show original" shows it: the attachment's part keeps
+ * its headers and comes empty.
+ */
+export function attachedMessage(from: string, base64: string): string {
+  const domain = from.slice(from.lastIndexOf("@") + 1);
+  return [
+    `Delivered-To: ${ADDRESS}`,
+    `Authentication-Results: mx.google.com; dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=${domain}`,
+    `From: Banka <${from}>`,
+    `To: ${ADDRESS}`,
+    "Subject: DEKONT",
+    "MIME-Version: 1.0",
+    'Content-Type: multipart/mixed; boundary="=-sinir"',
+    "",
+    "--=-sinir",
+    'Content-Type: text/plain; charset="UTF-8"',
+    "",
+    "Dekontunuz ektedir.",
+    "--=-sinir",
+    "Content-Type: application/octet-stream; name=dekont.pdf",
+    "Content-Disposition: attachment; filename=dekont.pdf",
+    "Content-Transfer-Encoding: base64",
+    "",
+    base64,
+    "",
+    "--=-sinir--",
+    "",
+  ].join("\r\n");
+}
+
+/** A response as fetch gives it after following redirects to url. */
+export function arrivedAt(url: string, response: Response): Response {
+  Object.defineProperty(response, "url", { value: url });
+  return response;
+}
+
 function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }

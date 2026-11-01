@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import type { Fetcher as GmailFetcher } from "../src/gmail/http";
+import { ATTACHMENTS_ORIGIN, type Fetcher as GmailFetcher } from "../src/gmail/http";
 import type { ListPage } from "../src/gmail/list";
 import { expectedProof } from "../src/bridge/proof";
 import { NotGmail, type ScanEnvironment, type TabDriver, TabGone, scanGmail } from "../src/bridge/scan";
 import { type Fetcher, type Paired, SERVICE } from "../src/bridge/service";
 import { type ScanSummary, type Store, memoryStore } from "../src/bridge/state";
-import { IK, gmailPage, originalPage, rawMessage } from "./fixtures";
+import { IK, arrivedAt, attachedMessage, gmailPage, originalPage, rawMessage } from "./fixtures";
 
 const PAIRED: Paired = { id: "k1", token: "belirtec-123" };
 const SENDERS = ["teb.com.tr", "isbank.com.tr"];
@@ -56,6 +56,7 @@ function fakeService(held: ReadonlySet<string> = new Set(), down = false, older 
   const alarms: unknown[] = [];
   const asked: string[][] = [];
   const scans: unknown[] = [];
+  const bodies = new Map<string, string>();
   const fetcher: Fetcher = async (address, init) => {
     if (down) {
       throw new TypeError("Failed to fetch");
@@ -87,6 +88,7 @@ function fakeService(held: ReadonlySet<string> = new Set(), down = false, older 
       case "/api/ingest/mail": {
         const headers = new Headers(init.headers);
         delivered.push({ id: headers.get("X-Gmail-Id") ?? "", date: headers.get("X-Gmail-Date") });
+        bodies.set(headers.get("X-Gmail-Id") ?? "", new TextDecoder().decode(init.body as Uint8Array));
         return Response.json({ taken: "stored", documents: 1 });
       }
       case "/api/ingest/mail/alarm":
@@ -96,24 +98,34 @@ function fakeService(held: ReadonlySet<string> = new Set(), down = false, older 
         return new Response(null, { status: 404 });
     }
   };
-  return { fetcher, delivered, alarms, asked, scans };
+  return { fetcher, delivered, alarms, asked, scans, bodies };
 }
 
-/** Gmail: its page with the account key, and every message's "Show original", without the text for `unshown`. */
-function fakeGmail(unshown: ReadonlySet<string> = new Set()) {
+/**
+ * Gmail: its page with the account key, and every message's "Show original", without the text for `unshown`; the
+ * messages in `attached` carry a statement, which their page shows empty and "Download original" gives whole.
+ */
+function fakeGmail(unshown: ReadonlySet<string> = new Set(), attached: ReadonlySet<string> = new Set()) {
   const requests: string[] = [];
   const fetcher: GmailFetcher = async (address) => {
     requests.push(address);
     const url = new URL(address);
+    const id = (url.searchParams.get("permmsgid") ?? "").replace("msg-f:", "");
+    if (url.searchParams.get("view") === "att") {
+      return arrivedAt(`${ATTACHMENTS_ORIGIN}/attachment/u/0/`, new Response(attachedMessage(BANK, WHOLE)));
+    }
     if (url.searchParams.get("view") === "om") {
-      const id = (url.searchParams.get("permmsgid") ?? "").replace("msg-f:", "");
-      const page = originalPage(rawMessage({ from: "ekstre@teb.com.tr" }), BigInt(id));
+      const raw = attached.has(id) ? attachedMessage(BANK, "") : rawMessage({ from: BANK });
+      const page = originalPage(raw, BigInt(id));
       return new Response(unshown.has(id) ? page.replace(/<pre[\s\S]*<\/pre>/, "<p>Çok büyük</p>") : page);
     }
     return new Response(gmailPage(IK));
   };
   return { fetcher, requests };
 }
+
+const BANK = "ekstre@teb.com.tr";
+const WHOLE = "JVBERi0xLjQK"; // the statement's bytes, in base64
 
 interface Setup {
   readonly service?: Fetcher;
@@ -197,6 +209,16 @@ describe("scanGmail", () => {
       address.endsWith("/scanned") ? new Response(null, { status: 500 }) : service.fetcher(address, init);
     const summary = await scan(fakeTabs([page(["10", "10", 0])]).tabs, { service: forgetful, store });
     expect([summary.phase, store.current.historyDue]).toEqual(["done", true]); // the messages came all the same
+  });
+
+  it("takes a message that names a file whole through Download original, as its page shows it empty", async () => {
+    const service = fakeService();
+    const gmail = fakeGmail(new Set(), new Set(["16"]));
+    const tabs = fakeTabs([page(["10", "10", 0], ["30", "30", 0])]).tabs;
+    await scan(tabs, { service: service.fetcher, gmail: gmail.fetcher });
+    expect(service.bodies.get("16")).toBe(attachedMessage(BANK, WHOLE));
+    expect(service.bodies.get("48")).toBe(rawMessage({ from: BANK })); // no file: the page's text is the message
+    expect(gmail.requests.filter((r) => r.includes("view=att"))).toHaveLength(1);
   });
 
   it("skips a message whose original Gmail does not show among shown ones, says so, and goes on", async () => {
