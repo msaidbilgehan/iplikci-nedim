@@ -39,6 +39,7 @@ SHIPPED = {
     "vakifbank.account_xlsx",
     "vakifbank.passbook",
     # Phase 4: the readers of bank notices (`<bank>.notice.*`).
+    "garanti.notice.transfer",
     "vakifbank.notice.transfer",
 }
 

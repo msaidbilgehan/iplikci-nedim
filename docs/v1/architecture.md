@@ -362,6 +362,7 @@ V1'in eklediği okuyucular:
 
 | Kimlik | Belge | Aşama |
 |---|---|---|
+| `garanti.notice.transfer` | Para transferi bildirimi (e-posta gövdesi) | 4 |
 | `vakifbank.notice.transfer` | FAST ve para çıkışı bildirimi (e-posta gövdesi) | 4 |
 
 Bir e-posta bütün olarak saklanır; ekleri kendi biçimlerinin okuyucularına gider. Gövdeyi `Format.EMAIL` okuyucuları

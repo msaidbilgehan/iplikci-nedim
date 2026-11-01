@@ -303,3 +303,37 @@ def test_provisional_receipts_move_the_balance_their_list_closed_with(cat):
     finding = next(f for f in ins.findings if f.title == "Ekstre gelmeden işlenen dekontlar")
     assert "2 işlem" in finding.text and "kişilere giden ₺2.500" in finding.text
     assert finding.filter == {"provisional": True}
+
+
+# --- a bank's notice of the same movement ------------------------------------------------------
+
+
+def notice(key: str, account: Account, *rows: Transaction) -> ParseResult:
+    """A bank's notice: rows like a receipt's, read by a reader of notices."""
+    return ParseResult("vakifbank.notice.transfer", accounts=[account], transactions=list(rows), receipt_key=key)
+
+
+def test_a_notice_and_a_receipt_of_one_transfer_count_once_and_the_receipt_keeps_the_balance(cat):
+    sent = row(date(2026, 3, 2), "Giden Havale → VELİ ÖRNEKSOY", Decimal(15000), CHECKING, who="VELİ ÖRNEKSOY")
+    told = row(date(2026, 3, 2), "Giden FAST → VE** ÖR*****", Decimal(15000), CHECKING, who="VE** ÖR*****")
+    told.balance = Decimal("8500.00")
+    ds = analyse(cat, receipt("r1", CHECKING, sent), notice("n1", CHECKING, told))
+    assert statuses(ds) == [("Giden Havale → VELİ ÖRNEKSOY", NO_STATEMENT)]
+    assert [t.amount for t in ds.transactions] == [Decimal(15000)]
+    assert ds.receipts[0].txn.balance == Decimal("8500.00")
+
+
+def test_two_equal_transfers_of_a_day_stay_two_when_only_one_has_a_receipt(cat):
+    day = date(2026, 3, 2)
+    sent = row(day, "Giden Havale → VELİ ÖRNEKSOY", Decimal(1000), CHECKING, who="VELİ ÖRNEKSOY")
+    first = row(day, "Giden FAST → VE** ÖR*****", Decimal(1000), CHECKING, who="VE** ÖR*****")
+    second = row(day, "Giden FAST → AY** DE*****", Decimal(1000), CHECKING, who="AY** DE*****")  # someone else
+    third = row(day, "Giden FAST → VE** ÖR*****", Decimal(1000), CHECKING, who="VE** ÖR*****")  # Veli again
+    ds = analyse(
+        cat, receipt("r1", CHECKING, sent), notice("n1", CHECKING, first, second), notice("n2", CHECKING, third)
+    )
+    assert sorted(description for description, _ in statuses(ds)) == [
+        "Giden FAST → AY** DE*****",
+        "Giden FAST → VE** ÖR*****",  # the receipt stands for one of Veli's two notices only
+        "Giden Havale → VELİ ÖRNEKSOY",
+    ]

@@ -260,6 +260,19 @@ def settle_receipts(
 # --- own accounts and transfers -----------------------------------------------
 
 
+def masked_as(masked: str, name: str) -> bool:
+    """Whether a folded name masked but for the first letters of its words ("OR**** KU******", Vakıfbank's and
+    Garanti's notices) can be the folded name: as many words, each starting with the letters shown. Another masked
+    name agrees when every word shows the same start. One letter a word could be a relative's name: two are needed."""
+    shown, words = [w.split("*", 1)[0] for w in masked.split()], name.split()
+    if len(shown) < 2 or len(shown) != len(words) or any(len(s) < 2 for s in shown):
+        return False
+    if "*" in name:
+        others = [w.split("*", 1)[0] for w in words]
+        return all(a.startswith(b) or b.startswith(a) for a, b in zip(shown, others, strict=True))
+    return all(w.startswith(s) for s, w in zip(shown, words, strict=True))
+
+
 class Own:
     """The user's names and account numbers, to recognise transfers between own accounts."""
 
@@ -283,21 +296,10 @@ class Own:
     def is_self(self, who: str) -> bool:
         f = fold(who)
         if "*" in f:
-            return self._masked_self(f)
+            # Banks mask the whole name as the account holds it, so the short variants are not tried: "Ör**** Ku****"
+            # of a two-word name is somebody else's when the user's name has three words.
+            return any(masked_as(f, " ".join(parts)) for parts in self.whole)
         return bool(f) and any(f == n or f.startswith(n + " ") or f.endswith(" " + n) for n in self.names)
-
-    def _masked_self(self, masked: str) -> bool:
-        """A name masked but for the first letters of its words ("ÖR**** KU******", Vakıfbank's notices) is the
-        user's when one of the names as given has as many words, each starting with the letters shown. Banks mask the
-        whole name as the account holds it, so the short variants are not tried: "Ör**** Ku****" of a two-word name is
-        somebody else's when the user's name has three words. One letter a word could be a relative's name."""
-        shown = [w.split("*", 1)[0] for w in masked.split()]
-        if len(shown) < 2 or any(len(s) < 2 for s in shown):
-            return False
-        return any(
-            len(parts) == len(shown) and all(p.startswith(s) for p, s in zip(parts, shown, strict=True))
-            for parts in self.whole
-        )
 
     def mentions_own_account(self, text: str) -> bool:
         """TEB names the receiving account even on the receiving side
@@ -506,6 +508,40 @@ def resolve_masked(results: Iterable[ParseResult]) -> None:
                     t.account = same[0].id
 
 
+def _same_movement(a: Transaction, b: Transaction) -> bool:
+    """Whether two rows of two documents tell of one movement: the same account, day and amount, and names that can be
+    one another's (a notice may mask the name a receipt prints whole)."""
+    if a.account != b.account or a.date != b.date or abs(a.amount - b.amount) > CENT:
+        return False
+    x, y = fold(a.counterparty), fold(b.counterparty)
+    if not x or not y:
+        return True
+    if "*" in x or "*" in y:
+        return masked_as(x, y) if "*" in x else masked_as(y, x)
+    return x == y
+
+
+def _drop_told_twice(receipts: dict[str, list[Transaction]], notices: set[str]) -> None:
+    """A bank's notice and a receipt can tell of the same movement: Garanti mails both for a transfer. The receipt's
+    row stands, taking the balance the notice adds; the notice's row goes. Each receipt row stands for one notice row
+    only, so two equal transfers of a day stay two; rows of two receipts, or of one document, are never merged."""
+    told = [t for key in sorted(receipts.keys() - notices) for t in receipts[key]]
+    used: set[int] = set()
+    for key in sorted(notices & receipts.keys()):
+        kept: list[Transaction] = []
+        for t in receipts[key]:
+            twin = next((r for r in told if id(r) not in used and _same_movement(r, t)), None)
+            if twin is None:
+                kept.append(t)
+                continue
+            used.add(id(twin))
+            twin.balance = twin.balance if twin.balance is not None else t.balance
+        if kept:
+            receipts[key] = kept
+        else:
+            del receipts[key]
+
+
 def _status(result: ParseResult) -> str:
     """What a read document is, as DocumentStatus says it: a statement or list, else a receipt or a bank's notice."""
     if result.statements:
@@ -523,6 +559,7 @@ def build(
     accounts: dict[str, Account] = {}
     statements: dict[tuple, Statement] = {}
     receipts: dict[str, list[Transaction]] = {}
+    notices: set[str] = set()  # the keys of receipts that are bank notices
     documents: list[DocumentStatus] = []
     holders: set[str] = set()
 
@@ -541,9 +578,13 @@ def build(
             if key not in statements or len(s.transactions) > len(statements[key].transactions):
                 statements[key] = s
         if result.transactions:
-            receipts.setdefault(result.receipt_key or doc.sha256, result.transactions)
+            key = result.receipt_key or doc.sha256
+            receipts.setdefault(key, result.transactions)
+            if document_type(result.parser) is DocumentKind.NOTICE:
+                notices.add(key)
         documents.append(DocumentStatus(doc.name, doc.origin, _status(result), label(result.parser)))
 
+    _drop_told_twice(receipts, notices)
     stmts = sorted(statements.values(), key=lambda s: (s.account, s.cut_date, s.currency))
     _fingerprint(stmts, receipts, accounts)
     _link_foreign_currency(stmts)

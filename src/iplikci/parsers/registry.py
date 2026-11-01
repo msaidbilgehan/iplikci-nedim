@@ -20,6 +20,7 @@ from .garanti import bonus_card as garanti_bonus_card
 from .garanti import brokerage as garanti_brokerage
 from .garanti import paracard as garanti_paracard
 from .garanti import receipt as garanti_receipt
+from .garanti.notice import transfer as garanti_notice_transfer
 from .isbank import account_xls as isbank_account_xls
 from .isbank import maximum_card as isbank_maximum_card
 from .isbank import passbook as isbank_passbook
@@ -44,6 +45,7 @@ BUILTIN: tuple[Parser, ...] = (
     garanti_account_xls.PARSER,
     garanti_receipt.PARSER,
     garanti_brokerage.PARSER,
+    garanti_notice_transfer.PARSER,
     isbank_maximum_card.PARSER,
     isbank_account_xls.PARSER,
     isbank_receipt.PARSER,

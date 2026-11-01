@@ -18,14 +18,15 @@ from .common import MESSAGE_REASON
 from .mail import Mail
 
 # Raised whenever the rules change: the messages no reader took are then classified again (registry.signature).
-VERSION = 1
+VERSION = 2
 
 CAMPAIGN = "kampanya ve tanıtım — para hareketi yok"
 ANNOUNCEMENT = "duyuru ve bilgilendirme — para hareketi yok"
 SECURITY = "güvenlik ve hesap ayarı bildirimi — para hareketi yok"
 CARD = "kart ve başvuru bildirimi — para hareketi yok"
+ELSEWHERE = "ayrıntısı internet şubesinde — e-postada para hareketi yok"
 ATTACHED = "e-posta iletisi; ekindeki belgeler ayrıca okunur"
-NO_MONEY = frozenset({CAMPAIGN, ANNOUNCEMENT, SECURITY, CARD})
+NO_MONEY = frozenset({CAMPAIGN, ANNOUNCEMENT, SECURITY, CARD, ELSEWHERE})
 
 
 def _words(*words: str) -> re.Pattern[str]:
@@ -54,6 +55,10 @@ _CARD = _words(
 # A change to fees, rates or terms is announced, whatever money words the subject also holds.
 _CHANGE = _words("DEGISIKLIK", "DEGISIKLIG", "GUNCELLEN")
 _OPENING = 400  # characters of the body's text that hold its greeting and opening sentence
+# A body that sends the reader to online banking for the details ("… İnternet/Mobil Şube'den kontrol edebilirsiniz",
+# Garanti's monthly HGS message), when it holds no amount, tells of no money itself.
+_ELSEWHERE = _words("KONTROL EDEBILIRSINIZ", "GORUNTULEYEBILIRSINIZ", "INCELEYEBILIRSINIZ")
+_AMOUNT = re.compile(r"\d,\d{2}\b|\d\.\d{3}\b")
 # Money moving, or money owed: a subject with these is a notice no reader reads yet, not a campaign.
 _MONEY = _words(
     "EKSTRE",
@@ -144,8 +149,9 @@ _ANNOUNCEMENT = _words(
 def message_reason(mail: Mail) -> str:
     """Why a message no reader took is kept unprocessed: what it is when its sender and subject say so, else
     MESSAGE_REASON. The order matters. A campaign sender or the bank's own label comes first. What never moves
-    money follows (security and card notices, announced changes). Then a subject that names money moving keeps the
-    message unknown, before the looser words of announcements and campaigns are tried."""
+    money follows (security and card notices, announced changes, a body without amounts that leaves the details to
+    online banking). Then a subject that names money moving keeps the message unknown, before the looser words of
+    announcements and campaigns are tried."""
     if mail.attached:
         return ATTACHED
     # The first label of the sender's domain: banks send campaigns from "kampanya." and announcements from "bilgi.".
@@ -155,6 +161,8 @@ def message_reason(mail: Mail) -> str:
     for words, reason in ((_SECURITY, SECURITY), (_CARD, CARD), (_CHANGE, ANNOUNCEMENT)):
         if words.search(subject):
             return reason
+    if _ELSEWHERE.search(fold(mail.text)) and not _AMOUNT.search(mail.text):
+        return ELSEWHERE
     if _MONEY.search(subject):
         return MESSAGE_REASON
     if label == "bilgi":

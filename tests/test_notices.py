@@ -10,7 +10,7 @@ import pytest
 
 from iplikci.app import mail, reading
 from iplikci.domain.codes import DocumentKind, DocumentStatus, TransactionKind
-from iplikci.fakes import vakifbank
+from iplikci.fakes import garanti, vakifbank
 from iplikci.fakes.files import html_mail
 from iplikci.parsers import Skipped, Unreadable, messages, parse_document
 from iplikci.parsers.common import BUSINESS_REASON, MESSAGE_REASON, set_business_names
@@ -202,3 +202,71 @@ def test_only_documents_count_as_attached_never_an_image_or_a_file_left_out():
     assert not read_mail(msg.as_bytes()).attached
     msg.add_attachment(b"%PDF-1.4", maintype="application", subtype="pdf", filename="ekstre.pdf")
     assert read_mail(msg.as_bytes()).attached
+
+
+def test_a_body_that_leaves_the_details_to_online_banking_moves_no_money_unless_it_holds_an_amount():
+    pointer = "HGS ürününüzün aylık geçiş bilgilerini İnternet/Mobil Şube'den kontrol edebilirsiniz."
+    assert message_reason(mail_of("HGS EKSTRE BİLGİLENDİRME", text=pointer)) == messages.ELSEWHERE
+    with_amount = "Hesabınıza 1.250,00 TL yüklendi. Ayrıntıları İnternet Şube'den kontrol edebilirsiniz."
+    assert message_reason(mail_of("HGS EKSTRE BİLGİLENDİRME", text=with_amount)) == MESSAGE_REASON
+
+
+# --- Garanti BBVA's transfer notices ----------------------------------------------------------------------------
+
+GARANTI = "garanti.notice.transfer"
+
+
+def test_a_garanti_transfer_notice_of_2026_is_money_out_of_the_account_it_masks():
+    data = garanti.transfer_notice()
+    result = read(data)
+    [row] = result.transactions
+    assert (result.parser, result.title, result.holder) == (GARANTI, "Giden Transfer", "")
+    assert (row.date, row.amount, row.kind, row.counterparty) == (
+        date(2026, 10, 30),
+        Decimal("12750.00"),
+        TransactionKind.TRANSFER_CANDIDATE,
+        "Ör**** Ku******",
+    )
+    assert row.description == "Giden Transfer → Ör**** Ku****** (QNB BANK A.Ş.) — KART ÖDEMESİ"
+    [account] = result.accounts
+    assert (account.id, account.label) == ("garanti-****567", "Garanti BBVA Vadesiz TL …567")
+    assert result.receipt_key.split("-") == [
+        "garanti",
+        "pt",
+        "202610301440",
+        "567",
+        "1275000",
+    ]  # minute, account, kuruş
+    assert row.ref is not None and row.ref.span is not None
+    start, end = row.ref.span
+    assert read_mail(data).text[start:end] == "12.750,00 TL"
+
+
+def test_an_older_garanti_notice_names_the_account_whole_and_the_bank_from_the_iban():
+    result = read(garanti.old_transfer_notice())
+    [row] = result.transactions
+    assert (result.title, result.holder, row.account) == ("Giden Havale", "ÖRNEK KULLANICI", "garanti-1234567")
+    assert row.description == "Giden Havale → VELİ ÖRNEKSOY (Garanti BBVA) — EKİM KİRA ÖDEMESİ"
+    order = garanti.old_transfer_notice(
+        kind="EFT Emri Para transferi emriniz işleme alınmıştır.",
+        receiver=("VELİ ÖRNEKSOY", "TR00 0011 1000 0000 0000 1234 56"),
+    )
+    assert read(order).transactions[0].description == "Giden EFT → VELİ ÖRNEKSOY (QNB) — EKİM KİRA ÖDEMESİ"
+    inside = garanti.old_transfer_notice(receiver=("VELİ ÖRNEKSOY / KADIKÖY - 123 7654321",))
+    assert read(inside).transactions[0].counterparty == "VELİ ÖRNEKSOY"
+
+
+def test_a_garanti_notice_from_a_company_account_is_the_companys():
+    set_business_names(["Örnek Teknoloji A.Ş."])
+    with pytest.raises(Skipped) as raised:
+        read(garanti.old_transfer_notice(holder="ÖRNEK TEKNOLOJİ A.Ş."))
+    assert raised.value.business
+    # Written to the person who uses the company's account: the sender's block still names the company.
+    html = read_mail(garanti.old_transfer_notice()).text.replace(
+        "Bilgileri: ÖRNEK KULLANICI", "Bilgileri: ÖRNEK TEKNOLOJİ A.Ş."
+    )
+    with pytest.raises(Skipped) as raised:
+        read(
+            html_mail(garanti.NOTICE_SENDER, "Para Transferi Bilgilendirmesi", f"<p>{html}</p>", datetime(2024, 10, 22))
+        )
+    assert raised.value.business

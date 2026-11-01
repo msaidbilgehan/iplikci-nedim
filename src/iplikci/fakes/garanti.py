@@ -2,13 +2,14 @@
 Yatırım's brokerage statements."""
 
 from collections.abc import Sequence
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+from html import escape
 
 from ..domain.labels import MONTHS, format_amount
 from ..domain.text import fold
 from . import HOLDER, CardRow, Move, Specimen, charged, with_balances
-from .files import Cell, Run, right, text_pdf, xls_file
+from .files import Cell, Run, html_mail, right, text_pdf, xls_file
 
 
 def receipt(
@@ -386,6 +387,95 @@ def trade_form(holder: str = HOLDER) -> bytes:
     )
 
 
+NOTICE_SENDER = "bilgilendirme@garantibbva.com.tr"
+OLD_NOTICE_SENDER = "bilgilendirme@info.garantibbva.com.tr"
+_ISTANBUL = timezone(timedelta(hours=3))
+_NOTICE_FOOTER = (
+    "<p>T.Garanti Bankası A.Ş. Genel Müdürlük: Örnek Mah. Deneme Cad. 1, İstanbul</p>"
+    "<p>Bu e-posta'nın size ait olmadığını düşünüyorsanız Müşteri İletişim Merkezi'ni arayabilirsiniz.</p>"
+)
+_NOTICE_PURPOSE = (
+    "Bilgilendirmeler, belirli tutarın üzerindeki para transferlerinizin istediğiniz şekilde gerçekleştiğini "
+    "bildirmek amacıyla gönderilmektedir."
+)
+
+
+def _lines(*lines: str) -> str:
+    return "".join(f"<div>{escape(line)}</div>" for line in lines)
+
+
+def transfer_notice(
+    sent: datetime = datetime(2026, 10, 30, 14, 40, tzinfo=_ISTANBUL),
+    amount: str = "12.750,00",
+    receiver: str = "Ör**** Ku******",
+    note: str = "KART ÖDEMESİ",
+) -> bytes:
+    """A transfer notice as Garanti sends it since 2026: names masked but for the first letters of their words, the
+    account but for its last three digits, the receiver's IBAN masked in the middle and its bank named."""
+    html = (
+        "<html><body>"
+        + _lines(
+            "Giden PT Bilgilendirmesi - 'Havale' işlem tipi için email",
+            "Gerçekleşen İşlem",
+            "Para Transferi Bilgilendirmesi",
+            "Başka Bankaya Transfer",
+            "Değerli Müşterimiz,",
+            "Para transferi işleminiz gerçekleşmiştir.",
+            _NOTICE_PURPOSE,
+            "Gönderen Bilgileri:",
+            "ÖR**** KU******",
+            "MERKEZ - 106",
+            "****567",
+            "Alıcı Bilgileri:",
+            receiver,
+            "-",
+            "TR000011100000********001",
+            "QNB BANK A.Ş.",
+            f"Tutar: {amount} TL",
+            f"İşlem Tarihi: {sent:%d.%m.%Y %H:%M}",
+            f"Açıklama: {note}",
+            "İyi günler dileriz.",
+        )
+        + _NOTICE_FOOTER
+        + "</body></html>"
+    )
+    return html_mail(NOTICE_SENDER, "Para Transferi Bilgilendirmesi", html, sent)
+
+
+def old_transfer_notice(
+    sent: datetime = datetime(2024, 10, 22, 9, 40, tzinfo=_ISTANBUL),
+    amount: str = "650,00",
+    kind: str = "Havale Para transferi işleminiz gerçekleşmiştir.",
+    receiver: tuple[str, ...] = ("VELİ ÖRNEKSOY", "TR00 0006 2000 0000 0000 1234 56"),
+    holder: str = HOLDER,
+    note: str = "EKİM KİRA ÖDEMESİ",
+) -> bytes:
+    """A transfer notice as Garanti sent it until 2025: the customer greeted by name, names and numbers whole, the
+    receiver's IBAN printed in groups (or a Garanti branch and account), the kind in the first sentence."""
+    html = (
+        "<html><body>"
+        + _lines(
+            "Garanti",
+            f"Sayın {holder},",
+            kind,
+            _NOTICE_PURPOSE,
+            "Gönderen Bilgileri:",
+            holder,
+            "MERKEZ - 106",
+            "1234567",
+            "Alıcı Bilgileri:",
+            *receiver,
+            f"Tutar: {amount} TL",
+            f"İşlem Tarihi: {sent:%d.%m.%Y %H:%M}",
+            f"Açıklama: {note}",
+            "Para transferleri bilgilendirmeleri işlem limitlerinizi değiştirebilirsiniz.",
+        )
+        + _NOTICE_FOOTER
+        + "</body></html>"
+    )
+    return html_mail(OLD_NOTICE_SENDER, "Para Transferi Bilgilendirmesi", html, sent)
+
+
 def specimens() -> list[Specimen]:
     fast = receipt(
         "HESAPTAN FAST", "106/1234567", HOLDER, fast_body("EKİM KİRA ÖDEMESİ", "VELİ ÖRNEKSOY"), "- 500,00 TL"
@@ -398,4 +488,12 @@ def specimens() -> list[Specimen]:
         Specimen("garanti-fast-dekont.pdf", fast, "garanti.receipt", "garanti-1234567", 2),
         Specimen("garanti-yatirim-ekstre.pdf", brokerage_statement(), "garanti.brokerage", brokerage, 2),
         Specimen("garanti-yatirim-islem-sonuc-formu.pdf", trade_form(), "garanti.brokerage", brokerage, 2),
+        Specimen("garanti-transfer-bildirimi.eml", transfer_notice(), "garanti.notice.transfer", "garanti-****567", 1),
+        Specimen(
+            "garanti-eski-transfer-bildirimi.eml",
+            old_transfer_notice(),
+            "garanti.notice.transfer",
+            "garanti-1234567",
+            1,
+        ),
     ]

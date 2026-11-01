@@ -114,6 +114,28 @@ hareketi taşımaz. V1'de çöpe gitmez; "işlenmedi" durumunda saklanır (K11).
   | aktarılan temettü ya da satış geliri, "Nolu Hesabın Banka …" | aday transfer; karşı taraf hesap sahibi, yani kendi transferi |
 - "İŞLEM SONUÇ FORMU" (Türkçe biçim, üç ondalık) işlemlerin ve ücretlerin dekontudur.
 
+**Para transferi bildirimleri** (`garanti.notice.transfer`, e-posta gövdesi, "Para Transferi Bilgilendirmesi")
+
+- Belirli bir tutarın üzerindeki giden transferler için gelir. İki yerleşim vardır:
+  - Eski yerleşim (`info.garantibbva.com.tr`, 2024): müşteriyi adıyla selamlar ("Sayın …,"). Türü ilk cümlede yazar:
+    "Havale Para transferi …", "Başka Banka Para transferi …", "EFT Emri Para transferi emriniz işleme alınmıştır".
+  - Yeni yerleşim (`garantibbva.com.tr`, 2025'ten beri): "Giden PT Bilgilendirmesi - 'Havale' işlem tipi için email …
+    Başka Bankaya Transfer" diye açılır. Başlık her türe "Havale" der; tür alt başlıktan okunur.
+- İkisi de şunları yazar:
+  - gönderenin bloğu: ad, şube ("MERKEZ - 106"), hesap numarası;
+  - alıcının bloğu: ad ve IBAN; yeni yerleşimde bankanın adı da; Garanti içindeki bir alıcıda "/ şube - kod hesap";
+  - `Tutar:`, `İşlem Tarihi: gg.aa.yyyy ss:dd` ve `Açıklama:` (gönderenin notu).
+- 2026'dan beri adlar her kelimenin ilk harfleri dışında, hesap numarası son üç hane dışında maskelidir ("****567").
+  Önceden ikisi de tam yazılırdı. Maskeli hesap, aynı bankada son üç hanesi tutan hesaba geçer.
+- Selam, e-postanın kime yazıldığını; gönderenin bloğu ise hesabın kimin olduğunu söyler. Şirket denetimi ikisine de
+  bakar.
+- Referans numarası yoktur. Bildirim hesabıyla, dakikasıyla ve tutarıyla tanınır.
+- Garanti aynı transferlerin bazıları için dekont da gönderir. Analiz böyle bir hareketi bir kez sayar: aynı hesap, gün
+  ve tutar, birbirini tutan adlar. Dekontun satırı kalır, bildirimin satırı düşer.
+
+**HGS ekstresi iletisi** ("HGS EKSTRE BİLGİLENDİRME") hiç veri taşımaz. Geçişlerin ve yüklemelerin İnternet/Mobil
+Şube'den görülebileceğini söyler. Tutar içermediği için "ayrıntısı internet şubesinde" diye sınıflanır.
+
 ## İş Bankası
 
 **Maximum kart PDF'i** (`KREDIKARTIHESAPOZETI` + `MAXIPUAN`)

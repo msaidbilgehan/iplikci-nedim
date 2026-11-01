@@ -24,6 +24,11 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 - F01'in kapsam ölçütü: banka iletilerinin ne kadarının işlendiği ya da bilerek sınıflandığı Sistem ekranında ve
   `iplikci servis durum`'da görünür; tanınmayan ileti türleri listelenir.
 - İmza sirküleri ve genel kurul iletileri şirket belgesi sayılır.
+- `garanti.notice.transfer`: Garanti BBVA'nın para transferi bildirimleri, 2024'ün ve 2026'nın yerleşimleriyle okunur.
+- Aynı hareketi anlatan bir dekont ile bir banka bildirimi bir kez sayılır: dekontun satırı kalır ve bildirimin
+  yazdığı bakiyeyi alır.
+- Ayrıntıyı internet şubesine bırakan, tutar içermeyen iletiler (Garanti'nin HGS iletisi) "e-postada para hareketi yok"
+  diye sınıflanır.
 
 ### Düzeltilenler
 
