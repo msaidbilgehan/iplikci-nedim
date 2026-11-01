@@ -27,9 +27,11 @@ from .categorize import Categorizer, clean_description
 from .domain.codes import CARD_TYPES, AccountType, DocumentKind, EvidenceStatus, TransactionKind
 from .domain.fingerprint import Fingerprints
 from .domain.labels import EVIDENCE_STATUS, format_amount
-from .domain.models import TRY, Account, ParseResult, Statement, Transaction
+from .domain.models import TRY, Account, Invoice, ParseResult, Statement, Transaction
 from .domain.money import CENT, round_half_up
 from .domain.text import fold
+from .invoices import InvoiceMatch, one_copy, settled_until
+from .invoices import match as match_invoices
 from .parsers.registry import document_type, label
 
 # What the statements say about a receipt's row.
@@ -50,7 +52,7 @@ ACTIVE_DAYS = 180
 class DocumentStatus:
     name: str
     origin: str
-    status: str  # "ekstre", "hesap", "dekont", "bildirim", "atlandi", "is", "hata"
+    status: str  # "ekstre", "hesap", "dekont", "bildirim", "fatura", "atlandi", "is", "hata"
     detail: str = ""
 
 
@@ -79,6 +81,7 @@ class Dataset:
     ended: dict[str, str] = field(default_factory=dict)  # folded merchant -> last month (the rules' `_biten`)
     regular: set[str] = field(default_factory=set)  # commitment categories (the rules' `_düzenli`)
     receipts: list[ReceiptLine] = field(default_factory=list)  # every receipt row, counted or not
+    invoices: list[InvoiceMatch] = field(default_factory=list)  # non-bank bills and receipts, never counted (F14)
 
 
 def _one_month_before(d: date) -> date:
@@ -552,10 +555,12 @@ def _drop_told_twice(receipts: dict[str, list[Transaction]], notices: set[str]) 
 
 
 def _status(result: ParseResult) -> str:
-    """What a read document is, as DocumentStatus says it: a statement or list, else a receipt or a bank's notice."""
+    """What a read document is, as DocumentStatus says it: a statement or list, else a receipt, a bank's notice or a
+    non-bank sender's bill or receipt."""
     if result.statements:
         return "hesap" if result.statements[0].is_account else "ekstre"
-    return "bildirim" if document_type(result.parser) is DocumentKind.NOTICE else "dekont"
+    kind = document_type(result.parser)
+    return "bildirim" if kind is DocumentKind.NOTICE else "fatura" if kind is DocumentKind.INVOICE else "dekont"
 
 
 def build(
@@ -572,6 +577,7 @@ def build(
     notices: set[str] = set()  # the keys of receipts that are bank notices
     documents: list[DocumentStatus] = []
     holders: set[str] = set()
+    bills: list[tuple[str, Invoice, str]] = []  # (key, bill or receipt, document's name)
 
     resolve_masked(result for _, result, _ in results if isinstance(result, ParseResult))
     for doc, result, status in results:
@@ -595,6 +601,7 @@ def build(
             receipts.setdefault(key, result.transactions)
             if document_type(result.parser) is DocumentKind.NOTICE:
                 notices.add(key)
+        bills += [(f"{doc.sha256}:{i}", invoice, doc.name) for i, invoice in enumerate(result.invoices)]
         documents.append(DocumentStatus(doc.name, doc.origin, _status(result), label(result.parser)))
 
     for a in told.values():
@@ -630,6 +637,8 @@ def build(
     for t in txns:
         categorizer.apply(t, accounts.get(t.account))
     txns.sort(key=lambda t: (t.date, t.account, t.description))
+    # Bills and receipts of non-bank senders only mark the rows that paid them; they add no row (F14).
+    invoices = match_invoices(one_copy(bills), txns, settled_until(days))
     return Dataset(
         accounts=accounts,
         statements=stmts,
@@ -643,4 +652,5 @@ def build(
         ended=categorizer.ended,
         regular=categorizer.regular,
         receipts=lines,
+        invoices=invoices,
     )

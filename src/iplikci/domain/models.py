@@ -1,10 +1,11 @@
-"""The models the readers fill and the ledger combines: accounts, statements, rows, securities."""
+"""The models the readers fill and the ledger combines: accounts, statements, rows, securities, and the bills and
+receipts of non-bank senders."""
 
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 
-from .codes import AccountType, Necessity, TransactionKind
+from .codes import AccountType, InvoiceKind, Necessity, TransactionKind
 from .money import TOLERANCE, round_half_up
 
 # The lira as the models carry it (ADR-0006); labels.currency_label writes it as "TL".
@@ -62,6 +63,8 @@ class Transaction:
     fingerprint: str = ""
     note: str = ""
     tags: tuple[str, ...] = ()
+    # Set by analysis.py: the non-bank bill or receipt matched to the row (F14), as "<sha256>:<position>".
+    invoice: str = ""
 
 
 @dataclass
@@ -130,6 +133,32 @@ class Statement:
         return self.difference is not None and abs(self.difference) <= TOLERANCE
 
 
+@dataclass(frozen=True)
+class InvoiceLine:
+    """An item of a bill or a receipt, as it prints it."""
+
+    description: str
+    amount: Decimal  # the item's total, its taxes included
+    quantity: Decimal | None = None
+
+
+@dataclass
+class Invoice:
+    """A bill or a receipt a non-bank sender mails (F14). It is never counted: the ledger only matches it to a bank
+    row (docs/domain/ledger.md, "Banka dışı faturalar")."""
+
+    kind: InvoiceKind
+    seller: str  # as printed
+    issued: date
+    total: Decimal  # what is to pay, or was paid, taxes included; below zero for a refund
+    currency: str = TRY
+    number: str = ""  # the invoice's or the order's number
+    due: date | None = None  # a bill's last day to pay
+    seller_id: str = ""  # the seller's tax number (VKN), when printed
+    lines: list[InvoiceLine] = field(default_factory=list[InvoiceLine])
+    ref: SourceRef | None = None  # where the total is printed
+
+
 @dataclass
 class ParseResult:
     """What a parser extracted from one document."""
@@ -145,3 +174,5 @@ class ParseResult:
     holder: str = ""
     # Short title for the document, used when filing it ("Kredi Taksiti 5678").
     title: str = ""
+    # Bills and receipts of non-bank senders (F14).
+    invoices: list[Invoice] = field(default_factory=list[Invoice])

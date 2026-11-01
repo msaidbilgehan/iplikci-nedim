@@ -15,6 +15,8 @@ from .codes import (
     DocumentKind,
     DocumentStatus,
     EvidenceStatus,
+    InvoiceKind,
+    InvoiceStatus,
     MonthStatus,
     Necessity,
     PaymentKind,
@@ -101,6 +103,7 @@ DOCUMENT_KIND: dict[DocumentKind, str] = {
     DocumentKind.ACCOUNT_STATEMENT: "Hesap dökümü",
     DocumentKind.RECEIPT: "Dekont",
     DocumentKind.NOTICE: "Banka bildirimi",
+    DocumentKind.INVOICE: "Fatura ya da makbuz",
 }
 
 SOURCE_KIND: dict[SourceKind, str] = {
@@ -163,6 +166,18 @@ PAYMENT_KIND: dict[PaymentKind, str] = {
     PaymentKind.INSTALLMENT: "Kart taksiti",
     PaymentKind.LOAN: "Kredi taksiti",
     PaymentKind.CARD_DUE: "Kart son ödemesi",
+    PaymentKind.BILL: "Fatura",
+}
+
+INVOICE_KIND: dict[InvoiceKind, str] = {
+    InvoiceKind.BILL: "Fatura",
+    InvoiceKind.RECEIPT: "Makbuz",
+}
+
+INVOICE_STATUS: dict[InvoiceStatus, str] = {
+    InvoiceStatus.MATCHED: "Eşleşti",
+    InvoiceStatus.PENDING: "Bekliyor",
+    InvoiceStatus.UNMATCHED: "Eşleşmedi",
 }
 
 
@@ -188,6 +203,8 @@ TABLES: dict[type[StrEnum], dict[StrEnum, str]] = {
     SeriesStatus: _table(SERIES_STATUS),
     SeriesPeriod: _table(SERIES_PERIOD),
     PaymentKind: _table(PAYMENT_KIND),
+    InvoiceKind: _table(INVOICE_KIND),
+    InvoiceStatus: _table(INVOICE_STATUS),
 }
 
 # The interface writes the Turkish lira as "TL" (ADR-0006).

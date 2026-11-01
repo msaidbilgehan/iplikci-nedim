@@ -1,5 +1,6 @@
 """What comes in the next days (F09): the next payments of the regular and periodic series, the salary and other
-regular income, the installments left on the cards, the loans' installments and the cards' due dates.
+regular income, the installments left on the cards, the loans' installments, the cards' due dates and the non-bank
+bills not paid yet.
 
 Each item says the account it leaves or enters (where its series was last paid from; the card for its installments
 and its due date), its day, its amount, its kind and what it rests on. The series' days and amounts are expected, not
@@ -16,9 +17,10 @@ from decimal import Decimal
 from statistics import median
 
 from .analysis import NO_STATEMENT, PROVISIONAL, Dataset
-from .domain.codes import CARD_TYPES, AccountType, PaymentKind, TransactionKind
+from .domain.codes import CARD_TYPES, AccountType, InvoiceKind, InvoiceStatus, PaymentKind, TransactionKind
 from .domain.labels import SERIES_PERIOD, format_amount
 from .domain.models import TRY, Statement, Transaction
+from .domain.text import fold
 from .insights import Insights, PeriodicSeries, Series, Timeline, month_name, month_of, settle, shift
 
 HORIZON = 60  # days the calendar and the cash-flow forecast look ahead, today the first of them (F09)
@@ -347,6 +349,27 @@ def card_due_items(ds: Dataset, dues: Iterable[CardDue], start: date, end: date)
     return found
 
 
+def bill_items(ds: Dataset, start: date, end: date) -> list[Due]:
+    """The non-bank bills not paid yet that fall due from start to end (F14), from the account that paid the seller's
+    bill last; on no account when none did."""
+    paid_from = {
+        fold(found.invoice.seller): found.row.account
+        for found in sorted(ds.invoices, key=lambda f: f.invoice.issued)
+        if found.status == InvoiceStatus.MATCHED and found.row is not None
+    }
+    found: list[Due] = []
+    for waiting in ds.invoices:
+        invoice = waiting.invoice
+        if waiting.status != InvoiceStatus.PENDING or invoice.kind != InvoiceKind.BILL or invoice.due is None:
+            continue
+        if start <= invoice.due <= end and invoice.total > 0:
+            number = f"{invoice.number} numaralı " if invoice.number else ""
+            basis = f"{number}fatura, {_day(invoice.issued)} tarihli; son ödeme {_day(invoice.due)}"
+            account = paid_from.get(fold(invoice.seller), "")
+            found.append(Due(invoice.due, PaymentKind.BILL, invoice.seller, account, invoice.total, basis))
+    return found
+
+
 def upcoming(ds: Dataset, ins: Insights, today: date, dues: Iterable[CardDue] = (), days: int = HORIZON) -> list[Due]:
     """Every item expected from today on, for days days, by day."""
     end = horizon_end(today, days)
@@ -357,5 +380,6 @@ def upcoming(ds: Dataset, ins: Insights, today: date, dues: Iterable[CardDue] = 
         *installment_items(ds, today, end),
         *loan_items(ds, ins.timeline, ins.series, today, end),
         *card_due_items(ds, dues, today, end),
+        *bill_items(ds, today, end),
     ]
     return sorted(items, key=lambda d: (d.day, d.kind, d.title))

@@ -5,13 +5,23 @@ from decimal import Decimal
 
 from iplikci.analysis import NO_STATEMENT, Dataset, ReceiptLine
 from iplikci.app.outlook import card_dues
-from iplikci.domain.codes import AccountType, Necessity, PaymentKind, SeriesPeriod, TransactionKind
-from iplikci.domain.models import Account, Statement, Transaction
+from iplikci.domain.codes import (
+    AccountType,
+    InvoiceKind,
+    InvoiceStatus,
+    Necessity,
+    PaymentKind,
+    SeriesPeriod,
+    TransactionKind,
+)
+from iplikci.domain.models import Account, Invoice, Statement, Transaction
 from iplikci.insights import PeriodicSeries, find_series, interpret, settle, timeline
+from iplikci.invoices import InvoiceMatch
 from iplikci.upcoming import (
     HORIZON,
     CardDue,
     add_months,
+    bill_items,
     card_due_items,
     expected_amount,
     horizon_end,
@@ -349,3 +359,29 @@ def test_an_ended_series_and_settle_agree_on_what_runs():
     )
     settle(s, {"cash": date(2026, 10, 31)}, {}, date(2026, 10, 31))
     assert s.status == "bitti" and series_items(dataset([]), [s], date(2026, 11, 1), date(2026, 12, 30)) == []
+
+
+def test_a_bill_not_paid_yet_falls_due_from_the_account_that_paid_its_seller_last():
+    seller = "ÖRNEKCELL İLETİŞİM HİZMETLERİ A.Ş."
+    paid = tx(date(2026, 10, 18), "Örnekcell", 412, kind=TransactionKind.PURCHASE)
+    october = Invoice(InvoiceKind.BILL, seller, date(2026, 10, 3), Decimal(412), due=date(2026, 10, 20))
+    november = Invoice(
+        InvoiceKind.BILL, seller, date(2026, 11, 3), Decimal("398.50"), number="B2", due=date(2026, 11, 20)
+    )
+    window = (date(2026, 11, 3), date(2026, 11, 23))
+    ds = dataset(
+        [paid],
+        invoices=[
+            InvoiceMatch("s:0", october, "a.xml", InvoiceStatus.MATCHED, window, paid),
+            InvoiceMatch("s:1", november, "b.xml", InvoiceStatus.PENDING, window),
+        ],
+    )
+    (due,) = bill_items(ds, date(2026, 11, 5), horizon_end(date(2026, 11, 5)))
+    assert (due.day, due.kind, due.title, due.account, due.amount) == (
+        date(2026, 11, 20),
+        PaymentKind.BILL,
+        seller,
+        "cash",
+        Decimal("398.50"),
+    )
+    assert due.basis == "B2 numaralı fatura, 03.11.2026 tarihli; son ödeme 20.11.2026"

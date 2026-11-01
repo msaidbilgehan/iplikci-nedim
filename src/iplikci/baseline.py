@@ -34,6 +34,7 @@ DOCUMENT_STATUS = {
     "hesap": "hesap dökümü",
     "dekont": "dekont",
     "bildirim": "banka bildirimi",
+    "fatura": "fatura ya da makbuz",
     "atlandi": "kullanılmayan",
     "is": "şirket belgesi",
     UNREADABLE: "okunamadı",

@@ -189,3 +189,18 @@ yalnızca banka satırlarıyla eşleştirilir:
 | `matched` (eşleşti) | Aynı tutarda (dövizliyse kur farkı payıyla) bir banka satırı var. Faturada pencere fatura tarihinden son ödeme tarihine (+3 gün) kadardır; makbuzda −1…+3 gündür. Satıcı adı işyeriyle benzeşmelidir. Banka satırı faturayla ve kalemlerle zenginleşir. |
 | `pending` (bekliyor) | Son ödeme tarihi gelmedi; takvimde yaklaşan ödeme olur. |
 | `unmatched` (eşleşmedi) | Pencere geçti, satır yok. Bilgi olarak görünür, toplamlara girmez. Olası nedenler: başkası ödemiş, belgesi olmayan bir hesaptan ya da nakit ödenmiş, ya da hiç ödenmemiş. |
+
+Uygulama (`invoices.py`):
+
+- Tutar TL'de kuruşu kuruşuna aynıdır. Dövizli bir belgede satırın yazdığı döviz tutarı ("19,99 USD") aranır; TL
+  tutarı bankanın kuruyla değişir.
+- Son ödeme tarihini yazmayan faturanın penceresi tarihinden 30 gün sonrasına (artı 3 gün) kadardır.
+- Satıcı adının kim olduğunu söyleyen bir kelimesi (dört harf ve üstü; hukuki biçim, iş kolu ve yer adı değil:
+  "TURKCELL İLETİŞİM HİZMETLERİ A.Ş." → TURKCELL) satırın metninde bitişik ya da ayrı geçmelidir. Tutar ve tarih tek
+  başına yetmez.
+- Bir satır yalnızca bir belgeyi öder; eski belge önce seçer. Birden çok satır uyarsa faturada son ödeme tarihine,
+  makbuzda belgenin tarihine en yakın olan alınır.
+- Belgenin penceresi, hâlâ gelen hesapların belgelerinin ulaştığı son günden sonra bitiyorsa belge bekler: o günleri
+  kapsayacak ekstre henüz gelmemiştir. Belgeleri en yenisinden 62 günden çok önce biten hesap sayılmaz.
+- Aynı satıcı, numara, tarih ve tutarla iki kez gelen belge tek belgedir.
+- Bekleyen bir fatura, son ödeme tarihi takvime düşer; satıcının bir önceki faturasını ödeyen hesaptan çıkar.

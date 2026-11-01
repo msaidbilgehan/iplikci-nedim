@@ -258,7 +258,7 @@ export interface PairingOut {
 }
 
 /** What an item of the calendar is (F09). */
-export type PaymentKind = "regular" | "periodic" | "income" | "installment" | "loan" | "card_due";
+export type PaymentKind = "regular" | "periodic" | "income" | "installment" | "loan" | "card_due" | "bill";
 
 /** A row a series rests on, and the document it is printed in. */
 export interface PaymentOut {

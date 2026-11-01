@@ -1,5 +1,5 @@
 """What the readers read, kept as tables (architecture §8): a document's accounts, statements with their rows
-and securities, and a receipt's rows. Saving replaces a document's previous reading; loading gives back the
+and securities, a receipt's rows, and a non-bank sender's bills and receipts. Saving replaces a document's previous reading; loading gives back the
 reader's result as it was, for the ledger to combine in memory.
 """
 
@@ -9,8 +9,18 @@ from collections.abc import Iterable
 from datetime import date
 from decimal import Decimal
 
-from ..domain.codes import AccountType, TransactionKind
-from ..domain.models import TRY, Account, ParseResult, Security, SourceRef, Statement, Transaction
+from ..domain.codes import AccountType, InvoiceKind, TransactionKind
+from ..domain.models import (
+    TRY,
+    Account,
+    Invoice,
+    InvoiceLine,
+    ParseResult,
+    Security,
+    SourceRef,
+    Statement,
+    Transaction,
+)
 from ..domain.text import fold
 from .db import Database
 from .documents import DocumentRow
@@ -73,6 +83,7 @@ def clear(db: Database, sha256: str) -> None:
         db.execute("DELETE FROM transactions WHERE sha256 = ?", (sha256,))
         db.execute("DELETE FROM statements WHERE sha256 = ?", (sha256,))
         db.execute("DELETE FROM evidence WHERE sha256 = ?", (sha256,))
+        db.execute("DELETE FROM invoices WHERE sha256 = ?", (sha256,))
         db.execute("DELETE FROM document_accounts WHERE sha256 = ?", (sha256,))
 
 
@@ -143,6 +154,30 @@ def save(db: Database, sha256: str, result: ParseResult) -> None:
                 (sha256, i, *_row_values(t, currencies.get(t.account, TRY))),
             ).lastrowid
             _index(db, sha256, "evidence", row_id, t)
+        for i, invoice in enumerate(result.invoices):
+            db.execute(
+                "INSERT INTO invoices (sha256, position, kind, seller, seller_id, number, issued, due, total, "
+                "currency, lines, ref) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    sha256,
+                    i,
+                    invoice.kind,
+                    invoice.seller,
+                    invoice.seller_id,
+                    invoice.number,
+                    invoice.issued.isoformat(),
+                    invoice.due.isoformat() if invoice.due else "",
+                    _to_minor(invoice.total),
+                    invoice.currency,
+                    json.dumps([_line_value(line) for line in invoice.lines], ensure_ascii=False),
+                    _ref_text(invoice.ref),
+                ),
+            )
+
+
+def _line_value(line: InvoiceLine) -> dict[str, str | int | None]:
+    quantity = None if line.quantity is None else str(line.quantity)
+    return {"description": line.description, "amount": _to_minor(line.amount), "quantity": quantity}
 
 
 def _row_values(t: Transaction, currency: str) -> tuple[str | int | None, ...]:
@@ -226,7 +261,31 @@ def load(db: Database, documents: Iterable[DocumentRow]) -> dict[str, ParseResul
             statements[r["statement_id"]].transactions.append(_transaction(r))
     for r in db.rows(f"SELECT * FROM evidence WHERE sha256 IN ({marks}) ORDER BY sha256, position", wanted):
         results[r["sha256"]].transactions.append(_transaction(r))
+    for r in db.rows(f"SELECT * FROM invoices WHERE sha256 IN ({marks}) ORDER BY sha256, position", wanted):
+        results[r["sha256"]].invoices.append(_invoice(r))
     return results
+
+
+def _invoice(r: sqlite3.Row) -> Invoice:
+    return Invoice(
+        kind=InvoiceKind(r["kind"]),
+        seller=r["seller"],
+        issued=date.fromisoformat(r["issued"]),
+        total=_from_minor(r["total"]),
+        currency=r["currency"],
+        number=r["number"],
+        due=date.fromisoformat(r["due"]) if r["due"] else None,
+        seller_id=r["seller_id"],
+        lines=[
+            InvoiceLine(
+                line["description"],
+                _from_minor(line["amount"]),
+                None if line["quantity"] is None else Decimal(line["quantity"]),
+            )
+            for line in json.loads(r["lines"])
+        ],
+        ref=_ref(r["ref"]),
+    )
 
 
 def _transaction(r: sqlite3.Row) -> Transaction:

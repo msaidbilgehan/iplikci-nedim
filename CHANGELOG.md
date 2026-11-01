@@ -46,6 +46,10 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
   en yeni bakiyeden başlar, eksiye düştüğü günü ve tutarı gösterir.
 - API `GET /api/subscriptions`, `/api/calendar`, `/api/forecast`; MCP araçları `subscriptions`, `upcoming_payments`,
   `cash_flow_forecast`; arayüzde Abonelikler (`/abonelikler`) ve Takvim (`/takvim`) ekranları.
+- Banka dışı faturalar ve makbuzlar (F14) saklanır (göç 0014) ve banka satırlarıyla eşleştirilir: aynı tutar,
+  faturada son ödeme tarihine, makbuzda −1…+3 güne uzanan pencere ve satıcı adına benzeyen işyeri. Eşleşen satır
+  belgeyi taşır; günleri geçmeyen ya da belgelerin henüz ulaşmadığı belge bekler, bekleyen fatura takvime düşer;
+  eşleşmeyen belge olası nedenleriyle yalnızca bilgi olarak görünür. Hiçbiri toplamları değiştirmez.
 - Kart ekstrelerinde son ödeme tarihi, asgari ödeme ve kartın toplam limiti okunur (göç 0013):
   - İş Bankası Maximum üçünü de okur;
   - Garanti BBVA Bonus son ödeme tarihini ve kart limitini okur;

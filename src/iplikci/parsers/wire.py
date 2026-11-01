@@ -10,8 +10,8 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
-from ..domain.codes import AccountType, TransactionKind
-from ..domain.models import Account, ParseResult, Security, SourceRef, Statement, Transaction
+from ..domain.codes import AccountType, InvoiceKind, TransactionKind
+from ..domain.models import Account, Invoice, InvoiceLine, ParseResult, Security, SourceRef, Statement, Transaction
 
 type Json = dict[str, Any]
 
@@ -36,6 +36,7 @@ def dump(result: ParseResult) -> Json:
         "receipt_key": result.receipt_key,
         "holder": result.holder,
         "title": result.title,
+        "invoices": [_invoice(i) for i in result.invoices],
     }
 
 
@@ -61,6 +62,7 @@ def load(data: Any) -> ParseResult:
             receipt_key=_str(data["receipt_key"]),
             holder=_str(data["holder"]),
             title=_str(data["title"]),
+            invoices=[_invoice_from(i) for i in data["invoices"]],
         )
     except (AttributeError, KeyError, IndexError, TypeError, ArithmeticError) as exc:  # decimal.InvalidOperation
         raise ValueError(f"not a reader's result: {exc!r}") from exc
@@ -235,4 +237,40 @@ def _statement_from(data: Any) -> Statement:
             Security(_str(x["code"]), _str(x["name"]), _decimal(x["quantity"]), _decimal(x["value"]), _date(x["as_of"]))
             for x in data["securities"]
         ],
+    )
+
+
+def _invoice(i: Invoice) -> Json:
+    return {
+        "kind": i.kind.value,
+        "seller": i.seller,
+        "issued": i.issued.isoformat(),
+        "total": str(i.total),
+        "currency": i.currency,
+        "number": i.number,
+        "due": i.due.isoformat() if i.due else None,
+        "seller_id": i.seller_id,
+        "lines": [
+            {"description": line.description, "amount": str(line.amount), "quantity": _money(line.quantity)}
+            for line in i.lines
+        ],
+        "ref": _ref(i.ref),
+    }
+
+
+def _invoice_from(data: Any) -> Invoice:
+    return Invoice(
+        kind=InvoiceKind(_str(data["kind"])),
+        seller=_str(data["seller"]),
+        issued=_date(data["issued"]),
+        total=_decimal(data["total"]),
+        currency=_str(data["currency"]),
+        number=_str(data["number"]),
+        due=_optional(_date, data["due"]),
+        seller_id=_str(data["seller_id"]),
+        lines=[
+            InvoiceLine(_str(x["description"]), _decimal(x["amount"]), _optional(_decimal, x["quantity"]))
+            for x in data["lines"]
+        ],
+        ref=_ref_from(data["ref"]),
     )

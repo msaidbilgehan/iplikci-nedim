@@ -92,6 +92,22 @@ class DocumentKind(StrEnum):
     ACCOUNT_STATEMENT = "account_statement"  # account movement lists, passbooks, brokerage statements
     RECEIPT = "receipt"
     NOTICE = "notice"  # a bank's e-mail about a movement (a transfer that came in or went out): evidence like a receipt
+    INVOICE = "invoice"  # a non-bank sender's bill or receipt (F14): matched to the bank's rows, never counted
+
+
+class InvoiceKind(StrEnum):
+    """What a non-bank document asks for (F14): it sets the days its bank row is looked for in."""
+
+    BILL = "bill"  # a bill to pay by its due date: telephone, internet, energy
+    RECEIPT = "receipt"  # a payment made at once: an app store, a subscription, a shop's order or e-archive invoice
+
+
+class InvoiceStatus(StrEnum):
+    """What the bank's rows say of a non-bank document (docs/domain/ledger.md, "Banka dışı faturalar")."""
+
+    MATCHED = "matched"  # a bank row of its amount, in its days, from a merchant like its seller
+    PENDING = "pending"  # its days have not passed, or the bank's documents do not reach them yet
+    UNMATCHED = "unmatched"  # its days passed, the documents cover them, and no row is there
 
 
 class SourceKind(StrEnum):
@@ -164,3 +180,4 @@ class PaymentKind(StrEnum):
     INSTALLMENT = "installment"  # a card purchase's installment still to come, on a later statement
     LOAN = "loan"  # a loan's next installment, from its receipts
     CARD_DUE = "card_due"  # a card statement's due date
+    BILL = "bill"  # a non-bank bill not paid yet, on its due date (F14)

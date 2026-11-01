@@ -20,6 +20,8 @@ RULES = {
     # The days ahead are interpretation: the ledger and the insights only, no storage, files or network.
     "iplikci.upcoming": ("iplikci.domain", "iplikci.analysis", "iplikci.insights"),
     "iplikci.forecast": ("iplikci.domain", "iplikci.analysis", "iplikci.insights", "iplikci.upcoming"),
+    # Matching non-bank bills to the bank's rows is the ledger's own: the models only.
+    "iplikci.invoices": ("iplikci.domain",),
 }
 
 
