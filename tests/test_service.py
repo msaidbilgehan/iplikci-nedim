@@ -70,6 +70,8 @@ def test_the_status_says_how_much_of_the_bank_mail_was_read_or_classified():
     assert line == (
         "E-posta kapsamı: 200 banka iletisinin %91'i işlendi ya da bilerek sınıflandı; 18 tanesi henüz tanınmıyor"
     )
+    # 89.9% stays below the target of 90%, as the System screen shows it.
+    assert "%89'u" in service_cli._coverage_line({"total": 1000, "unknown": 101})
 
 
 def test_the_command_line_says_when_the_service_is_not_running(tmp_path, monkeypatch, capsys):

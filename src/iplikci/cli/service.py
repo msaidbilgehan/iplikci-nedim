@@ -224,8 +224,10 @@ def _coverage_line(covered: dict[str, Any]) -> str:
     if not total:
         return "E-posta kapsamı: henüz banka iletisi yok"
     unknown = int(covered.get("unknown", 0))
+    # Rounded down, as the System screen shows it: a measure with a target (F01: 90%) is never rounded up to it.
+    share = Decimal((total - unknown) * 100 // total) / 100
     return (
-        f"E-posta kapsamı: {total} banka iletisinin {pct(Decimal(total - unknown) / total)} işlendi ya da bilerek "
+        f"E-posta kapsamı: {total} banka iletisinin {pct(share)} işlendi ya da bilerek "
         f"sınıflandı; {unknown} tanesi henüz tanınmıyor"
     )
 
