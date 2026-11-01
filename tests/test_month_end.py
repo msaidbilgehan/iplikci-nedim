@@ -8,8 +8,8 @@ from iplikci import cli, month_end
 from iplikci.analysis import build
 from iplikci.categorize import Categorizer
 from iplikci.demo import teb_export
+from iplikci.domain.models import Account, ParseResult, Security, Statement, Transaction
 from iplikci.insights import interpret
-from iplikci.models import Account, ParseResult, Security, Statement, Transaction
 from iplikci.sources import Document
 
 from conftest import JANUARY, RULES, add

@@ -5,6 +5,7 @@ from datetime import date, timedelta
 import pytest
 
 from iplikci.analysis import Dataset
+from iplikci.domain.models import Account, Security, Statement, Transaction
 from iplikci.insights import (
     complete_months,
     debt_at,
@@ -19,7 +20,6 @@ from iplikci.insights import (
     since,
     timeline,
 )
-from iplikci.models import Account, Security, Statement, Transaction
 
 CARD = Account("card", "Test Kart •1234", "TEB", "Kredi kartı", number="1234")
 OTHER_CARD = Account("old", "Eski Kart •9999", "QNB", "Kredi kartı", number="9999")

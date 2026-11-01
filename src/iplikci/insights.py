@@ -24,7 +24,7 @@ from statistics import median
 
 from .analysis import CARD_TYPES, NOT_ON_STATEMENT, PROVISIONAL, Dataset, ReceiptLine
 from .categorize import FX_CATEGORY
-from .models import DEFAULT_EXPENSE_KINDS, INVESTMENT_TYPE, Transaction
+from .domain.models import DEFAULT_EXPENSE_KINDS, INVESTMENT_TYPE, Transaction
 from .textutil import fold, format_tr_amount
 
 # Statements that say whether a month's income is known: bank accounts, not cards or a brokerage account.

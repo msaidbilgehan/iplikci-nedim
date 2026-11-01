@@ -6,7 +6,7 @@ from pathlib import Path
 
 import yaml
 
-from .models import NECESSITY, Account, Transaction
+from .domain.models import NECESSITY, Account, Transaction
 from .textutil import fold, nfc, title_tr
 
 # The generic rules shipped with the app. The user's own rules go above them in a file of their own.

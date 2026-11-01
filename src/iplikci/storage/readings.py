@@ -8,8 +8,8 @@ import sqlite3
 from collections.abc import Iterable
 from datetime import date
 
+from ..domain.models import Account, ParseResult, Security, Statement, Transaction
 from ..domain.text import fold
-from ..models import Account, ParseResult, Security, Statement, Transaction
 from .db import Database
 from .documents import DocumentRow
 

@@ -7,7 +7,7 @@ The first page names the account ("Hesap No: 1234-0765432", "Hesap Türü: Vadel
 
 import re
 
-from ..models import ParseResult
+from ..domain.models import ParseResult
 from ..pdfutil import Line, find_header, find_word, label_values, page_lines, take_amount
 from ..textutil import fold, parse_dmy, squash
 from .common import BUSINESS_REASON, Skipped, is_business

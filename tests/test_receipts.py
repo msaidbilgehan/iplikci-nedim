@@ -7,8 +7,8 @@ import pytest
 
 from iplikci.analysis import CONFIRMED, NO_STATEMENT, NOT_ON_STATEMENT, PROVISIONAL, build
 from iplikci.categorize import Categorizer
+from iplikci.domain.models import Account, ParseResult, Statement, Transaction
 from iplikci.insights import interpret
-from iplikci.models import Account, ParseResult, Statement, Transaction
 from iplikci.parsers.hesap import CANDIDATE
 from iplikci.sources import Document
 

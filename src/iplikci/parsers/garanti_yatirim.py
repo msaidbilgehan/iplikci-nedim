@@ -15,7 +15,7 @@ import calendar
 import re
 from datetime import date
 
-from ..models import INVESTMENT_TYPE, Account, ParseResult, Security, Statement, Transaction
+from ..domain.models import INVESTMENT_TYPE, Account, ParseResult, Security, Statement, Transaction
 from ..pdfutil import Line, page_lines
 from ..textutil import fold, parse_dmy, parse_us_amount, squash
 from .common import BUSINESS_REASON, Skipped, is_business

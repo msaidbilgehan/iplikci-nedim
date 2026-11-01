@@ -8,7 +8,7 @@ labels that matter for classification are repaired by pattern.
 
 import re
 
-from ..models import Account, ParseResult, Statement, Transaction
+from ..domain.models import Account, ParseResult, Statement, Transaction
 from ..pdfutil import page_text
 from ..textutil import fold, parse_dmy, parse_us_amount
 from .common import classify_kind

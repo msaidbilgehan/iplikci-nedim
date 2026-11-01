@@ -11,7 +11,7 @@ import re
 
 from bs4 import BeautifulSoup
 
-from ..models import Account, ParseResult, Transaction
+from ..domain.models import Account, ParseResult, Transaction
 from ..textutil import fold, parse_dmy, parse_us_amount, title_tr
 from .common import Skipped
 from .hesap import CANDIDATE

@@ -8,7 +8,7 @@ from datetime import date
 import pytest
 
 from iplikci.domain.codes import Actor, DocumentKind, DocumentStatus, SourceKind
-from iplikci.models import Account, ParseResult, Security, Statement, Transaction
+from iplikci.domain.models import Account, ParseResult, Security, Statement, Transaction
 from iplikci.storage import audit, db, documents, readings
 
 SHA = "a" * 64

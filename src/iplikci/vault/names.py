@@ -9,7 +9,7 @@ can be laid out for browsing.
 import re
 from pathlib import PurePosixPath
 
-from ..models import Account, ParseResult
+from ..domain.models import Account, ParseResult
 
 _BANK_SHORT = {"Garanti BBVA": "Garanti"}
 _NOT_IN_NAMES = re.compile(r'[/\\:*?"<>|\x00-\x1f]')  # path separators and what Windows refuses in a name

@@ -15,8 +15,8 @@ from pathlib import Path
 from typing import Any
 
 from .analysis import RECEIPT_STATUS, Dataset
+from .domain.models import DEFAULT_EXPENSE_KINDS, Statement
 from .insights import month_name, month_of, shift
-from .models import DEFAULT_EXPENSE_KINDS, Statement
 from .month_end import CLOSED, MONTH_STATUS, MonthEnd
 from .textutil import format_tr_amount
 

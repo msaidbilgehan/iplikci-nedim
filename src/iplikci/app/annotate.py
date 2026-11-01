@@ -15,8 +15,8 @@ from ..analysis import Dataset
 from ..categorize import OTHER_GROUP, Categorizer
 from ..domain.codes import Necessity
 from ..domain.labels import NECESSITY
+from ..domain.models import Transaction
 from ..domain.text import fold
-from ..models import Transaction
 from ..storage.annotations import Annotation, Subject
 
 

@@ -13,7 +13,7 @@ from iplikci.app.analysis import analyze, document_gaps
 from iplikci.app.uploads import inbox_files, safe_upload_path, save_upload
 from iplikci.app.workspace import Busy, file_lock
 from iplikci.domain.codes import DocumentStatus
-from iplikci.models import Account, Statement
+from iplikci.domain.models import Account, Statement
 from iplikci.parsers import ENCRYPTED_REASON, Unreadable
 from iplikci.sources import ZIP_DAMAGED, ZIP_ENCRYPTED
 

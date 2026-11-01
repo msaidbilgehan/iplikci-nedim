@@ -2,7 +2,7 @@
 
 from pdfminer.pdfdocument import PDFEncryptionError
 
-from ..models import ParseResult
+from ..domain.models import ParseResult
 from ..pdfutil import ocr_available, ocr_page_lines, open_pdf, page_text
 from ..sources import Document, UnreadableArchive, from_zip
 from ..tables import sniff

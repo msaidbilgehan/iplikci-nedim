@@ -8,7 +8,7 @@ from datetime import date
 
 import pytest
 
-from iplikci.models import Account, ParseResult, Statement, Transaction
+from iplikci.domain.models import Account, ParseResult, Statement, Transaction
 from iplikci.settings.paths import Layout
 from iplikci.vault import trash
 from iplikci.vault.names import account_names, display_name, display_path

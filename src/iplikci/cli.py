@@ -33,9 +33,9 @@ from .app.workspace import Busy, StalePlan, Workspace
 from .categorize import Categorizer
 from .domain.codes import Actor
 from .domain.labels import NECESSITY
+from .domain.models import DEFAULT_EXPENSE_KINDS
 from .domain.text import fold
 from .insights import Insights, receipt_amount, tl
-from .models import DEFAULT_EXPENSE_KINDS
 from .settings.config import DEFAULT_PORT, SettingsError
 from .settings.paths import HOME_ENV
 from .storage import annotations

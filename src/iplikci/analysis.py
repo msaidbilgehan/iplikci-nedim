@@ -24,7 +24,7 @@ from typing import Any
 
 from .categorize import Categorizer, clean_description
 from .domain.fingerprint import Fingerprints
-from .models import Account, ParseResult, Statement, Transaction
+from .domain.models import Account, ParseResult, Statement, Transaction
 from .parsers.hesap import CANDIDATE
 from .textutil import fold, format_tr_amount
 

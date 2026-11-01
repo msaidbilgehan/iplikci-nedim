@@ -2,7 +2,7 @@
 
 import re
 
-from ..models import Account, ParseResult
+from ..domain.models import Account, ParseResult
 from ..tables import cells, decode_html, html_rows, key_values, read_xls, read_xlsx, sniff, to_date, to_number
 from ..textutil import fold, parse_dmy, title_tr
 from .common import BUSINESS_REASON, Skipped, is_business

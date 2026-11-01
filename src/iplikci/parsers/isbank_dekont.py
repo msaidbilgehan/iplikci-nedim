@@ -6,7 +6,7 @@ receiver on the right. The holder's name opens the first line.
 
 import re
 
-from ..models import ParseResult, Transaction
+from ..domain.models import ParseResult, Transaction
 from ..pdfutil import Line, Word, page_lines
 from ..textutil import fold, parse_dmy, parse_tr_amount, squash
 from .common import BUSINESS_REASON, Skipped, is_business

@@ -14,8 +14,8 @@ from .. import month_end
 from ..analysis import CONFIRMED, NOT_ON_STATEMENT, PROVISIONAL, Dataset, build
 from ..categorize import Categorizer
 from ..domain.codes import DocumentStatus
+from ..domain.models import ParseResult
 from ..insights import FULL, Insights, interpret, month_of, shift
-from ..models import ParseResult
 from ..parsers.common import BUSINESS_REASON
 from ..report import build_payload, write_csv, write_html, write_xlsx
 from ..storage import annotations, audit, documents, readings

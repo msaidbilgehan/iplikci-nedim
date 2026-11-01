@@ -1,7 +1,7 @@
 from datetime import date
 
 from iplikci.analysis import _coverage, _link_foreign_currency, covered_days
-from iplikci.models import Statement, Transaction
+from iplikci.domain.models import Statement, Transaction
 
 
 def txn(d, desc, amount, kind="harcama", account="isbank-4321"):

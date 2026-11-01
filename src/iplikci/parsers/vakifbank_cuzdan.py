@@ -7,7 +7,7 @@ oldest first ("NO", "İŞLEM TARİHİ", "İŞLEM TUTARI", "BAKİYE", "AÇIKLAMA"
 
 import re
 
-from ..models import ParseResult
+from ..domain.models import ParseResult
 from ..pdfutil import label_values, page_lines, page_text
 from ..textutil import fold, parse_dmy, parse_tr_amount, squash
 from .common import BUSINESS_REASON, Skipped, is_business

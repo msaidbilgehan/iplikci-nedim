@@ -4,7 +4,7 @@ import hashlib
 import re
 from collections.abc import Iterable
 
-from ..models import Transaction
+from ..domain.models import Transaction
 from ..textutil import fold, parse_us_amount, squash
 
 

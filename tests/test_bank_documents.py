@@ -11,7 +11,7 @@ from iplikci.analysis import resolve_masked
 from iplikci.app import intake
 from iplikci.app.analysis import analyze
 from iplikci.demo import HOLDER, brokerage_page, garanti_fast_body, garanti_receipt, holdings_page, right, text_pdf
-from iplikci.models import Account, ParseResult, Statement
+from iplikci.domain.models import Account, ParseResult, Statement
 from iplikci.parsers.common import not_a_statement, set_business_names
 from iplikci.parsers.hesap import CANDIDATE
 from iplikci.sources import Document

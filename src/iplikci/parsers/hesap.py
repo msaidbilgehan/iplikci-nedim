@@ -11,7 +11,7 @@ import re
 from dataclasses import dataclass
 from datetime import date
 
-from ..models import Account, Statement, Transaction
+from ..domain.models import Account, Statement, Transaction
 from ..textutil import fold, format_tr_amount
 
 CANDIDATE = "aday"

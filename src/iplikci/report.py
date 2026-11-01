@@ -16,8 +16,8 @@ from openpyxl.utils import get_column_letter
 from . import month_end
 from .analysis import CONFIRMED, NOT_ON_STATEMENT, PROVISIONAL, Dataset
 from .categorize import NECESSITY_SLOTS, group_slot
+from .domain.models import DEFAULT_EXPENSE_KINDS, KINDS, NECESSITY
 from .insights import HABIT_STATUS, STATUS, Insights, interpret, month_of
-from .models import DEFAULT_EXPENSE_KINDS, KINDS, NECESSITY
 from .textutil import fold
 
 CLOSING_MONTHS = 7  # months the report's closing card lists: the current one and six before it

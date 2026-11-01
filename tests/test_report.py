@@ -4,8 +4,8 @@ from openpyxl import load_workbook
 
 from iplikci import month_end
 from iplikci.analysis import Dataset
+from iplikci.domain.models import Account, Statement, Transaction
 from iplikci.insights import interpret
-from iplikci.models import Account, Statement, Transaction
 from iplikci.report import NECESSITY_SLOTS, build_payload, write_html, write_xlsx
 
 

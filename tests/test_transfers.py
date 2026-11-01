@@ -6,7 +6,7 @@ import pytest
 
 from iplikci.analysis import Own, _rates, _resolve_transfers, _to_tl, build
 from iplikci.categorize import Categorizer
-from iplikci.models import Account, ParseResult, Statement, Transaction
+from iplikci.domain.models import Account, ParseResult, Statement, Transaction
 from iplikci.parsers.hesap import CANDIDATE
 from iplikci.sources import Document
 

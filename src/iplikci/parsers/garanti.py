@@ -2,7 +2,7 @@
 
 import re
 
-from ..models import Account, ParseResult, Statement, Transaction
+from ..domain.models import Account, ParseResult, Statement, Transaction
 from ..pdfutil import find_header, find_word, page_lines, page_text, take_amount
 from ..textutil import fold, parse_tr_amount, parse_tr_words_date, squash
 from .common import classify_kind, installment_label, pair_deferrals

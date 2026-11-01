@@ -8,7 +8,7 @@ and the customer's name; analysis.resolve_masked points them at the account the 
 
 import re
 
-from ..models import Account, ParseResult, Transaction
+from ..domain.models import Account, ParseResult, Transaction
 from ..pdfutil import Line, page_lines
 from ..textutil import fold, format_tr_amount, parse_dmy, parse_tr_amount, squash, title_tr
 from .common import BUSINESS_REASON, Skipped, is_business

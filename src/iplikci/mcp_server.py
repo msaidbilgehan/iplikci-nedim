@@ -31,8 +31,8 @@ from .app.uploads import inbox_files
 from .app.workspace import Busy, StalePlan, Workspace
 from .categorize import Categorizer
 from .domain.codes import Actor
+from .domain.models import KINDS, NECESSITY
 from .insights import HABIT_STATUS, STATUS, receipt_amount
-from .models import KINDS, NECESSITY
 from .textutil import fold
 
 PROTOCOL_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")

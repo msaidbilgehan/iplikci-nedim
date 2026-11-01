@@ -11,7 +11,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from ..domain.codes import Actor, DocumentKind, DocumentStatus
-from ..models import ParseResult
+from ..domain.models import ParseResult
 from ..parsers import PARSER_VERSION, Skipped, Unreadable, parse_document
 from ..parsers.common import business_names_signature
 from ..sources import Document

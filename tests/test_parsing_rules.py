@@ -5,7 +5,7 @@ from pdfminer.pdfdocument import PDFPasswordIncorrect
 from pdfplumber.utils.exceptions import PdfminerException
 
 from iplikci import parsers
-from iplikci.models import Transaction
+from iplikci.domain.models import Transaction
 from iplikci.parsers.common import (
     business_names_signature,
     classify_kind,

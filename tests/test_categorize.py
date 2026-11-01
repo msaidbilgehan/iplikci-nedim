@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 
 from iplikci.categorize import DEFAULT_RULES, OTHER_INCOME, TO_PEOPLE, Categorizer, clean_description, display_name
-from iplikci.models import Account, Transaction
+from iplikci.domain.models import Account, Transaction
 
 from conftest import PEOPLE_RULES
 

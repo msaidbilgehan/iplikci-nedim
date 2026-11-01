@@ -15,7 +15,7 @@ from iplikci.cli import main
 from iplikci.demo import teb_export
 from iplikci.domain.codes import Actor, Necessity
 from iplikci.domain.fingerprint import Fingerprints, fingerprint
-from iplikci.models import Transaction
+from iplikci.domain.models import Transaction
 from iplikci.settings.paths import HOME_ENV
 from iplikci.storage import annotations, audit
 

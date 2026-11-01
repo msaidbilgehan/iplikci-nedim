@@ -33,6 +33,7 @@ from .analysis import (
     statement_periods,
 )
 from .categorize import NECESSITY_SLOTS, group_slot
+from .domain.models import DEFAULT_EXPENSE_KINDS, INVESTMENT_TYPE, KINDS, NECESSITY, Account, Statement, Transaction
 from .insights import (
     MONTHS_TR,
     NOT_BANK_ACCOUNTS,
@@ -49,7 +50,6 @@ from .insights import (
     span,
     tl,
 )
-from .models import DEFAULT_EXPENSE_KINDS, INVESTMENT_TYPE, KINDS, NECESSITY, Account, Statement, Transaction
 from .textutil import format_tr_amount
 
 FOLDER = "ay-sonu"
