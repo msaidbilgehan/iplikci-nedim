@@ -10,6 +10,7 @@ import pytest
 from iplikci import duzenle
 from iplikci.duzenle import BUSINESS, DUPLICATE, FAILED, KEEP, UNUSED, Item, account_names
 from iplikci.models import Account, ParseResult, Statement, Transaction
+from iplikci.vault import trash as vault_trash
 
 
 def item(
@@ -131,7 +132,7 @@ def test_changes_leave_out_documents_already_in_place(tmp_path):
 
 
 def test_trash_falls_back_next_to_the_documents(tmp_path, monkeypatch):
-    monkeypatch.setattr(duzenle, "MAC_TRASH", tmp_path / "erisilemeyen")  # e.g. no Full Disk Access
+    monkeypatch.setattr(vault_trash, "MAC_TRASH", tmp_path / "erisilemeyen")  # e.g. no Full Disk Access
     trash = duzenle.default_trash(tmp_path / "Bankalar")
     assert trash.parent == tmp_path and trash.name.startswith("iplikci silinenler ")
 

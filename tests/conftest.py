@@ -13,9 +13,10 @@ from pathlib import Path
 
 import pytest
 
-from iplikci import duzenle, email_fetch
+from iplikci import email_fetch
 from iplikci.demo import teb_export
 from iplikci.parsers.common import set_business_names
+from iplikci.vault import trash as vault_trash
 from iplikci.workspace import Workspace
 
 RULES = """\
@@ -74,7 +75,7 @@ FEBRUARY = teb_export([("10/02/2026", "MARKET ALISVERIS", "-80,00", "800,00")], 
 @pytest.fixture(autouse=True)
 def private_trash(tmp_path_factory, monkeypatch):
     trash = tmp_path_factory.mktemp("cop-kutusu")
-    monkeypatch.setattr(duzenle, "MAC_TRASH", trash)
+    monkeypatch.setattr(vault_trash, "MAC_TRASH", trash)
     return trash
 
 

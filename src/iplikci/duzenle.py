@@ -13,20 +13,18 @@ moved to a recoverable trash folder. Nothing is touched unless apply=True.
 import csv
 import hashlib
 import os
-import re
 import shutil
-import sys
-import tempfile
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
-from urllib.parse import quote
 
 from .analysis import resolve_masked
-from .models import Account, ParseResult
+from .models import ParseResult
 from .pipeline import parse_all
 from .sources import DOCUMENT_EXTENSIONS, Document, UnreadableArchive, _from_mbox, _from_zip, _is_mbox
 from .textutil import nfc
+from .vault import trash
+from .vault.names import account_names, display_path
+from .vault.trash import freedesktop_trash, move_to_system_trash
 
 KEEP, DUPLICATE, BUSINESS, UNUSED, FAILED = "tut", "kopya", "is", "kullanilmayan", "hata"
 ACTION_LABELS = {
@@ -37,12 +35,6 @@ ACTION_LABELS = {
     FAILED: "Okunamadı — elle bakın",
 }
 UNREADABLE_FOLDER = "Okunamayan belgeler"
-_BANK_SHORT = {"Garanti BBVA": "Garanti"}
-_NOT_IN_NAMES = re.compile(r'[/\\:*?"<>|\x00-\x1f]')  # path separators and what Windows refuses in a name
-
-
-def _name_part(text: str) -> str:
-    return _NOT_IN_NAMES.sub("-", text)
 
 
 @dataclass
@@ -62,48 +54,13 @@ class Item:
     result: ParseResult | None = None  # what the parser read, to show it before anything moves
 
 
-def account_names(a: Account) -> tuple[str, str]:
-    """(folder name, short name used inside file names) for an account or card."""
-    number = (a.label.split()[-1] if a.label.split()[-1].startswith("…") else a.number).lstrip("…")
-    nickname = a.label[a.label.index("(") :] if a.label.endswith(")") and "(" in a.label else ""
-    product = a.label.replace(a.bank, "", 1).split("•")[0].strip()
-    folders = {
-        "Kredi kartı": (f"{product} Kredi Kartı {number}", f"{product} {number}"),
-        "Banka kartı": (f"{product} Banka Kartı {number}", f"{product} {number}"),
-        "Vadesiz hesap": (f"Vadesiz Hesap {a.currency} {number}", f"Vadesiz {a.currency} {number}"),
-        "Vadeli hesap": (f"Vadeli Hesap {a.currency} {number}", f"Vadeli {a.currency} {number}"),
-        "Yatırım hesabı": (f"Yatırım Hesabı {number}", f"Yatırım {number}"),
-        "Döviz hesabı": (f"Döviz Hesabı {a.currency} {number}", f"Döviz {a.currency} {number}"),
-        "Ek hesap (KMH)": (f"Ek Hesap (KMH) {number}", f"Ek Hesap {number}"),
-        "Altın hesabı": (f"Altın Hesabı {number}", f"Altın {number}"),
-        "Kredi": (f"İhtiyaç Kredisi {number}", f"Kredi {number}"),
-    }
-    folder, short = folders.get(a.type, (a.label, a.label))
-    if nickname:
-        folder, short = f"{folder} {nickname}", f"{short} {nickname}"
-    return _name_part(folder), _name_part(short)
-
-
 def _target(root: Path, result: ParseResult, ext: str) -> tuple[Path, list, int]:
     """Where a parsed document belongs, the identities it covers and how much data it holds."""
+    path = root / display_path(result, ext)
     if result.statements:
         s = result.statements[0]
-        a = next(acc for acc in result.accounts if acc.id == s.account)
-        folder, short = account_names(a)
-        bank = _BANK_SHORT.get(a.bank, a.bank)
-        who = short if short.startswith(bank) else f"{bank} {short}"  # not "Garanti Garanti Bonus"
-        if s.is_account:
-            name = f"{s.start:%Y-%m-%d} - {s.cut_date:%Y-%m-%d} {who} Hesap Hareketleri{ext}"
-        else:
-            name = f"{s.cut_date:%Y-%m-%d} {who} Ekstre{ext}"
-        keys = [("ekstre", s.account, s.cut_date, s.currency, s.start)]
-        return root / a.bank / folder / name, keys, len(s.transactions)
-    t = result.transactions[0]
-    a = next(acc for acc in result.accounts if acc.id == t.account)
-    folder, _ = account_names(a)
-    bank = _BANK_SHORT.get(a.bank, a.bank)
-    name = f"{t.date:%Y-%m-%d} {bank} {_name_part(result.title or 'İşlem')} Dekont{ext}"
-    return root / a.bank / folder / name, [("dekont", result.receipt_key)], len(result.transactions)
+        return path, [("ekstre", s.account, s.cut_date, s.currency, s.start)], len(s.transactions)
+    return path, [("dekont", result.receipt_key)], len(result.transactions)
 
 
 def _walk(paths: list[Path]) -> tuple[list[Item], list[Path], list[Path]]:
@@ -317,74 +274,8 @@ def _remove_empty_dirs(dirs: set[Path], keep: set[Path]) -> None:
             d = d.parent
 
 
-MAC_TRASH = Path.home() / ".Trash"
-
-
-def _can_create_in(folder: Path) -> bool:
-    """macOS may refuse a background job (no Full Disk Access) inside the Trash; only creating
-    something there tells."""
-    if not folder.is_dir():
-        return False
-    try:
-        probe = Path(tempfile.mkdtemp(prefix=".iplikci-", dir=folder))
-    except OSError:
-        return False
-    probe.rmdir()
-    return True
-
-
 def default_trash(root: Path) -> Path:
-    stamp = datetime.now().strftime("%Y-%m-%d %H.%M.%S")
-    base = MAC_TRASH if _can_create_in(MAC_TRASH) else root.parent
-    return base / f"iplikci silinenler {stamp}"
+    return trash.default_folder(root.parent)
 
 
-def move_to_system_trash(folder: Path) -> Path:
-    """Where the set-aside files ended up. A folder collected outside the Trash (see default_trash)
-    is handed to the desktop's own Trash: macOS's "move to Trash" (it needs no Full Disk Access) or
-    the freedesktop.org Trash on Linux. Elsewhere (Windows) it stays where it is, still recoverable."""
-    if not folder.exists() or folder.resolve().is_relative_to(MAC_TRASH.resolve()):
-        return folder
-    if sys.platform.startswith("linux"):
-        return freedesktop_trash(folder)
-    try:
-        from Foundation import NSURL, NSFileManager
-    except ImportError:
-        return folder
-    ok, url, _ = NSFileManager.defaultManager().trashItemAtURL_resultingItemURL_error_(
-        NSURL.fileURLWithPath_(str(folder)), None, None
-    )
-    return Path(str(url.path())) if ok and url is not None else folder
-
-
-def freedesktop_trash(folder: Path) -> Path:
-    """Move folder into the Trash of Linux desktops (freedesktop.org Trash specification): it goes
-    to Trash/files with a Trash/info note of where it came from, so the file manager can put it
-    back. A move, never a deletion; if it cannot be made the folder stays where it is."""
-    trash = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "Trash"
-    try:
-        (trash / "files").mkdir(parents=True, exist_ok=True)
-        (trash / "info").mkdir(parents=True, exist_ok=True)
-        name, n = folder.name, 2
-        while True:
-            try:
-                note = trash / "info" / f"{name}.trashinfo"
-                fd = os.open(note, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-                if not (trash / "files" / name).exists():
-                    break
-                os.close(fd)  # the name is taken by an item without a note: take back ours, try the next
-                note.unlink()
-            except FileExistsError:
-                pass
-            name, n = f"{folder.name} {n}", n + 1
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(
-                f"[Trash Info]\nPath={quote(str(folder.resolve()))}\nDeletionDate={datetime.now():%Y-%m-%dT%H:%M:%S}\n"
-            )
-        try:
-            return Path(shutil.move(folder, trash / "files" / name))
-        except OSError:
-            note.unlink(missing_ok=True)
-            raise
-    except OSError:
-        return folder
+__all__ = ["account_names", "freedesktop_trash", "move_to_system_trash"]  # still imported from here until Phase 1 ends
