@@ -29,6 +29,12 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
   yazdığı bakiyeyi alır.
 - Ayrıntıyı internet şubesine bırakan, tutar içermeyen iletiler (Garanti'nin HGS iletisi) "e-postada para hareketi yok"
   diye sınıflanır.
+- Kart ekstrelerinde son ödeme tarihi, asgari ödeme ve kartın toplam limiti okunur (göç 0013):
+  - İş Bankası Maximum üçünü de okur;
+  - Garanti BBVA Bonus son ödeme tarihini ve kart limitini okur;
+  - TEB Bonus ile QNB yalnızca son ödeme tarihini okur.
+  Ekstrenin yazmadığı, bozuk yazdığı ya da iki yerde farklı yazdığı bilgi boş kalır; ekstre yine okunur.
+  `iplikci dev parser debug` bu bilgileri de gösterir.
 
 ### Düzeltilenler
 
