@@ -9,6 +9,7 @@ import io
 import re
 from bisect import bisect_right
 from dataclasses import dataclass
+from typing import Any
 
 import pdfplumber
 
@@ -51,11 +52,11 @@ class Line:
         return SourceRef(page=self.page, box=(round(x0, 2), round(self.top, 2), round(x1, 2), round(bottom, 2)))
 
 
-def open_pdf(data: bytes):
+def open_pdf(data: bytes) -> Any:  # pdfplumber.PDF; pdfplumber ships no types
     return pdfplumber.open(io.BytesIO(data))
 
 
-def page_text(page) -> str:
+def page_text(page: Any) -> str:  # page: a pdfplumber.Page
     return page.extract_text(x_tolerance=1.5) or ""
 
 
@@ -71,7 +72,7 @@ def _group_lines(words: list[Word], y_tolerance: float, page: int | None = None)
     return lines
 
 
-def page_lines(page, x_tolerance: float = 1.0, y_tolerance: float = 2.0) -> list[Line]:
+def page_lines(page: Any, x_tolerance: float = 1.0, y_tolerance: float = 2.0) -> list[Line]:
     raw = page.extract_words(x_tolerance=x_tolerance, y_tolerance=y_tolerance, keep_blank_chars=False)
     words = [
         Word(w["text"], w["x0"], w["x1"], w["top"], w["bottom"])

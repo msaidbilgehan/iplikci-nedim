@@ -11,6 +11,8 @@ iplikci otomatik [--kur]        e-postayı al, gelen klasörünü arşive al (--
 iplikci mcp                     Claude için MCP sunucusu (istemci başlatır)
 iplikci dogrula --taban         doğrulama tabanını al, öncekiyle karşılaştır (gerilemede çıkış kodu 1)
 iplikci dev demo [KLASÖR]       sahte belgelerle demo veri klasörü kur
+iplikci dev parser probe|debug DOSYA   okuyucular belgeyi tanıyor mu; okuyan okuyucu ne okuyor
+iplikci dev parser test [KİMLİK]       okuyucular sahte belgelerini doğru okuyor mu
 """
 
 import argparse
@@ -36,9 +38,14 @@ from .domain.codes import DEFAULT_EXPENSE_KINDS, Actor
 from .domain.labels import NECESSITY, format_amount
 from .domain.text import fold
 from .insights import Insights, receipt_amount, tl
+from .parsers import tools as parser_tools
+from .parsers.common import set_business_names
+from .settings import config
 from .settings.config import DEFAULT_PORT, SettingsError
-from .settings.paths import HOME_ENV
+from .settings.paths import HOME_ENV, Layout
+from .sources import Document
 from .storage import annotations
+from .vault.store import sha256_of
 
 
 def _workspace(parser: argparse.ArgumentParser, home: Path | None = None) -> Workspace:
@@ -416,7 +423,30 @@ def dev_command(argv: list[str]) -> int:
         "okunur. Klasör yoksa açılır; varsa boş olmalıdır: hiçbir dosyanın üzerine yazılmaz.",
     )
     demo_parser.add_argument("klasor", nargs="?", help=f"veri klasörü (varsayılan: {HOME_ENV})")
+    readers = commands.add_parser(
+        "parser",
+        help="okuyucuları belgeler ve sahte belgeler üzerinde dene",
+        description="Okuyucuları (ADR-0005) bu süreçte çalıştırır; bir okuyucu hata verirse izi görünür. Şirket "
+        "adları veri klasörünün ayarlarından okunur; klasöre bir şey yazılmaz.",
+    )
+    tool = readers.add_subparsers(dest="arac", required=True, metavar="ARAÇ")
+    for name, text in (
+        ("probe", "seçimin belgede ne gördüğünü ve her okuyucunun ne dediğini göster"),
+        ("debug", "belgeyi okuyan okuyucunun okuduğunu satır satır, yerleriyle göster"),
+    ):
+        tool.add_parser(name, help=text, description=text[0].upper() + text[1:] + ".").add_argument(
+            "dosya", help="belge"
+        )
+    tested = tool.add_parser(
+        "test",
+        help="okuyucuların sahte belgelerini oku ve denetle",
+        description="Sahte belgeleri okur ve denetler: doğru okuyucu, hesap, satır sayısı, her satırın yeri, "
+        "doğrulanan ekstre. Bir sorun varsa çıkış kodu 1'dir.",
+    )
+    tested.add_argument("kimlik", nargs="?", help="yalnızca bu okuyucu (ör. garanti.bonus_card)")
     args = parser.parse_args(argv)
+    if args.komut == "parser":
+        return _parser_tool(args, readers)
     given = args.klasor or os.environ.get(HOME_ENV, "").strip()
     if not given:
         demo_parser.error(f"klasör verilmedi ve {HOME_ENV} tanımlı değil")
@@ -429,6 +459,24 @@ def dev_command(argv: list[str]) -> int:
         f"Demo veri klasörü hazır: {target}\nDoğrulama tabanı için: "
         f"{HOME_ENV}={shlex.quote(str(target))} uv run iplikci dogrula --taban --tarih {demo.AS_OF}"
     )
+    return 0
+
+
+def _parser_tool(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    if args.arac == "test":
+        ok, lines = parser_tools.test(args.kimlik)
+        print("\n".join(lines))
+        return 0 if ok else 1
+    path = Path(args.dosya).expanduser()
+    try:
+        data = path.read_bytes()
+    except OSError as exc:
+        parser.error(f"{path}: {exc.strerror or exc}")
+    layout = Layout.default()
+    if layout.settings.exists():  # the app's company names, read without touching the data folder
+        set_business_names(config.load(layout.settings).identity.business_names)
+    doc = Document(path.name, str(path.parent), data, sha256_of(data))
+    print("\n".join(parser_tools.probe(doc) if args.arac == "probe" else parser_tools.debug(doc)))
     return 0
 
 
