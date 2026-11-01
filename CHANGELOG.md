@@ -4,6 +4,39 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [Yayımlanmamış] — Aşama 5: Bildirimler
+
+### Eklenenler
+
+- Bildirim kuralları (`rules/alerts.yaml`, Türkçe anahtarlar): her kural bir olayı izler. Koşulları `gun` (en çok kaç
+  gün kala), `tutar` (en az kaç TL) ve `metin` (başlıkta geçen yazı) olabilir. Kanalları, ayrıntı düzeyi, sessiz
+  saate uyup uymayacağı ve açık ya da kapalı oluşu kurala yazılır. Okunamayan dosya reddedilir; önceki sürüm kural
+  geçmişinde saklanır.
+- 16 hazır kural baştan açık: son ödemeye 3 gün, hesap eksiye düşecek, büyük harcama, abonelik zammı, iptalden sonra
+  ödeme, beklenen ödeme gelmedi, maaş gecikti, ay bitti, ay kapandı, ay kontrol gerektiriyor, ekstrede görünmeyen
+  dekont, e-posta girişi reddedildi, okuyucu biçim alarmı, tarayıcı eklentisi görünmüyor, eklenti Gmail sayfasını
+  tanımadı, yedek alınamadı.
+- Bildirim kaydı (göç 0015) ve kanallar:
+  - Uygulama içi kutu her bildirimi hemen alır. Masaüstü (macOS ve Linux), Telegram ve kendine e-posta, kuralın ya
+    da kanalın ayrıntı düzeyiyle gider (tam, özet, asgari).
+  - Kural, olay ve kanal başına tek bildirim gider; yeniden başlatmadan sonra da.
+  - Başarısız teslim artan aralıklarla yeniden denenir, sekizinci denemede bırakılır. Gönderilen bildirim bir daha
+    gönderilmez.
+  - Sessiz saatte ve kanalın sıklık sınırının üstünde gelenler saatte en çok bir özetle gider.
+  - Reddedilen bir giriş ya da belirteç kanalı durdurur; kanal yeniden açılana dek denenmez.
+- Telegram kanalı: kullanıcının kendi botu (ADR-0010). Belirteç anahtar zincirinde durur. Sohbet, bota on dakika
+  içinde gönderilen `/start <kod>` ile eşleşir. Bot API'ye yalnızca `egress` üzerinden gidilir (ADR-0009).
+- E-posta kanalı: IMAP bağlayıcısının uygulama şifresiyle, SMTP üzerinden kullanıcının kendi adresine. Tarayıcı
+  eklentisiyle bağlı hesapta (Gelişmiş Koruma) kullanılamaz ve nedeni yazar.
+- API: `GET /api/notifications`, `POST /api/notifications/read`, `GET/PUT /api/rules/alerts`,
+  `POST /api/rules/alerts/preview` (bir kuralın son 30 günde kaç kez konuşacağı), `GET/PUT /api/notify/settings`,
+  `POST /api/notify/test`, Telegram için `POST /api/notify/telegram/token|pairing|check` ve
+  `DELETE /api/notify/telegram`.
+- Komut satırı: `iplikci bildirim durum|kurallar|gecmis|dene` ve `iplikci telegram kur|eslestir|kaldir`. Belirteç
+  gizli istemle sorulur, argüman olarak hiç alınmaz.
+- MCP aracı `alerts`: kuralları listeler, ekler, kapatır ya da yeniden açar.
+- Birincil veri dökümünün 3. sürümü bildirimleri de taşır; 2. sürüm dökümler yine okunur.
+
 ## [0.5.0] — 2026-11-02 — Aşama 4: E-postanın tamamı
 
 E-postaların gövdeleri okunur. Banka bildirimleri kanıt olur; okuyucusu olmayan banka iletileri bilerek sınıflanır

@@ -321,6 +321,19 @@ G12, K10 · Çekirdek
 - **Sıklık:** sessiz saatlerde gelenler özete eklenir; her kanalın bir sıklık sınırı vardır.
 - **Geçmiş:** gönderilen her bildirim kanalıyla, durumuyla ve ilgili işlem ya da belgeyle birlikte listelenir.
 - **Ölçüt:** başarısız teslim yeniden denenir; başarılı teslim tekrarlanmaz (test edilir).
+- **Aşama 5'te uygulanan (2026-11-02)**
+  - Kurallar `rules/alerts.yaml`'dadır. 16 hazır kural açıktır: mimari §14'tekiler, ay bitti ve eklentinin iki
+    uyarısı.
+  - Kural düzenleyici Bildirimler ekranındadır (`/bildirimler`); MCP'de `alerts`, komut satırında `iplikci bildirim`.
+    Her kural sessiz saate uyup uymayacağını seçer.
+  - Telegram, kullanıcının BotFather'da oluşturduğu botla çalışır. Belirteç Bildirimler ekranına ya da
+    `iplikci telegram kur`'un gizli istemine girilir. Bota on dakika içinde `/start <kod>` gönderen sohbet eşleşir.
+  - E-posta kanalı yalnızca IMAP bağlayıcısının uygulama şifresiyle çalışır. Tarayıcı eklentisiyle bağlı hesapta ekran
+    nedenini söyler.
+  - Tekrar engeli kural, olay ve kanal başınadır; bir son ödemenin 7, 3, 1 ve 0 gün eşikleri aynı kurala ikinci kez
+    bildirim doğurmaz.
+  - Sessiz saatte ve sıklık sınırının üstünde gelenler kanal başına saatte en çok bir özetle gider.
+  - Reddedilen giriş ya da belirteç kanalı durdurur; kanal yeniden açılana dek denenmez.
 
 ## F14 — Banka dışı e-postalar
 

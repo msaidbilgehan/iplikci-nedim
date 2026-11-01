@@ -48,6 +48,47 @@ Telegram kanalının ayrıntıları:
 - Olumlu: kullanıcı hangi bilginin hangi sunucudan geçeceğini kanal başına seçer; aynı haber iki kez gelmez.
 - Olumsuz: Telegram kurulumu kullanıcının bir bot oluşturmasını gerektirir. Kurulum sihirbazı bunu adım adım anlatır.
 
+## Uygulama notu (Aşama 5, 2026-11-02)
+
+- **Kurallar:** `rules/alerts.yaml`; anahtarlar Türkçe (`ad`, `olay`, `kosul`, `kanallar`, `ayrinti`, `sessiz_saat`,
+  `acik`).
+  - Kullanıcı bir kuralı değiştirene dek uygulamayla gelen 16 kural geçerlidir: mimari §14'teki 12 kural, ay bitti ve
+    F01'in eklenti uyarıları (bir gündür görünmüyor, Gmail sayfasını tanımadı).
+  - Koşullar: `gun` (en çok kaç gün kala), `tutar` (en az kaç TL), `metin` (başlıkta geçen yazı). Her biri yalnızca onu
+    taşıyan olaylarda kullanılabilir.
+  - Okunamayan dosyanın tamamı reddedilir. Elle bozulmuş bir dosyada uygulamayla gelen kurallar geçer ve neden
+    ekranda yazar.
+- **Bildirim kaydı** (göç 15, `notifications`): kural, olay anahtarı (türü ve hedefi) ve kanal başına tek satır;
+  metin gönderildiği gibi saklanır.
+  - Aynı olayın ikinci kez gelmesi ve bir son ödemenin sonraki eşikleri (7, 3, 1, 0 gün) yeni bildirim doğurmaz.
+  - Birincil veridir: dökümün 3. sürümü onu da taşır.
+- **Sıra:** servis olayları kaldığı yerden okur. İlk çalıştırma en yeni olaydan başlar, öncesi haber sayılmaz. İş
+  beş dakikada bir ve her analizden hemen sonra çalışır.
+- **Uygulama içi kutu** her bildirimi hemen ve tam ayrıntıyla alır. Diğer kanallar kuralın ya da kanalın ayrıntı
+  düzeyini kullanır.
+- **Yeniden deneme:** başarısız deneme bir dakika, sonra her seferinde iki katı (en çok bir saat) bekler. Sekizinci
+  başarısızlıkta bırakılır. Gönderilen bildirim bir daha gönderilmez.
+- **Sessiz saat ve sıklık:**
+  - Sessiz saatte gelen ve kanalın sıklık sınırını aşan bildirimler özete kalır. Sınır saatte 10 (e-postada 4).
+  - Özet bir iletidir ve kanal başına en çok saatte bir gider.
+  - `sessiz_saat: false` olan kural sessiz saatte de hemen gönderir; sıklık sınırı yine geçerlidir.
+- **Reddedilen giriş:** SMTP girişi ya da Telegram belirteci reddedilince kanal durur. Kullanıcı kanalı yeniden açana ya
+  da kurana dek denenmez; bir programın yeniden denemesi hesabı kilitletebilir.
+- **Telegram:**
+  - Belirteç BotFather'ın biçiminde olmalıdır; `getMe` ile denenip anahtar zincirine yazılır, arayüze geri dönmez.
+  - Eşleştirme kodu on dakika geçerlidir. Bota `/start <kod>` gönderen sohbet eşleşir ve karşılanır; diğer iletiler
+    yok sayılır.
+  - Uzun yoklama yerine `getUpdates` eşleştirme sırasında bekletmeden okunur. Arayüz kodu açıkken üç saniyede bir
+    sorar.
+  - `api.telegram.org`'a yalnızca `egress` üzerinden gidilir; yönlendirme izlenmez, hata iletisi yolu (belirteci)
+    göstermez.
+- **E-posta:** IMAP bağlayıcısının uygulama şifresiyle, SMTP (465, TLS) üzerinden kullanıcının kendi adresine gider.
+  Tarayıcı eklentisiyle bağlı hesapta (Gelişmiş Koruma) kanal kullanılamaz ve ekran nedenini söyler.
+- **Masaüstü:** macOS'ta `osascript`, Linux'ta `notify-send`; metin betiğe değil argüman olarak verilir. Windows'ta
+  şimdilik yok.
+- **Ayarlar:** `[notify]` bölümüne `channels` (açık kanallar; varsayılan masaüstü ve Telegram) ve `telegram_chat`
+  (eşleşen sohbet) eklendi.
+
 ## Değerlendirilen seçenekler
 
 - **Web Push:** PWA'nın telefonda kurulu olmasını gerektirir; şimdilik kullanılmıyor (K5).

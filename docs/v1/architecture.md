@@ -488,6 +488,13 @@ sorar:
 - okuyucu biçim alarmı,
 - yedek alınamadı.
 
+Aşama 5'te (2026-11-02) bunlara ay bitti ile tarayıcı eklentisinin iki uyarısı (bir gündür görünmüyor, Gmail sayfasını
+tanımadı) eklendi. Kurallar `notify` paketinde, teslimler `app.notify`'da ve `notifications` tablosundadır:
+- Bir kural `kosul`'da `gun`, `tutar` ve `metin`'i yalnızca olayı onları taşıyorsa kullanabilir.
+- `sessiz_saat: false` olan kural sessiz saatte de gönderir.
+- Uygulama içi kutu kuralın kanal listesinden bağımsız olarak her bildirimi alır.
+Ayrıntılar [ADR-0010](../adr/0010-notification-channels.md)'un uygulama notundadır.
+
 ## 15. Döviz
 
 | Kaynak | Ne için | Not |
@@ -528,7 +535,10 @@ sorar:
 | `GET /api/invoices` | banka dışı faturalar ve makbuzlar: durumu (bekliyor, eşleşmedi, eşleşti), ödeyen banka satırı ya da olası nedenler, durum başına sayılar; hiçbiri toplamlara girmez (F14) |
 | `GET /api/month-end`, `GET /api/month-end/{YYYY-MM}` | ay kapanışı |
 | `GET/PUT /api/rules/categories`, `POST /api/rules/categories/preview` | kategori kuralları ve önizleme |
-| `GET/PUT /api/rules/alerts`, `GET /api/notifications` | bildirim kuralları ve geçmişi |
+| `GET/PUT /api/rules/alerts`, `POST /api/rules/alerts/preview` | bildirim kuralları, izlenebilecek olaylar ve izin verdikleri koşullar; bir kuralın son 30 günde kaç kez konuşacağı |
+| `GET /api/notifications`, `POST /api/notifications/read` | gönderilen bildirimler (kanal kanal ya da hepsi), uygulama içi kutunun okunmamış sayısı; kutuyu okundu sayma |
+| `GET/PUT /api/notify/settings`, `POST /api/notify/test` | sessiz saat, kanal başına ayrıntı düzeyi, açık kanallar ve her kanalın neye ihtiyacı olduğu; bir kanala deneme bildirimi |
+| `POST /api/notify/telegram/token`, `POST /api/notify/telegram/pairing`, `POST /api/notify/telegram/check`, `DELETE /api/notify/telegram` | Telegram botunun belirteci (anahtar zincirine; geri dönmez), eşleştirme kodu, kodun gelip gelmediği, botu unutma (ADR-0010) |
 | `GET /api/mail`, `POST /api/mail/fetch` | e-posta durumu; şimdi al |
 | `POST /api/bridge/pairings`, `POST /api/bridge/pair`, `GET /api/bridge/hello`, `GET /api/bridge`, `DELETE /api/bridge/{id}` | tarayıcı eklentisi: eşleştirme kodu, kodun belirtece dönmesi, servisin kanıtı (HMAC), eşleşmeler, iptal (ADR-0016) |
 | `GET /api/ingest/mail/cursor`, `POST /api/ingest/mail`, `POST /api/ingest/mail/known`, `POST /api/ingest/mail/scanned`, `POST /api/ingest/mail/alarm` | eklentinin konumu ve geçmişin taranması gerekip gerekmediği, ham iletilerin teslimi, taramanın bulduğu iletilerden eksik olanlar, biten bir taramanın neyi aradığı, bir katmanın biçim alarmı; yalnızca eklenti belirteciyle |
@@ -566,7 +576,7 @@ Taşıma, kaynaklar ve hazır istemler ADR-0011'dedir. Araçlar:
 | `subscriptions` | – | abonelikler, düzenli ve dönemsel ödemeler |
 | `invoices` | – | banka dışı faturalar ve makbuzlar: durumu, ödeyen banka satırı ya da olası nedenler |
 | `net_worth`, `fx_rates` | – | varlıklar (TL, EUR, USD, altın); kurlar |
-| `alerts` | evet | bildirim kurallarını listele, ekle, kapat |
+| `alerts` | evet | bildirim kurallarını listele, ekle, kapat ya da yeniden aç; kanalların durumu |
 | `annotate_transaction` | evet | not, etiket, düzeltme |
 
 ## 18. Ön yüz
@@ -681,6 +691,8 @@ smtp_host = "smtp.gmail.com"        # yalnızca uygulama şifresine izin veren h
 [notify]
 quiet_hours = "23:00-08:00"
 detail = {email = "full", telegram = "summary", desktop = "summary"}
+channels = ["desktop", "telegram"]  # uygulama içi kutuya ek olarak açık kanallar
+telegram_chat = 0                   # eşleştirmenin yazdığı sohbet; 0: eşleşme yok
 
 [fx]
 providers = ["document", "tcmb", "ecb"]
