@@ -148,6 +148,29 @@ def test_a_subdomain_of_a_listed_sender_counts(ws):
     assert outcome.taken is Taken.STORED
 
 
+def test_a_subdomain_passing_dmarc_under_its_listed_organizational_domain_counts(ws):
+    # Gmail names the domain whose policy it applied: a subdomain without a DMARC record of its own passes as its
+    # organizational domain.
+    results = ("mx.google.com; dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=teb.com.tr",)
+    outcome = take(ws, bank_mail(FEBRUARY, sender="kampanya@bilgi.teb.com.tr", results=results), SENDERS)
+    assert outcome.taken is Taken.STORED
+
+
+@pytest.mark.parametrize(
+    ("sender", "checked"),
+    [
+        ("bilgi@teb.com.tr", "com.tr"),  # a public suffix is on no list
+        ("bilgi@teb.com.tr", "isbank.com.tr"),  # listed, but not above the sender
+        ("bilgi@teb.com.tr", "bilgi.teb.com.tr"),  # below the sender
+    ],
+    ids=["a public suffix", "another listed domain", "a subdomain of the sender"],
+)
+def test_dmarc_passing_for_a_domain_that_does_not_cover_the_sender_does_not_count(ws, sender, checked):
+    results = (f"mx.google.com; dmarc=pass header.from={checked}",)
+    outcome = take(ws, bank_mail(FEBRUARY, sender=sender, results=results), SENDERS)
+    assert (outcome.taken, outcome.reason) == (Taken.UNVERIFIED, f"header-from:{checked}")
+
+
 def test_without_the_sender_check_a_listed_sender_is_enough(ws):
     raw = bank_mail(FEBRUARY, results=())
     assert take(ws, raw, SENDERS, verify=False).taken is Taken.STORED

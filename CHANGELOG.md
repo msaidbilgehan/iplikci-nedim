@@ -23,6 +23,9 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
   - Gönderici listede olmalı ve en üstteki `Authentication-Results` From alan adı için DMARC pass göstermelidir.
     Başlık RFC 8601'e göre bölümlerine ayrılır; yorumlardaki ya da tırnaklı adreslerdeki sahte bir "dmarc=pass"
     sayılmaz.
+  - Kendi DMARC kaydı olmayan bir alt alan adı, ana alan adının kuralıyla geçer ve Gmail başlığa ana alan adını yazar.
+    Bu ana alan adı listedeyse ileti geçerlidir. İlk gerçek taramada bir bankanın alt alan adlarından gelen yüzlerce
+    ileti bu yüzden reddediliyordu.
   - İleti `.eml` olarak, ekleri (zip üyeleri dahil) ayrı belgeler olarak saklanır. Şirket iletisi saklanmaz.
 - IMAP bağlayıcısı: salt okunur (`EXAMINE`, `BODY.PEEK[]`); yeni ileti IDLE ile anında, yedek yoklama 15 dakikada bir.
   - Reddedilen giriş alımı durdurur ve bir kez `mail.auth_failed` kaydeder; yeniden denenmez.

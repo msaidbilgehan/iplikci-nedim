@@ -77,6 +77,13 @@ V1'in istekleri:
     bölmez ve yalnızca `dmarc=` ile başlayan bölüm sayılır.
   - Böylece göndericinin yazabildiği bir yere konmuş sahte bir "dmarc=pass header.from=banka" metni eşleşmez. Bu
     yer, SPF yorumundaki zarf adresi ya da tırnaklı bir adres olabilir.
+  - `header.from`, From alan adının kendisi ya da listedeki bir üst alan adı olmalıdır. Kendi DMARC kaydı olmayan bir
+    alt alan adı, ana alan adının kuralıyla denetlenir (RFC 7489 §6.6.3). Gmail o zaman başlığa ana alan adını yazar:
+    `bilgi.banka.com.tr`'den gelen ileti `header.from=banka.com.tr` ile geçer. Üst alan adının kendisi listede
+    olmalıdır, böylece `com.tr` gibi bir genel sonek hiçbir göndericiyi kapsamaz.
+  - Doğrulanamayan iletinin nedeni kaydedilir: başlık yok, başlığı Gmail eklememiş, DMARC sonucu yok, sonuç "pass"
+    değil ya da DMARC kapsamayan bir alan adı için geçti. Kuralın sürümü (`RULE_VERSION`) değişince eklentinin daha
+    önce reddedilen iletileri yeniden istenir.
 - **İleti:** konusu ya da herhangi bir eki şirkete ait olan ileti saklanmaz. Diğerleri `.eml` olarak, her eki (zip
   üyeleri dahil) iletiye bağlı ayrı bir belge olarak saklanır. `.eml`'ler Aşama 4'e dek "işlenmedi" kalır; gövdeler o
   aşamada okunur. 40 MB'tan büyük ileti alınmaz.

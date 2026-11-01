@@ -107,7 +107,7 @@ def take(
     domain = sender_domain(msg)
     if not listed(domain, senders):
         return MailOutcome(Taken.UNLISTED, domain)
-    if verify and (problem := trust_problem(msg, domain, gmail)):
+    if verify and (problem := trust_problem(msg, domain, senders, gmail)):
         return MailOutcome(Taken.UNVERIFIED, domain, reason=problem)
     fields = message_fields(msg)
     sha = sha256_of(raw)
