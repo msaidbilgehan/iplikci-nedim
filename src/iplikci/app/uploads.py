@@ -16,7 +16,7 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import BinaryIO
+from typing import BinaryIO, Literal
 
 from ..domain.text import nfc
 from ..ingest.archives import DOCUMENT_EXTENSIONS
@@ -33,9 +33,12 @@ _upload_lock = threading.Lock()
 _hashes: dict[tuple[str, int, int], str] = {}  # (path, size, mtime) -> sha256 of inbox files
 
 
+UploadStatus = Literal["eklendi", "zaten-var", "reddedildi"]  # zaten-var: the same bytes already wait
+
+
 @dataclass(frozen=True)
 class Upload:
-    status: str  # "eklendi", "zaten-var" (same bytes already waiting), "reddedildi"
+    status: UploadStatus
     name: str  # path inside the inbox, or the name that was refused
     reason: str = ""
 

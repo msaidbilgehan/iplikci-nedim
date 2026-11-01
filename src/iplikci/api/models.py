@@ -1,6 +1,6 @@
 """The API's answers (pydantic at the boundary). Amounts, when they come, are minor units with their currency."""
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
@@ -48,7 +48,7 @@ class QueueOut(BaseModel):
 
 
 class MailOut(BaseModel):
-    connector: str
+    connector: Literal["imap", "browser_bridge"]
     configured: bool
     last_run: str
     last_error: str

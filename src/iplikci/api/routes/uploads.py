@@ -6,7 +6,7 @@ from pathlib import Path
 from urllib.parse import unquote
 
 from fastapi import APIRouter, Query, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 
 from ...app import intake, uploads
@@ -19,7 +19,7 @@ router = APIRouter()
 
 class UploadOut(BaseModel):
     batch: str
-    status: str  # eklendi, zaten-var, reddedildi
+    status: uploads.UploadStatus
     name: str
     reason: str
 
@@ -28,11 +28,40 @@ class PlanIn(BaseModel):
     upload: str = ""  # an upload batch; none: the inbox folder
 
 
+class PlanDocumentOut(BaseModel):
+    """The document a plan item would add: a statement, an account statement or a receipt, and its check."""
+
+    kind: str  # ekstre, hesap, dekont
+    account: str
+    start: str | None
+    end: str
+    rows: int
+    verified: bool | None
+    check: str
+
+
+class PlanItemOut(BaseModel):
+    """One file of a plan (intake.describe): what it is and what happens to it. The MCP client reads the same keys,
+    so two keep their camelCase names."""
+
+    model_config = ConfigDict(serialize_by_alias=True, validate_by_alias=True)
+
+    action: str
+    label: str
+    name: str
+    source: str
+    reason: str
+    copy_of: str | None = Field(alias="copyOf")  # the kept document holding the same statement or receipt
+    target: str | None
+    from_inbox: bool = Field(alias="fromInbox")
+    document: PlanDocumentOut | None = None
+
+
 class PlanOut(BaseModel):
     plan_id: str
     changes: int
     by_action: dict[str, int]
-    items: list[dict[str, object]]
+    items: list[PlanItemOut]
 
 
 class ApplyIn(BaseModel):
@@ -102,7 +131,7 @@ def plan(request: Request, body: PlanIn) -> PlanOut:
         plan_id=found.id,
         changes=len(changes),
         by_action=by_action,
-        items=[intake.describe(c, context.ws) for c in changes[:500]],
+        items=[PlanItemOut.model_validate(intake.describe(c, context.ws)) for c in changes[:500]],
     )
 
 

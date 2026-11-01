@@ -175,6 +175,7 @@ uv run iplikci servis kur | kaldir | yeniden-baslat   # launchd, systemd or Task
 uv run iplikci yedek al | liste | prova        # backups; geri-yukle restores (--uygula acts, --hedef a new folder)
 uv run iplikci eposta kur | durum | kaldir | al   # the IMAP account; al asks the running service when there is one
 (cd web && npm ci && npm run typecheck && npm test && npm run build)         # the interface, built into the package
+uv run iplikci dev api-tipleri web/src/api/schema.ts   # the interface's API types from the OpenAPI document (ADR-0007)
 (cd extension && npm ci && npm run typecheck && npm test && npm run build)   # the extension; load extension/dist
 ```
 

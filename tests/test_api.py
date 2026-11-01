@@ -267,6 +267,8 @@ def test_a_page_asks_only_what_it_may(client):
     assert (bad.status_code, bad.json()["code"]) == (400, "cursor_invalid")
     unknown = client.get("/api/documents", params={"status": "hepsi"}, headers=bearer())
     assert (unknown.status_code, unknown.json()["code"]) == (400, "status_invalid")
+    removed = client.get("/api/documents", params={"status": "removed"}, headers=bearer())  # in the Trash: not listed
+    assert (removed.status_code, removed.json()["code"]) == (400, "status_invalid")
     assert client.get("/api/documents").status_code == 401
 
 

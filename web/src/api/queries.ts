@@ -4,7 +4,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "./client";
-import type { Bridge, DocumentPage, Labels, Pairing, SystemStatus } from "./types";
+import type { Bridge, DocumentPage, Labels, Pairing, Queued, SystemStatus } from "./types";
 
 export const keys = {
   system: ["system"] as const,
@@ -73,5 +73,5 @@ export function useRevokeBridge() {
 }
 
 export function useBackupNow() {
-  return useMutation({ mutationFn: () => api.post<{ queued: boolean }>("/api/backups") });
+  return useMutation({ mutationFn: () => api.post<Queued>("/api/backups") });
 }

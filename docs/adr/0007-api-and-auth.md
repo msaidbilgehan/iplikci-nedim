@@ -61,6 +61,11 @@ modeli işe yaradı:
   güvenlik politikası yalnızca servisin kendi kökenine izin verir.
 - **Yüklemeler** `vault/staging/` altında bir partiye yazılır. Bir dosya en çok 1 GiB, bir parti en çok 2.000 dosya ve
   2 GiB'tır. Uygulanmayan parti bir gün sonra çöp kutusuna gider.
+- **Arayüzün tipleri** OpenAPI belgesinden üretilir. İstemci elle yazılmış küçük bir `fetch` sarmalayıcısıdır; tipler
+  `web/src/api/schema.ts`'dedir.
+  - Üretici depodadır: `iplikci dev api-tipleri`, `src/iplikci/api/typescript.py`. openapi-typescript TypeScript 5
+    ister, arayüz ise 7'yi kullanır.
+  - API'nin modelleri değişip dosya yeniden üretilmezse bir test başarısız olur.
 
 ## Değerlendirilen seçenekler
 

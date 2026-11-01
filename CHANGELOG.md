@@ -48,6 +48,8 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
   eşleştirilmesi. Servis derlenmiş arayüzü oturumun arkasından sunar; olay akışı ekranları günceller.
 - API uçları: `/healthz`, `/api/system`, `/api/events`, `/api/documents`, `/api/labels`, `/api/backups`,
   `/api/mail/fetch`, yükleme, plan ve uygulama, eklentinin eşleştirme ve alım uçları.
+- Arayüzün API tipleri servisin OpenAPI belgesinden üretilir (`iplikci dev api-tipleri`). Üretilen dosya güncel
+  değilse bir test başarısız olur.
 
 ### Değişenler
 

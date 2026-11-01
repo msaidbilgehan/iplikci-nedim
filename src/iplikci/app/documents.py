@@ -46,6 +46,8 @@ class BadCursor(ValueError):
 def page(ws: Workspace, statuses: Iterable[str] = (), cursor: str = "", limit: int = 50) -> Page:
     """A page of the kept documents (only those with one of statuses, when given), newest first."""
     wanted = [DocumentStatus(s) for s in statuses] or list(KEPT)
+    if not set(wanted) <= set(KEPT):
+        raise ValueError("a removed document is in the Trash, not listed")
     size = max(1, min(limit, MAX_PAGE))
     with ws.db() as db:
         rows = documents.newest_first(db, wanted, _decode(cursor) if cursor else None, size + 1)

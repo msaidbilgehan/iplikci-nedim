@@ -1,4 +1,5 @@
-"""`iplikci dev`: the developers' tools: the demo data folder and the readers' probes and tests."""
+"""`iplikci dev`: the developers' tools: the demo data folder, the readers' probes and tests, and the interface's
+API types."""
 
 import argparse
 import os
@@ -45,9 +46,18 @@ def dev_command(argv: list[str]) -> int:
         "doğrulanan ekstre. Bir sorun varsa çıkış kodu 1'dir.",
     )
     tested.add_argument("kimlik", nargs="?", help="yalnızca bu okuyucu (ör. garanti.bonus_card)")
+    types = commands.add_parser(
+        "api-tipleri",
+        help="arayüzün API tiplerini servisin OpenAPI belgesinden üret",
+        description="Servisin OpenAPI belgesinden arayüzün TypeScript tiplerini üretir (ADR-0007). Depodaki yeri "
+        "web/src/api/schema.ts'dir; API'nin modelleri değişince yeniden üretilir.",
+    )
+    types.add_argument("dosya", type=Path, help="yazılacak dosya (ör. web/src/api/schema.ts)")
     args = parser.parse_args(argv)
     if args.komut == "parser":
         return _parser_tool(args, readers)
+    if args.komut == "api-tipleri":
+        return _api_types(args.dosya)
     given = args.klasor or os.environ.get(HOME_ENV, "").strip()
     if not given:
         demo_parser.error(f"klasör verilmedi ve {HOME_ENV} tanımlı değil")
@@ -78,4 +88,18 @@ def _parser_tool(args: argparse.Namespace, parser: argparse.ArgumentParser) -> i
         set_business_names(config.load(layout.settings).identity.business_names)
     doc = Document(path.name, str(path.parent), data, sha256_of(data))
     print("\n".join(parser_tools.probe(doc) if args.arac == "probe" else parser_tools.debug(doc)))
+    return 0
+
+
+def _api_types(target: Path) -> int:
+    from ..api import typescript
+    from ..api.app import openapi_document
+
+    text = typescript.render(openapi_document())
+    target = target.expanduser()
+    if target.exists() and target.read_text(encoding="utf-8") == text:
+        print(f"{target}: değişmedi")
+        return 0
+    target.write_text(text, encoding="utf-8")
+    print(f"{target}: yazıldı")
     return 0

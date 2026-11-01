@@ -22,7 +22,15 @@ const PLAN: Plan = {
       copyOf: "",
       target: "TEB Hesap Dökümü Şubat 2026",
       fromInbox: false,
-      document: { kind: "hesap", account: "TEB vadesiz", start: "2026-02-01", end: "2026-02-28" },
+      document: {
+        kind: "hesap",
+        account: "TEB vadesiz",
+        start: "2026-02-01",
+        end: "2026-02-28",
+        rows: 12,
+        verified: true,
+        check: "bakiye 12/12 satır tutarlı",
+      },
     },
   ],
 };

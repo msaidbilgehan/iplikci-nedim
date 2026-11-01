@@ -92,6 +92,7 @@ Servis, arayüz ve tarayıcı eklentisi:
 
 ```bash
 (cd web && npm ci && npm run build)              # arayüz; çıktı pakete girer (src/iplikci/api/ui)
+uv run iplikci dev api-tipleri web/src/api/schema.ts   # API'nin modelleri değişince arayüzün tipleri
 uv run iplikci servis calistir                   # servis ön planda: http://127.0.0.1:8643
 uv run iplikci ac                                # arayüzü tek kullanımlık giriş bağlantısıyla açar
 uv run iplikci servis durum                      # servis çalışıyor mu; kuyruk, e-posta, yedek ve disk

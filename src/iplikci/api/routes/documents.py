@@ -1,9 +1,9 @@
 """The archive's list for the Documents screen (F03), a page at a time; the codes' labels for the interface."""
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, RootModel
 
 from ...app import documents, labels
 from ..context import context_of
@@ -21,7 +21,7 @@ class DocumentOut(BaseModel):
     kind: str
     parser: str
     reader: str
-    status: str
+    status: Literal["processed", "unprocessed", "unreadable"]  # a removed document is in the Trash, not listed
     reason: str
     verified: bool | None
     period_start: str
@@ -34,6 +34,10 @@ class DocumentOut(BaseModel):
 class DocumentPageOut(BaseModel):
     items: list[DocumentOut]
     next: str
+
+
+class LabelsOut(RootModel[dict[str, dict[str, str]]]):
+    """The Turkish label of every code, by code type (DocumentStatus, JobKind, …)."""
 
 
 @router.get("/api/documents")
@@ -56,5 +60,5 @@ def document_page(
 
 
 @router.get("/api/labels")
-def code_labels() -> dict[str, dict[str, str]]:
-    return labels.tables()
+def code_labels() -> LabelsOut:
+    return LabelsOut(labels.tables())
