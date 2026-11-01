@@ -274,6 +274,11 @@ Kategori ve bildirim kuralları veritabanında değil, veri klasöründeki YAML 
   Notlar ve düzeltmeler parmak izine bağlanır; böylece yeniden okumada kaybolmazlar. Yeniden okumadan sonra eşi
   bulunamayan not "yetim" olarak Yapılacaklar'a düşer.
 - Aynı gün aynı tutarlı satırların hepsi gerçektir; sıra numarası bu yüzden parmak izinin parçasıdır.
+- Parmak izi, satır okuyucunun okuduğu haliyle alınır: açıklama yeniden yazılmadan, döviz tutarı TL'ye çevrilmeden
+  önce. Açıklamanın yalnızca harf ve rakamları sayılır; para birimi ISO koduyla yazılır.
+- Aşama 1'de parmak izi defter kurulurken bellekte hesaplanır; `transactions` tablosunda tutulmaz. Sıra numarası
+  bütün belgelerin satırlarına göre verildiği için tek bir belge okunurken bilinemez.
+- Bir ekstrenin doğruladığı dekont satırı defterden çıkar; notu ekstre satırına geçer.
 
 **Kesinlik**
 

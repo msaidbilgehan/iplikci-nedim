@@ -64,6 +64,7 @@ def test_status_and_transactions(server):
     assert not failed and status["read"]["accountStatements"] == status["read"]["accountStatementsVerified"] == 1
     rows, _ = call(server, "transactions", text="kahveci")
     assert rows["count"] == 1 and rows["rows"][0]["amount"] == 120.0 and rows["rows"][0]["category"] == "Kafe & Kahve"
+    assert len(rows["rows"][0]["fingerprint"]) == 20 and "note" not in rows["rows"][0]  # what a note would bind to
     by_kind, _ = call(server, "transactions", group_by="kind")
     assert {g["key"]: g["total"] for g in by_kind["groups"]} == {"harcama": 120.0, "gelir": -1000.0}
     january, _ = call(server, "transactions", **{"from": "2026-01", "to": "2026-01-10"})

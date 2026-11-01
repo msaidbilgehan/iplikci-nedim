@@ -406,6 +406,7 @@ def _transactions(s: Server, args: dict) -> dict:
             "group": t.group,
             "necessity": t.necessity,
             "account": ds.accounts[t.account].label,
+            "fingerprint": t.fingerprint,
         }
         row |= {
             k: v
@@ -414,6 +415,8 @@ def _transactions(s: Server, args: dict) -> dict:
                 ("original", t.original),
                 ("counterparty", t.counterparty),
                 ("provisional", t.provisional),
+                ("note", t.note),
+                ("tags", list(t.tags)),
             )
             if v
         }

@@ -67,6 +67,10 @@ class Transaction:
     necessity: str = ""
     # Set by analysis.py: a receipt's row that no statement shows yet (it waits for the next one).
     provisional: bool = False
+    # Set by analysis.py from the row as read (domain.fingerprint), and the user's note and tags bound to it.
+    fingerprint: str = ""
+    note: str = ""
+    tags: tuple[str, ...] = ()
 
     def to_dict(self) -> dict:
         d = asdict(self)

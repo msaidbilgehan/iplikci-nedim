@@ -320,9 +320,10 @@ class Categorizer:
                 txn.category = hint or UNCATEGORIZED
                 txn.merchant = display_name(txn.description)
         txn.group = self.categories.get(txn.category, OTHER_GROUP)
-        txn.necessity = self._necessity(txn)
+        txn.necessity = self.necessity_for(txn)
 
-    def _necessity(self, txn: Transaction) -> str:
+    def necessity_for(self, txn: Transaction) -> str:
+        """The necessity level the rules give a categorized row (empty for rows that are no spending)."""
         if txn.kind == "faiz_ucret":
             return self.necessity.get(txn.category, "Gereksiz")
         if txn.kind not in ("harcama", "iade", "kisiye_transfer"):

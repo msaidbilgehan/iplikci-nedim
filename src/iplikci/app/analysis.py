@@ -18,9 +18,10 @@ from ..insights import FULL, Insights, interpret, month_of, shift
 from ..models import ParseResult
 from ..parsers.common import BUSINESS_REASON
 from ..report import build_payload, write_csv, write_html, write_xlsx
-from ..storage import audit, documents, readings
+from ..storage import annotations, audit, documents, readings
+from ..storage.annotations import Annotation
 from ..storage.db import Database
-from . import reading
+from . import annotate, reading
 from .workspace import Workspace
 
 BUSINESS_NAME = "şirket belgesi"  # a company document is never kept, its name neither
@@ -100,9 +101,9 @@ class Analysis:
     signature: tuple[object, ...]
     made: datetime
     outputs: Outputs | None = None
-    months: list[month_end.MonthEnd] = field(
-        default_factory=list[month_end.MonthEnd]
-    )  # month-end closing, oldest first
+    # The month-end closing, oldest first, and the annotations no row carries any more.
+    months: list[month_end.MonthEnd] = field(default_factory=list[month_end.MonthEnd])
+    orphans: list[Annotation] = field(default_factory=list[Annotation])
 
 
 def analyze(
@@ -119,14 +120,17 @@ def analyze(
         with ws.db() as db:
             reading.read_pending(ws, db, progress, every=reread)
             found, stats = ledger_input(db)
+            notes = annotations.every(db)
         signature = ws.signature()
     names = list(ws.settings.identity.names)
-    ds = build(found, Categorizer.layered(ws.rules), {"ad_soyad": names} if names else {})
+    categorizer = Categorizer.layered(ws.rules)
+    ds = build(found, categorizer, {"ad_soyad": names} if names else {})
+    orphans = annotate.apply(ds, notes, categorizer)
     ins = interpret(ds)
     months = month_end.build(ds, ins, today)
     payload = build_payload(ds, stats, ins, months)
     outputs = write_outputs(ws.exports, ds, ins, payload, months) if write else None
-    return Analysis(ds, stats, ins, payload, signature, datetime.now(), outputs, months)
+    return Analysis(ds, stats, ins, payload, signature, datetime.now(), outputs, months, orphans)
 
 
 class Current:

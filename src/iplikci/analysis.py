@@ -23,6 +23,7 @@ from datetime import date, timedelta
 from typing import Any
 
 from .categorize import Categorizer, clean_description
+from .domain.fingerprint import Fingerprints
 from .models import Account, ParseResult, Statement, Transaction
 from .parsers.hesap import CANDIDATE
 from .textutil import fold, format_tr_amount
@@ -445,6 +446,22 @@ def _to_tl(
 # --- build -------------------------------------------------------------------------
 
 
+def _fingerprint(
+    statements: list[Statement], receipts: dict[str, list[Transaction]], accounts: dict[str, Account]
+) -> None:
+    """Give every row its fingerprint from the row as its reader read it: before a description is rewritten or a
+    foreign amount turned into TL. Statements come first, each in its place (account, cut, currency and first day
+    are one statement's alone), then the receipts by key, so the order never depends on how documents arrived."""
+    prints = Fingerprints()
+    for s in sorted(statements, key=lambda s: (s.account, s.cut_date, s.currency, s.start or date.min)):
+        for t in s.transactions:
+            t.fingerprint = prints.next(t.account, t.date, round(t.amount * 100), s.currency, t.description)
+    for key in sorted(receipts):
+        for t in receipts[key]:
+            currency = accounts[t.account].currency if t.account in accounts else "TL"
+            t.fingerprint = prints.next(t.account, t.date, round(t.amount * 100), currency, t.description)
+
+
 def resolve_masked(results: Iterable[ParseResult]) -> None:
     """Receipts of incoming transfers print the account number masked ("1012/****321"): their rows
     move to the one account of that bank and currency whose number ends with the digits shown."""
@@ -499,6 +516,7 @@ def build(
         documents.append(DocumentStatus(doc.name, doc.origin, kind, result.parser))
 
     stmts = sorted(statements.values(), key=lambda s: (s.account, s.cut_date, s.currency))
+    _fingerprint(stmts, receipts, accounts)
     _link_foreign_currency(stmts)
     days = covered_days(stmts)
     coverage = _coverage(days)
