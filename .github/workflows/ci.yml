@@ -1,5 +1,5 @@
-# Linux runs everything on every push and pull request: lint, tests (with the demo workspace's golden
-# baseline) and a secret scan of the whole history. macOS reruns the tests where the OCR (Vision) lives;
+# Linux runs everything on every push and pull request: lint, type checks, tests (with the demo workspace's
+# golden baseline) and a secret scan of the whole history. macOS reruns the tests where the OCR (Vision) lives;
 # its minutes cost more, so it runs on master and on pull requests only.
 name: CI
 
@@ -34,6 +34,8 @@ jobs:
         run: |
           uv run ruff check
           uv run ruff format --check
+      - name: Type check
+        run: uv run pyright
       - name: Test
         run: uv run pytest -q
       - name: Secret scan

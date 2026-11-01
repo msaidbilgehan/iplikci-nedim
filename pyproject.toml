@@ -47,3 +47,10 @@ extend-exclude = ["docs"]
 [tool.ruff.lint.isort]
 # Test helpers come last, after the package, as their own group.
 known-local-folder = ["conftest"]
+
+[tool.pyright]
+pythonVersion = "3.13"
+# The modules written for V1 are checked strictly; the MVP's flat modules join as they move into the target
+# layout (architecture §6).
+include = ["src/iplikci/domain"]
+strict = ["src/iplikci/domain"]
