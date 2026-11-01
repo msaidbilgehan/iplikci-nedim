@@ -223,6 +223,10 @@ class NotificationOut(BaseModel):
     created_at: str
     rule: str  # the alert rule's name; a test the user asked for is "Deneme bildirimi"
     kind: str  # the event's kind (architecture §13), or "test"
+    # What the event concerns (architecture §13): a document's sha256 (document.*), a row's fingerprint
+    # (transaction.*, income.received, evidence.unmatched), a bill's "<sha256>:<n>" (invoice.*), a month (month.*);
+    # "" for an event standing for many and for a test.
+    target: str
     channel: Channel
     detail: DetailLevel
     title: str

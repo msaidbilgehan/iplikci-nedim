@@ -135,6 +135,7 @@ def test_the_box_lists_the_notifications_newest_first_and_marks_them_seen(client
     assert found["unread"] == 1
     [item] = found["items"]
     assert (item["rule"], item["channel"], item["status"], item["read"]) == ("Ay kapandı", "in_app", "sent", False)
+    assert item["target"] == "2026-10"  # what the event concerns: here a month
     everything = client.get("/api/notifications", headers=bearer()).json()["items"]
     assert [i["channel"] for i in everything] == ["desktop", "in_app"]
     assert desk.got[0].title == "Ay kapandı"
@@ -208,5 +209,8 @@ def test_a_test_notification_goes_out_or_says_why_not(client, desk):
     signed_in(client)
     assert client.post("/api/notify/test", json={"channel": "desktop"}, headers=OWN_PAGE).status_code == 204
     assert desk.got[-1].title == "Deneme bildirimi"
+    assert client.post("/api/notify/test", json={"channel": "in_app"}, headers=OWN_PAGE).status_code == 204
+    [test] = client.get("/api/notifications?channel=in_app").json()["items"]
+    assert (test["kind"], test["target"]) == ("test", "")  # a test concerns nothing
     refused = client.post("/api/notify/test", json={"channel": "email"}, headers=OWN_PAGE)
     assert refused.status_code == 400 and refused.json()["code"] == "notify_refused"

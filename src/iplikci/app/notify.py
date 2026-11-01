@@ -65,6 +65,7 @@ __all__ = [
     "check_pairing",
     "deliver",
     "event_catalog",
+    "event_target",
     "history",
     "load_rules",
     "mark_read",
@@ -192,10 +193,18 @@ def preview(ws: Workspace, rule: AlertRule, days: int = 30, at: datetime | None 
     return Preview(len(keys), days, examples[::-1][:5])
 
 
+_BULK, _TESTED = "olay-", "deneme-"  # the keys of a notification whose event names no target, and of a test
+
+
 def _key(event_id: int, e: Event) -> str:
     """What a notification is known by beside its rule and channel: the event's target, or the event itself when it
     names none (one standing for many)."""
-    return e.target or f"olay-{event_id}"
+    return e.target or f"{_BULK}{event_id}"
+
+
+def event_target(n: Notification) -> str:
+    """What the notification's event concerns (a document, a row, a bill, a month); "" when it names nothing."""
+    return "" if n.key.startswith((_BULK, _TESTED)) else n.key
 
 
 # --- the channels --------------------------------------------------------------------------------------
@@ -599,7 +608,7 @@ def send_test(ws: Workspace, channel: Channel, senders: Mapping[Channel, Sender]
                 rule=_TEST.title,
                 event_id=0,
                 kind=TEST_KIND,
-                key=f"deneme-{at}",
+                key=f"{_TESTED}{at}",
                 channel=Channel.IN_APP,
                 detail=DetailLevel.FULL,
                 title=_TEST.title,

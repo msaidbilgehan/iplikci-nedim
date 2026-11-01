@@ -49,6 +49,7 @@ def _notification(n: Notification) -> NotificationOut:
         created_at=n.created_at,
         rule=n.rule,
         kind=n.kind,
+        target=notify.event_target(n),
         channel=Channel(n.channel),
         detail=notify.DetailLevel(n.detail),
         title=n.title,

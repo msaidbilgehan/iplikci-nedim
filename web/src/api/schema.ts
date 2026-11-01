@@ -368,6 +368,7 @@ export interface NotificationOut {
   created_at: string;
   rule: string;
   kind: string;
+  target: string;
   channel: Channel;
   detail: DetailLevel;
   title: string;
