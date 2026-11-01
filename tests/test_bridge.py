@@ -61,6 +61,8 @@ def test_an_extension_pairs_with_a_code_and_becomes_the_mail_connector(client, w
     listed = client.get("/api/bridge").json()
     assert [(b["id"], b["name"], b["active"]) for b in listed] == [(found["id"], "Chrome 140, macOS", True)]
     assert "token" not in listed[0]
+    mail = client.get("/api/system").json()["mail"]
+    assert (mail["connector"], mail["configured"], mail["last_run"]) == ("browser_bridge", True, "")
 
 
 def test_a_code_works_once(client):

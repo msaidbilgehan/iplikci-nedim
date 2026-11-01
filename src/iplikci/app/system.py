@@ -1,6 +1,6 @@
 """The service's health for the System screen and /api/system (architecture §22, F18): what the data folder holds,
-how each reader is doing and how much disk it all takes. The service adds its own process details; the e-mail
-fetch, the job queue and the backups join as they land.
+how each reader is doing, the job queue, the e-mail intake and how much disk it all takes. The service adds its own
+process details; the backups join as they land.
 """
 
 import shutil
@@ -10,8 +10,11 @@ from dataclasses import dataclass
 from .. import __version__
 from ..domain.codes import DocumentStatus
 from ..parsers import registry
-from ..storage import jobs
+from ..settings import config
+from ..storage import bridges, jobs
+from ..storage import mail as mail_store
 from ..storage.db import Database
+from .mail import BRIDGE
 from .reading import FORMAT_ALARM
 from .workspace import Workspace
 
@@ -52,6 +55,15 @@ class Queue:
 
 
 @dataclass(frozen=True, slots=True)
+class MailHealth:
+    connector: str  # imap or browser_bridge (ADR-0016)
+    configured: bool  # an account set up, or an extension paired
+    last_run: str  # the last fetch or delivery; "" if none yet
+    last_error: str
+    stopped: bool  # a refused login stopped the IMAP connector until it is set up again
+
+
+@dataclass(frozen=True, slots=True)
 class SystemStatus:
     version: str
     home: str
@@ -59,6 +71,7 @@ class SystemStatus:
     readers: list[ReaderHealth]
     disk: Disk
     queue: Queue
+    mail: MailHealth
 
 
 def healthy(ws: Workspace) -> bool:
@@ -80,7 +93,20 @@ def status(ws: Workspace) -> SystemStatus:
             jobs.next_due(db) or "",
             [FailedJob(j.id, j.kind, j.attempts, j.finished_at, j.last_error) for j in jobs.failures(db)],
         )
-    return SystemStatus(__version__, str(ws.home), documents, readers, disk(ws), queue)
+        mail = mail_health(ws, db)
+    return SystemStatus(__version__, str(ws.home), documents, readers, disk(ws), queue, mail)
+
+
+def mail_health(ws: Workspace, db: Database) -> MailHealth:
+    """How the chosen connector is doing; never the address (ADR-0015). The settings as the file says now: pairing
+    an extension or setting up an account changes them while the service runs."""
+    settings = config.load(ws.layout.settings).mail
+    state = mail_store.load(db, settings.connector)
+    if settings.connector == BRIDGE:
+        configured = any(b.active for b in bridges.every(db))
+    else:
+        configured = bool(settings.address)
+    return MailHealth(settings.connector, configured, state.last_run, state.last_error, state.stopped)
 
 
 def reader_health(db: Database) -> list[ReaderHealth]:

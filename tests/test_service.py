@@ -1,5 +1,6 @@
 """The running service and the command line as its client: a real server on 127.0.0.1, in a thread."""
 
+import os
 import socket
 import threading
 import time
@@ -10,7 +11,7 @@ import uvicorn
 from iplikci import cli
 from iplikci.api.app import create_app
 from iplikci.app.workspace import Workspace
-from iplikci.service import runner
+from iplikci.service import instance, manager, runner
 
 TOKEN = "deneme-belirteci"
 
@@ -48,6 +49,18 @@ def test_the_command_line_gets_a_login_link_from_the_running_service(served, cap
     assert cli.main(["ac", "--yazdir"]) == 0
     url = capsys.readouterr().out.strip()
     assert url.startswith(f"http://127.0.0.1:{served.port}/giris?anahtar=")
+
+
+def test_the_status_reads_the_running_service(served, monkeypatch, capsys):
+    monkeypatch.setattr(manager, "for_platform", lambda: manager.Launchd(served.home, uid=501))
+    holder = instance.Holder(os.getpid(), served.port, "2026-11-01T07:30:00+00:00", "0.4.0")
+    with instance.held(served.run, holder):
+        assert cli.main(["servis", "durum"]) == 0
+    out = capsys.readouterr().out
+    assert f"Servis çalışıyor: http://127.0.0.1:{served.port} · süreç {os.getpid()}" in out and "sürüm 0.4.0" in out
+    assert "Arka plan servisi: kurulu değil" in out
+    assert "Kuyruk: 0 bekleyen, 0 başarısız iş" in out and "E-posta (IMAP): kurulu değil" in out
+    assert "Disk: arşiv 0 B" in out and "Dikkat" not in out  # the service of this very data folder
 
 
 def test_the_command_line_says_when_the_service_is_not_running(tmp_path, monkeypatch, capsys):

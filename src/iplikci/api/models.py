@@ -47,12 +47,21 @@ class QueueOut(BaseModel):
     failures: list[FailedJobOut]
 
 
+class MailOut(BaseModel):
+    connector: str
+    configured: bool
+    last_run: str
+    last_error: str
+    stopped: bool
+
+
 class SystemOut(BaseModel):
     service: ServiceOut
     documents: dict[str, int]
     readers: list[ReaderHealthOut]
     disk: DiskOut
     queue: QueueOut
+    mail: MailOut
 
 
 class EventOut(BaseModel):

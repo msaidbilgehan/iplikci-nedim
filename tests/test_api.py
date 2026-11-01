@@ -187,6 +187,13 @@ def test_the_system_status_names_every_reader_and_what_it_read(client, ws):
     }
     assert readers["teb.account_html"]["last_read"]
     assert found["disk"]["vault"] > 0 and found["disk"]["database"] > 0 and found["disk"]["free"] > 0
+    assert found["mail"] == {
+        "connector": "imap",
+        "configured": False,
+        "last_run": "",
+        "last_error": "",
+        "stopped": False,
+    }
 
 
 def test_events_come_as_a_page_and_as_a_stream_that_resumes(client, ws):

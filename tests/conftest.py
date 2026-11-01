@@ -1,8 +1,8 @@
 """A synthetic data folder (settings, rules, vault, database), a synthetic TEB account export and a fake
 IMAP server with synthetic bank e-mails.
 
-Nothing here touches the real data folder, the real Trash, the system keyring or the network: every test
-gets its own data folder and Trash folder, and the e-mail fetch talks to FakeImap.
+Nothing here touches the real data folder, the real Trash, the system keyring, the system's service manager or the
+network: every test gets its own data folder and Trash folder, and the e-mail fetch talks to FakeImap.
 """
 
 import imaplib
@@ -20,6 +20,7 @@ from iplikci.app.workspace import Workspace
 from iplikci.domain.codes import SourceKind
 from iplikci.fakes import teb
 from iplikci.parsers.common import set_business_names
+from iplikci.service import manager
 from iplikci.settings import secrets
 from iplikci.settings.paths import HOME_ENV
 from iplikci.storage.documents import Source
@@ -98,10 +99,11 @@ def no_business_names():
 @pytest.fixture(autouse=True)
 def no_keyring_or_network(monkeypatch, tmp_path_factory):
     def refuse(*args):
-        raise AssertionError("a test reached the system keyring or the network")
+        raise AssertionError("a test reached the system keyring, the service manager or the network")
 
     monkeypatch.setattr(secrets, "_keyring", refuse)
     monkeypatch.setattr(egress, "imap", refuse)
+    monkeypatch.setattr(manager, "run_tool", refuse)  # launchctl, systemctl, schtasks
     monkeypatch.delenv("IPLIKCI_MAIL_PASSWORD", raising=False)
     # A test that forgets to name its data folder gets an empty one, never the user's.
     monkeypatch.setenv(HOME_ENV, str(tmp_path_factory.mktemp("iplikci-bos")))
