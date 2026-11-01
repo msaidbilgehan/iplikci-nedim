@@ -55,14 +55,27 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
   olarak alınır. Şirkete kesilen ya da kullanıcının şirketinin kestiği fatura şirket belgesidir.
 - Banka dışı faturalar ve makbuzlar (F14) saklanır (göç 0014) ve banka satırlarıyla eşleştirilir: aynı tutar,
   faturada son ödeme tarihine, makbuzda −1…+3 güne uzanan pencere ve satıcı adına benzeyen işyeri. Eşleşen satır
-  belgeyi taşır; günleri geçmeyen ya da belgelerin henüz ulaşmadığı belge bekler, bekleyen fatura takvime düşer;
-  eşleşmeyen belge olası nedenleriyle yalnızca bilgi olarak görünür. Hiçbiri toplamları değiştirmez.
+  belgeyi taşır; günleri geçmeyen ya da belgelerin henüz ulaşmadığı belge bekler, bekleyen TL faturası takvime düşer
+  (yabancı para birimindeki, TL tutarı bilinmediğinden Faturalar ekranında kalır); eşleşmeyen belge olası nedenleriyle
+  yalnızca bilgi olarak görünür. Hiçbiri toplamları değiştirmez.
 - Kart ekstrelerinde son ödeme tarihi, asgari ödeme ve kartın toplam limiti okunur (göç 0013):
   - İş Bankası Maximum üçünü de okur;
   - Garanti BBVA Bonus son ödeme tarihini ve kart limitini okur;
   - TEB Bonus ile QNB yalnızca son ödeme tarihini okur.
   Ekstrenin yazmadığı, bozuk yazdığı ya da iki yerde farklı yazdığı bilgi boş kalır; ekstre yine okunur.
   `iplikci dev parser debug` bu bilgileri de gösterir.
+- Eşleşen fatura ya da makbuz, hiçbir kuralın adlandırmadığı satıra satıcının tam adından kategori bulur ("IYZICO
+  \*ORNEK" satırı, "ÖRNEK ECZANESİ" makbuzuyla eczane harcaması olur). Satırın türü ve tutarı değişmez; kullanıcının
+  düzeltmesi yine son sözdür.
+- Akışta faturalar: bir fatura ya da makbuz gelince ya da durumu değişince (bekliyor, eşleşti, eşleşmedi) olay olur.
+- Faturalar ekranı (`/faturalar`, F14): banka dışı göndericilerin faturaları ve makbuzları duruma göre listelenir.
+  Bekleyenler son ödeme gününe göre, banka satırının arandığı günlerle; eşleşmeyenler olası nedenleriyle ve "bilgi —
+  toplamlara girmez" işaretiyle; eşleşenler onları ödeyen banka satırıyla görünür. API `GET /api/invoices`, MCP aracı
+  `invoices`.
+- Sistem ekranında "Banka dışı göndericiler" kartı: alan adları eklenir ve kaldırılır
+  (`GET/PUT /api/settings/mail/other-senders`; listeyi yalnızca arayüz değiştirir). Bir bankanın alan adı (altı ya da
+  üstü dahil), iki kez yazılan ve alan adı olmayan değer reddedilir. Yalnızca göndereni DMARC'tan geçen iletiler
+  alınır; liste değişince geçmiş yeniden okunur.
 
 ### Düzeltilenler
 

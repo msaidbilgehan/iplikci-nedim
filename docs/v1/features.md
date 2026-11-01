@@ -343,6 +343,21 @@ G13, K12 · Çekirdek
   - *Eşleşmedi:* bilgi satırı olarak görünür, toplamlara girmez. Olası açıklamalar yazılır: "başkası ödemiş olabilir",
     "belgesi olmayan bir hesaptan ödenmiş olabilir", "henüz ödenmemiş olabilir".
 - **Ölçüt:** bilgi satırları hiçbir toplamı değiştirmez (test edilir).
+- **Aşama 4'te uygulanan (2026-11-02)**
+  - İlk okuyucu e-Fatura ve e-Arşiv faturasıdır (UBL-TR XML eki ya da yüklenen XML). Son ödeme tarihi yazan belge
+    fatura, yazmayan makbuzdur. Öteki adaylar, kullanıcının eklediği göndericilerin iletileri geldikçe envantere göre
+    (`iplikci dev eposta-envanteri`) seçilir.
+  - Gönderici listesi Sistem ekranındaki "Banka dışı göndericiler" kartından düzenlenir. Bankanın alan adı listeye
+    girmez; liste değişince geçmiş yeniden okunur.
+  - Faturada pencere son ödeme tarihinden üç gün sonrasına uzanır (son ödeme tarihi yoksa belge tarihinden 30 gün).
+    Tutar kuruşu kuruşuna tutmalıdır; yabancı para birimindeki belge, satırın yazdığı döviz tutarıyla eşleşir. Bir satır
+    tek bir belgeyi öder; eski belge önce seçer.
+  - Belgenin günleri, hâlâ gönderilen bütün hesapların belgeleri o günleri kapsamadan geçmiş sayılmaz: o zamana dek belge
+    bekler.
+  - Eşleşen belge, hiçbir kuralın adlandırmadığı satıra satıcının tam adından kategori bulur. Kategori satırı başka türlü
+    sayacaksa (yatırım gibi) alınmaz.
+  - Takvime yalnızca TL faturaları düşer; yabancı para birimindeki faturanın TL tutarı, banka çekene dek bilinmez.
+  - Faturalar ekranı `/faturalar`; API `GET /api/invoices`, MCP aracı `invoices`.
 
 ## F15 — Kategori kuralları
 

@@ -203,4 +203,8 @@ Uygulama (`invoices.py`):
 - Belgenin penceresi, hâlâ gelen hesapların belgelerinin ulaştığı son günden sonra bitiyorsa belge bekler: o günleri
   kapsayacak ekstre henüz gelmemiştir. Belgeleri en yenisinden 62 günden çok önce biten hesap sayılmaz.
 - Aynı satıcı, numara, tarih ve tutarla iki kez gelen belge tek belgedir.
-- Bekleyen bir fatura, son ödeme tarihi takvime düşer; satıcının bir önceki faturasını ödeyen hesaptan çıkar.
+- Bekleyen bir TL faturası, son ödeme tarihi takvime düşer; satıcının bir önceki faturasını ödeyen hesaptan çıkar.
+  Yabancı para birimindeki fatura takvime ve öngörüye girmez: TL tutarı banka çekince belli olur.
+- Hiçbir kuralın adlandırmadığı ("Diğer Harcamalar") eşleşmiş satır, kategorisini satıcının tam adından alır: kurallar
+  "ÖRNEK ECZANESİ"ni tanır, bankanın yazdığı "IYZICO \*ORNEK"i tanımaz. Kategori satırı başka türlü sayacaksa (yatırım,
+  borç) alınmaz; satırın türü ve tutarı değişmez. Kullanıcının düzeltmesi bundan sonra uygulanır.
