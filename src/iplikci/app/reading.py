@@ -4,7 +4,7 @@ stored ones again when that may have changed.
 A document is read again when it was never read, when the reader that read it got a new version (ADR-0005), when
 no reader took it and the readers changed, or when the company names in the settings changed: another name can make
 a kept document a company one. Such a document leaves the vault for the system Trash and its rows go (ADR-0003); the
-audit log says so.
+audit log says so. A reading that suggests the bank changed its format raises parser.format_alarm in the event log.
 """
 
 import os
@@ -17,12 +17,14 @@ from ..parsers import Skipped, Unreadable, registry
 from ..parsers.common import business_names_signature
 from ..parsers.worker import parse_document
 from ..sources import Document
-from ..storage import audit, documents, readings
+from ..storage import audit, documents, events, readings
 from ..storage.db import Database
 from ..vault.names import display_name
 from .workspace import Workspace
 
 type Progress = Callable[[int, int, str], None]
+
+FORMAT_ALARM = "parser.format_alarm"
 
 
 @dataclass
@@ -34,6 +36,23 @@ class Outcome:
     business: bool = False  # a company document: never kept
     result: ParseResult | None = None
     parser: str = ""  # the reader that recognised the document and then gave up on it
+
+    def format_alarm(self) -> dict[str, object] | None:
+        """What says the bank may have changed its format (ADR-0005): the reader recognised the document and then
+        could not read it, or read a statement that does not verify. An account list with too few rows to check its
+        balances says nothing either way."""
+        if self.result is not None:
+            failing = [
+                s.account
+                for s in self.result.statements
+                if not s.verified and not (s.is_account and s.checks_total == 0)
+            ]
+            if not failing:
+                return None
+            return {"parser": self.result.parser, "version": _version(self.result.parser), "unverified": failing}
+        if self.parser and not self.business:
+            return {"parser": self.parser, "version": _version(self.parser), "reason": self.reason}
+        return None
 
     @property
     def kind(self) -> DocumentKind | None:
@@ -92,13 +111,16 @@ def read(name: str, data: bytes, sha256: str, origin: str = "") -> Outcome:
 
 
 def record(db: Database, sha256: str, name: str, outcome: Outcome) -> None:
-    """Keep what reading found: the document's status and, for a processed one, its rows."""
+    """Keep what reading found: the document's status and, for a processed one, its rows; and a format alarm when
+    the reading raises one."""
     with db.transaction():
         documents.record_reading(db, sha256, outcome.reading(name))
         if outcome.result is not None:
             readings.save(db, sha256, outcome.result)
         else:
             readings.clear(db, sha256)
+        if (alarm := outcome.format_alarm()) is not None:
+            events.record(db, FORMAT_ALARM, sha256, **alarm)
 
 
 def stale(doc: documents.DocumentRow) -> bool:

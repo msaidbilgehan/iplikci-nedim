@@ -2,6 +2,7 @@
 from the vault and the primary data gives the same result."""
 
 import os
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -12,7 +13,7 @@ from iplikci.app.analysis import analyze
 from iplikci.app.workspace import Workspace
 from iplikci.cli import main
 from iplikci.domain.codes import Actor, DocumentStatus, Necessity
-from iplikci.fakes import teb
+from iplikci.fakes import garanti, teb
 from iplikci.settings.paths import HOME_ENV
 from iplikci.storage import annotations, documents
 
@@ -52,11 +53,13 @@ def test_notes_and_corrections_come_back_with_the_rebuilt_database(noted):
     assert report.ok and report.annotations == 1, report.differences
 
 
-def test_the_dump_carries_names_arrivals_annotations_and_the_log(noted):
+def test_the_dump_carries_names_arrivals_annotations_and_the_logs(noted):
+    add(noted, "ekstre.pdf", garanti.bonus_statement(total=Decimal("3900.00")))  # a format alarm for the event log
     with noted.db() as db:
         primary = rebuild.export(db)
     again = rebuild.load(rebuild.dump(primary))
     assert again.annotations == primary.annotations and again.audit == primary.audit
+    assert again.events == primary.events and [e.kind for e in again.events] == ["parser.format_alarm"]
     assert [(k.row.sha256, k.row.name, k.row.added_at, k.sources) for k in again.documents] == [
         (k.row.sha256, k.row.name, k.row.added_at, k.sources) for k in primary.documents
     ]

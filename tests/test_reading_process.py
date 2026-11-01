@@ -18,7 +18,7 @@ from iplikci.domain.models import Account, ParseResult, Security, SourceRef, Sta
 from iplikci.fakes import HOLDER, garanti
 from iplikci.fakes.files import pdf_file, text_pdf
 from iplikci.parsers import Skipped, Unreadable, registry, wire, worker
-from iplikci.parsers.common import business_names, caused_by, set_business_names
+from iplikci.parsers.common import caused_by, set_business_names
 from iplikci.sources import Document
 from iplikci.storage import documents
 
@@ -65,13 +65,6 @@ def stand_in(tmp_path, monkeypatch):
     worker.stop()
 
 
-@pytest.fixture
-def names():
-    before = business_names()
-    yield set_business_names
-    set_business_names(before)
-
-
 def doc(name: str = "belge.pdf", data: bytes = b"%PDF-1.4") -> Document:
     return Document(name, "test", data, "sha")
 
@@ -100,11 +93,11 @@ def test_every_demo_document_reads_the_same_in_the_reading_process():
         assert outcome(worker.parse_document, document) == outcome(parsers.parse_document, document), path
 
 
-def test_the_reading_process_reads_with_the_company_names_of_the_moment(names):
+def test_the_reading_process_reads_with_the_company_names_of_the_moment():
     form = doc("Ornek Tekstil talimat.pdf", text_pdf([(40, 40, "TALİMAT FORMU")]))
-    names(["Örnek Tekstil A.Ş."])
+    set_business_names(["Örnek Tekstil A.Ş."])
     assert outcome(worker.parse_document, form) == ("skipped", "şirket belgesi — kapsam dışı", True, "")
-    names([])
+    set_business_names([])
     assert outcome(worker.parse_document, form) == ("skipped", "talimat formu", False, "")
 
 

@@ -2,8 +2,8 @@
 same (`iplikci dogrula --yeniden-kur`).
 
 What the readers read is derived: every document is read again from the vault. What nothing else knows is primary:
-each document's name and arrivals, the user's annotations and the audit log (which, among others, counts the
-company documents that were never kept). It is dumped as JSON, the dump is read back into a new database beside
+each document's name and arrivals, the user's annotations, the audit log (which, among others, counts the company
+documents that were never kept) and the event log. It is dumped as JSON, the dump is read back into a new database beside
 the real one, the documents are read again, and both are analysed and compared. The vault is only read: a company
 document found on the way is marked in the new database, never moved.
 """
@@ -18,17 +18,18 @@ from typing import Any
 
 from .. import baseline
 from ..domain.codes import Actor, DocumentStatus, Necessity, SourceKind
-from ..storage import annotations, audit, documents
+from ..storage import annotations, audit, documents, events
 from ..storage.annotations import Annotation, Subject
 from ..storage.audit import Entry
 from ..storage.db import Database
 from ..storage.documents import DocumentRow, Source
+from ..storage.events import Event
 from . import reading
 from .analysis import Analysis, analyze
 from .workspace import Workspace
 
 FORMAT = "iplikci-birincil-veri"
-VERSION = 1
+VERSION = 2  # 2: the event log
 
 
 @dataclass(frozen=True)
@@ -44,6 +45,7 @@ class Primary:
     documents: list[Kept] = field(default_factory=list[Kept])
     annotations: list[Annotation] = field(default_factory=list[Annotation])
     audit: list[Entry] = field(default_factory=list[Entry])
+    events: list[Event] = field(default_factory=list[Event])
 
 
 def export(db: Database) -> Primary:
@@ -51,6 +53,7 @@ def export(db: Database) -> Primary:
         [Kept(d, documents.sources(db, d.sha256)) for d in documents.every(db)],
         list(annotations.every(db).values()),
         audit.entries(db),
+        events.entries(db),
     )
 
 
@@ -76,6 +79,7 @@ def dump(primary: Primary) -> str:
             asdict(a) | {"tags": list(a.tags), "necessity": a.necessity or ""} for a in primary.annotations
         ],
         "audit": [asdict(e) for e in primary.audit],
+        "events": [asdict(e) for e in primary.events],
     }
     return json.dumps(value, ensure_ascii=False, indent=1, sort_keys=True)
 
@@ -114,7 +118,8 @@ def load(text: str) -> Primary:
         for a in value["annotations"]
     ]
     entries = [Entry(e["at"], Actor(e["actor"]), e["action"], e["target"], e["detail"]) for e in value["audit"]]
-    return Primary(kept, notes, entries)
+    happened = [Event(e["at"], e["kind"], e["target"], e["detail"]) for e in value["events"]]
+    return Primary(kept, notes, entries, happened)
 
 
 def restore(db: Database, primary: Primary) -> None:
@@ -128,6 +133,8 @@ def restore(db: Database, primary: Primary) -> None:
             annotations.restore(db, a)
         for e in primary.audit:
             audit.restore(db, e)
+        for event in primary.events:
+            events.restore(db, event)
 
 
 def rebuild(ws: Workspace, folder: Path, primary: Primary, progress: reading.Progress | None = None) -> Workspace:

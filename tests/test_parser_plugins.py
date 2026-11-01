@@ -13,9 +13,10 @@ from iplikci.domain.models import ParseResult
 from iplikci.fakes import HOLDER, Move, garanti, teb
 from iplikci.fakes.files import text_pdf
 from iplikci.parsers import registry
+from iplikci.parsers.common import set_business_names
 from iplikci.parsers.contract import Detection, Format, Parser, Probe, SourceDocument
 from iplikci.sources import Document
-from iplikci.storage import documents
+from iplikci.storage import documents, events
 
 from conftest import add
 
@@ -205,3 +206,43 @@ def test_a_reader_that_fails_on_a_document_reads_it_again_in_its_next_version(ws
     receipt = registry.find("garanti.receipt")
     monkeypatch.setattr(receipt, "version", receipt.version + 1)
     assert _reread(ws) == ["bozuk.pdf"]
+
+
+# --- the format alarm ---------------------------------------------------------------------------------------
+
+
+def _alarms(ws) -> list[tuple[str, dict]]:
+    with ws.db() as db:
+        return [(e.target, e.detail) for e in events.entries(db, reading.FORMAT_ALARM)]
+
+
+def test_a_reader_that_recognises_a_document_and_fails_on_it_raises_a_format_alarm_once_per_version(ws, monkeypatch):
+    broken = garanti.receipt("HESAPTAN FAST", "106/1234567", HOLDER, [], "TUTAR YOK")  # its amount line changed
+    [stored] = add(ws, "bozuk.pdf", broken).stored
+    [(target, detail)] = _alarms(ws)
+    assert (target, detail["parser"], detail["version"]) == (stored.sha256, "garanti.receipt", "1.1")
+    assert detail["reason"].startswith("ValueError: Garanti dekontunda")
+    with ws.db() as db:
+        reading.read_pending(ws, db, every=True)
+    assert len(_alarms(ws)) == 1  # the same alarm again is no news
+    reader = registry.find("garanti.receipt")
+    monkeypatch.setattr(reader, "version", reader.version + 1)
+    _reread(ws)
+    assert [d["version"] for _, d in _alarms(ws)] == ["1.1", "1.2"]  # the new version fails too
+
+
+def test_a_statement_that_does_not_verify_raises_a_format_alarm(ws):
+    [stored] = add(ws, "ekstre.pdf", garanti.bonus_statement(total=Decimal("3900.00"))).stored
+    assert _alarms(ws) == [
+        (stored.sha256, {"parser": "garanti.bonus_card", "version": "1.1", "unverified": ["garanti-1234"]})
+    ]
+
+
+def test_documents_that_say_nothing_of_a_format_raise_no_alarm(ws):
+    set_business_names(["Örnek Teknoloji"])
+    add(ws, "ekstre.pdf", garanti.bonus_statement())  # verifies
+    add(ws, "form.pdf", text_pdf([(40, 40, "TALİMAT FORMU")]))  # no reader took it
+    add(ws, "sirket.xls", teb.account_export(teb.running_rows(list(teb.ACCOUNT_MOVES)), holder="ÖRNEK TEKNOLOJİ A.Ş."))
+    one = teb.running_rows([Move(date(2026, 1, 5), "ORNEK KAHVE", Decimal(-180))])
+    add(ws, "tek.xls", teb.account_export(one, number="987654321"))  # one row: no balance to check
+    assert _alarms(ws) == []
