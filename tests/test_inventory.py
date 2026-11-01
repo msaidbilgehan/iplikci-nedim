@@ -1,5 +1,6 @@
 """The mailbox's inventory: kept e-mails counted by sender domain and subject template (Phase 4)."""
 
+import email
 from email.message import EmailMessage
 
 from iplikci.app import mail, reading
@@ -74,3 +75,20 @@ def test_the_coverage_counts_the_bank_messages_read_or_knowingly_classified(ws):
     assert found.left == {("ileti.isbank.com.tr", "Kredi Kartı Borcunuzun Tahsilatı"): 1}
     with ws.db() as db:
         assert mail_coverage(db, ("teb.com.tr",)).total == 1  # only the bank senders' messages count
+
+
+def test_a_message_whose_attachment_another_message_brought_first_is_read_through_it(ws):
+    def message(subject: str, message_id: str) -> bytes:
+        msg = email.message_from_bytes(bank_mail(FEBRUARY))
+        del msg["Subject"]
+        msg["Subject"], msg["Message-ID"] = subject, message_id
+        return msg.as_bytes()
+
+    first = message("Hesap hareketleriniz", "<1@teb.com.tr>")
+    forward = message("FW: Hesap hareketleriniz", "<2@teb.com.tr>")
+    for raw in (first, forward):
+        assert mail.take(ws, raw, BANK_SENDERS).taken is mail.Taken.STORED
+    with ws.db() as db:
+        reading.read_pending(ws, db)
+        found = mail_coverage(db, BANK_SENDERS)
+    assert (found.attached, found.unknown) == (2, 0)  # the statement is kept once, under the first message

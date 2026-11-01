@@ -123,6 +123,14 @@ def mail_coverage(db: Database, bank_senders: tuple[str, ...]) -> Coverage:
     for doc in every:
         if doc.parent:
             children.setdefault(doc.parent, []).append(doc.status)
+    # An attachment two messages carry (a forward of a message with its PDF) is kept once, as the first one's; the
+    # other message names it among the document's sources.
+    carried: dict[str, list[DocumentStatus]] = {}
+    for row in db.rows(
+        "SELECT s.message_id, d.status FROM document_sources s JOIN documents d ON d.sha256 = s.sha256 "
+        "WHERE s.message_id != '' AND d.parent != ''"
+    ):
+        carried.setdefault(row["message_id"], []).append(DocumentStatus(row["status"]))
     found = Coverage()
     for doc in every:
         if doc.parent or doc.ext != ".eml" or doc.reason == INCOMPLETE_REASON:
@@ -135,7 +143,7 @@ def mail_coverage(db: Database, bank_senders: tuple[str, ...]) -> Coverage:
             if doc.reason == BUSINESS_REASON:  # one the user removed is no longer the mailbox's
                 found.business += 1
             continue
-        kids = children.get(doc.sha256, [])
+        kids = children.get(doc.sha256, []) + (carried.get(sources[0].message_id, []) if sources else [])
         if doc.status is DocumentStatus.PROCESSED:
             found.read += 1
         elif doc.reason == ATTACHED and kids and DocumentStatus.UNREADABLE not in kids:
