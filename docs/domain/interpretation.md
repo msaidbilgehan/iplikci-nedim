@@ -51,6 +51,17 @@ Biten bir "Gerekli" fatura "Belgelerde yok" diye gösterilir: belgesi olmayan bi
 - `_düzenli` kategorilerinde tutar serbesttir; diğerlerinde ±%50.
 - Durum kuralları aynıdır; beklenen tarih dönem uzunluğuyla hesaplanır.
 - Eşikler gerçek veriyle ayarlanır.
+- Uygulama (Aşama 4, `insights.periodic_payments`):
+  - Yalnızca aylık serilerin almadığı ödemelere bakılır; aylık seriler ve onlardan beslenen bulgular değişmez.
+  - `_düzenli` kategorilerinde her dönem bir kez ödeme alan bir ödeme alanı, tutar ne olursa olsun tek seridir.
+  - Diğer durumlarda bir ödeme, kendinden önceki en yeni benzer ödemeden (fark büyük tutarın yarısını geçmez) bir
+    dönem sonra geliyorsa seriyi sürdürür; arada benzer tutarlar ödenen bir işyeri dönemsel ödeme değildir.
+  - Ayda 5'ten fazla ödeme alan bir ödeme alanı burada da alışveriş yeridir.
+  - Dönem uzunluğu aralıkların medyanıdır; beklenen tarih son ödemeden bir dönem sonradır. Payı bandın sonuna
+    kadardır: ödeme son ödemeden 200 (altı ayda bir) ya da 400 (yılda bir) gün sonrasına kadar gecikebilir, beklenen
+    tarihten en az 10 gün.
+  - Beklenen tutar son ödemedir: dönemsel bir fiyat bir dönem boyunca değişmez. Fiyat değişimi son ödemeyi bir
+    öncekiyle karşılaştırır ve fark %5'i geçerse gösterilir.
 
 ## Alışkanlıklar
 
@@ -106,12 +117,37 @@ nedenleri arasında sayılmaz.
   `payment.due_soon` olayına girer.
 - **Nakit akışı öngörüsü** (hesap başına, 60 gün)
   - Başlangıç tahmini güncel bakiyedir: son belge artı geçici olaylar.
+    - Son belge, bakiyeyi yazan en yeni belgedir: hesap dökümünün kapanış bakiyesi ya da bir banka bildiriminin
+      satırdan sonraki bakiyesi (şimdilik yalnızca Vakıfbank'ın FAST bildirimleri yazar). İkisi aynı günse döküm esas
+      alınır: günün tamamını kapatır. Sonraki günlerin henüz ekstreye girmemiş dekont ve bildirim satırları eklenir.
+    - Bakiyesi hiçbir belgede yazmayan, bakiyesi en yeni belgeden 180 günden eski olan ve döviz ya da altın olan
+      hesaplar öngörüye girmez; nedenleri yazılır.
   - Üstüne beklenen olaylar eklenir:
     - maaş (serinin günü; son üç tutarın medyanı),
     - düzenli ve dönemsel ödemeler (en son hangi hesaptan ödendiyse oradan),
     - kart son ödemeleri (kullanıcının geçmiş ödeme davranışına göre tam ya da kısmi),
     - taksitler.
+  - Takvim (`upcoming.py`) ve öngörü (`forecast.py`) bu olayları şöyle kurar:
+    - Aylık bir ödeme, son dört ödemesine göre ayın olağan gününe düşer. Ay dönümünde ödenenlerde günler ayın 1'ine
+      göre sayılır (ayın son günü, sonraki ayın 1'inden bir gün öncedir); böylece 30'unda ya da 1'inde yatan maaş
+      ayın ortasına kaymaz. Sonraki ödeme sonuncudan en az 15 gün sonradır. Dönemsel ödeme son ödemeden bir dönem
+      sonradır.
+    - Kart son ödemesi, kartı en son ödeyen hesaptan çıkar. Son altı ekstrede ödenen payın medyanı en az %99 ise
+      tamamı sayılır; değilse o pay sayılır, asgari ödemeden az olmamak üzere. Ödeme geçmişi yoksa tamamı sayılır.
+    - Kart taksitleri (n/m etiketinden, sonraki kesim günlerinde) ve kartla ödenen düzenli ödemeler kartın ekstresine
+      girer; hesaptan kart ödemesiyle çıktıkları için öngörüde ayrıca düşülmez.
+    - Kredi taksiti dekontlardan gelir: son taksidin tamamı (anapara, faiz ve vergiler), dekontlar sürdükçe; kalan
+      taksit sayısını dekontlar yazmaz. Taksit, bankanın öngörüdeki tek TL hesabından ödenmiş sayılır; böyle bir
+      hesap yoksa ya da birden çoksa hiçbir hesaba düşülmez, ayrıca gösterilir. Taksitleri hesap dökümünde süren bir
+      seri olan bankanın kredisi o seriyle gelir, ikinci kez eklenmez.
   - Seri dışı çıkışlar, son altı tam ayın aylık medyanıyla günlere yayılır.
+    - Yalnızca hesabın belgelerinin tamamen kapsadığı aylar sayılır; kendi hesaplar arası transferler ve `_biten`
+      işyerleri girmez.
+    - Kart ödemeleri ayrı bir medyandır; takvimdeki kart son ödemelerinin en geç gününden sonrasına yayılır, o güne
+      kadar onları bu kalemler karşılar.
+    - Seri dışı girişler öngörülmez: düzensiz gelir ileriye taşınmaz.
+  - KMH faizi yalnızca belgede yazan aylık oranla hesaplanır; oran yoksa faiz tahmin edilmez (oranı okuyan bir okuyucu
+    henüz yok).
   - Öngörü her zaman "tahmin" diye işaretlenir. Eksiye düştüğü gün `balance.forecast_negative` olayı üretilir.
 - **Olağan dışı hareketler** (yalnızca işaret, satır silinmez)
   - Geçmişte en az 3 ödemesi olan bir işyerinde, medyanının 3 katından büyük bir çekim.
