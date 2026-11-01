@@ -17,13 +17,22 @@ RULES = {
     "iplikci.jobs": ("iplikci.storage",),
     # The feed compares analyses and touches no storage; the analysis still lives in the MVP's flat modules.
     "iplikci.feed": ("iplikci.domain", "iplikci.analysis", "iplikci.insights", "iplikci.month_end"),
+    # The days ahead are interpretation: the ledger and the insights only, no storage, files or network.
+    "iplikci.upcoming": ("iplikci.domain", "iplikci.analysis", "iplikci.insights"),
+    "iplikci.forecast": ("iplikci.domain", "iplikci.analysis", "iplikci.insights", "iplikci.upcoming"),
 }
+
+
+def _files(package: str) -> list[Path]:
+    """A package's modules, or the module itself when it is a single file."""
+    base = SRC / package.replace(".", "/")
+    return sorted(base.rglob("*.py")) if base.is_dir() else [base.with_suffix(".py")]
 
 
 def internal_imports(package: str) -> dict[str, set[str]]:
     """Every module of package, with the iplikci modules it imports (relative imports resolved)."""
     found: dict[str, set[str]] = {}
-    for path in (SRC / package.replace(".", "/")).rglob("*.py"):
+    for path in _files(package):
         parts = list(path.relative_to(SRC).with_suffix("").parts)
         current = parts[:-1]  # the package a relative import starts from
         if parts[-1] == "__init__":
@@ -79,3 +88,4 @@ def test_only_egress_opens_connections():
 def test_the_rule_check_sees_relative_imports():
     imports = internal_imports("iplikci.api")["iplikci.api.routes.auth"]
     assert {"iplikci.app", "iplikci.api.guard", "iplikci.api.context"} <= imports
+    assert "iplikci.upcoming" in internal_imports("iplikci.forecast")["iplikci.forecast"]  # a module on its own
