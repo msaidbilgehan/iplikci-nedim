@@ -183,8 +183,9 @@ The service never runs from this folder when registered: `servis kur` needs a fi
 --python 3.13 .`, built web interface included; without `--python` uv takes its newest Python), so a checked-out branch
 never reaches the real data. During development it runs in the foreground. For a throwaway service set `IPLIKCI_HOME` to
 a temp folder and `IPLIKCI_API_TOKEN` to a made-up token, so the keychain is not touched. Never install the service on
-the user's computer without asking. Once a uv tool copy is registered, a change reaches it only when the fixed copy is installed again and the service restarted
-(`~/.local/bin/iplikci servis yeniden-baslat`).
+the user's computer without asking. Once a uv tool copy is registered, a change reaches it only through an update with the service stopped, as reinstalling replaces the
+package under a running process: `~/.local/bin/iplikci servis kaldir`, then the `uv tool install` above, then
+`~/.local/bin/iplikci servis kur`.
 
 `dogrula --taban` saves the baseline in the data dir (`baseline.json`) and keeps the saved one when it finds a
 regression; `--kabul` saves it anyway, for a deliberate change only. `dogrula --arsiv` and `--yeniden-kur` exit 1 on

@@ -5,6 +5,7 @@ so two processes (the service, the CLI, the MCP bridge) take turns instead of fa
 SQL files applied in order when a database opens; an existing database is backed up first.
 """
 
+import functools
 import os
 import re
 import sqlite3
@@ -99,8 +100,11 @@ def connect(path: Path | None, backups: Path | None = None) -> Database:
     return db
 
 
-def migrations() -> list[tuple[int, str, str]]:
-    """(number, name, SQL) of every migration shipped with the package, in order."""
+@functools.cache
+def migrations() -> tuple[tuple[int, str, str], ...]:
+    """(number, name, SQL) of every migration shipped with the package, in order. Read once a process: every
+    connection asks, and an update replacing the package under a running service must not fail its connections (the
+    service restarts after an update)."""
     found: list[tuple[int, str, str]] = []
     for entry in resources.files(__package__).joinpath("migrations").iterdir():
         match = _MIGRATION.fullmatch(entry.name)
@@ -109,7 +113,7 @@ def migrations() -> list[tuple[int, str, str]]:
     found.sort()
     if [n for n, _, _ in found] != list(range(1, len(found) + 1)):
         raise RuntimeError(f"göç numaraları 1'den başlayıp aralıksız artmalı: {[n for n, _, _ in found]}")
-    return found
+    return tuple(found)
 
 
 def applied(db: Database) -> set[int]:
