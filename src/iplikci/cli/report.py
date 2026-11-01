@@ -125,7 +125,8 @@ def _summary(ds, stats) -> None:
     print(
         f"{stats['documents']} benzersiz belge ({stats['duplicates']} kopya atlandı): "
         f"{len(cards)} kart ekstresi, {len(accounts)} hesap dökümü, {status['dekont']} dekont, "
-        f"{status['is']} şirket belgesi, {status['atlandi']} atlandı, {status['hata']} hata"
+        f"{status['bildirim']} banka bildirimi, {status['is']} şirket belgesi, {status['atlandi']} atlandı, "
+        f"{status['hata']} hata"
     )
     print(f"Kart ekstreleri: {sum(s.verified for s in cards)}/{len(cards)} bankanın toplamıyla tutarlı")
     print(f"Hesap dökümleri: {sum(s.verified for s in accounts)}/{len(accounts)} satır satır bakiyeyle tutarlı")

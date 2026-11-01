@@ -91,6 +91,7 @@ class DocumentKind(StrEnum):
     CARD_STATEMENT = "card_statement"
     ACCOUNT_STATEMENT = "account_statement"  # account movement lists, passbooks, brokerage statements
     RECEIPT = "receipt"
+    NOTICE = "notice"  # a bank's e-mail about a movement (a transfer that came in or went out): evidence like a receipt
 
 
 class SourceKind(StrEnum):

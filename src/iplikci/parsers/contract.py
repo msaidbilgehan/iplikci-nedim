@@ -13,6 +13,7 @@ from typing import Any, Protocol, runtime_checkable
 
 from ..domain.codes import DocumentKind
 from ..domain.models import ParseResult, SourceRef
+from .mail import Mail, read_mail
 from .pdf import Line, ocr_page_lines, open_pdf
 from .sheet import decode_html, html_rows, html_text, read_xls, read_xlsx, sniff
 
@@ -39,7 +40,7 @@ class Format(StrEnum):
     SCAN = "scan"  # a PDF of page images, read with OCR where the system has it (macOS)
     SHEET = "sheet"  # XLS, XLSX, and HTML tables saved as .xls
     HTML = "html"
-    EMAIL = "email"  # a bank e-mail's body (Phase 3)
+    EMAIL = "email"  # a kept e-mail's body (Phase 4)
 
 
 @dataclass(frozen=True)
@@ -54,9 +55,12 @@ class Probe:
 
     name: str  # the file name
     format: Format
-    text: str = ""  # PDF: the first page's text (a scan: the text OCR found on every page); HTML: its text
+    # PDF: the first page's text (a scan: the text OCR found on every page); HTML: its text; EMAIL: the body's text.
+    text: str = ""
     rows: list[list[Any]] = field(default_factory=list[list[Any]])  # SHEET: the first rows
     sheet: str = ""  # SHEET: "xls", "xlsx" or "html"
+    sender: str = ""  # EMAIL: the domain of the sender's address
+    subject: str = ""  # EMAIL: the message's subject
 
 
 class SourceDocument:
@@ -109,6 +113,11 @@ class SourceDocument:
     def text(self) -> str:
         """The visible text of an HTML document, its whitespace collapsed."""
         return html_text(self.data)
+
+    @cached_property
+    def mail(self) -> Mail:
+        """A kept e-mail: its sender, subject and date and the visible text of its body, which a row's span counts in."""
+        return read_mail(self.data)
 
     @cached_property
     def ocr_pages(self) -> list[list[Line]]:

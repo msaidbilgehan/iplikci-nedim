@@ -33,6 +33,7 @@ DOCUMENT_STATUS = {
     "ekstre": "kart ekstresi",
     "hesap": "hesap dökümü",
     "dekont": "dekont",
+    "bildirim": "banka bildirimi",
     "atlandi": "kullanılmayan",
     "is": "şirket belgesi",
     UNREADABLE: "okunamadı",

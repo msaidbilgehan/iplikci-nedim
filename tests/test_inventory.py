@@ -4,6 +4,7 @@ from email.message import EmailMessage
 
 from iplikci.app import mail
 from iplikci.app.inventory import mail_inventory, subject_template, write_csv
+from iplikci.parsers.common import MESSAGE_REASON
 
 from conftest import ADDRESS, FEBRUARY, bank_mail
 
@@ -42,7 +43,7 @@ def test_the_kept_e_mails_are_counted_by_sender_and_template(ws, tmp_path):
     found = {(k.domain, k.template): k for k in kinds}
     shares = found[("banka.example", "<ay> # Hisse Senedi Ekstreniz")]
     assert (shares.count, shares.first_day, shares.last_day, shares.with_files) == (2, "2026-02-02", "2026-03-02", 0)
-    assert shares.states == {"işlenmedi: e-posta iletisi; gövdesindeki bilgiler henüz okunmuyor": 2}
+    assert shares.states == {f"işlenmedi: {MESSAGE_REASON}": 2}
     statement = found[("teb.com.tr", "Hesap hareketleriniz")]
     assert (statement.count, statement.with_files) == (1, 1)  # the list came attached
     assert [k.domain for k in kinds] == ["banka.example", "banka.example", "teb.com.tr"]  # by domain, most first

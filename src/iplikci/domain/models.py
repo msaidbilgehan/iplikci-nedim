@@ -50,6 +50,7 @@ class Transaction:
     counterparty: str = ""  # sender/receiver of a bank transfer
     source: str = ""
     ref: SourceRef | None = None  # where the row is printed in the document
+    balance: Decimal | None = None  # the account's balance after the row, where only the row prints it (a notice)
     # Filled in by categorize.py; necessity only for spending (purchases, refunds, fees, money sent to people).
     merchant: str = ""
     category: str = ""

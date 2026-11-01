@@ -358,6 +358,16 @@ MVP'nin okuyucularından çıkar:
 | `vakifbank.account_xlsx` | Hesap hareketleri (XLSX) | `parsers/hesaplar.py` |
 | `vakifbank.passbook` | e-cüzdan (PDF) | `parsers/vakifbank_cuzdan.py` |
 
+V1'in eklediği okuyucular:
+
+| Kimlik | Belge | Aşama |
+|---|---|---|
+| `vakifbank.notice.transfer` | FAST ve para çıkışı bildirimi (e-posta gövdesi) | 4 |
+
+Bir e-posta bütün olarak saklanır; ekleri kendi biçimlerinin okuyucularına gider. Gövdeyi `Format.EMAIL` okuyucuları
+okur: seçici onlara gönderenin alan adını, konuyu ve gövdenin görünen metnini gösterir (`parsers/mail.py`). Bir
+bildirimin satırları dekontunkiler gibi kanıttır; belge türü `notice`'tir.
+
 V1'de eklenen aileler: banka bildirimleri (`<banka>.notice.*`), kart ekstrelerinde son ödeme tarihi, asgari ödeme ve
 limit alanları, banka dışı göndericiler (`invoice.ubl_tr`, `receipt.<kurum>`, `bill.<kurum>`). Liste
 [features.md F01, F14](features.md)'tedir. Banka biçimlerinin bilinen tuzakları

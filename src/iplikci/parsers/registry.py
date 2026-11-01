@@ -12,6 +12,7 @@ import hashlib
 from functools import cache
 from importlib.metadata import entry_points
 
+from ..domain.codes import DocumentKind
 from .contract import Parser
 from .garanti import account_xls as garanti_account_xls
 from .garanti import bonus_card as garanti_bonus_card
@@ -30,6 +31,7 @@ from .teb import bonus_card as teb_bonus_card
 from .teb import card_payment_receipt as teb_card_payment_receipt
 from .vakifbank import account_xlsx as vakifbank_account_xlsx
 from .vakifbank import passbook as vakifbank_passbook
+from .vakifbank.notice import transfer as vakifbank_notice_transfer
 
 GROUP = "iplikci.parsers"
 # Raise when choosing the reader itself changes (what the selector looks at, the checks before the readers): every
@@ -53,6 +55,7 @@ BUILTIN: tuple[Parser, ...] = (
     qnb_edekont.PARSER,
     vakifbank_account_xlsx.PARSER,
     vakifbank_passbook.PARSER,
+    vakifbank_notice_transfer.PARSER,
 )
 
 
@@ -115,3 +118,9 @@ def label(parser_id: str) -> str:
     """What a reader reads, for people; the id itself for a reader that is gone."""
     reader = find(parser_id)
     return reader.name if reader else parser_id
+
+
+def document_type(parser_id: str) -> DocumentKind | None:
+    """The kind of document a reader reads; None for a reader that is gone."""
+    reader = find(parser_id)
+    return reader.document_type if reader else None

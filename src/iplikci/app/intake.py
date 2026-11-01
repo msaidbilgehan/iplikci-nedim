@@ -440,7 +440,7 @@ def describe(c: Candidate, ws: Workspace) -> dict[str, object]:
         t = result.transactions[0]
         account = next((a for a in result.accounts if a.id == t.account), None)
         out["document"] = {
-            "kind": "dekont",
+            "kind": "bildirim" if c.outcome and c.outcome.kind is DocumentKind.NOTICE else "dekont",
             "account": account.label if account else t.account,
             "start": None,
             "end": t.date.isoformat(),

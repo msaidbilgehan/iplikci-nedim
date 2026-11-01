@@ -19,7 +19,7 @@ from iplikci.storage import documents, events
 
 from conftest import add
 
-# Architecture §10: the readers that come from the MVP.
+# Architecture §10: the readers that come from the MVP and those V1 adds.
 SHIPPED = {
     "garanti.bonus_card",
     "garanti.paracard",
@@ -38,6 +38,8 @@ SHIPPED = {
     "qnb.edekont",
     "vakifbank.account_xlsx",
     "vakifbank.passbook",
+    # Phase 4: the readers of bank notices (`<bank>.notice.*`).
+    "vakifbank.notice.transfer",
 }
 
 

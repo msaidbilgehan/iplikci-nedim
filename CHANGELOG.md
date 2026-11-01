@@ -4,6 +4,24 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [Yayımlanmamış] — Aşama 4: E-postanın tamamı
+
+### Eklenenler
+
+- `iplikci dev eposta-envanteri`: saklanan e-postalar gönderen alan adına ve konu kalıbına göre sayılır. İstenirse
+  `exports/eposta-envanteri.csv`'ye yazılır.
+- E-posta gövdeleri okunur. Seçici `Format.EMAIL` okuyucularına gönderenin alan adını, konuyu ve gövdenin görünen
+  metnini gösterir. Okuyucusu olmayan ileti işlenmeden saklanır.
+- Banka bildirimi diye yeni bir belge türü (`notice`). Satırları dekontunkiler gibi kanıttır ve ekstrelerle
+  uzlaştırılır.
+- `vakifbank.notice.transfer`: Vakıfbank'ın FAST ve para çıkışı bildirimleri okunur (K21). FAST bildiriminin yazdığı
+  işlem sonrası bakiye satırla birlikte saklanır (göç 0012).
+- Maskeli bir ad ("Ör**** Ku******"), kullanıcının adlarından biriyle kelime kelime uyuşuyorsa kullanıcının sayılır.
+
+### Düzeltilenler
+
+- Yalnızca e-cüzdanından bilinen bir hesap, e-cüzdanından sonraki ayları kapanmaktan alıkoymaz (K21).
+
 ## [0.4.0] — 2026-11-01 — Aşama 3: Servis
 
 Kutu baştan okundu ve ilk gerçek taban alındı. Aşama iki açık koşulla kapandı (K19): servisin yedi gün kendi başına

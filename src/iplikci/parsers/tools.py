@@ -9,7 +9,7 @@ import traceback
 from .. import parsers
 from ..domain.labels import currency_label, format_amount, label
 from ..domain.models import ParseResult, SourceRef, Statement, Transaction
-from . import Skipped, Unreadable, choose, parse_document, registry
+from . import Skipped, Unreadable, choose, mail_probe, parse_document, registry
 from .common import is_business
 from .contract import Document, Format, Probe, SourceDocument
 from .pdf import ocr_available, page_text
@@ -30,7 +30,11 @@ def probe(doc: Document) -> list[str]:
     if not stages:
         return [*lines, "Okuyucuların okuduğu bir dosya türü değil."]
     for title, seen in stages:
-        lines += ["", title, *_excerpt(seen), "Okuyucular:"]
+        lines += ["", title, *_excerpt(seen)]
+        if seen.format is Format.EMAIL and is_business(seen.subject):
+            lines.append("Şirket belgesi (konudaki işaret): okuyuculara gösterilmez.")
+            continue
+        lines.append("Okuyucular:")
         for reader in parsers.readers():  # the readers the selection asks
             if seen.format not in reader.formats:
                 continue
@@ -51,6 +55,9 @@ def probe(doc: Document) -> list[str]:
 
 def _stages(source: SourceDocument) -> list[tuple[str, Probe]]:
     """The probes the selection shows the readers, in its order (parsers.parse_document)."""
+    if source.ext == ".eml":
+        seen = mail_probe(source)
+        return [(f"E-posta: gönderen {seen.sender or '?'}, konu {seen.subject!r}: gövdesinin metni", seen)]
     if source.kind in ("xls", "xlsx") or (source.kind == "html" and source.ext in (".xls", ".xlsx")):
         rows = source.rows[:20]
         return [
@@ -124,7 +131,8 @@ def _statement(s: Statement) -> str:
 
 
 def _row(t: Transaction) -> str:
-    extra = " ".join(x for x in (t.installment and f"taksit {t.installment}", t.original, t.counterparty) if x)
+    balance = f"bakiye {format_amount(t.balance)}" if t.balance is not None else ""
+    extra = " ".join(x for x in (t.installment and f"taksit {t.installment}", t.original, t.counterparty, balance) if x)
     return (
         f"  {t.date}  {format_amount(t.amount):>12}  {label(t.kind)}: {t.description}"
         + (f" ({extra})" if extra else "")

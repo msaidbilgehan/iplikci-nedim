@@ -6,9 +6,6 @@ reads it. Two readers recognising it is an error, not a choice; none means the d
 and the reason says what it is when that shows.
 """
 
-import email.policy
-from email.parser import BytesHeaderParser
-
 from pdfminer.pdfdocument import PDFEncryptionError
 
 from ..domain.models import ParseResult
@@ -59,11 +56,6 @@ def _parse(reader: Parser, source: SourceDocument) -> ParseResult:
 def parse_document(doc: Document) -> ParseResult:
     if is_business(doc.name):
         raise Skipped(BUSINESS_REASON, business=True)
-    if doc.ext == ".eml":  # kept whole (ADR-0015); its attachments are documents of their own
-        # The intake looks at the subject; a company name set later finds the messages kept before it.
-        if is_business(_subject(doc.data)):
-            raise Skipped(BUSINESS_REASON, business=True)
-        raise Skipped(MESSAGE_REASON)
     if doc.ext == ".zip":  # only a zip the collector could not open is handed over as a document
         try:
             from_zip(doc.data, doc.name)
@@ -77,12 +69,9 @@ def parse_document(doc: Document) -> ParseResult:
         source.close()
 
 
-def _subject(data: bytes) -> str:
-    """A message's subject, decoded; only the header is read."""
-    return str(BytesHeaderParser(policy=email.policy.default).parsebytes(data).get("Subject", ""))
-
-
 def _read(source: SourceDocument) -> ParseResult:
+    if source.ext == ".eml":  # kept whole (ADR-0015); its attachments are documents of their own
+        return _read_mail(source)
     if source.kind in ("xls", "xlsx") or (source.kind == "html" and source.ext in (".xls", ".xlsx")):
         return _read_sheet(source)
     if source.ext in (".html", ".htm") or source.kind == "html":
@@ -90,6 +79,23 @@ def _read(source: SourceDocument) -> ParseResult:
     if source.ext != ".pdf":
         raise Skipped("desteklenmeyen dosya türü")
     return _read_pdf(source)
+
+
+def mail_probe(source: SourceDocument) -> Probe:
+    """What the readers of message bodies are shown of a kept e-mail."""
+    mail = source.mail
+    return Probe(source.name, Format.EMAIL, text=mail.text, sender=mail.sender, subject=mail.subject)
+
+
+def _read_mail(source: SourceDocument) -> ParseResult:
+    # The intake looks at the subject; a company name set later finds the messages kept before it. A body is left to
+    # its reader: a personal account's notice may name the company as the other side of a transfer.
+    if is_business(source.mail.subject):
+        raise Skipped(BUSINESS_REASON, business=True)
+    reader = choose(mail_probe(source))
+    if reader is None:
+        raise Skipped(MESSAGE_REASON)
+    return _parse(reader, source)
 
 
 def _read_sheet(source: SourceDocument) -> ParseResult:

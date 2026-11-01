@@ -9,7 +9,7 @@ can be laid out for browsing.
 import re
 from pathlib import PurePosixPath
 
-from ..domain.codes import AccountType
+from ..domain.codes import AccountType, DocumentKind
 from ..domain.labels import currency_label
 from ..domain.models import Account, ParseResult
 
@@ -44,8 +44,9 @@ def account_names(a: Account) -> tuple[str, str]:
     return name_part(folder), name_part(short)
 
 
-def display_path(result: ParseResult, ext: str) -> PurePosixPath:
-    """Where a read document sits in the organizer's tree: bank, account, then its name."""
+def display_path(result: ParseResult, ext: str, kind: DocumentKind | None = None) -> PurePosixPath:
+    """Where a read document sits in the organizer's tree: bank, account, then its name. A document of rows alone is
+    a receipt unless kind says it is a bank's notice."""
     if result.statements:
         s = result.statements[0]
         a = next(acc for acc in result.accounts if acc.id == s.account)
@@ -61,8 +62,9 @@ def display_path(result: ParseResult, ext: str) -> PurePosixPath:
     a = next(acc for acc in result.accounts if acc.id == t.account)
     folder, _ = account_names(a)
     bank = _BANK_SHORT.get(a.bank, a.bank)
-    return PurePosixPath(a.bank, folder, f"{t.date:%Y-%m-%d} {bank} {name_part(result.title or 'İşlem')} Dekont{ext}")
+    word = "Bildirim" if kind is DocumentKind.NOTICE else "Dekont"
+    return PurePosixPath(a.bank, folder, f"{t.date:%Y-%m-%d} {bank} {name_part(result.title or 'İşlem')} {word}{ext}")
 
 
-def display_name(result: ParseResult, ext: str) -> str:
-    return display_path(result, ext).name
+def display_name(result: ParseResult, ext: str, kind: DocumentKind | None = None) -> str:
+    return display_path(result, ext, kind).name

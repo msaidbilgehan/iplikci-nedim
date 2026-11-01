@@ -1,11 +1,15 @@
-"""The file formats the banks send, written from scratch: PDFs with a text layer, XLS and XLSX workbooks."""
+"""The file formats the banks send, written from scratch: PDFs with a text layer, XLS and XLSX workbooks, and the
+e-mails themselves."""
 
+import hashlib
 import io
 import re
 import struct
 import zipfile
 from collections.abc import Sequence
 from datetime import datetime
+from email.message import EmailMessage
+from email.utils import format_datetime
 
 # --- PDF ------------------------------------------------------------------------------------------------------
 
@@ -221,3 +225,26 @@ def xlsx_file(sheet: str, rows: Sequence[Sequence[str | float | datetime | None]
                 data = re.sub(rb"(<dcterms:modified[^>]*>)[^<]*", rb"\g<1>2026-01-01T00:00:00Z", data)
             target.writestr(zipfile.ZipInfo(info.filename, (2026, 1, 1, 0, 0, 0)), data, zipfile.ZIP_DEFLATED)
     return out.getvalue()
+
+
+# --- e-mail -----------------------------------------------------------------------------------------------------
+
+RECIPIENT = "ornek.kullanici@example.com"
+
+
+def html_mail(sender: str, subject: str, html: str, sent: datetime) -> bytes:
+    """An e-mail as a bank sends it and Gmail keeps it: Gmail's Authentication-Results on top (DMARC passes), an HTML
+    body in UTF-8 and base64. The message id comes from the contents, so that the same message makes the same bytes."""
+    domain = sender.rpartition("@")[2]
+    msg = EmailMessage()
+    msg["Authentication-Results"] = (
+        f"mx.google.com; dkim=pass header.i=@{domain}; spf=pass smtp.mailfrom={domain}; "
+        f"dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from={domain}"
+    )
+    msg["From"] = f"Banka <{sender}>"
+    msg["To"] = RECIPIENT
+    msg["Subject"] = subject
+    msg["Date"] = format_datetime(sent)
+    msg["Message-ID"] = f"<{hashlib.sha256((subject + html).encode()).hexdigest()[:20]}@{domain}>"
+    msg.set_content(html, subtype="html", charset="utf-8", cte="base64")
+    return msg.as_bytes()

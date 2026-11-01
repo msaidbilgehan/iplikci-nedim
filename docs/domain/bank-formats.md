@@ -181,6 +181,33 @@ yapılan ödemedir.
 **e-cüzdan PDF'i** (`vakifbank.passbook`): mevduat koşulları 1. sayfada, hesap (`Cüzdan Seri No`, satırlar
 `NO tarih tutar bakiye metin`) sonraki sayfalarda.
 
+**Transfer bildirimleri** (`vakifbank.notice.transfer`, e-posta gövdesi, `vakifbank.com.tr`)
+
+- Vakıfbank hesap dökümünü e-postayla göndermez. Hesap hakkında kutuda bulunan, bu bildirimlerdir (K21).
+- İki tür vardır:
+  - "VAKIFBANK - FAST Anlık Ödeme Bilgilendirmesi": gelen ya da giden FAST.
+  - "Bilgilendirme: Mevduat Hesabı Para Çıkışları": hesaptan EFT ile çıkan para.
+- Gövde tek bir HTML parçasıdır (UTF-8, base64). Tablonun her satırı `etiket`, `:` ve `değer` hücreleridir. Para
+  çıkışı bildiriminde iki nokta değerin hücresindedir; `Alıcı IBAN : …` tek hücrededir.
+- Paranın yönünü tablonun üstündeki cümle söyler:
+  - "Hesabınıza FAST Anlık Ödeme gelmiştir." gelen paradır.
+  - "Bankamızdan gönderdiğiniz FAST Anlık Ödeme işleminiz …" ve "Mevduat hesabınızdan gerçekleşen para çıkış
+    detayları …" çıkan paradır.
+- Hesap numarası son dört hane dışında maskelidir: FAST'te `*************1234`, para çıkışında `00158********1234`.
+  Hesap bu dört haneyle `vakifbank-****1234` olarak açılır. Aynı bankanın, aynı para birimindeki ve aynı dört haneyle
+  biten bir hesabının dökümü gelirse satırlar o hesaba geçer (`analysis.resolve_masked`).
+- Adlar her kelimenin ilk iki harfi dışında maskelidir. Müşterinin adı ("Sayın Ör**** Ku******") bilinmez sayılır. Karşı
+  tarafın adı ancak kullanıcının adlarından biriyle aynı sayıda kelimeden oluşuyorsa ve her kelime gösterilen harflerle
+  başlıyorsa kullanıcının sayılır. O zaman transfer kendi hesaplar arasıdır.
+- Tutarlar, kuruş sıfırsa ondalıksız yazılır: `2.000 TL`, `12.345,67 TL`, `0 TL`.
+- FAST bildirimi işlemden sonraki bakiyeyi de yazar (`Güncel Bakiye`); para çıkışı bildirimi yazmaz. Bakiye satırla
+  birlikte saklanır.
+- Dekont anahtarı işlem günü ile `Sorgu Numarası`dır.
+- Tanımadığı bir etiket bir değerin içine taşarsa okuyucu belgeyi okumaz ve biçim alarmı verir: bir ad ya da tutar
+  yanlış okunabilir.
+- Vakıfbank'ın para hareketi taşımayan iletileri (kampanya, kart teslimi, adres ve e-posta doğrulama) bu okuyucuya
+  girmez.
+
 ## QNB
 
 **Kart ve hesap PDF'leri**

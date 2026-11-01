@@ -67,6 +67,14 @@ def test_own_names_and_numbers():
     assert not own.mentions_own_account("Fatura no 55512345")
 
 
+def test_a_masked_name_is_the_users_when_every_word_starts_as_shown():
+    own = Own(["ÖRNEK İSİM SOYADOĞLU"], ACCOUNTS)
+    assert own.is_self("ÖR**** İS*** SO******") and own.is_self("Ör**** İs*** So*******")
+    assert not own.is_self("ÖR**** SO******")  # the bank masks the whole name: two words are somebody else's
+    assert not own.is_self("Ör**** Ay** So******")  # another middle name
+    assert not own.is_self("Ö***** İ**** S*******")  # a letter a word: a relative's name could look the same
+
+
 def test_transfer_to_self_by_name(cat):
     (t,) = resolve(cat, [cand(date(2026, 1, 5), "FAST", Decimal(1000), counterparty="ÖRNEK İSİM SOYADOĞLU")])
     assert t.kind == TransactionKind.OWN_TRANSFER

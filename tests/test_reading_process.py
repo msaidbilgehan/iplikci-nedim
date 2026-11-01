@@ -159,6 +159,7 @@ def full_result() -> ParseResult:
         TransactionKind.TRANSFER_CANDIDATE,
         card.id,
         ref=SourceRef(1, span=(0, 48)),
+        balance=Decimal("-8750.25"),  # a notice's balance after the row
     )
     return ParseResult("ornek.okuyucu", [card], [statement], [loose], "dekont-1", "ÖRNEK KULLANICI", "Aidat")
 
@@ -178,6 +179,8 @@ GONE = object()
         (("transactions", 0, "amount"), 1250.5),  # amounts cross as text, exactly
         (("transactions", 0, "amount"), "NaN"),
         (("transactions", 0, "amount"), "bin"),
+        (("transactions", 0, "balance"), 12.5),
+        (("transactions", 0, "balance"), GONE),
         (("transactions", 0, "kind"), "theft"),
         (("transactions", 0, "description"), 7),
         (("transactions", 0, "ref", "span"), [1, 2, 3]),

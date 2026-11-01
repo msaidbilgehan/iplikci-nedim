@@ -97,6 +97,7 @@ DOCUMENT_KIND: dict[DocumentKind, str] = {
     DocumentKind.CARD_STATEMENT: "Kart ekstresi",
     DocumentKind.ACCOUNT_STATEMENT: "Hesap dökümü",
     DocumentKind.RECEIPT: "Dekont",
+    DocumentKind.NOTICE: "Banka bildirimi",
 }
 
 SOURCE_KIND: dict[SourceKind, str] = {

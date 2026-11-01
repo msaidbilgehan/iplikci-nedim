@@ -67,7 +67,9 @@ class Outcome:
         if self.result is None:
             return None
         if not self.result.statements:
-            return DocumentKind.RECEIPT
+            # A bank's notice brings rows the way a receipt does; its reader says which of the two it reads.
+            notice = registry.document_type(self.result.parser) is DocumentKind.NOTICE
+            return DocumentKind.NOTICE if notice else DocumentKind.RECEIPT
         return DocumentKind.ACCOUNT_STATEMENT if self.result.statements[0].is_account else DocumentKind.CARD_STATEMENT
 
     def reading(self, name: str) -> documents.Reading:
@@ -93,7 +95,7 @@ class Outcome:
             verified=first.verified if first else None,
             period_start=(first.start if first else None),
             period_end=first.cut_date if first else (r.transactions[0].date if r.transactions else None),
-            display_name=display_name(r, os.path.splitext(name)[1].lower() or ".pdf"),
+            display_name=display_name(r, os.path.splitext(name)[1].lower() or ".pdf", self.kind),
         )
 
 

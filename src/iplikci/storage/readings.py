@@ -127,22 +127,22 @@ def save(db: Database, sha256: str, result: ParseResult) -> None:
             for j, t in enumerate(s.transactions):
                 row_id = db.execute(
                     "INSERT INTO transactions (sha256, statement_id, position, date, description, amount, currency, "
-                    "kind, account, original, installment, bank_category, counterparty, source, ref) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "kind, account, original, installment, bank_category, counterparty, source, ref, balance) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (sha256, statement_id, j, *_row_values(t, s.currency)),
                 ).lastrowid
                 _index(db, sha256, "transaction", row_id, t)
         for i, t in enumerate(result.transactions):
             row_id = db.execute(
                 "INSERT INTO evidence (sha256, position, date, description, amount, currency, kind, account, "
-                "original, installment, bank_category, counterparty, source, ref) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "original, installment, bank_category, counterparty, source, ref, balance) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (sha256, i, *_row_values(t, currencies.get(t.account, TRY))),
             ).lastrowid
             _index(db, sha256, "evidence", row_id, t)
 
 
-def _row_values(t: Transaction, currency: str) -> tuple[str | int, ...]:
+def _row_values(t: Transaction, currency: str) -> tuple[str | int | None, ...]:
     return (
         t.date.isoformat(),
         t.description,
@@ -156,6 +156,7 @@ def _row_values(t: Transaction, currency: str) -> tuple[str | int, ...]:
         t.counterparty,
         t.source,
         _ref_text(t.ref),
+        None if t.balance is None else _to_minor(t.balance),
     )
 
 
@@ -235,6 +236,7 @@ def _transaction(r: sqlite3.Row) -> Transaction:
         counterparty=r["counterparty"],
         source=r["source"],
         ref=_ref(r["ref"]),
+        balance=None if r["balance"] is None else _from_minor(r["balance"]),
     )
 
 

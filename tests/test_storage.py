@@ -191,6 +191,7 @@ def sample() -> ParseResult:
             TransactionKind.TRANSFER_CANDIDATE,
             teb.id,
             ref=SourceRef(page=1, span=(120, 168)),
+            balance=Decimal("-4321.10"),  # a notice's balance after the row
         )
     ]
     return ParseResult("deneme", [card, teb], [statement, listing], receipt, "dekont-1", "ÖRNEK KULLANICI", "Aidat")

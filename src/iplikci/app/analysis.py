@@ -178,6 +178,7 @@ def summary(a: Analysis) -> dict[str, Any]:
         "accountStatements": len(lists),
         "accountStatementsVerified": sum(s.verified for s in lists),
         "receipts": statuses.count("dekont"),
+        "notices": statuses.count("bildirim"),
         "business": statuses.count("is"),
         "skipped": statuses.count("atlandi"),
         "errors": statuses.count("hata"),

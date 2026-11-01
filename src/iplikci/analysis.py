@@ -24,13 +24,13 @@ from decimal import Decimal
 from typing import Any
 
 from .categorize import Categorizer, clean_description
-from .domain.codes import CARD_TYPES, AccountType, EvidenceStatus, TransactionKind
+from .domain.codes import CARD_TYPES, AccountType, DocumentKind, EvidenceStatus, TransactionKind
 from .domain.fingerprint import Fingerprints
 from .domain.labels import EVIDENCE_STATUS, format_amount
 from .domain.models import TRY, Account, ParseResult, Statement, Transaction
 from .domain.money import CENT, round_half_up
 from .domain.text import fold
-from .parsers.registry import label
+from .parsers.registry import document_type, label
 
 # What the statements say about a receipt's row.
 PROVISIONAL = EvidenceStatus.PROVISIONAL  # after the account's newest statement: counts now, the next one confirms it
@@ -50,7 +50,7 @@ ACTIVE_DAYS = 180
 class DocumentStatus:
     name: str
     origin: str
-    status: str  # "ekstre", "hesap", "dekont", "atlandi", "is", "hata"
+    status: str  # "ekstre", "hesap", "dekont", "bildirim", "atlandi", "is", "hata"
     detail: str = ""
 
 
@@ -265,9 +265,11 @@ class Own:
 
     def __init__(self, names: list[str], accounts: dict[str, Account]):
         variants = set()
+        self.whole: list[list[str]] = []  # every name as given, word by word
         for name in names:
             parts = fold(name).split()
             if len(parts) >= 2:
+                self.whole.append(parts)
                 variants.add(" ".join(parts))
                 variants.add(f"{parts[0]} {parts[-1]}")  # ORNEK SOYADOGLU
                 variants.add(f"{parts[0][0]}.{parts[1]} {parts[-1]}" if len(parts) > 2 else "")
@@ -280,7 +282,22 @@ class Own:
 
     def is_self(self, who: str) -> bool:
         f = fold(who)
+        if "*" in f:
+            return self._masked_self(f)
         return bool(f) and any(f == n or f.startswith(n + " ") or f.endswith(" " + n) for n in self.names)
+
+    def _masked_self(self, masked: str) -> bool:
+        """A name masked but for the first letters of its words ("ÖR**** KU******", Vakıfbank's notices) is the
+        user's when one of the names as given has as many words, each starting with the letters shown. Banks mask the
+        whole name as the account holds it, so the short variants are not tried: "Ör**** Ku****" of a two-word name is
+        somebody else's when the user's name has three words. One letter a word could be a relative's name."""
+        shown = [w.split("*", 1)[0] for w in masked.split()]
+        if len(shown) < 2 or any(len(s) < 2 for s in shown):
+            return False
+        return any(
+            len(parts) == len(shown) and all(p.startswith(s) for p, s in zip(parts, shown, strict=True))
+            for parts in self.whole
+        )
 
     def mentions_own_account(self, text: str) -> bool:
         """TEB names the receiving account even on the receiving side
@@ -489,6 +506,13 @@ def resolve_masked(results: Iterable[ParseResult]) -> None:
                     t.account = same[0].id
 
 
+def _status(result: ParseResult) -> str:
+    """What a read document is, as DocumentStatus says it: a statement or list, else a receipt or a bank's notice."""
+    if result.statements:
+        return "hesap" if result.statements[0].is_account else "ekstre"
+    return "bildirim" if document_type(result.parser) is DocumentKind.NOTICE else "dekont"
+
+
 def build(
     results: Sequence[tuple[Any, ParseResult | None, Sequence[str] | None]],
     categorizer: Categorizer,
@@ -518,8 +542,7 @@ def build(
                 statements[key] = s
         if result.transactions:
             receipts.setdefault(result.receipt_key or doc.sha256, result.transactions)
-        kind = ("hesap" if result.statements[0].is_account else "ekstre") if result.statements else "dekont"
-        documents.append(DocumentStatus(doc.name, doc.origin, kind, label(result.parser)))
+        documents.append(DocumentStatus(doc.name, doc.origin, _status(result), label(result.parser)))
 
     stmts = sorted(statements.values(), key=lambda s: (s.account, s.cut_date, s.currency))
     _fingerprint(stmts, receipts, accounts)

@@ -158,6 +158,7 @@ def _transaction(t: Transaction) -> Json:
         "counterparty": t.counterparty,
         "source": t.source,
         "ref": _ref(t.ref),
+        "balance": _money(t.balance),
     }
 
 
@@ -174,6 +175,7 @@ def _transaction_from(data: Any) -> Transaction:
         counterparty=_str(data["counterparty"]),
         source=_str(data["source"]),
         ref=_ref_from(data["ref"]),
+        balance=_optional(_decimal, data["balance"]),
     )
 
 

@@ -122,6 +122,7 @@ def build_payload(
             "accountStatements": sum(s.is_account for s in ds.statements),
             "verified": sum(s.verified for s in ds.statements),
             "receipts": statuses.count("dekont"),
+            "notices": statuses.count("bildirim"),
             "skipped": statuses.count("atlandi"),
             "business": statuses.count("is"),
             "errors": statuses.count("hata"),
