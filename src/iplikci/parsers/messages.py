@@ -18,7 +18,7 @@ from .common import MESSAGE_REASON
 from .mail import Mail
 
 # Raised whenever the rules change: the messages no reader took are then classified again (registry.signature).
-VERSION = 4
+VERSION = 5
 
 CAMPAIGN = "kampanya ve tanıtım — para hareketi yok"
 ANNOUNCEMENT = "duyuru ve bilgilendirme — para hareketi yok"
@@ -57,6 +57,8 @@ _CARD = _words(
 _REMINDER = _words("HAFTASI ODEME BILGILERI", "VADE TARIHI BILGILENDIRME", "HATIRLATMA")
 # A change to fees, rates or terms is announced, whatever money words the subject also holds.
 _CHANGE = _words("DEGISIKLIK", "DEGISIKLIG", "GUNCELLEN")
+_DONE = _words("TAMAMLADINIZ")  # "kredi ödemelerinizin yarısından fazlasını tamamladınız"
+_INFORM_ONLY = _words("SADECE BILGILENDIRME AMACLI")  # "Gönderilen e-postalar sadece bilgilendirme amaçlıdır."
 _OPENING = 400  # characters of the body's text that hold its greeting and opening sentence
 # A body that sends the reader to online banking for the details ("… İnternet/Mobil Şube'den kontrol edebilirsiniz",
 # Garanti's monthly HGS message), when it holds no amount, tells of no money itself.
@@ -165,11 +167,12 @@ def message_reason(mail: Mail) -> str:
     for words, reason in ((_SECURITY, SECURITY), (_CARD, CARD), (_REMINDER, REMINDER), (_CHANGE, ANNOUNCEMENT)):
         if words.search(subject):
             return reason
-    if _ELSEWHERE.search(fold(mail.text)) and not _AMOUNT.search(mail.text):
+    opening, amount = fold(mail.text[:_OPENING]), _AMOUNT.search(mail.text)
+    if _ELSEWHERE.search(fold(mail.text)) and not amount:
         return ELSEWHERE
-    # A body that holds no amount and opens with a change of fees announces it, whatever money words the subject has
-    # ("Dijital Teminat Mektubu Dönem Ücreti": the fees "güncellenecektir").
-    if _CHANGE.search(fold(mail.text[:_OPENING])) and not _AMOUNT.search(mail.text):
+    # A body that holds no amount and opens with a change of fees or a loan's progress announces it, whatever money
+    # words the subject has ("Dijital Teminat Mektubu Dönem Ücreti": the fees "güncellenecektir").
+    if (_CHANGE.search(opening) or _DONE.search(opening)) and not amount:
         return ANNOUNCEMENT
     if _MONEY.search(subject):
         return MESSAGE_REASON
@@ -179,5 +182,8 @@ def message_reason(mail: Mail) -> str:
         return CAMPAIGN
     if _ANNOUNCEMENT.search(subject):
         return ANNOUNCEMENT
-    # A subject that says nothing ("BİLGİLENDİRME"): the body's opening sentence may announce a change of fees.
-    return ANNOUNCEMENT if _CHANGE.search(fold(mail.text[:_OPENING])) else MESSAGE_REASON
+    # A subject that says nothing ("BİLGİLENDİRME"): the body's opening sentence may announce a change of fees, or the
+    # body hold no amount, only the bank's word that its e-mails just inform: its message is a picture.
+    if _CHANGE.search(opening) or (not amount and _INFORM_ONLY.search(fold(mail.text))):
+        return ANNOUNCEMENT
+    return MESSAGE_REASON

@@ -457,3 +457,15 @@ def test_a_body_without_amounts_that_opens_with_a_change_of_fees_is_an_announcem
     assert message_reason(mail_of("Örnek Mektup Dönem Ücreti", text=text)) == messages.ANNOUNCEMENT
     with_amount = f"{text} Yeni dönem ücreti 150,00 TL olacaktır."
     assert message_reason(mail_of("Örnek Mektup Dönem Ücreti", text=with_amount)) == MESSAGE_REASON
+
+
+def test_a_loans_progress_and_a_picture_with_the_banks_footer_are_announcements():
+    progress = "Tebrikler, ÖR-12345 referans numaralı kredi ödemelerinizin yarısından fazlasını tamamladınız."
+    assert message_reason(mail_of("Çoğu bitti azı kaldı!", text=progress)) == messages.ANNOUNCEMENT
+    footer = (
+        "Mesajı düzgün görüntüleyemiyorsanız lütfen tıklayınız. Gönderilen e-postalar sadece bilgilendirme amaçlıdır. "
+        "Örnek Bankası A.Ş. Ticaret Sicil No: 123456"
+    )
+    assert message_reason(mail_of("BİLGİLENDİRME [İletiNo:123]", text=footer)) == messages.ANNOUNCEMENT
+    paid = f"Hesabınıza 1.250,00 TL yatırılmıştır. {footer}"  # an amount: a notice no reader reads yet
+    assert message_reason(mail_of("BİLGİLENDİRME [İletiNo:123]", text=paid)) == MESSAGE_REASON

@@ -344,8 +344,10 @@ gönderenin alan adına ve konusuna göre adlandırılır (`parsers/messages.py`
 - `bilgi.` alt alan adından gelen ileti duyurudur. Kampanya kelimeleri (fırsat, davet, bonus, indirim, taksit…) ve
   duyuru kelimeleri (tatil, işlem saatleri, halka arz, ücret, tarife…) en son denenir.
 - Hiçbir şey söylemeyen bir konu ("BİLGİLENDİRME") için gövdenin ilk cümlesine bakılır. Bir ücret değişikliği
-  duyuruyorsa ileti duyurudur. Tutar içermeyen bir gövde ücret değişikliğiyle açılıyorsa, konusu para hareketi anlatsa
-  da ileti duyurudur ("Dijital Teminat Mektubu Dönem Ücreti").
+  duyuruyorsa ileti duyurudur. Tutar içermeyen bir gövde ücret değişikliğiyle ya da bir kredinin ilerleyişiyle
+  ("ödemelerinizin yarısından fazlasını tamamladınız") açılıyorsa, konusu para hareketi anlatsa da ileti duyurudur
+  ("Dijital Teminat Mektubu Dönem Ücreti"). Tutar içermeyen ve bankanın "gönderilen e-postalar sadece bilgilendirme
+  amaçlıdır" altbilgisinden başka metni olmayan gövdenin iletisi bir resimdir: duyuru sayılır.
 - Kampanya, duyuru, güvenlik ve kart bildirimleri ile ödeme hatırlatmaları "para hareketi yok" diye bilerek sınıflanır.
   F01'in kapsam ölçütü bunları sayar. Kurallar değişince okuyucusu olmayan iletiler yeniden sınıflanır
   (`messages.VERSION`).

@@ -34,7 +34,9 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
   ya da listenin dediğine bırakır.
 - `isbank.notice.collection`: İş Bankası'nın gecikmiş kart borcunu hesaptan tahsil ettiği bildirim, karta yapılmış
   bir ödeme olarak okunur.
-- Tutar içermeyen ve ücret değişikliğiyle açılan bir ileti, konusu para hareketi anlatsa da duyuru sayılır.
+- Tutar içermeyen ve ücret değişikliğiyle ya da bir kredinin ilerleyişiyle açılan ileti, konusu para hareketi anlatsa
+  da duyuru sayılır; metni yalnızca bankanın altbilgisi olan (iletisi resimde) ileti de duyurudur.
+- Aynı eki taşıyan ikinci ileti (ekli bir iletinin iletilmesi) de ekiyle okunmuş sayılır: ek bir kez saklanır.
 - Yaklaşan bir ödemeyi hatırlatan iletiler (haftalık kart ödemeleri, kredinin vade tarihi) "ödeme hatırlatması" diye
   sınıflanır.
 - Okuyucusu olmayan bir iletinin selamlaması bir şirketi anıyorsa ("Merhaba ÖRNEK A.Ş.,") ileti şirket belgesi sayılır;
