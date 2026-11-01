@@ -1,7 +1,7 @@
 /** The extension's window: where it stands, pairing with a code, and which Gmail account to read. */
 
 import type { Status } from "../bridge/messages";
-import type { Outcome } from "../bridge/state";
+import type { Outcome, ScanSummary } from "../bridge/state";
 
 function element<T extends HTMLElement>(id: string, type: new () => T): T {
   const found = document.getElementById(id);
@@ -20,6 +20,8 @@ const pairButton = element("pair", HTMLButtonElement);
 const pairStatus = element("pair-status", HTMLParagraphElement);
 const forget = element("forget", HTMLButtonElement);
 const account = element("account", HTMLSelectElement);
+const scan = element("scan", HTMLButtonElement);
+const scanState = element("scan-state", HTMLParagraphElement);
 
 const CALM: ReadonlySet<Outcome> = new Set(["delivered", "nothing-new"]);
 const TIME = new Intl.DateTimeFormat("tr-TR", { dateStyle: "short", timeStyle: "short" });
@@ -35,7 +37,8 @@ async function ask(request: object): Promise<Status | null> {
 
 function show(status: Status | null): void {
   if (status === null) {
-    state.textContent = "Eklentinin arka planı yanıt vermedi; eklentiyi tarayıcının eklentiler sayfasında yeniden yükleyin.";
+    state.textContent =
+      "Eklentinin arka planı yanıt vermedi; eklentiyi tarayıcının eklentiler sayfasında yeniden yükleyin.";
     return;
   }
   account.value = String(status.account);
@@ -50,6 +53,19 @@ function show(status: Status | null): void {
   }
   last.textContent =
     status.lastRun === null ? "" : `Son denetim: ${TIME.format(new Date(status.lastRun.at))} (her dakika denetlenir)`;
+  showScan(status.paired, status.scan);
+}
+
+function showScan(paired: boolean, summary: ScanSummary | null): void {
+  const busy = summary !== null && (summary.phase === "searching" || summary.phase === "downloading");
+  scan.disabled = !paired || busy;
+  scan.textContent = busy ? "Taranıyor…" : "Gmail'de eksikleri tara";
+  if (summary === null) {
+    scanState.textContent = paired ? "" : "Tarama için önce eşleştirin.";
+    return;
+  }
+  const when = TIME.format(new Date(summary.at));
+  scanState.textContent = busy ? summary.detail : `${when} taraması: ${summary.detail}`;
 }
 
 pairForm.addEventListener("submit", (event) => {
@@ -87,6 +103,13 @@ now.addEventListener("click", () => {
     now.disabled = true;
     state.textContent = "Denetleniyor…";
     show(await ask({ kind: "run" }));
+  })();
+});
+
+scan.addEventListener("click", () => {
+  void (async () => {
+    scan.disabled = true;
+    show(await ask({ kind: "scan" }));
   })();
 });
 

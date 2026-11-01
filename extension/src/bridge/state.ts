@@ -26,6 +26,23 @@ export interface RunSummary {
   readonly detail: string;
 }
 
+/** Where a scan of Gmail stands ("Gmail'de eksikleri tara"), kept as it goes so the window follows it. */
+export interface ScanSummary {
+  readonly at: string;
+  readonly phase: "searching" | "downloading" | "done" | "stopped";
+  /** Pages of Gmail's search read, and the conversations found on them. */
+  readonly pages: number;
+  readonly conversations: number;
+  /** Messages the list names (each conversation's first and last), those the service lacked, those delivered. */
+  readonly found: number;
+  readonly missing: number;
+  readonly delivered: number;
+  /** Messages inside conversations, between the first and the last, that the list does not name. */
+  readonly between: number;
+  /** Turkish, for the window; never an address, subject or message text. */
+  readonly detail: string;
+}
+
 export interface BridgeState {
   readonly paired: Paired | null;
   /** Which signed-in Google account to read, as Gmail numbers them (mail/u/N). */
@@ -40,6 +57,7 @@ export interface BridgeState {
   readonly failures: number;
   /** Gmail ids of messages the service can never take (too large, empty), so they are not downloaded again. */
   readonly skipped: readonly string[];
+  readonly scan: ScanSummary | null;
 }
 
 export const INITIAL: BridgeState = {
@@ -51,6 +69,7 @@ export const INITIAL: BridgeState = {
   calmUntil: 0,
   failures: 0,
   skipped: [],
+  scan: null,
 };
 
 export interface Store {

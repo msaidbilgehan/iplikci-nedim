@@ -1,0 +1,141 @@
+/**
+ * What the delivery run and the scan of Gmail share: the account key, the layers a Gmail page it does not know stops,
+ * the delivery of one message, and how trouble reads in Turkish. Requests to Gmail go one at a time, a second apart.
+ */
+
+import { FormatError } from "../gmail/errors";
+import { type Fetcher as GmailFetcher, HttpError } from "../gmail/http";
+import { readAccountKey } from "../gmail/session";
+import { type Fetcher, NotTheService, type Paired, Refused, ServiceDown, alarm, deliver } from "./service";
+import type { BridgeState, Outcome, Store } from "./state";
+
+export interface Environment {
+  readonly gmail: GmailFetcher;
+  readonly service: Fetcher;
+  readonly sleep: (ms: number) => Promise<void>;
+  readonly now: () => Date;
+  /** The extension's version: a layer stopped by an older one tries again. */
+  readonly version: string;
+}
+
+export const PACE_MS = 1000;
+const SKIPPED_KEPT = 50;
+/** The service's answers for a message it can never take: retrying would only download it again. */
+const UNTAKEABLE: ReadonlySet<string> = new Set(["message_too_large", "message_empty"]);
+/** Whether the service no longer knows the pairing: it refuses the token, or says so when asked to prove itself. */
+export function revoked(error: unknown): boolean {
+  return error instanceof Refused && (error.status === 401 || error.code === "bridge_unknown");
+}
+
+export type Layer = 1 | 2 | 3;
+
+/** A layer met a Gmail page it does not know. */
+export class LayerStopped extends Error {
+  constructor(readonly layer: Layer) {
+    super(`layer ${layer} met a page it does not know`);
+  }
+}
+
+/** read, with a format error turned into the stop of its layer. */
+export async function layer<T>(which: Layer, read: () => Promise<T>): Promise<T> {
+  try {
+    return await read();
+  } catch (error) {
+    throw error instanceof FormatError ? new LayerStopped(which) : error;
+  }
+}
+
+/** Whether one of the layers is stopped for this version of the extension. */
+export function stoppedNow(state: BridgeState, version: string, ...layers: Layer[]): boolean {
+  return layers.some((which) => state.stopped[String(which)] === version);
+}
+
+/** Stop a layer for this version and tell the service once; the stop holds even when the service does not hear. */
+export async function stopLayer(env: Environment, store: Store, paired: Paired, which: Layer): Promise<void> {
+  await store.update({ stopped: { ...(await store.get()).stopped, [String(which)]: env.version } });
+  try {
+    await alarm(env.service, paired, which, env.version);
+  } catch {
+    // the service hears of it at the next stop: the stop is kept here
+  }
+}
+
+/** The account key for Gmail's links: kept, else read once from the Gmail page; null when the page has none. */
+export async function accountKey(env: Environment, store: Store, account: number): Promise<string | null> {
+  const kept = (await store.get()).keys[String(account)];
+  if (kept !== undefined) {
+    return kept;
+  }
+  const found = await readAccountKey(env.gmail, account);
+  await env.sleep(PACE_MS);
+  if (found === null) {
+    return null;
+  }
+  await store.update({ keys: { ...(await store.get()).keys, [String(account)]: found.ik } });
+  return found.ik;
+}
+
+/**
+ * Deliver one message; false when the service can never take it (too large, empty), so it is skipped and remembered
+ * rather than downloaded again. gmailDate "" leaves the service's cursor where it is.
+ */
+export async function deliverOne(
+  env: Environment,
+  store: Store,
+  paired: Paired,
+  raw: Uint8Array<ArrayBuffer>,
+  gmailId: string,
+  gmailDate: string,
+): Promise<boolean> {
+  try {
+    await deliver(env.service, paired, raw, gmailId, gmailDate);
+    return true;
+  } catch (error) {
+    if (!(error instanceof Refused && UNTAKEABLE.has(error.code))) {
+      throw error;
+    }
+  }
+  await skip(store, gmailId);
+  return false;
+}
+
+/** Remember a message the service can never take, so it is not downloaded again and again. */
+export async function skip(store: Store, gmailId: string): Promise<void> {
+  await store.update({ skipped: [...(await store.get()).skipped, gmailId].slice(-SKIPPED_KEPT) });
+}
+
+/** How a service error reads, with its outcome; null when the error is not the service's. */
+export function serviceProblem(error: unknown): [Outcome, string] | null {
+  if (error instanceof ServiceDown) {
+    return ["service-down", "İplikçi Nedim bu bilgisayarda çalışmıyor; açılınca iletiler alınır."];
+  }
+  if (error instanceof NotTheService) {
+    return [
+      "not-the-service",
+      "Bu bilgisayarda eşleşilen İplikçi Nedim yerine başka bir program yanıt veriyor; ileti gönderilmedi.",
+    ];
+  }
+  if (revoked(error)) {
+    return ["revoked", "Eşleşme İplikçi Nedim'de iptal edilmiş; yeniden eşleştirin."];
+  }
+  if (error instanceof Refused && error.status === 404) {
+    return ["failed", "İplikçi Nedim bu eklentiden eski bir sürüm: bu iş için onu güncelleyin."];
+  }
+  return null;
+}
+
+/** What went wrong, in Turkish and without a closing period; never an address, subject or message text. */
+export function trouble(error: unknown): string {
+  if (error instanceof HttpError || error instanceof Refused) {
+    return error.message.replace(/\.$/, "");
+  }
+  if (error instanceof TypeError) {
+    return "Gmail'e ulaşılamadı (ağ bağlantısı ya da tarayıcı izni)";
+  }
+  return `beklenmeyen hata: ${error instanceof Error ? error.name : typeof error}`;
+}
+
+/** text with its first letter capitalised, as Turkish writes it. */
+export function sentence(text: string): string {
+  return `${text.charAt(0).toLocaleUpperCase("tr-TR")}${text.slice(1)}`;
+}

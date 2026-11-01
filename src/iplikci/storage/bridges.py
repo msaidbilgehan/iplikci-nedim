@@ -1,6 +1,8 @@
-"""The paired browser extensions (ADR-0016): each with the SHA-256 of its token."""
+"""The paired browser extensions (ADR-0016), each with the SHA-256 of its token, and the Gmail ids of the messages
+they delivered."""
 
 import sqlite3
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from .db import Database, now
@@ -67,3 +69,26 @@ def revoke(db: Database, bridge_id: str) -> bool:
                 "UPDATE bridges SET revoked_at = ? WHERE id = ? AND revoked_at = ''", (now(), bridge_id)
             ).rowcount
         )
+
+
+def remember(db: Database, gmail_id: str, sha256: str) -> None:
+    """A message the service holds, by Gmail's id: a scan of Gmail does not download it again."""
+    with db.transaction():
+        db.execute(
+            "INSERT OR REPLACE INTO bridge_messages (gmail_id, sha256, delivered_at) VALUES (?, ?, ?)",
+            (gmail_id, sha256, now()),
+        )
+
+
+def missing(db: Database, gmail_ids: Sequence[str]) -> list[str]:
+    """The ids of gmail_ids no delivered message carries, in the order given and without repeats."""
+    wanted = list(dict.fromkeys(gmail_ids))
+    held: set[str] = set()
+    for start in range(0, len(wanted), 500):  # SQLite allows a limited number of parameters
+        chunk = wanted[start : start + 500]
+        marks = ", ".join("?" * len(chunk))
+        held |= {
+            str(r["gmail_id"])
+            for r in db.rows(f"SELECT gmail_id FROM bridge_messages WHERE gmail_id IN ({marks})", chunk)
+        }
+    return [i for i in wanted if i not in held]

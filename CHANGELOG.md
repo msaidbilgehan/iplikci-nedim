@@ -32,7 +32,10 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
   - arayüzden alınan tek kullanımlık kodla eşleştirme;
   - servisin her çalışmada HMAC ile kendini kanıtlaması;
   - gelen kutusundaki okunmamış banka iletilerinin dakikada bir, ham hâliyle servise teslimi;
-  - biçim alarmı (`mail.bridge_alarm`) ve bir gündür görünmeyen eklentinin bildirimi (`mail.bridge_silent`).
+  - biçim alarmı (`mail.bridge_alarm`) ve bir gündür görünmeyen eklentinin bildirimi (`mail.bridge_silent`);
+  - "Gmail'de eksikleri tara": geçmiş ve kaçan iletiler için Gmail'in araması yeni bir sekmede açılır. Konuşma
+    kimlikleri sonuç listesinden okunur ve servisin eksik dediği iletiler taşınır. Hiçbir konuşma açılmaz; tam tarama
+    (2. katman) doğrulamada tutmadığı için bu yol kullanılır.
 - Gelen klasörü izleyicisi: değişmeden 20 saniye bekleyen dosyalar plansız alınır (F02).
 - Yükleme (F02): dosyalar bir partiye yüklenir ve plan her dosyaya ne olacağını gösterir. Yalnızca onaylanan plan
   uygulanır; plandan sonra değişen bir dosya planı yeniler. Uygulanmayan parti bir gün sonra çöp kutusuna gider.

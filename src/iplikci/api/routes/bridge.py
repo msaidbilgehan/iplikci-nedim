@@ -1,8 +1,10 @@
 """The browser extension's endpoints (ADR-0016): pairing, the proof that this is the paired service, the list of
 paired extensions, and the mail intake that only a bridge's token opens."""
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, Query, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import Response
 
@@ -51,6 +53,17 @@ class CursorOut(BaseModel):
     last_date: str
     start_day: str
     senders: list[str]
+
+
+GmailId = Annotated[str, StringConstraints(pattern=r"^[0-9]{1,25}$")]  # Gmail's message id, in decimal
+
+
+class KnownIn(BaseModel):
+    ids: list[GmailId] = Field(max_length=1000)
+
+
+class KnownOut(BaseModel):
+    missing: list[str]  # the ids the service holds no message for, in the order asked
 
 
 class AlarmIn(BaseModel):
@@ -121,6 +134,12 @@ def cursor(request: Request) -> CursorOut:
     return CursorOut(
         last_id=found.last_id, last_date=found.last_date, start_day=found.start_day, senders=list(found.senders)
     )
+
+
+@router.post("/api/ingest/mail/known")
+def known(request: Request, body: KnownIn) -> KnownOut:
+    """Which of the messages a scan of Gmail found the service holds already: only the missing are downloaded."""
+    return KnownOut(missing=bridge.missing(context_of(request).ws, body.ids))
 
 
 @router.post("/api/ingest/mail/alarm")

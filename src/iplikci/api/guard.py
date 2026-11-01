@@ -26,7 +26,9 @@ from .problems import problem
 # paired with before it holds or sends anything (ADR-0016).
 OPEN_PATHS = frozenset({"/healthz", "/giris", "/api/bridge/pair", "/api/bridge/hello"})
 # A bridge's token opens the mail intake and nothing else.
-BRIDGE_PATHS = frozenset({"/api/ingest/mail", "/api/ingest/mail/cursor", "/api/ingest/mail/alarm"})
+BRIDGE_PATHS = frozenset(
+    {"/api/ingest/mail", "/api/ingest/mail/cursor", "/api/ingest/mail/known", "/api/ingest/mail/alarm"}
+)
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 CSP = (
     "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; "

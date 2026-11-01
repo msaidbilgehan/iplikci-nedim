@@ -195,3 +195,28 @@ def test_an_extension_not_seen_for_a_day_is_told_once(client, ws):
             "UPDATE bridges SET last_seen = ? WHERE id = ?", ((now - timedelta(hours=25)).isoformat(), found["id"])
         )
     assert bridge.check_silence(ws, now) == [found["id"]]  # back, then silent again
+
+
+def test_a_scan_of_gmail_learns_which_messages_the_service_lacks(client, ws):
+    token = paired(client)["token"]
+    other = TestClient(client.app, base_url=BASE)
+    stored = other.post(
+        "/api/ingest/mail",
+        content=bank_mail(FEBRUARY),
+        headers=bearer(token) | {"Content-Type": "message/rfc822", "X-Gmail-Id": "1001"},  # from a scan: no date
+    )
+    assert stored.json()["taken"] == "stored"
+    forged = bank_mail(FEBRUARY, results=("mx.google.com; dmarc=fail header.from=teb.com.tr",))
+    other.post("/api/ingest/mail", content=forged, headers=bearer(token) | {"X-Gmail-Id": "1002"})
+    asked = other.post("/api/ingest/mail/known", json={"ids": ["1003", "1001", "1002", "1003"]}, headers=bearer(token))
+    assert asked.json() == {"missing": ["1003", "1002"]}  # a refused message is not held: asked again, refused again
+    cursor = other.get("/api/ingest/mail/cursor", headers=bearer(token)).json()
+    assert (cursor["last_id"], cursor["last_date"]) == ("", "")  # a scan's messages leave the feed's cursor alone
+
+
+def test_only_a_paired_extension_asks_which_messages_are_missing_and_only_with_ids(client):
+    token = paired(client)["token"]
+    other = TestClient(client.app, base_url=BASE)
+    assert other.post("/api/ingest/mail/known", json={"ids": ["1"]}, headers=bearer(TOKEN)).status_code == 403
+    for ids in (["18f0a1"], ["1"] * 1001, [""]):
+        assert other.post("/api/ingest/mail/known", json={"ids": ids}, headers=bearer(token)).status_code == 422

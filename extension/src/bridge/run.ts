@@ -8,44 +8,33 @@
  * GETs only.
  */
 
-import { FormatError } from "../gmail/errors";
 import { type FeedEntry, readFeed } from "../gmail/feed";
-import { type Fetcher as GmailFetcher, HttpError, Redirected } from "../gmail/http";
+import { HttpError, Redirected } from "../gmail/http";
 import { readOriginal } from "../gmail/original";
-import { readAccountKey } from "../gmail/session";
 import { listed } from "../mail/headers";
-import {
-  type Cursor,
-  type Fetcher,
-  MAX_MESSAGE_BYTES,
-  NotTheService,
-  type Paired,
-  Refused,
-  ServiceDown,
-  alarm,
-  cursor,
-  deliver,
-  prove,
-} from "./service";
+import { type Cursor, MAX_MESSAGE_BYTES, type Paired, Refused, cursor, prove } from "./service";
 import type { BridgeState, Outcome, RunSummary, Store } from "./state";
+import {
+  type Environment,
+  LayerStopped,
+  PACE_MS,
+  accountKey,
+  deliverOne,
+  layer,
+  sentence,
+  serviceProblem,
+  skip,
+  stopLayer,
+  stoppedNow,
+  trouble,
+} from "./steps";
 
-export interface RunEnvironment {
-  readonly gmail: GmailFetcher;
-  readonly service: Fetcher;
-  readonly sleep: (ms: number) => Promise<void>;
-  readonly now: () => Date;
-  /** The extension's version: a layer stopped by an older one tries again. */
-  readonly version: string;
-}
+export type RunEnvironment = Environment;
+export { PACE_MS } from "./steps";
 
-export const PACE_MS = 1000;
 const FIRST_CALM_MS = 60_000;
 const LONGEST_CALM_MS = 60 * 60_000;
-const SKIPPED_KEPT = 50;
-/** The service's answers for a message it can never take: retrying would only download it again. */
-const UNTAKEABLE: ReadonlySet<string> = new Set(["message_too_large", "message_empty"]);
-/** The service's answers for a pairing it no longer knows. */
-const GONE: ReadonlySet<number> = new Set([401, 404]);
+const STOPPED = "Gmail'in bir sayfası tanınmadı; eklentinin güncellenmesi bekleniyor.";
 
 /**
  * Run once: deliver the new bank messages of the inbox; what happened, kept for the extension's window. While the
@@ -72,15 +61,16 @@ async function attempt(env: RunEnvironment, store: Store, state: BridgeState): P
   if (paired === null) {
     return done("unpaired", "Eklenti henüz İplikçi Nedim ile eşleşmedi.");
   }
-  if (state.stopped["1"] === env.version || state.stopped["3"] === env.version) {
-    return done("stopped", "Gmail'in bir sayfası tanınmadı; eklentinin güncellenmesi bekleniyor.");
+  if (stoppedNow(state, env.version, 1, 3)) {
+    return done("stopped", STOPPED);
   }
   let where: Cursor;
   try {
     await prove(env.service, paired);
     where = await cursor(env.service, paired);
   } catch (error) {
-    return serviceTrouble(error, done);
+    const [outcome, detail] = serviceProblem(error) ?? ["failed", unexpected(error)];
+    return done(outcome, detail);
   }
   try {
     const delivered = await deliverFresh(env, store, state, paired, where);
@@ -110,32 +100,19 @@ async function deliverFresh(
     const ik = await accountKey(env, store, state.account);
     const original = await layer(3, () => readOriginal(env.gmail, state.account, entry.id, ik));
     const raw = new TextEncoder().encode(original.raw);
-    if (raw.byteLength > MAX_MESSAGE_BYTES || !(await take(env, paired, raw, entry))) {
-      const skipped = [...(await store.get()).skipped, entry.id].slice(-SKIPPED_KEPT);
-      await store.update({ skipped });
+    if (raw.byteLength > MAX_MESSAGE_BYTES) {
+      await skip(store, entry.id);
       continue;
     }
-    delivered += 1;
+    if (await deliverOne(env, store, paired, raw, entry.id, entry.issued)) {
+      delivered += 1;
+    }
   }
   return delivered;
 }
 
-/** Deliver one message; false when the service can never take it, so it is skipped rather than tried again. */
-async function take(
-  env: RunEnvironment,
-  paired: Paired,
-  raw: Uint8Array<ArrayBuffer>,
-  entry: FeedEntry,
-): Promise<boolean> {
-  try {
-    await deliver(env.service, paired, raw, entry.id, entry.issued);
-    return true;
-  } catch (error) {
-    if (error instanceof Refused && UNTAKEABLE.has(error.code)) {
-      return false;
-    }
-    throw error;
-  }
+function unexpected(error: unknown): string {
+  return `İplikçi Nedim beklenmeyen bir yanıt verdi (${trouble(error)}).`;
 }
 
 /** Whether the service has not taken the entry yet: newer than its position, and from the start day on. */
@@ -144,48 +121,6 @@ function isNew(entry: FeedEntry, where: Cursor, skipped: readonly string[]): boo
     return false;
   }
   return entry.issued > where.lastDate || (entry.issued === where.lastDate && entry.id !== where.lastId);
-}
-
-/** The account key for Gmail's links: kept, else read once from the Gmail page; null when the page has none. */
-async function accountKey(env: RunEnvironment, store: Store, account: number): Promise<string | null> {
-  const kept = (await store.get()).keys[String(account)];
-  if (kept !== undefined) {
-    return kept;
-  }
-  const found = await readAccountKey(env.gmail, account);
-  await env.sleep(PACE_MS);
-  if (found === null) {
-    return null;
-  }
-  await store.update({ keys: { ...(await store.get()).keys, [String(account)]: found.ik } });
-  return found.ik;
-}
-
-class LayerStopped extends Error {
-  constructor(readonly layer: 1 | 3) {
-    super(`layer ${layer} met a page it does not know`);
-  }
-}
-
-async function layer<T>(which: 1 | 3, read: () => Promise<T>): Promise<T> {
-  try {
-    return await read();
-  } catch (error) {
-    throw error instanceof FormatError ? new LayerStopped(which) : error;
-  }
-}
-
-function serviceTrouble(error: unknown, done: (o: Outcome, d: string) => RunSummary): RunSummary {
-  if (error instanceof ServiceDown) {
-    return done("service-down", "İplikçi Nedim bu bilgisayarda çalışmıyor; açılınca iletiler alınır.");
-  }
-  if (error instanceof NotTheService) {
-    return done("not-the-service", "Bu bilgisayarda eşleşilen İplikçi Nedim yerine başka bir program yanıt veriyor; ileti gönderilmedi.");
-  }
-  if (error instanceof Refused && GONE.has(error.status)) {
-    return done("revoked", "Eşleşme İplikçi Nedim'de iptal edilmiş; yeniden eşleştirin.");
-  }
-  return done("failed", `İplikçi Nedim beklenmeyen bir yanıt verdi (${trouble(error)}).`);
 }
 
 async function gmailTrouble(
@@ -197,19 +132,15 @@ async function gmailTrouble(
   done: (o: Outcome, d: string) => RunSummary,
 ): Promise<RunSummary> {
   if (error instanceof LayerStopped) {
-    await store.update({ stopped: { ...state.stopped, [String(error.layer)]: env.version } });
-    try {
-      await alarm(env.service, paired, error.layer, env.version);
-    } catch {
-      // the service hears of it at the next run: the stop is kept here
-    }
-    return done("stopped", "Gmail'in bir sayfası tanınmadı; eklentinin güncellenmesi bekleniyor.");
+    await stopLayer(env, store, paired, error.layer);
+    return done("stopped", STOPPED);
   }
   if (error instanceof Redirected) {
     return done("gmail-signed-out", "Bu tarayıcıda seçilen Gmail hesabına girilmemiş.");
   }
-  if (error instanceof ServiceDown || (error instanceof Refused && GONE.has(error.status))) {
-    return serviceTrouble(error, done);
+  const problem = serviceProblem(error);
+  if (problem !== null) {
+    return done(...problem);
   }
   const failures = state.failures + 1;
   const calm = Math.min(FIRST_CALM_MS * 2 ** (failures - 1), LONGEST_CALM_MS);
@@ -220,17 +151,5 @@ async function gmailTrouble(
   if (error instanceof Refused) {
     return done("failed", `İplikçi Nedim bir iletiyi almadı (${trouble(error)}); biraz sonra yeniden denenecek.`);
   }
-  const what = trouble(error);
-  return done("failed", `${what.charAt(0).toLocaleUpperCase("tr-TR")}${what.slice(1)}; biraz sonra yeniden denenecek.`);
-}
-
-/** What went wrong, in Turkish and without a closing period; never an address, subject or message text. */
-function trouble(error: unknown): string {
-  if (error instanceof HttpError || error instanceof Refused) {
-    return error.message.replace(/\.$/, "");
-  }
-  if (error instanceof TypeError) {
-    return "Gmail'e ulaşılamadı (ağ bağlantısı ya da tarayıcı izni)";
-  }
-  return `beklenmeyen hata: ${error instanceof Error ? error.name : typeof error}`;
+  return done("failed", `${sentence(trouble(error))}; biraz sonra yeniden denenecek.`);
 }

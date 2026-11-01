@@ -26,11 +26,30 @@
         <p><button id="now" type="button">Şimdi denetle</button></p>
       </section>
 
+      <section aria-labelledby="gecmis-baslik">
+        <h2 id="gecmis-baslik">Geçmiş ve kaçan iletiler</h2>
+        <p class="hint">
+          Gelen kutusu akışı yalnızca en yeni okunmamış iletileri gösterir. Bu tarama Gmail'i yeni bir sekmede açar,
+          listedeki bankaların başlangıç gününden beri gelen iletilerini arar ve İplikçi Nedim'de olmayanları taşır.
+          Hiçbir konuşma açılmaz, Gmail'de hiçbir şey değişmez; sekme arama bitince kendiliğinden kapanır. Uzun
+          sürebilir: iletiler saniyede bir indirilir.
+        </p>
+        <p><button id="scan" type="button">Gmail'de eksikleri tara</button></p>
+        <p id="scan-state" role="status" aria-live="polite"></p>
+      </section>
+
       <section aria-labelledby="eslestir-baslik">
         <h2 id="eslestir-baslik">Eşleştir</h2>
         <form id="pair-form">
           <label for="code">Eşleştirme kodu</label>
-          <input id="code" name="code" autocomplete="off" spellcheck="false" maxlength="9" aria-describedby="code-hint" />
+          <input
+            id="code"
+            name="code"
+            autocomplete="off"
+            spellcheck="false"
+            maxlength="9"
+            aria-describedby="code-hint"
+          />
           <p class="hint" id="code-hint">
             Kodu İplikçi Nedim'in "Tarayıcı eklentisi" sayfasından alın; tek kullanımlıktır ve 10 dakika geçerlidir.
           </p>

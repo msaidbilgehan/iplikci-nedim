@@ -148,9 +148,25 @@ Sonuca göre:
   bir sürüm katmanı yeniden dener.
 - **Sağlık:** servis saatte bir bakar. Etkin bir eklenti bir gündür görünmediyse `mail.bridge_silent` bir kez
   kaydedilir; eklenti dönüp yeniden susarsa yeniden kaydedilir.
-- **2. katman (tam tarama)** doğrulamanın 3. maddesini bekler. O gelene dek yalnızca gelen kutusundaki okunmamış
-  iletiler alınır. Gönderici listesi ya da başlangıç günü değişince yeniden tarama da, başlangıç gününün arayüzden
-  seçilmesi de o katmanla gelir.
+- **Doğrulamanın sonucu (2026-11-01, macOS'ta Chrome):**
+  - 1. ve 2. madde tuttu: gelen kutusu akışı oturumla okundu. Ham ileti "Orijinali göster"den indirildi; Gmail'in
+    eklediği en üstteki `Authentication-Results` DMARC pass gösterdi ve ileti okunmamış kaldı. "İletiyi indir"
+    bağlantısı yönlendirdi; yol "Orijinali göster"dir.
+  - 3. madde tutmadı: konu listesi adresi (`view=tl`) oturum açma sayfasına yönlendiriyor.
+  - Windows (4. madde) henüz denenmedi.
+- **"Gmail'de eksikleri tara"** (yalnız 3. madde tutmadığında öngörülen yol) uygulandı.
+  - Eklentinin penceresindeki düğme Gmail'i yeni bir sekmede, listedeki göndericilerin başlangıç gününden beri gelen
+    iletilerinin aramasıyla açar.
+  - Sekmede çalışan toplayıcı (`chrome.scripting`) görünen listeden yalnızca konuşma kimliklerini okur. Kimlikler
+    satırların `data-legacy-thread-id` ve `data-legacy-last-message-id` öznitelikleridir. Sayfalar adresin `/pN`
+    ekiyle çevrilir; sekme iş bitince kapanır.
+  - Servis, teslim ettiği iletileri Gmail kimlikleriyle hatırlar (göç 8). Eklenti `POST /api/ingest/mail/known` ile
+    yalnızca eksikleri sorar; eksikler 3. katmanla indirilir. Bu teslimlerin tarihi yoktur; akışın konumu yerinde kalır.
+  - Bir konuşmayı açmak iletilerini okundu yapar, bu yüzden tarama hiçbir konuşmayı açmaz. Liste bir konuşmanın ilk
+    (konuşmanın kimliği) ve son iletisini adlandırır; aradakiler bu yolla alınamaz ve raporda sayılır.
+  - Tanınmayan bir liste 2. katmanın biçim alarmıdır. İzinlere `scripting` eklendi; adresler değişmedi.
+- Gönderici listesi ya da başlangıç günü değişince yeniden tarama ve başlangıç gününün arayüzden seçilmesi sonra
+  gelecek; tarama her çalıştığında güncel listeyi ve başlangıç gününü kullanır.
 
 ## Sonuçlar
 

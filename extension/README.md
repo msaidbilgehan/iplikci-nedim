@@ -21,17 +21,25 @@ açık Gmail oturumuyla okuyup bu bilgisayardaki İplikçi Nedim servisine taş�
     yeni sürümüyle gelir.
   - Gmail yavaşlamayı isterse ya da başka bir sorun çıkarsa sonraki deneme her seferinde daha geç yapılır: önce bir
     dakika sonra, en geç bir saat sonra.
-- **Tam tarama (2. katman)** doğrulamanın 3. maddesini bekliyor. Okunmuş ya da arşivlenmiş iletileri ve geçmişi o
-  getirecek. O gelene kadar yalnızca gelen kutusundaki okunmamış banka iletileri taşınır.
+- **Geçmiş ve kaçan iletiler ("Gmail'de eksikleri tara"):** doğrulamada tam tarama (3. madde) tutmadı; Gmail'in konu
+  listesi adresi oturum açma sayfasına yönlendiriyor. Bu yüzden ADR-0016'nın yedek yolu kullanılır:
+  - Eklentinin penceresindeki düğme Gmail'i yeni bir sekmede açar ve listedeki bankaların başlangıç gününden beri
+    gelen iletilerini arar.
+  - Sekmede çalışan küçük bir betik sonuç listesinden yalnızca konuşma kimliklerini okur; konu, adres ya da metin
+    okumaz. Sayfalar bitince sekme kapanır.
+  - Servis hangi iletilerin eksik olduğunu söyler. Eksikler "Orijinali göster" yoluyla indirilip teslim edilir.
+  - Hiçbir konuşma açılmaz, çünkü açmak iletileri okundu yapar. Bu yüzden bir konuşmanın yalnızca ilk ve son iletisi
+    alınır; aradakilerin sayısı raporda yazar.
 
 ## İlkeler
 
-- İzinler yalnızca `alarms` ve `storage`, artı iki adres: `https://mail.google.com/*` ve `http://127.0.0.1:8643/*`.
+- İzinler yalnızca `alarms`, `scripting` (taramada Gmail sekmesindeki listeyi okumak için) ve `storage`, artı iki
+  adres: `https://mail.google.com/*` ve `http://127.0.0.1:8643/*`.
 - Gmail'e yalnızca okuma istekleri gider: okundu işareti, etiket, taşıma ya da silme yoktur.
 - İstekler sıralıdır ve aralarında en az bir saniye vardır.
 - Uzaktan yüklenen kod, dış yazı tipi ya da dış betik yoktur.
-- Gmail'e dokunan kod yalnızca `src/gmail/` altındadır. Kayıtlı sahte yanıtlarla test edilir; testlerde gerçek adres,
-  konu ya da ileti yoktur.
+- Gmail'e dokunan kod yalnızca `src/gmail/` altındadır. Kayıtlı sahte yanıtlarla ve sahte bir Gmail listesiyle test
+  edilir; testlerde gerçek adres, konu ya da ileti yoktur.
 - Doğrulama raporu e-posta adresi, konu ya da ileti içeriği taşımaz.
 
 ## Geliştirme

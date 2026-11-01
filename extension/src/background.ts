@@ -6,12 +6,15 @@
 
 import { type Request, type Status, asRequest } from "./bridge/messages";
 import { type RunEnvironment, deliverNew } from "./bridge/run";
+import { scanGmail } from "./bridge/scan";
 import { NotTheService, Refused, ServiceDown, pair, prove } from "./bridge/service";
-import { type RunSummary, chromeStore } from "./bridge/state";
+import { type RunSummary, type ScanSummary, chromeStore } from "./bridge/state";
+import { chromeTabs } from "./bridge/tabs";
 import { type Environment, verify } from "./verify/run";
 
 const ALARM = "yeni-iletiler";
 let running: Promise<RunSummary> | null = null;
+let scanning: Promise<ScanSummary> | null = null;
 
 chrome.runtime.onInstalled.addListener(() => void schedule());
 chrome.runtime.onStartup.addListener(() => {
@@ -24,6 +27,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   }
 });
 void schedule(); // an alarm may be gone after a browser restart
+void forgetUnfinishedScan();
 
 chrome.action.onClicked.addListener(() => {
   void chrome.runtime.openOptionsPage();
@@ -35,7 +39,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
   if (request === null) {
     return false;
   }
-  answer(request).then(sendResponse, () => sendResponse(null));
+  answer(request, sender.tab?.id).then(sendResponse, () => sendResponse(null));
   return true; // the answer comes later
 });
 
@@ -45,8 +49,14 @@ async function schedule(): Promise<void> {
   }
 }
 
-/** One delivery run at a time: an alarm that comes during a run joins it. */
-function runOnce(): Promise<RunSummary> {
+/**
+ * One delivery run at a time: an alarm that comes during a run joins it. While a scan of Gmail runs, the scan holds
+ * Gmail's one request a second and delivers in the meantime: no run starts.
+ */
+function runOnce(): Promise<RunSummary | null> {
+  if (scanning !== null) {
+    return Promise.resolve(null);
+  }
   running ??= environment()
     .then((env) => deliverNew(env, chromeStore))
     .finally(() => {
@@ -55,7 +65,31 @@ function runOnce(): Promise<RunSummary> {
   return running;
 }
 
-async function answer(request: Request): Promise<unknown> {
+/**
+ * One scan of Gmail at a time ("Gmail'de eksikleri tara"); a delivery run under way finishes first. The window that
+ * started it is shown again when the scan's tab closes.
+ */
+function scanOnce(returnTo: number | undefined): Promise<ScanSummary> {
+  scanning ??= (async () => {
+    await running?.catch(() => undefined);
+    return scanGmail({ ...(await environment()), tabs: chromeTabs(returnTo) }, chromeStore);
+  })().finally(() => {
+    scanning = null;
+  });
+  return scanning;
+}
+
+/** A scan that was under way when the worker stopped (the browser closed, the extension reloaded) is over. */
+async function forgetUnfinishedScan(): Promise<void> {
+  const { scan } = await chromeStore.get();
+  if (scanning === null && scan !== null && (scan.phase === "searching" || scan.phase === "downloading")) {
+    await chromeStore.update({
+      scan: { ...scan, phase: "stopped", detail: "Tarama yarıda kaldı; yeniden başlatılabilir, kaldığı yerden sürer." },
+    });
+  }
+}
+
+async function answer(request: Request, from: number | undefined): Promise<unknown> {
   switch (request.kind) {
     case "verify":
       return verify(await verifyEnvironment(), request.account);
@@ -72,6 +106,9 @@ async function answer(request: Request): Promise<unknown> {
       await chromeStore.update({ calmUntil: 0 });
       await runOnce();
       return status("");
+    case "scan":
+      void scanOnce(from); // it runs for minutes: the window follows it through the stored state
+      return status("");
     case "forget":
       await chromeStore.update({ paired: null, lastRun: null });
       return status("");
@@ -85,6 +122,7 @@ async function status(problem: string): Promise<Status> {
     paired: state.paired !== null,
     account: state.account,
     lastRun: state.lastRun,
+    scan: state.scan,
     stopped: Object.keys(state.stopped).filter((layer) => state.stopped[layer] === version),
     problem,
   };

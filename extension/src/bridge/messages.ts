@@ -1,6 +1,6 @@
 /** What the extension's own pages ask its service worker, checked before anything is done with it. */
 
-import type { RunSummary } from "./state";
+import type { RunSummary, ScanSummary } from "./state";
 
 export type Request =
   | { readonly kind: "verify"; readonly account: number }
@@ -8,6 +8,7 @@ export type Request =
   | { readonly kind: "pair"; readonly code: string }
   | { readonly kind: "account"; readonly account: number }
   | { readonly kind: "run" }
+  | { readonly kind: "scan" }
   | { readonly kind: "forget" };
 
 /** What the extension's window shows; the token never leaves the service worker. */
@@ -15,6 +16,8 @@ export interface Status {
   readonly paired: boolean;
   readonly account: number;
   readonly lastRun: RunSummary | null;
+  /** The scan of Gmail ("Gmail'de eksikleri tara"): the one running, or the last one. */
+  readonly scan: ScanSummary | null;
   readonly stopped: readonly string[];
   /** The answer to a pairing attempt, in Turkish; "" when it worked or none was made. */
   readonly problem: string;
@@ -39,6 +42,7 @@ export function asRequest(message: unknown): Request | null {
       return typeof code === "string" && code.length <= 20 ? { kind, code } : null;
     case "status":
     case "run":
+    case "scan":
     case "forget":
       return { kind };
     default:

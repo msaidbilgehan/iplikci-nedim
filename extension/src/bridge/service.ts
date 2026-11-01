@@ -9,6 +9,8 @@ import { expectedProof, newNonce } from "./proof";
 export const SERVICE = "http://127.0.0.1:8643";
 /** What the service takes at most (its MAX_MESSAGE_BYTES). */
 export const MAX_MESSAGE_BYTES = 40 * 1024 * 1024;
+/** How many ids the service checks in one call (its KnownIn). */
+const KNOWN_PER_CALL = 1000;
 
 export type Fetcher = (url: string, init: RequestInit) => Promise<Response>;
 
@@ -138,6 +140,24 @@ export async function deliver(
   });
   const found = (await response.json()) as { taken?: unknown };
   return typeof found.taken === "string" ? found.taken : "";
+}
+
+/** Of the Gmail ids a scan found (in decimal), those the service holds no message for, in the order given. */
+export async function missing(fetcher: Fetcher, paired: Paired, ids: readonly string[]): Promise<string[]> {
+  const out: string[] = [];
+  for (let start = 0; start < ids.length; start += KNOWN_PER_CALL) {
+    const response = await call(fetcher, "/api/ingest/mail/known", {
+      method: "POST",
+      headers: { ...bearer(paired), "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: ids.slice(start, start + KNOWN_PER_CALL) }),
+    });
+    const found = (await response.json()) as { missing?: unknown };
+    if (!Array.isArray(found.missing)) {
+      throw new Refused(response.status, "known_answer", "servisin yanıtı anlaşılamadı");
+    }
+    out.push(...found.missing.filter((id): id is string => typeof id === "string"));
+  }
+  return out;
 }
 
 /** Tell the service a layer stopped on a Gmail page it does not know (ADR-0016's format alarm). */

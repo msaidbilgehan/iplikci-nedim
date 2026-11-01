@@ -6,6 +6,7 @@
   "minimum_chrome_version": "120",
   "permissions": [
     "alarms",
+    "scripting",
     "storage"
   ],
   "host_permissions": [

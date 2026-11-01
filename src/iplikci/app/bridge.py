@@ -153,6 +153,12 @@ def cursor(ws: Workspace) -> Cursor:
     return Cursor(state.last_id, state.last_date, start.isoformat(), mail.senders(settings))
 
 
+def missing(ws: Workspace, gmail_ids: list[str]) -> list[str]:
+    """Which of the Gmail ids a scan of Gmail found the service does not hold yet."""
+    with ws.db() as db:
+        return bridges.missing(db, gmail_ids)
+
+
 def alarm(ws: Workspace, layer: int, version: str) -> bool:
     """A layer of the extension stopped on a Gmail page it does not know; told once per layer and extension version
     (the fix comes with an update of the extension). Whether it was news."""
@@ -177,14 +183,17 @@ def check_silence(ws: Workspace, at: datetime | None = None) -> list[str]:
 
 
 def deliver(ws: Workspace, raw: bytes, gmail_id: str = "", gmail_date: str = "") -> mail.MailOutcome:
-    """Take a raw message the extension delivers through the same pipeline as every connector, and move the cursor
-    on when it is the newest so far."""
+    """Take a raw message the extension delivers through the same pipeline as every connector. A message the service
+    holds afterwards is remembered by Gmail's id; the cursor moves on when the message is the newest so far. A message
+    from a scan of Gmail comes without a date and leaves the cursor where it is: the feed's newest moves it."""
     settings = config.load(ws.layout.settings)
     outcome = mail.take(ws, raw, mail.senders(settings), verify=settings.mail.verify_sender, gmail=True)
     with ws.db() as db:
+        if gmail_id and outcome.sha256:
+            bridges.remember(db, gmail_id, outcome.sha256)
         state = mail_store.load(db, mail.BRIDGE)
         state.count(str(outcome.taken))
-        if gmail_id and gmail_date >= state.last_date:
+        if gmail_id and gmail_date and gmail_date >= state.last_date:
             state.last_id, state.last_date = gmail_id, gmail_date
         state.last_run, state.last_error = now(), ""
         mail_store.save(db, state)

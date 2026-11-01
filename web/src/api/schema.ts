@@ -112,6 +112,14 @@ export interface HTTPValidationError {
   detail?: ValidationError[];
 }
 
+export interface KnownIn {
+  ids: string[];
+}
+
+export interface KnownOut {
+  missing: string[];
+}
+
 /** The Turkish label of every code, by code type (DocumentStatus, JobKind, …). */
 export type LabelsOut = Record<string, Record<string, string>>;
 
