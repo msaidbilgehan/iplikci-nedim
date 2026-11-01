@@ -112,4 +112,15 @@ function isStatus(value: unknown): value is Status {
   return typeof paired === "boolean" && typeof index === "number" && typeof problem === "string";
 }
 
-void (async () => show(await ask({ kind: "status" })))();
+async function refresh(): Promise<void> {
+  show(await ask({ kind: "status" }));
+}
+
+// A run in the background changes what the window shows: it follows without being reloaded.
+chrome.storage.onChanged.addListener((_changes, area) => {
+  if (area === "local") {
+    void refresh();
+  }
+});
+
+void refresh();

@@ -68,10 +68,12 @@ async function answer(request: Request): Promise<unknown> {
       await chromeStore.update({ account: request.account, calmUntil: 0, failures: 0 });
       return status("");
     case "run":
+      // asked for by hand: the wait after a trouble does not hold back a single check
+      await chromeStore.update({ calmUntil: 0 });
       await runOnce();
       return status("");
     case "forget":
-      await chromeStore.update({ paired: null });
+      await chromeStore.update({ paired: null, lastRun: null });
       return status("");
   }
 }
@@ -94,7 +96,7 @@ async function pairWith(code: string): Promise<string> {
   try {
     const paired = await pair(env.service, code, await browserLabel());
     await prove(env.service, paired);
-    await chromeStore.update({ paired, stopped: {}, calmUntil: 0, failures: 0 });
+    await chromeStore.update({ paired, stopped: {}, calmUntil: 0, failures: 0, lastRun: null });
   } catch (error) {
     if (error instanceof ServiceDown) {
       return "İplikçi Nedim bu bilgisayarda çalışmıyor; açıp yeniden deneyin.";
