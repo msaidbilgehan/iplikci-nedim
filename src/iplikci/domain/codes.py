@@ -181,3 +181,63 @@ class PaymentKind(StrEnum):
     LOAN = "loan"  # a loan's next installment, from its receipts
     CARD_DUE = "card_due"  # a card statement's due date
     BILL = "bill"  # a non-bank bill not paid yet, on its due date (F14)
+
+
+class EventKind(StrEnum):
+    """What the event log records (architecture §13); the alert rules name these (architecture §14)."""
+
+    DOCUMENT_RECEIVED = "document.received"
+    DOCUMENT_PROCESSED = "document.processed"
+    DOCUMENT_UNPROCESSED = "document.unprocessed"
+    DOCUMENT_UNREADABLE = "document.unreadable"
+    TRANSACTION_CREATED = "transaction.created"
+    TRANSACTION_CONFIRMED = "transaction.confirmed"
+    TRANSACTION_LARGE = "transaction.large"
+    EVIDENCE_UNMATCHED = "evidence.unmatched"
+    INVOICE_MATCHED = "invoice.matched"
+    INVOICE_PENDING = "invoice.pending"
+    INVOICE_UNMATCHED = "invoice.unmatched"
+    PAYMENT_DUE_SOON = "payment.due_soon"
+    EXPECTED_PAYMENT_MISSING = "expected_payment.missing"
+    BALANCE_FORECAST_NEGATIVE = "balance.forecast_negative"
+    SUBSCRIPTION_PRICE_CHANGED = "subscription.price_changed"
+    SUBSCRIPTION_PAID_AFTER_CANCEL = "subscription.paid_after_cancel"
+    INCOME_RECEIVED = "income.received"
+    INCOME_LATE = "income.late"
+    MONTH_ENDED = "month.ended"
+    MONTH_CLOSED = "month.closed"
+    MONTH_NEEDS_CHECK = "month.needs_check"
+    PARSER_FORMAT_ALARM = "parser.format_alarm"
+    MAIL_AUTH_FAILED = "mail.auth_failed"
+    MAIL_BRIDGE_ALARM = "mail.bridge_alarm"
+    MAIL_BRIDGE_SILENT = "mail.bridge_silent"
+    BACKUP_FAILED = "backup.failed"
+    BRIDGE_PAIRED = "bridge.paired"
+    BRIDGE_REVOKED = "bridge.revoked"
+
+
+class Channel(StrEnum):
+    """Where a notification goes (ADR-0010)."""
+
+    IN_APP = "in_app"  # the interface's notification box; always on
+    DESKTOP = "desktop"
+    EMAIL = "email"  # to the user's own address over SMTP; only accounts that allow app passwords
+    TELEGRAM = "telegram"  # the user's own bot, to the paired chat
+
+
+class DetailLevel(StrEnum):
+    """How much a notification says (ADR-0010)."""
+
+    FULL = "full"  # the event, the amount, the merchant or other party, the account's last digits
+    SUMMARY = "summary"  # the event and the amount
+    MINIMAL = "minimal"  # only the kind of event: the details are in the app
+
+
+class DeliveryStatus(StrEnum):
+    """Where a notification stands on its channel (ADR-0010)."""
+
+    PENDING = "pending"  # to be sent; a failed attempt waits and is tried again
+    SENT = "sent"
+    HELD = "held"  # kept back by the quiet hours or the channel's rate: it goes out in the next digest
+    DIGESTED = "digested"  # sent within a digest
+    FAILED = "failed"  # every attempt failed: never tried again

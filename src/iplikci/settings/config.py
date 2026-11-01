@@ -78,6 +78,10 @@ def _default_detail() -> dict[str, str]:
 class Notify:
     quiet_hours: str = "23:00-08:00"
     detail: dict[str, str] = field(default_factory=_default_detail)
+    # The channels turned on, besides the interface's box (ADR-0010). Telegram works once a chat paired, e-mail only
+    # with the IMAP connector's app password: on an account under Advanced Protection the defaults are these two.
+    channels: tuple[str, ...] = ("desktop", "telegram")
+    telegram_chat: int = 0  # the chat that paired with the user's bot ("/start <code>"); 0: none
 
 
 @dataclass(frozen=True, slots=True)
@@ -232,6 +236,18 @@ def _detail(where: str, value: Any) -> dict[str, str]:
     return detail
 
 
+def _channels(where: str, value: Any) -> tuple[str, ...]:
+    if not isinstance(value, list) or not all(c in CHANNELS for c in value):  # pyright: ignore[reportUnknownVariableType] - TOML value checked here
+        raise SettingsError(f'{where} şunlardan oluşan bir liste olmalı: {", ".join(CHANNELS)} (ör. ["desktop"])')
+    return tuple(dict.fromkeys(str(c) for c in value))  # pyright: ignore[reportUnknownArgumentType, reportUnknownVariableType] - checked above
+
+
+def _chat(where: str, value: Any) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise SettingsError(f"{where} bir Telegram sohbet numarası olmalı (eşleştirme yazar; 0: eşleşme yok)")
+    return value
+
+
 def _providers(where: str, value: Any) -> tuple[str, ...]:
     known = ("document", "tcmb", "ecb", "frankfurter")
     if not isinstance(value, list) or not value or not all(p in known for p in value):  # pyright: ignore[reportUnknownVariableType] - TOML value checked here
@@ -257,7 +273,10 @@ _SCHEMA: dict[str, tuple[type, dict[str, Check]]] = {
             "smtp_host": _host,
         },
     ),
-    "notify": (Notify, {"quiet_hours": _quiet_hours, "detail": _detail}),
+    "notify": (
+        Notify,
+        {"quiet_hours": _quiet_hours, "detail": _detail, "channels": _channels, "telegram_chat": _chat},
+    ),
     "fx": (Fx, {"providers": _providers}),
     "privacy": (Privacy, {"mcp_masking": _one_of("off", "accounts", "accounts_and_names")}),
     "backup": (Backup, {"keep_days": _days, "folder": _location}),

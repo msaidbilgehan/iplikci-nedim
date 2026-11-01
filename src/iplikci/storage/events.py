@@ -49,6 +49,17 @@ def since(db: Database, after: int = 0, limit: int = 100) -> list[tuple[int, Eve
     return [(int(r["id"]), Event(r["at"], r["kind"], r["target"], json.loads(r["detail"]))) for r in rows]
 
 
+def since_time(db: Database, at: str) -> list[tuple[int, Event]]:
+    """The events recorded at or after a time (UTC, as stored), oldest first, with their ids."""
+    rows = db.rows("SELECT * FROM events WHERE at >= ? ORDER BY id", (at,))
+    return [(int(r["id"]), Event(r["at"], r["kind"], r["target"], json.loads(r["detail"]))) for r in rows]
+
+
+def newest(db: Database) -> int:
+    """The id of the last event; 0 when there is none."""
+    return int(db.scalar("SELECT COALESCE(MAX(id), 0) FROM events") or 0)
+
+
 def entries(db: Database, kind: str | None = None) -> list[Event]:
     rows = (
         db.rows("SELECT * FROM events ORDER BY id")

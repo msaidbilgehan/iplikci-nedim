@@ -12,8 +12,12 @@ from .codes import (
     Actor,
     BackupReason,
     Certainty,
+    Channel,
+    DeliveryStatus,
+    DetailLevel,
     DocumentKind,
     DocumentStatus,
+    EventKind,
     EvidenceStatus,
     InvoiceKind,
     InvoiceStatus,
@@ -180,6 +184,58 @@ INVOICE_STATUS: dict[InvoiceStatus, str] = {
     InvoiceStatus.UNMATCHED: "Eşleşmedi",
 }
 
+EVENT_KIND: dict[EventKind, str] = {
+    EventKind.DOCUMENT_RECEIVED: "Belge geldi",
+    EventKind.DOCUMENT_PROCESSED: "Belge okundu",
+    EventKind.DOCUMENT_UNPROCESSED: "Belge tanınmadı",
+    EventKind.DOCUMENT_UNREADABLE: "Belge okunamadı",
+    EventKind.TRANSACTION_CREATED: "Yeni işlem",
+    EventKind.TRANSACTION_CONFIRMED: "Geçici işlem kesinleşti",
+    EventKind.TRANSACTION_LARGE: "Büyük harcama",
+    EventKind.EVIDENCE_UNMATCHED: "Ekstrede görünmeyen dekont",
+    EventKind.INVOICE_MATCHED: "Fatura eşleşti",
+    EventKind.INVOICE_PENDING: "Fatura bekliyor",
+    EventKind.INVOICE_UNMATCHED: "Fatura eşleşmedi",
+    EventKind.PAYMENT_DUE_SOON: "Son ödeme yaklaşıyor",
+    EventKind.EXPECTED_PAYMENT_MISSING: "Beklenen ödeme gelmedi",
+    EventKind.BALANCE_FORECAST_NEGATIVE: "Hesap eksiye düşecek",
+    EventKind.SUBSCRIPTION_PRICE_CHANGED: "Abonelik zammı",
+    EventKind.SUBSCRIPTION_PAID_AFTER_CANCEL: "İptalden sonra ödeme",
+    EventKind.INCOME_RECEIVED: "Gelir geldi",
+    EventKind.INCOME_LATE: "Gelir gecikti",
+    EventKind.MONTH_ENDED: "Ay bitti",
+    EventKind.MONTH_CLOSED: "Ay kapandı",
+    EventKind.MONTH_NEEDS_CHECK: "Ay kontrol gerektiriyor",
+    EventKind.PARSER_FORMAT_ALARM: "Okuyucu biçim alarmı",
+    EventKind.MAIL_AUTH_FAILED: "E-posta girişi reddedildi",
+    EventKind.MAIL_BRIDGE_ALARM: "Eklenti Gmail sayfasını tanımadı",
+    EventKind.MAIL_BRIDGE_SILENT: "Tarayıcı eklentisi görünmüyor",
+    EventKind.BACKUP_FAILED: "Yedek alınamadı",
+    EventKind.BRIDGE_PAIRED: "Eklenti eşleşti",
+    EventKind.BRIDGE_REVOKED: "Eklentinin eşleşmesi iptal edildi",
+}
+
+CHANNEL: dict[Channel, str] = {
+    Channel.IN_APP: "Uygulama içi",
+    Channel.DESKTOP: "Masaüstü",
+    Channel.EMAIL: "E-posta",
+    Channel.TELEGRAM: "Telegram",
+}
+
+DETAIL_LEVEL: dict[DetailLevel, str] = {
+    DetailLevel.FULL: "Tam",
+    DetailLevel.SUMMARY: "Özet",
+    DetailLevel.MINIMAL: "Asgari",
+}
+
+DELIVERY_STATUS: dict[DeliveryStatus, str] = {
+    DeliveryStatus.PENDING: "Gönderilecek",
+    DeliveryStatus.SENT: "Gönderildi",
+    DeliveryStatus.HELD: "Özete kaldı",
+    DeliveryStatus.DIGESTED: "Özetle gönderildi",
+    DeliveryStatus.FAILED: "Gönderilemedi",
+}
+
 
 def _table[K: StrEnum](labels: Mapping[K, str]) -> dict[StrEnum, str]:
     return {code: text for code, text in labels.items()}
@@ -205,6 +261,10 @@ TABLES: dict[type[StrEnum], dict[StrEnum, str]] = {
     PaymentKind: _table(PAYMENT_KIND),
     InvoiceKind: _table(INVOICE_KIND),
     InvoiceStatus: _table(INVOICE_STATUS),
+    EventKind: _table(EVENT_KIND),
+    Channel: _table(CHANNEL),
+    DetailLevel: _table(DETAIL_LEVEL),
+    DeliveryStatus: _table(DELIVERY_STATUS),
 }
 
 # The interface writes the Turkish lira as "TL" (ADR-0006).

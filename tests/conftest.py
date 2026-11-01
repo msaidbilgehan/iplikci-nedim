@@ -20,6 +20,7 @@ from iplikci.app import mail as mail_app
 from iplikci.app.workspace import Workspace
 from iplikci.domain.codes import SourceKind
 from iplikci.fakes import teb
+from iplikci.notify import channels
 from iplikci.parsers.common import set_business_names
 from iplikci.service import manager
 from iplikci.settings import secrets
@@ -104,8 +105,12 @@ def no_keyring_or_network(monkeypatch, tmp_path_factory):
 
     monkeypatch.setattr(secrets, "_keyring", refuse)
     monkeypatch.setattr(egress, "imap", refuse)
+    monkeypatch.setattr(egress, "smtp", refuse)
+    monkeypatch.setattr(egress, "https_post", refuse)
+    monkeypatch.setattr(channels, "_run", refuse)  # a desktop notification on the screen
     monkeypatch.setattr(manager, "run_tool", refuse)  # launchctl, systemctl, schtasks
     monkeypatch.delenv("IPLIKCI_MAIL_PASSWORD", raising=False)
+    monkeypatch.delenv("IPLIKCI_TELEGRAM_TOKEN", raising=False)
     # A test that forgets to name its data folder gets an empty one, never the user's.
     monkeypatch.setenv(HOME_ENV, str(tmp_path_factory.mktemp("iplikci-bos")))
     # The interface as a development copy without its build, whether web/ was built here or not.

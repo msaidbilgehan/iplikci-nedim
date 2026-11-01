@@ -119,5 +119,5 @@ def test_the_worker_does_a_queued_refresh(ws):
     worker = Worker(ws.connect, background.handlers(ws))
     with ws.db() as db:
         assert worker.step(db)
-        assert jobs.counts(db) == {"done": 1}
+        assert jobs.counts(db) == {"done": 1, "queued": 1}  # the refresh asks for the notifications at once
         assert jobs.last_done(db, background.REFRESH) is not None

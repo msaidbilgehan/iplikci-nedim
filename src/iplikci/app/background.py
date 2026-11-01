@@ -1,7 +1,8 @@
 """The service's background work (ADR-0014): what each kind of job does, which ones recur, and how the other use
 cases ask for them. The analysis is made again after new documents and once a day, just after midnight (a new day
-can end a month); each time the feed compares it with the last one and records the difference as events. A backup
-is made every night and its restore rehearsed every month."""
+can end a month); each time the feed compares it with the last one and records the difference as events, and the
+notifications follow at once (they also run every five minutes). A backup is made every night and its restore
+rehearsed every month."""
 
 import sqlite3
 from datetime import UTC, date, datetime, time, timedelta
@@ -12,9 +13,9 @@ from ..jobs.schedule import Periodic, daily, every, monthly
 from ..jobs.worker import Handler
 from ..storage import audit, events, feed_state, jobs
 from ..vault import trash
-from . import access, backup, bridge, intake, mail, uploads
+from . import access, backup, bridge, intake, mail, notify, uploads
 from .analysis import analyze
-from .kinds import BACKUP_DAILY, BACKUP_NOW, BACKUP_REHEARSAL, BRIDGE_CHECK, INBOX_TAKE, PURGE, REFRESH
+from .kinds import BACKUP_DAILY, BACKUP_NOW, BACKUP_REHEARSAL, BRIDGE_CHECK, INBOX_TAKE, NOTIFY, PURGE, REFRESH
 from .workspace import Busy, Workspace
 
 SNAPSHOT = "snapshot"
@@ -29,13 +30,17 @@ PERIODIC = (
     Periodic(BACKUP_DAILY, daily(backup.DAILY_AT)),
     Periodic(BACKUP_REHEARSAL, monthly(time(4, 30))),
     Periodic(BRIDGE_CHECK, every(60)),
+    # The events the other jobs record, a failed attempt's next try and the digest after the quiet hours; a
+    # refresh asks for the notifications at once (ADR-0010).
+    Periodic(NOTIFY, every(5)),
 )
 
 
 def handlers(ws: Workspace) -> dict[str, Handler]:
     """What each kind of job does in ws."""
     return {
-        REFRESH: lambda _payload: refresh(ws),
+        REFRESH: lambda _payload: (refresh(ws), request_notify(ws)),
+        NOTIFY: lambda _payload: notify.run(ws),
         PURGE: lambda _payload: purge(ws),
         mail.FETCH_JOB: lambda _payload: poll_mail(ws),
         INBOX_TAKE: lambda _payload: take_inbox(ws),
@@ -65,6 +70,13 @@ def refresh(ws: Workspace, today: date | None = None) -> list[str]:
             events.append(db, change.kind, change.target, **change.detail)
         feed_state.save(db, SNAPSHOT, after.dump())
     return [change.kind for change in changes]
+
+
+def request_notify(ws: Workspace) -> None:
+    """Ask the service to turn the new events into notifications and send them; asked twice before it starts, it
+    does it once."""
+    with ws.db() as db:
+        jobs.add(db, NOTIFY)
 
 
 def poll_mail(ws: Workspace) -> None:

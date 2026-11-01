@@ -22,6 +22,8 @@ RULES = {
     "iplikci.forecast": ("iplikci.domain", "iplikci.analysis", "iplikci.insights", "iplikci.upcoming"),
     # Matching non-bank bills to the bank's rows is the ledger's own: the models only.
     "iplikci.invoices": ("iplikci.domain",),
+    # The alert rules, the texts and the channels: no storage; the channels leave only through egress (ADR-0009).
+    "iplikci.notify": ("iplikci.domain", "iplikci.egress"),
 }
 
 

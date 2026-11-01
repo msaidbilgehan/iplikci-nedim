@@ -3,9 +3,9 @@ same (`iplikci dogrula --yeniden-kur`).
 
 What the readers read is derived: every document is read again from the vault. What nothing else knows is primary:
 each document's name and arrivals, the user's annotations, the audit log (which, among others, counts the company
-documents that were never kept) and the event log. It is dumped as JSON, the dump is read back into a new database beside
-the real one, the documents are read again, and both are analysed and compared. The vault is only read: a company
-document found on the way is marked in the new database, never moved.
+documents that were never kept), the event log and the notifications. It is dumped as JSON, the dump is read back
+into a new database beside the real one, the documents are read again, and both are analysed and compared. The vault
+is only read: a company document found on the way is marked in the new database, never moved.
 """
 
 import json
@@ -18,18 +18,20 @@ from typing import Any
 
 from .. import baseline
 from ..domain.codes import Actor, DocumentStatus, Necessity, SourceKind
-from ..storage import annotations, audit, documents, events
+from ..storage import annotations, audit, documents, events, notifications
 from ..storage.annotations import Annotation, Subject
 from ..storage.audit import Entry
 from ..storage.db import Database
 from ..storage.documents import DocumentRow, Source
 from ..storage.events import Event
+from ..storage.notifications import Notification
 from . import reading
 from .analysis import Analysis, analyze
 from .workspace import Workspace
 
 FORMAT = "iplikci-birincil-veri"
-VERSION = 2  # 2: the event log
+VERSION = 3  # 2: the event log; 3: the notifications
+_READS = (2, 3)  # a version 2 dump has no notifications
 
 
 @dataclass(frozen=True)
@@ -46,6 +48,7 @@ class Primary:
     annotations: list[Annotation] = field(default_factory=list[Annotation])
     audit: list[Entry] = field(default_factory=list[Entry])
     events: list[Event] = field(default_factory=list[Event])
+    notifications: list[Notification] = field(default_factory=list[Notification])
 
 
 def export(db: Database) -> Primary:
@@ -54,6 +57,7 @@ def export(db: Database) -> Primary:
         list(annotations.every(db).values()),
         audit.entries(db),
         events.entries(db),
+        notifications.every(db),
     )
 
 
@@ -80,14 +84,15 @@ def dump(primary: Primary) -> str:
         ],
         "audit": [asdict(e) for e in primary.audit],
         "events": [asdict(e) for e in primary.events],
+        "notifications": [asdict(n) for n in primary.notifications],
     }
     return json.dumps(value, ensure_ascii=False, indent=1, sort_keys=True)
 
 
 def load(text: str) -> Primary:
     value: dict[str, Any] = json.loads(text)
-    if value.get("format") != FORMAT or value.get("version") != VERSION:
-        raise ValueError(f"bu dosya bir {FORMAT} sürüm {VERSION} dökümü değil")
+    if value.get("format") != FORMAT or value.get("version") not in _READS:
+        raise ValueError(f"bu dosya bir {FORMAT} sürüm {' ya da '.join(map(str, _READS))} dökümü değil")
     kept = [
         Kept(
             DocumentRow(
@@ -119,7 +124,8 @@ def load(text: str) -> Primary:
     ]
     entries = [Entry(e["at"], Actor(e["actor"]), e["action"], e["target"], e["detail"]) for e in value["audit"]]
     happened = [Event(e["at"], e["kind"], e["target"], e["detail"]) for e in value["events"]]
-    return Primary(kept, notes, entries, happened)
+    told = [Notification(**n) for n in value.get("notifications", [])]
+    return Primary(kept, notes, entries, happened, told)
 
 
 def restore(db: Database, primary: Primary) -> None:
@@ -135,6 +141,8 @@ def restore(db: Database, primary: Primary) -> None:
             audit.restore(db, e)
         for event in primary.events:
             events.restore(db, event)
+        for n in primary.notifications:
+            notifications.restore(db, n)
 
 
 def rebuild(ws: Workspace, folder: Path, primary: Primary, progress: reading.Progress | None = None) -> Workspace:
