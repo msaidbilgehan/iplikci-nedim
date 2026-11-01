@@ -99,6 +99,10 @@ class Statement:
     # A passbook (e-cüzdan): the account as the bank sent it once, when it opened. Banks mail no monthly list after
     # it, so the month-end does not wait for the account's later days.
     one_off: bool = False
+    # Card statements: what the bank prints for paying the statement, in its currency; None where it prints none.
+    due_date: date | None = None  # this statement's "Son Ödeme Tarihi", never the next statement's
+    minimum_payment: Decimal | None = None  # the minimum due by due_date
+    credit_limit: Decimal | None = None  # the card's total limit
 
     @property
     def is_account(self) -> bool:

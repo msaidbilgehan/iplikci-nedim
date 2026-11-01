@@ -60,7 +60,8 @@ o hesaptan fatura ödenmez, maaş yatmaz (`insights.NOT_BANK_ACCOUNTS`).
 - **Kart ekstresi** (`start` boş)
   - `previous` artı satırların toplamı `total`'e eşittir.
   - Paracard'da yalnızca toplam vardır (`total_is_sum`).
-  - V1'de ayrıca son ödeme tarihi, asgari ödeme ve (yazıyorsa) limit okunur.
+  - V1'de ayrıca son ödeme tarihi (`due_date`), asgari ödeme (`minimum_payment`) ve kartın toplam limiti
+    (`credit_limit`) okunur; ekstre yazmıyorsa boş kalır ([bank-formats.md](bank-formats.md)).
 - **Hesap hareketleri listesi** (`start` dolu)
   - `previous` ve `total` açılış ve kapanış bakiyesidir.
   - `balances` ay sonu bakiyeleridir.

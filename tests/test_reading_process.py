@@ -151,6 +151,9 @@ def full_result() -> ParseResult:
         balances={"2026-09": Decimal("12.30"), "2026-10": Decimal(0)},
         securities=[Security("ORNEK", "ÖRNEK SANAYİ A.Ş.", Decimal("20.5"), Decimal(1342), date(2026, 10, 30))],
         one_off=True,
+        due_date=date(2026, 10, 15),
+        minimum_payment=Decimal("1258.21"),
+        credit_limit=Decimal("60000.00"),
     )
     loose = Transaction(
         date(2026, 9, 10),
@@ -188,6 +191,11 @@ GONE = object()
         (("statements", 0, "total_is_sum"), "evet"),
         (("statements", 0, "one_off"), 1),
         (("statements", 0, "one_off"), GONE),
+        (("statements", 0, "due_date"), "2026-02-30"),
+        (("statements", 0, "due_date"), GONE),
+        (("statements", 0, "minimum_payment"), 1258.21),
+        (("statements", 0, "credit_limit"), "Infinity"),
+        (("statements", 0, "credit_limit"), GONE),
         (("statements", 0, "checks_ok"), True),
         (("statements", 0, "cut_date"), "2026-13-01"),
         (("statements", 0, "balances"), ["2026-09"]),

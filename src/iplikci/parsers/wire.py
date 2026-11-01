@@ -194,6 +194,9 @@ def _statement(s: Statement) -> Json:
         "checks_total": s.checks_total,
         "balances": {month: str(v) for month, v in s.balances.items()},
         "one_off": s.one_off,
+        "due_date": s.due_date.isoformat() if s.due_date else None,
+        "minimum_payment": _money(s.minimum_payment),
+        "credit_limit": _money(s.credit_limit),
         "securities": [
             {
                 "code": x.code,
@@ -225,6 +228,9 @@ def _statement_from(data: Any) -> Statement:
         checks_total=_int(data["checks_total"]),
         balances={_str(month): _decimal(v) for month, v in data["balances"].items()},
         one_off=one_off,
+        due_date=_optional(_date, data["due_date"]),
+        minimum_payment=_optional(_decimal, data["minimum_payment"]),
+        credit_limit=_optional(_decimal, data["credit_limit"]),
         securities=[
             Security(_str(x["code"]), _str(x["name"]), _decimal(x["quantity"]), _decimal(x["value"]), _date(x["as_of"]))
             for x in data["securities"]

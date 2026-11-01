@@ -157,7 +157,18 @@ def sample() -> ParseResult:
             installment="1/3",
         ),
     ]
-    statement = Statement(card.id, date(2026, 10, 5), "TRY", "ekstre.pdf", Decimal(1000), Decimal(1000), rows)
+    statement = Statement(
+        card.id,
+        date(2026, 10, 5),
+        "TRY",
+        "ekstre.pdf",
+        Decimal(1000),
+        Decimal(1000),
+        rows,
+        due_date=date(2026, 10, 15),  # the account list below prints none of a card's terms
+        minimum_payment=Decimal("400.00"),
+        credit_limit=Decimal(50000),
+    )
     listing = Statement(
         teb.id,
         date(2026, 10, 31),
