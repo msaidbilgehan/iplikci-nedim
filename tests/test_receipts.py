@@ -337,3 +337,24 @@ def test_two_equal_transfers_of_a_day_stay_two_when_only_one_has_a_receipt(cat):
         "Giden FAST → VE** ÖR*****",  # the receipt stands for one of Veli's two notices only
         "Giden Havale → VELİ ÖRNEKSOY",
     ]
+
+
+UNNAMED = Account("qnb-****", "QNB Vadesiz TL", "QNB", AccountType.CURRENT, number="****")  # a FAST notice's
+
+
+def test_a_notice_that_names_no_account_goes_to_the_banks_one_bank_account_never_its_card(cat):
+    told = row(date(2026, 3, 2), "Giden FAST → VELİ ÖRNEKSOY", Decimal(1000), UNNAMED, who="VELİ ÖRNEKSOY")
+    paid = row(date(2026, 2, 20), "MIGROS", Decimal(250), CARD, kind=TransactionKind.PURCHASE)
+    ds = analyse(cat, receipt("r1", OVERDRAFT), card_statement(date(2026, 3, 1), paid), notice("n1", UNNAMED, told))
+    assert [t.account for t in ds.transactions if t.description.startswith("Giden FAST")] == [OVERDRAFT.id]
+    assert "qnb-****" not in ds.accounts
+    second = Account("qnb-33334444", "QNB Vadesiz TL 33334444", "QNB", AccountType.CURRENT, number="33334444")
+    ds = analyse(cat, receipt("r1", OVERDRAFT), receipt("r2", second), notice("n1", UNNAMED, told))
+    assert ds.accounts["qnb-****"].label == "QNB Vadesiz TL"  # two bank accounts: which one is not guessed
+
+
+def test_a_notice_gives_way_to_what_a_receipt_says_of_the_account(cat):
+    named = Account("qnb-11112222", "QNB Vadesiz TL 11112222", "QNB", AccountType.CURRENT, number="11112222")
+    told = row(date(2026, 3, 2), "Giden Transfer → VELİ ÖRNEKSOY", Decimal(1000), named, who="VELİ ÖRNEKSOY")
+    ds = analyse(cat, notice("n1", named, told), receipt("r1", OVERDRAFT))
+    assert (ds.accounts[OVERDRAFT.id].type, ds.accounts[OVERDRAFT.id].label) == (AccountType.OVERDRAFT, OVERDRAFT.label)

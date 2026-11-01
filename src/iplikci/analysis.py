@@ -487,18 +487,27 @@ def _fingerprint(
             t.fingerprint = prints.next(t.account, t.date, round(t.amount * 100), currency, t.description)
 
 
+_BANK_ACCOUNTS = (AccountType.CURRENT, AccountType.DEPOSIT, AccountType.OVERDRAFT)
+
+
 def resolve_masked(results: Iterable[ParseResult]) -> None:
     """Receipts of incoming transfers print the account number masked ("1012/****321"): their rows
-    move to the one account of that bank and currency whose number ends with the digits shown."""
+    move to the one account of that bank and currency whose number ends with the digits shown. A notice that shows
+    no digit at all (QNB's FAST notices name only the branch) moves to the one bank account of that bank and
+    currency, never to a card or a loan."""
     results = list(results)
     known = {a.id: a for r in results for a in r.accounts if "*" not in a.number}
     for r in results:
         for i, masked in enumerate(r.accounts):
-            shown = masked.number.rsplit("*", 1)[-1] if "*" in masked.number else ""
+            if "*" not in masked.number:
+                continue
+            shown = masked.number.rsplit("*", 1)[-1]
             same = [
                 a
                 for a in known.values()
-                if shown and a.bank == masked.bank and a.currency == masked.currency and a.number.endswith(shown)
+                if a.bank == masked.bank
+                and a.currency == masked.currency
+                and (a.number.endswith(shown) if shown else a.type in _BANK_ACCOUNTS)
             ]
             if len(same) != 1:
                 continue
@@ -557,6 +566,7 @@ def build(
     """results: (document, its reading or None, (status, detail) when there is no reading) tuples; a document has
     a name, an origin and a sha256."""
     accounts: dict[str, Account] = {}
+    told: dict[str, Account] = {}  # accounts as only bank notices name them
     statements: dict[tuple, Statement] = {}
     receipts: dict[str, list[Transaction]] = {}
     notices: set[str] = set()  # the keys of receipts that are bank notices
@@ -568,8 +578,11 @@ def build(
         if not isinstance(result, ParseResult):
             documents.append(DocumentStatus(doc.name, doc.origin, status[0], status[1]))
             continue
+        # A notice knows less of an account than a list or a receipt does (QNB's does not say whether it is an overdraft
+        # account): the account as they name it stands.
+        named = told if document_type(result.parser) is DocumentKind.NOTICE else accounts
         for a in result.accounts:
-            accounts.setdefault(a.id, a)
+            named.setdefault(a.id, a)
         if result.holder:
             holders.add(result.holder)
         for s in result.statements:
@@ -584,6 +597,8 @@ def build(
                 notices.add(key)
         documents.append(DocumentStatus(doc.name, doc.origin, _status(result), label(result.parser)))
 
+    for a in told.values():
+        accounts.setdefault(a.id, a)
     _drop_told_twice(receipts, notices)
     stmts = sorted(statements.values(), key=lambda s: (s.account, s.cut_date, s.currency))
     _fingerprint(stmts, receipts, accounts)

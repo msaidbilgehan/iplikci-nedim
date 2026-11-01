@@ -289,6 +289,31 @@ yapılan ödemedir.
 - Dekont anahtarı `FİŞ NO`'dur.
 - Bazı gelen transfer bildirimlerinde tutar satırı hiç yoktur; bunlar "dekontta tutar yazmıyor" nedeniyle atlanır.
 
+**Hareket bildirimleri** (`qnb.notice.transfer`; 2024'e dek email.qnbfinansbank.com'dan, sonra email.qnb.com.tr'den)
+
+- Konuları: "QNB - Fast Para transferi bildiriminiz", "QNB - Para transferi bildiriminiz", "QNB FINANSBANK -
+  ATM/Banka Kartı Para Çıkışı Bildiriminiz".
+- Selamlamadan sonra tek cümle hareketi anlatır, ardından bakiye gelir:
+  - giden FAST: "KADIKÖY şubesindeki hesabınızdan … isimli alıcıya 1,234.56 TL'lik FAST işleminiz
+    gerçekleştirilmiştir.";
+  - gelen FAST: "… hesabınıza … tarafından FAST aracılığı ile 1,234.56 TL gönderilmiştir.";
+  - hesap numarasını yazan havale, EFT ve para çıkışı: "… 12345678 no'lu hesabınıza … tarafından 1.234,56 TL
+    gönderilmiştir.", "… no'lu hesabınızdan … adına …", "… no'lu hesabınızdan 1.234,56 TL para çıkışı olmuştur.";
+  - "Hesabınızın bakiyesi saat 14:05 itibarıyla -1,234.56 TL tutarındadır." Ek hesabın bakiyesi sıfırın altındadır.
+- Tuzaklar:
+  - FAST bildirimleri tutarı ABD biçiminde yazar ("1,234.56", "1234.56"), ötekiler Türk biçiminde ("1.234,56",
+    "99,99"): son iki haneden önceki ayraç ondalıktır.
+  - Kelimeler bazen Türkçe harfsiz gelir ("subesindeki", "hesabinizdan"). En yeni bildirimler şubeyi "Kadıköy
+    Şubesi'ndeki" diye yazar ve selamlamadaki adı maskeler ("Sayın Örnek K***").
+  - Hiçbir bildirim günü yazmaz: gün, iletinin Türkiye saatine göre tarihidir. Bakiyenin saati iletinin gönderildiği
+    saatten sonraysa hareket bir önceki gündür (23.58'deki hareket 00.01'de gelir).
+  - FAST bildirimi hesap numarası yazmaz: satır, öteki belgelerin bildiği tek QNB banka hesabına (kart ya da kredi
+    değil) gider. Birden çok banka hesabı varsa tahmin edilmez. Numarayı yazan bildirim de hesabın türünü bilmez:
+    e-dekontun ya da listenin dediği (ek hesap ya da değil) geçerlidir.
+  - QNB bazı FAST bildirimlerine e-dekontu ekler. Hareket bir kez sayılır: dekontun satırı kalır, bildirimin yazdığı
+    bakiyeyi alır.
+- Dekont numarası yazmaz: bildirim, günü ve dakikası, tutarı ve sonraki bakiyesiyle tanınır.
+
 ## Okuyucusu olmayan e-postalar
 
 Bankalar para hareketi bildirimlerinden çok daha fazlasını gönderir. Gövdesini hiçbir okuyucunun okumadığı bir ileti,

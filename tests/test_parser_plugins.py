@@ -40,6 +40,7 @@ SHIPPED = {
     "vakifbank.passbook",
     # Phase 4: the readers of bank notices (`<bank>.notice.*`).
     "garanti.notice.transfer",
+    "qnb.notice.transfer",
     "vakifbank.notice.transfer",
 }
 

@@ -29,6 +29,9 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
   yazdığı bakiyeyi alır.
 - Ayrıntıyı internet şubesine bırakan, tutar içermeyen iletiler (Garanti'nin HGS iletisi) "e-postada para hareketi yok"
   diye sınıflanır.
+- `qnb.notice.transfer`: QNB'nin FAST, havale/EFT ve para çıkışı bildirimleri okunur. Hesap numarası yazmayan FAST
+  bildiriminin satırı, QNB'deki tek banka hesabına gider; bildirim, hesabın türünü (ek hesap ya da değil) e-dekontun
+  ya da listenin dediğine bırakır.
 - Yaklaşan bir ödemeyi hatırlatan iletiler (haftalık kart ödemeleri, kredinin vade tarihi) "ödeme hatırlatması" diye
   sınıflanır.
 - Okuyucusu olmayan bir iletinin selamlaması bir şirketi anıyorsa ("Merhaba ÖRNEK A.Ş.,") ileti şirket belgesi sayılır;

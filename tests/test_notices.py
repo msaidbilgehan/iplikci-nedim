@@ -10,7 +10,7 @@ import pytest
 
 from iplikci.app import mail, reading
 from iplikci.domain.codes import DocumentKind, DocumentStatus, TransactionKind
-from iplikci.fakes import garanti, vakifbank
+from iplikci.fakes import HOLDER, garanti, qnb, vakifbank
 from iplikci.fakes.files import html_mail
 from iplikci.parsers import Skipped, Unreadable, messages, parse_document
 from iplikci.parsers.common import BUSINESS_REASON, MESSAGE_REASON, set_business_names
@@ -316,3 +316,114 @@ def test_a_garanti_notice_from_a_company_account_is_the_companys():
             html_mail(garanti.NOTICE_SENDER, "Para Transferi Bilgilendirmesi", f"<p>{html}</p>", datetime(2024, 10, 22))
         )
     assert raised.value.business
+
+
+# --- QNB's movement notices -------------------------------------------------------------------------------------
+
+QNB = "qnb.notice.transfer"
+
+
+def test_a_qnb_fast_notice_is_read_with_us_amounts_onto_the_account_it_does_not_name():
+    data = qnb.fast_out()
+    result = read(data)
+    [row] = result.transactions
+    assert (result.parser, result.title, result.holder) == (QNB, "Giden FAST", HOLDER)
+    assert (row.date, row.amount, row.balance, row.kind) == (
+        date(2026, 10, 20),
+        Decimal("1250.00"),
+        Decimal("-3480.25"),  # an overdraft account below zero
+        TransactionKind.TRANSFER_CANDIDATE,
+    )
+    assert (row.description, row.counterparty) == ("Giden FAST → VELİ ÖRNEKSOY", "VELİ ÖRNEKSOY")
+    [account] = result.accounts
+    assert (account.id, account.label, account.number) == ("qnb-****", "QNB Vadesiz TL", "****")
+    assert row.ref is not None and row.ref.span is not None
+    start, end = row.ref.span
+    assert read_mail(data).text[start:end] == "1,250.00"
+    received = read(qnb.fast_in()).transactions[0]  # mailed by QNB Finansbank, no thousands separator
+    assert (received.amount, received.balance) == (Decimal("-2400.00"), Decimal("915.75"))
+    assert received.description == "Gelen FAST ← AYŞE SOYADOĞLU"
+
+
+def test_a_qnb_notice_that_names_the_account_prints_amounts_the_turkish_way():
+    result = read(qnb.transfer_out())
+    [row] = result.transactions
+    assert (result.title, row.account, row.amount, row.balance) == (
+        "Giden Transfer",
+        "qnb-12345678",
+        Decimal("3000.00"),
+        Decimal("-2084.25"),
+    )
+    assert row.description == "Giden Transfer → VELİ ÖRNEKSOY"  # "hesabinizdan", written without its letters
+    received = qnb.notice(qnb.TRANSFER_SUBJECT, qnb.TRANSFER_IN.format(amount="99,99"), "100,00", datetime(2026, 10, 1))
+    assert read(received).transactions[0].amount == Decimal("-99.99")
+
+
+def test_the_newest_qnb_notice_capitalises_the_branch_and_masks_the_greeting():
+    result = read(qnb.transfer_in())
+    [row] = result.transactions
+    assert (result.title, result.holder, row.account) == (
+        "Gelen Transfer",
+        "",
+        "qnb-****",
+    )  # a masked name is no holder
+    assert (row.amount, row.balance, row.description) == (
+        Decimal("-7500.00"),
+        Decimal("5415.75"),
+        "Gelen Transfer ← Ayşe Soyadoğlu",
+    )
+
+
+def test_money_out_just_before_midnight_is_dated_by_the_balances_time_not_the_mail():
+    result = read(qnb.cash_out())  # mailed at 00:01, the balance as of 23:58
+    [row] = result.transactions
+    assert (row.date, row.amount, row.description) == (
+        date(2026, 10, 26),
+        Decimal("500.00"),
+        "Para Çıkışı (ATM/banka kartı)",
+    )
+    assert result.receipt_key.split("-", 4)[2:] == [
+        "202610262358",
+        "50000",
+        "-258425",
+    ]  # day and minute, amount, balance
+
+
+@pytest.mark.parametrize(
+    ("printed", "value"),
+    [
+        ("1,234.56", "1234.56"),
+        ("1234.56", "1234.56"),
+        ("1.234,56", "1234.56"),
+        ("99,99", "99.99"),
+        ("-1,234.56", "-1234.56"),
+    ],
+)
+def test_a_qnb_amount_takes_the_separator_before_its_last_two_digits_as_the_decimal_one(printed, value):
+    sentence = qnb.FAST_OUT.format(amount="1.00")
+    row = read(qnb.notice(qnb.FAST_SUBJECT, sentence, printed, datetime(2026, 10, 1))).transactions[0]
+    assert row.balance == Decimal(value)
+
+
+def test_a_qnb_notice_whose_sentence_the_reader_does_not_know_raises_the_format_alarm():
+    sentence = "KADIKÖY şubesindeki hesabınıza 1,000.00 TL yatırılmıştır."
+    with pytest.raises(Unreadable) as raised:
+        read(qnb.notice(qnb.FAST_SUBJECT, sentence, "1,000.00", datetime(2026, 10, 1)))
+    assert raised.value.parser == QNB
+    for broken in ("1,234,56", "1.234.56"):  # a separator used both ways
+        with pytest.raises(Unreadable):
+            read(qnb.notice(qnb.FAST_SUBJECT, qnb.FAST_OUT.format(amount=broken), "1.00", datetime(2026, 10, 1)))
+
+
+def test_a_qnb_notice_greeting_the_company_is_the_companys():
+    set_business_names(["Örnek Teknoloji A.Ş."])
+    data = qnb.notice(
+        qnb.FAST_SUBJECT,
+        qnb.FAST_OUT.format(amount="1.00"),
+        "1.00",
+        datetime(2026, 10, 1),
+        holder="ÖRNEK TEKNOLOJİ A.Ş.",
+    )
+    with pytest.raises(Skipped) as raised:
+        read(data)
+    assert (raised.value.business, raised.value.parser) == (True, QNB)

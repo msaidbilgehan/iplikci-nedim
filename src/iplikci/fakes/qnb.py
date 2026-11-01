@@ -1,12 +1,14 @@
-"""QNB's documents: the card statement and the account list as PDF exports, and the e-dekont of a transfer."""
+"""QNB's documents: the card statement and the account list as PDF exports, the e-dekont of a transfer and the
+movement notices it mails."""
 
 import textwrap
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+from html import escape
 
 from . import HOLDER, CardRow, CardTerms, Move, Specimen, charged
-from .files import Run, right, text_pdf
+from .files import Run, html_mail, right, text_pdf
 
 # QNB prints its rows in a font with no Unicode map for Turkish letters: pdfminer shows each as "(cid:N)". The
 # fake writes them as private-use characters, which its own font leaves unmapped the same way.
@@ -192,10 +194,95 @@ def transfer_receipt_html(side: tuple[str, str] = OUTGOING, amount: Decimal = De
     return f"<html><body><p>{transfer_text(side, amount)}</p></body></html>".encode()
 
 
+# --- movement notices -------------------------------------------------------------------------------------------
+
+NOTICE_SENDER = "bilgilendirme@email.qnb.com.tr"
+OLD_NOTICE_SENDER = "bilgilendirme@email.qnbfinansbank.com"  # QNB Finansbank, until 2024
+FAST_SUBJECT = "QNB - Fast Para transferi bildiriminiz"
+TRANSFER_SUBJECT = "QNB - Para transferi bildiriminiz"
+CASH_SUBJECT = "QNB FINANSBANK - ATM/Banka Kartı Para Çıkışı Bildiriminiz"
+_ISTANBUL = timezone(timedelta(hours=3))
+FAST_OUT = (
+    "KADIKÖY şubesindeki hesabınızdan VELİ ÖRNEKSOY isimli alıcıya {amount} TL'lik FAST işleminiz gerçekleştirilmiştir."
+)
+FAST_IN = "KADIKÖY şubesindeki hesabınıza AYŞE SOYADOĞLU tarafından FAST aracılığı ile {amount} TL gönderilmiştir."
+TRANSFER_IN = "KADIKÖY şubesindeki 12345678 no'lu hesabınıza AYŞE SOYADOĞLU tarafından {amount} TL gönderilmiştir."
+TRANSFER_OUT = "KADIKÖY şubesindeki 12345678 no'lu hesabinizdan VELİ ÖRNEKSOY adına {amount} TL gönderilmiştir."
+CASH_OUT = "KADIKÖY subesindeki 12345678 no'lu hesabınızdan {amount} TL para çıkışı olmuştur."
+TRANSFER_IN_2026 = "Kadıköy Şubesi'ndeki hesabınıza Ayşe Soyadoğlu tarafından {amount} TL gönderilmiştir."
+MASKED_HOLDER = "Örnek K***"  # HOLDER as the newest notices mask it
+
+
+def notice(
+    subject: str,
+    sentence: str,
+    balance: str,
+    sent: datetime,
+    clock: str = "",
+    holder: str = HOLDER,
+    sender: str = NOTICE_SENDER,
+) -> bytes:
+    """A QNB notice laid out like the bank's: the greeting in a paragraph of its own, then the sentence, the balance at
+    clock (the time it was sent by default) and the closing words, then the bank's details."""
+    when = clock or f"{sent:%H:%M}"
+    html = (
+        '<html><body text="#000000"><table cellpadding="0" cellspacing="0" border="0"><tr><td width="50%">&nbsp;</td>'
+        '<td align="center"><table style="width: 770px"><tr valign="top"><td style="background-color: #1C2455;">'
+        '<p><span style="font-family: Tahoma; color: #FFFFFF; font-weight: bold;">'
+        f"Sayın {escape(holder)}</span></p>"
+        f'<p><span style="font-family: Tahoma; color: #FFFFFF;">{escape(sentence)}<br/><br/>'
+        f"Hesabınızın bakiyesi saat {when} itibarıyla {balance} TL tutarındadır.<br/>Saygılarımızla,</span></p>"
+        "</td></tr><tr><td><p>Mersis No: 0000-0000-0000-0000 Ticaret Sicil No: 000000 Ünvan: QNB Bank A.Ş.</p>"
+        "<p>Bu e-maili düzgün görüntüleyemiyorsanız veya almak istemiyorsanız, lütfen şubeniz ile iletişime "
+        "geçiniz.</p></td></tr></table></td></tr></table></body></html>"
+    )
+    return html_mail(sender, subject, html, sent)
+
+
+def fast_out(
+    sent: datetime = datetime(2026, 10, 20, 14, 6, 31, tzinfo=_ISTANBUL),
+    amount: str = "1,250.00",
+    balance: str = "-3,480.25",
+    clock: str = "14:05",
+) -> bytes:
+    """A FAST payment sent from the overdraft account, its balance below zero after it: amounts the US way."""
+    return notice(FAST_SUBJECT, FAST_OUT.format(amount=amount), balance, sent, clock)
+
+
+def fast_in(
+    sent: datetime = datetime(2026, 10, 22, 9, 40, 2, tzinfo=_ISTANBUL),
+    amount: str = "2400.00",
+    balance: str = "915.75",
+) -> bytes:
+    """A FAST payment received from a friend, mailed by QNB Finansbank: no thousands separator."""
+    return notice(FAST_SUBJECT, FAST_IN.format(amount=amount), balance, sent, sender=OLD_NOTICE_SENDER)
+
+
+def transfer_out(sent: datetime = datetime(2026, 10, 25, 19, 46, tzinfo=_ISTANBUL)) -> bytes:
+    """A transfer sent from the account named by its number: amounts the Turkish way, a word without its letters."""
+    return notice(TRANSFER_SUBJECT, TRANSFER_OUT.format(amount="3.000,00"), "-2.084,25", sent)
+
+
+def transfer_in(sent: datetime = datetime(2026, 10, 29, 16, 34, tzinfo=_ISTANBUL)) -> bytes:
+    """A transfer received, as the newest notices write it: the branch's name capitalised and the greeting masked."""
+    return notice(TRANSFER_SUBJECT, TRANSFER_IN_2026.format(amount="7,500.00"), "5,415.75", sent, holder=MASKED_HOLDER)
+
+
+def cash_out(sent: datetime = datetime(2026, 10, 27, 0, 1, 12, tzinfo=_ISTANBUL)) -> bytes:
+    """Money taken out at an ATM just before midnight, mailed just after it."""
+    return notice(CASH_SUBJECT, CASH_OUT.format(amount="500,00"), "-2.584,25", sent, "23:58")
+
+
 def specimens() -> list[Specimen]:
+    notices = "qnb.notice.transfer"
     return [
         Specimen("qnb-kart-ekstre.pdf", card_statement(), "qnb.card_pdf", "qnb-1234", 6),
         Specimen("qnb-hesap-hareketleri.pdf", account_pdf(), "qnb.account_pdf", "qnb-12345678", 6),
         Specimen("qnb-gelen-fast-dekont.pdf", transfer_receipt(), "qnb.edekont", "qnb-12345678", 1),
         Specimen("qnb-giden-fast-dekont.html", transfer_receipt_html(), "qnb.edekont", "qnb-12345678", 1),
+        Specimen("qnb-giden-fast-bildirimi.eml", fast_out(), notices, "qnb-****", 1),
+        Specimen("qnb-gelen-fast-bildirimi.eml", fast_in(), notices, "qnb-****", 1),
+        Specimen("qnb-giden-transfer-bildirimi.eml", transfer_out(), notices, "qnb-12345678", 1),
+        Specimen("qnb-gelen-transfer-bildirimi.eml", transfer_in(), notices, "qnb-****", 1),
+        Specimen("qnb-para-cikisi-bildirimi.eml", cash_out(), notices, "qnb-12345678", 1),
     ]

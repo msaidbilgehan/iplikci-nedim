@@ -28,6 +28,7 @@ from .isbank import receipt as isbank_receipt
 from .qnb import account_pdf as qnb_account_pdf
 from .qnb import card_pdf as qnb_card_pdf
 from .qnb import edekont as qnb_edekont
+from .qnb.notice import transfer as qnb_notice_transfer
 from .teb import account_html as teb_account_html
 from .teb import bonus_card as teb_bonus_card
 from .teb import card_payment_receipt as teb_card_payment_receipt
@@ -38,7 +39,7 @@ from .vakifbank.notice import transfer as vakifbank_notice_transfer
 GROUP = "iplikci.parsers"
 # Raise when choosing the reader itself changes (what the selector looks at, the checks before the readers): every
 # document is then read again.
-SELECTION = 2  # 2: a kept e-mail's greeting names a company
+SELECTION = 2  # 2: a kept e-mail no reader takes is a company's by its greeting or an employer's premiums
 BUILTIN: tuple[Parser, ...] = (
     garanti_bonus_card.PARSER,
     garanti_paracard.PARSER,
@@ -56,6 +57,7 @@ BUILTIN: tuple[Parser, ...] = (
     qnb_card_pdf.PARSER,
     qnb_account_pdf.PARSER,
     qnb_edekont.PARSER,
+    qnb_notice_transfer.PARSER,
     vakifbank_account_xlsx.PARSER,
     vakifbank_passbook.PARSER,
     vakifbank_notice_transfer.PARSER,
