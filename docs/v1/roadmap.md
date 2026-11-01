@@ -181,6 +181,20 @@ iki koşulu açık bırakarak kapattı ([K19](requirements.md#kararlar)).
 
 ## Aşama 4 — E-postanın tamamı
 
+Durum: 2026-11-02'de `asama-4` dalında uygulandı, `v0.5.0` ([değişiklik günlüğü](../../CHANGELOG.md)).
+
+- Kutunun envanteri çıkarıldı: 15 banka alan adından 1114 ileti, 617 konu kalıbı (`iplikci dev eposta-envanteri`).
+  Okuyucu öncelikleri bu listeye göre belirlendi.
+- Banka bildirimi okuyucuları: Vakıfbank, Garanti BBVA ve QNB'nin transfer bildirimleri, İş Bankası'nın kart borcu
+  tahsilatı. Bildirimler dekontlar gibi ekstrelerle uzlaştırılır.
+- F01: banka iletilerinin kapsamı Sistem ekranında ve `servis durum`'da görünür: bildirim okuyucularının okudukları,
+  ekleriyle okunanlar, para hareketi taşımayanlar, şirket belgeleri ve tanınmayanlar.
+- Kart ekstrelerinde son ödeme tarihi, asgari ödeme ve limit okunur. Dönemsel seriler, takvim ve nakit akışı
+  öngörüsü Abonelikler ve Takvim ekranlarındadır.
+- F14: banka dışı faturalar ve makbuzlar saklanır ve banka satırlarıyla eşleştirilir; bilgi satırlarının toplamları
+  değiştirmediği test edilir. İlk okuyucu e-Fatura ve e-Arşiv faturasıdır (UBL-TR XML). Banka dışı göndericiler
+  Sistem ekranından eklenir; Faturalar ekranı onların belgelerini listeler.
+
 **Teslimler**
 
 - Kutu taranır; gönderici ve ileti türleri listelenir. Okuyucu öncelikleri bu listeye göre belirlenir.

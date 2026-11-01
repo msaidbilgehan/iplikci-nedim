@@ -54,8 +54,25 @@ Aşama 3 (Servis, v0.4.0) uygulamayı bilgisayarda kendi başına çalışan bir
 - Posta kutusu baştan okundu ve ilk gerçek doğrulama tabanı alındı.
 
 İki koşul açık kaldı: servisin yedi gün kendi başına çalışması ve eklentinin Windows'ta denenmesi. Deneme önce
-macOS'ta yapılıyor. Eklenti şimdilik Chrome Web Store'da değil, geliştirici modunda yükleniyor. Sırada Aşama 4
-(E-postanın tamamı) var.
+macOS'ta yapılıyor. Eklenti şimdilik Chrome Web Store'da değil, geliştirici modunda yükleniyor.
+
+Aşama 4 (E-postanın tamamı, v0.5.0) bankaların bütün e-postalarını işe kattı:
+
+- Posta kutusunun envanteri çıkarılır: iletiler gönderen alan adına ve konu kalıbına göre sayılır.
+- E-posta gövdeleri okunur. Vakıfbank, Garanti BBVA ve QNB'nin para transferi bildirimleri ile İş Bankası'nın kart
+  borcu tahsilatı bildirimi dekont gibi kanıttır ve ekstrelerle uzlaştırılır. Aynı hareketi anlatan bir dekont ile
+  bir bildirim bir kez sayılır; bildirimin yazdığı bakiye saklanır.
+- Okuyucusu olmayan banka iletileri ne olduklarına göre sınıflanır: kampanya, duyuru, güvenlik ya da kart bildirimi,
+  ödeme hatırlatması. Banka iletilerinin ne kadarının işlendiği ya da bilerek sınıflandığı Sistem ekranında görünür.
+- Selamlaması bir şirketi anan ileti ve işveren olarak ödenen primler şirket belgesi sayılır.
+- Kart ekstrelerinde son ödeme tarihi, asgari ödeme ve kart limiti okunur.
+- Altı ayda ya da yılda bir yapılan ödemeler, önümüzdeki 60 günün takvimi ve her TL hesabın gün gün bakiye tahmini
+  gelir: Abonelikler ve Takvim ekranları.
+- Banka dışı faturalar ve makbuzlar alınır. e-Fatura ve e-Arşiv faturaları (UBL-TR XML) okunur ve banka satırlarıyla
+  eşleştirilir; eşleşmeyenler yalnızca bilgi olarak görünür, toplamları değiştirmez. Banka dışı göndericiler Sistem
+  ekranından eklenir; faturalar Faturalar ekranında listelenir.
+
+Sırada Aşama 5 (Bildirimler) var.
 
 MVP 2026-10-31'de emekliye ayrıldı. İplikçi Nedim onun kodundan başlar ama verisini devralmaz; belgeleri kendisi toplar.
 Uygulama henüz son kullanıcıya hazır değil: kurulum paketi, kurulum sihirbazı ve arayüzün tamamı sonraki aşamalarda
@@ -90,6 +107,7 @@ IPLIKCI_HOME=/tmp/iplikci-demo uv run iplikci islem ara MIGROS                  
 uv run iplikci dev parser probe belge.pdf        # okuyucular belgeyi tanıyor mu, neden
 uv run iplikci dev parser debug belge.pdf        # okuyan okuyucu ne okuyor: satır satır, yerleriyle
 uv run iplikci dev parser test                   # okuyucular sahte belgelerini doğru okuyor mu
+uv run iplikci dev eposta-envanteri [--csv]      # saklanan e-postalar, gönderen ve konu kalıbına göre
 ```
 
 Servis, arayüz ve tarayıcı eklentisi:
@@ -99,7 +117,7 @@ Servis, arayüz ve tarayıcı eklentisi:
 uv run iplikci dev api-tipleri web/src/api/schema.ts   # API'nin modelleri değişince arayüzün tipleri
 uv run iplikci servis calistir                   # servis ön planda: http://127.0.0.1:8643
 uv run iplikci ac                                # arayüzü tek kullanımlık giriş bağlantısıyla açar
-uv run iplikci servis durum                      # servis çalışıyor mu; kuyruk, e-posta, yedek ve disk
+uv run iplikci servis durum                      # servis çalışıyor mu; kuyruk, e-posta ve kapsamı, yedek ve disk
 uv run iplikci yedek al | liste | geri-yukle | prova
 uv run iplikci eposta kur | durum | kaldir | al  # IMAP hesabı; şifre yalnızca anahtar zincirinde
 (cd extension && npm ci && npm test && npm run build)   # eklenti; extension/dist tarayıcıya yüklenir

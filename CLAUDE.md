@@ -6,8 +6,8 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-01): Phases 0–3 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.4.0); Phase 4 (the whole mailbox) is
-next, on `asama-4`.
+Status (2026-11-02): Phases 0–4 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.5.0); Phase 5 (notifications) is
+next, on `asama-5`.
 - Phase 0 brought the MVP's code in as the `iplikci` package, cleaned of personal traces, with the shipped default
   rules, the verification baseline and the demo workspace.
 - Phase 1 (data core) moved everything into the data dir: `settings.toml`, the content-addressed vault, SQLite with the
@@ -25,6 +25,15 @@ next, on `asama-4`.
 - Phase 3 closed with two open conditions (K19): the service's 7-day run (earliest 2026-11-08) and the Windows check.
   macOS comes first; keep the code cross-platform. The extension stays unpacked (K20): publishing it on the Chrome
   Web Store is a paid account decision, ask first.
+- Phase 4 (the whole mailbox) reads the message bodies.
+  - The bank notices are evidence like receipts: VakıfBank's, Garanti's and QNB's transfer notices and İş Bankası's
+    card debt collection. A movement a notice and a receipt both tell counts once.
+  - Every other bank message is classified knowingly or stays unknown; F01's coverage shows on the System screen and in `servis durum`. A message no reader takes is a company's
+    when its greeting names the company or it pays premiums under an SGK workplace number.
+  - The card statements give their due date, minimum payment and limit; the periodic series, the 60-day calendar
+    and the cash-flow forecast are built on the ledger.
+  - Non-bank bills and receipts (UBL-TR e-invoices so far) are kept and matched to the bank's rows, never counted
+    (F14); the user adds non-bank senders on the System screen.
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 
@@ -142,11 +151,17 @@ registry, the reading process (`worker.py`, `wire.py`) and the developer tools (
 (snapshot diff), `ingest` (`archives`, the inbox watcher, `mail/` with the IMAP protocol and the trust rule),
 `egress.py`, `service` (runner, single-instance lock, logs, service managers, the CLI's client) and turned `cli` into a
 package with a module per command group; `app` gained the background jobs, backups, the bridge, mail, uploads and the
-system status. The MVP's panel is gone. The rest keeps the MVP's flat layout (`analysis`, `insights`, `month_end`,
-`report` with its `templates`, `mcp_server`, …) until the phases in the roadmap's MVP module table move it. Next to
-them: `fakes` (the fake document builders and every reader's specimens, shared with the tests and the demo), `demo` (the
-demo data folder), `baseline` (the verification baseline) and `mvp_codes` (the MVP codes the report's script and
-baseline v1 still speak). `web/` builds into `src/iplikci/api/ui`; `extension/` builds into `extension/dist`.
+system status. The MVP's panel is gone. Phase 4 added the message bodies (`parsers/mail.py`), the classification of the
+messages no reader takes (`parsers/messages.py`), the notice readers (`parsers/<bank>/notice/`), the XML format and the
+e-invoice reader (`parsers/invoice/ubl_tr.py`), `invoices.py` (non-bank bills against the bank's rows), `upcoming.py`
+and `forecast.py` (pure over the ledger and the insights, tests/test_architecture.py), `app/inventory.py` (the mailbox
+inventory and F01's coverage), `app/outlook.py` and `app/invoices.py` (the views of the calendar, the forecast, the
+series and the bills), `app/senders.py` (the non-bank senders) and their routes. The rest keeps the MVP's flat layout
+(`analysis`, `insights`, `month_end`, `report` with its `templates`, `mcp_server`, …) until the phases in the roadmap's
+MVP module table move it. Next to them: `fakes` (the fake document builders and every reader's specimens, shared with
+the tests and the demo), `demo` (the demo data folder), `baseline` (the verification baseline) and `mvp_codes` (the MVP
+codes the report's script and baseline v1 still speak). `web/` builds into `src/iplikci/api/ui`; `extension/` builds
+into `extension/dist`.
 
 The workspace is the data dir (architecture §9). The user's company names go in its `settings.toml` under
 `[identity] business_names`; the user's category rules live in `rules/personal.yaml` over the shipped defaults.
@@ -172,6 +187,7 @@ uv run iplikci dogrula --taban                 # real documents once V1 has coll
 uv run iplikci dev parser probe <file>         # what the selection sees and what every reader says
 uv run iplikci dev parser debug <file>         # what the reader reads, row by row with each row's place
 uv run iplikci dev parser test [<id>]          # the readers' fake documents still read as they must; exits 1 if not
+uv run iplikci dev eposta-envanteri [--csv]    # the kept e-mails by sender domain and subject template (data dir only)
 uv run iplikci servis calistir                 # the service in the foreground, http://127.0.0.1:8643
 uv run iplikci ac                              # open the interface with a one-time login link (service running)
 uv run iplikci servis durum                    # running or not; queue, e-mail, backups and disk; exits 1 if not running
