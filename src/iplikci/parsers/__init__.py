@@ -82,6 +82,8 @@ def parse_document(doc: Document) -> ParseResult:
 def _read(source: SourceDocument) -> ParseResult:
     if source.ext == ".eml":  # kept whole (ADR-0015); its attachments are documents of their own
         return _read_mail(source)
+    if source.ext == ".xml":
+        return _read_xml(source)
     if source.kind in ("xls", "xlsx") or (source.kind == "html" and source.ext in (".xls", ".xlsx")):
         return _read_sheet(source)
     if source.ext in (".html", ".htm") or source.kind == "html":
@@ -115,6 +117,23 @@ def without_reader(mail: Mail) -> tuple[str, bool]:
     if is_business(mail.addressee) or pays_as_employer(mail.text):
         return BUSINESS_REASON, True
     return message_reason(mail), False
+
+
+XML_PROBE = 4000  # characters of an XML document its probe shows: the root element and its namespaces come first
+XML_REASON = "XML belgesi; bu tür belgeyi okuyan bir okuyucu yok"
+
+
+def xml_probe(source: SourceDocument) -> Probe:
+    """What the readers of XML documents are shown: the start of the document as written."""
+    return Probe(source.name, Format.XML, text=source.xml[:XML_PROBE])
+
+
+def _read_xml(source: SourceDocument) -> ParseResult:
+    # The readers look for company buyers and sellers where the document names them; a file name was looked at already.
+    reader = choose(xml_probe(source))
+    if reader is None:
+        raise Skipped(XML_REASON)
+    return _parse(reader, source)
 
 
 def _read_sheet(source: SourceDocument) -> ParseResult:

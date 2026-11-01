@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
+from ..domain.models import SourceRef
 from ..parsers import Skipped, Unreadable, parse_document
 from ..parsers.contract import Document
 
@@ -25,15 +26,15 @@ class Specimen:
     name: str  # its file name
     data: bytes
     reader: str  # the id of the one reader that must take it
-    account: str  # the account its first statement, or else its first row, is on
-    rows: int  # its rows, statements' and receipts' together
+    account: str  # the account its first statement, or else its first row, is on; "" for a bill or a receipt
+    rows: int  # its rows, statements' and receipts' together, and its bills and receipts
 
 
 def specimens() -> list[Specimen]:
     """Every reader's fake documents, bank by bank."""
-    from . import garanti, isbank, qnb, teb, vakifbank  # imported here: they import this module
+    from . import garanti, invoices, isbank, qnb, teb, vakifbank  # imported here: they import this module
 
-    return [s for bank in (garanti, isbank, teb, qnb, vakifbank) for s in bank.specimens()]
+    return [s for bank in (garanti, isbank, teb, qnb, vakifbank, invoices) for s in bank.specimens()]
 
 
 def check(specimen: Specimen) -> list[str]:
@@ -46,17 +47,18 @@ def check(specimen: Specimen) -> list[str]:
         return [f"okunmadı: {exc}"]
     rows = [t for s in result.statements for t in s.transactions] + result.transactions
     account = result.statements[0].account if result.statements else rows[0].account if rows else ""
+    places = [t.ref for t in rows] + [i.ref for i in result.invoices]
     problems: list[str] = []
     if result.parser != specimen.reader:
         problems.append(f"{result.parser} okudu, {specimen.reader} okumalıydı")
     if account != specimen.account:
         problems.append(f"hesap {account}, beklenen {specimen.account}")
-    if len(rows) != specimen.rows:
-        problems.append(f"{len(rows)} satır, beklenen {specimen.rows}")
+    if len(places) != specimen.rows:
+        problems.append(f"{len(places)} satır, beklenen {specimen.rows}")
     problems += [
         f"{s.account} ekstresi doğrulanmadı (fark {s.difference})" for s in result.statements if not s.verified
     ]
-    if missing := sum(t.ref is None for t in rows):
+    if missing := sum(ref is None or ref == SourceRef() for ref in places):
         problems.append(f"kaynak konumu olmayan satır: {missing}")
     return problems
 

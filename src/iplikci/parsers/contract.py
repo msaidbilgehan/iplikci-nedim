@@ -5,7 +5,9 @@ accepts, a cheap detect() and a parse(). The selector shows each reader the same
 a reader that recognised it read the SourceDocument.
 """
 
+import codecs
 import os
+import re
 from dataclasses import dataclass, field
 from enum import StrEnum
 from functools import cached_property
@@ -41,6 +43,7 @@ class Format(StrEnum):
     SHEET = "sheet"  # XLS, XLSX, and HTML tables saved as .xls
     HTML = "html"
     EMAIL = "email"  # a kept e-mail's body (Phase 4)
+    XML = "xml"  # an XML document: a Turkish e-invoice (UBL-TR, Phase 4)
 
 
 @dataclass(frozen=True)
@@ -55,7 +58,8 @@ class Probe:
 
     name: str  # the file name
     format: Format
-    # PDF: the first page's text (a scan: the text OCR found on every page); HTML: its text; EMAIL: the body's text.
+    # PDF: the first page's text (a scan: the text OCR found on every page); HTML: its text; EMAIL: the body's text;
+    # XML: the start of the document as written.
     text: str = ""
     rows: list[list[Any]] = field(default_factory=list[list[Any]])  # SHEET: the first rows
     sheet: str = ""  # SHEET: "xls", "xlsx" or "html"
@@ -115,6 +119,11 @@ class SourceDocument:
         return html_text(self.data)
 
     @cached_property
+    def xml(self) -> str:
+        """An XML document's text, decoded as its byte-order mark or its declaration says (UTF-8 when neither does)."""
+        return decode_xml(self.data)
+
+    @cached_property
     def mail(self) -> Mail:
         """A kept e-mail: its sender, subject and date and the visible text of its body, which a row's span counts in."""
         return read_mail(self.data)
@@ -126,6 +135,22 @@ class SourceDocument:
     def close(self) -> None:
         if "pdf" in self.__dict__:
             self.pdf.close()
+
+
+_XML_ENCODING = re.compile(rb"""^\s*<\?xml[^>]*?encoding\s*=\s*["']([A-Za-z0-9._-]+)["']""")
+
+
+def decode_xml(data: bytes) -> str:
+    """XML bytes as text: an unknown or wrong encoding gives replacement characters, never an error."""
+    if data.startswith(codecs.BOM_UTF8):
+        return data[len(codecs.BOM_UTF8) :].decode("utf-8", errors="replace")
+    if data.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
+        return data.decode("utf-16", errors="replace")
+    declared = _XML_ENCODING.match(data[:256])
+    try:
+        return data.decode(declared[1].decode("ascii") if declared else "utf-8", errors="replace")
+    except LookupError:  # an encoding Python does not know, which an untrusted document may name
+        return data.decode("utf-8", errors="replace")
 
 
 @runtime_checkable

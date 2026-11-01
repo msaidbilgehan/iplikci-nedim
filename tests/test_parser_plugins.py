@@ -42,6 +42,8 @@ SHIPPED = {
     "garanti.notice.transfer",
     "qnb.notice.transfer",
     "vakifbank.notice.transfer",
+    # Phase 4: the readers of non-bank senders' documents (F14).
+    "invoice.ubl_tr",
 }
 
 

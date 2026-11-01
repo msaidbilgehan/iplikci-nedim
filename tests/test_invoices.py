@@ -1,19 +1,25 @@
 """Non-bank bills and receipts against the bank's rows (F14): matched, waiting or information only, never counted."""
 
+import hashlib
 from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
 
 from iplikci.analysis import build
+from iplikci.app import mail, reading
 from iplikci.categorize import Categorizer
-from iplikci.domain.codes import AccountType, InvoiceKind, InvoiceStatus, TransactionKind
+from iplikci.domain.codes import AccountType, DocumentKind, DocumentStatus, InvoiceKind, InvoiceStatus, TransactionKind
 from iplikci.domain.models import Account, Invoice, ParseResult, Statement, Transaction
+from iplikci.fakes import invoices
 from iplikci.insights import interpret
 from iplikci.invoices import UNMATCHED_REASONS, UNPAID_REASON, match, one_copy, settled_until, similar, window
+from iplikci.parsers import XML_REASON, Skipped, Unreadable, parse_document
+from iplikci.parsers.common import set_business_names
 from iplikci.parsers.contract import Document
+from iplikci.storage import documents
 
-from conftest import PEOPLE_RULES
+from conftest import PEOPLE_RULES, bank_mail
 
 CARD = Account("teb-1234", "TEB Bonus •1234", "TEB", AccountType.CREDIT_CARD, number="1234")
 
@@ -168,3 +174,79 @@ def test_bills_and_receipts_change_no_total_matched_or_not(cat):
     assert totals(both) == totals(alone)
     [paid] = [t for t in both.transactions if t.invoice]
     assert (paid.description, paid.invoice) == ("ORNEKCELL FATURA ODEME", "sha1:0")
+
+
+# --- Turkish e-invoices (UBL-TR XML) ---------------------------------------------------------------------------
+
+UBL = "invoice.ubl_tr"
+
+
+def read_xml(data: bytes, name: str = "fatura.xml") -> ParseResult:
+    return parse_document(Document(name, "deneme", data, hashlib.sha256(data).hexdigest()))
+
+
+def test_an_e_invoice_with_a_due_date_is_a_bill_with_its_lines_and_their_taxes():
+    data = invoices.ubl_invoice()
+    result = read_xml(data)
+    [found] = result.invoices
+    assert (result.parser, result.title, result.statements, result.transactions) == (UBL, invoices.SELLER, [], [])
+    assert (found.kind, found.seller, found.seller_id, found.number) == (
+        InvoiceKind.BILL,
+        invoices.SELLER,
+        invoices.SELLER_VKN,
+        "OCE2026000000101",
+    )
+    assert (found.issued, found.due, found.total, found.currency) == (
+        date(2026, 10, 3),
+        date(2026, 10, 20),
+        Decimal("442.90"),  # 344.08 + 25.00 and their 20% KDV
+        "TRY",
+    )
+    assert [(line.description, line.quantity, line.amount) for line in found.lines] == [
+        ("Aylık 20 GB paket", Decimal(1), Decimal("412.90")),
+        ("Ek hizmet", Decimal(1), Decimal("30.00")),
+    ]
+    assert found.ref is not None and found.ref.span is not None
+    start, end = found.ref.span
+    assert data.decode()[start:end] == "442.90"  # the total's place in the document
+    assert result.receipt_key.split("-") == ["efatura", invoices.SELLER_VKN, "OCE2026000000101"]
+
+
+def test_an_e_archive_invoice_of_a_purchase_is_a_receipt_and_a_return_gives_money_back():
+    purchase = (invoices.Item("Kablosuz kulaklık", Decimal(1), Decimal("1249.17")),)
+    [bought] = read_xml(invoices.ubl_invoice(purchase, due=None)).invoices
+    assert (bought.kind, bought.due, bought.total) == (InvoiceKind.RECEIPT, None, Decimal("1499.00"))
+    [returned] = read_xml(invoices.ubl_invoice(purchase, due=None, kind="IADE")).invoices
+    assert (returned.total, returned.lines[0].amount) == (Decimal("-1499.00"), Decimal("-1499.00"))
+
+
+def test_an_e_invoice_to_a_company_or_from_the_users_company_is_the_companys():
+    to_company = invoices.ubl_invoice(buyer="ÖRNEK DANIŞMANLIK LTD. ŞTİ.", buyer_id=("1000000002", "VKN"))
+    set_business_names(["Örnek Teknoloji A.Ş."])
+    by_name = invoices.ubl_invoice(buyer="ÖRNEK TEKNOLOJİ A.Ş.", buyer_id=("10000000146", "TCKN"))
+    from_company = invoices.ubl_invoice(seller="ÖRNEK TEKNOLOJİ ANONİM ŞİRKETİ")
+    for data in (to_company, by_name, from_company):
+        with pytest.raises(Skipped) as raised:
+            read_xml(data)
+        assert (raised.value.business, raised.value.parser) == (True, UBL)
+
+
+def test_an_xml_document_with_a_type_declaration_is_refused_and_one_no_reader_knows_is_left():
+    bomb = '<!DOCTYPE Invoice [<!ENTITY a "aaaaaaaaaa">]>'
+    with pytest.raises(Unreadable) as raised:
+        read_xml(invoices.ubl_invoice(doctype=bomb))
+    assert raised.value.parser == UBL
+    with pytest.raises(Skipped) as skipped:
+        read_xml(b'<?xml version="1.0"?><siparis><tutar>12.00</tutar></siparis>')
+    assert (str(skipped.value), skipped.value.parser) == (XML_REASON, "")
+
+
+def test_an_e_invoice_mailed_by_a_listed_sender_is_kept_as_a_bill_under_its_seller(ws):
+    raw = bank_mail(invoices.ubl_invoice(), name="OCE2026000000101.xml", sender="efatura@ornekcell.example")
+    outcome = mail.take(ws, raw, ("ornekcell.example",))
+    assert outcome.taken is mail.Taken.STORED
+    with ws.db() as db:
+        reading.read_pending(ws, db)
+        [child] = [d for d in documents.every(db) if d.parent == outcome.sha256]
+    assert (child.status, child.kind, child.parser) == (DocumentStatus.PROCESSED, DocumentKind.INVOICE, UBL)
+    assert child.display_name == "2026-10-03 ÖRNEKCELL İLETİŞİM HİZMETLERİ Fatura.xml"

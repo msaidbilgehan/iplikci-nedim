@@ -44,9 +44,25 @@ def account_names(a: Account) -> tuple[str, str]:
     return name_part(folder), name_part(short)
 
 
+# The words a seller's name ends with that say only what kind of company it is: a file name goes without them.
+_LEGAL_FORMS = re.compile(
+    r"(?:\s+(?:A\.?Ş\.?|ANONİM|ŞİRKETİ|LTD\.?|LİMİTED|ŞTİ\.?|SAN\.?|TİC\.?|VE))+\s*$", re.IGNORECASE
+)
+
+
+def _invoice_path(result: ParseResult, ext: str) -> PurePosixPath:
+    """A non-bank sender's bill or receipt: Faturalar, the seller, then its date, the seller and what it is."""
+    invoice = result.invoices[0]
+    seller = name_part(_LEGAL_FORMS.sub("", invoice.seller).strip() or invoice.seller)
+    word = "Fatura" if invoice.due else "Makbuz"
+    return PurePosixPath("Faturalar", seller, f"{invoice.issued:%Y-%m-%d} {seller} {word}{ext}")
+
+
 def display_path(result: ParseResult, ext: str, kind: DocumentKind | None = None) -> PurePosixPath:
     """Where a read document sits in the organizer's tree: bank, account, then its name. A document of rows alone is
-    a receipt unless kind says it is a bank's notice."""
+    a receipt unless kind says it is a bank's notice; a non-bank sender's bill or receipt sits under Faturalar."""
+    if not result.statements and not result.transactions and result.invoices:
+        return _invoice_path(result, ext)
     if result.statements:
         s = result.statements[0]
         a = next(acc for acc in result.accounts if acc.id == s.account)

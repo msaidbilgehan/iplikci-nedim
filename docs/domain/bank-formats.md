@@ -347,6 +347,24 @@ gönderenin alan adına ve konusuna göre adlandırılır (`parsers/messages.py`
   bir numarayı anan ileti şirket belgesi sayılır. Kişinin kendi primi kimlik numarası altında ödenir. Ev hizmetlerinde
   birini çalıştıran hanenin de işyeri numarası vardır: böyle bir ileti de ayrılır, kendisi para hareketi taşımaz.
 
+## Banka dışı belgeler
+
+**e-Fatura ve e-Arşiv faturası** (`invoice.ubl_tr`; UBL-TR 1.2 XML eki ya da yüklenen dosya)
+
+- Kök öğe `Invoice` (`urn:oasis:names:specification:ubl:schema:xsd:Invoice-2`); `CustomizationID` TR1.2 ve
+  `ProfileID` GİB profillerinden biri (TEMELFATURA, TICARIFATURA, EARSIVFATURA…).
+- Satıcı `AccountingSupplierParty`, alıcı `AccountingCustomerParty`; numara `ID`, tarih `IssueDate`; ödenecek tutar
+  `LegalMonetaryTotal/PayableAmount` (`currencyID` para birimi); kalemler `InvoiceLine` (kalem adı, miktar, vergisiz
+  tutar ve satırın vergileri; kalemin tutarı vergileriyle birliktedir).
+- Son ödeme tarihi (`PaymentMeans/PaymentDueDate`) yazan belge faturadır; yazmayan, hemen ödenmiş bir alışverişin
+  makbuzudur. İade faturası (`InvoiceTypeCode` IADE) parayı geri verir: tutarı eksidir.
+- Şirket belgeleri kapsam dışıdır: şirkete kesilen fatura alıcıyı vergi numarasıyla (VKN, on hane) yazar, kişiye
+  kesilen kimlik numarasıyla (TCKN, on bir hane). Kullanıcının şirket adları alıcıda ve satıcıda aranır.
+- XML güvenilmez girdidir: belge türü tanımı (DTD) olan belge okunmaz (UBL-TR'de olmaz; XML bombası varlıklarla
+  kurulur). XSLT görünümü ve gömülü dosyalar (`AdditionalDocumentReference`) okunmaz.
+- Aynı faturanın ikinci kopyası (sıkıştırılmış XML'i, yeniden gönderilen e-posta) satıcının vergi numarası ve fatura
+  numarasıyla tanınır.
+
 ## V1'de eklenecek bilgiler
 
 E-posta gövdesi okuyucuları (banka bildirimleri) ve banka dışı göndericiler yazıldıkça biçimleri ve tuzakları burada,

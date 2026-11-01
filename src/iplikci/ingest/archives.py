@@ -17,7 +17,7 @@ from pathlib import Path
 
 from ..domain.text import nfc
 
-DOCUMENT_EXTENSIONS = {".pdf", ".html", ".htm", ".xls", ".xlsx"}
+DOCUMENT_EXTENSIONS = {".pdf", ".html", ".htm", ".xls", ".xlsx", ".xml"}  # .xml: a Turkish e-invoice (UBL-TR)
 MAX_MEMBER_BYTES = 50 * 1024 * 1024  # skip suspiciously large archive members
 ZIP_ENCRYPTED = "şifreli zip — açıp içindeki belgeleri ayrı ayrı ekleyin"
 ZIP_DAMAGED = "zip açılamadı (bozuk ya da yarım inmiş)"

@@ -8,8 +8,8 @@ import traceback
 
 from .. import parsers
 from ..domain.labels import currency_label, format_amount, label
-from ..domain.models import ParseResult, SourceRef, Statement, Transaction
-from . import Skipped, Unreadable, choose, mail_probe, parse_document, registry, without_reader
+from ..domain.models import Invoice, ParseResult, SourceRef, Statement, Transaction
+from . import Skipped, Unreadable, choose, mail_probe, parse_document, registry, without_reader, xml_probe
 from .common import is_business
 from .contract import Document, Format, Probe, SourceDocument
 from .mail import read_mail
@@ -64,6 +64,8 @@ def _stages(source: SourceDocument) -> list[tuple[str, Probe]]:
     if source.ext == ".eml":
         seen = mail_probe(source)
         return [(f"E-posta: gönderen {seen.sender or '?'}, konu {seen.subject!r}: gövdesinin metni", seen)]
+    if source.ext == ".xml":
+        return [("XML: belgenin başı", xml_probe(source))]
     if source.kind in ("xls", "xlsx") or (source.kind == "html" and source.ext in (".xls", ".xlsx")):
         rows = source.rows[:20]
         return [
@@ -122,6 +124,19 @@ def _result(name: str, result: ParseResult) -> list[str]:
         lines += ["", _statement(s), *_terms(s), *(_row(t) for t in s.transactions)]
     if result.transactions:
         lines += ["", "Ekstresiz satırlar:", *(_row(t) for t in result.transactions)]
+    for invoice in result.invoices:
+        lines += ["", *_invoice(invoice)]
+    return lines
+
+
+def _invoice(i: Invoice) -> list[str]:
+    """A bill or a receipt: its seller, number, dates and total, then its lines."""
+    due = f", son ödeme {i.due}" if i.due else ""
+    head = f"{label(i.kind)}: {i.seller} {i.number} {i.issued}{due} — {format_amount(i.total)} {currency_label(i.currency)}"
+    lines = [head + f"  [{where(i.ref)}]"]
+    for line in i.lines:
+        quantity = f"{line.quantity:g} × " if line.quantity is not None else ""
+        lines.append(f"  {quantity}{line.description}: {format_amount(line.amount)}")
     return lines
 
 

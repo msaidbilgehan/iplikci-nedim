@@ -46,6 +46,8 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
   en yeni bakiyeden başlar, eksiye düştüğü günü ve tutarı gösterir.
 - API `GET /api/subscriptions`, `/api/calendar`, `/api/forecast`; MCP araçları `subscriptions`, `upcoming_payments`,
   `cash_flow_forecast`; arayüzde Abonelikler (`/abonelikler`) ve Takvim (`/takvim`) ekranları.
+- `invoice.ubl_tr`: e-Fatura ve e-Arşiv faturaları (UBL-TR XML) okunur; XML ekler ve yüklenen XML dosyaları belge
+  olarak alınır. Şirkete kesilen ya da kullanıcının şirketinin kestiği fatura şirket belgesidir.
 - Banka dışı faturalar ve makbuzlar (F14) saklanır (göç 0014) ve banka satırlarıyla eşleştirilir: aynı tutar,
   faturada son ödeme tarihine, makbuzda −1…+3 güne uzanan pencere ve satıcı adına benzeyen işyeri. Eşleşen satır
   belgeyi taşır; günleri geçmeyen ya da belgelerin henüz ulaşmadığı belge bekler, bekleyen fatura takvime düşer;

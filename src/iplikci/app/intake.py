@@ -436,6 +436,17 @@ def describe(c: Candidate, ws: Workspace) -> dict[str, object]:
                 else f"fark {s.difference}"
             ),
         }
+    elif result and result.invoices and not result.transactions:
+        invoice = result.invoices[0]
+        out["document"] = {
+            "kind": "fatura",
+            "account": invoice.seller,
+            "start": None,
+            "end": invoice.issued.isoformat(),
+            "rows": len(result.invoices),
+            "verified": None,
+            "check": result.title or "",
+        }
     elif result and result.transactions:
         t = result.transactions[0]
         account = next((a for a in result.accounts if a.id == t.account), None)
