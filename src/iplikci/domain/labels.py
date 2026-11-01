@@ -17,6 +17,8 @@ from .codes import (
     EvidenceStatus,
     MonthStatus,
     Necessity,
+    SeriesPeriod,
+    SeriesStatus,
     SourceKind,
     Tone,
     TransactionKind,
@@ -140,6 +142,19 @@ BACKUP_REASON: dict[BackupReason, str] = {
     BackupReason.BEFORE_RESTORE: "Geri yükleme öncesi",
 }
 
+SERIES_STATUS: dict[SeriesStatus, str] = {
+    SeriesStatus.ACTIVE: "Devam ediyor",
+    SeriesStatus.ENDED: "Bitti",
+    SeriesStatus.CANCELLED: "İptal edildi",
+    SeriesStatus.PAID_AFTER_CANCEL: "İptalden sonra ödeme var",
+}
+
+SERIES_PERIOD: dict[SeriesPeriod, str] = {
+    SeriesPeriod.MONTH: "Ayda bir",
+    SeriesPeriod.HALF_YEAR: "Altı ayda bir",
+    SeriesPeriod.YEAR: "Yılda bir",
+}
+
 
 def _table[K: StrEnum](labels: Mapping[K, str]) -> dict[StrEnum, str]:
     return {code: text for code, text in labels.items()}
@@ -160,6 +175,8 @@ TABLES: dict[type[StrEnum], dict[StrEnum, str]] = {
     Actor: _table(ACTOR),
     Unit: _table(UNIT),
     BackupReason: _table(BACKUP_REASON),
+    SeriesStatus: _table(SERIES_STATUS),
+    SeriesPeriod: _table(SERIES_PERIOD),
 }
 
 # The interface writes the Turkish lira as "TL" (ADR-0006).

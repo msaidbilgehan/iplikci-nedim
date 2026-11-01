@@ -6,18 +6,21 @@ from decimal import Decimal
 import pytest
 
 from iplikci.analysis import Dataset
-from iplikci.domain.codes import AccountType, Necessity, TransactionKind
+from iplikci.domain.codes import AccountType, Necessity, SeriesPeriod, TransactionKind
 from iplikci.domain.models import Account, Security, Statement, Transaction
 from iplikci.insights import (
     complete_months,
     debt_at,
+    find_periodic,
     find_series,
     flow,
     habits,
     holdings,
     interpret,
+    listed,
     months_in,
     pct,
+    periodic_payments,
     regular_payments,
     since,
     timeline,
@@ -220,6 +223,117 @@ def test_price_change_needs_the_new_price_to_hold():
     assert (old, new, when) == (15000, 16400, date(2026, 7, 5))
     s.payments = s.payments[:7]  # one payment at the new price is not a new price yet
     assert s.price_change() is None
+
+
+def test_only_running_series_and_commitments_that_ended_in_the_window_are_listed():
+    window = ["2026-01", "2026-02", "2026-03"]
+    ds = dataset([], [])
+    shop = find_series(
+        [tx(d, "Örnek Kahve", Decimal(180), category="Kafe & Kahve") for d in monthly(date(2025, 12, 5), 4)], REGULAR
+    )[0]
+    bill = find_series(
+        [tx(d, "Su (İSKİ)", Decimal(200), category="Elektrik, Su & Doğalgaz") for d in monthly(date(2025, 11, 20), 4)],
+        REGULAR,
+    )[0]
+    shop.status = bill.status = "bitti"
+    assert not listed(shop, ds, window) and listed(bill, ds, window)  # an ended shop says nothing, a bill does
+    bill.status = "iptal"
+    assert listed(bill, ds, window)
+    bill.payments = bill.payments[:1]  # cancelled before the window
+    assert not listed(bill, ds, window)
+    shop.status = "devam"
+    assert listed(shop, ds, window)
+
+
+# --- periodic payments ------------------------------------------------------------------------
+
+
+def periodic_status(ds: Dataset) -> dict[str, tuple[SeriesPeriod, str]]:
+    tl_ = timeline(ds)
+    monthly_series, _ = regular_payments(ds, tl_)
+    return {s.merchant: (s.period, s.status) for s in periodic_payments(ds, tl_, monthly_series)}
+
+
+def test_a_yearly_payment_is_a_periodic_series_with_its_price_change_and_next_day():
+    insurance = [
+        tx(d, "Örnek Sigorta", a, category="Sigorta", necessity=Necessity.REQUIRED)
+        for d, a in ((date(2024, 3, 10), 4000), (date(2025, 3, 12), 4400), (date(2026, 3, 9), 5200))
+    ]
+    ds = dataset(insurance, card_statements(date(2024, 3, 15), 32))  # statements until 15.10.2026
+    tl_ = timeline(ds)
+    (s,) = periodic_payments(ds, tl_, regular_payments(ds, tl_)[0])
+    assert (s.period, s.status, s.per_period) == (SeriesPeriod.YEAR, "devam", Decimal(5200))
+    assert s.expected == date(2026, 3, 9) + timedelta(days=364)  # the median of 367 and 362 days
+    assert s.price_change() == (Decimal(4400), Decimal(5200), date(2026, 3, 9))
+
+
+def test_a_half_yearly_tax_is_periodic_too():
+    tax = [
+        tx(d, "Motorlu Taşıtlar Vergisi", Decimal(3000), category="Vergi & Harç", necessity=Necessity.REQUIRED)
+        for d in (date(2025, 7, 20), date(2026, 1, 15), date(2026, 7, 21))
+    ]
+    ds = dataset(tax, card_statements(date(2025, 7, 25), 15))
+    assert periodic_status(ds) == {"Motorlu Taşıtlar Vergisi": (SeriesPeriod.HALF_YEAR, "devam")}
+
+
+def test_a_commitments_amount_is_free_but_elsewhere_it_stays_within_half():
+    def yearly(category: str) -> list[Transaction]:
+        return [
+            tx(date(2025, 1, 20), "Örnek Bulut", Decimal(500), category=category),
+            tx(date(2026, 1, 22), "Örnek Bulut", Decimal(1200), category=category),  # more than doubled
+        ]
+
+    assert [s.period for s in find_periodic(yearly("Dijital Abonelikler"), REGULAR)] == [SeriesPeriod.YEAR]
+    assert find_periodic(yearly("Diğer Harcamalar"), REGULAR) == []
+
+
+def test_payments_a_period_apart_with_similar_ones_between_are_a_shop_not_a_periodic_payment():
+    visits = [
+        tx(d, "Örnek Restoran", a, category="Restoran & Yemek")
+        for d, a in ((date(2026, 1, 10), 900), (date(2026, 3, 15), 950), (date(2026, 7, 12), 1000))
+    ]
+    assert find_periodic(visits, REGULAR) == []
+    # A payment at another amount in between is another purchase: the yearly one stays a series.
+    app = [
+        tx(date(2025, 2, 1), "Örnek Uygulama", Decimal(1000), category="Diğer Harcamalar"),
+        tx(date(2025, 6, 9), "Örnek Uygulama", Decimal(30), category="Diğer Harcamalar"),
+        tx(date(2026, 2, 3), "Örnek Uygulama", Decimal(1100), category="Diğer Harcamalar"),
+    ]
+    (s,) = find_periodic(app, REGULAR)
+    assert [t.amount for t in s.payments] == [Decimal(1000), Decimal(1100)]
+
+
+@pytest.mark.parametrize("gap", [120, 208, 250, 420])
+def test_payments_outside_both_periods_are_no_series(gap):
+    payments = [
+        tx(date(2025, 2, 14), "Örnek Site Yönetimi", Decimal(1250), category="Kira"),
+        tx(date(2025, 2, 14) + timedelta(days=gap), "Örnek Site Yönetimi", Decimal(1250), category="Kira"),
+    ]
+    assert find_periodic(payments, REGULAR) == []
+
+
+def test_a_periodic_payment_may_come_as_late_as_its_period_allows_before_it_ends():
+    fee = [
+        tx(d, "Örnek Dernek", Decimal(1000), category="Diğer Harcamalar") for d in (date(2024, 5, 5), date(2025, 5, 7))
+    ]
+    # Expected on 09.05.2026; a yearly payment may still come until 400 days after the last, 11.06.2026.
+    waiting = dataset(fee, card_statements(date(2024, 5, 25), 25))  # statements until 25.05.2026
+    assert periodic_status(waiting) == {"Örnek Dernek": (SeriesPeriod.YEAR, "devam")}
+    over = dataset(fee, card_statements(date(2024, 5, 15), 26))  # statements until 15.06.2026
+    assert periodic_status(over) == {"Örnek Dernek": (SeriesPeriod.YEAR, "bitti")}
+    cancelled = dataset(fee, card_statements(date(2024, 5, 25), 25), ended={"ORNEK DERNEK": "2025-05"})
+    assert periodic_status(cancelled) == {"Örnek Dernek": (SeriesPeriod.YEAR, "iptal")}
+
+
+def test_monthly_series_keep_their_payments_and_periodic_series_stay_apart():
+    music = [tx(d, "Örnek Müzik", Decimal("99.99")) for d in monthly(date(2025, 6, 15), 14)]
+    yearly = [
+        tx(d, "Örnek Sigorta", Decimal(4000), category="Sigorta", necessity=Necessity.REQUIRED)
+        for d in (date(2025, 3, 10), date(2026, 3, 12))
+    ]
+    ins = interpret(dataset(music + yearly, card_statements(date(2025, 3, 15), 20)))
+    assert [(s.merchant, len(s.payments)) for s in ins.series] == [("Örnek Müzik", 14)]
+    assert [(s.merchant, s.period) for s in ins.periodic] == [("Örnek Sigorta", SeriesPeriod.YEAR)]
 
 
 # --- habits -----------------------------------------------------------------------------------

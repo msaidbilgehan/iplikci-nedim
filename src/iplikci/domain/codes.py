@@ -136,3 +136,20 @@ class BackupReason(StrEnum):
     DAILY = "daily"
     MANUAL = "manual"  # asked for by the user
     BEFORE_RESTORE = "before_restore"  # what was there before a restore, so the restore can be undone
+
+
+class SeriesStatus(StrEnum):
+    """Whether a regular or periodic payment still runs (docs/domain/interpretation.md, "Düzenli ödemeler")."""
+
+    ACTIVE = "active"
+    ENDED = "ended"  # its accounts' statements went past the expected payment without it, or 90 days passed
+    CANCELLED = "cancelled"  # the user's rules list it under `_biten`
+    PAID_AFTER_CANCEL = "paid_after_cancel"  # a payment came after the month `_biten` names
+
+
+class SeriesPeriod(StrEnum):
+    """How far apart a series' payments are: about a month, half a year or a year."""
+
+    MONTH = "month"
+    HALF_YEAR = "half_year"
+    YEAR = "year"

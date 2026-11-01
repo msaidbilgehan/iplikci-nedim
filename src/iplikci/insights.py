@@ -2,7 +2,8 @@
 
 * Regular payments (rent, bills, subscriptions, pension) and whether each one
   still runs, ended (the card's statements go on without it) or was cancelled
-  (listed under `_biten` in the user's rules).
+  (listed under `_biten` in the user's rules); periodic ones too, half a year
+  or a year apart (an insurance, a car tax, a yearly subscription).
 * Discretionary spending per merchant: a monthly habit, a new habit, an
   occasional purchase, a one-off or a habit that stopped. Only habits get a
   monthly cost; an occasional purchase is spread over the months it was seen
@@ -25,7 +26,15 @@ from statistics import median
 
 from .analysis import NOT_ON_STATEMENT, PROVISIONAL, Dataset, ReceiptLine
 from .categorize import FX_CATEGORY
-from .domain.codes import CARD_TYPES, DEFAULT_EXPENSE_KINDS, AccountType, Necessity, TransactionKind
+from .domain.codes import (
+    CARD_TYPES,
+    DEFAULT_EXPENSE_KINDS,
+    AccountType,
+    Necessity,
+    SeriesPeriod,
+    SeriesStatus,
+    TransactionKind,
+)
 from .domain.labels import MONTHS, format_amount
 from .domain.models import TRY, Transaction
 from .domain.money import CENT, round_half_up, to_decimal
@@ -199,6 +208,13 @@ STATUS = {
     "iptal": "İptal edildi",
     "iptal_sonrasi": "İptalden sonra ödeme var",
 }
+# The V1 codes of the statuses above (docs/domain/interpretation.md): what the API and the newer MCP tools carry.
+V1_STATUS = {
+    "devam": SeriesStatus.ACTIVE,
+    "bitti": SeriesStatus.ENDED,
+    "iptal": SeriesStatus.CANCELLED,
+    "iptal_sonrasi": SeriesStatus.PAID_AFTER_CANCEL,
+}
 
 _GAP = (15, 50)  # days between two payments of a monthly series; salary and rent days drift
 _SKIPPED = 70  # one missed month is fine when the amount stayed the same
@@ -253,6 +269,11 @@ class Series:
     @property
     def running(self) -> bool:
         return self.status in ("devam", "iptal_sonrasi")
+
+    @property
+    def grace(self) -> int:
+        """Days past the expected payment the series still waits for it: as late as it has come lately, ten at least."""
+        return max(10, max(self.gaps[-6:], default=self.cadence) - self.cadence)
 
     def price_change(self) -> tuple[Decimal, Decimal, date] | None:
         """(old price, new price, first payment at the new price) when the latest price has held
@@ -373,27 +394,130 @@ def settle(s: Series, seen_until: dict[str, date], ended: dict[str, str], as_of:
         s.status = "iptal_sonrasi" if late else "iptal"
         return
     seen = max(seen_until.get(t.account, t.date) for t in s.payments[-2:])
-    grace = max(10, max(s.gaps[-6:], default=s.cadence) - s.cadence)
-    over = seen >= s.expected + timedelta(days=grace) or as_of > s.expected + timedelta(days=_STALE)
+    over = seen >= s.expected + timedelta(days=s.grace) or as_of > s.expected + timedelta(days=_STALE)
     s.status = "bitti" if over else "devam"
 
 
-def regular_payments(ds: Dataset, tl_: Timeline) -> tuple[list[Series], list[Series]]:
-    """(outgoing series, income series), running ones and larger amounts first."""
-    out = [
+def _outgoing(ds: Dataset) -> list[Transaction]:
+    """The payments a series can be made of: purchases, savings and loan principal, an installment's never."""
+    return [
         t
         for t in ds.transactions
         if t.kind in (TransactionKind.PURCHASE, TransactionKind.INVESTMENT, TransactionKind.LOAN_PRINCIPAL)
         and t.amount > 0
         and not t.installment
     ]
+
+
+def regular_payments(ds: Dataset, tl_: Timeline) -> tuple[list[Series], list[Series]]:
+    """(outgoing series, income series), running ones and larger amounts first."""
     inc = [t for t in ds.transactions if t.kind == TransactionKind.INCOME and t.amount < 0]
     result = []
-    for group in (find_series(out, ds.regular), find_series(inc, set())):
+    for group in (find_series(_outgoing(ds), ds.regular), find_series(inc, set())):
         for s in group:
             settle(s, tl_.seen_until, ds.ended, tl_.as_of)
         result.append(sorted(group, key=lambda s: (not s.running, -s.monthly)))
     return result[0], result[1]
+
+
+def listed(s: Series, ds: Dataset, window: list[str]) -> bool:
+    """Whether a series belongs on the list of regular payments: a running one, or one that ended or was cancelled
+    within the window; an ended purchase only when it was a commitment (a bill, not a shop visited monthly)."""
+    recent = month_of(s.last.date) >= window[0]
+    if s.status == "bitti":
+        return recent and (s.last.category in ds.regular or s.last.kind != TransactionKind.PURCHASE)
+    return s.running or (s.status == "iptal" and recent)
+
+
+# --- periodic payments ------------------------------------------------------------------------------------
+# The V1 draft rule (docs/domain/interpretation.md, "Dönemsel seriler"): its thresholds are to be tuned with real data.
+
+PERIODS = {SeriesPeriod.HALF_YEAR: (160, 200), SeriesPeriod.YEAR: (330, 400)}  # days between two payments
+# Outside commitment categories a periodic payment may move this much: a yearly price rise, not another purchase.
+_PERIODIC_CHANGE = Decimal("0.50")
+
+
+def period_of(gap: int) -> SeriesPeriod | None:
+    """The period a gap of so many days between two payments keeps, if any."""
+    return next((p for p, (low, high) in PERIODS.items() if low <= gap <= high), None)
+
+
+@dataclass
+class PeriodicSeries(Series):
+    """Payments to one payee about half a year or a year apart: an insurance, a car tax, a yearly subscription."""
+
+    period: SeriesPeriod = SeriesPeriod.YEAR
+
+    @property
+    def per_period(self) -> Decimal:
+        """The amount to expect next: the last one. A periodic price moves once a period, so the last payment
+        already carries the latest price (a yearly subscription after its price rise)."""
+        return self.amount
+
+    @property
+    def grace(self) -> int:
+        """A periodic payment may come as late as its period allows (up to 200 days after the last for half a year,
+        400 for a year) before the series counts as over."""
+        return max(super().grace, PERIODS[self.period][1] - self.cadence)
+
+    def price_change(self) -> tuple[Decimal, Decimal, date] | None:
+        """(previous amount, last amount, the last payment's day) when the last payment moved more than 5%: a
+        periodic price holds for a whole period, so one payment at it is enough."""
+        if len(self.payments) < 2:
+            return None
+        old = abs(self.payments[-2].amount)
+        return (old, self.amount, self.last.date) if _change(old, self.amount) > Decimal("0.05") else None
+
+
+def _periodic_chain(payee: str, items: list[Transaction]) -> list[PeriodicSeries]:
+    """Series of payments within ±50% of each other a period apart. A payment continues a series only from the
+    newest earlier payment at such an amount: a shop paid similar amounts in between is no periodic commitment."""
+    series: list[PeriodicSeries] = []
+    for i, t in enumerate(items):
+        before = next((p for p in reversed(items[:i]) if _change(p.amount, t.amount) <= _PERIODIC_CHANGE), None)
+        period = period_of((t.date - before.date).days) if before else None
+        owner = next((s for s in series if s.last is before), None) if before else None
+        if owner and period and (len(owner.payments) == 1 or owner.period == period):
+            owner.period = period
+            owner.payments.append(t)
+        else:
+            series.append(PeriodicSeries(payee, [t]))
+    return series
+
+
+def find_periodic(txns: list[Transaction], regular: set[str]) -> list[PeriodicSeries]:
+    """Periodic series per payee: at least two payments about 182 (160–200) or 365 (330–400) days apart.
+
+    In commitment categories (`regular`) a payee paid once a period is one series whatever the amounts (a car tax
+    moves with its base), as a once-a-month bill is; elsewhere, and where the payee is paid more often, the amounts
+    stay within ±50% of each other (chained as in _periodic_chain). A payee paid more than five times a month is a
+    shop, as for the monthly series.
+    """
+    by_payee: dict[str, list[Transaction]] = defaultdict(list)
+    for t in txns:
+        by_payee[t.merchant].append(t)
+    found: list[PeriodicSeries] = []
+    for payee, items in by_payee.items():
+        items.sort(key=lambda t: t.date)
+        if len(items) < 2 or len(items) / _months(items) > _BUSY:
+            continue
+        periods = [period_of((b.date - a.date).days) for a, b in pairwise(items)]
+        once = periods[0] if all(p == periods[0] for p in periods) else None
+        if items[-1].category in regular and once is not None:
+            found.append(PeriodicSeries(payee, items, period=once))
+            continue
+        found += [s for s in _periodic_chain(payee, items) if len(s.payments) >= 2]
+    return found
+
+
+def periodic_payments(ds: Dataset, tl_: Timeline, monthly: list[Series]) -> list[PeriodicSeries]:
+    """Periodic series among the payments no monthly series took, settled with the monthly series' rules (the
+    expected day a period after the last payment); running ones and larger amounts first."""
+    taken = {id(t) for s in monthly for t in s.payments}
+    found = find_periodic([t for t in _outgoing(ds) if id(t) not in taken], ds.regular)
+    for s in found:
+        settle(s, tl_.seen_until, ds.ended, tl_.as_of)
+    return sorted(found, key=lambda s: (not s.running, -s.per_period))
 
 
 # --- habits -----------------------------------------------------------------------------------
@@ -874,6 +998,8 @@ class Insights:
     findings: list[Finding] = field(default_factory=list)
     steps: list[Step] = field(default_factory=list)
     budget: list[BudgetLine] = field(default_factory=list)
+    # Half-yearly and yearly payments; kept apart from the monthly series, which the findings and the budget use.
+    periodic: list[PeriodicSeries] = field(default_factory=list)
 
 
 @dataclass
@@ -936,6 +1062,7 @@ def interpret(ds: Dataset) -> Insights:
     in_series = {id(t) for s in series for t in s.payments}
     held = holdings(ds)
     ins = Insights(tl_, series, income, habits(ds, tl_, series), trend(ds, tl_, in_series), flow(ds, tl_), held)
+    ins.periodic = periodic_payments(ds, tl_, series)
     savings = sum((h.value or ZERO for h in held if h.kind in SAVINGS), ZERO) + sum((h.cost for h in held), ZERO)
     debts = -sum((h.value or ZERO for h in held if h.kind in ("kmh", "kart") and (h.value or ZERO) < 0), ZERO)
     ctx = _Context(

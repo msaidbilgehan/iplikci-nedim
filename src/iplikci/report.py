@@ -21,7 +21,7 @@ from .domain.codes import DEFAULT_EXPENSE_KINDS, Necessity, TransactionKind
 from .domain.labels import ACCOUNT_TYPE, KIND, NECESSITY, currency_label
 from .domain.money import round_half_up
 from .domain.text import fold
-from .insights import HABIT_STATUS, STATUS, Insights, interpret, month_of
+from .insights import HABIT_STATUS, STATUS, Insights, interpret, listed, month_of
 
 CLOSING_MONTHS = 7  # months the report's closing card lists: the current one and six before it
 PROVISIONAL_LABEL = "Geçici (ekstre bekleniyor)"
@@ -188,11 +188,7 @@ def _insights_payload(ds: Dataset, ins: Insights, account_index: dict, category_
 
     def series(s) -> dict:
         change = s.price_change()
-        shown = s.running or s.status == "iptal" and month_of(s.last.date) >= tl_.window[0]
-        if s.status == "bitti":
-            shown = month_of(s.last.date) >= tl_.window[0] and (
-                s.last.category in ds.regular or s.last.kind != TransactionKind.PURCHASE
-            )
+        shown = listed(s, ds, tl_.window)
         return {
             "m": s.merchant,
             "c": category_index[s.last.category],
