@@ -71,6 +71,26 @@ def pdf_file(objects: list[bytes]) -> bytes:
     return out + b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objects) + 1, xref)
 
 
+def scan_pdf() -> bytes:
+    """A PDF whose one page holds nothing but a picture, like a statement delivered as page images."""
+    content = b"q 100 0 0 100 50 50 cm /Im1 Do Q"
+    return pdf_file(
+        [
+            b"<< /Type /Catalog /Pages 2 0 R >>",
+            b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+            (
+                b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << /XObject << /Im1 4 0 R >> >> "
+                b"/Contents 5 0 R >>"
+            ),
+            (
+                b"<< /Type /XObject /Subtype /Image /Width 1 /Height 1 /ColorSpace /DeviceGray /BitsPerComponent 8 "
+                b"/Length 1 >>\nstream\n\x80\nendstream"
+            ),
+            b"<< /Length %d >>\nstream\n%s\nendstream" % (len(content), content),
+        ]
+    )
+
+
 def right(x1: float, top: float, text: str) -> Run:
     """A right-aligned run ending at x1, like the amount columns of a statement."""
     return x1 - len(text) * CHAR, top, text

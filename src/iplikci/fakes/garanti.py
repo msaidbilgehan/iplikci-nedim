@@ -1,9 +1,14 @@
-"""Garanti BBVA's documents: receipts, and Garanti BBVA Yatırım's brokerage statements."""
+"""Garanti BBVA's documents: the Bonus and Paracard card statements, receipts, and Garanti BBVA Yatırım's
+brokerage statements."""
 
-from datetime import date
+from collections.abc import Sequence
+from datetime import date, timedelta
+from decimal import Decimal
 
-from . import HOLDER
-from .files import Run, text_pdf
+from ..domain.labels import MONTHS, format_amount
+from ..domain.text import fold
+from . import HOLDER, CardRow, charged
+from .files import Run, right, text_pdf
 
 
 def receipt(
@@ -118,3 +123,147 @@ def holdings_page(
         (471, 743, "toplamı(TL ) :"),
         (522, 769, portfolio),
     ]
+
+
+# --- card statements ------------------------------------------------------------------------------------------
+
+_DATE_X, _TEXT_X, _EXTRA_X, _AMOUNT_X1, _POINTS_X = 40, 110, 300, 470, 500
+_LINE = 11  # points from one row to the next
+
+# A Bonus card's month over two pages: a payment, purchases under the bank's own headings and under its general
+# ones, an installment, a purchase abroad, an ATM withdrawal under the cash advance heading, a deferred statement
+# with the payment that goes with it, and the period's undated interest and taxes.
+BONUS_PAGES: tuple[tuple[CardRow, ...], ...] = (
+    (
+        CardRow(date(2026, 9, 12), "ÖDEMENİZ İÇİN TEŞEKKÜR EDERİZ", Decimal(-3250)),
+        CardRow(None, "MARKET VE GIDA"),
+        CardRow(date(2026, 9, 14), "MIGROS ORNEK SUBE ISTANBUL", Decimal("1245.60")),
+        CardRow(date(2026, 9, 18), "ORNEK FIRIN KADIKOY", Decimal(185)),
+        CardRow(None, "ELEKTRONİK"),
+        CardRow(date(2026, 9, 20), "TEKNOSA ORNEK AVM", Decimal(250), "250,00x12=3.000,00 8.Taksit"),
+        CardRow(None, "YURT DIŞI HARCAMALARINIZ"),
+        CardRow(date(2026, 9, 22), "NETFLIX.COM AMSTERDAM NL", Decimal("695.40"), "19,99 USD"),
+        CardRow(None, "NAKİT AVANS BİLGİLERİ"),
+        CardRow(date(2026, 9, 25), "İBB ÖRNEK METROBÜS", Decimal(1000)),
+    ),
+    (
+        CardRow(None, "DİĞER HARCAMALARINIZ"),
+        CardRow(date(2026, 9, 28), "ÖDEMENİZ İÇİN TEŞEKKÜR EDERİZ", Decimal(-2000)),
+        CardRow(date(2026, 9, 28), "ERTELENEN EKSTRE TUTARI", Decimal(2000)),
+        CardRow(date(2026, 10, 1), "TURKCELL FATURA ODEME", Decimal(450)),
+        CardRow(None, "DÖNEM FAİZİ", Decimal("45.30")),
+        CardRow(None, "KKDF + BSMV", Decimal("13.59")),
+    ),
+)
+
+# A Paracard month: purchases, and an ATM withdrawal under the cash heading.
+PARACARD_PAGES: tuple[tuple[CardRow, ...], ...] = (
+    (
+        CardRow(None, "HARCAMALARINIZ"),
+        CardRow(date(2026, 9, 8), "MIGROS ORNEK SUBE ISTANBUL", Decimal("845.30")),
+        CardRow(date(2026, 9, 15), "ORNEK ECZANE BESIKTAS", Decimal("212.75")),
+        CardRow(date(2026, 9, 21), "ORNEK MARKET UMRANIYE", Decimal("176.45")),
+        CardRow(None, "NAKİT ÇEKİM"),
+        CardRow(date(2026, 9, 24), "İBB ÖRNEK METROBÜS", Decimal(500)),
+    ),
+)
+
+
+def bonus_statement(
+    pages: Sequence[Sequence[CardRow]] = BONUS_PAGES,
+    cut: date = date(2026, 10, 5),
+    previous: Decimal = Decimal(3250),
+    last4: str = "1234",
+    total: Decimal | None = None,
+) -> bytes:
+    """A Garanti BBVA Bonus card statement: the debt carried over (DEVİR), the rows page by page, and the debt it
+    ends with, which they add up to unless total says otherwise, as when the reader would miss a row."""
+    if total is None:
+        total = previous + sum((charged(p) for p in pages), Decimal(0))
+    summary = [
+        (40, 40, "Garanti BBVA"),
+        (40, 52, "Bonus Kredi Kartı Ekstresi"),
+        *_address(),
+        (330, 80, f"Kart Numarası 5555 12** **** {last4}"),
+        (330, 92, f"Hesap Kesim Tarihi {_spelled(cut)}"),
+        (330, 104, f"Son Ödeme Tarihi {_spelled(cut + timedelta(days=10))}"),
+        (330, 116, f"Dönem Borcunuz {format_amount(total)}"),
+        (330, 128, f"Asgari Ödeme Tutarı {format_amount(total * Decimal('0.4'))}"),
+    ]
+    return text_pdf(*_card_pages(summary, pages, CardRow(None, "DEVİR", previous), CardRow(None, "TOPLAM", total)))
+
+
+def paracard_statement(
+    pages: Sequence[Sequence[CardRow]] = PARACARD_PAGES, cut: date = date(2026, 10, 5), last4: str = "4321"
+) -> bytes:
+    """A Garanti BBVA Paracard statement ("Paracard Hesap Cetveli"): a debit card has no debt, only the sums of
+    its purchases and of its cash withdrawals."""
+    purchases = cash = Decimal(0)
+    for page in pages:
+        heading = ""
+        for row in page:
+            if row.amount is None:
+                heading = row.text
+            elif "NAKIT CEKIM" in fold(heading):
+                cash += row.amount
+            else:
+                purchases += row.amount
+    summary = [
+        (40, 40, "Garanti BBVA"),
+        (40, 52, "Paracard Hesap Cetveli"),
+        *_address(),
+        (330, 80, f"Kart No: 5555 12** **** {last4}"),
+        (330, 92, f"Hesap Kesim Tarihiniz {_spelled(cut)}"),
+        (330, 104, f"Toplam Alışveriş Tutarınız {format_amount(purchases)}"),
+        (330, 116, f"Toplam Nakit Çekim Tutarınız {format_amount(cash)}"),
+    ]
+    return text_pdf(*_card_pages(summary, pages, None, CardRow(None, "TOPLAM", purchases + cash)))
+
+
+def _address() -> list[Run]:
+    return [(40, 80, HOLDER), (40, 92, "DENEME MAH. 1. SOK. NO:1"), (40, 104, "34000 İSTANBUL")]
+
+
+def _spelled(day: date) -> str:
+    """As Garanti writes a date: "5 Ekim 2026"."""
+    return f"{day.day} {MONTHS[day.month - 1]} {day.year}"
+
+
+def _card_amount(value: Decimal) -> str:
+    """As Garanti prints an amount: a credit with a trailing plus ("3.250,00+")."""
+    return format_amount(abs(value)) + ("+" if value < 0 else "")
+
+
+def _card_pages(
+    summary: list[Run], pages: Sequence[Sequence[CardRow]], first: CardRow | None, last: CardRow
+) -> list[list[Run]]:
+    """The statement's pages: the summary above the first page's table, every page's table under its own header,
+    first opening the first table and last closing the last one."""
+    out: list[list[Run]] = []
+    for i, rows in enumerate(pages):
+        top = 200 if i == 0 else 60
+        table = [*([first] if first and i == 0 else []), *rows, *([last] if i == len(pages) - 1 else [])]
+        out.append([*(summary if i == 0 else []), *_card_table(top, table)])
+    return out
+
+
+def _card_table(top: float, rows: Sequence[CardRow]) -> list[Run]:
+    runs: list[Run] = [
+        (_DATE_X, top, "İşlem Tarihi"),
+        (_TEXT_X, top, "Dönem İçi İşlemler"),
+        (_EXTRA_X, top, "Kalan Taksit"),
+        right(_AMOUNT_X1, top, "Tutar (TL)"),
+        (_POINTS_X, top, "Bonus"),
+    ]
+    for n, row in enumerate(rows, 1):
+        y = top + 3 + n * _LINE
+        if row.day is not None:
+            runs.append((_DATE_X, y, _spelled(row.day)))
+        runs.append((_TEXT_X, y, row.text))
+        if row.extra:
+            runs.append((_EXTRA_X, y, row.extra))
+        if row.amount is not None:
+            runs.append(right(_AMOUNT_X1, y, _card_amount(row.amount)))
+            if row.day is not None and row.amount > 0:
+                runs.append((_POINTS_X, y, format_amount(row.amount * Decimal("0.005"))))  # the Bonus it earned
+    return runs

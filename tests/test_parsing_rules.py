@@ -8,7 +8,7 @@ from pdfplumber.utils.exceptions import PdfminerException
 from iplikci import parsers
 from iplikci.domain.codes import TransactionKind
 from iplikci.domain.models import Transaction
-from iplikci.fakes.files import pdf_file
+from iplikci.fakes.files import scan_pdf
 from iplikci.parsers import contract
 from iplikci.parsers.common import (
     business_names_signature,
@@ -163,27 +163,8 @@ def test_password_protected_pdf_is_kept_for_a_manual_look(monkeypatch):
         parsers.parse_document(Document("Ekstre.pdf", "test", b"%PDF-1.7", "sha"))
 
 
-def _image_only_pdf() -> bytes:
-    """One page that holds nothing but a picture, like a statement delivered as page images."""
-    content = b"q 100 0 0 100 50 50 cm /Im1 Do Q"
-    objects = [
-        b"<< /Type /Catalog /Pages 2 0 R >>",
-        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-        (
-            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << /XObject << /Im1 4 0 R >> >> "
-            b"/Contents 5 0 R >>"
-        ),
-        (
-            b"<< /Type /XObject /Subtype /Image /Width 1 /Height 1 /ColorSpace /DeviceGray /BitsPerComponent 8 "
-            b"/Length 1 >>\nstream\n\x80\nendstream"
-        ),
-        b"<< /Length %d >>\nstream\n%s\nendstream" % (len(content), content),
-    ]
-    return pdf_file(objects)
-
-
 def test_page_image_pdf_without_ocr_is_kept_for_a_manual_look(monkeypatch):
     # OCR (macOS Vision) is missing on Linux and Windows: such a PDF may be a TEB statement.
     monkeypatch.setattr(parsers, "ocr_available", lambda: False)
     with pytest.raises(parsers.Unreadable, match="OCR"):
-        parsers.parse_document(Document("Ekstre.pdf", "test", _image_only_pdf(), "sha"))
+        parsers.parse_document(Document("Ekstre.pdf", "test", scan_pdf(), "sha"))

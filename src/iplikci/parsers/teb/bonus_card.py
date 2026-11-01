@@ -137,7 +137,9 @@ def _parse_ocr(doc: SourceDocument, pages: list[list[Line]]) -> ParseResult:
         if amount_i is None or amount_i == 0:
             continue
         desc = " ".join(w.text for w in rest[:amount_i])
-        desc = re.sub(r"[^\w)]+$", "", desc).strip()  # contactless-payment icon read as ")))"
+        # The contactless payment icon, read as ")))", and any other mark after the text; a closing parenthesis that
+        # ends the text, like that of "(9/8. Taksit)", stays.
+        desc = re.sub(r"(?:\s+\)+|[^\w)])+$", "", desc).strip()
         _add(
             stmt,
             account,
@@ -152,7 +154,7 @@ def _parse_ocr(doc: SourceDocument, pages: list[list[Line]]) -> ParseResult:
 
 class BonusCard:
     id = ID
-    version = 1
+    version = 2
     bank = "TEB"
     name = "TEB Bonus kart ekstresi"
     document_type = DocumentKind.CARD_STATEMENT

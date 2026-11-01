@@ -42,12 +42,11 @@ from .domain.codes import (
     Necessity,
     TransactionKind,
 )
-from .domain.labels import ACCOUNT_MONTH_STATUS, KIND, NECESSITY, format_amount
+from .domain.labels import ACCOUNT_MONTH_STATUS, KIND, MONTHS, NECESSITY, format_amount
 from .domain.labels import MONTH_STATUS as _MONTH_LABELS
 from .domain.models import TRY, Account, Statement, Transaction
 from .domain.money import TOLERANCE, round_half_up
 from .insights import (
-    MONTHS_TR,
     NOT_BANK_ACCOUNTS,
     Insights,
     Series,
@@ -116,8 +115,7 @@ def _ranges(days: list[date]) -> list[tuple[date, date]]:
 def range_text(ranges: list[tuple[date, date]]) -> str:
     """[(25 Oct, 31 Oct)] -> '25–31 Ekim'."""
     return ", ".join(
-        f"{a.day} {MONTHS_TR[a.month - 1]}" if a == b else f"{a.day}–{b.day} {MONTHS_TR[a.month - 1]}"
-        for a, b in ranges
+        f"{a.day} {MONTHS[a.month - 1]}" if a == b else f"{a.day}–{b.day} {MONTHS[a.month - 1]}" for a, b in ranges
     )
 
 

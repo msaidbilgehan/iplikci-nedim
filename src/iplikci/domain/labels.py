@@ -22,6 +22,21 @@ from .codes import (
 )
 from .money import Money, Unit, round_half_up
 
+MONTHS = (
+    "Ocak",
+    "Şubat",
+    "Mart",
+    "Nisan",
+    "Mayıs",
+    "Haziran",
+    "Temmuz",
+    "Ağustos",
+    "Eylül",
+    "Ekim",
+    "Kasım",
+    "Aralık",
+)
+
 KIND: dict[TransactionKind, str] = {
     TransactionKind.PURCHASE: "Harcama",
     TransactionKind.REFUND: "İade / indirim",

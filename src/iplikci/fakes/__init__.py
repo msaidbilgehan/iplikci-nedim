@@ -22,6 +22,22 @@ class Move:
     amount: Decimal
 
 
+@dataclass(frozen=True)
+class CardRow:
+    """A row of a card statement. A row without a day is undated, like the period's interest; a row without an
+    amount is a section heading."""
+
+    day: date | None
+    text: str
+    amount: Decimal | None = None
+    extra: str = ""  # the installment or the foreign amount, in a column of its own
+
+
+def charged(rows: Iterable[CardRow]) -> Decimal:
+    """What rows add to a card's debt."""
+    return sum((r.amount for r in rows if r.amount is not None), Decimal(0))
+
+
 def with_balances(moves: Iterable[Move], opening: Decimal = Decimal(0)) -> list[tuple[Move, Decimal]]:
     """moves, in the order given, each with the balance after it."""
     out: list[tuple[Move, Decimal]] = []

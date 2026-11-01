@@ -26,7 +26,7 @@ from statistics import median
 from .analysis import NOT_ON_STATEMENT, PROVISIONAL, Dataset, ReceiptLine
 from .categorize import FX_CATEGORY
 from .domain.codes import CARD_TYPES, DEFAULT_EXPENSE_KINDS, AccountType, Necessity, TransactionKind
-from .domain.labels import format_amount
+from .domain.labels import MONTHS, format_amount
 from .domain.models import TRY, Transaction
 from .domain.money import CENT, round_half_up, to_decimal
 from .domain.text import fold
@@ -34,20 +34,6 @@ from .domain.text import fold
 # Statements that say whether a month's income is known: bank accounts, not cards or a brokerage account.
 NOT_BANK_ACCOUNTS = (*CARD_TYPES, AccountType.BROKERAGE)
 FULL = 0.97  # share of a month the statements must cover for the month to be complete
-MONTHS_TR = (
-    "Ocak",
-    "Şubat",
-    "Mart",
-    "Nisan",
-    "Mayıs",
-    "Haziran",
-    "Temmuz",
-    "Ağustos",
-    "Eylül",
-    "Ekim",
-    "Kasım",
-    "Aralık",
-)
 NEEDED, OPTIONAL, AVOIDABLE = Necessity.REQUIRED, Necessity.OPTIONAL, Necessity.UNNECESSARY
 INTEREST = ("Kredi Kartı Faizi", "Ek Hesap (KMH) Faizi", "Kredi Faizi")
 CARD_FEES = "Kart Aidatı & Ücretleri"
@@ -77,7 +63,7 @@ def span(first: str, last: str) -> list[str]:
 
 
 def month_name(month: str) -> str:
-    return f"{MONTHS_TR[int(month[5:]) - 1]} {month[:4]}"
+    return f"{MONTHS[int(month[5:]) - 1]} {month[:4]}"
 
 
 # How the last word of a year is spoken decides its case suffix: 2026 (altı) -> 'dan, 2025 (beş) -> 'ten.
@@ -100,7 +86,7 @@ def months_in(months: list[str]) -> str:
     """['2026-03', '2026-07', '2025-12'] -> 'Mart ve Temmuz 2026'da, Aralık 2025'te'."""
     by_year: dict[str, list[str]] = {}
     for m in months:
-        by_year.setdefault(m[:4], []).append(MONTHS_TR[int(m[5:]) - 1])
+        by_year.setdefault(m[:4], []).append(MONTHS[int(m[5:]) - 1])
     parts = []
     for year, names in by_year.items():
         joined = names[0] if len(names) == 1 else ", ".join(names[:-1]) + " ve " + names[-1]
