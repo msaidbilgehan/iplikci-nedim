@@ -70,6 +70,7 @@ def test_the_rules_are_read_with_the_token_and_changed_only_from_the_services_ow
         "channels": ["desktop", "telegram"],
         "detail": None,
         "enabled": True,
+        "quiet": True,
     }
     due = next(e for e in found["events"] if e["kind"] == "payment.due_soon")
     assert (due["label"], due["days"], due["amount"], due["text"]) == ("Son ödeme yaklaşıyor", True, True, True)

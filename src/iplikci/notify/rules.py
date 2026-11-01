@@ -6,6 +6,7 @@ the user changes one. The file is the user's, so its keys and values are Turkish
       kosul: {gun: 3}                # gun: at most so many days ahead; tutar: at least so many TL; metin: in the title
       kanallar: [masaustu, telegram] # besides the interface's box, which always gets it: masaustu, telegram, eposta
       ayrinti: ozet                  # tam, ozet or asgari; left out, each channel's own level from the settings
+      sessiz_saat: false             # goes out at once in the quiet hours too; left out, it keeps to them
       acik: false                    # left out, the rule is on
 
 A rule speaks once of an event's key (its kind and target) on each channel; a later event with the same key finds
@@ -29,7 +30,7 @@ DETAIL_NAMES: dict[str, DetailLevel] = {
     "ozet": DetailLevel.SUMMARY,
     "asgari": DetailLevel.MINIMAL,
 }
-_KEYS = ("ad", "olay", "kosul", "kanallar", "ayrinti", "acik")
+_KEYS = ("ad", "olay", "kosul", "kanallar", "ayrinti", "sessiz_saat", "acik")
 _NAME_LIMIT = 80
 MAX_DAYS = 60  # the calendar's horizon (F09): a due date further away is no event yet
 
@@ -75,6 +76,7 @@ class AlertRule:
     channels: tuple[Channel, ...] = _DEFAULT_CHANNELS  # besides the interface's box, which always gets it
     detail: DetailLevel | None = None  # None: each channel's own level from the settings
     enabled: bool = True
+    quiet: bool = True  # keeps to the quiet hours; False: goes out at once even then
 
     @property
     def key(self) -> str:
@@ -115,6 +117,7 @@ HEADER = """\
 #   kosul     isteğe bağlı: gun (en çok kaç gün kala), tutar (en az kaç TL), metin (başlığında geçen yazı)
 #   kanallar  masaustu, telegram, eposta; boş liste: yalnızca uygulamadaki kutu
 #   ayrinti   tam, ozet ya da asgari; yazılmazsa her kanalın kendi ayarı
+#   sessiz_saat  false: sessiz saatte de hemen gider (yazılmazsa sessiz saatte özete kalır)
 #   acik      false: kural kapalı
 """
 
@@ -171,16 +174,18 @@ def _read(item: Any, where: str) -> AlertRule:
         event = EventKind(values.get("olay"))
     except ValueError:
         raise RulesError(f"{where}: 'olay' bilinen bir olay olmalı, ör. payment.due_soon") from None
-    enabled = values.get("acik", True)
-    if not isinstance(enabled, bool):
-        raise RulesError(f"{where}: 'acik' true ya da false olmalı")
+    enabled, quiet = values.get("acik", True), values.get("sessiz_saat", True)
+    for key, value in (("acik", enabled), ("sessiz_saat", quiet)):
+        if not isinstance(value, bool):
+            raise RulesError(f"{where}: '{key}' true ya da false olmalı")
     return AlertRule(
         name.strip(),
         event,
         _condition(values.get("kosul"), event, where),
         _channels(values.get("kanallar", ["masaustu", "telegram"]), where),
         _detail(values.get("ayrinti"), where),
-        enabled,
+        bool(enabled),
+        bool(quiet),
     )
 
 
@@ -275,6 +280,8 @@ def dump(rules: Sequence[AlertRule]) -> str:
         lines.append(f"  kanallar: [{', '.join(_CHANNEL_FILE[ch] for ch in rule.channels)}]")
         if rule.detail is not None:
             lines.append(f"  ayrinti: {_DETAIL_FILE[rule.detail]}")
+        if not rule.quiet:
+            lines.append("  sessiz_saat: false")
         if not rule.enabled:
             lines.append("  acik: false")
     return "\n".join(lines) + "\n"

@@ -624,3 +624,15 @@ def test_telegram_is_set_up_with_the_token_read_from_a_line_never_an_argument(ws
     out = capsys.readouterr().out
     assert "Bot doğrulandı: @ornek_bot" in out and "/start " in out and "Eşleşti" in out
     assert TOKEN not in out and keyring == {"telegram-bot": TOKEN}
+
+
+def test_a_rule_may_send_in_the_quiet_hours_too(ws, desk):
+    urgent = [r if r.event != E.BACKUP_FAILED else AlertRule(r.name, r.event, quiet=False) for r in DEFAULTS]
+    notify.save_rules(ws, urgent, Actor.USER)
+    assert "sessiz_saat: false" in ws.layout.alert_rules.read_text(encoding="utf-8")
+    assert notify.load_rules(ws).rules == urgent
+    started(ws, NIGHT)
+    happen(ws, E.BACKUP_FAILED, "2026-11-02", stage="backup")
+    happen(ws, E.MONTH_CLOSED, "2026-10")
+    notify.run(ws, NIGHT)
+    assert [m.body for m in desk.got] == ["Yedek alınamadı; Sistem ekranına bakın."]  # the month waits for the digest

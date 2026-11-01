@@ -62,6 +62,7 @@ export interface AlertRuleModel {
   channels: Channel[];
   detail?: DetailLevel | null;
   enabled?: boolean;
+  quiet?: boolean;
 }
 
 export interface AlertRulesIn {

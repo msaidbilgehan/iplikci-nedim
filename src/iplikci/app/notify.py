@@ -412,7 +412,12 @@ def _notify(
                 detail=level,
                 title=message.title,
                 body=message.body,
-                status=DeliveryStatus.SENT if inside else DeliveryStatus.HELD if quiet else DeliveryStatus.PENDING,
+                status=DeliveryStatus.SENT
+                if inside
+                else DeliveryStatus.HELD
+                if quiet and rule.quiet
+                else DeliveryStatus.PENDING,
+                urgent=not rule.quiet,
                 sent_at=at if inside else "",
             )
             if stored.add(db, n) is not None:
@@ -463,7 +468,7 @@ def _send(db: Database, n: Notification, carriers: dict[Channel, Sender], quiet:
         stored.give_up(db, [n.id], "Kanal kapatıldı ya da kurulumu eksik; bildirim gönderilmedi.")
         out.failed += 1
         return
-    if quiet or _over_rate(db, channel, at):
+    if (quiet and not n.urgent) or _over_rate(db, channel, at):
         stored.hold(db, n.id)
         out.held += 1
         return

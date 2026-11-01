@@ -23,6 +23,7 @@ class Notification:
     title: str
     body: str
     status: str
+    urgent: bool = False  # its rule sends it in the quiet hours too
     attempts: int = 0
     next_at: str = ""
     sent_at: str = ""
@@ -43,6 +44,7 @@ def _notification(row: sqlite3.Row) -> Notification:
         str(row["title"]),
         str(row["body"]),
         str(row["status"]),
+        bool(row["urgent"]),
         int(row["attempts"]),
         str(row["next_at"]),
         str(row["sent_at"]),
@@ -52,8 +54,8 @@ def _notification(row: sqlite3.Row) -> Notification:
 
 
 _COLUMNS = (
-    "created_at, rule, event_id, kind, key, channel, detail, title, body, status, attempts, next_at, sent_at, error, "
-    "read_at"
+    "created_at, rule, event_id, kind, key, channel, detail, title, body, status, urgent, attempts, next_at, sent_at, "
+    "error, read_at"
 )
 
 
@@ -69,6 +71,7 @@ def _values(n: Notification) -> tuple[object, ...]:
         n.title,
         n.body,
         n.status,
+        int(n.urgent),
         n.attempts,
         n.next_at,
         n.sent_at,
@@ -81,7 +84,7 @@ def add(db: Database, n: Notification) -> int | None:
     """Add a notification (its id is ignored); the new id, or None when its rule, event key and channel have one."""
     with db.transaction():
         cursor = db.execute(
-            f"INSERT OR IGNORE INTO notifications ({_COLUMNS}) VALUES ({', '.join('?' * 15)})", _values(n)
+            f"INSERT OR IGNORE INTO notifications ({_COLUMNS}) VALUES ({', '.join('?' * 16)})", _values(n)
         )
     return cursor.lastrowid if cursor.rowcount else None
 
@@ -89,7 +92,7 @@ def add(db: Database, n: Notification) -> int | None:
 def restore(db: Database, n: Notification) -> None:
     """A notification as a dump of the primary data holds it."""
     with db.transaction():
-        db.execute(f"INSERT INTO notifications ({_COLUMNS}) VALUES ({', '.join('?' * 15)})", _values(n))
+        db.execute(f"INSERT INTO notifications ({_COLUMNS}) VALUES ({', '.join('?' * 16)})", _values(n))
 
 
 def due(db: Database, at: str) -> list[Notification]:

@@ -12,6 +12,7 @@ CREATE TABLE notifications (
     key        TEXT NOT NULL,                -- the event's target, or "olay-<id>" for an event that names none
     channel    TEXT NOT NULL,                -- in_app, desktop, email, telegram
     detail     TEXT NOT NULL,                -- full, summary, minimal
+    urgent     INTEGER NOT NULL DEFAULT 0,   -- 1: its rule sends it in the quiet hours too
     title      TEXT NOT NULL,                -- the text as sent
     body       TEXT NOT NULL,
     status     TEXT NOT NULL,                -- pending, sent, held, digested, failed

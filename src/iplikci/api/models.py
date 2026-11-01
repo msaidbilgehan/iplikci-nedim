@@ -262,6 +262,7 @@ class AlertRuleModel(BaseModel):
     channels: list[Channel] = Field(max_length=4)  # besides the interface's box, which always gets it
     detail: DetailLevel | None = None  # null: each channel's own level
     enabled: bool = True
+    quiet: bool = True  # keeps to the quiet hours; false: goes out at once even then
 
 
 class EventInfoOut(BaseModel):

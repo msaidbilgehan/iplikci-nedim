@@ -72,6 +72,7 @@ def _rule_out(rule: AlertRule) -> AlertRuleModel:
         channels=list(rule.channels),
         detail=rule.detail,
         enabled=rule.enabled,
+        quiet=rule.quiet,
     )
 
 
@@ -84,6 +85,7 @@ def _rule_in(rule: AlertRuleModel) -> AlertRule:
         tuple(dict.fromkeys(ch for ch in rule.channels if ch is not Channel.IN_APP)),
         rule.detail,
         rule.enabled,
+        rule.quiet,
     )
 
 

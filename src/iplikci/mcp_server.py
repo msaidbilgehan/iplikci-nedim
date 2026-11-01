@@ -934,6 +934,7 @@ def _alert_view(rule: notify.AlertRule) -> dict:
         "channels": [CHANNEL[ch] for ch in rule.channels],
         "detail": DETAIL_LEVEL[rule.detail] if rule.detail else None,
         "enabled": rule.enabled,
+        "quietHours": rule.quiet,
     }
 
 
@@ -949,6 +950,7 @@ def _alert_from(args: dict) -> notify.AlertRule:
         notify.Condition(args.get("days"), None if amount is None else to_decimal(amount), str(args.get("text", ""))),
         tuple(notify.Channel(ch) for ch in args.get("channels", ["desktop", "telegram"])),
         notify.DetailLevel(args["detail"]) if args.get("detail") else None,
+        quiet=args.get("quiet_hours", True),
     )
 
 
@@ -969,7 +971,7 @@ def _alerts(s: Server, args: dict) -> dict:
                     f"'{args.get('name', '')}' adında bir kural yok (alerts action=list kuralları listeler)"
                 )
             rules = [
-                notify.AlertRule(r.name, r.event, r.condition, r.channels, r.detail, action == "open")
+                notify.AlertRule(r.name, r.event, r.condition, r.channels, r.detail, action == "open", r.quiet)
                 if r.key == name
                 else r
                 for r in rules
@@ -1167,7 +1169,7 @@ TOOLS = (
         "alerts",
         "Bildirim kuralları",
         "Bildirim kurallarını listeler (action=list; olaylar, koşulları ve kanalların durumu ile), yeni kural ekler "
-        "(action=add: name, event, isteğe bağlı days, amount, text, channels, detail) ya da bir kuralı kapatır "
+        "(action=add: name, event, isteğe bağlı days, amount, text, channels, detail, quiet_hours) ya da bir kuralı kapatır "
         "(action=close) veya yeniden açar (action=open; name ile). Değişiklik rules/alerts.yaml'a yazılır, önceki "
         "dosya kural geçmişinde saklanır; okunamayacak bir kural yazılmaz.",
         _schema(
@@ -1179,6 +1181,7 @@ TOOLS = (
             text=_TEXT,
             channels={"type": "array", "items": {"type": "string", "enum": ["desktop", "telegram", "email"]}},
             detail={"type": "string", "enum": ["full", "summary", "minimal"]},
+            quiet_hours={"type": "boolean", "description": "false: sessiz saatte de hemen gider"},
         ),
         _alerts,
         read_only=False,
