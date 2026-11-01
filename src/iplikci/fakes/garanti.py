@@ -1,5 +1,5 @@
-"""Garanti BBVA's documents: the Bonus and Paracard card statements, receipts, and Garanti BBVA Yatırım's
-brokerage statements."""
+"""Garanti BBVA's documents: the Bonus and Paracard card statements, the account list, receipts, and Garanti BBVA
+Yatırım's brokerage statements."""
 
 from collections.abc import Sequence
 from datetime import date, timedelta
@@ -7,8 +7,8 @@ from decimal import Decimal
 
 from ..domain.labels import MONTHS, format_amount
 from ..domain.text import fold
-from . import HOLDER, CardRow, charged
-from .files import Run, right, text_pdf
+from . import HOLDER, CardRow, Move, charged, with_balances
+from .files import Cell, Run, right, text_pdf, xls_file
 
 
 def receipt(
@@ -267,3 +267,57 @@ def _card_table(top: float, rows: Sequence[CardRow]) -> list[Run]:
             if row.day is not None and row.amount > 0:
                 runs.append((_POINTS_X, y, format_amount(row.amount * Decimal("0.005"))))  # the Bonus it earned
     return runs
+
+
+# --- account lists --------------------------------------------------------------------------------------------
+
+# A month on a current account: salary, rent sent by FAST with its fee, a bill, a card payment, money received by
+# havale and a debit card purchase.
+ACCOUNT_MOVES: tuple[Move, ...] = (
+    Move(date(2026, 10, 1), "MAAŞ ÖDEMESİ ÖRNEK İŞVEREN A.Ş.", Decimal(40000)),
+    Move(date(2026, 10, 3), "FAST123456789-VELİ ÖRNEKSOY-EKİM KİRA", Decimal(-15000)),
+    Move(date(2026, 10, 3), "FAST ÜCRETİ", Decimal(-8)),
+    Move(date(2026, 10, 6), "İGDAŞ FATURA ÖDEMESİ", Decimal(-450)),
+    Move(date(2026, 10, 10), "KRE.KART BORC ODEME 1234", Decimal(-3250)),
+    Move(date(2026, 10, 15), "AYŞE SOYADOĞLU Havale", Decimal(2500)),
+    Move(date(2026, 10, 20), "MIGROS ORNEK SUBE ISTANBUL", Decimal("-845.30")),
+)
+# The bank's own label of a row, by the start of its text.
+_LABELS = (
+    ("MAAŞ", "Maaş"),
+    ("FAST1", "Para Transferi"),
+    ("AYŞE", "Para Transferi"),
+    ("İGDAŞ", "Fatura"),
+    ("MIGROS", "Alışveriş"),
+)
+
+
+def account_xls(
+    moves: Sequence[Move] = ACCOUNT_MOVES,
+    opening: Decimal = Decimal(1000),
+    number: str = "1234567",
+    holder: str = HOLDER,
+    period: tuple[date, date] = (date(2026, 10, 1), date(2026, 10, 31)),
+) -> bytes:
+    """A Garanti BBVA "Hesap Hareketleri" export (XLS): the account and its holder above a table of rows, newest
+    first, each with the bank's label and the balance after it."""
+    head: list[list[Cell]] = [
+        ["T. Garanti Bankası A.Ş.", None, None, None, None],
+        ["Hesap Hareketleri"],
+        ["Hesap", f"106 - {number} TL", None, "Ad Soyad", holder],
+        ["Başlangıç", f"{period[0]:%d.%m.%Y}", None, "Bitiş", f"{period[1]:%d.%m.%Y}"],
+        ["IBAN", f"TR00 0006 2000 1060 000{number}"],
+        [],
+        ["Tarih", "Açıklama", "Etiket", "Tutar", "Bakiye"],
+    ]
+    rows: list[list[Cell]] = [
+        [
+            f"{m.day:%d.%m.%Y}",
+            m.text,
+            next((label for start, label in _LABELS if m.text.startswith(start)), ""),
+            float(m.amount),
+            float(balance),
+        ]
+        for m, balance in with_balances(moves, opening)
+    ]
+    return xls_file("Hesap Hareketleri", head + rows[::-1])

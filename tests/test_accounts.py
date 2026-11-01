@@ -1,10 +1,13 @@
-"""Account movement lists: row kinds, balance checks and a TEB export end to end."""
+"""Account movement lists: row kinds, balance checks, and every bank's list end to end."""
 
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
 from iplikci.domain.codes import AccountType, TransactionKind
+from iplikci.domain.models import ParseResult
+from iplikci.fakes import HOLDER, garanti, isbank, qnb, vakifbank
 from iplikci.parsers import Skipped, parse_document
 from iplikci.parsers.accounts import bank_from_iban
 from iplikci.parsers.common import set_business_names
@@ -107,3 +110,75 @@ def test_company_account_export_is_business():
     with pytest.raises(Skipped) as exc:
         parse_document(doc)
     assert exc.value.business
+
+
+# --- every bank's list, from fake documents (iplikci.fakes) ------------------------------------------------------
+
+
+def _read(name: str, data: bytes) -> ParseResult:
+    return parse_document(Document(name, "test", data, "sha"))
+
+
+def test_garanti_account_xls_reads_newest_first_and_names_the_other_side_of_a_transfer():
+    r = _read("HesapHareketleri.xls", garanti.account_xls())
+    [s] = r.statements
+    assert (r.parser, r.accounts[0].id, r.holder) == ("garanti.account_xls", "garanti-1234567", HOLDER)
+    assert (s.start, s.cut_date, s.previous, s.total) == (
+        date(2026, 10, 1),
+        date(2026, 10, 31),
+        1000,
+        Decimal("23946.70"),
+    )
+    assert s.verified and (s.checks_ok, s.checks_total) == (6, 6)
+    by_text = {t.description: t for t in s.transactions}
+    assert by_text["FAST123456789-VELİ ÖRNEKSOY-EKİM KİRA"].counterparty == "VELİ ÖRNEKSOY"
+    assert by_text["AYŞE SOYADOĞLU Havale"].counterparty == "AYŞE SOYADOĞLU"
+    assert by_text["İGDAŞ FATURA ÖDEMESİ"].kind == TransactionKind.PURCHASE  # by its label, Fatura
+    assert [t.ref.row for t in s.transactions] == list(range(8, 15))  # under the seven rows of the head
+
+
+def test_isbank_account_xls_finds_branch_and_account_at_the_end_of_the_iban():
+    r = _read("HesapOzeti.xls", isbank.account_xls())
+    [s] = r.statements
+    assert (r.parser, r.accounts[0].id, r.holder) == ("isbank.account_xls", "isbank-1234-0123456", HOLDER)
+    assert s.verified and s.total == Decimal("24928.74")
+    sent = next(t for t in s.transactions if t.amount == 15000)
+    assert (sent.counterparty, sent.kind) == ("VELİ ÖRNEKSOY", TransactionKind.TRANSFER_CANDIDATE)  # "AD*" FAST text
+    assert next(t for t in s.transactions if t.amount == Decimal("8.86")).kind == TransactionKind.INTEREST_FEE
+
+
+def test_vakifbank_account_xlsx_names_the_employer_and_the_other_side_of_a_transfer():
+    r = _read("HesapHareketleri.xlsx", vakifbank.account_xlsx())
+    [s] = r.statements
+    assert (r.parser, r.accounts[0].label) == ("vakifbank.account_xlsx", "Vakıfbank Vadesiz TL …234567 (Günlük)")
+    assert s.verified and (s.start, s.cut_date) == (date(2026, 10, 1), date(2026, 10, 31))
+    salary, sent, fee, bill, received, euros = s.transactions  # oldest first
+    assert (salary.kind, salary.counterparty) == (TransactionKind.INCOME, "Örnek İşveren A.Ş.")
+    assert (sent.counterparty, received.counterparty) == ("Veli Örneksoy", "Kemal Denemeci")
+    assert (fee.kind, bill.kind, euros.kind) == (
+        TransactionKind.INTEREST_FEE,
+        TransactionKind.PURCHASE,
+        TransactionKind.OWN_TRANSFER,
+    )
+    assert bill.description == "FATURA: İGDAŞ Doğalgaz Faturası"
+
+
+def test_qnb_account_pdf_takes_a_rows_text_from_the_transfer_heading_above_it():
+    r = _read("HesapHareketleri.pdf", qnb.account_pdf())
+    [s] = r.statements
+    assert (r.parser, r.accounts[0].id, r.accounts[0].type, r.holder) == (
+        "qnb.account_pdf",
+        "qnb-12345678",
+        AccountType.CURRENT,
+        HOLDER,
+    )
+    assert (s.previous, s.total, s.verified) == (1000, Decimal("24929.60"), True)  # opened by DEVREDEN BAKİYE
+    sent = s.transactions[1]
+    assert sent.counterparty == "VELİ ÖRNEKSOY" and sent.description.endswith("Sorgu No: 123 EKİM KİRA ÖDEMESİ")
+    assert s.transactions[4].counterparty == "AYŞE SOYADOĞLU"  # on the second page
+    assert [(t.ref.page, t.ref.line) for t in s.transactions[-2:]] == [(2, 2), (2, 3)]
+
+
+def test_qnb_overdraft_account_is_its_own_type():
+    r = _read("HesapHareketleri.pdf", qnb.account_pdf(overdraft=True))
+    assert (r.accounts[0].type, r.accounts[0].label) == (AccountType.OVERDRAFT, "QNB Ek Hesap 12345678")

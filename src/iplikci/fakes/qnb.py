@@ -1,10 +1,10 @@
-"""QNB's documents: the card statement as a PDF export."""
+"""QNB's documents: the card statement and the account list as PDF exports."""
 
 from collections.abc import Sequence
 from datetime import date, timedelta
 from decimal import Decimal
 
-from . import HOLDER, CardRow, charged
+from . import HOLDER, CardRow, Move, charged
 from .files import Run, right, text_pdf
 
 # QNB prints its rows in a font with no Unicode map for Turkish letters: pdfminer shows each as "(cid:N)". The
@@ -73,3 +73,72 @@ def us_amount(value: Decimal) -> str:
 def unmapped(text: str) -> str:
     """text with its Turkish letters in the glyphs pdfminer cannot name."""
     return "".join(_UNMAPPED.get(c, c) for c in text)
+
+
+# --- account lists --------------------------------------------------------------------------------------------
+
+# A month on a current account over two pages, oldest first: salary, rent sent by FAST under a transfer heading
+# whose note wraps onto the next line, its fee, a card payment, money received under a heading, a purchase.
+# A row without text takes its heading's.
+ACCOUNT_ROWS: tuple[tuple[tuple[Move, str, str], ...], ...] = (
+    (
+        (Move(date(2026, 10, 1), "MAAŞ ÖDEMESİ ÖRNEK İŞVEREN", Decimal(40000)), "MAAS", ""),
+        (
+            Move(date(2026, 10, 4), "", Decimal(-15000)),
+            "FAST",
+            "Transfer İşlemleri - Alıcı : VELİ ÖRNEKSOY Türkiye Garanti Bankası A.Ş. Sorgu No: 123|EKİM KİRA ÖDEMESİ",
+        ),
+        (Move(date(2026, 10, 4), "FAST ÜCRETİ", Decimal(-8)), "UCRET", ""),
+        (Move(date(2026, 10, 10), "KREDİ KARTI ÖDEMESİ", Decimal(-3250)), "KART", ""),
+    ),
+    (
+        (
+            Move(date(2026, 10, 15), "", Decimal(2500)),
+            "FAST",
+            "Transfer İşlemleri - Gönderen : AYŞE SOYADOĞLU Enpara Bank A.Ş. Sorgu No: 456",
+        ),
+        (Move(date(2026, 10, 20), "ORNEK MARKET ATASEHIR", Decimal("-312.40")), "ALIŞVERİŞ", ""),
+    ),
+)
+
+
+def account_pdf(
+    pages: Sequence[Sequence[tuple[Move, str, str]]] = ACCOUNT_ROWS,
+    opening: Decimal = Decimal(1000),
+    holder: str = HOLDER,
+    overdraft: bool = False,
+    period: tuple[date, date] = (date(2026, 10, 1), date(2026, 10, 31)),
+) -> bytes:
+    """A QNB "Hesap Hareketleri" export (PDF): the account above rows of date, transaction type, text, amount and
+    balance, oldest first and opened by the balance carried over. A row's heading comes in the line above it, and
+    "|" in a heading starts the line under the row, where its note runs on."""
+    balance = opening
+    out: list[list[Run]] = []
+    for i, rows in enumerate(pages):
+        runs: list[Run] = []
+        y = 60.0
+        if i == 0:
+            runs += [
+                (40, 40, "QNB Hesap Hareketleri"),
+                (40, 70, f"Iban : TR00 0011 1000 0000 0012 3456 78 Ad Soyad : {holder}"),
+                (40, 82, f"Hesap Adı : {'EK HESAP' if overdraft else 'VADESİZ TL'}"),
+                (40, 94, f"Tarih Aralığı : {period[0]:%d/%m/%Y} - {period[1]:%d/%m/%Y}"),
+                (40, 120, "İşlem Tarihi İşlem Açıklama Tutar Bakiye"),
+                (40, 132, f"DEVREDEN BAKİYE {us_amount(opening)}"),
+            ]
+            y = 144.0
+        for move, kind, heading in rows:
+            above, _, below = heading.partition("|")
+            if above:
+                runs.append((40, y, above))
+                y += _LINE
+            balance += move.amount
+            line = f"{move.day:%d/%m/%Y} {kind} {move.text}".rstrip()
+            runs += [(40, y, line), right(470, y, us_amount(move.amount)), right(540, y, us_amount(balance))]
+            y += _LINE
+            if below:
+                runs.append((40, y, below))
+                y += _LINE
+        runs.append((40, 800, f"Sayfa {i + 1} / {len(pages)}"))
+        out.append(runs)
+    return text_pdf(*out)

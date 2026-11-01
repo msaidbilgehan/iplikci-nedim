@@ -1,12 +1,12 @@
-"""İş Bankası's documents: the Maximum card statement."""
+"""İş Bankası's documents: the Maximum card statement and the account list."""
 
 from collections.abc import Sequence
 from datetime import date, timedelta
 from decimal import Decimal
 
 from ..domain.labels import format_amount
-from . import HOLDER, CardRow, charged
-from .files import Run, right, text_pdf
+from . import HOLDER, CardRow, Move, charged, with_balances
+from .files import Cell, Run, right, text_pdf, xls_file
 
 _DATE_X, _TEXT_X, _AMOUNT_X1, _INSTALLMENT_X, _POINTS_X = 40, 100, 400, 410, 520
 _LINE = 11
@@ -88,3 +88,44 @@ def _table(top: float, rows: Sequence[CardRow]) -> list[Run]:
         if row.extra:
             runs.append((_INSTALLMENT_X, y, row.extra))
     return runs
+
+
+# --- account lists --------------------------------------------------------------------------------------------
+
+# A month on a current account: salary, rent sent by FAST ("AD*" before the note) with its fee, a card payment,
+# money back by havale and a debit card purchase, each with the bank's transaction type.
+ACCOUNT_MOVES: tuple[tuple[Move, str], ...] = (
+    (Move(date(2026, 10, 1), "ÖRNEK İŞVEREN A.Ş. MAAŞ ÖDEMESİ", Decimal(40000)), "Maaş"),
+    (Move(date(2026, 10, 3), "VELİ ÖRNEKSOY*EKİM KİRA ÖDEMESİ", Decimal(-15000)), "FAST"),
+    (Move(date(2026, 10, 3), "FAST ÜCRETİ", Decimal("-8.86")), "Ücret"),
+    (Move(date(2026, 10, 12), "KREDİ KARTI ÖDEMESİ 4543****1234", Decimal(-3250)), "Ödeme"),
+    (Move(date(2026, 10, 18), "AYŞE SOYADOĞLU*BORÇ İADESİ", Decimal(2500)), "Havale"),
+    (Move(date(2026, 10, 25), "ORNEK MARKET UMRANIYE", Decimal("-312.40")), "Alışveriş"),
+)
+
+
+def account_xls(
+    moves: Sequence[tuple[Move, str]] = ACCOUNT_MOVES,
+    opening: Decimal = Decimal(1000),
+    holder: str = HOLDER,
+    period: tuple[date, date] = (date(2026, 10, 1), date(2026, 10, 31)),
+) -> bytes:
+    """An İş Bankası "Hesap Özeti" export (XLS) of account 1234-0123456: the holder and the account above a table
+    of rows, newest first. The text column has an empty neighbour before the reference; the reader joins the
+    cells between the two headings."""
+    balanced = with_balances([m for m, _ in moves], opening)
+    head: list[list[Cell]] = [
+        ["TÜRKİYE İŞ BANKASI A.Ş."],
+        ["Hesap Özeti"],
+        [f"Sayın {holder}"],
+        ["Ürün-Döviz Tipi", "Vadesiz - TL", "IBAN", "TR00 0006 4000 0011 2340 1234 56"],
+        ["Mevcut Bakiye", f"{format_amount(balanced[-1][1] if balanced else opening)} TL"],
+        ["Sorgulama Kriterleri", f"{period[0]:%d.%m.%Y} - {period[1]:%d.%m.%Y}"],
+        [],
+        ["Tarih/Saat", "İşlem Tipi", "İşlem Tutarı*", "Bakiye", "Açıklama", None, "Referans"],
+    ]
+    rows: list[list[Cell]] = [
+        [f"{m.day:%d/%m/%Y}-10:00:00", kind, float(m.amount), float(balance), m.text, None, f"{n:08d}"]
+        for n, ((m, balance), (_, kind)) in enumerate(zip(balanced, moves, strict=True), 1)
+    ]
+    return xls_file("Hesap Özeti", head + rows[::-1])
