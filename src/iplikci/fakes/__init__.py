@@ -2,15 +2,63 @@
 
 Every reader gets documents laid out like its bank's own, with made-up names, numbers and amounts: the tests, the
 demo data folder (demo.py) and `iplikci dev parser test` read them, and real documents never enter the repository.
-files.py writes the file formats (PDF, XLS, XLSX); a module per bank lays out that bank's documents.
+files.py writes the file formats (PDF, XLS, XLSX); a module per bank lays out that bank's documents and offers
+them as specimens, each with what its reader must make of it.
 """
 
+import hashlib
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
+from ..parsers import Skipped, Unreadable, parse_document
+from ..sources import Document
+
 HOLDER = "ÖRNEK KULLANICI"
+
+
+@dataclass(frozen=True)
+class Specimen:
+    """A fake document, and what reading it must give."""
+
+    name: str  # its file name
+    data: bytes
+    reader: str  # the id of the one reader that must take it
+    account: str  # the account its first statement, or else its first row, is on
+    rows: int  # its rows, statements' and receipts' together
+
+
+def specimens() -> list[Specimen]:
+    """Every reader's fake documents, bank by bank."""
+    from . import garanti, isbank, qnb, teb, vakifbank  # imported here: they import this module
+
+    return [s for bank in (garanti, isbank, teb, qnb, vakifbank) for s in bank.specimens()]
+
+
+def check(specimen: Specimen) -> list[str]:
+    """What goes wrong when specimen is read, in Turkish; nothing when its reader takes it onto its account with
+    its rows, every row knows its place and every statement verifies."""
+    doc = Document(specimen.name, "sahte belge", specimen.data, hashlib.sha256(specimen.data).hexdigest())
+    try:
+        result = parse_document(doc)
+    except (Skipped, Unreadable) as exc:
+        return [f"okunmadı: {exc}"]
+    rows = [t for s in result.statements for t in s.transactions] + result.transactions
+    account = result.statements[0].account if result.statements else rows[0].account if rows else ""
+    problems: list[str] = []
+    if result.parser != specimen.reader:
+        problems.append(f"{result.parser} okudu, {specimen.reader} okumalıydı")
+    if account != specimen.account:
+        problems.append(f"hesap {account}, beklenen {specimen.account}")
+    if len(rows) != specimen.rows:
+        problems.append(f"{len(rows)} satır, beklenen {specimen.rows}")
+    problems += [
+        f"{s.account} ekstresi doğrulanmadı (fark {s.difference})" for s in result.statements if not s.verified
+    ]
+    if missing := sum(t.ref is None for t in rows):
+        problems.append(f"kaynak konumu olmayan satır: {missing}")
+    return problems
 
 
 @dataclass(frozen=True)

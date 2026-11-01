@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from ..domain.labels import format_amount
 from ..parsers.pdf import Line, Word
-from . import HOLDER, CardRow, Move, charged, with_balances
+from . import HOLDER, CardRow, Move, Specimen, charged, with_balances
 from .files import CHAR, Run, text_pdf
 
 
@@ -178,3 +178,22 @@ def scanned_statement(
             x += len(cell) * CHAR + 20
         lines.append(Line(top, words, 1))
     return [lines]
+
+
+# A month on the CEPTETEB account: salary, rent sent with its fee, a purchase.
+ACCOUNT_MOVES: tuple[Move, ...] = (
+    Move(date(2026, 1, 1), "ÖRNEK İŞVEREN A.Ş. den gelen havale", Decimal(40000)),
+    Move(date(2026, 1, 3), "VELİ ÖRNEKSOY KİRA ÖDEMESİ", Decimal(-15000)),
+    Move(date(2026, 1, 3), "FAST Ücreti", Decimal(-8)),
+    Move(date(2026, 1, 12), "MIGROS ORNEK SUBE ISTANBUL", Decimal(-2150)),
+)
+
+
+def specimens() -> list[Specimen]:
+    payment = card_payment_receipt(Decimal(3250), date(2026, 10, 15))
+    export = account_export(running_rows(list(ACCOUNT_MOVES)))
+    return [
+        Specimen("teb-bonus-ekstre.pdf", bonus_statement(), "teb.bonus_card", "teb-1234", 7),
+        Specimen("teb-kart-odeme-dekontu.pdf", payment, "teb.card_payment_receipt", "teb-1234", 1),
+        Specimen("teb-hesap-hareketlerim.xls", export, "teb.account_html", "teb-123456789", 4),
+    ]

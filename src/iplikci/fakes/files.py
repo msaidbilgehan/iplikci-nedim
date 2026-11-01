@@ -1,6 +1,7 @@
 """The file formats the banks send, written from scratch: PDFs with a text layer, XLS and XLSX workbooks."""
 
 import io
+import re
 import struct
 import zipfile
 from collections.abc import Sequence
@@ -199,8 +200,8 @@ def _entry(name: str, kind: int, child: int, start: int, size: int) -> bytes:
 
 
 def xlsx_file(sheet: str, rows: Sequence[Sequence[str | float | datetime | None]]) -> bytes:
-    """An Excel workbook of one sheet. openpyxl dates its parts with the clock; they are dated 2026-01-01 instead,
-    so that the same rows always make the same bytes."""
+    """An Excel workbook of one sheet. openpyxl dates the workbook and its zip entries with the time of saving; they
+    are dated 2026-01-01 instead, so that the same rows always make the same bytes."""
     import openpyxl
 
     book = openpyxl.Workbook()
@@ -209,13 +210,14 @@ def xlsx_file(sheet: str, rows: Sequence[Sequence[str | float | datetime | None]
     page.title = sheet
     for row in rows:
         page.append(list(row))
-    book.properties.created = book.properties.modified = datetime(2026, 1, 1)
+    book.properties.created = datetime(2026, 1, 1)
     written = io.BytesIO()
     book.save(written)
     out = io.BytesIO()
     with zipfile.ZipFile(written) as source, zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as target:
         for info in source.infolist():
-            target.writestr(
-                zipfile.ZipInfo(info.filename, (2026, 1, 1, 0, 0, 0)), source.read(info), zipfile.ZIP_DEFLATED
-            )
+            data = source.read(info)
+            if info.filename == "docProps/core.xml":
+                data = re.sub(rb"(<dcterms:modified[^>]*>)[^<]*", rb"\g<1>2026-01-01T00:00:00Z", data)
+            target.writestr(zipfile.ZipInfo(info.filename, (2026, 1, 1, 0, 0, 0)), data, zipfile.ZIP_DEFLATED)
     return out.getvalue()

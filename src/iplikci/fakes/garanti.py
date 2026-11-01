@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from ..domain.labels import MONTHS, format_amount
 from ..domain.text import fold
-from . import HOLDER, CardRow, Move, charged, with_balances
+from . import HOLDER, CardRow, Move, Specimen, charged, with_balances
 from .files import Cell, Run, right, text_pdf, xls_file
 
 
@@ -321,3 +321,81 @@ def account_xls(
         for m, balance in with_balances(moves, opening)
     ]
     return xls_file("Hesap Hareketleri", head + rows[::-1])
+
+
+def brokerage_statement() -> bytes:
+    """The June 2026 statement of brokerage account 1234567-101: two securities and the month-end totals on the
+    holdings page, and on the cash page a dividend that came in and went on to the bank account."""
+    held = [("ORNEK", "ÖRNEK SANAYİ A.Ş.", "20.000", "1,234.50"), ("DENEM", "DENEME HOLDİNG", "5.000", "100.00")]
+    cash = brokerage_page("Hesap Ekstresi", "1234567-101", "30/06/2026") + [
+        (43, 140, "Dönemi : 01/06/2026 - 30/06/2026"),
+        (54, 242, "Tarih"),
+        (196, 242, "Açıklama"),
+        (381, 242, "İşlem"),
+        (487, 242, "Kalan"),
+        (40, 262, "03/06/2026"),
+        (99, 262, "Devir 1234567-101 Cari TRY Bakiye Hareketleri"),
+        right(445, 262, "+0.00"),
+        right(550, 262, "0.00"),
+        (40, 272, "03/06/2026"),
+        (99, 272, "ORNEK.E Temettü 20 Adet Temettü Oranı : 50.00000000"),
+        right(445, 272, "+10.00"),
+        right(550, 272, "10.00"),
+        (40, 283, "03/06/2026"),
+        (99, 283, "ORNEK.E Temettü 20 Adet Temettü Oranı : 50.00000000-1234567-101"),
+        right(445, 283, "-10.00"),
+        right(550, 283, "0.00"),
+    ]
+    return text_pdf(holdings_page("30/06/2026", held, "1,334.50", "1,334.50"), cash)
+
+
+def trade_form(holder: str = HOLDER) -> bytes:
+    """A Garanti BBVA Yatırım "İşlem Sonuç Formu": ten ORNEK shares sold at 12,34 TL on 1 July 2024, 1,000 TL of
+    costs."""
+    return text_pdf(
+        [
+            (36, 72, "Garanti Yatırım Menkul Kıymetler A.Ş."),
+            (36, 118, "www.garantibbvayatirim.com.tr"),
+            (248, 151, "İŞLEM SONUÇ FORMU"),
+            (36, 171, "Müşteri Adı"),
+            (113, 171, ":"),
+            (121, 171, holder),
+            (302, 171, "Şube"),
+            (379, 171, ":"),
+            (387, 171, "XYZ"),
+            (36, 182, "Müşteri No"),
+            (113, 182, ":"),
+            (121, 182, "1234567-101"),
+            (36, 192, "Ait Olduğu Tarih"),
+            (113, 192, ":"),
+            (121, 192, "01.07.2024"),
+            (36, 214, "Belge Sıra No"),
+            (113, 214, ":"),
+            (121, 214, "99887766"),
+            (39, 273, "01.07.2024"),
+            (106, 273, "ORNEK"),
+            (160, 273, "SATIŞ"),
+            (270, 273, "10,000"),
+            (315, 273, "12,340"),
+            (357, 273, "123,400"),
+            (432, 273, "1,000"),
+            (479, 273, "MOBIL"),
+            (39, 365, "GENEL TOPLAM"),
+            (537, 365, "1,000"),
+        ]
+    )
+
+
+def specimens() -> list[Specimen]:
+    fast = receipt(
+        "HESAPTAN FAST", "106/1234567", HOLDER, fast_body("EKİM KİRA ÖDEMESİ", "VELİ ÖRNEKSOY"), "- 500,00 TL"
+    )
+    brokerage = "garanti-yatirim-1234567-101"
+    return [
+        Specimen("garanti-bonus-ekstre.pdf", bonus_statement(), "garanti.bonus_card", "garanti-1234", 11),
+        Specimen("garanti-paracard-cetvel.pdf", paracard_statement(), "garanti.paracard", "garanti-4321", 4),
+        Specimen("garanti-hesap-hareketleri.xls", account_xls(), "garanti.account_xls", "garanti-1234567", 7),
+        Specimen("garanti-fast-dekont.pdf", fast, "garanti.receipt", "garanti-1234567", 2),
+        Specimen("garanti-yatirim-ekstre.pdf", brokerage_statement(), "garanti.brokerage", brokerage, 2),
+        Specimen("garanti-yatirim-islem-sonuc-formu.pdf", trade_form(), "garanti.brokerage", brokerage, 2),
+    ]

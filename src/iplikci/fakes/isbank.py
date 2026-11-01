@@ -1,11 +1,11 @@
-"""İş Bankası's documents: the Maximum card statement and the account list."""
+"""İş Bankası's documents: the Maximum card statement, the account list, the FAST receipt and the e-cüzdan."""
 
 from collections.abc import Sequence
 from datetime import date, timedelta
 from decimal import Decimal
 
 from ..domain.labels import format_amount
-from . import HOLDER, CardRow, Move, charged, with_balances
+from . import HOLDER, CardRow, Move, Specimen, charged, with_balances
 from .files import Cell, Run, right, text_pdf, xls_file
 
 _DATE_X, _TEXT_X, _AMOUNT_X1, _INSTALLMENT_X, _POINTS_X = 40, 100, 400, 410, 520
@@ -129,3 +129,106 @@ def account_xls(
         for n, ((m, balance), (_, kind)) in enumerate(zip(balanced, moves, strict=True), 1)
     ]
     return xls_file("Hesap Özeti", head + rows[::-1])
+
+
+# --- receipts and passbooks -------------------------------------------------------------------------------------
+
+
+def fast_receipt(holder: str = HOLDER) -> bytes:
+    """An İş Bankası receipt of a FAST sent from account 1234-0123456 on 8 February 2024: 8.400,00 TRY of rent to
+    Veli Örneksoy at Yapı Kredi and an 8,86 TRY fee, the sender's side on the left and the receiver's on the
+    right."""
+    return text_pdf(
+        [
+            (6, 78, holder),
+            (301, 78, "İşlem Yeri"),
+            (397, 78, ":"),
+            (402, 78, "MOBİL BANKACILIK"),
+            (301, 89, "İşlem Tarihi"),
+            (397, 89, ":"),
+            (402, 89, "08.02.2024 / 14:32:05"),
+            (6, 100, "Müşteri No"),
+            (67, 100, ":"),
+            (72, 100, "111222333"),
+            (301, 122, "Belge No"),
+            (397, 122, ":"),
+            (402, 122, "100000000001"),
+            (6, 167, "Giden Fast İşlemi"),
+            (6, 178, "IBAN"),
+            (122, 178, ":"),
+            (130, 178, "TR00 0006 4000 0011 2340 1234 56"),
+            (298, 178, "Sorgu Numarası"),
+            (370, 178, ":"),
+            (378, 178, "1234567890"),
+            (6, 189, "İşlem Tutarı"),
+            (122, 189, ":"),
+            (130, 189, "8.400,00 TRY"),
+            (298, 189, "Alıcı Banka"),
+            (370, 189, ":"),
+            (378, 189, "67 - Yapı ve Kredi Bankası A.Ş."),
+            (6, 200, "FAST Ücreti ve Vergi"),
+            (122, 200, ":"),
+            (130, 200, "8,86 TRY"),
+            (298, 200, "Alıcı IBAN"),
+            (370, 200, ":"),
+            (378, 200, "TR00 0006 7010 0000 0012 3456 78"),
+            (6, 211, "Toplam İşlem Tutarı"),
+            (122, 211, ":"),
+            (130, 211, "8.400,00 TRY"),
+            (298, 211, "Alıcı Isim\\Unvan"),
+            (370, 211, ":"),
+            (378, 211, "Veli Örneksoy"),
+            (6, 266, "Açıklama"),
+            (64, 266, ":"),
+            (81, 266, "2024 Şubat Kira Ödemesi"),
+        ]
+    )
+
+
+def passbook(holder: str = HOLDER) -> bytes:
+    """The e-cüzdan of a 31-day term deposit, 1234-0765432, opened on 17 January 2024 with 7.500,00 TL from
+    the current account: the account on the first page, its rows newest first on the second."""
+    return text_pdf(
+        [
+            (276, 61, "e-CÜZDAN"),
+            (310, 105, "Müşteri Adı / Numarası :"),
+            (310, 113, f"{holder} / 111222333"),
+            (310, 169, "Hesap No: 1234-0765432"),
+            (310, 177, "IBAN: TR00 0006 4000 0011 2340 7654 32"),
+            (310, 185, "Hesap Türü: Vadeli (31 gün)"),
+            (310, 209, "Para Birimi: TL"),
+            (310, 217, "Açılış Tarihi: 17/01/2024"),
+        ],
+        [
+            (31, 39, "#"),
+            (71, 39, "Tarih"),
+            (145, 39, "Açıklama"),
+            (330, 39, "Yatan(+) / Çekilen(-)"),
+            right(461, 39, "Tutar"),
+            right(577, 39, "Kalan"),
+            (31, 50, "1"),
+            (51, 50, "17/01/2024-10:42:08"),
+            (145, 50, "CÜZDAN VERME"),
+            right(461, 50, "0,00"),
+            right(577, 50, "7.500,00"),
+            (31, 60, "2"),
+            (51, 60, "17/01/2024-10:42:07"),
+            (145, 60, "HESAP AÇMA İŞLEMİ 1234:0123456 -> 1234:0765432"),
+            right(461, 60, "7.500,00"),
+            right(577, 60, "7.500,00"),
+            (31, 70, "3"),
+            (51, 70, "17/01/2024-10:42:07"),
+            (145, 70, "HESABA 111222333 NOLU MÜŞTERİ EKLENDİ."),
+            right(461, 70, "0,00"),
+            right(577, 70, "0,00"),
+        ],
+    )
+
+
+def specimens() -> list[Specimen]:
+    return [
+        Specimen("isbank-maximum-ekstre.pdf", maximum_statement(), "isbank.maximum_card", "isbank-1234", 8),
+        Specimen("isbank-hesap-ozeti.xls", account_xls(), "isbank.account_xls", "isbank-1234-0123456", 6),
+        Specimen("isbank-fast-dekont.pdf", fast_receipt(), "isbank.receipt", "isbank-1234-0123456", 2),
+        Specimen("isbank-e-cuzdan.pdf", passbook(), "isbank.passbook", "isbank-1234-0765432", 1),
+    ]

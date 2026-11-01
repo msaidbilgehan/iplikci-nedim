@@ -1,10 +1,11 @@
-"""QNB's documents: the card statement and the account list as PDF exports."""
+"""QNB's documents: the card statement and the account list as PDF exports, and the e-dekont of a transfer."""
 
+import textwrap
 from collections.abc import Sequence
 from datetime import date, timedelta
 from decimal import Decimal
 
-from . import HOLDER, CardRow, Move, charged
+from . import HOLDER, CardRow, Move, Specimen, charged
 from .files import Run, right, text_pdf
 
 # QNB prints its rows in a font with no Unicode map for Turkish letters: pdfminer shows each as "(cid:N)". The
@@ -142,3 +143,54 @@ def account_pdf(
         runs.append((40, 800, f"Sayfa {i + 1} / {len(pages)}"))
         out.append(runs)
     return text_pdf(*out)
+
+
+# --- e-dekont ---------------------------------------------------------------------------------------------------
+
+_TRANSFER = (
+    "QNB Bank A.Ş. DEKONT {holder} Müşteri No 100000001 İşlem Yeri HAZİNE MUHASEBELEŞME ŞUBESİ "
+    "İşlem Tarihi {day:%d/%m/%Y} 15:22:04 Aşağıdaki hesap/kredi kartınızda karşılarında gösterilen hareketler "
+    "gerçekleştirilmiştir. Hesap/K.Kart No IBAN Açıklama B/A Para Cinsi TUTAR "
+    "TR000011100000000012345678 {row} TL {amount} {block} SORGU NO: 1 Sıra No 00344-0 Fiş No : {number}"
+)
+# A FAST received from Ayşe Soyadoğlu at Garanti BBVA ("A", alacak) and one sent to Veli Örneksoy ("B", borç).
+INCOMING = (
+    "Gönderen: AYŞE SOYADOĞLU A",
+    (
+        "GELEN FAST EFT AÇIKLAMA: kk ödemesi GÖNDEREN : AYŞE SOYADOĞLU HESAP NO: 12345678 "
+        "KATILIMCI: Türkiye Garanti Bankası A.Ş."
+    ),
+)
+OUTGOING = ("GİDEN FAST EFT B", "AÇIKLAMA: kira ALICI : VELİ ÖRNEKSOY IBAN: TR000006700000000000000001")
+
+
+def transfer_text(
+    side: tuple[str, str] = INCOMING,
+    amount: Decimal = Decimal(2400),
+    day: date = date(2026, 11, 3),
+    number: str = "202611000000001",
+    holder: str = HOLDER,
+) -> str:
+    """The text of a QNB e-dekont of a transfer on account 12345678: side is its row and the block that names
+    the other side (INCOMING, OUTGOING); number is its "Fiş No"."""
+    row, block = side
+    return _TRANSFER.format(holder=holder, day=day, row=row, amount=f"{amount:,.2f}", block=block, number=number)
+
+
+def transfer_receipt(side: tuple[str, str] = INCOMING, amount: Decimal = Decimal(2400)) -> bytes:
+    """A QNB e-dekont of a transfer as a PDF, its text wrapped at a hundred characters."""
+    return text_pdf([(20, 40 + 12 * i, line) for i, line in enumerate(textwrap.wrap(transfer_text(side, amount), 100))])
+
+
+def transfer_receipt_html(side: tuple[str, str] = OUTGOING, amount: Decimal = Decimal(2400)) -> bytes:
+    """A QNB e-dekont of a transfer as the HTML of its e-mail."""
+    return f"<html><body><p>{transfer_text(side, amount)}</p></body></html>".encode()
+
+
+def specimens() -> list[Specimen]:
+    return [
+        Specimen("qnb-kart-ekstre.pdf", card_statement(), "qnb.card_pdf", "qnb-1234", 6),
+        Specimen("qnb-hesap-hareketleri.pdf", account_pdf(), "qnb.account_pdf", "qnb-12345678", 6),
+        Specimen("qnb-gelen-fast-dekont.pdf", transfer_receipt(), "qnb.edekont", "qnb-12345678", 1),
+        Specimen("qnb-giden-fast-dekont.html", transfer_receipt_html(), "qnb.edekont", "qnb-12345678", 1),
+    ]
