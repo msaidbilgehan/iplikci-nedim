@@ -454,6 +454,30 @@ yazılır (ADR-0014), SSE ile arayüze iletilir ve bildirim kurallarına girer.
 | `parser.format_alarm`, `mail.auth_failed`, `mail.bridge_alarm`, `mail.bridge_silent`, `backup.failed` | sistem olayları: okuyucu biçim alarmı; e-posta girişi reddedildi; eklentinin bir katmanı Gmail'in sayfasını tanımadı; eklenti bir gündür görünmedi; yedek alınamadı |
 | `bridge.paired`, `bridge.revoked` | tarayıcı eklentisi eşleşti / eşleşmesi iptal edildi (denetim kaydına da yazılır) |
 
+Aşama 5'in olaylarını her analizden sonra `feed/news.py` bulur. `target` bildirimin tekrar engelinin anahtarıdır,
+`detail` bildirim metninin değerleridir. Tutarlar iki ondalıklı TL metnidir ("1234.56"; çıkan para artı, defterin
+saydığı gibi), tarihler ISO biçimindedir. `title` kullanıcının tanıdığı addır (işyeri, alıcı, ödeyen, satıcı ya da
+hesap), `account` hesap kimliğidir (bilinmiyorsa "").
+
+| Olay | `target` | `detail` |
+|---|---|---|
+| `payment.due_soon` | `tür\|hesap\|başlık\|gün` | `payment` (`PaymentKind`), `title`, `account`, `due`, `days`, `amount`; kart son ödemesinde `minimum` |
+| `balance.forecast_negative` | `hesap\|gün` | `account`, `title` (hesabın adı), `day`, `days` (analiz gününden), `balance` (o günün tahmini bakiyesi) |
+| `expected_payment.missing` | `seri\|beklenen gün` | `title`, `expected`, `amount`, `period` (`SeriesPeriod`: `month`, `half_year`, `year`) |
+| `income.late` | `seri\|beklenen gün` | `title`, `expected`, `amount` |
+| `subscription.price_changed` | `seri\|yeni fiyatın ilk günü` | `title`, `old`, `new`, `since` |
+| `subscription.paid_after_cancel` | `seri\|iptalden sonraki son ödemenin günü` | `title`, `amount`, `date`, `cancelled` (`YYYY-AA`) |
+| `income.received`, `transaction.large` | satırın parmak izi | `title`, `amount` (gelir de artı), `account`, `date` |
+| `evidence.unmatched` | satırın parmak izi | `title`, `amount`, `account`, `date`; döviz hesabının satırı belgedeki en yakın kurla TL'dir, kur yoksa tutar hesabın para birimindedir ve `currency` onu söyler |
+
+- Seri, ilk ödemesinin parmak iziyle anılır (`upcoming.series_id`; API de böyle anar): aylık, dönemsel ve gelir
+  serilerinde aynıdır.
+- Bir türden 50'den fazla olay aynı anda çıkarsa o türün tek olayı olur: `target` boştur, `detail` `{"count": n}`'dir.
+- Her olay bir kez söylenir. Anlık görüntü söylediği ya da yalnızca not ettiği her durumu, en son bulunduğu günden bir
+  yıl sonrasına kadar hatırlar. Bu türleri tutmayan eski bir anlık görüntüden sonra ilk analiz onları yalnızca not
+  eder.
+- Eşikler ve kurallar [domain/interpretation.md](../domain/interpretation.md)'nin "Akış olayları" bölümündedir.
+
 Akış ekranı bu olayları ve "şu an" özetini (tahmini bakiyeler, ay içi tempo, beklenen olaylar) gösterir.
 
 ## 14. Bildirimler

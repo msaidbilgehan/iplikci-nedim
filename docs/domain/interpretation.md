@@ -169,6 +169,46 @@ nedenleri arasında sayılmaz.
   - Krediler, e-dekontlardaki taksit bilgisinden gösterilir; kalan anapara bilinmiyorsa "bilinmiyor" yazar.
 - **Çoklu para birimi:** varlıklar aynı günün kurlarıyla EUR, USD ve gram altın cinsinden de gösterilir.
 
+## Akış olayları
+
+Her analizden sonra akış, bildirim kurallarının eşleştiği olayları üretir (mimari §13; `feed/news.py`). Her olay bir
+kez söylenir; ilk analiz yalnızca not eder.
+
+- **Yaklaşan ödeme** (`payment.due_soon`)
+  - Takvimin giden kalemleri: kart son ödemesi, banka dışı fatura, kredi ve kart taksidi, düzenli ve dönemsel ödeme.
+    Gelir hiçbir zaman.
+  - Gününe 7, 3, 1 ve 0 gün kala söylenir; her eşik bir kez. Kalan günün girdiği en dar eşik söylenir: servis kapalı
+    kaldıysa atlanan eşikler sonradan söylenmez.
+- **Eksiye düşen hesap** (`balance.forecast_negative`)
+  - Nakit akışı öngörüsünde bir TL hesabın eksiye düştüğü ilk gün.
+  - Hesap önceki analizde eksiye düşmüyorduysa ya da gün öne geldiyse söylenir.
+  - Gün yalnızca ileri kaydıysa yeni haber değildir. Yeni belge gelmedikçe her günün öngörüsü aynı bakiyeden başlar;
+    günlere yayılan çıkışların belirlediği gün her gün bir ileri kayar.
+- **Gelmeyen ödeme ve gecikmiş gelir** (`expected_payment.missing`, `income.late`)
+  - Serinin son iki ödemesinin görüldüğü hesapların belgeleri, beklenen günü ve serinin payını ödemesiz geçmiştir:
+    payın son gününde ya da sonra biten bir döküm ya da ekstre, ya da daha sonraki bir günün dekontu ya da bildirimi
+    vardır.
+  - Beklenen gün, takvimin ve Abonelikler ekranının gösterdiği gündür; pay, serinin durum kuralındaki paydır
+    (`Series.grace`).
+  - Belgeler o günleri geçmedikçe söylenmez. Kartla ya da aylık dökümü olan bir hesaptan yapılan ödeme yapılmış
+    olabilir: ekstresi ya da dökümü henüz gelmemiştir. Belgeler payı geçince seri `bitti` olur; olay yine söylenir.
+  - İptal edilmiş seri beklenmez.
+  - Payı 60 günden (takvimin ileri baktığı kadar) önce bitmiş bir ödeme geçmiştir, haber değildir: eski belgeler
+    sonradan gelse de söylenmez.
+- **Zam ve iptalden sonra ödeme**
+  - `subscription.price_changed`: süren bir serinin yeni fiyatı (fiyat değişimi kuralı yukarıda), yeni fiyatın ilk
+    ödemesinin günüyle.
+  - `subscription.paid_after_cancel`: iptal edilmiş serinin iptal ayından sonraki en son ödemesi; daha yeni bir ödeme
+    yeniden söylenir.
+- **Gelen gelir** (`income.received`): bir gelir serisinin yeni satırı.
+- **Büyük harcama** (`transaction.large`)
+  - Seri dışındaki tek bir alışveriş, büyük alışveriş eşiğinden büyük ya da eşitse: ≥ max(5.000 TL, ortalama ayın
+    %10'u) ("Tahmin"; `insights.large_purchase_threshold`).
+  - Yalnızca analiz gününden en çok 7 gün önceki satırlar haberdir. Daha eski bir satırı getiren ekstre ya da içe
+    aktarma bildirim yağdırmaz.
+- Dekontu ya da bildirimi zaten bilinen bir hareketi doğrulayan ekstre satırı yeni bir gelir ya da büyük harcama
+  değildir: aynı para ikinci kez söylenmez.
+
 ## Ay sonu kapanışı
 
 Kullanıcı her ayın ekstreleriyle kapanmasını ve her ay için bir rapor istiyor. Dekontlardan bilinen transferler
