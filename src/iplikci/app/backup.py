@@ -32,7 +32,7 @@ from pathlib import Path
 from typing import Any
 
 from .. import __version__
-from ..domain.codes import Actor, BackupReason
+from ..domain.codes import Actor, BackupReason, DocumentStatus
 from ..settings import config
 from ..settings.paths import Layout, write_private
 from ..storage import audit, documents
@@ -322,7 +322,9 @@ def next_due(last: datetime | None, now: datetime) -> datetime:
 
 def prune(ws: Workspace, now: datetime | None = None) -> list[str]:
     """Delete the backups older than keep_days days (the newest always stays), the originals no kept backup needs,
-    and half-made backups a stop left behind; the names of the backups deleted."""
+    and half-made backups a stop left behind; the names of the backups deleted. An original goes only when the
+    archive holds it too or the document was removed through the program (to the Trash): the copy of a document the
+    archive lost may be the only one left, and documents are never deleted for good."""
     now = now or datetime.now(UTC)
     root = folder(ws)
     keep_days = config.load(ws.layout.settings).backup.keep_days
@@ -334,10 +336,19 @@ def prune(ws: Workspace, now: datetime | None = None) -> list[str]:
             _delete(b.path)
         gone = {b.name for b in expired}
         needed = {sha for b in backups if b.name not in gone for sha in b.objects}
+        with ws.db() as db:
+            removed = {d.sha256 for d in documents.every(db, [DocumentStatus.REMOVED])}
         store = _store(root)
+        lost = 0
         for sha256 in list(store.objects()):
-            if sha256 not in needed:
-                _delete(store.path(sha256))
+            if sha256 in needed:
+                continue
+            if not ws.vault.has(sha256) and sha256 not in removed:
+                lost += 1
+                continue
+            _delete(store.path(sha256))
+        if lost:
+            log.warning("%d originals the archive no longer holds are kept in the backups' store", lost)
         for half in root.glob(f"{_WORK}*") if root.is_dir() else ():
             if half.stat().st_mtime < now.timestamp() - 24 * 3600:
                 _delete(half)

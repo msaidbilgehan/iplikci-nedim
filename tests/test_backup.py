@@ -15,13 +15,14 @@ from iplikci.api.context import Context
 from iplikci.app import annotate, background, backup, rebuild
 from iplikci.app.analysis import analyze
 from iplikci.app.workspace import Workspace
-from iplikci.domain.codes import Actor, BackupReason, Necessity
+from iplikci.domain.codes import Actor, BackupReason, DocumentStatus, Necessity
 from iplikci.fakes import teb
 from iplikci.jobs import schedule
 from iplikci.service import instance
 from iplikci.settings import config
 from iplikci.settings.config import SettingsError
 from iplikci.storage import annotations, audit, db, documents, events
+from iplikci.vault.store import sha256_of
 
 from conftest import FEBRUARY, JANUARY, add
 
@@ -85,12 +86,26 @@ def test_fourteen_days_are_kept_and_the_newest_always_stays(kept):
     old = backup.take(kept, now=NOW - timedelta(days=20))
     with kept.db() as database:
         [doc] = documents.every(database)
-    kept.vault.remove(doc.sha256)  # its original leaves the archive; only the old backup needs it now
+        documents.set_status(database, doc.sha256, DocumentStatus.REMOVED, "kullanıcı kaldırdı")
+    kept.vault.remove(doc.sha256)  # removed through the program, to the Trash: only the old backup needs it now
     recent = backup.take(kept, now=NOW - timedelta(days=3))
     assert backup.prune(kept, now=NOW) == [old.name]
     assert backup.every(kept) == [recent]
     assert list((kept.layout.backups / "vault" / "objects").rglob(doc.sha256)) == []
     assert backup.prune(kept, now=NOW + timedelta(days=30)) == []  # the newest stays, however old
+
+
+def test_the_backups_keep_the_only_copy_of_an_original_the_archive_lost(kept):
+    old = backup.take(kept, now=NOW - timedelta(days=20))
+    with kept.db() as database:
+        [doc] = documents.every(database)
+    path = kept.vault.path(doc.sha256)
+    os.chmod(path, 0o600)
+    path.unlink()  # lost outside the program: the backups' copy is the only one left
+    backup.take(kept, now=NOW - timedelta(days=3))
+    assert backup.prune(kept, now=NOW) == [old.name]
+    [copy] = (kept.layout.backups / "vault" / "objects").rglob(doc.sha256)
+    assert sha256_of(copy.read_bytes()) == doc.sha256
 
 
 def test_a_restore_in_place_can_be_undone(kept):
