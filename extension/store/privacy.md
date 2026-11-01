@@ -9,7 +9,9 @@ Eklenti, tarayıcıdaki açık Gmail oturumuyla yalnızca şunları okur:
 - Gmail'in gelen kutusu akışını, yani en yeni okunmamış iletilerin listesini;
 - İplikçi Nedim'de listesi tutulan bankaların iletilerini, Gmail'in "Orijinali göster" sayfasından; eki olan bir
   iletinin tamamını "Orijinali indir" ile, Gmail'in ek sunucusundan (mail-attachment.googleusercontent.com);
-- "Gmail'de eksikleri tara" sırasında, eklentinin açtığı sekmedeki arama listesinden yalnızca konuşma kimliklerini.
+- "Gmail'de eksikleri tara" sırasında, eklentinin açtığı sekmedeki arama listesinden yalnızca konuşma kimliklerini ve
+  konuşmanın okunup okunmadığını; baştan sona okunmuş bir konuşmanın yazdırma görünümünden yalnızca ekli iletilerin
+  kimliklerini ve göndericilerin alan adlarını.
 
 Gmail'de hiçbir şey değişmez: iletiler okundu işaretlenmez, taşınmaz, etiketlenmez ve silinmez.
 
@@ -43,8 +45,9 @@ Sorular için: projenin sahibine, eklentinin mağaza sayfasındaki geliştirici 
 The Chrome extension "İplikçi Nedim Köprüsü" reads, with the browser's signed-in Gmail session, only the inbox feed,
 the "Show original" page of messages from the bank senders the local İplikçi Nedim app lists (and, for a message
 with attachments, the whole message through "Download original", from Gmail's attachment server), and, during a "scan
-Gmail for missing mail", the conversation ids of the search list in a tab it opens. Nothing in Gmail changes: no
-message is marked read, moved, labelled or deleted.
+Gmail for missing mail", the conversation ids of the search list in a tab it opens, whether each conversation is
+read, and, from the print view of a conversation read throughout, only the ids of its messages with attachments and
+their senders' domains. Nothing in Gmail changes: no message is marked read, moved, labelled or deleted.
 
 What it reads goes only to the İplikçi Nedim app on the same computer (127.0.0.1). It sends no data to any other
 server, and has no analytics, ads, tracking or remote code. The browser keeps only the pairing token, which Gmail

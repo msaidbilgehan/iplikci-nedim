@@ -1,16 +1,21 @@
 /**
  * "Gmail'de eksikleri tara", ADR-0016's way for the history and for missed mail when the full scan (layer 2) does not
  * answer. A tab opens Gmail's search for the listed banks' messages from the start day on; the collector reads the
- * conversations page by page and the tab closes. The service says which of the messages it lacks; those are
- * downloaded through "Show original" (layer 3) and delivered, oldest first, a second apart. Nothing in Gmail changes:
- * no conversation is opened, so nothing is marked read. Where the scan stands is kept for the extension's window; a
- * scan cut short goes on from what the service holds when it is started again. A finished scan tells the service what
- * it searched: the history is scanned again only when the start day or the senders change.
+ * conversations page by page and the tab closes. The list names a conversation's first and last message; for one it
+ * shows read throughout, the print view names the messages in between that have attachments. The service says which
+ * of the messages it lacks; those are downloaded through "Show original" (layer 3) and delivered, oldest first, a
+ * second apart. Nothing in Gmail changes: no conversation is opened, and the print view of one with an unread message
+ * is never asked for, so nothing is marked read. Where the scan stands is kept for the extension's window; a scan cut
+ * short goes on from what the service holds when it is started again. A finished scan tells the service what it
+ * searched: the history is scanned again only when the start day or the senders change.
  */
 
+import { FormatError } from "../gmail/errors";
 import { HttpError, Redirected } from "../gmail/http";
 import { type Conversation, type ListPage, searchHash, searchQuery, searchUrl } from "../gmail/list";
+import { type PrintedMessage, readPrint } from "../gmail/print";
 import { decimalId } from "../gmail/search";
+import { listed } from "../mail/headers";
 import { type Cursor, MAX_MESSAGE_BYTES, type Paired, cursor, missing, prove, scanned } from "./service";
 import type { ScanSummary, Store } from "./state";
 import {
@@ -80,6 +85,7 @@ export async function scanGmail(env: ScanEnvironment, store: Store): Promise<Sca
     delivered: 0,
     unshown: 0,
     between: 0,
+    betweenUnread: 0,
     detail: "Gmail'de aranıyor…",
   };
   const report: Report = async (patch) => {
@@ -110,13 +116,16 @@ export async function scanGmail(env: ScanEnvironment, store: Store): Promise<Sca
   }
   try {
     const found = await search(env, report, state.account, searchQuery(where.senders, where.startDay));
-    const ids = messageIds(found);
+    const inside = await middles(env, store, report, state.account, found, where.senders);
+    const ids = messageIds(found, inside.ids);
     const lacking = (await missing(env.service, paired, ids)).filter((id) => !state.skipped.includes(id));
+    const conversations = [...found.values()];
     await report({
       phase: "downloading",
       found: ids.length,
       missing: lacking.length,
-      between: between(found),
+      between: Math.max(0, between(conversations) - inside.named),
+      betweenUnread: between(conversations.filter((c) => !c.read)),
       detail: lacking.length === 0 ? "Eksik ileti yok." : `${lacking.length} eksik ileti indiriliyor…`,
     });
     await download(env, store, report, paired, state.account, lacking);
@@ -214,11 +223,52 @@ async function download(
 }
 
 /**
- * The messages the conversations name, in decimal and oldest first (Gmail's ids grow with time): each conversation's
- * first message, which carries the conversation's id, and its last.
+ * The messages in the middle of the conversations the list shows read throughout, from each one's print view: the
+ * ids (decimal) of those with an attachment from a listed sender, and how many messages in the middle it named in
+ * all. A print view Gmail shows otherwise than the scan knows leaves the rest of the middles out of reach.
  */
-function messageIds(found: ReadonlyMap<string, Conversation>): string[] {
-  const ids = new Set<string>();
+async function middles(
+  env: ScanEnvironment,
+  store: Store,
+  report: Report,
+  account: number,
+  found: ReadonlyMap<string, Conversation>,
+  senders: readonly string[],
+): Promise<{ ids: string[]; named: number }> {
+  const ids: string[] = [];
+  let named = 0;
+  const read = [...found.values()].filter((c) => c.read && between([c]) > 0);
+  if (read.length > 0) {
+    await report({ detail: "Konuşmaların ortasındaki iletilere bakılıyor…" });
+  }
+  for (const c of read) {
+    await env.sleep(PACE_MS);
+    const ik = await accountKey(env, store, account);
+    let printed: PrintedMessage[];
+    try {
+      printed = await readPrint(env.gmail, account, c.thread, ik);
+    } catch (error) {
+      if (error instanceof FormatError) {
+        break;
+      }
+      throw error;
+    }
+    for (const m of printed.filter((p) => p.id !== c.thread && p.id !== c.last)) {
+      named += 1;
+      if (listed(m.senderDomain, senders)) {
+        ids.push(decimalId(m.id));
+      }
+    }
+  }
+  return { ids, named };
+}
+
+/**
+ * The messages the scan names, in decimal and oldest first (Gmail's ids grow with time): each conversation's first
+ * message, which carries the conversation's id, its last, and those in the middle its print view named.
+ */
+function messageIds(found: ReadonlyMap<string, Conversation>, inside: readonly string[]): string[] {
+  const ids = new Set<string>(inside);
   for (const c of found.values()) {
     ids.add(decimalId(c.thread));
     ids.add(decimalId(c.last));
@@ -226,10 +276,10 @@ function messageIds(found: ReadonlyMap<string, Conversation>): string[] {
   return [...ids].sort((a, b) => (BigInt(a) < BigInt(b) ? -1 : BigInt(a) > BigInt(b) ? 1 : 0));
 }
 
-/** The messages between a conversation's first and last that the list does not name, where it shows a count. */
-function between(found: ReadonlyMap<string, Conversation>): number {
+/** The messages between the conversations' first and last that the list does not name, where it shows a count. */
+function between(conversations: readonly Conversation[]): number {
   let count = 0;
-  for (const c of found.values()) {
+  for (const c of conversations) {
     count += Math.max(0, c.count - (c.thread === c.last ? 1 : 2));
   }
   return count;
@@ -244,12 +294,23 @@ function finished(summary: ScanSummary): string {
     summary.missing === 0
       ? `${found}; hepsi İplikçi Nedim'de.`
       : `${found}; eksik ${summary.missing} iletiden ${summary.delivered} tanesi teslim edildi.`;
-  const unshown = unshownSentence(summary.unshown);
-  if (summary.between === 0) {
-    return `${result}${unshown}`;
-  }
-  const reason = "konuşmayı açmak iletilerini okundu yapar";
-  return `${result}${unshown} Konuşmaların ortasındaki ${summary.between} ileti bu yolla alınamaz: ${reason}.`;
+  return `${result}${unshownSentence(summary.unshown)}${betweenSentence(summary.between, summary.betweenUnread)}`;
+}
+
+/** The messages in the middle of conversations the scan could not name, and why. */
+function betweenSentence(between: number, unread: number): string {
+  const unnamed = between - unread;
+  const inRead =
+    unnamed > 0
+      ? ` Konuşmaların ortasındaki ${unnamed} ileti alınamadı: Gmail, eki olmayan iletilerin kimliğini konuşma ` +
+        "açılmadan göstermiyor."
+      : "";
+  const inUnread =
+    unread > 0
+      ? ` Okunmamış konuşmaların ortasındaki ${unread} ileti alınamadı: konuşmayı açmak iletilerini okundu yapar. ` +
+        "Gmail'de okuduğunuz konuşmaların ekli iletileri sonraki taramada alınır."
+      : "";
+  return `${inRead}${inUnread}`;
 }
 
 async function scanTrouble(

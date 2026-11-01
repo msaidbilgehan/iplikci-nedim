@@ -49,6 +49,9 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
     Gmail'in ek sunucusundan (`mail-attachment.googleusercontent.com`, yeni izin, eklenti 0.4.0) tam ve bayt bayt
     alınır. Servis ekleri boş saklanmış iletileri taramada yeniden ister; tam hâli gelince eksik kopya çöp kutusuna
     gider.
+  - Konuşmaların ortası: liste bir konuşmanın yalnızca ilk ve son iletisini gösterir. Baştan sona okunmuş bir
+    konuşmanın ortasındaki ekli iletiler, konuşmanın yazdırma görünümünden alınır; okunmamış konuşmalarınki istenmez.
+    Rapor, eki olmayan ve okunmamış konuşmalarda kalan iletileri ayrı sayar.
   - Servisin almadığı iletiler Gmail kimliği ve nedeniyle hatırlanır. Ayarlar değişmedikçe yeniden indirilmezler.
     Sistem ekranı onları nedenleriyle sayar: listede olmayan gönderici, şirket iletisi ya da güven kuralının gördüğü
     (DMARC sonucu yok, "pass" değil, başka bir alan adı için geçti…).

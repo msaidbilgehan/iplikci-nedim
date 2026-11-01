@@ -194,7 +194,22 @@ Sonuca göre:
     eklememiş, DMARC sonucu yok, DMARC sonucu "pass" değil ya da DMARC başka bir alan adı için geçti. Sistem ekranı
     alınmayan iletileri nedenleri ve alan adlarıyla sayar.
   - Bir konuşmayı açmak iletilerini okundu yapar, bu yüzden tarama hiçbir konuşmayı açmaz. Liste bir konuşmanın ilk
-    (konuşmanın kimliği) ve son iletisini adlandırır; aradakiler bu yolla alınamaz ve raporda sayılır.
+    (konuşmanın kimliği) ve son iletisini adlandırır.
+  - **Konuşmaların ortası** (2026-11-01): ilk gerçek taramada bazı konuşmaların ortasında ileti kaldı. Bankalar
+    aynı konulu iletileri dakikalar içinde art arda gönderiyor (dekontlar, birkaç hesabın özeti), Gmail de bunları tek
+    konuşmada topluyor.
+    - Konuşmanın yazdırma görünümü (`view=pt&search=all&permthid=thread-f:<kimlik>`, mail.google.com'a bir GET)
+      bütün iletileri göndericileriyle gösterir. Bir iletinin eklerinin bağlantıları o iletinin kimliğini taşır
+      (`view=att&th=<kimlik>`). Tarama bu sayfadan yalnızca ekli iletilerin kimliklerini ve göndericilerin alan
+      adlarını okur; listedeki bankaların iletilerini 3. katmanla indirir.
+    - Bu sayfanın iletileri okundu yapıp yapmadığı bilinmiyor. Bu yüzden yalnızca satırı baştan sona okunmuş görünen
+      konuşmalar için istenir (satırın `yO` sınıfı var, `zE` yok). Satır ikisini de söylemezse konuşma okunmamış
+      sayılır. İlk taramada bu sınıflar, okunmamış konuşmaların araması (`is:unread`) ile 100 satırın 100'ünde
+      uyuştu.
+    - Eki olmayan iletiler kimliklerini göstermez; okunmamış konuşmaların ortası da alınmaz. Rapor ikisini ayrı sayar.
+      Kullanıcı okunmamış bir konuşmayı Gmail'de açarsa sonraki tarama onun ekli iletilerini alır.
+    - İlk taramada okunmuş 17 konuşmanın ortasındaki 52 iletiden 16'sı ekliydi ve servis hiçbirini tutmuyordu.
+    - Yeni bir adres yok; izinler değişmedi.
   - Tanınmayan bir liste 2. katmanın biçim alarmıdır. İzinlere `scripting` eklendi; adresler değişmedi.
 - **Geçmişin taranıp taranmadığını servis bilir** (eklenti konum tutmaz).
   - Biten bir tarama neyi aradığını `POST /api/ingest/mail/scanned` ile bildirir: başlangıç gününü ve gönderici

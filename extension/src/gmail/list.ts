@@ -5,16 +5,21 @@
  * Gmail's page is not documented: rows without the ids it knows are a format error.
  *
  * Opening a conversation would mark its messages read, so the scan never opens one. The list names a conversation's
- * first message (the conversation's id) and its last; the messages between them stay out of reach and are counted.
+ * first message (the conversation's id) and its last; for a conversation the row shows read throughout, the print
+ * view names the messages between them that have attachments (print.ts). The others are counted.
  */
 
 import { ORIGIN } from "./http";
 
-/** A conversation as the list shows it: Gmail's ids in hexadecimal, and how many messages it holds (0: unknown). */
+/**
+ * A conversation as the list shows it: Gmail's ids in hexadecimal, how many messages it holds (0: unknown) and
+ * whether the row says every message of it is read (the row's class "yO" without "zE"; false when it says neither).
+ */
 export interface Conversation {
   readonly thread: string;
   readonly last: string;
   readonly count: number;
+  readonly read: boolean;
 }
 
 export interface ListPage {
@@ -60,7 +65,8 @@ export function isListPage(value: unknown): value is ListPage {
         c !== null &&
         HEX.test(String((c as Record<string, unknown>)["thread"])) &&
         HEX.test(String((c as Record<string, unknown>)["last"])) &&
-        Number.isInteger((c as Record<string, unknown>)["count"])
+        Number.isInteger((c as Record<string, unknown>)["count"]) &&
+        typeof (c as Record<string, unknown>)["read"] === "boolean"
     ) &&
     Number.isInteger(unknownRows) &&
     typeof settled === "boolean"
@@ -94,7 +100,9 @@ export async function collectList(waitMs: number, before: string): Promise<ListP
       }
       const last = marked?.getAttribute("data-legacy-last-message-id") ?? "";
       const count = Number.parseInt((row.querySelector(".bx0")?.textContent ?? "").replace(/\D/g, ""), 10);
-      conversations.push({ thread, last: hex.test(last) ? last : thread, count: count > 0 ? count : 0 });
+      // Read only on the row's word for it: a row that says neither counts as unread.
+      const read = row.classList.contains("yO") && !row.classList.contains("zE");
+      conversations.push({ thread, last: hex.test(last) ? last : thread, count: count > 0 ? count : 0, read });
     }
     const main = document.querySelector('div[role="main"]') !== null;
     return { conversations, unknownRows, settled: false, main, rows: shown.length };

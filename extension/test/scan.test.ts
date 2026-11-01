@@ -6,7 +6,16 @@ import { expectedProof } from "../src/bridge/proof";
 import { NotGmail, type ScanEnvironment, type TabDriver, TabGone, scanGmail } from "../src/bridge/scan";
 import { type Fetcher, type Paired, SERVICE } from "../src/bridge/service";
 import { type ScanSummary, type Store, memoryStore } from "../src/bridge/state";
-import { IK, arrivedAt, attachedMessage, gmailPage, originalPage, rawMessage } from "./fixtures";
+import {
+  IK,
+  type PrintedFake,
+  arrivedAt,
+  attachedMessage,
+  gmailPage,
+  originalPage,
+  printPage,
+  rawMessage,
+} from "./fixtures";
 
 const PAIRED: Paired = { id: "k1", token: "belirtec-123" };
 const SENDERS = ["teb.com.tr", "isbank.com.tr"];
@@ -38,8 +47,9 @@ function fakeTabs(pages: readonly ListPage[], trouble?: Error) {
   return { tabs, calls };
 }
 
-function page(...conversations: Array<[string, string, number]>): ListPage {
-  const listed = conversations.map(([thread, last, count]) => ({ thread, last, count }));
+/** A page of the list: each conversation's first and last id, its count and whether its row shows it read. */
+function page(...conversations: Array<[string, string, number, boolean?]>): ListPage {
+  const listed = conversations.map(([thread, last, count, read]) => ({ thread, last, count, read: read ?? false }));
   return { conversations: listed, unknownRows: 0, settled: true, main: true, rows: listed.length };
 }
 
@@ -103,9 +113,14 @@ function fakeService(held: ReadonlySet<string> = new Set(), down = false, older 
 
 /**
  * Gmail: its page with the account key, and every message's "Show original", without the text for `unshown`; the
- * messages in `attached` carry a statement, which their page shows empty and "Download original" gives whole.
+ * messages in `attached` carry a statement, which their page shows empty and "Download original" gives whole. The
+ * print views are those of `printed`, by the conversation's decimal id; any other is an error page.
  */
-function fakeGmail(unshown: ReadonlySet<string> = new Set(), attached: ReadonlySet<string> = new Set()) {
+function fakeGmail(
+  unshown: ReadonlySet<string> = new Set(),
+  attached: ReadonlySet<string> = new Set(),
+  printed: ReadonlyMap<string, readonly PrintedFake[]> = new Map(),
+) {
   const requests: string[] = [];
   const fetcher: GmailFetcher = async (address) => {
     requests.push(address);
@@ -113,6 +128,10 @@ function fakeGmail(unshown: ReadonlySet<string> = new Set(), attached: ReadonlyS
     const id = (url.searchParams.get("permmsgid") ?? "").replace("msg-f:", "");
     if (url.searchParams.get("view") === "att") {
       return arrivedAt(`${ATTACHMENTS_ORIGIN}/attachment/u/0/`, new Response(attachedMessage(BANK, WHOLE)));
+    }
+    if (url.searchParams.get("view") === "pt") {
+      const messages = printed.get((url.searchParams.get("permthid") ?? "").replace("thread-f:", ""));
+      return new Response(messages === undefined ? "<html><body>Temporary Error</body></html>" : printPage(messages));
     }
     if (url.searchParams.get("view") === "om") {
       const raw = attached.has(id) ? attachedMessage(BANK, "") : rawMessage({ from: BANK });
@@ -171,12 +190,55 @@ describe("scanGmail", () => {
     ]);
     expect(gmail.requests.filter((r) => r.includes("view=om"))).toHaveLength(3);
     expect(summary).toMatchObject({ phase: "done", pages: 2, conversations: 3, found: 4, missing: 3, delivered: 3 });
-    expect(summary.between).toBe(3); // the five-message conversation's three in the middle
+    expect([summary.between, summary.betweenUnread]).toEqual([3, 3]); // the unread conversation's three in the middle
+    expect(gmail.requests.filter((r) => r.includes("view=pt"))).toEqual([]); // unread: no print view
     expect(summary.detail).toBe(
-      "Gmail'de listedeki bankalardan 4 ileti bulundu; eksik 3 iletiden 3 tanesi teslim edildi. Konuşmaların " +
-        "ortasındaki 3 ileti bu yolla alınamaz: konuşmayı açmak iletilerini okundu yapar.",
+      "Gmail'de listedeki bankalardan 4 ileti bulundu; eksik 3 iletiden 3 tanesi teslim edildi. Okunmamış " +
+        "konuşmaların ortasındaki 3 ileti alınamadı: konuşmayı açmak iletilerini okundu yapar. Gmail'de okuduğunuz " +
+        "konuşmaların ekli iletileri sonraki taramada alınır.",
     );
     expect(store.current.scan).toEqual(summary);
+  });
+
+  it("takes the messages with an attachment in the middle of a read conversation from its print view", async () => {
+    // 0x40 = 64 … 0xa0 = 160: five messages; 0x60 = 96 has the bank's attachment, 0x80 = 128 is someone else's
+    const printed = new Map([
+      [
+        "64",
+        [
+          { from: BANK, attached: "40" },
+          { from: BANK, attached: "60" },
+          { from: BANK },
+          { from: "kisi@baska.example", attached: "80" },
+          { from: BANK, attached: "a0" },
+        ],
+      ],
+    ]);
+    const service = fakeService();
+    const gmail = fakeGmail(new Set(), new Set(), printed);
+    const summary = await scan(fakeTabs([page(["40", "a0", 5, true])]).tabs, {
+      service: service.fetcher,
+      gmail: gmail.fetcher,
+    });
+    expect(service.asked).toEqual([["64", "96", "160"]]);
+    expect(service.delivered.map((d) => d.id)).toEqual(["64", "96", "160"]);
+    expect(gmail.requests.filter((r) => r.includes("view=pt"))).toEqual([
+      `https://mail.google.com/mail/u/0/?ik=${IK}&view=pt&search=all&permthid=thread-f%3A64`,
+    ]);
+    expect([summary.found, summary.between, summary.betweenUnread]).toEqual([3, 1, 0]);
+    expect(summary.detail).toBe(
+      "Gmail'de listedeki bankalardan 3 ileti bulundu; eksik 3 iletiden 3 tanesi teslim edildi. Konuşmaların " +
+        "ortasındaki 1 ileti alınamadı: Gmail, eki olmayan iletilerin kimliğini konuşma açılmadan göstermiyor.",
+    );
+  });
+
+  it("leaves the middle out of reach when the print view is not one it knows, and goes on", async () => {
+    const service = fakeService();
+    const summary = await scan(fakeTabs([page(["40", "a0", 4, true]), page(["10", "10", 0])]).tabs, {
+      service: service.fetcher,
+    });
+    expect([summary.phase, summary.between, summary.betweenUnread]).toEqual(["done", 2, 0]);
+    expect(service.delivered.map((d) => d.id)).toEqual(["16", "64", "160"]);
   });
 
   it("ends where a page does not move on, as Gmail keeps showing its last page", async () => {

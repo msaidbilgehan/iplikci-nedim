@@ -4,6 +4,7 @@ import { FormatError } from "../src/gmail/errors";
 import { feedUrl, parseFeed, sameMessage } from "../src/gmail/feed";
 import { ATTACHMENTS_ORIGIN, type Fetcher, HttpError, Redirected, get } from "../src/gmail/http";
 import { NoRawText, downloadOriginal, namesAFile, originalUrl, parseOriginal } from "../src/gmail/original";
+import { parsePrint, printUrl } from "../src/gmail/print";
 import { answerKind, decimalId, senderQuery, threadIds, threadListUrl } from "../src/gmail/search";
 import { appUrl, parseAccountKey } from "../src/gmail/session";
 import { attribute, decodeEntities, elements, text } from "../src/gmail/xml";
@@ -16,6 +17,7 @@ import {
   feedXml,
   gmailPage,
   originalPage,
+  printPage,
   rawMessage,
   threadList,
 } from "./fixtures";
@@ -189,6 +191,37 @@ describe("full search (layer 2)", () => {
     expect(answerKind("<!DOCTYPE html><html></html>")).toBe("html");
     expect(answerKind("Not Found")).toBe("other");
     expect(decimalId("18f0a1b2c3d4e5f6")).toBe(BigInt("0x18f0a1b2c3d4e5f6").toString());
+  });
+});
+
+describe("a conversation's print view", () => {
+  it("is asked for with the account key and the conversation's id in decimal", () => {
+    const url = new URL(printUrl(1, "18f0a1b2c3d4e5f6", IK));
+    expect(url.origin + url.pathname).toBe("https://mail.google.com/mail/u/1/");
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      ik: IK,
+      view: "pt",
+      search: "all",
+      permthid: `thread-f:${BigInt("0x18f0a1b2c3d4e5f6")}`,
+    });
+  });
+
+  it("names the messages with an attachment and their senders' domains, nothing else", () => {
+    const page = printPage([
+      { from: "ekstre@teb.com.tr", attached: "18f0a1b2c3d4e5f6" },
+      { from: "bildirim@teb.com.tr" }, // no attachment: no id on the page
+      { from: "Kisi@Baska.Example", attached: "18f0a1b2c3d4e5f8" },
+    ]);
+    expect(parsePrint(page)).toEqual([
+      { id: "18f0a1b2c3d4e5f6", senderDomain: "teb.com.tr" },
+      { id: "18f0a1b2c3d4e5f8", senderDomain: "baska.example" },
+    ]);
+    expect(JSON.stringify(parsePrint(page))).not.toContain(ADDRESS);
+  });
+
+  it("refuses a page with no message on it", () => {
+    expect(() => parsePrint("<html><body><p>Temporary Error</p></body></html>")).toThrow(FormatError);
+    expect(parsePrint(printPage([{ from: "bildirim@teb.com.tr" }]))).toEqual([]);
   });
 });
 

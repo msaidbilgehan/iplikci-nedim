@@ -3,11 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { collectList, isListPage, searchHash, searchQuery, searchUrl } from "../src/gmail/list";
 
-/** A conversation row as Gmail's list draws it: a checkbox, the sender cell's count, the subject's ids. */
-function row(thread: string, last = thread, count = 0): string {
+/**
+ * A conversation row as Gmail's list draws it: a checkbox, the sender cell's count, the subject's ids, and the row's
+ * classes ("zA zE" unread, "zA yO" read).
+ */
+function row(thread: string, last = thread, count = 0, classes = "zA zE"): string {
   const badge = count > 0 ? `<span class="bx0">${count}</span>` : "";
   const ids = `data-legacy-thread-id="${thread}" data-legacy-last-message-id="${last}"`;
-  return `<tr><td><div role="checkbox"></div></td><td>Banka ${badge}</td>
+  return `<tr class="${classes}"><td><div role="checkbox"></div></td><td>Banka ${badge}</td>
     <td><span data-thread-id="#thread-f:1" ${ids}>…</span></td></tr>`;
 }
 
@@ -41,17 +44,22 @@ async function collected(waitMs: number, before: string) {
 
 describe("collectList", () => {
   it("reads the ids of the shown conversations only, with how many messages each holds", async () => {
-    show(row("18f0a1") + row("18f0b2", "18f0c3", 3), row("aaaa"));
+    show(row("18f0a1") + row("18f0b2", "18f0c3", 3, "zA yO"), row("aaaa"));
     expect(await collected(5000, "")).toEqual({
       conversations: [
-        { thread: "18f0a1", last: "18f0a1", count: 0 },
-        { thread: "18f0b2", last: "18f0c3", count: 3 },
+        { thread: "18f0a1", last: "18f0a1", count: 0, read: false },
+        { thread: "18f0b2", last: "18f0c3", count: 3, read: true },
       ],
       unknownRows: 0,
       settled: true,
       main: true,
       rows: 2,
     });
+  });
+
+  it("takes a conversation for read only on its row's word for it", async () => {
+    show(row("18f0a1", "18f0a1", 0, "zA") + row("18f0b2", "18f0b2", 0, "zA yO zE"));
+    expect((await collected(5000, "")).conversations.map((c) => c.read)).toEqual([false, false]);
   });
 
   it("counts the rows it cannot read: Gmail changed its page", async () => {
@@ -87,15 +95,15 @@ describe("the search", () => {
   });
 
   it("takes nothing from the page that is not a list in shape", () => {
-    const list = (thread: string) => ({
-      conversations: [{ thread, last: "1", count: 0 }],
+    const list = (thread: string, read: unknown = false) => ({
+      conversations: [{ thread, last: "1", count: 0, read }],
       unknownRows: 0,
       settled: true,
       main: true,
       rows: 1,
     });
     expect(isListPage(list("18f0a1"))).toBe(true);
-    for (const bad of [null, "x", list("<b>")]) {
+    for (const bad of [null, "x", list("<b>"), list("18f0a1", "yes")]) {
       expect(isListPage(bad)).toBe(false);
     }
   });

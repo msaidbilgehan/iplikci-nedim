@@ -40,8 +40,12 @@ export interface ScanSummary {
   readonly delivered: number;
   /** Messages whose original Gmail did not show: the user downloads them from Gmail. */
   readonly unshown: number;
-  /** Messages inside conversations, between the first and the last, that the list does not name. */
+  /**
+   * Messages inside conversations, between the first and the last, that the scan could not name; how many of them
+   * are in conversations with unread messages, whose print view it does not ask for.
+   */
   readonly between: number;
+  readonly betweenUnread: number;
   /** Turkish, for the window; never an address, subject or message text. */
   readonly detail: string;
 }

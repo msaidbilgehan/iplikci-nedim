@@ -36,9 +36,9 @@ Gmail'deki banka iletilerini, kullanıcının kendi bilgisayarında çalışan �
 | İzin | Gerekçe |
 |---|---|
 | `alarms` | Yeni banka iletilerine dakikada bir bakmak. |
-| `scripting` | "Gmail'de eksikleri tara" sırasında, eklentinin kendi açtığı Gmail sekmesindeki arama listesinden yalnızca konuşma kimliklerini okumak. Başka bir sayfada betik çalışmaz. |
+| `scripting` | "Gmail'de eksikleri tara" sırasında, eklentinin kendi açtığı Gmail sekmesindeki arama listesinden yalnızca konuşma kimliklerini ve konuşmaların okunup okunmadığını okumak. Başka bir sayfada betik çalışmaz. |
 | `storage` | Eşleşmeyi, okunacak Gmail hesabının sırasını ve son denetimin özetini tarayıcıda saklamak. E-posta adresi saklanmaz. |
-| `https://mail.google.com/*` | Gelen kutusu akışını, "Orijinali göster" sayfasını ve arama listesini kullanıcının oturumuyla okumak. Yalnızca okuma (GET) istekleri. |
+| `https://mail.google.com/*` | Gelen kutusu akışını, "Orijinali göster" sayfasını, arama listesini ve baştan sona okunmuş konuşmaların yazdırma görünümünü kullanıcının oturumuyla okumak. Yalnızca okuma (GET) istekleri. |
 | `https://mail-attachment.googleusercontent.com/*` | Eki olan bir iletinin tamamını "Orijinali indir" ile almak: Gmail bu indirmeyi kendi ek sunucusuna yönlendirir, "Orijinali göster" ise eklerin içeriğini boş verir. Yalnızca okuma (GET). |
 | `http://127.0.0.1:8643/*` | İletileri bu bilgisayardaki İplikçi Nedim servisine teslim etmek. |
 

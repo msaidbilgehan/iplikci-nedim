@@ -135,6 +135,37 @@ export function gmailPage(ik: string): string {
 "tr",'x\\'y',0,"${ik}",null,"${ADDRESS}"];</script></head><body></body></html>`;
 }
 
+/** A message in a conversation's print view: its sender, and its id when it has an attachment. */
+export interface PrintedFake {
+  readonly from: string;
+  readonly attached?: string;
+}
+
+/** A conversation's print view as Gmail shows it: a table of the class "message" per message, under its sender. */
+export function printPage(messages: readonly PrintedFake[]): string {
+  const tables = messages.map((m) => {
+    const link = (disp: string): string =>
+      `?ui=2&amp;ik=${IK}&amp;view=att&amp;th=${m.attached}&amp;attid=0.1&amp;disp=${disp}&amp;safe=1&amp;zw`;
+    const attachment =
+      m.attached === undefined
+        ? ""
+        : `<table class=att cellspacing=0 cellpadding=5 border=0><tr><td><a href="${link("attd")}" target=_blank>` +
+          `<img width=16 height=16 src="https://ssl.gstatic.com/ui/v1/icons/mail/images/sprite_pdf.png"></a></td>` +
+          `<td><b>ekstre.pdf</b><br>12K <a href="${link("inline")}">Görüntüle</a></td></tr></table>`;
+    return (
+      `<hr><table width=100% cellpadding=0 cellspacing=0 border=0 class="message"><tr><td><font size=-1>` +
+      `<b>Banka Bildirim </b>&lt;${m.from}&gt;</font></td><td align=right><font size=-1>1 Eki 2026 10:00</font>` +
+      `<tr><td colspan=2 style="padding-bottom: 4px;"><font size=-1 class="recipient"><div>Kime: ${ADDRESS}</div>` +
+      `</font><tr><td colspan=2><table width=100% cellpadding=12 cellspacing=0 border=0><tr><td>` +
+      `<div style="overflow: hidden;"><font size=-1>Sayın müşterimiz, bilgi@baska.example adresine yazın.</font>` +
+      `</div>${attachment}</td></tr></table></table>`
+    );
+  });
+  return `<html><head><title>Gmail - ${SUBJECT}</title></head><body><div class="bodycontainer">
+<table width=100% cellpadding=0 cellspacing=0 border=0><tr><td><font size=+1><b>${SUBJECT}</b></font><br>
+<font size=-1 color=#777>${messages.length} ileti</font></td></tr></table>${tables.join("\n")}</div></body></html>`;
+}
+
 export function threadList(hexIds: readonly string[]): string {
   return `)]}'\n[["tb",0,[${hexIds.map((id) => `["${id}","${id}",1]`).join(",")}]]]`;
 }
