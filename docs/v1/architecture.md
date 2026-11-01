@@ -525,6 +525,7 @@ sorar:
 | `POST /api/documents/{id}/reparse`, `POST /api/documents/{id}/remove` | yeniden okuma; çöp kutusuna taşıma |
 | `POST /api/uploads`, `POST /api/inbox/plan`, `POST /api/inbox/apply` | elle ekleme (plan → onay → uygula) |
 | `GET /api/subscriptions`, `/api/calendar`, `/api/forecast`, `/api/insights`, `/api/holdings`, `/api/fx` | analizler |
+| `GET /api/invoices` | banka dışı faturalar ve makbuzlar: durumu (bekliyor, eşleşmedi, eşleşti), ödeyen banka satırı ya da olası nedenler, durum başına sayılar; hiçbiri toplamlara girmez (F14) |
 | `GET /api/month-end`, `GET /api/month-end/{YYYY-MM}` | ay kapanışı |
 | `GET/PUT /api/rules/categories`, `POST /api/rules/categories/preview` | kategori kuralları ve önizleme |
 | `GET/PUT /api/rules/alerts`, `GET /api/notifications` | bildirim kuralları ve geçmişi |
@@ -532,6 +533,7 @@ sorar:
 | `POST /api/bridge/pairings`, `POST /api/bridge/pair`, `GET /api/bridge/hello`, `GET /api/bridge`, `DELETE /api/bridge/{id}` | tarayıcı eklentisi: eşleştirme kodu, kodun belirtece dönmesi, servisin kanıtı (HMAC), eşleşmeler, iptal (ADR-0016) |
 | `GET /api/ingest/mail/cursor`, `POST /api/ingest/mail`, `POST /api/ingest/mail/known`, `POST /api/ingest/mail/scanned`, `POST /api/ingest/mail/alarm` | eklentinin konumu ve geçmişin taranması gerekip gerekmediği, ham iletilerin teslimi, taramanın bulduğu iletilerden eksik olanlar, biten bir taramanın neyi aradığı, bir katmanın biçim alarmı; yalnızca eklenti belirteciyle |
 | `GET/PUT /api/settings` | ayarlar (sır içermez) |
+| `GET/PUT /api/settings/mail/other-senders` | banka dışı göndericiler (F14); yalnızca arayüz değiştirir. Banka alan adı (altı ya da üstü dahil), iki kez yazılan ve alan adı olmayan değer reddedilir, hiçbir şey yazılmaz |
 | `GET /api/system` | sağlık, işler, okuyucu sağlığı, yedekler |
 | `GET /api/backups`, `POST /api/backups` | yedekler; şimdi yedek al |
 | `POST /api/exports` | CSV, XLSX, tek dosyalık rapor, ay sonu sayfaları |
@@ -562,6 +564,7 @@ Taşıma, kaynaklar ve hazır istemler ADR-0011'dedir. Araçlar:
 | `accounts_overview` | – | hesap haritası, türe göre toplamlar |
 | `upcoming_payments`, `cash_flow_forecast` | – | takvim; hesap başına bakiye öngörüsü |
 | `subscriptions` | – | abonelikler, düzenli ve dönemsel ödemeler |
+| `invoices` | – | banka dışı faturalar ve makbuzlar: durumu, ödeyen banka satırı ya da olası nedenler |
 | `net_worth`, `fx_rates` | – | varlıklar (TL, EUR, USD, altın); kurlar |
 | `alerts` | evet | bildirim kurallarını listele, ekle, kapat |
 | `annotate_transaction` | evet | not, etiket, düzeltme |
@@ -578,6 +581,7 @@ Teknoloji ADR-0008'dedir. Ekranlar ve davranışları [features.md](features.md)
   - `/belgeler`, `/belgeler/:id`
   - `/abonelikler`
   - `/takvim`
+  - `/faturalar`
   - `/degerlendirme`
   - `/ay-sonu/:ay`
   - `/doviz`
