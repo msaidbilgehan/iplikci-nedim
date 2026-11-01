@@ -6,10 +6,27 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 | Revizyon | Konu | Durum | Belge |
 |---|---|---|---|
 | V0 | MVP `gider-analizi`: banka belgelerini okuyan, doğrulayan, yorumlayan yerel komut satırı programı, web paneli ve MCP sunucusu | 2026-10-31'de emekliye ayrıldı (K17) | Depo dışında, veri klasöründeki arşivde: `archive/mvp/CLAUDE.md` ve `README.md` |
-| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–3 (v0.1.0–v0.4.0) uygulandı; sırada Aşama 4 var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
+| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–4 (v0.1.0–v0.5.0) uygulandı; sırada Aşama 5 var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
 | V2 | Finansal strateji uzmanları ve yapay zekâ asistanı | Gelecek (V1'den sonra) | [`v2/requirements.md`](v2/requirements.md) |
 
 ## Değişiklik kaydı
+
+- 2026-11-02 (15) — Aşama 4 uygulandı (`asama-4` dalı); belgeler kodla uyumlu hâle getirildi:
+  - README'nin durum bölümü güncellendi; `CHANGELOG.md`'ye 0.5.0 eklendi.
+  - Kullanıcı kararı [K21](v1/requirements.md#kararlar): banka e-postayla göndermiyorsa döküm kullanıcıdan istenmez;
+    hesabın hareketleri bankanın e-postalarından kendiliğinden çıkarılır.
+  - [Yol haritası](v1/roadmap.md#aşama-4--e-postanın-tamamı): Aşama 4'ün durumu, kutunun envanteri ve F01'in kapsamı.
+  - [Özellikler](v1/features.md#f14--banka-dışı-e-postalar): F14'te Aşama 4'te uygulananlar.
+  - [Mimari](v1/architecture.md): API tablosunda faturalar ve banka dışı göndericiler, MCP'de `invoices`, ön yüzde
+    `/faturalar`.
+  - [Defter](domain/ledger.md#kanıtlar-dekontlar-ve-banka-bildirimleri): banka bildirimleri kanıttır; banka dışı
+    faturaların eşleştirilmesi ve kategoriye katkısı.
+  - [Banka biçimleri](domain/bank-formats.md): Vakıfbank, Garanti BBVA, QNB ve İş Bankası bildirimleri, e-posta
+    gövdesinin okunması, selamlamadaki şirket adı ve SGK işyeri sicil numarası.
+  - [Yorum](domain/interpretation.md): dönemsel seriler, takvim, nakit akışı öngörüsü ve ay sonunda yalnızca
+    e-cüzdanından bilinen hesap.
+  - [Geçiş](v1/migration.md#aşama-3-e-posta-ve-geçmiş): gövdelerin okunması; e-postayla gelmeyen döküm artık
+    istenmez.
 
 - 2026-11-01 (14) — Aşama 3 uygulandı (`asama-3` dalı); belgeler kodla uyumlu hâle getirildi:
   - README'nin durum bölümü güncellendi; `CHANGELOG.md`'ye 0.4.0 eklendi.

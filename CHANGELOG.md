@@ -4,7 +4,12 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
-## [Yayımlanmamış] — Aşama 4: E-postanın tamamı
+## [0.5.0] — 2026-11-02 — Aşama 4: E-postanın tamamı
+
+E-postaların gövdeleri okunur. Banka bildirimleri kanıt olur; okuyucusu olmayan banka iletileri bilerek sınıflanır
+ve F01'in kapsam ölçütü (en az %90) sağlanır. Kart ekstrelerinin son ödemesi, dönemsel seriler, 60 günlük takvim ve
+nakit akışı öngörüsü defterden kurulur. Banka dışı faturalar ve makbuzlar banka satırlarıyla eşleştirilir; hiçbiri
+toplamlara girmez (F14).
 
 ### Eklenenler
 
