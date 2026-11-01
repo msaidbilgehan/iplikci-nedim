@@ -42,6 +42,24 @@ describe("SystemPage", () => {
     expect(within(card).getByText("gönderen hiçbir listede değil (3)")).toBeInTheDocument();
   });
 
+  it("tells two extensions of the same browser apart by when they paired", async () => {
+    const mail = { ...systemStatus().mail, connector: "browser_bridge" as const };
+    const bridges = [
+      { id: "k1", name: "Chrome 140, macOS", created_at: "2026-11-01T08:00:00+00:00", last_seen: "", active: true },
+      { id: "k2", name: "Chrome 140, macOS", created_at: "2026-11-02T09:30:00+00:00", last_seen: "", active: true },
+      { id: "k3", name: "Edge 140, Windows", created_at: "2026-11-02T10:00:00+00:00", last_seen: "", active: true },
+    ];
+    server.use(
+      http.get("/api/system", () => HttpResponse.json(systemStatus({ mail }))),
+      http.get("/api/bridge", () => HttpResponse.json(bridges)),
+    );
+    renderScreen(<SystemPage />);
+    const card = await screen.findByRole("region", { name: "E-posta" });
+    expect(await within(card).findByText(/^Chrome 140, macOS \(eşleşme 01\.11\.2026 .+\): son/)).toBeInTheDocument();
+    expect(within(card).getByText(/^Chrome 140, macOS \(eşleşme 02\.11\.2026 .+\): son/)).toBeInTheDocument();
+    expect(within(card).getByText("Edge 140, Windows: son görülme henüz yok")).toBeInTheDocument();
+  });
+
   it("says the extension has not scanned the history since the start day yet", async () => {
     const mail = { ...systemStatus().mail, connector: "browser_bridge" as const, history_due: true };
     server.use(http.get("/api/system", () => HttpResponse.json(systemStatus({ mail }))));

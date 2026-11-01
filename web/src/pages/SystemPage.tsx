@@ -129,11 +129,16 @@ function BridgeSeen({ bridges }: { bridges: Bridge[] }) {
   if (active.length === 0) {
     return <p className="text-sm text-zinc-600 dark:text-zinc-300">Eşleşmiş bir eklenti yok.</p>;
   }
+  const name = (b: Bridge): string => b.name || "Tarayıcı eklentisi";
+  // Two browsers of the same kind carry the same name: their pairing time tells them apart.
+  const shared = (b: Bridge): boolean => active.filter((other) => name(other) === name(b)).length > 1;
   return (
     <ul className="text-sm">
       {active.map((b) => (
         <li key={b.id}>
-          {b.name || "Tarayıcı eklentisi"}: son görülme {b.last_seen ? formatTime(b.last_seen) : "henüz yok"}
+          {name(b)}
+          {shared(b) ? ` (eşleşme ${formatTime(b.created_at)})` : ""}: son görülme{" "}
+          {b.last_seen ? formatTime(b.last_seen) : "henüz yok"}
         </li>
       ))}
     </ul>
