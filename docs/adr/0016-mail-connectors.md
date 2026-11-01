@@ -171,6 +171,14 @@ Sonuca göre:
     ekiyle çevrilir; sekme iş bitince kapanır.
   - Servis, teslim ettiği iletileri Gmail kimlikleriyle hatırlar (göç 8). Eklenti `POST /api/ingest/mail/known` ile
     yalnızca eksikleri sorar; eksikler 3. katmanla indirilir. Bu teslimlerin tarihi yoktur; akışın konumu yerinde kalır.
+  - Servisin almadığı iletiler de hatırlanır (göç 9): listede olmayan gönderici, doğrulanamayan gönderen ya da şirket
+    iletisi. Saklanan yalnızca Gmail kimliği, ne olduğu, nedeni ve listedeki gönderenin alan adıdır.
+    - Böyle bir ileti, reddedildiği ayarlar değişmedikçe yeniden indirilmez. Bu ayarlar gönderici listesi, gönderen
+      denetimi, güven kuralının sürümü ve şirket adlarıdır.
+    - İlk gerçek taramada iletilerin yarıdan fazlası doğrulanamadı ve her tarama bunları yeniden indiriyordu.
+  - Doğrulanamayan iletinin nedeni en üstteki `Authentication-Results`'ın gösterdiğidir: başlık yok, başlığı Gmail
+    eklememiş, DMARC sonucu yok, DMARC sonucu "pass" değil ya da DMARC başka bir alan adı için geçti. Sistem ekranı
+    alınmayan iletileri nedenleri ve alan adlarıyla sayar.
   - Bir konuşmayı açmak iletilerini okundu yapar, bu yüzden tarama hiçbir konuşmayı açmaz. Liste bir konuşmanın ilk
     (konuşmanın kimliği) ve son iletisini adlandırır; aradakiler bu yolla alınamaz ve raporda sayılır.
   - Tanınmayan bir liste 2. katmanın biçim alarmıdır. İzinlere `scripting` eklendi; adresler değişmedi.

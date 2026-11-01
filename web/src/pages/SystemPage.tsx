@@ -2,7 +2,7 @@
 // doing. Every number comes from /api/system; the event stream keeps it current.
 
 import { useBackupNow, useBridges, useLabels, useSystem } from "../api/queries";
-import type { Bridge, Labels, SystemStatus } from "../api/types";
+import type { Bridge, Labels, RefusedMail, SystemStatus } from "../api/types";
 import { HistoryDue } from "../components/HistoryDue";
 import { Failure, Loading } from "../components/QueryState";
 import { Alert } from "../components/ui/Alert";
@@ -79,6 +79,7 @@ function MailCard({ status }: { status: SystemStatus }) {
           ]}
         />
         {mail.history_due ? <HistoryDue startDay={mail.start_day} /> : null}
+        {mail.refused.length > 0 ? <RefusedList refused={mail.refused} /> : null}
         {mail.stopped ? (
           <Alert tone="critical" title="Giriş reddedildi; e-posta alımı durdu">
             <p>Hesabın kilitlenmemesi için yeniden denenmez. E-posta bağlantısını yeniden kurun.</p>
@@ -103,6 +104,24 @@ function mailBadge({ mail }: SystemStatus) {
     return <Badge tone="neutral">Kurulu değil</Badge>;
   }
   return mail.last_error ? <Badge tone="warning">Sorunlu</Badge> : <Badge tone="good">Çalışıyor</Badge>;
+}
+
+/** The messages the extension delivered that were not kept, by why: the trust rule's findings, never their text. */
+function RefusedList({ refused }: { refused: RefusedMail[] }) {
+  const total = refused.reduce((sum, r) => sum + r.count, 0);
+  return (
+    <div className="flex flex-col gap-1 text-sm">
+      <p className="font-medium">Alınmayan e-postalar: {total}</p>
+      <ul className="list-disc pl-5 text-zinc-700 dark:text-zinc-300">
+        {refused.map((r) => (
+          <li key={`${r.taken}|${r.reason}|${r.domain}`}>
+            {r.domain ? `${r.domain}: ` : ""}
+            {r.label} ({r.count})
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 function BridgeSeen({ bridges }: { bridges: Bridge[] }) {

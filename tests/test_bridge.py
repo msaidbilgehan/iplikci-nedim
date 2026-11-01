@@ -224,9 +224,36 @@ def test_a_scan_of_gmail_learns_which_messages_the_service_lacks(client, ws):
     forged = bank_mail(FEBRUARY, results=("mx.google.com; dmarc=fail header.from=teb.com.tr",))
     other.post("/api/ingest/mail", content=forged, headers=bearer(token) | {"X-Gmail-Id": "1002"})
     asked = other.post("/api/ingest/mail/known", json={"ids": ["1003", "1001", "1002", "1003"]}, headers=bearer(token))
-    assert asked.json() == {"missing": ["1003", "1002"]}  # a refused message is not held: asked again, refused again
+    assert asked.json() == {"missing": ["1003"]}  # held, or refused under these settings: not downloaded again
     cursor = other.get("/api/ingest/mail/cursor", headers=bearer(token)).json()
     assert (cursor["last_id"], cursor["last_date"]) == ("", "")  # a scan's messages leave the feed's cursor alone
+
+
+def test_a_refused_message_is_asked_for_again_once_the_settings_it_was_refused_under_change(client, ws):
+    token = paired(client)["token"]
+    other = TestClient(client.app, base_url=BASE)
+
+    def deliver(raw: bytes, gmail_id: str) -> str:
+        return other.post("/api/ingest/mail", content=raw, headers=bearer(token) | {"X-Gmail-Id": gmail_id}).json()[
+            "taken"
+        ]
+
+    def missing(*ids: str) -> list[str]:
+        return other.post("/api/ingest/mail/known", json={"ids": list(ids)}, headers=bearer(token)).json()["missing"]
+
+    no_dmarc = bank_mail(FEBRUARY, results=("mx.google.com; dkim=pass header.i=@teb.com.tr; spf=pass",))
+    assert deliver(no_dmarc, "2001") == "unverified"
+    assert deliver(bank_mail(FEBRUARY, sender="haber@baska.example"), "2002") == "unlisted"
+    assert missing("2001", "2002") == []
+    mail = client.get("/api/system", headers=bearer(TOKEN)).json()["mail"]
+    assert [(r["taken"], r["reason"], r["domain"], r["count"]) for r in mail["refused"]] == [
+        ("unlisted", "", "", 1),  # the domain of a sender on no list is not kept
+        ("unverified", "no-dmarc", "teb.com.tr", 1),
+    ]
+    assert mail["refused"][1]["label"] == "doğrulama başlığında DMARC sonucu yok"
+    config.update(ws.layout.settings, "mail", {"other_senders": ["baska.example"]})
+    assert missing("2001", "2002") == ["2001", "2002"]  # other senders: both are asked for again
+    assert client.get("/api/system", headers=bearer(TOKEN)).json()["mail"]["refused"] == []
 
 
 def test_only_a_paired_extension_asks_which_messages_are_missing_and_only_with_ids(client):

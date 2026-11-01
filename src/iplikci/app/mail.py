@@ -32,7 +32,7 @@ from ..ingest.mail.imap import (
     session,
     sizes,
 )
-from ..ingest.mail.trust import MAX_MESSAGE_BYTES, listed, message_name, verified
+from ..ingest.mail.trust import MAX_MESSAGE_BYTES, listed, message_name, trust_problem
 from ..parsers.common import is_business
 from ..settings import config, secrets
 from ..storage import audit, events, jobs
@@ -57,12 +57,44 @@ class Taken(StrEnum):
     TOO_LARGE = "too_large"
 
 
+_DMARC_RESULTS = {
+    "fail": "DMARC denetiminden geçmedi",
+    "none": "gönderenin alan adında DMARC kaydı yok",
+    "bestguesspass": "gönderenin alan adında DMARC kaydı yok (Gmail yalnızca tahmin etti)",
+    "temperror": "DMARC denetimi geçici bir hata verdi",
+    "permerror": "gönderenin DMARC kaydı bozuk",
+}
+
+
+def refusal_label(taken: str, reason: str) -> str:
+    """Why a delivered message was not kept, in Turkish, for the System screen."""
+    if taken == Taken.UNLISTED:
+        return "gönderen hiçbir listede değil"
+    if taken == Taken.BUSINESS:
+        return "şirket iletisi"
+    kind, _, detail = reason.partition(":")
+    match kind:
+        case "no-results":
+            return "iletide doğrulama başlığı yok"
+        case "server":
+            return f"en üstteki doğrulama başlığını Gmail eklememiş ({detail})"
+        case "no-dmarc":
+            return "doğrulama başlığında DMARC sonucu yok"
+        case "dmarc":
+            return _DMARC_RESULTS.get(detail, f"DMARC sonucu: {detail}")
+        case "header-from":
+            return f"DMARC başka bir alan adı için geçti ({detail})"
+        case _:
+            return "gönderen doğrulanamadı"
+
+
 @dataclass(frozen=True)
 class MailOutcome:
     taken: Taken
     domain: str = ""
     sha256: str = ""  # the message's, when it was kept or known
     documents: int = 0  # new documents kept: the message and its attachments
+    reason: str = ""  # why an unverified message was not verified (ingest.mail.trust.trust_problem)
 
 
 def take(
@@ -75,8 +107,8 @@ def take(
     domain = sender_domain(msg)
     if not listed(domain, senders):
         return MailOutcome(Taken.UNLISTED, domain)
-    if verify and not verified(msg, domain, gmail):
-        return MailOutcome(Taken.UNVERIFIED, domain)
+    if verify and (problem := trust_problem(msg, domain, gmail)):
+        return MailOutcome(Taken.UNVERIFIED, domain, reason=problem)
     fields = message_fields(msg)
     sha = sha256_of(raw)
     if is_business(fields["subject"]):

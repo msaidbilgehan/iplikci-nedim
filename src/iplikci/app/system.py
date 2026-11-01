@@ -17,7 +17,7 @@ from ..storage.db import Database
 from . import bridge
 from .backup import Health as BackupHealth
 from .backup import health as backup_health
-from .mail import BRIDGE, default_start
+from .mail import BRIDGE, default_start, refusal_label
 from .reading import FORMAT_ALARM
 from .workspace import Workspace
 
@@ -58,6 +58,15 @@ class Queue:
 
 
 @dataclass(frozen=True, slots=True)
+class RefusedMail:
+    taken: str  # unlisted, unverified, business
+    reason: str  # what the trust rule saw (ingest.mail.trust.trust_problem)
+    domain: str  # the sender's domain; "" for a sender on no list
+    count: int
+    label: str  # why, in Turkish
+
+
+@dataclass(frozen=True, slots=True)
 class MailHealth:
     connector: str  # imap or browser_bridge (ADR-0016)
     configured: bool  # an account set up, or an extension paired
@@ -66,6 +75,7 @@ class MailHealth:
     stopped: bool  # a refused login stopped the IMAP connector until it is set up again
     start_day: str  # where the history begins
     history_due: bool  # the extension has not scanned Gmail for this start day and these senders (ADR-0016)
+    refused: list[RefusedMail]  # messages the extension delivered that were not kept, by why; most first
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,14 +119,19 @@ def mail_health(ws: Workspace, db: Database) -> MailHealth:
     settings = config.load(ws.layout.settings)
     connector = settings.mail.connector
     state = mail_store.load(db, connector)
+    refused: list[RefusedMail] = []
     if connector == BRIDGE:
         configured = any(b.active for b in bridges.every(db))
         due = configured and bridge.history_due(settings, state)
+        refused = [
+            RefusedMail(r.taken, r.reason, r.domain, r.count, refusal_label(r.taken, r.reason))
+            for r in bridges.refusals(db, bridge.refusal_key(settings))
+        ]
     else:
         configured = bool(settings.mail.address)
         due = False  # the service reads the mailbox from the start day by itself
     start = (settings.mail.start_day or default_start()).isoformat()
-    return MailHealth(connector, configured, state.last_run, state.last_error, state.stopped, start, due)
+    return MailHealth(connector, configured, state.last_run, state.last_error, state.stopped, start, due, refused)
 
 
 def reader_health(db: Database) -> list[ReaderHealth]:

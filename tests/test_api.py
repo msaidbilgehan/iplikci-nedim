@@ -196,6 +196,7 @@ def test_the_system_status_names_every_reader_and_what_it_read(client, ws):
         "stopped": False,
         "start_day": f"{date.today().year - 2}-01-01",  # two years back by default
         "history_due": False,  # the IMAP connector reads its history by itself
+        "refused": [],  # the extension's refused messages
     }
 
 

@@ -28,6 +28,20 @@ describe("SystemPage", () => {
     expect(screen.getByText("Durdu")).toBeInTheDocument();
   });
 
+  it("lists the delivered messages that were not kept, with why", async () => {
+    const refused = [
+      { taken: "unverified" as const, reason: "no-dmarc", domain: "banka.example", count: 12, label: "DMARC yok" },
+      { taken: "unlisted" as const, reason: "", domain: "", count: 3, label: "gönderen hiçbir listede değil" },
+    ];
+    const mail = { ...systemStatus().mail, connector: "browser_bridge" as const, refused };
+    server.use(http.get("/api/system", () => HttpResponse.json(systemStatus({ mail }))));
+    renderScreen(<SystemPage />);
+    const card = await screen.findByRole("region", { name: "E-posta" });
+    expect(within(card).getByText("Alınmayan e-postalar: 15")).toBeInTheDocument();
+    expect(within(card).getByText("banka.example: DMARC yok (12)")).toBeInTheDocument();
+    expect(within(card).getByText("gönderen hiçbir listede değil (3)")).toBeInTheDocument();
+  });
+
   it("says the extension has not scanned the history since the start day yet", async () => {
     const mail = { ...systemStatus().mail, connector: "browser_bridge" as const, history_due: true };
     server.use(http.get("/api/system", () => HttpResponse.json(systemStatus({ mail }))));

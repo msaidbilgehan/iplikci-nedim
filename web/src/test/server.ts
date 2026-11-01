@@ -37,6 +37,7 @@ export function systemStatus(overrides: Partial<SystemStatus> = {}): SystemStatu
       stopped: false,
       start_day: "2024-01-01",
       history_due: false,
+      refused: [],
     },
     backup: {
       last: "2026-11-01T00:30:00+00:00",

@@ -14,8 +14,10 @@ from ..archives import sent_at
 
 MAX_MESSAGE_BYTES = 40 << 20
 GMAIL_SERVER = "mx.google.com"
-_DMARC_PASS = re.compile(r"dmarc\s*=\s*pass\b", re.IGNORECASE)
+RULE_VERSION = 1  # raised when the rule changes: the messages it refused before are asked for again
+_DMARC = re.compile(r"dmarc\s*=\s*(\w+)", re.IGNORECASE)
 _HEADER_FROM = re.compile(r'(?:^|\s)header\.from\s*=\s*"?([a-z0-9.-]+)', re.IGNORECASE)
+_NAME = re.compile(r"[^a-z0-9.-]")
 
 
 def listed(domain: str, senders: tuple[str, ...]) -> bool:
@@ -24,16 +26,32 @@ def listed(domain: str, senders: tuple[str, ...]) -> bool:
 
 def verified(msg: Message, domain: str, gmail: bool = True) -> bool:
     """Whether the receiving server verified the sender: DMARC passed for the From domain."""
+    return not trust_problem(msg, domain, gmail)
+
+
+def trust_problem(msg: Message, domain: str, gmail: bool = True) -> str:
+    """Why the receiving server did not verify the sender; "" when DMARC passed for the From domain. The reason says
+    what the topmost Authentication-Results showed, never an address: no-results, server:<name>, no-dmarc,
+    dmarc:<result> (fail, none, temperror, …) or header-from:<domain> (DMARC passed for another domain)."""
     results = msg.get_all("Authentication-Results") or []
     if not results:
-        return False
+        return "no-results"
     server, *clauses = _clauses(" ".join(str(results[0]).split()))
     if gmail and server.lower() != GMAIL_SERVER:
-        return False
+        return f"server:{_NAME.sub('', server.lower())[:60]}"
+    problem = "no-dmarc"
     for clause in clauses:
-        if _DMARC_PASS.match(clause) and (found := _HEADER_FROM.search(clause)) and found[1].lower() == domain:
-            return True
-    return False
+        result = _DMARC.match(clause)
+        if result is None:
+            continue
+        if result[1].lower() != "pass":
+            problem = f"dmarc:{result[1].lower()[:20]}"
+            continue
+        found = _HEADER_FROM.search(clause)
+        if found is not None and found[1].lower() == domain:
+            return ""
+        problem = f"header-from:{found[1].lower()[:60] if found else ''}"
+    return problem
 
 
 def _clauses(header: str) -> list[str]:

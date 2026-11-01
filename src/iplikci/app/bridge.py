@@ -13,6 +13,7 @@ process listening on 127.0.0.1:8643 in the service's place cannot answer, so it 
 import hashlib
 import hmac
 import json
+import logging
 import secrets
 import threading
 import time
@@ -21,6 +22,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from ..domain.codes import Actor
+from ..ingest.mail import trust
+from ..parsers.common import business_names_signature
 from ..settings import config
 from ..storage import audit, bridges, events
 from ..storage import mail as mail_store
@@ -29,6 +32,8 @@ from . import mail
 from .workspace import Workspace
 
 MAX_MESSAGE_BYTES = mail.MAX_MESSAGE_BYTES  # what the intake takes at most
+_REFUSED = frozenset({mail.Taken.UNLISTED, mail.Taken.UNVERIFIED, mail.Taken.BUSINESS})  # remembered, not kept
+log = logging.getLogger("iplikci.bridge")
 CODE_SECONDS = 600
 CODE_LENGTH = 8
 MAX_WRONG_CODES = 5
@@ -169,10 +174,25 @@ def cursor(ws: Workspace) -> Cursor:
     )
 
 
+def refusal_key(settings: config.Settings) -> str:
+    """The settings a message is refused under: the senders, whether the sender must be verified, the trust rule's
+    version and the company names. Another key means the refused messages are asked for again."""
+    senders = sorted({s.lower() for s in mail.senders(settings)})
+    return json.dumps([senders, settings.mail.verify_sender, trust.RULE_VERSION, business_names_signature()])
+
+
 def missing(ws: Workspace, gmail_ids: list[str]) -> list[str]:
-    """Which of the Gmail ids a scan of Gmail found the service does not hold yet."""
+    """Which of the Gmail ids a scan of Gmail found the service neither holds nor refused under its settings now."""
+    key = refusal_key(config.load(ws.layout.settings))
     with ws.db() as db:
-        return bridges.missing(db, gmail_ids)
+        return bridges.missing(db, gmail_ids, key)
+
+
+def refused(ws: Workspace) -> list[bridges.Refusals]:
+    """The delivered messages refused under the settings now, counted by what became of them, why and domain."""
+    key = refusal_key(config.load(ws.layout.settings))
+    with ws.db() as db:
+        return bridges.refusals(db, key)
 
 
 def scanned(ws: Workspace, start_day: str, senders: Iterable[str]) -> bool:
@@ -213,13 +233,19 @@ def check_silence(ws: Workspace, at: datetime | None = None) -> list[str]:
 
 def deliver(ws: Workspace, raw: bytes, gmail_id: str = "", gmail_date: str = "") -> mail.MailOutcome:
     """Take a raw message the extension delivers through the same pipeline as every connector. A message the service
-    holds afterwards is remembered by Gmail's id; the cursor moves on when the message is the newest so far. A message
-    from a scan of Gmail comes without a date and leaves the cursor where it is: the feed's newest moves it."""
+    holds afterwards is remembered by Gmail's id, and so is one it refused, with why; the cursor moves on when the
+    message is the newest so far. A message from a scan of Gmail comes without a date and leaves the cursor where it
+    is: the feed's newest moves it."""
     settings = config.load(ws.layout.settings)
     outcome = mail.take(ws, raw, mail.senders(settings), verify=settings.mail.verify_sender, gmail=True)
     with ws.db() as db:
         if gmail_id and outcome.sha256:
             bridges.remember(db, gmail_id, outcome.sha256)
+        elif gmail_id and outcome.taken in _REFUSED:
+            # the domain of a sender on no list is not kept: it may be anyone's
+            domain = "" if outcome.taken is mail.Taken.UNLISTED else outcome.domain
+            bridges.refuse(db, gmail_id, outcome.taken, outcome.reason, domain, refusal_key(settings))
+            log.info("message %s not kept: %s %s %s", gmail_id, outcome.taken, domain, outcome.reason)
         state = mail_store.load(db, mail.BRIDGE)
         state.count(str(outcome.taken))
         if gmail_id and gmail_date and gmail_date >= state.last_date:

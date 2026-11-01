@@ -47,6 +47,14 @@ class QueueOut(BaseModel):
     failures: list[FailedJobOut]
 
 
+class RefusedMailOut(BaseModel):
+    taken: Literal["unlisted", "unverified", "business"]
+    reason: str  # what the trust rule saw: no-dmarc, dmarc:fail, header-from:…
+    domain: str  # the sender's domain; "" for a sender on no list
+    count: int
+    label: str  # why, in Turkish
+
+
 class MailOut(BaseModel):
     connector: Literal["imap", "browser_bridge"]
     configured: bool
@@ -55,6 +63,7 @@ class MailOut(BaseModel):
     stopped: bool
     start_day: str  # where the history begins
     history_due: bool  # the extension has not scanned Gmail for this start day and these senders yet
+    refused: list[RefusedMailOut]  # messages the extension delivered that were not kept, by why; most first
 
 
 class BackupHealthOut(BaseModel):

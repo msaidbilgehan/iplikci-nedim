@@ -42,6 +42,9 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
   - "Orijinali göster"in metnini göstermediği tek bir ileti katmanı durdurmaz. İleti atlanır ve kullanıcıya Gmail'den
     indirmesi söylenir; ancak art arda üç ileti gösterilmezse katman durur. Biçim alarmı sayfanın metnini değil,
     özelliklerini taşır.
+  - Servisin almadığı iletiler Gmail kimliği ve nedeniyle hatırlanır. Ayarlar değişmedikçe yeniden indirilmezler.
+    Sistem ekranı onları nedenleriyle sayar: listede olmayan gönderici, şirket iletisi ya da güven kuralının gördüğü
+    (DMARC sonucu yok, "pass" değil, başka bir alan adı için geçti…).
 - Gelen klasörü izleyicisi: değişmeden 20 saniye bekleyen dosyalar plansız alınır (F02).
 - Yükleme (F02): dosyalar bir partiye yüklenir ve plan her dosyaya ne olacağını gösterir. Yalnızca onaylanan plan
   uygulanır; plandan sonra değişen bir dosya planı yeniler. Uygulanmayan parti bir gün sonra çöp kutusuna gider.

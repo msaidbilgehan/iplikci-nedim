@@ -1,5 +1,5 @@
 """The paired browser extensions (ADR-0016), each with the SHA-256 of its token, and the Gmail ids of the messages
-they delivered."""
+they delivered: those the service holds, and those it refused with why."""
 
 import sqlite3
 from collections.abc import Sequence
@@ -80,8 +80,20 @@ def remember(db: Database, gmail_id: str, sha256: str) -> None:
         )
 
 
-def missing(db: Database, gmail_ids: Sequence[str]) -> list[str]:
-    """The ids of gmail_ids no delivered message carries, in the order given and without repeats."""
+def refuse(db: Database, gmail_id: str, taken: str, reason: str, domain: str, key: str) -> None:
+    """A message the service did not keep, by Gmail's id, under the settings key: a scan does not download it again
+    while the key stays."""
+    with db.transaction():
+        db.execute(
+            "INSERT OR REPLACE INTO bridge_refused (gmail_id, taken, reason, domain, key, refused_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (gmail_id, taken, reason, domain, key, now()),
+        )
+
+
+def missing(db: Database, gmail_ids: Sequence[str], key: str) -> list[str]:
+    """The ids of gmail_ids no delivered message carries and none refused under key, in the order given and without
+    repeats."""
     wanted = list(dict.fromkeys(gmail_ids))
     held: set[str] = set()
     for start in range(0, len(wanted), 500):  # SQLite allows a limited number of parameters
@@ -89,6 +101,28 @@ def missing(db: Database, gmail_ids: Sequence[str]) -> list[str]:
         marks = ", ".join("?" * len(chunk))
         held |= {
             str(r["gmail_id"])
-            for r in db.rows(f"SELECT gmail_id FROM bridge_messages WHERE gmail_id IN ({marks})", chunk)
+            for r in db.rows(
+                f"SELECT gmail_id FROM bridge_messages WHERE gmail_id IN ({marks}) "
+                f"UNION SELECT gmail_id FROM bridge_refused WHERE key = ? AND gmail_id IN ({marks})",
+                [*chunk, key, *chunk],
+            )
         }
     return [i for i in wanted if i not in held]
+
+
+@dataclass(frozen=True, slots=True)
+class Refusals:
+    taken: str
+    reason: str
+    domain: str
+    count: int
+
+
+def refusals(db: Database, key: str) -> list[Refusals]:
+    """The messages refused under key, counted by what became of them, why and from which domain; most first."""
+    rows = db.rows(
+        "SELECT taken, reason, domain, count(*) AS n FROM bridge_refused WHERE key = ? "
+        "GROUP BY taken, reason, domain ORDER BY n DESC, taken, reason, domain",
+        (key,),
+    )
+    return [Refusals(str(r["taken"]), str(r["reason"]), str(r["domain"]), int(r["n"])) for r in rows]

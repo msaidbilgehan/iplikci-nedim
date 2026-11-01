@@ -145,6 +145,7 @@ export interface MailOut {
   stopped: boolean;
   start_day: string;
   history_due: boolean;
+  refused: RefusedMailOut[];
 }
 
 export interface PairIn {
@@ -223,6 +224,14 @@ export interface ReaderHealthOut {
   verified: number;
   last_read: string;
   alarms: number;
+}
+
+export interface RefusedMailOut {
+  taken: "unlisted" | "unverified" | "business";
+  reason: string;
+  domain: string;
+  count: number;
+  label: string;
 }
 
 /** What a finished scan of Gmail searched, as the cursor said when it began. */

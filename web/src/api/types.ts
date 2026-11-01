@@ -12,6 +12,7 @@ import type {
   PairingOut,
   PlanOut,
   QueuedOut,
+  RefusedMailOut,
   SystemOut,
   UploadOut,
 } from "./schema";
@@ -27,3 +28,4 @@ export type Plan = PlanOut;
 export type Applied = AppliedOut;
 export type LoggedEvent = EventOut;
 export type Queued = QueuedOut;
+export type RefusedMail = RefusedMailOut;

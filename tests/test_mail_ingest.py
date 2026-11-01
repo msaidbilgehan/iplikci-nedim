@@ -58,17 +58,45 @@ def test_the_same_mail_again_adds_nothing(ws):
 
 
 @pytest.mark.parametrize(
-    ("sender", "results", "expected"),
+    ("sender", "results", "expected", "reason"),
     [
-        ("kampanya@example.com", None, Taken.UNLISTED),
-        ("bilgi@teb.com.tr", ("mx.google.com; dmarc=fail (p=REJECT) header.from=teb.com.tr",), Taken.UNVERIFIED),
-        ("bilgi@teb.com.tr", ("mx.google.com; dmarc=pass header.from=example.com",), Taken.UNVERIFIED),
-        ("bilgi@teb.com.tr", ("evil.example; dmarc=pass header.from=teb.com.tr",), Taken.UNVERIFIED),
-        ("bilgi@teb.com.tr", (), Taken.UNVERIFIED),
+        ("kampanya@example.com", None, Taken.UNLISTED, ""),
+        (
+            "bilgi@teb.com.tr",
+            ("mx.google.com; dmarc=fail (p=REJECT) header.from=teb.com.tr",),
+            Taken.UNVERIFIED,
+            "dmarc:fail",
+        ),
+        (
+            "bilgi@teb.com.tr",
+            ("mx.google.com; dmarc=pass header.from=example.com",),
+            Taken.UNVERIFIED,
+            "header-from:example.com",
+        ),
+        (
+            "bilgi@teb.com.tr",
+            ("evil.example; dmarc=pass header.from=teb.com.tr",),
+            Taken.UNVERIFIED,
+            "server:evil.example",
+        ),
+        ("bilgi@teb.com.tr", (), Taken.UNVERIFIED, "no-results"),
+        (
+            "bilgi@teb.com.tr",
+            ("mx.google.com; dkim=pass header.i=@teb.com.tr; spf=pass smtp.mailfrom=teb.com.tr",),
+            Taken.UNVERIFIED,
+            "no-dmarc",
+        ),
+        (
+            "bilgi@teb.com.tr",
+            ("mx.google.com; dmarc=bestguesspass header.from=teb.com.tr",),
+            Taken.UNVERIFIED,
+            "dmarc:bestguesspass",
+        ),
         (
             "bilgi@teb.com.tr",
             ("mx.google.com; dmarc=fail header.from=teb.com.tr", "mx.google.com; dmarc=pass header.from=teb.com.tr"),
             Taken.UNVERIFIED,
+            "dmarc:fail",
         ),
         (
             "bilgi@teb.com.tr",
@@ -80,6 +108,7 @@ def test_the_same_mail_again_adds_nothing(ws):
                 ),
             ),
             Taken.UNVERIFIED,
+            "dmarc:fail",
         ),
         (
             "bilgi@teb.com.tr",
@@ -90,6 +119,7 @@ def test_the_same_mail_again_adds_nothing(ws):
                 ),
             ),
             Taken.UNVERIFIED,
+            "dmarc:fail",
         ),
     ],
     ids=[
@@ -98,14 +128,16 @@ def test_the_same_mail_again_adds_nothing(ws):
         "another domain",
         "another server",
         "no header",
+        "no dmarc result",
+        "a best guess",
         "pass only further down",
         "pass forged in a comment",
         "pass forged in a quoted address",
     ],
 )
-def test_an_untrusted_mail_leaves_no_trace(ws, sender, results, expected):
+def test_an_untrusted_mail_leaves_no_trace_but_why(ws, sender, results, expected, reason):
     outcome = take(ws, bank_mail(FEBRUARY, sender=sender, results=results), SENDERS)
-    assert outcome.taken is expected
+    assert (outcome.taken, outcome.reason) == (expected, reason)
     assert kept(ws) == []
     with ws.db() as db:
         assert events.entries(db) == []
