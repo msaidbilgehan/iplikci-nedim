@@ -121,8 +121,8 @@ def _names(example: str) -> Check:
     return check
 
 
-def _domains(where: str, value: Any) -> tuple[str, ...]:
-    if not isinstance(value, list):
+def _domains(where: str, value: Any, required: bool = False) -> tuple[str, ...]:
+    if not isinstance(value, list) or (required and not value):
         raise SettingsError(f'{where} alan adlarının listesi olmalı, ör. ["banka.com.tr"]')
     found: list[str] = []
     for item in value:  # pyright: ignore[reportUnknownVariableType] - TOML value checked here
@@ -131,6 +131,11 @@ def _domains(where: str, value: Any) -> tuple[str, ...]:
             raise SettingsError(f"{where} içinde geçersiz alan adı {item!r} (örnek: banka.com.tr)")
         found.append(domain)
     return tuple(dict.fromkeys(found))
+
+
+def _bank_domains(where: str, value: Any) -> tuple[str, ...]:
+    """The bank senders: at least one, since e-mail is searched by them."""
+    return _domains(where, value, required=True)
 
 
 def _port(where: str, value: Any) -> int:
@@ -227,7 +232,7 @@ _SCHEMA: dict[str, tuple[type, dict[str, Check]]] = {
             "imap_port": _port,
             "folder": _folder,
             "start_day": _day,
-            "bank_senders": _domains,
+            "bank_senders": _bank_domains,
             "other_senders": _domains,
             "verify_sender": _flag,
             "smtp_host": _host,

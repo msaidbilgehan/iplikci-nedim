@@ -10,35 +10,46 @@ from datetime import date
 import pytest
 
 from iplikci import email_fetch
+from iplikci.app.workspace import Workspace
 from iplikci.demo import teb_export, text_pdf
+from iplikci.domain.codes import DocumentStatus, SourceKind
 from iplikci.email_fetch import Account, MailError, NotConfigured, fetch, search_criteria, setup
-from iplikci.workspace import Workspace, inbox_files
+from iplikci.settings.config import SettingsError
+from iplikci.storage import documents
 
-from conftest import ADDRESS, APP_PASSWORD, FEBRUARY, JANUARY, bank_mail, put
-
-FILED = "TEB/Vadesiz Hesap TL 123456789/2026-01-01 - 2026-01-31 TEB Vadesiz TL 123456789 Hesap Hareketleri.xls"
+from conftest import ADDRESS, APP_PASSWORD, FEBRUARY, JANUARY, add, bank_mail
 
 
 def with_settings(ws: Workspace, text: str) -> Workspace:
-    path = ws.base / "ayarlar.toml"
-    path.write_text(path.read_text(encoding="utf-8") + text, encoding="utf-8")
-    return Workspace.load(ws.base)
+    ws.layout.settings.write_text(text, encoding="utf-8")
+    return Workspace.load(ws.home)
 
 
 def bodies_fetched(server) -> list[str]:
     return [c[2] for c in server.commands if c[:2] == ("UID", "FETCH") and c[3] == "(BODY.PEEK[])"]
 
 
-def test_a_verified_bank_statement_is_copied_into_the_inbox(ws, mail):
+def kept(ws: Workspace) -> list[documents.DocumentRow]:
+    with ws.db() as db:
+        return documents.every(db)
+
+
+def test_a_verified_bank_statement_goes_into_the_vault(ws, mail):
     mail.messages[101] = bank_mail(teb_export(JANUARY))
     got = fetch(ws)
     assert (got.scanned, got.with_documents, got.unverified) == (1, 1, 0)
-    [(_item, copy)] = got.copied
-    assert copy.parent == ws.inbox and copy.read_bytes() == teb_export(JANUARY)
-    assert got.message.startswith(
-        "1 yeni banka e-postası okundu; 1 yeni belge gelen kutusuna kopyalandı (1 hesap dökümü)"
-    )
+    [c] = got.stored
+    assert c.status is DocumentStatus.PROCESSED and ws.vault.read(c.sha256) == teb_export(JANUARY)
+    assert got.message.startswith("1 yeni banka e-postası okundu; 1 yeni belge arşive alındı (1 hesap dökümü)")
     assert got.folder == "[Gmail]/Tüm Postalar"  # All Mail, found by its \All flag in any language
+    with ws.db() as db:
+        [source] = documents.sources(db, c.sha256)
+    assert (source.kind, source.origin, source.sender) == (
+        SourceKind.EMAIL,
+        "E-posta 2026-02-02 teb.com.tr",
+        "teb.com.tr",
+    )
+    assert source.sent_at.startswith("2026-02-02T10:00:00")
 
 
 def test_the_mailbox_is_only_read(ws, mail):
@@ -67,48 +78,48 @@ def test_mail_whose_sender_is_not_verified_is_ignored(ws, mail):
         105: bank_mail(january, results=("mx.google.com; dmarc=pass header.from=baska.example",)),
     }
     got = fetch(ws)
-    assert (got.scanned, got.unverified, got.copied) == (5, 5, [])
-    assert inbox_files(ws) == [] and "5 e-postanın göndereni doğrulanamadı" in got.message
+    assert (got.scanned, got.unverified, got.stored) == (5, 5, [])
+    assert kept(ws) == [] and "5 e-postanın göndereni doğrulanamadı" in got.message
 
 
 def test_mail_from_other_senders_is_not_even_counted(ws, mail):
     mail.messages[101] = bank_mail(teb_export(JANUARY), sender="kampanya@teb.com.tr.saldirgan.example")
     mail.messages[102] = bank_mail(teb_export(JANUARY), sender="arkadas@example.com")
     got = fetch(ws)
-    assert (got.scanned, got.copied) == (0, []) and got.message == "yeni banka e-postası yok"
+    assert (got.scanned, got.stored) == (0, []) and got.message == "yeni banka e-postası yok"
 
 
 def test_a_subdomain_of_a_bank_counts(ws, mail):
     mail.messages[101] = bank_mail(teb_export(JANUARY), sender="ekstre@ileti.teb.com.tr")
-    assert len(fetch(ws).copied) == 1
+    assert len(fetch(ws).stored) == 1
 
 
 def test_each_e_mail_is_read_once(ws, mail):
     mail.messages[101] = bank_mail(teb_export(JANUARY))
-    assert len(fetch(ws).copied) == 1
+    assert len(fetch(ws).stored) == 1
     mail.messages[102] = bank_mail(FEBRUARY)
     mail.commands.clear()
     second = fetch(ws)
-    assert len(second.copied) == 1 and bodies_fetched(mail) == ["102"]
+    assert len(second.stored) == 1 and bodies_fetched(mail) == ["102"]
     mail.commands.clear()
     third = fetch(ws)
     assert third.message == "yeni banka e-postası yok" and bodies_fetched(mail) == []
 
 
-def test_a_new_mailbox_generation_is_read_again_without_copying_twice(ws, mail):
+def test_a_new_mailbox_generation_is_read_again_without_keeping_twice(ws, mail):
     mail.messages[101] = bank_mail(teb_export(JANUARY))
     fetch(ws)
     mail.uidvalidity = 8  # the server renumbered the mailbox: the old position means nothing
     again = fetch(ws)
-    assert again.scanned == 1 and again.copied == [] and "1 zaten gelen kutusunda" in again.message
-    assert len(inbox_files(ws)) == 1
+    assert again.scanned == 1 and again.stored == [] and "1 zaten vardı" in again.message
+    assert len(kept(ws)) == 1
 
 
-def test_documents_already_filed_are_not_copied(ws, mail):
-    put(ws.documents / FILED, teb_export(JANUARY))
+def test_documents_already_in_the_vault_are_not_kept_again(ws, mail):
+    add(ws, "ocak.xls", teb_export(JANUARY))
     mail.messages[101] = bank_mail(teb_export(JANUARY))
     got = fetch(ws)
-    assert got.copied == [] and "1 zaten vardı" in got.message and inbox_files(ws) == []
+    assert got.stored == [] and "1 zaten vardı" in got.message and len(kept(ws)) == 1
 
 
 def test_zip_attachments_are_opened_in_memory(ws, mail):
@@ -118,17 +129,17 @@ def test_zip_attachments_are_opened_in_memory(ws, mail):
         zf.writestr("okubeni.txt", "belge değil")
     mail.messages[101] = bank_mail(buf.getvalue(), name="ekstreler.zip")
     got = fetch(ws)
-    assert [p.name for _, p in got.copied] == ["HesapHareketleri.xls"]
-    assert [p.name for p in inbox_files(ws)] == ["HesapHareketleri.xls"]  # the zip itself is not kept
+    assert [c.name for c in got.stored] == ["HesapHareketleri.xls"]
+    assert [d.name for d in kept(ws)] == ["HesapHareketleri.xls"]  # the zip itself is not kept
 
 
 def test_a_large_backlog_is_read_in_parts(ws, mail, monkeypatch):
     monkeypatch.setattr(email_fetch, "MAX_MESSAGES", 1)
     mail.messages |= {101: bank_mail(teb_export(JANUARY)), 102: bank_mail(FEBRUARY)}
     first = fetch(ws)
-    assert first.more and len(first.copied) == 1 and "sonraki alımda sürecek" in first.message
+    assert first.more and len(first.stored) == 1 and "sonraki alımda sürecek" in first.message
     second = fetch(ws)
-    assert not second.more and len(second.copied) == 1 and bodies_fetched(mail) == ["101", "102"]
+    assert not second.more and len(second.stored) == 1 and bodies_fetched(mail) == ["101", "102"]
 
 
 def test_fetching_needs_an_account(ws):
@@ -141,10 +152,10 @@ def test_setup_checks_the_password_and_keeps_it_out_of_files(ws, imap):
     acc, stored, folder = setup(ws, f" {ADDRESS} ", "abcd efgh ijkl mnop", date(2026, 1, 1))
     assert (acc.address, stored, folder) == (ADDRESS, True, "[Gmail]/Tüm Postalar")
     assert imap.stored == {ADDRESS: APP_PASSWORD}  # Google shows app passwords in groups of four
-    state = ws.output / email_fetch.STATE_NAME
+    state = ws.run / email_fetch.STATE_NAME
     assert json.loads(state.read_text(encoding="utf-8"))["address"] == ADDRESS
-    assert APP_PASSWORD not in state.read_text(encoding="utf-8")
-    assert APP_PASSWORD not in (ws.base / "ayarlar.toml").read_text(encoding="utf-8")
+    for path in (p for p in ws.home.rglob("*") if p.is_file()):
+        assert APP_PASSWORD.encode() not in path.read_bytes(), path
     if os.name != "nt":
         assert stat.S_IMODE(state.stat().st_mode) == 0o600
     assert email_fetch.status(ws)["address"] == ADDRESS
@@ -153,7 +164,7 @@ def test_setup_checks_the_password_and_keeps_it_out_of_files(ws, imap):
 def test_a_wrong_password_says_what_to_do_and_keeps_nothing(ws, imap):
     with pytest.raises(MailError, match="uygulama şifresi"):
         setup(ws, ADDRESS, "normal-gmail-sifresi", date(2026, 1, 1))
-    assert imap.stored == {} and not (ws.output / email_fetch.STATE_NAME).exists()
+    assert imap.stored == {} and not (ws.run / email_fetch.STATE_NAME).exists()
 
 
 def test_forget_removes_the_password_and_the_account(ws, mail):
@@ -163,19 +174,18 @@ def test_forget_removes_the_password_and_the_account(ws, mail):
 
 def test_other_servers_read_the_inbox_with_a_plain_search(ws, imap):
     imap.capabilities = ("IMAP4REV1",)
-    ws = with_settings(ws, '\n[eposta]\nsunucu = "imap.example.com"\ngondericiler = ["teb.com.tr"]\n')
+    ws = with_settings(ws, '[mail]\nimap_host = "imap.example.com"\nbank_senders = ["teb.com.tr"]\n')
     setup(ws, ADDRESS, APP_PASSWORD, date(2026, 1, 1))
     imap.messages[101] = bank_mail(teb_export(JANUARY))
-    assert len(fetch(ws).copied) == 1
+    assert len(fetch(ws).stored) == 1
     [search] = [c for c in imap.commands if c[:2] == ("UID", "SEARCH")]
     assert ("SELECT", "INBOX", True) in imap.commands and not any("X-GM-RAW" in a for a in search)
 
 
 @pytest.mark.parametrize("senders", ['["teb.com.tr\\" OR ALL"]', '["teb com"]', "[]", '"teb.com.tr"'])
-def test_sender_settings_cannot_reach_the_imap_command(ws, imap, senders):
-    ws = with_settings(ws, f"\n[eposta]\ngondericiler = {senders}\n")
-    with pytest.raises(MailError, match="gondericiler"):
-        setup(ws, ADDRESS, APP_PASSWORD, date(2026, 1, 1))
+def test_sender_settings_cannot_reach_the_imap_command(ws, senders):
+    with pytest.raises(SettingsError, match="bank_senders"):
+        with_settings(ws, f"[mail]\nbank_senders = {senders}\n")
 
 
 def test_the_search_asks_for_any_bank_domain_since_the_start_day():
@@ -224,8 +234,10 @@ def test_new_readers_read_the_mailbox_again_once(ws, mail, monkeypatch):
     assert fetch(ws).message == "yeni banka e-postası yok"
 
 
-def test_an_unused_attachment_is_named(ws, mail):
+def test_a_bank_document_without_money_movements_is_kept_and_named(ws, mail):
     policy = text_pdf([(402, 32, "Katılım Sertifika Numarası : 1"), (159, 104, "ANINDA KREDİ HAYAT SİGORTASI")])
     mail.messages[101] = bank_mail(policy, name="Police.pdf", sender="bilgi@qnb.com.tr")
     got = fetch(ws)
-    assert got.copied == [] and got.message.endswith("ekler: 1 sigorta poliçesi/bilgilendirmesi")
+    [c] = got.stored
+    assert (c.status, c.reason) == (DocumentStatus.UNPROCESSED, "sigorta poliçesi/bilgilendirmesi")
+    assert "1 yeni belge arşive alındı (1 para hareketi olmayan belge)" in got.message

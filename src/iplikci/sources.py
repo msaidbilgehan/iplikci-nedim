@@ -1,10 +1,8 @@
-"""Collect documents from folders, mbox files and zip archives.
+"""Documents inside zip archives, mbox files and e-mails.
 
-Everything is read into memory; nothing from an archive or an e-mail is ever
-written to disk. Identical files (same SHA-256) are returned once.
+Everything is read into memory; nothing from an archive or an e-mail is ever written to disk.
 """
 
-import hashlib
 import io
 import mailbox
 import os
@@ -58,7 +56,7 @@ def _zip_member_name(info: zipfile.ZipInfo) -> str:
     return nfc(name)
 
 
-def _from_zip(data: bytes, origin: str) -> list[tuple[str, str, bytes]]:
+def from_zip(data: bytes, origin: str) -> list[tuple[str, str, bytes]]:
     """(name, origin, bytes) of the documents and nested zips in a zip archive."""
     try:
         zf = zipfile.ZipFile(io.BytesIO(data))
@@ -97,7 +95,7 @@ def attachments(msg: Message) -> Iterator[tuple[str, bytes]]:
             yield nfc(_decode_header(filename)), data
 
 
-def _from_mbox(path: Path):
+def from_mbox(path: Path):
     box = mailbox.mbox(str(path), create=False)
     for msg in box:
         subject = _decode_header(msg["Subject"])
@@ -105,55 +103,10 @@ def _from_mbox(path: Path):
             yield name, f"{path.name} › {subject} › {name}", data
 
 
-def _is_mbox(path: Path) -> bool:
+def is_mbox(path: Path) -> bool:
     if path.suffix.lower() == ".mbox":
         return True
     if path.suffix:
         return False
     with open(path, "rb") as f:
         return f.read(5) == b"From "
-
-
-def _expand(name: str, origin: str, data: bytes):
-    """Yield (name, origin, data) for a file, descending into zip archives. A zip that cannot be
-    opened is yielded itself: the parsers report it as unreadable, so it is kept for a manual look."""
-    if name.lower().endswith(".zip"):
-        try:
-            members = _from_zip(data, origin)
-        except UnreadableArchive:
-            yield name, origin, data
-            return
-        for member in members:
-            yield from _expand(*member)
-    elif os.path.splitext(name)[1].lower() in DOCUMENT_EXTENSIONS:
-        yield name, origin, data
-
-
-def _walk(path: Path):
-    if path.is_dir():
-        for root, dirs, files in os.walk(path):
-            dirs[:] = sorted(d for d in dirs if not d.startswith("."))
-            for fn in sorted(files):
-                if fn.startswith("."):
-                    continue
-                yield from _walk(Path(root) / fn)
-    elif path.is_file():
-        if _is_mbox(path):
-            for name, origin, data in _from_mbox(path):
-                yield from _expand(name, origin, data)
-        elif path.suffix.lower() in DOCUMENT_EXTENSIONS | {".zip"}:
-            yield from _expand(nfc(path.name), nfc(str(path)), path.read_bytes())
-
-
-def collect(paths: list[Path]) -> tuple[list[Document], int]:
-    """Return unique documents under the given paths and the number of duplicates skipped."""
-    seen: dict[str, Document] = {}
-    duplicates = 0
-    for path in paths:
-        for name, origin, data in _walk(path):
-            digest = hashlib.sha256(data).hexdigest()
-            if digest in seen:
-                duplicates += 1
-                continue
-            seen[digest] = Document(name=name, origin=origin, data=data, sha256=digest)
-    return list(seen.values()), duplicates

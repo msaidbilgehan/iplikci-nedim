@@ -20,7 +20,6 @@ from .month_end import CLOSED, MONTH_STATUS, MonthEnd
 from .textutil import format_tr_amount
 
 VERSION = 1
-FILE = "taban.json"
 UNREADABLE = "hata"
 DOCUMENT_STATUS = {
     "ekstre": "kart ekstresi",

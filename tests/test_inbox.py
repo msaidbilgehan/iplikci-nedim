@@ -1,35 +1,23 @@
-"""New documents: uploads into the inbox, plans, filing, importing."""
+"""New documents through the inbox: uploads, unreadable archives, missing documents, one writer at a time."""
 
 import io
 import zipfile
 from datetime import date
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 
 import pytest
 
-from iplikci import duzenle, pipeline, workspace
 from iplikci.analysis import Dataset
-from iplikci.demo import teb_export
+from iplikci.app import intake, reading, uploads
+from iplikci.app.analysis import analyze, document_gaps
+from iplikci.app.uploads import inbox_files, safe_upload_path, save_upload
+from iplikci.app.workspace import Busy, file_lock
+from iplikci.domain.codes import DocumentStatus
 from iplikci.models import Account, Statement
 from iplikci.parsers import ENCRYPTED_REASON, Unreadable
 from iplikci.sources import ZIP_DAMAGED, ZIP_ENCRYPTED
-from iplikci.workspace import (
-    Busy,
-    StalePlan,
-    analyze,
-    apply,
-    document_gaps,
-    import_paths,
-    inbox_files,
-    output_lock,
-    plan_inbox,
-    safe_upload_path,
-    save_upload,
-)
 
-from conftest import JANUARY, put
-
-TARGET = Path("TEB/Vadesiz Hesap TL 123456789/2026-01-01 - 2026-01-31 TEB Vadesiz TL 123456789 Hesap Hareketleri.xls")
+from conftest import put
 
 
 @pytest.mark.parametrize(
@@ -73,77 +61,69 @@ def test_interrupted_upload_leaves_nothing_behind(ws):
     assert list(ws.inbox.iterdir()) == []  # not even the hidden partial file
 
 
-def test_waiting_documents_count_in_the_report(ws):
-    assert ws.report_sources() == [ws.documents, ws.inbox]
+def test_unfinished_uploads_are_not_waiting_documents(ws):
     put(ws.inbox / ".yukleniyor-x", "yarım")
     put(ws.inbox / "alt" / "a.pdf", "a")
     assert inbox_files(ws) == [ws.inbox / "alt" / "a.pdf"]
 
 
-def test_plan_and_apply_file_an_upload(ws):
-    put(ws.inbox / "indirilenler" / "TEBHareket.xls", teb_export(JANUARY))
-    plan = plan_inbox(ws)
-    [item] = plan.changes
-    assert (item.action, item.target) == (duzenle.KEEP, ws.documents / TARGET)
-    assert not (ws.documents / TARGET).exists()  # a plan touches nothing
-    done = apply(ws, plan)
-    assert (ws.documents / TARGET).read_bytes() == teb_export(JANUARY)
-    assert ws.inbox.is_dir() and inbox_files(ws) == []  # emptied, but the inbox itself stays
-    assert done.log and done.log.read_text(encoding="utf-8-sig").count("Düzenlendi") == 1
+def test_upload_works_where_the_disk_has_no_hard_links(ws, monkeypatch):
+    def no_links(src, dst):
+        raise PermissionError(1, "Operation not permitted")  # FAT and exFAT
+
+    monkeypatch.setattr(uploads.os, "link", no_links)
+    first = save_upload(ws, "ekim.pdf", io.BytesIO(b"bir"), 3)
+    second = save_upload(ws, "ekim.pdf", io.BytesIO(b"iki"), 3)
+    assert (first.name, second.name) == ("ekim.pdf", "ekim (2).pdf")  # still never replaced
+    assert [p.read_bytes() for p in inbox_files(ws)] == [b"iki", b"bir"]
+    assert sorted(p.name for p in ws.inbox.iterdir()) == ["ekim (2).pdf", "ekim.pdf"]  # no partial files left
 
 
-def test_a_second_copy_of_a_filed_statement_is_set_aside(ws, private_trash):
-    put(ws.documents / TARGET, teb_export(JANUARY))
-    put(ws.inbox / "kopya.xls", teb_export(JANUARY))
-    plan = plan_inbox(ws)
-    [item] = plan.changes
-    assert item.action == duzenle.DUPLICATE
-    done = apply(ws, plan)
-    assert done.trash is not None and done.trash.is_relative_to(private_trash)
-    assert [p.name for p in done.trash.rglob("*.xls")] == ["kopya.xls"]
-
-
-def test_unreadable_upload_moves_to_the_unreadable_folder(ws, monkeypatch):
-    real = pipeline.parse_document
+def test_an_encrypted_pdf_is_kept_once_for_a_manual_look(ws, monkeypatch):
+    real = reading.parse_document
 
     def parse(doc):
         if doc.name == "kilitli.pdf":
             raise Unreadable(ENCRYPTED_REASON)
         return real(doc)
 
-    monkeypatch.setattr(pipeline, "parse_document", parse)
+    monkeypatch.setattr(reading, "parse_document", parse)
     put(ws.inbox / "kilitli.pdf", "%PDF şifreli")
     put(ws.inbox / "ikinci kopya" / "kilitli.pdf", "%PDF şifreli")
-    plan = plan_inbox(ws)
-    first, second = sorted(plan.changes, key=lambda it: len(it.path.parts))
-    assert (first.action, first.target) == (duzenle.FAILED, ws.documents / duzenle.UNREADABLE_FOLDER / "kilitli.pdf")
-    assert "şifreli" in first.reason
-    assert second.action == duzenle.DUPLICATE  # the same bytes are kept once
-    apply(ws, plan)
-    assert (ws.documents / duzenle.UNREADABLE_FOLDER / "kilitli.pdf").exists() and inbox_files(ws) == []
+    plan = intake.plan_inbox(ws)
+    first, second = plan.changes
+    assert (first.status, first.reason) == (DocumentStatus.UNREADABLE, ENCRYPTED_REASON)
+    assert second.verdict == "known"  # the same bytes are kept once
+    intake.apply(ws, plan)
+    assert inbox_files(ws) == []
+    assert [(d.name, d.status, d.detail) for d in analyze(ws).dataset.documents] == [
+        ("kilitli.pdf", "hata", ENCRYPTED_REASON)
+    ]
 
 
-def test_a_plan_is_not_applied_after_its_file_changed(ws):
-    path = put(ws.inbox / "TEBHareket.xls", teb_export(JANUARY))
-    plan = plan_inbox(ws)
-    path.write_bytes(teb_export(JANUARY[:1]))
-    with pytest.raises(StalePlan):
-        apply(ws, plan)
-    assert path.exists() and not (ws.documents / TARGET).exists()
+def _encrypted_zip(member: str, data: bytes) -> bytes:
+    """A zip whose member is marked as password-protected (zipfile cannot write real encryption; the
+    flag is what makes a reader ask for the password)."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr(member, data)
+    raw = bytearray(buf.getvalue())
+    central = raw.rindex(b"PK\x01\x02")
+    raw[central + 8] |= 0x1  # general purpose flag in the central directory: encrypted
+    raw[6] |= 0x1  # and in the local header
+    return bytes(raw)
 
 
-def test_import_copies_new_documents_and_leaves_the_originals(ws, tmp_path):
-    original = put(tmp_path / "Downloads" / "TEBHareket.xls", teb_export(JANUARY))
-    put(tmp_path / "Downloads" / "notlar.pdf", "%PDF banka belgesi değil")
-    found, copies = import_paths(ws, [str(tmp_path / "Downloads")])
-    assert sorted(it.action for it in found) == [duzenle.UNUSED, duzenle.KEEP]
-    assert [c.name for c in copies] == ["TEBHareket.xls"] and original.exists()
-    assert import_paths(ws, [str(tmp_path / "Downloads")])[1] == []  # already waiting: not copied twice
-
-
-def test_import_refuses_the_document_folder_itself(ws):
-    with pytest.raises(ValueError):
-        import_paths(ws, [str(ws.documents)])
+@pytest.mark.parametrize(
+    "data, reason", [(_encrypted_zip("ekstre.pdf", b"%PDF"), ZIP_ENCRYPTED), (b"PK\x03\x04 yarim inmis", ZIP_DAMAGED)]
+)
+def test_a_zip_that_cannot_be_opened_is_kept_for_a_manual_look(ws, data, reason):
+    put(ws.inbox / "ekstreler.zip", data)
+    [item] = intake.plan_inbox(ws).changes
+    assert (item.status, item.reason) == (DocumentStatus.UNREADABLE, reason)  # never set aside as an archive
+    intake.apply(ws, intake.plan_inbox(ws))
+    a = analyze(ws)  # the report reads it as an unreadable document instead of failing
+    assert [(d.name, d.status, d.detail) for d in a.dataset.documents] == [("ekstreler.zip", "hata", reason)]
 
 
 def test_document_gaps_name_missing_and_stale_statements():
@@ -173,48 +153,11 @@ def test_document_gaps_name_missing_and_stale_statements():
     assert [g.account for g in nothing_new] == ["Hesap 2", "Hesap 1"]
 
 
-def _encrypted_zip(member: str, data: bytes) -> bytes:
-    """A zip whose member is marked as password-protected (zipfile cannot write real encryption; the
-    flag is what makes a reader ask for the password)."""
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w") as zf:
-        zf.writestr(member, data)
-    raw = bytearray(buf.getvalue())
-    central = raw.rindex(b"PK\x01\x02")
-    raw[central + 8] |= 0x1  # general purpose flag in the central directory: encrypted
-    raw[6] |= 0x1  # and in the local header
-    return bytes(raw)
-
-
-@pytest.mark.parametrize(
-    "data, reason", [(_encrypted_zip("ekstre.pdf", b"%PDF"), ZIP_ENCRYPTED), (b"PK\x03\x04 yarim inmis", ZIP_DAMAGED)]
-)
-def test_a_zip_that_cannot_be_opened_is_kept_for_a_manual_look(ws, data, reason):
-    put(ws.inbox / "ekstreler.zip", data)
-    [item] = plan_inbox(ws).changes
-    assert (item.action, item.reason) == (duzenle.FAILED, reason)  # never set aside as an emptied archive
-    assert item.target == ws.documents / duzenle.UNREADABLE_FOLDER / "ekstreler.zip"
-    a = analyze(ws)  # the report reads it as an unreadable document instead of failing
-    assert [(d.name, d.status, d.detail) for d in a.dataset.documents] == [("ekstreler.zip", "hata", reason)]
-
-
-def test_upload_works_where_the_disk_has_no_hard_links(ws, monkeypatch):
-    def no_links(src, dst):
-        raise PermissionError(1, "Operation not permitted")  # FAT and exFAT
-
-    monkeypatch.setattr(workspace.os, "link", no_links)
-    first = save_upload(ws, "ekim.pdf", io.BytesIO(b"bir"), 3)
-    second = save_upload(ws, "ekim.pdf", io.BytesIO(b"iki"), 3)
-    assert (first.name, second.name) == ("ekim.pdf", "ekim (2).pdf")  # still never replaced
-    assert [p.read_bytes() for p in inbox_files(ws)] == [b"iki", b"bir"]
-    assert sorted(p.name for p in ws.inbox.iterdir()) == ["ekim (2).pdf", "ekim.pdf"]  # no partial files left
-
-
 def test_one_process_at_a_time_holds_a_lock(ws):
-    with output_lock(ws.output):
-        with pytest.raises(Busy), output_lock(ws.output, timeout=0.1):
+    with ws.lock():
+        with pytest.raises(Busy), ws.lock(timeout=0.1):
             pass
-        with output_lock(ws.output, timeout=0.1, name=".baska.kilit"):  # another name is another lock
+        with file_lock(ws.run, ".baska.kilit", timeout=0.1):  # another name is another lock
             pass
-    with output_lock(ws.output, timeout=0.1):  # released
+    with ws.lock(timeout=0.1):  # released
         pass

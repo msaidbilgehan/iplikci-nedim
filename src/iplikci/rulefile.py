@@ -17,7 +17,6 @@ from pathlib import Path
 import yaml
 
 from .categorize import DEFAULT_RULES, Categorizer, RuleSet
-from .duzenle import _free
 from .textutil import fold
 
 _MONTH = re.compile(r"\d{4}-(0[1-9]|1[0-2])")
@@ -236,6 +235,15 @@ def replace(path: Path, text: str, history: Path) -> Path | None:
     finally:
         Path(tmp).unlink(missing_ok=True)
     return backup
+
+
+def _free(path: Path) -> Path:
+    """path, or 'name (2).ext' and so on if it exists: a history copy never replaces another."""
+    candidate, n = path, 2
+    while candidate.exists():
+        candidate = path.with_name(f"{path.stem} ({n}){path.suffix}")
+        n += 1
+    return candidate
 
 
 def diff(old: str, new: str, name: str, limit: int = 80) -> str:

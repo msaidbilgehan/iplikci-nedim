@@ -97,17 +97,17 @@ def test_upload_plan_and_apply_through_the_panel(panel, ws):
     status, plan = post_json(panel, "/api/plan")
     assert status == 200 and plan["changes"] == 1
     [item] = plan["items"]
-    assert item["action"] == "tut" and item["fromInbox"]
-    assert item["target"].startswith("TEB/Vadesiz Hesap TL 123456789/2026-01-01 - 2026-01-31")
+    assert item["action"] == "processed" and item["fromInbox"]
+    assert item["target"] == "2026-01-01 - 2026-01-31 TEB Vadesiz TL 123456789 Hesap Hareketleri.xls"
     assert item["document"]["verified"] and item["document"]["kind"] == "hesap"
 
     status, done = post_json(panel, "/api/uygula", {"plan": plan["id"]})
-    assert status == 200 and (done["filed"], done["trashed"], done["unreadable"]) == (1, 0, 0)
-    assert list(ws.documents.glob("TEB/*/*.xls")) and not list(ws.inbox.iterdir())
+    assert status == 200 and (done["stored"], done["trashed"], done["unreadable"]) == (1, 0, 0)
+    assert len(list(ws.vault.objects())) == 1 and not list(ws.inbox.iterdir())
     assert post_json(panel, "/api/uygula", {"plan": plan["id"]})[0] == 409  # a plan is applied once
 
     page = request(panel, "GET", "/")[1].decode()
-    assert "KAHVECI DUKKAN" in page  # the report now holds the filed statement
+    assert "KAHVECI DUKKAN" in page  # the report now holds the statement
 
 
 def test_unsupported_upload_is_refused_and_answered(panel, ws):
@@ -127,12 +127,13 @@ def test_the_page_shows_an_account_set_up_while_the_panel_runs(panel, ws, imap):
     assert '"mail":{"configured":true' in request(panel, "GET", "/")[1].decode()
 
 
-def test_mail_fetched_through_the_panel_waits_in_the_inbox(panel, ws, mail):
+def test_mail_fetched_through_the_panel_goes_into_the_vault(panel, ws, mail):
     mail.messages[101] = bank_mail(teb_export(JANUARY))
     status, body = post_json(panel, "/api/eposta")
-    assert status == 200 and body["copied"] == ["HesapHareketleri.xls"] and body["lastRun"] and not body["more"]
-    assert post_json(panel, "/api/plan")[1]["changes"] == 1
-    assert '"mail":{"configured":true' in request(panel, "GET", "/")[1].decode()  # the page shows the button
+    assert status == 200 and body["stored"] == ["HesapHareketleri.xls"] and body["lastRun"] and not body["more"]
+    assert post_json(panel, "/api/plan")[1]["changes"] == 0  # not through the inbox
+    page = request(panel, "GET", "/")[1].decode()
+    assert '"mail":{"configured":true' in page and "KAHVECI DUKKAN" in page  # the button, and the new statement
 
 
 def test_mail_server_trouble_comes_back_as_an_error(panel, ws, mail, monkeypatch):

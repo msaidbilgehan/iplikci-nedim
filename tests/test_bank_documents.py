@@ -3,17 +3,19 @@ and the bank documents without money movements, which are named rather than call
 
 import textwrap
 from datetime import date
-from pathlib import Path
 
 import pytest
 
-from iplikci import duzenle, parsers
+from iplikci import parsers
 from iplikci.analysis import resolve_masked
+from iplikci.app import intake
+from iplikci.app.analysis import analyze
 from iplikci.demo import HOLDER, brokerage_page, garanti_fast_body, garanti_receipt, holdings_page, right, text_pdf
 from iplikci.models import Account, ParseResult, Statement
 from iplikci.parsers.common import not_a_statement, set_business_names
 from iplikci.parsers.hesap import CANDIDATE
 from iplikci.sources import Document
+from iplikci.vault.names import account_names, display_path
 
 from conftest import put
 
@@ -435,17 +437,23 @@ def test_a_masked_account_is_never_guessed_across_currencies():
 # --- filing --------------------------------------------------------------------------------------------
 
 
-def test_brokerage_statements_are_filed_and_a_resent_month_is_one(ws):
+def test_brokerage_statements_are_kept_and_a_resent_month_is_one(ws):
     rows = [("ORNEK", "ÖRNEK SANAYİ A.Ş.", "20.000", "1,234.50")]
     put(ws.inbox / "HisseSenediEkstresi.pdf", text_pdf(holdings_page("30/06/2026", rows, "1,234.50", "1,234.50")))
     resent = holdings_page("30/06/2026", rows, "1,234.50", "1,234.50") + [(37, 830, "tekrar gönderildi")]
     put(ws.inbox / "ikinci" / "HisseSenediEkstresi.pdf", text_pdf(resent))  # other bytes, the same statement
-    plans = duzenle.plan([ws.documents, ws.inbox], ws.documents, ws.output, inbox=ws.inbox)
-    [kept] = [p for p in plans if p.action == duzenle.KEEP]
-    assert kept.target.relative_to(ws.documents) == Path("Garanti BBVA/Yatırım Hesabı 1234567-101") / (
+    plan = intake.plan_inbox(ws)
+    first, second = plan.items
+    assert (first.action, second.action, second.copy_of) == ("processed", "copy", "HisseSenediEkstresi.pdf")
+    assert first.result is not None and str(display_path(first.result, ".pdf")) == (
+        "Garanti BBVA/Yatırım Hesabı 1234567-101/"
         "2026-06-01 - 2026-06-30 Garanti Yatırım 1234567-101 Hesap Hareketleri.pdf"
     )
-    assert [p.action for p in plans].count(duzenle.DUPLICATE) == 1
+    intake.apply(ws, plan)
+    a = analyze(ws)
+    assert len(a.dataset.statements) == 1 and a.stats["documents"] == 2  # both originals kept, one in the ledger
+    [again] = intake.plan_paths(ws, [put(ws.home.parent / "indirilen.pdf", text_pdf(resent + [(37, 845, "3")]))]).items
+    assert again.copy_of == "HisseSenediEkstresi.pdf"  # the vault's copy is found too
 
 
 @pytest.mark.parametrize(
@@ -474,4 +482,4 @@ def test_brokerage_statements_are_filed_and_a_resent_month_is_one(ws):
     ],
 )
 def test_brokerage_and_term_deposit_folders(account, names):
-    assert duzenle.account_names(account) == names
+    assert account_names(account) == names

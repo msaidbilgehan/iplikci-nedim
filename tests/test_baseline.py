@@ -11,9 +11,13 @@ from pathlib import Path
 
 import pytest
 
-from iplikci import baseline, demo, duzenle
+from iplikci import baseline, demo
+from iplikci.app.analysis import analyze
+from iplikci.app.workspace import Workspace
 from iplikci.cli import main
-from iplikci.workspace import HOME_ENV, Workspace, analyze
+from iplikci.domain.codes import DocumentStatus
+from iplikci.settings.paths import HOME_ENV
+from iplikci.storage import audit, documents
 
 GOLDEN = Path(__file__).parent / "golden" / "demo_baseline.json"
 
@@ -21,7 +25,7 @@ GOLDEN = Path(__file__).parent / "golden" / "demo_baseline.json"
 @pytest.fixture(scope="module")
 def demo_baseline(tmp_path_factory) -> dict:
     ws = Workspace.load(demo.build(tmp_path_factory.mktemp("demo")))
-    a = analyze(ws, use_cache=False, today=demo.AS_OF)
+    a = analyze(ws, today=demo.AS_OF)
     return baseline.take(a.dataset, a.stats, a.months, demo.AS_OF)
 
 
@@ -33,10 +37,15 @@ def test_the_demo_workspace_keeps_its_golden_baseline(demo_baseline):
     assert text == GOLDEN.read_text(encoding="utf-8")
 
 
-def test_the_demo_documents_are_already_where_the_organizer_files_them(tmp_path):
-    ws = Workspace.load(demo.build(tmp_path))
-    items = duzenle.plan([ws.documents], ws.documents, None)
-    assert items and all(it.action == duzenle.KEEP and it.target == it.path for it in items)
+def test_the_demo_documents_are_in_the_vault_and_read_into_the_database(tmp_path):
+    ws = Workspace.load(demo.build(tmp_path / "demo"))
+    with ws.db() as db:
+        kept = documents.every(db)
+        assert [d.status for d in kept].count(DocumentStatus.PROCESSED) == 9  # 7 account lists, 2 receipts
+        assert [d.status for d in kept].count(DocumentStatus.UNPROCESSED) == 1
+        assert db.scalar("SELECT count(*) FROM statements") == 7
+        assert len(audit.targets(db, "document.business")) == 1  # the company list: refused, not kept
+    assert ws.vault.verify().ok and sorted(ws.vault.objects()) == sorted(d.sha256 for d in kept)
 
 
 def test_the_demo_is_built_only_into_an_empty_folder(tmp_path):
@@ -122,7 +131,7 @@ VERIFY = ["dogrula", "--taban", "--tarih", demo.AS_OF.isoformat()]
 
 def test_the_first_baseline_is_saved_and_a_second_run_finds_no_change(demo_home, capsys):
     assert main(VERIFY) == 0
-    saved = demo_home / "cikti" / baseline.FILE
+    saved = demo_home / "baseline.json"
     assert json.loads(saved.read_text(encoding="utf-8"))["statements"]["lists"] == {
         "verified": 7,
         "total": 7,
@@ -134,7 +143,7 @@ def test_the_first_baseline_is_saved_and_a_second_run_finds_no_change(demo_home,
 
 def test_a_regression_fails_and_keeps_the_saved_baseline_until_accepted(demo_home, capsys):
     assert main(VERIFY) == 0
-    saved = demo_home / "cikti" / baseline.FILE
+    saved = demo_home / "baseline.json"
     better = json.loads(saved.read_text(encoding="utf-8"))
     better["statements"]["lists"]["verified"] += 1  # as if one more list had verified before
     saved.write_text(baseline.dumps(better), encoding="utf-8")

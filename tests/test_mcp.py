@@ -9,7 +9,7 @@ import pytest
 from iplikci.demo import teb_export
 from iplikci.mcp_server import PROTOCOL_VERSIONS, TOOLS, Server, serve
 
-from conftest import FEBRUARY, JANUARY, bank_mail, put
+from conftest import FEBRUARY, JANUARY, add, bank_mail, put
 
 
 def rpc(server, method, params=None, mid=1):
@@ -22,12 +22,9 @@ def call(server, name, **arguments):
     return (json.loads(text) if not reply["isError"] else text), reply["isError"]
 
 
-FILED = "TEB/Vadesiz Hesap TL 123456789/2026-01-01 - 2026-01-31 TEB Vadesiz TL 123456789 Hesap Hareketleri.xls"
-
-
 @pytest.fixture
 def server(ws):
-    put(ws.documents / FILED, teb_export(JANUARY))
+    add(ws, "ocak.xls", teb_export(JANUARY))
     return Server(ws)
 
 
@@ -73,18 +70,19 @@ def test_status_and_transactions(server):
     assert january["count"] == 1  # only the income on the 5th
 
 
-def test_import_then_apply_files_a_copy(server, ws, tmp_path):
-    original = put(
-        tmp_path / "Downloads" / "subat.xls",
-        teb_export([("10/02/2026", "MARKET ALISVERIS", "-80,00", "800,00")], period="01/02/2026 - 28/02/2026"),
-    )
+def test_import_then_apply_keeps_the_documents_where_they_were(server, ws, tmp_path):
+    original = put(tmp_path / "Downloads" / "subat.xls", FEBRUARY)
     imported, failed = call(server, "import_documents", paths=[str(original.parent)])
-    assert not failed and imported["copied"] == ["subat.xls"] and imported["plan"]["changes"] == 1
-    done, failed = call(server, "apply_inbox", plan_id=imported["plan"]["plan_id"])
+    assert not failed and imported["changes"] == 1 and imported["byAction"] == {"arşive alınacak": 1}
+    [item] = imported["items"]
+    assert (item["action"], item["name"], item["fromInbox"]) == ("processed", "subat.xls", False)
+    done, failed = call(server, "apply_inbox", plan_id=imported["plan_id"])
     assert not failed and done["report"]["accountStatements"] == 2
     assert original.exists()  # the original stays where it was
-    again, failed = call(server, "apply_inbox", plan_id=imported["plan"]["plan_id"])
+    again, failed = call(server, "apply_inbox", plan_id=imported["plan_id"])
     assert failed and "plan_inbox" in again
+    nothing, _ = call(server, "import_documents", paths=[str(original.parent)])
+    assert nothing["changes"] == 0 and nothing["note"] == "Bu yollarda yeni belge yok."
 
 
 def test_fetch_email_without_an_account_says_how_to_set_it_up(server):
@@ -94,13 +92,14 @@ def test_fetch_email_without_an_account_says_how_to_set_it_up(server):
     assert status["email"]["configured"] is False
 
 
-def test_fetch_email_copies_new_documents_and_plans_them(server, ws, mail):
+def test_fetch_email_takes_new_documents_into_the_vault(server, ws, mail):
     mail.messages[101] = bank_mail(FEBRUARY)
-    mail.messages[102] = bank_mail(teb_export(JANUARY))  # already filed
+    mail.messages[102] = bank_mail(teb_export(JANUARY))  # already in the vault
     got, failed = call(server, "fetch_email")
-    assert not failed and got["emails"] == 2 and got["copied"] == ["HesapHareketleri.xls"]
-    assert got["plan"]["changes"] == 1
-    assert got["byVerdict"] == {"gelen kutusuna kopyalandı": 1, "zaten var — atlandı": 1}
+    assert not failed and got["emails"] == 2 and [d["name"] for d in got["stored"]] == ["HesapHareketleri.xls"]
+    assert got["skipped"] == [{"name": "HesapHareketleri.xls", "label": "zaten arşivde", "reason": ""}]
+    status, _ = call(server, "status")
+    assert status["read"]["accountStatements"] == 2  # the answers that follow already count it
     hints = {t["name"]: t["annotations"] for t in rpc(server, "tools/list")["result"]["tools"]}
     assert hints["fetch_email"]["openWorldHint"] and not hints["import_documents"]["openWorldHint"]
 

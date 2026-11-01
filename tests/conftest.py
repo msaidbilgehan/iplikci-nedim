@@ -1,8 +1,8 @@
-"""A synthetic workspace (settings, rules, document folders), a synthetic TEB account export and a
-fake IMAP server with synthetic bank e-mails.
+"""A synthetic data folder (settings, rules, vault, database), a synthetic TEB account export and a fake
+IMAP server with synthetic bank e-mails.
 
-Nothing here touches the real Trash, the system keyring or the network: every test collects
-set-aside files in its own folder, and the e-mail fetch talks to FakeImap.
+Nothing here touches the real data folder, the real Trash, the system keyring or the network: every test
+gets its own data folder and Trash folder, and the e-mail fetch talks to FakeImap.
 """
 
 import imaplib
@@ -14,10 +14,15 @@ from pathlib import Path
 import pytest
 
 from iplikci import email_fetch
+from iplikci.app import intake
+from iplikci.app.workspace import Workspace
 from iplikci.demo import teb_export
+from iplikci.domain.codes import SourceKind
 from iplikci.parsers.common import set_business_names
+from iplikci.settings import secrets
+from iplikci.settings.paths import HOME_ENV
+from iplikci.storage.documents import Source
 from iplikci.vault import trash as vault_trash
-from iplikci.workspace import Workspace
 
 RULES = """\
 # Deneme kuralları
@@ -88,32 +93,37 @@ def no_business_names():
 
 
 @pytest.fixture(autouse=True)
-def no_keyring_or_network(monkeypatch):
+def no_keyring_or_network(monkeypatch, tmp_path_factory):
     def refuse(*args):
         raise AssertionError("a test reached the system keyring or the network")
 
-    monkeypatch.setattr(email_fetch, "_keyring", refuse)
+    monkeypatch.setattr(secrets, "_keyring", refuse)
     monkeypatch.setattr(email_fetch, "connect", refuse)
     monkeypatch.delenv(email_fetch.PASSWORD_ENV, raising=False)
+    # A test that forgets to name its data folder gets an empty one, never the user's.
+    monkeypatch.setenv(HOME_ENV, str(tmp_path_factory.mktemp("iplikci-bos")))
 
 
 @pytest.fixture
 def ws(tmp_path) -> Workspace:
-    (tmp_path / "Bankalar").mkdir()
-    (tmp_path / "Gelen").mkdir()
-    (tmp_path / "kategoriler.yaml").write_text(RULES, encoding="utf-8")
-    (tmp_path / "ayarlar.toml").write_text(
-        'kaynaklar = ["Bankalar"]\nbelge_klasoru = "Bankalar"\ngelen_klasoru = "Gelen"\ncikti = "cikti"\n'
-        'kurallar = "kategoriler.yaml"\n',
-        encoding="utf-8",
-    )
-    return Workspace.load(tmp_path)
+    """A fresh data folder with the test rules as the user's own rules."""
+    home = tmp_path / "iplikci"
+    workspace = Workspace.load(home)
+    workspace.rules.write_text(RULES, encoding="utf-8")
+    return workspace
 
 
 def put(path: Path, data: bytes | str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data.encode() if isinstance(data, str) else data)
     return path
+
+
+def add(ws: Workspace, name: str, data: bytes | str, folder: str = "Bankalar") -> intake.Applied:
+    """Take one document into ws's vault as an import from folder, the plan applied at once."""
+    blob = data.encode() if isinstance(data, str) else data
+    incoming = intake.Incoming(name, blob, Source(SourceKind.IMPORT, name, folder))
+    return intake.apply(ws, intake.plan_documents(ws, [incoming]))
 
 
 # --- e-mail -------------------------------------------------------------------------------------------

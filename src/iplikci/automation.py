@@ -1,14 +1,14 @@
-"""File new documents without anyone at the keyboard.
+"""Take in new documents without anyone at the keyboard.
 
-    iplikci otomatik            fetch the bank e-mails, file what waits in the inbox, rebuild the report
+    iplikci otomatik            fetch the bank e-mails, take in what waits in the inbox, rebuild the report
     iplikci otomatik --kur      do that whenever something lands in the inbox and once an hour
     iplikci otomatik --kaldir   stop doing it
 
-Whatever puts files into the inbox (the panel, the e-mail fetch, a file manager, a browser saving
-there) gets them filed exactly as the panel does. Installing the job is the user's consent to apply
-the plan without showing it first; everything set aside still goes to the Trash and into the
-organizer's log. The job is a launchd agent on macOS, systemd user units on Linux and a Task
-Scheduler task on Windows (no folder trigger there: it runs once an hour).
+Whatever puts files into the inbox (the panel, a file manager, a browser saving there) gets them taken
+into the vault exactly as the panel does. Installing the job is the user's consent to apply the plan
+without showing it first; whatever is set aside still goes to the Trash and the audit log says so. The
+job is a launchd agent on macOS, systemd user units on Linux and a Task Scheduler task on Windows (no
+folder trigger there: it runs once an hour). Phase 3 replaces it with the service.
 
 It also tells the user when a month ended (its month-end page is ready, still waiting for statements)
 and when the statements closed it, once each.
@@ -30,9 +30,13 @@ from datetime import date, datetime
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-from . import duzenle, email_fetch, month_end
+from . import email_fetch, month_end
+from .app import intake
+from .app.analysis import Analysis, analyze
+from .app.uploads import inbox_files
+from .app.workspace import Busy, StalePlan, Workspace
+from .domain.codes import Actor, DocumentKind, DocumentStatus
 from .insights import month_of, shift
-from .workspace import Analysis, Busy, StalePlan, Workspace, analyze, apply, inbox_files, plan_inbox
 
 LABEL = "com.iplikci.gelen"
 UNIT = "iplikci"  # systemd units and the Windows task
@@ -48,11 +52,11 @@ _LOG_LIMIT = 1 << 20
 @dataclass
 class Outcome:
     message: str
-    filed: int = 0
-    unreadable: int = 0
+    filed: int = 0  # new documents now in the vault
+    unreadable: int = 0  # of those, unreadable ones (kept for a manual look)
+    known: int = 0  # files whose bytes the vault already had
     trashed: int = 0
     trash: Path | None = None
-    log: Path | None = None
     mail: str = ""  # what the e-mail fetch brought or why it failed: part of the message and the notification
     mail_log: str = ""  # what the e-mail fetch did, for the log, also when it found nothing
     months: str = ""  # a month that ended or closed since the last run
@@ -80,16 +84,24 @@ def wait_until_quiet(ws: Workspace, quiet: float = QUIET_SECONDS, limit: float =
     return True
 
 
-def _message(out: Outcome, kinds: dict[str, int], unverified: int) -> str:
+_KIND_LABELS = {
+    DocumentKind.CARD_STATEMENT: "kart ekstresi",
+    DocumentKind.ACCOUNT_STATEMENT: "hesap dökümü",
+    DocumentKind.RECEIPT: "dekont",
+}
+
+
+def _message(out: Outcome, kinds: dict[DocumentKind, int], unverified: int) -> str:
     parts = []
     if out.filed:
-        labels = {"ekstre": "kart ekstresi", "hesap": "hesap dökümü", "dekont": "dekont"}
-        detail = ", ".join(f"{n} {labels[k]}" for k, n in kinds.items() if n)
-        parts.append(f"{out.filed} yeni belge yerleştirildi" + (f" ({detail})" if detail else ""))
+        detail = ", ".join(f"{n} {_KIND_LABELS[k]}" for k, n in kinds.items() if n)
+        parts.append(f"{out.filed} yeni belge arşive alındı" + (f" ({detail})" if detail else ""))
     if out.unreadable:
-        parts.append(f"{out.unreadable} belge okunamadı, {duzenle.UNREADABLE_FOLDER} klasörüne taşındı")
+        parts.append(f"{out.unreadable} belge okunamadı; arşivde, elle bakılmayı bekliyor")
+    if out.known:
+        parts.append(f"{out.known} dosya zaten arşivdeydi")
     if out.trashed:
-        parts.append(f"{out.trashed} dosya çöp kutusuna taşındı (kopya, şirket belgesi ya da banka belgesi değil)")
+        parts.append(f"{out.trashed} dosya çöp kutusuna taşındı (şirket belgesi ya da banka belgesi değil)")
     text = ". ".join(parts) + ". Rapor güncellendi."
     if unverified:
         text += f" Dikkat: {unverified} belge bankanın toplamıyla tutmuyor."
@@ -97,8 +109,9 @@ def _message(out: Outcome, kinds: dict[str, int], unverified: int) -> str:
 
 
 def _fetch_mail(ws: Workspace) -> tuple[str, bool, str]:
-    """(what the e-mail fetch brought, whether the user must hear it, the log line). An error is told
-    once, not on every run; a fetch that found nothing is only logged."""
+    """(what the e-mail fetch brought, whether the user must hear it, the log line). New documents are
+    told (they went straight into the vault); an error is told once, not on every run; a fetch that
+    found nothing is only logged."""
     if not email_fetch.configured(ws) or not email_fetch.due(ws, MAIL_EVERY):
         return "", False, ""
     before = email_fetch.last_error(ws)
@@ -108,7 +121,9 @@ def _fetch_mail(ws: Workspace) -> tuple[str, bool, str]:
         return "", False, "e-posta: şu anda başka bir işlem alıyor, bu kez atlandı"
     except email_fetch.MailError as exc:
         return f"E-posta alınamadı: {exc}", str(exc) != before, f"e-posta alınamadı: {exc}"
-    return (f"E-postadan {len(got.copied)} yeni belge alındı" if got.copied else ""), False, f"e-posta: {got.message}"
+    if not got.stored:
+        return "", False, f"e-posta: {got.message}"
+    return f"E-postadan {len(got.stored)} yeni belge arşive alındı", True, f"e-posta: {got.message}"
 
 
 def _file_inbox(ws: Workspace, quiet: float) -> tuple[Outcome, Analysis | None]:
@@ -117,45 +132,41 @@ def _file_inbox(ws: Workspace, quiet: float) -> tuple[Outcome, Analysis | None]:
     if not wait_until_quiet(ws, quiet):
         return Outcome("gelen kutusu hâlâ değişiyor; bir sonraki çalışmada denenecek"), None
     try:
-        done = apply(ws, plan_inbox(ws))
+        done = intake.apply(ws, intake.plan_inbox(ws), Actor.SYSTEM)
     except (Busy, StalePlan) as exc:  # the panel or another run is at it; the next trigger tries again
         return Outcome(str(exc)), None
-    out = Outcome("", trash=done.trash, log=done.log)
-    kinds = {"ekstre": 0, "hesap": 0, "dekont": 0}
-    for it in done.items:
-        if it.action == duzenle.KEEP:
+    out = Outcome("", trash=done.trash)
+    for c in done.items:
+        if c.verdict is intake.Verdict.STORE:
             out.filed += 1
-            if it.result and it.result.statements:
-                kinds["hesap" if it.result.statements[0].is_account else "ekstre"] += 1
-            else:
-                kinds["dekont"] += 1
-        elif it.action == duzenle.FAILED and it.target is not None:
-            out.unreadable += 1
-        elif it.action in (duzenle.DUPLICATE, duzenle.BUSINESS, duzenle.UNUSED) and it.path is not None:
+            out.unreadable += c.status is DocumentStatus.UNREADABLE
+        elif c.verdict is intake.Verdict.KNOWN and c.path is not None:
+            out.known += 1
+        elif c.verdict is not intake.Verdict.KNOWN and c.path is not None:
             out.trashed += 1
     if not done.items:
-        out.message = "yerleştirilecek belge yok"
+        out.message = "alınacak belge yok"
         return out, None
     a = analyze(ws, write=True)
-    out.message = _message(out, kinds, sum(not s.verified for s in a.dataset.statements))
+    out.message = _message(out, dict(intake.kind_counts(done.items)), sum(not s.verified for s in a.dataset.statements))
     return out, a
 
 
 def _month_state(ws: Workspace) -> dict:
     """{"month": the month of the last look, "documents": their fingerprint then, "months": month -> status}."""
     try:
-        value = json.loads((ws.output / MONTHS_NAME).read_text(encoding="utf-8"))
+        value = json.loads((ws.run / MONTHS_NAME).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
     return value if isinstance(value, dict) and isinstance(value.get("months"), dict) else {}
 
 
 def _save_month_state(ws: Workspace, state: dict) -> None:
-    fd, tmp = tempfile.mkstemp(prefix=".ay-sonu-", dir=ws.output)
+    fd, tmp = tempfile.mkstemp(prefix=".ay-sonu-", dir=ws.run)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(state, f)
-        os.replace(tmp, ws.output / MONTHS_NAME)
+        os.replace(tmp, ws.run / MONTHS_NAME)
     except BaseException:
         Path(tmp).unlink(missing_ok=True)
         raise
@@ -205,7 +216,7 @@ def run(ws: Workspace, notify: bool = True, quiet: float = QUIET_SECONDS) -> Out
     out, analysis = _file_inbox(ws, quiet)
     out.mail, out.mail_log = mail, mail_log
     out.months = month_news(ws, analysis)
-    changed = out.filed or out.unreadable or out.trashed
+    changed = out.filed or out.known or out.trashed
     if mail:
         out.message = f"{mail}." if out.message == EMPTY else f"{mail}. {out.message}"
     if out.months:
@@ -233,7 +244,7 @@ def show_notification(title: str, message: str) -> None:
 
 
 def _trim_log(ws: Workspace) -> None:
-    log = ws.output / LOG_NAME
+    log = ws.logs / LOG_NAME
     if log.exists() and log.stat().st_size > _LOG_LIMIT:
         log.replace(log.with_name(LOG_NAME + ".1"))  # one older log is kept
 
@@ -241,9 +252,10 @@ def _trim_log(ws: Workspace) -> None:
 # --- the background job, per operating system ------------------------------------------------------
 
 
-def _command(python: Path, *extra: str) -> list[str]:
-    # -I: the job reads untrusted documents, so nothing from the working folder is importable.
-    return [str(python), "-I", "-m", "iplikci", "otomatik", *extra]
+def _command(python: Path, home: Path, *extra: str) -> list[str]:
+    # -I: the job reads untrusted documents, so nothing from the working folder is importable. --ev names the
+    # data folder the job works on, whatever the environment of the scheduler.
+    return [str(python), "-I", "-m", "iplikci", "otomatik", "--ev", str(home), *extra]
 
 
 def _run(args: list[str]) -> subprocess.CompletedProcess:
@@ -269,11 +281,11 @@ class Launchd:
         return f"gui/{os.getuid()}"
 
     def install(self, ws: Workspace) -> str:
-        log = ws.output / LOG_NAME
+        log = ws.logs / LOG_NAME
         agent = {
             "Label": LABEL,
-            "ProgramArguments": _command(Path(sys.executable)),
-            "WorkingDirectory": str(ws.base),
+            "ProgramArguments": _command(Path(sys.executable), ws.home),
+            "WorkingDirectory": str(ws.home),
             "WatchPaths": [str(ws.inbox)],
             "RunAtLoad": True,
             "StartInterval": 3600,  # files dropped into a subfolder do not wake WatchPaths; e-mail is checked too
@@ -329,12 +341,12 @@ class Systemd:
         self.files = {kind: self.folder / f"{UNIT}.{kind}" for kind in ("service", "path", "timer")}
 
     def units(self, ws: Workspace) -> dict[str, str]:
-        log = _unit_value(str(ws.output / LOG_NAME))
-        command = " ".join(_unit_arg(a) for a in _command(Path(sys.executable)))
+        log = _unit_value(str(ws.logs / LOG_NAME))
+        command = " ".join(_unit_arg(a) for a in _command(Path(sys.executable), ws.home))
         return {
             "service": (
-                "[Unit]\nDescription=İplikçi Nedim: yeni belgeleri e-postadan ve gelen kutusundan alıp yerleştirir\n\n"
-                f"[Service]\nType=oneshot\nWorkingDirectory={_unit_value(str(ws.base))}\nExecStart={command}\n"
+                "[Unit]\nDescription=İplikçi Nedim: yeni belgeleri e-postadan ve gelen kutusundan alıp arşive koyar\n\n"
+                f"[Service]\nType=oneshot\nWorkingDirectory={_unit_value(str(ws.home))}\nExecStart={command}\n"
                 # Where the system has no keyring, the e-mail password can be given in this file.
                 f"EnvironmentFile=-%h/.config/{UNIT}/ortam\n"
                 f"StandardOutput=append:{log}\nStandardError=append:{log}\nNice=10\nIOSchedulingClass=idle\n"
@@ -386,7 +398,7 @@ class TaskScheduler:
     def task_xml(self, ws: Workspace, now: datetime | None = None) -> str:
         exe = Path(sys.executable)
         quiet = exe.with_name("pythonw.exe")
-        command, *args = _command(quiet if quiet.exists() else exe, "--kayit", str(ws.output / LOG_NAME))
+        command, *args = _command(quiet if quiet.exists() else exe, ws.home, "--kayit", str(ws.logs / LOG_NAME))
         arguments = subprocess.list2cmdline(args)  # Windows quoting rules
         domain, user = os.environ.get("USERDOMAIN"), os.environ.get("USERNAME") or getpass.getuser()
         who = f"{domain}\\{user}" if domain else user
@@ -395,7 +407,7 @@ class TaskScheduler:
         return f"""<?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo>
-    <Description>İplikçi Nedim: yeni belgeleri e-postadan ve gelen kutusundan alıp yerleştirir</Description>
+    <Description>İplikçi Nedim: yeni belgeleri e-postadan ve gelen kutusundan alıp arşive koyar</Description>
   </RegistrationInfo>
   <Triggers>
     <TimeTrigger>
@@ -422,15 +434,15 @@ class TaskScheduler:
     <Exec>
       <Command>{escape(command)}</Command>
       <Arguments>{escape(arguments)}</Arguments>
-      <WorkingDirectory>{escape(str(ws.base))}</WorkingDirectory>
+      <WorkingDirectory>{escape(str(ws.home))}</WorkingDirectory>
     </Exec>
   </Actions>
 </Task>
 """
 
     def install(self, ws: Workspace) -> str:
-        ws.output.mkdir(parents=True, exist_ok=True)
-        definition = ws.output / ".gorev.xml"
+        ws.run.mkdir(parents=True, exist_ok=True)
+        definition = ws.run / ".gorev.xml"
         definition.write_text(self.task_xml(ws), encoding="utf-16")  # what schtasks reads, with a BOM
         try:
             done = _run(["schtasks", "/Create", "/TN", UNIT, "/XML", str(definition), "/F"])
@@ -468,7 +480,7 @@ def scheduler(platform: str | None = None):
 def install(ws: Workspace) -> str:
     """Install the background job (replacing an older one); returns where it is."""
     ws.inbox.mkdir(parents=True, exist_ok=True)
-    ws.output.mkdir(parents=True, exist_ok=True)
+    ws.logs.mkdir(parents=True, exist_ok=True)
     return scheduler().install(ws)
 
 
@@ -482,7 +494,7 @@ def status(ws: Workspace) -> dict:
     except RuntimeError as exc:
         return {"installed": False, "running": False, "scheduler": None, "note": str(exc)}
     installed, running = job.state()
-    log = ws.output / LOG_NAME
+    log = ws.logs / LOG_NAME
     return {
         "installed": installed,
         "running": running,

@@ -10,7 +10,8 @@ import pytest
 
 from iplikci.models import Account, ParseResult, Statement, Transaction
 from iplikci.settings.paths import Layout
-from iplikci.vault.names import display_name, display_path
+from iplikci.vault import trash
+from iplikci.vault.names import account_names, display_name, display_path
 from iplikci.vault.store import Vault, VaultError, sha256_of
 
 
@@ -130,3 +131,45 @@ def test_documents_are_named_after_the_organizer_scheme():
     assert display_name(ParseResult("teb", [teb], transactions=[receipt], title="Giden/FAST"), ".pdf") == (
         "2026-02-14 TEB Giden-FAST Dekont.pdf"
     )
+
+
+def test_folder_and_file_names():
+    card = Account("garanti-4321", "Garanti BBVA Garanti Bonus •4321", "Garanti BBVA", "Kredi kartı", number="4321")
+    assert account_names(card) == ("Garanti Bonus Kredi Kartı 4321", "Garanti Bonus 4321")
+    loan = Account("qnb-5678", "QNB İhtiyaç Kredisi …5678", "QNB", "Kredi", number="")
+    assert account_names(loan) == ("İhtiyaç Kredisi 5678", "Kredi 5678")
+    salary = Account(
+        "vakifbank-1", "Vakıfbank Vadesiz TL …123456 (Maaş)", "Vakıfbank", "Vadesiz hesap", number="0999000000123456"
+    )
+    assert account_names(salary)[0] == "Vadesiz Hesap TL 0999000000123456 (Maaş)"
+
+
+def test_names_hold_nothing_windows_or_a_path_would_split_on():
+    card = Account("x-1", 'Banka Kart: "Özel" <1> •1', "Banka", "Kredi kartı", number="1")
+    folder, short = account_names(card)
+    assert not any(ch in folder + short for ch in '/\\:*?"<>|')
+
+
+# --- the system Trash ---------------------------------------------------------------------------------
+
+
+def test_the_trash_falls_back_to_the_given_folder(tmp_path, monkeypatch):
+    monkeypatch.setattr(trash, "MAC_TRASH", tmp_path / "erisilemeyen")  # e.g. no Full Disk Access
+    folder = trash.default_folder(tmp_path / "veri")
+    assert folder.parent == tmp_path / "veri" and folder.name.startswith("iplikci silinenler ")
+
+
+def test_linux_trash_notes_where_the_folder_came_from(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "share"))
+    bin_ = tmp_path / "share" / "Trash"
+    first = tmp_path / "iplikci silinenler 1"
+    first.mkdir()
+    (first / "a.pdf").write_text("a")
+    put_back = trash.freedesktop_trash(first)
+    assert put_back == bin_ / "files" / first.name and (put_back / "a.pdf").read_text() == "a"
+    note = (bin_ / "info" / f"{first.name}.trashinfo").read_text(encoding="utf-8")
+    assert note.startswith("[Trash Info]\nPath=/") and "iplikci%20silinenler%201" in note
+    first.mkdir()  # the same name once more
+    (first / "b.pdf").write_text("b")
+    assert trash.freedesktop_trash(first) == bin_ / "files" / f"{first.name} 2"
+    assert (put_back / "a.pdf").exists()  # the first one was not replaced

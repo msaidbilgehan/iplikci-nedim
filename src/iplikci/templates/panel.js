@@ -158,11 +158,14 @@
 
   // ------------------------------------------------------------------- plan
   const GROUPS = [
-    ["tut", "Yerine taşınacak", "ok"],
-    ["hata", "Okunamadı — elle bakın", "warn"],
-    ["kopya", "Kopya — çöp kutusuna", "info"],
-    ["is", "Şirket belgesi — çöp kutusuna", "info"],
-    ["kullanilmayan", "Kullanılmıyor — çöp kutusuna", "info"],
+    ["processed", "Arşive alınacak", "ok"],
+    ["copy", "Aynı belgenin başka bir dosyası — arşive alınacak, defterde birleşir", "info"],
+    ["unreadable", "Okunamadı — arşive alınacak, elle bakın", "warn"],
+    ["unprocessed", "Para hareketi yok — arşive alınacak", "info"],
+    ["known", "Zaten arşivde — gelen kutusundan kalkacak", "info"],
+    ["business", "Şirket belgesi — alınmayacak, çöp kutusuna", "info"],
+    ["not_document", "Belge değil — çöp kutusuna", "info"],
+    ["archive", "Arşiv dosyası — içindekiler alınacak, kendisi çöp kutusuna", "info"],
   ];
   const KIND_LABEL = { ekstre: "Kart ekstresi", hesap: "Hesap hareketleri", dekont: "Dekont" };
 
@@ -176,6 +179,7 @@
   function itemRow(it) {
     const target = it.target ? h("div", { class: "pl-target" }, "→ ", h("span", { text: it.target })) : null;
     return h("li", {}, h("div", { class: "pl-name", text: it.source }), target, it.document ? docLines(it.document) : null,
+      it.copyOf ? h("div", { class: "pl-reason", text: `eşi: ${it.copyOf}` }) : null,
       it.reason ? h("div", { class: "pl-reason", text: it.reason }) : null);
   }
 
@@ -183,7 +187,7 @@
     planId = p.id;
     const box = $("plan");
     if (!p.items.length) {
-      box.replaceChildren(h("p", { class: "hint", text: `${PANEL.inboxName} klasöründe yerleştirilecek belge yok.` }));
+      box.replaceChildren(h("p", { class: "hint", text: `${PANEL.inboxName} klasöründe alınacak belge yok.` }));
       setStatus("");
       setApply(false);
       return;
@@ -217,12 +221,13 @@
     if (!planId || busy) return;
     busy = true;
     setApply(false);
-    setStatus("Belgeler yerleştiriliyor, rapor yeniden üretiliyor…");
+    setStatus("Belgeler arşive alınıyor, rapor yeniden üretiliyor…");
     try {
       const r = await postJSON("/api/uygula", { plan: planId });
-      const parts = [`${r.filed} belge yerleştirildi`];
+      const parts = [`${r.stored} belge arşive alındı`];
+      if (r.unreadable) parts.push(`${r.unreadable} tanesi okunamadı, elle bakılmayı bekliyor`);
+      if (r.known) parts.push(`${r.known} dosya zaten arşivdeydi`);
       if (r.trashed) parts.push(`${r.trashed} dosya çöp kutusuna taşındı`);
-      if (r.unreadable) parts.push(`${r.unreadable} okunamayan belge "Okunamayan belgeler" klasörüne taşındı`);
       const text = `${parts.join(", ")}. Rapor güncellendi.`;
       setStatus(`${text} Sayfa yenileniyor…`);
       try { sessionStorage.setItem("iplikci-panel-sonuc", text); } catch (e) { /* storage unavailable: no notice after reload */ }
@@ -268,11 +273,19 @@
         r = await postJSON("/api/eposta", {});
         lastRun = r.lastRun;
         line.firstChild.textContent = r.message;
-        for (const name of r.copied) {
-          list.append(h("li", {}, h("span", { class: "up-name", text: name }), mark("ok", "e-postadan alındı")));
+        for (const name of r.stored) {
+          list.append(h("li", {}, h("span", { class: "up-name", text: name }), mark("ok", "e-postadan arşive alındı")));
         }
       }
-      if (list.childNodes.length) $("yuklemeler").append(list);
+      if (list.childNodes.length) {
+        // The documents went straight into the vault: the report below is out of date until the page reloads.
+        $("yuklemeler").append(list);
+        const text = `E-postadan ${list.childNodes.length} belge arşive alındı. Rapor güncellendi.`;
+        setStatus(`${text} Sayfa yenileniyor…`);
+        try { sessionStorage.setItem("iplikci-panel-sonuc", text); } catch (e) { /* storage unavailable: no notice after reload */ }
+        setTimeout(() => location.reload(), 2500);
+        return;
+      }
     } catch (err) {
       line.firstChild.replaceWith(mark("fail", err.message));
     }

@@ -134,6 +134,15 @@ class Layout:
             _private(parent)
 
 
+def write_private(path: Path, text: str) -> None:
+    """Write a text file only the user can read (0600), as every file in the data folder is."""
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, FILE_MODE)
+    if hasattr(os, "fchmod"):  # an older file keeps its mode on open; Windows has no such modes
+        os.fchmod(fd, FILE_MODE)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(text)
+
+
 def _private(folder: Path) -> None:
     if sys.platform != "win32":  # Windows keeps a user's AppData private through its own permissions
         os.chmod(folder, FOLDER_MODE)

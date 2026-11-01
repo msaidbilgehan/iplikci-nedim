@@ -17,9 +17,10 @@ the receipt is flagged for a look.
 import calendar
 import re
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, timedelta
+from typing import Any
 
 from .categorize import Categorizer, clean_description
 from .models import Account, ParseResult, Statement, Transaction
@@ -465,8 +466,13 @@ def resolve_masked(results: Iterable[ParseResult]) -> None:
                     t.account = same[0].id
 
 
-def build(results: list[tuple], categorizer: Categorizer, settings: dict) -> Dataset:
-    """results: (Document, ParseResult | None, status) tuples."""
+def build(
+    results: Sequence[tuple[Any, ParseResult | None, Sequence[str] | None]],
+    categorizer: Categorizer,
+    settings: Mapping[str, Any],
+) -> Dataset:
+    """results: (document, its reading or None, (status, detail) when there is no reading) tuples; a document has
+    a name, an origin and a sha256."""
     accounts: dict[str, Account] = {}
     statements: dict[tuple, Statement] = {}
     receipts: dict[str, list[Transaction]] = {}

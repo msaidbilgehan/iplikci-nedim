@@ -7,6 +7,7 @@ from collections import defaultdict
 from datetime import date, datetime
 from importlib import resources
 from pathlib import Path
+from typing import Any
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -44,8 +45,8 @@ def _closing_payload(months: list[month_end.MonthEnd]) -> list[dict]:
 
 
 def build_payload(
-    ds: Dataset, stats: dict, ins: Insights | None = None, months: list[month_end.MonthEnd] | None = None
-) -> dict:
+    ds: Dataset, stats: dict[str, int], ins: Insights | None = None, months: list[month_end.MonthEnd] | None = None
+) -> dict[str, Any]:
     ins = ins or interpret(ds)
     months = month_end.build(ds, ins) if months is None else months
     account_ids = sorted(ds.accounts, key=lambda a: (ds.accounts[a].bank, ds.accounts[a].type, a))
@@ -279,7 +280,7 @@ def _json_block(value) -> str:
     return json.dumps(value, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c")
 
 
-def render_html(payload: dict, panel: dict | None = None) -> str:
+def render_html(payload: dict[str, Any], panel: dict[str, Any] | None = None) -> str:
     """The self-contained report. With panel (data for the web panel) it also carries the place to
     add documents; that page only works when the local panel serves it."""
     html = _template("rapor.html")
@@ -303,7 +304,7 @@ def render_html(payload: dict, panel: dict | None = None) -> str:
     return re.sub("|".join(map(re.escape, values)), lambda m: values[m[0]], html)
 
 
-def write_html(payload: dict, path: Path) -> None:
+def write_html(payload: dict[str, Any], path: Path) -> None:
     path.write_text(render_html(payload), encoding="utf-8")
 
 

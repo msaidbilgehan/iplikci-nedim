@@ -7,21 +7,20 @@
 
 The only part of the program that uses the network, by the user's choice (2026-10-31). It connects to
 the IMAP server over TLS (certificate and host name checked), opens the mailbox read-only and
-downloads only the e-mails of the bank domains in `[eposta] gondericiler`; nothing in the mailbox is
-flagged, moved or deleted. An e-mail counts only when the receiving server verified its sender (DMARC
-pass for the From domain in its Authentication-Results), so one imitating a bank is ignored. The
-attachments stay in memory and go through the organizer like any import: only new bank documents
-(and unreadable ones, for a manual look) are copied into the inbox.
+downloads only the e-mails of the bank domains in settings.toml's `[mail] bank_senders`; nothing in
+the mailbox is flagged, moved or deleted. An e-mail counts only when the receiving server verified its
+sender (DMARC pass for the From domain in its Authentication-Results), so one imitating a bank is
+ignored. The attachments stay in memory and are taken into the vault like any import, with the e-mail
+as their source; a company document is never kept.
 
 The password is kept in the system keyring (macOS Keychain, Windows Credential Manager, the Secret
 Service on Linux) or, where there is none, given in the IPLIKCI_MAIL_PASSWORD environment
 variable; never in a file, an argument or a log. The address, the start date and how far the
-mailbox was read are in cikti/.eposta.json.
+mailbox was read are in run/.eposta.json until Phase 3 moves them (settings.toml, mail_accounts).
 """
 
 import base64
 import email
-import hashlib
 import imaplib
 import itertools
 import json
@@ -39,28 +38,21 @@ from email.message import Message
 from email.utils import parseaddr, parsedate_to_datetime
 from pathlib import Path
 
-from . import duzenle
+from .app import intake
+from .app.workspace import Workspace, file_lock
+from .domain.codes import Actor, DocumentKind, DocumentStatus, SourceKind
 from .parsers import PARSER_VERSION
-from .sources import _expand, attachments
-from .workspace import Workspace, import_documents, output_lock
+from .settings import secrets
+from .settings.config import BANK_SENDERS
+from .sources import attachments
+from .storage.documents import Source
 
-SERVICE = "iplikci"  # the keyring entry: this service, the address as the user name
 PASSWORD_ENV = "IPLIKCI_MAIL_PASSWORD"
 STATE_NAME = ".eposta.json"
 GMAIL = "imap.gmail.com"
 # The domains the banks' statement e-mails came from, and the base domains. The server's search
 # narrows by them, then every sender is checked here again (a subdomain counts).
-DEFAULT_SENDERS = (
-    "garantibbva.com.tr",
-    "isbank.com.tr",
-    "ileti.isbank.com.tr",
-    "qnb.com.tr",
-    "email.qnb.com.tr",
-    "qnbfinansbank.com",
-    "email.qnbfinansbank.com",
-    "teb.com.tr",
-    "vakifbank.com.tr",
-)
+DEFAULT_SENDERS = BANK_SENDERS
 SETUP_HINT = "e-posta hesabı kurulmadı; bir kez terminalde çalıştırın: uv run iplikci eposta --kur"
 APP_PASSWORD_HELP = """\
 Gmail, programların girişi için uygulama şifresi ister (normal Gmail şifresi çalışmaz):
@@ -118,49 +110,22 @@ class Account:
 # --- settings and state -----------------------------------------------------------------------------
 
 
-def _settings(ws: Workspace) -> dict:
-    s = ws.settings.get("eposta", {})
-    if not isinstance(s, dict):
-        raise MailError(f"{ws.base / 'ayarlar.toml'}: [eposta] bir tablo olmalı")
-    return s
-
-
 def _account(ws: Workspace, address: str, start: date) -> Account:
-    """The account with ayarlar.toml's [eposta] settings, checked: they end up in IMAP commands."""
-    s = _settings(ws)
-    where = f"{ws.base / 'ayarlar.toml'} [eposta]"
-    senders = s.get("gondericiler", list(DEFAULT_SENDERS))
-    if not isinstance(senders, list) or not senders:
-        raise MailError(f"{where}: gondericiler alan adlarının listesi olmalı")
-    cleaned = []
-    for sender in senders:
-        domain = sender.strip().lower().lstrip("@") if isinstance(sender, str) else ""
-        if not _DOMAIN.fullmatch(domain):
-            raise MailError(f"{where}: gondericiler içinde geçersiz alan adı {sender!r} (örnek: banka.com.tr)")
-        cleaned.append(domain)
-    server, port, folder = s.get("sunucu", GMAIL), s.get("port", 993), s.get("klasor")
-    if not isinstance(server, str) or not _DOMAIN.fullmatch(server.strip().lower()):
-        raise MailError(f"{where}: sunucu bir alan adı olmalı (örnek: imap.gmail.com)")
-    if not isinstance(port, int) or isinstance(port, bool) or not 0 < port < 65536:
-        raise MailError(f"{where}: port bir sayı olmalı (IMAP TLS için 993)")
-    if folder is not None and (not isinstance(folder, str) or not folder.strip() or re.search(r"[\x00-\x1f]", folder)):
-        raise MailError(f"{where}: klasor bir klasör adı olmalı")
-    verify = s.get("gonderen_dogrulama", True)
-    if not isinstance(verify, bool):
-        raise MailError(f"{where}: gonderen_dogrulama true ya da false olmalı")
+    """The account with settings.toml's [mail] settings (checked when the file was read)."""
+    mail = ws.settings.mail
     return Account(
         address,
         start,
-        server.strip().lower(),
-        port,
-        tuple(dict.fromkeys(cleaned)),
-        folder.strip() if folder else None,
-        verify,
+        mail.imap_host,
+        mail.imap_port,
+        mail.bank_senders,
+        None if mail.folder == "auto" else mail.folder,
+        mail.verify_sender,
     )
 
 
 def _state_path(ws: Workspace) -> Path:
-    return ws.output / STATE_NAME
+    return ws.run / STATE_NAME
 
 
 def _state(ws: Workspace) -> dict:
@@ -174,8 +139,8 @@ def _state(ws: Workspace) -> dict:
 
 
 def _save_state(ws: Workspace, state: dict) -> None:
-    ws.output.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(prefix=".eposta-", dir=ws.output)  # 0600: it holds the address
+    ws.run.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=".eposta-", dir=ws.run)  # 0600: it holds the address
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(state, f, ensure_ascii=False, indent=1, default=str)
@@ -245,24 +210,11 @@ def status(ws: Workspace) -> dict:
 # --- the password -------------------------------------------------------------------------------------
 
 
-def _keyring():
-    import keyring  # only when e-mail is used: it picks a backend on import
-
-    return keyring
-
-
 def load_password(address: str) -> str:
-    secret = os.environ.get(PASSWORD_ENV)
-    if secret:
-        return secret
-    keyring = _keyring()
     try:
-        secret = keyring.get_password(SERVICE, address)
-    except keyring.errors.KeyringError as exc:
-        raise MailError(
-            f"e-posta şifresi anahtar zincirinden okunamadı ({exc}); anahtar zinciri olmayan "
-            f"sistemlerde şifreyi {PASSWORD_ENV} ortam değişkeniyle verin"
-        ) from exc
+        secret = secrets.load(secrets.mail(address))
+    except secrets.SecretError as exc:
+        raise MailError(f"e-posta şifresi okunamadı: {exc}") from exc
     if not secret:
         raise MailError(f"{address} için kayıtlı şifre yok; yeniden kurun: uv run iplikci eposta --kur")
     return secret
@@ -270,22 +222,14 @@ def load_password(address: str) -> str:
 
 def store_password(address: str, secret: str) -> bool:
     """Keep the password in the system keyring; False where the system has none."""
-    keyring = _keyring()
     try:
-        keyring.set_password(SERVICE, address, secret)
-    except keyring.errors.NoKeyringError:
-        return False
-    except keyring.errors.KeyringError as exc:
-        raise MailError(f"şifre anahtar zincirine yazılamadı: {exc}") from exc
-    return True
+        return secrets.store(secrets.mail(address), secret)
+    except secrets.SecretError as exc:
+        raise MailError(f"şifre saklanamadı: {exc}") from exc
 
 
 def delete_password(address: str) -> None:
-    keyring = _keyring()
-    try:
-        keyring.delete_password(SERVICE, address)
-    except keyring.errors.KeyringError:  # PasswordDeleteError when there was none
-        pass
+    secrets.delete(secrets.mail(address))
 
 
 def _clean_secret(acc: Account, secret: str) -> str:
@@ -519,26 +463,34 @@ def verified(msg: Message, domain: str, gmail: bool) -> bool:
     return bool(m) and m[1].lower() == domain
 
 
-def _documents(msg: Message, domain: str) -> list[duzenle.Item]:
+def _documents(msg: Message, domain: str) -> list[intake.Incoming]:
+    """The attachments of a verified bank e-mail, with the e-mail as their source."""
     try:
-        when = f" {parsedate_to_datetime(str(msg['Date'])):%Y-%m-%d}"
+        sent = parsedate_to_datetime(str(msg["Date"]))
     except (TypeError, ValueError, IndexError):
-        when = ""
-    origin = Path(f"E-posta{when} {domain}")
-    items = []
+        sent = None
+    origin = f"E-posta {sent:%Y-%m-%d} {domain}" if sent else f"E-posta {domain}"
+    found = []
     for name, data in attachments(msg):
-        for member, _, blob in _expand(name, str(origin), data):  # zips opened in memory
-            items.append(duzenle.Item(member, hashlib.sha256(blob).hexdigest(), archive=origin, data=blob))
-    return items
+        source = Source(
+            SourceKind.EMAIL,
+            name,
+            origin,
+            message_id=str(msg.get("Message-ID", "")).strip(),
+            sender=domain,
+            sent_at=sent.isoformat() if sent else "",
+        )
+        found.append(intake.Incoming(name, data, source))
+    return found
 
 
 # --- fetching ---------------------------------------------------------------------------------------------
 
-_SKIPPED = {
-    duzenle.DUPLICATE: "zaten vardı",
-    duzenle.BUSINESS: "şirket belgesi",
-    duzenle.KEEP: "zaten gelen kutusunda",
-    duzenle.FAILED: "zaten gelen kutusunda",
+_SKIPPED = {intake.Verdict.KNOWN: "zaten vardı", intake.Verdict.BUSINESS: "şirket belgesi"}
+_KINDS = {
+    DocumentKind.CARD_STATEMENT: "kart ekstresi",
+    DocumentKind.ACCOUNT_STATEMENT: "hesap dökümü",
+    DocumentKind.RECEIPT: "dekont",
 }
 
 
@@ -551,8 +503,9 @@ class Fetched:
     too_large: int = 0
     more: bool = False  # stopped at the per-fetch limit; the next fetch continues
     folder: str = ""
-    found: list[duzenle.Item] = field(default_factory=list)  # the attachments, with the organizer's verdict
-    copied: list[tuple[duzenle.Item, Path]] = field(default_factory=list)  # new ones, with their inbox copy
+    incoming: list[intake.Incoming] = field(default_factory=list)  # the attachments as they came
+    found: list[intake.Candidate] = field(default_factory=list)  # the documents in them, with their verdict
+    stored: list[intake.Candidate] = field(default_factory=list)  # the new ones, now in the vault
 
     @property
     def message(self) -> str:
@@ -563,16 +516,16 @@ class Fetched:
             if self.again
             else f"{self.scanned} yeni banka e-postası okundu"
         ]
-        if self.copied:
-            kinds = Counter(_kind(it) for it, _ in self.copied)
+        if self.stored:
+            kinds = Counter(_kind(c) for c in self.stored)
             detail = ", ".join(f"{n} {k}" for k, n in sorted(kinds.items(), key=lambda kv: -kv[1]))
-            parts.append(f"{len(self.copied)} yeni belge gelen kutusuna kopyalandı ({detail})")
+            parts.append(f"{len(self.stored)} yeni belge arşive alındı ({detail})")
         else:
             parts.append("yeni belge yok")
-        copied = {id(it) for it, _ in self.copied}
+        kept = {id(c) for c in self.stored}
         # What an unused attachment is: "sigorta poliçesi/bilgilendirmesi", "talimat formu", ...
         skipped = Counter(
-            _SKIPPED.get(it.action) or it.reason or "kullanılmıyor" for it in self.found if id(it) not in copied
+            _SKIPPED.get(c.verdict) or c.reason or "kullanılmıyor" for c in self.found if id(c) not in kept
         )
         if skipped:
             parts.append("ekler: " + ", ".join(f"{n} {why}" for why, n in skipped.most_common()))
@@ -584,7 +537,7 @@ class Fetched:
             parts.append("daha fazla e-posta var, sonraki alımda sürecek")
         return "; ".join(parts)
 
-    def as_dict(self, ws: Workspace) -> dict:
+    def as_dict(self) -> dict:
         return {
             "message": self.message,
             "scanned": self.scanned,
@@ -593,24 +546,26 @@ class Fetched:
             "tooLarge": self.too_large,
             "more": self.more,
             "folder": self.folder,
-            "copied": [str(p.relative_to(ws.inbox)) for _, p in self.copied],
+            "stored": [c.name for c in self.stored],
         }
 
 
-def _kind(it: duzenle.Item) -> str:
-    if it.action == duzenle.FAILED:
+def _kind(c: intake.Candidate) -> str:
+    """What a kept document is, in a word: an unreadable or unused one is named for its status."""
+    if c.status is DocumentStatus.UNREADABLE:
         return "okunamayan belge"
-    if it.result and it.result.statements:
-        return "hesap dökümü" if it.result.statements[0].is_account else "kart ekstresi"
-    return "dekont"
+    if c.status is DocumentStatus.UNPROCESSED:
+        return "para hareketi olmayan belge"
+    kind = c.outcome.kind if c.outcome else None
+    return _KINDS[kind] if kind else "belge"
 
 
 def fetch(ws: Workspace, wait: float = 120.0, progress: Callable[[int, int, str], None] | None = None) -> Fetched:
-    """Download the bank e-mails that arrived since the last fetch and copy their new documents into
-    the inbox. At most MAX_MESSAGES e-mails at a time (Fetched.more says there are more)."""
+    """Download the bank e-mails that arrived since the last fetch and take their documents into the vault.
+    At most MAX_MESSAGES e-mails at a time (Fetched.more says there are more)."""
     if not configured(ws):
         raise NotConfigured(SETUP_HINT)
-    with output_lock(ws.output, wait, name=_LOCK_NAME, busy="e-postalar şu anda başka bir işlemce alınıyor"):
+    with file_lock(ws.run, _LOCK_NAME, wait, "e-postalar şu anda başka bir işlemce alınıyor"):
         state = _state(ws)
         state["last_attempt"] = _now()
         try:
@@ -623,9 +578,11 @@ def fetch(ws: Workspace, wait: float = 120.0, progress: Callable[[int, int, str]
             state["last_error"] = {"at": _now(), "message": str(exc)}
             _save_state(ws, state)
             raise
-        if out.found:
-            out.copied = import_documents(ws, out.found)
-        # Only now that the documents are safe in the inbox does the mailbox count as read this far.
+        if out.incoming:
+            plan = intake.plan_documents(ws, out.incoming)
+            out.found = plan.documents
+            out.stored = intake.apply(ws, plan, Actor.SYSTEM).stored
+        # Only now that the documents are safe in the vault does the mailbox count as read this far.
         state.update(
             uidvalidity=box.uidvalidity,
             last_uid=last,
@@ -635,7 +592,7 @@ def fetch(ws: Workspace, wait: float = 120.0, progress: Callable[[int, int, str]
             last_error=None,
             last_result={
                 "scanned": out.scanned,
-                "copied": len(out.copied),
+                "stored": len(out.stored),
                 "unverified": out.unverified,
                 "more": out.more,
             },
@@ -684,7 +641,7 @@ def _download(acc: Account, secret: str, state: dict, progress) -> tuple[Fetched
             docs = _documents(msg, domain)
             if docs:
                 out.with_documents += 1
-                out.found += docs
+                out.incoming += docs
                 held += sum(len(d.data) for d in docs)
     return out, last, box
 
@@ -703,7 +660,7 @@ def setup(ws: Workspace, address: str, secret: str, start: date | None = None) -
     with _session(acc, secret) as box:
         folder = _shown(box.name)
     stored = store_password(address, secret)
-    with output_lock(ws.output, 30, name=_LOCK_NAME, busy="e-postalar şu anda alınıyor; biraz sonra yeniden kurun"):
+    with file_lock(ws.run, _LOCK_NAME, 30, "e-postalar şu anda alınıyor; biraz sonra yeniden kurun"):
         old = _state(ws).get("address")
         if old and old.lower() != address.lower():
             delete_password(old)
@@ -713,7 +670,7 @@ def setup(ws: Workspace, address: str, secret: str, start: date | None = None) -
 
 def set_start(ws: Workspace, start: date) -> None:
     """Read the mailbox from another day on; the next fetch reads it again from that day."""
-    with output_lock(ws.output, 30, name=_LOCK_NAME, busy="e-postalar şu anda alınıyor; biraz sonra yeniden deneyin"):
+    with file_lock(ws.run, _LOCK_NAME, 30, "e-postalar şu anda alınıyor; biraz sonra yeniden deneyin"):
         state = _state(ws)
         if not state.get("address"):
             raise NotConfigured(SETUP_HINT)

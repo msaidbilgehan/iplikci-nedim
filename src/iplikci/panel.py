@@ -26,23 +26,13 @@ from http.cookies import CookieError, SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from . import duzenle, email_fetch, month_end
+from . import email_fetch, month_end
+from .app import intake
+from .app.analysis import Current, document_gaps
+from .app.uploads import MAX_UPLOAD_BYTES, UPLOAD_EXTENSIONS, inbox_files, save_upload
+from .app.workspace import Busy, StalePlan, Workspace
+from .domain.codes import DocumentStatus
 from .report import PANEL_CSP, render_html
-from .workspace import (
-    MAX_UPLOAD_BYTES,
-    UPLOAD_EXTENSIONS,
-    Busy,
-    Current,
-    Plan,
-    StalePlan,
-    Workspace,
-    describe,
-    document_gaps,
-    inbox_files,
-    plan_inbox,
-    save_upload,
-)
-from .workspace import apply as apply_plan
 
 STATE_NAME = ".panel.json"  # port, pid and address of the running panel, so a second start just opens it
 # The month-end pages carry no script at all: nothing more than their own style.
@@ -51,7 +41,6 @@ _MONTH_PAGE = re.compile(r"/" + month_end.FOLDER + r"/(\d{4}-\d{2}\.html|" + re.
 _MAX_JSON = 64 * 1024
 _DRAIN_LIMIT = 32 << 20  # a refused upload up to this size is read to its end so the browser gets the answer
 _PLANS_KEPT = 8
-_SET_ASIDE = (duzenle.DUPLICATE, duzenle.BUSINESS, duzenle.UNUSED)
 
 _DENIED = """<!doctype html><html lang="tr"><meta charset="utf-8"><title>İplikçi Nedim</title>
 <body style="font:15px/1.5 system-ui,sans-serif;max-width:560px;margin:60px auto;padding:0 20px">
@@ -72,7 +61,7 @@ class Panel:
         self.hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
         self.origins = {f"http://{host}" for host in self.hosts}
         self.current = Current(ws, write=True)
-        self.plans: dict[str, Plan] = {}
+        self.plans: dict[str, intake.Plan] = {}
         self._lock = threading.Lock()
         self._page: tuple[object, dict, str] | None = None  # (analysis, e-mail status, page)
 
@@ -124,12 +113,12 @@ class Panel:
         return month_end.render_month(me, a.dataset, [m.month for m in a.months], a.made, "/")
 
     def plan(self) -> dict:
-        p = plan_inbox(self.ws)
+        p = intake.plan_inbox(self.ws)
         with self._lock:
             self.plans[p.id] = p
             while len(self.plans) > _PLANS_KEPT:
                 self.plans.pop(next(iter(self.plans)))
-        return {"id": p.id, "items": [describe(it, self.ws) for it in p.changes], "changes": len(p.changes)}
+        return {"id": p.id, "items": [intake.describe(c, self.ws) for c in p.changes], "changes": len(p.changes)}
 
     def apply(self, plan_id: str) -> dict:
         with self._lock:
@@ -138,20 +127,24 @@ class Panel:
                 self.plans.clear()  # applying one makes every other plan stale
         if p is None:
             raise StalePlan("bu plan artık geçerli değil; gelen kutusu yeniden okunuyor")
-        done = apply_plan(self.ws, p)
+        done = intake.apply(self.ws, p)
         self.current.refresh()
+        known = [c for c in done.items if c.verdict is intake.Verdict.KNOWN and c.path is not None]
+        set_aside = [c for c in done.items if c.verdict not in (intake.Verdict.STORE, intake.Verdict.KNOWN)]
         return {
-            "filed": sum(it.action == duzenle.KEEP for it in done.items),
-            "unreadable": sum(it.action == duzenle.FAILED and it.target is not None for it in done.items),
-            "trashed": sum(it.action in _SET_ASIDE and it.path is not None for it in done.items),
+            "stored": len(done.stored),
+            "unreadable": sum(c.status is DocumentStatus.UNREADABLE for c in done.stored),
+            "known": len(known),
+            "trashed": sum(c.path is not None for c in set_aside),
             "trash": str(done.trash) if done.trash else None,
-            "log": str(done.log) if done.log else None,
         }
 
     def fetch_mail(self) -> dict:
         """One e-mail fetch (at most email_fetch.MAX_MESSAGES e-mails; "more" asks for another)."""
         got = email_fetch.fetch(self.ws, wait=10)
-        return got.as_dict(self.ws) | {"lastRun": email_fetch.status(self.ws).get("lastRun")}
+        if got.stored:
+            self.current.refresh()
+        return got.as_dict() | {"lastRun": email_fetch.status(self.ws).get("lastRun")}
 
 
 class _Body:
@@ -338,7 +331,7 @@ def make_server(ws: Workspace, port: int) -> tuple[_Server, Panel]:
 def _running(ws: Workspace) -> str | None:
     """Address of a panel of this workspace that is already running, if any."""
     try:
-        state = json.loads((ws.output / STATE_NAME).read_text(encoding="utf-8"))
+        state = json.loads((ws.run / STATE_NAME).read_text(encoding="utf-8"))
         if os.name != "nt":  # on Windows os.kill would end the process instead of checking it
             os.kill(int(state["pid"]), 0)
         with socket.create_connection(("127.0.0.1", int(state["port"])), timeout=0.5):
@@ -348,7 +341,7 @@ def _running(ws: Workspace) -> str | None:
 
 
 def _write_state(ws: Workspace, panel: Panel) -> None:
-    path = ws.output / STATE_NAME
+    path = ws.run / STATE_NAME
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)  # the address holds the key
     if hasattr(os, "fchmod"):  # an older file keeps its mode on open; Windows has no such modes
         os.fchmod(fd, 0o600)
@@ -357,7 +350,7 @@ def _write_state(ws: Workspace, panel: Panel) -> None:
 
 
 def _remove_state(ws: Workspace) -> None:
-    path = ws.output / STATE_NAME
+    path = ws.run / STATE_NAME
     try:
         if json.loads(path.read_text(encoding="utf-8")).get("pid") == os.getpid():
             path.unlink()
@@ -396,7 +389,7 @@ def serve(ws: Workspace, port: int | None = None, open_browser: bool = False, pr
         )
         return 1
     ws.inbox.mkdir(parents=True, exist_ok=True)
-    ws.output.mkdir(parents=True, exist_ok=True)
+    ws.exports.mkdir(parents=True, exist_ok=True)
     print("Belgeler okunuyor…", file=sys.stderr)
     panel.current.get(progress)  # the first page should not wait for the documents
     if read_done:

@@ -144,6 +144,17 @@ def add_source(db: Database, sha256: str, source: Source) -> bool:
     return bool(cursor.rowcount)
 
 
+def has_source(db: Database, sha256: str, source: Source) -> bool:
+    """Whether exactly this arrival (kind, name, origin, e-mail) is recorded."""
+    return bool(
+        db.scalar(
+            "SELECT count(*) FROM document_sources WHERE sha256 = ? AND kind = ? AND original = ? AND origin = ? "
+            "AND message_id = ?",
+            (sha256, source.kind, source.original, source.origin, source.message_id),
+        )
+    )
+
+
 def sources(db: Database, sha256: str) -> list[Source]:
     rows = db.rows("SELECT * FROM document_sources WHERE sha256 = ? ORDER BY id", (sha256,))
     return [

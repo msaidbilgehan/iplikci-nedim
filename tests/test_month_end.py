@@ -12,7 +12,7 @@ from iplikci.insights import interpret
 from iplikci.models import Account, ParseResult, Security, Statement, Transaction
 from iplikci.sources import Document
 
-from conftest import JANUARY, RULES, put
+from conftest import JANUARY, RULES, add
 
 HOLDER = "ÖRNEK KULLANICI"
 CHECKING = Account("teb-123456789", "TEB Vadesiz TL 123456789", "TEB", "Vadesiz hesap", number="123456789")
@@ -222,11 +222,11 @@ def test_pages_escape_statement_text_and_carry_no_script(cat, tmp_path):
 
 
 def test_the_month_end_command_writes_a_months_page_and_refuses_a_month_to_come(ws, monkeypatch, capsys):
-    put(ws.documents / "TEB" / "Vadesiz Hesap TL 123456789" / "ocak.xls", teb_export(JANUARY))
-    monkeypatch.chdir(ws.base)
+    add(ws, "ocak.xls", teb_export(JANUARY))
+    monkeypatch.setenv("IPLIKCI_HOME", str(ws.home))
     assert cli.main(["aysonu", "2026-01"]) == 0
     assert "Ocak 2026 — Kapandı" in capsys.readouterr().out
-    assert (ws.output / month_end.FOLDER / "2026-01.html").exists()
+    assert (ws.exports / month_end.FOLDER / "2026-01.html").exists()
     with pytest.raises(SystemExit):
         cli.main(["aysonu", "2999-01"])
     assert "2999-01 henüz gelmedi" in capsys.readouterr().err

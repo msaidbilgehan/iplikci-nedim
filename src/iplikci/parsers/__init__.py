@@ -4,7 +4,7 @@ from pdfminer.pdfdocument import PDFEncryptionError
 
 from ..models import ParseResult
 from ..pdfutil import ocr_available, ocr_page_lines, open_pdf, page_text
-from ..sources import UnreadableArchive, _from_zip
+from ..sources import Document, UnreadableArchive, from_zip
 from ..tables import sniff
 from . import (
     garanti,
@@ -42,12 +42,12 @@ def _encrypted(exc: Exception) -> bool:
     return any(isinstance(e, PDFEncryptionError) for e in (exc, exc.__context__, *exc.args))
 
 
-def parse_document(doc) -> ParseResult:
+def parse_document(doc: Document) -> ParseResult:
     if is_business(doc.name):
         raise Skipped(BUSINESS_REASON, business=True)
     if doc.ext == ".zip":  # only a zip the collector could not open is handed over as a document
         try:
-            _from_zip(doc.data, doc.name)
+            from_zip(doc.data, doc.name)
         except UnreadableArchive as exc:
             raise Unreadable(str(exc)) from exc
         raise Skipped("arşiv")

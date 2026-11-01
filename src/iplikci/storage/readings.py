@@ -191,6 +191,37 @@ def _transaction(r: sqlite3.Row) -> Transaction:
     )
 
 
+CopyKey = tuple[str, ...]
+
+
+def copy_keys(result: ParseResult) -> list[CopyKey]:
+    """What the ledger merges copies by (docs/domain/ledger.md): a statement's account, cut date, currency and
+    first day, a receipt's key. The same statement arrives as different files (a re-sent e-mail, an archive copy)."""
+    keys: list[CopyKey] = [
+        ("statement", s.account, s.cut_date.isoformat(), s.currency, s.start.isoformat() if s.start else "")
+        for s in result.statements
+    ]
+    if result.receipt_key:
+        keys.append(("receipt", result.receipt_key))
+    return keys
+
+
+def kept_copy(db: Database, keys: Iterable[CopyKey]) -> str | None:
+    """The name of a kept document that holds one of keys (copy_keys), if any."""
+    for kind, *values in keys:
+        if kind == "statement":
+            sql = (
+                "SELECT d.name FROM statements s JOIN documents d ON d.sha256 = s.sha256 WHERE s.account = ? "
+                "AND s.cut_date = ? AND s.currency = ? AND s.start = ? AND d.status != 'removed' ORDER BY d.added_at"
+            )
+        else:
+            sql = "SELECT name FROM documents WHERE receipt_key = ? AND status != 'removed' ORDER BY added_at"
+        name: str | None = db.scalar(sql, tuple(values))
+        if name is not None:
+            return name
+    return None
+
+
 def search(db: Database, query: str, limit: int = 50) -> list[tuple[str, str, str]]:
     """(kind, ref, sha256) of the rows and documents whose text holds every word of query, as prefixes."""
     words = fold(query).split()
