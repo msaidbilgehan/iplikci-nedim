@@ -16,23 +16,19 @@ import re
 from datetime import date
 from decimal import Decimal
 
-from ..domain.codes import AccountType, TransactionKind
-from ..domain.models import TRY, Account, ParseResult, Security, Statement, Transaction
-from ..domain.money import TOLERANCE, round_half_up
-from ..domain.text import fold
-from .common import BUSINESS_REASON, Skipped, is_business
-from .hesap import Movement, check_balances, month_end_balances
-from .pdf import Line, page_lines
-from .text import parse_dmy, parse_us_amount, squash
+from ...domain.codes import AccountType, DocumentKind, TransactionKind
+from ...domain.models import TRY, Account, ParseResult, Security, Statement, Transaction
+from ...domain.money import TOLERANCE, round_half_up
+from ...domain.text import fold
+from ..common import BUSINESS_REASON, Skipped, is_business
+from ..contract import Detection, Format, Probe, SourceDocument
+from ..movements import Movement, check_balances, month_end_balances
+from ..pdf import Line, page_lines
+from ..text import parse_dmy, parse_us_amount, squash
 
-NAME = "Garanti BBVA Yatırım"
+ID = "garanti.brokerage"
 _HOLDER_X = 300  # the customer's name and address are printed right of this
 _CHANGE_X1, _BALANCE_X1 = 445, 550  # right edges of the "İşlem" and "Kalan" columns of cash moves
-
-
-def detect(first_page: str) -> bool:
-    s = squash(first_page)
-    return ("GARANTIBBVAYATIRIM" in s or "GARANTIYATIRIMMENKUL" in s) and ("EMANETNO" in s or "ISLEMSONUCFORMU" in s)
 
 
 def _account(number: str) -> Account:
@@ -143,7 +139,7 @@ def _kind(m: Movement) -> tuple[TransactionKind, str]:
     return TransactionKind.TRANSFER_CANDIDATE, m.description
 
 
-def _statement(doc, pdf, first: list[Line]) -> ParseResult:
+def _statement(doc: SourceDocument, first: list[Line]) -> ParseResult:
     text = " ".join(line.folded for line in first)
     number = re.search(r"EMANET NO : (\d+-\d+)", text)
     printed = re.search(r"\bTARIH : (\d{2}/\d{2}/\d{4})", text)
@@ -170,7 +166,7 @@ def _statement(doc, pdf, first: list[Line]) -> ParseResult:
         else None
     )
     held, totals, moves = [], [], []
-    for page in pdf.pages:
+    for page in doc.pdf.pages:
         lines = page_lines(page)
         kind = _page_kind(lines)
         if kind == "durum":
@@ -225,13 +221,13 @@ def _statement(doc, pdf, first: list[Line]) -> ParseResult:
                 else "",
             )
         )
-    return ParseResult(parser=NAME, accounts=[account], statements=[stmt], holder=holder)
+    return ParseResult(parser=ID, accounts=[account], statements=[stmt], holder=holder)
 
 
 # --- trade result form --------------------------------------------------------------------------------
 
 
-def _form(doc, lines: list[Line]) -> ParseResult:
+def _form(doc: SourceDocument, lines: list[Line]) -> ParseResult:
     text = " ".join(line.folded for line in lines)
     number = re.search(r"MUSTERI NO : (\d+-\d+)", text)
     day = re.search(r"AIT OLDUGU TARIH : (\d{2}\.\d{2}\.\d{4})", text)
@@ -248,7 +244,7 @@ def _form(doc, lines: list[Line]) -> ParseResult:
     account = _account(number[1])
     when = parse_dmy(day[1])
     result = ParseResult(
-        parser=NAME,
+        parser=ID,
         accounts=[account],
         holder=holder_name,
         title="Hisse İşlemi",
@@ -290,8 +286,26 @@ def _form(doc, lines: list[Line]) -> ParseResult:
     return result
 
 
-def parse(doc, pdf) -> ParseResult:
-    first = page_lines(pdf.pages[0])
-    if "ISLEMSONUCFORMU" in squash(" ".join(line.text for line in first)):
-        return _form(doc, first)
-    return _statement(doc, pdf, first)
+class Brokerage:
+    id = ID
+    version = 1
+    bank = "Garanti BBVA"
+    name = "Garanti BBVA Yatırım hesap ekstresi ve işlem sonuç formu"
+    document_type = DocumentKind.ACCOUNT_STATEMENT
+    formats = frozenset({Format.PDF})
+
+    def detect(self, probe: Probe) -> Detection | None:
+        s = squash(probe.text)
+        brokerage = "GARANTIBBVAYATIRIM" in s or "GARANTIYATIRIMMENKUL" in s
+        if brokerage and ("EMANETNO" in s or "ISLEMSONUCFORMU" in s):
+            return Detection(1.0, "Garanti BBVA Yatırım adı ile emanet no ya da işlem sonuç formu")
+        return None
+
+    def parse(self, doc: SourceDocument) -> ParseResult:
+        first = page_lines(doc.pdf.pages[0])
+        if "ISLEMSONUCFORMU" in squash(" ".join(line.text for line in first)):
+            return _form(doc, first)
+        return _statement(doc, first)
+
+
+PARSER = Brokerage()

@@ -5,16 +5,10 @@ from datetime import date
 import pytest
 
 from iplikci.domain.codes import AccountType, TransactionKind
-from iplikci.parsers import Skipped, hesaplar
+from iplikci.parsers import Skipped, parse_document
+from iplikci.parsers.accounts import bank_from_iban
 from iplikci.parsers.common import set_business_names
-from iplikci.parsers.hesap import (
-    Movement,
-    bank_from_iban,
-    check_balances,
-    classify,
-    receiver_after_bank,
-    sender_after_bank,
-)
+from iplikci.parsers.movements import Movement, check_balances, classify, receiver_after_bank, sender_after_bank
 from iplikci.sources import Document
 
 
@@ -94,7 +88,7 @@ TEB_ROWS = [  # newest first, as the bank prints them
 
 def test_teb_export_end_to_end():
     doc = Document("TEBHareket.xls", "test", _teb_html("ÖRNEK İSİM SOYADOĞLU", TEB_ROWS), "sha")
-    result = hesaplar.parse(doc)
+    result = parse_document(doc)
     s = result.statements[0]
     assert (s.start, s.cut_date) == (date(2026, 1, 1), date(2026, 1, 31))
     assert s.verified and (s.checks_ok, s.checks_total) == (2, 2)
@@ -111,5 +105,5 @@ def test_company_account_export_is_business():
     set_business_names(["Örnek Teknoloji"])
     doc = Document("KMH.xls", "test", _teb_html("ÖRNEK TEKNOLOJİ A.Ş.", TEB_ROWS), "sha")
     with pytest.raises(Skipped) as exc:
-        hesaplar.parse(doc)
+        parse_document(doc)
     assert exc.value.business

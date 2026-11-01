@@ -10,16 +10,16 @@ with the other documents (analysis.py).
 import re
 from decimal import Decimal
 
-from bs4 import BeautifulSoup
+from ...domain.codes import AccountType, DocumentKind, TransactionKind
+from ...domain.models import Account, ParseResult, Transaction
+from ...domain.money import round_half_up
+from ...domain.text import fold, title_tr
+from ..common import Skipped
+from ..contract import Detection, Format, Probe, SourceDocument
+from ..pdf import page_text
+from ..text import parse_dmy, parse_us_amount
 
-from ..domain.codes import AccountType, TransactionKind
-from ..domain.models import Account, ParseResult, Transaction
-from ..domain.money import round_half_up
-from ..domain.text import fold, title_tr
-from .common import Skipped
-from .text import parse_dmy, parse_us_amount
-
-NAME = "QNB dekont"
+ID = "qnb.edekont"
 
 _ROW = re.compile(r"(?:TR\d{24}\s+)?(?P<desc>.+?)\s+(?P<ba>[BA])\s+(?P<cur>TL|USD|EUR)\s+(?P<amt>[\d,]+\.\d{1,2})")
 _BANKS = {
@@ -28,25 +28,6 @@ _BANKS = {
     "TURK EKONOMI BANKASI": "TEB",
     "TURKIYE VAKIFLAR BANKASI": "VakıfBank",
 }
-
-
-def detect_text(text: str) -> bool:
-    f = fold(text)
-    return "QNB" in f and "DEKONT" in f and "HESAP/K.KART NO" in f
-
-
-def html_text(data: bytes) -> str:
-    # TEB saves some reports as UTF-16 with a byte-order mark.
-    encodings = ("utf-16",) if data[:2] in (b"\xff\xfe", b"\xfe\xff") else ("utf-8", "windows-1254")
-    for enc in encodings:
-        try:
-            raw = data.decode(enc)
-            break
-        except UnicodeDecodeError:
-            continue
-    else:
-        raw = data.decode("latin-1")
-    return " ".join(BeautifulSoup(raw, "html.parser").get_text(" ").split())
 
 
 def _account_main(text: str) -> Account:
@@ -61,7 +42,7 @@ def _account_main(text: str) -> Account:
     )
 
 
-def parse_text(doc, text: str) -> ParseResult:
+def read_text(doc: SourceDocument, text: str) -> ParseResult:
     t = " ".join(text.split())
     f = fold(t)
     when = re.search(r"ISLEM TARIHI (\d{2}/\d{2}/\d{4})", f)
@@ -73,7 +54,7 @@ def parse_text(doc, text: str) -> ParseResult:
     holder = re.search(r"DEKONT\s+([A-ZÇĞİÖŞÜ ]+?)\s+(?:MUSTERI NO|[A-ZÇĞİÖŞÜ]+ MAH)", t)
     table = t[f.find("PARA CINSI TUTAR") + len("PARA CINSI TUTAR") :] if "PARA CINSI TUTAR" in f else t
     rows = [(m["desc"], m["ba"], m["cur"], parse_us_amount(m["amt"])) for m in _ROW.finditer(table)]
-    result = ParseResult(parser=NAME, receipt_key=key, holder=holder[1] if holder else "")
+    result = ParseResult(parser=ID, receipt_key=key, holder=holder[1] if holder else "")
 
     loan = re.search(r"(\d{5}-BT-\d+) REFERANSLI KREDI (\d{2}/\d{2}/\d{4}) TARIHLI TAKSIT ODEMESI", f)
     parts = re.search(r"ODENEN ANAPARA: ?([\d.,]+) FAIZ: ?([\d.,]+) KKDF: ?([\d.,]+) BSMV: ?([\d.,]+)", f)
@@ -199,3 +180,26 @@ def _other_side(desc: str, text: str, incoming: bool) -> str:
             if name:
                 return " ".join(name)
     return ""
+
+
+class Edekont:
+    id = ID
+    version = 1
+    bank = "QNB"
+    name = "QNB e-dekont"
+    document_type = DocumentKind.RECEIPT
+    formats = frozenset({Format.HTML, Format.PDF})
+
+    def detect(self, probe: Probe) -> Detection | None:
+        f = fold(probe.text)
+        if "QNB" in f and "DEKONT" in f and "HESAP/K.KART NO" in f:
+            return Detection(1.0, 'QNB, dekont ve "Hesap/K.Kart No"')
+        return None
+
+    def parse(self, doc: SourceDocument) -> ParseResult:
+        if doc.kind == "html" or doc.ext in (".html", ".htm"):
+            return read_text(doc, doc.text)
+        return read_text(doc, " ".join(page_text(p) for p in doc.pdf.pages))
+
+
+PARSER = Edekont()

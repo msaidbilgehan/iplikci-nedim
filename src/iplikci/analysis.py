@@ -30,6 +30,7 @@ from .domain.labels import EVIDENCE_STATUS, format_amount
 from .domain.models import TRY, Account, ParseResult, Statement, Transaction
 from .domain.money import CENT, round_half_up
 from .domain.text import fold
+from .parsers.registry import label
 
 # What the statements say about a receipt's row.
 PROVISIONAL = EvidenceStatus.PROVISIONAL  # after the account's newest statement: counts now, the next one confirms it
@@ -518,7 +519,7 @@ def build(
         if result.transactions:
             receipts.setdefault(result.receipt_key or doc.sha256, result.transactions)
         kind = ("hesap" if result.statements[0].is_account else "ekstre") if result.statements else "dekont"
-        documents.append(DocumentStatus(doc.name, doc.origin, kind, result.parser))
+        documents.append(DocumentStatus(doc.name, doc.origin, kind, label(result.parser)))
 
     stmts = sorted(statements.values(), key=lambda s: (s.account, s.cut_date, s.currency))
     _fingerprint(stmts, receipts, accounts)

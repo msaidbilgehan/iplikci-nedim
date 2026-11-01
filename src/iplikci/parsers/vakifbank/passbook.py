@@ -8,25 +8,21 @@ oldest first ("NO", "İŞLEM TARİHİ", "İŞLEM TUTARI", "BAKİYE", "AÇIKLAMA"
 import re
 from decimal import Decimal
 
-from ..domain.codes import AccountType
-from ..domain.models import ParseResult
-from ..domain.text import fold
-from .common import BUSINESS_REASON, Skipped, is_business
-from .hesap import Movement, build_statement
-from .hesaplar import bank_account
-from .pdf import label_values, page_lines, page_text
-from .text import parse_dmy, parse_tr_amount, squash
+from ...domain.codes import AccountType, DocumentKind
+from ...domain.models import ParseResult
+from ...domain.text import fold
+from ..accounts import bank_account
+from ..common import BUSINESS_REASON, Skipped, is_business
+from ..contract import Detection, Format, Probe, SourceDocument
+from ..movements import Movement, build_statement
+from ..pdf import label_values, page_lines, page_text
+from ..text import parse_dmy, parse_tr_amount, squash
 
-NAME = "Vakıfbank e-cüzdan"
-
-
-def detect(first_page: str) -> bool:
-    s = squash(first_page)
-    return "VAKIFBANK.COM.TR" in s and "CUZDAN" in s and "TASARRUFMEVDUATI" in s
+ID = "vakifbank.passbook"
 
 
-def parse(doc, pdf) -> ParseResult:
-    page = next((p for p in pdf.pages if "CUZDAN SERI NO" in fold(page_text(p))), None)
+def read(doc: SourceDocument) -> ParseResult:
+    page = next((p for p in doc.pdf.pages if "CUZDAN SERI NO" in fold(page_text(p))), None)
     if page is None:
         raise Skipped("e-cüzdanda hesap bilgisi yok")
     lines = page_lines(page)
@@ -71,4 +67,25 @@ def parse(doc, pdf) -> ParseResult:
         oldest_first=True,
         opening=Decimal(0) if opened == moves[0].date else None,
     )
-    return ParseResult(parser=NAME, accounts=[account], statements=[stmt], holder=holder)
+    return ParseResult(parser=ID, accounts=[account], statements=[stmt], holder=holder)
+
+
+class Passbook:
+    id = ID
+    version = 1
+    bank = "Vakıfbank"
+    name = "Vakıfbank e-cüzdan"
+    document_type = DocumentKind.ACCOUNT_STATEMENT
+    formats = frozenset({Format.PDF})
+
+    def detect(self, probe: Probe) -> Detection | None:
+        s = squash(probe.text)
+        if "VAKIFBANK.COM.TR" in s and "CUZDAN" in s and "TASARRUFMEVDUATI" in s:
+            return Detection(1.0, "vakifbank.com.tr, cüzdan ve tasarruf mevduatı")
+        return None
+
+    def parse(self, doc: SourceDocument) -> ParseResult:
+        return read(doc)
+
+
+PARSER = Passbook()

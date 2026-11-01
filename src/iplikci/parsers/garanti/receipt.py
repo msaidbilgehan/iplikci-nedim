@@ -9,24 +9,19 @@ and the customer's name; analysis.resolve_masked points them at the account the 
 import re
 from decimal import Decimal
 
-from ..domain.codes import TransactionKind
-from ..domain.labels import format_amount
-from ..domain.models import TRY, Account, ParseResult, Transaction
-from ..domain.text import fold, title_tr
-from .common import BUSINESS_REASON, Skipped, currency_code, is_business
-from .hesap import bank_from_iban
-from .hesaplar import bank_account
-from .pdf import Line, page_lines
-from .text import parse_dmy, parse_tr_amount, squash
+from ...domain.codes import DocumentKind, TransactionKind
+from ...domain.labels import format_amount
+from ...domain.models import TRY, Account, ParseResult, Transaction
+from ...domain.text import fold, title_tr
+from ..accounts import bank_account, bank_from_iban
+from ..common import BUSINESS_REASON, Skipped, currency_code, is_business
+from ..contract import Detection, Format, Probe, SourceDocument
+from ..pdf import Line, page_lines
+from ..text import parse_dmy, parse_tr_amount, squash
 
-NAME = "Garanti BBVA dekont"
+ID = "garanti.receipt"
 _RIGHT_COLUMN = 300  # the customer's name and address start right of this in the header block
 _TITLES = {"HESAPTAN FAST": "Giden FAST", "HESAPTAN HESABA HAVALE": "Giden Havale"}
-
-
-def detect(first_page: str) -> bool:
-    s = squash(first_page)
-    return "GARANTIBANKASI" in s and "DEKONT" in s and "HESAPNUMARASI" in s and "SIRANO" in s
 
 
 class _Fields:
@@ -91,8 +86,8 @@ def _account(number: str, currency: str) -> Account:
     return account
 
 
-def parse(doc, pdf) -> ParseResult:
-    lines = page_lines(pdf.pages[0])
+def read(doc: SourceDocument) -> ParseResult:
+    lines = page_lines(doc.pdf.pages[0])
     fields = _Fields(lines)
     holder = _holder(lines)
     if is_business(holder):
@@ -109,7 +104,7 @@ def parse(doc, pdf) -> ParseResult:
     account = _account(number[1], currency)
     sequence = re.search(r"SIRA NO\s*:\s*(\S+)", " ".join(line.folded for line in lines))
     result = ParseResult(
-        parser=NAME,
+        parser=ID,
         accounts=[account],
         holder=holder,
         title=title,
@@ -163,3 +158,24 @@ def _fee_account(fields: _Fields, currency: str, account: Account) -> Account | 
     if payer:
         return bank_account("Garanti BBVA", payer[1], currency)
     return account if currency == account.currency else None
+
+
+class Receipt:
+    id = ID
+    version = 1
+    bank = "Garanti BBVA"
+    name = "Garanti BBVA dekontu"
+    document_type = DocumentKind.RECEIPT
+    formats = frozenset({Format.PDF})
+
+    def detect(self, probe: Probe) -> Detection | None:
+        s = squash(probe.text)
+        if "GARANTIBANKASI" in s and "DEKONT" in s and "HESAPNUMARASI" in s and "SIRANO" in s:
+            return Detection(1.0, "Garanti Bankası dekont başlığı, hesap numarası ve sıra no")
+        return None
+
+    def parse(self, doc: SourceDocument) -> ParseResult:
+        return read(doc)
+
+
+PARSER = Receipt()

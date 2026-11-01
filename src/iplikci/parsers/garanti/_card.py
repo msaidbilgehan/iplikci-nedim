@@ -1,29 +1,26 @@
-"""Garanti BBVA statements: Bonus credit cards and the Paracard debit card."""
+"""Garanti BBVA card statements: the Bonus credit card's and the Paracard debit card's, read the same way."""
 
 import re
 from decimal import Decimal
 
-from ..domain.codes import AccountType, TransactionKind
-from ..domain.models import TRY, Account, ParseResult, Statement, Transaction
-from ..domain.money import round_half_up
-from ..domain.text import fold
-from .common import classify_kind, installment_label, pair_deferrals
-from .pdf import find_header, find_word, page_lines, page_text, take_amount
-from .text import parse_tr_amount, parse_tr_words_date, squash
+from ...domain.codes import AccountType, TransactionKind
+from ...domain.models import TRY, Account, ParseResult, Statement, Transaction
+from ...domain.money import round_half_up
+from ...domain.text import fold
+from ..common import classify_kind, installment_label, pair_deferrals
+from ..contract import SourceDocument
+from ..pdf import find_header, find_word, page_lines, page_text, take_amount
+from ..text import parse_tr_amount, parse_tr_words_date, squash
 
-NAME = "Garanti BBVA"
+BONUS_ID, PARACARD_ID = "garanti.bonus_card", "garanti.paracard"
 
 # Section headings Garanti prints above groups of purchases that are not categories.
 _NON_CATEGORY_SECTIONS = ("BONUS PROGRAM", "DIGER HARCAMALARINIZ", "YURT DISI HARCAMALARINIZ", "HARCAMALARINIZ")
 _FOREIGN = re.compile(r"([\d.]+,\d{2})\s*(USD|EUR|GBP)")
 
 
-def detect(first_page: str) -> bool:
-    s = squash(first_page)
-    return "PARACARDHESAP" in s or ("BONUS" in s and "DONEMBORCUNUZ" in s)
-
-
-def parse(doc, pdf) -> ParseResult:
+def read_statement(doc: SourceDocument) -> ParseResult:
+    pdf = doc.pdf
     first = page_text(pdf.pages[0])
     f = fold(first)
     paracard = "PARACARD" in squash(first)
@@ -133,4 +130,4 @@ def parse(doc, pdf) -> ParseResult:
             )
 
     pair_deferrals(stmt.transactions)
-    return ParseResult(parser=NAME, accounts=[account], statements=[stmt])
+    return ParseResult(parser=PARACARD_ID if paracard else BONUS_ID, accounts=[account], statements=[stmt])

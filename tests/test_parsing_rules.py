@@ -8,6 +8,7 @@ from pdfplumber.utils.exceptions import PdfminerException
 from iplikci import parsers
 from iplikci.domain.codes import TransactionKind
 from iplikci.domain.models import Transaction
+from iplikci.parsers import contract
 from iplikci.parsers.common import (
     business_names_signature,
     classify_kind,
@@ -156,7 +157,7 @@ def test_password_protected_pdf_is_kept_for_a_manual_look(monkeypatch):
         except PDFPasswordIncorrect as exc:
             raise PdfminerException(exc)  # what pdfplumber does
 
-    monkeypatch.setattr(parsers, "open_pdf", locked)
+    monkeypatch.setattr(contract, "open_pdf", locked)
     with pytest.raises(parsers.Unreadable, match="şifreli PDF"):
         parsers.parse_document(Document("Ekstre.pdf", "test", b"%PDF-1.7", "sha"))
 

@@ -16,7 +16,7 @@ düzeltirken önce buraya bakılır; yeni bir tuzak bulununca buraya eklenir.
   `parsers.text.squash()` (boşluksuz) üzerinden eşleştirilir.
 - `fold()` boşlukları birleştirir ve birleşik işaretleri atar; bu yüzden metnin uzunluğunu korumaz.
   - Katlanmış metinde bulunan bir konumla özgün metin asla kesilmez.
-  - Bunun yerine kelime kelime katlanır ve özgün kelimeler tutulur (örnek: `qnb._other_side`).
+  - Bunun yerine kelime kelime katlanır ve özgün kelimeler tutulur (örnek: `parsers/qnb/edekont.py` içindeki `_other_side`).
 
 **Kart PDF'leri:** sütun konumuyla okunur (`parsers.pdf.page_lines`, `find_header`, `take_amount`). Düz metin üzerinde
 düzenli ifadeyle okunmaz.
@@ -81,7 +81,7 @@ hareketi taşımaz. V1'de çöpe gitmez; "işlenmedi" durumunda saklanır (K11).
 - `Etiket = Para Transferi` satırları karşı tarafı taşır.
 - Döviz satırları kuru yazar (`EUR:54.44500`).
 
-**Dekont PDF'i** (`garanti_dekont`: "Dekont" + `HESAP NUMARASI` + `SIRA NO`)
+**Dekont PDF'i** (`garanti.receipt`: "Dekont" + `HESAP NUMARASI` + `SIRA NO`)
 
 - Sol sütun `ETİKET : değer` biçimindedir.
 - Müşterinin adı ve adresi, üst blokta x 300'ün sağındadır.
@@ -90,7 +90,7 @@ hareketi taşımaz. V1'de çöpe gitmez; "işlenmedi" durumunda saklanır (K11).
 - Ücret (`KOMİSYON/MASRAF TOPLAMI`) `KOMİSYON/MASRAF HESABI`'ndan alınır.
 - Gelen transfer dekontları hesap numarasını ve adı maskeler.
 
-**Garanti BBVA Yatırım** (`garanti_yatirim`, ABD sayı biçimi)
+**Garanti BBVA Yatırım** (`garanti.brokerage`, ABD sayı biçimi)
 
 - Aylık hisse ekstresi emanet hesabı başınadır (`<emanet no>-100`, `-101`). Son iş günü tarihlidir ama bütün takvim
   ayını kapsar.
@@ -128,13 +128,13 @@ hareketi taşımaz. V1'de çöpe gitmez; "işlenmedi" durumunda saklanır (K11).
 - Para birimi `Mevcut Bakiye`'den gelir.
 - FAST, EFT ve havale açıklamaları `AD*` ile başlar.
 
-**FAST/EFT dekont PDF'i** (`isbank_dekont`)
+**FAST/EFT dekont PDF'i** (`isbank.receipt`)
 
 - İki sütun `Etiket : değer` vardır: gönderen ve tutarlar solda, alıcı x 290'ın sağında.
 - Hesap sahibi ilk satırı açar.
 - "FAST Ücreti ve Vergi" ücrettir.
 
-**e-cüzdan** (`isbank_cuzdan`; 31 günlük vadeli gibi yeni bir hesabın cüzdanı)
+**e-cüzdan** (`isbank.passbook`; 31 günlük vadeli gibi yeni bir hesabın cüzdanı)
 
 - 1. sayfa: sağ sütunda `Etiket: değer`.
 - 2. sayfa: satırlar en yeniden eskiye sıralıdır: `#` en yeniden sayar, sonra tarih-saat, `Tutar`, `Kalan`.
@@ -173,7 +173,7 @@ yapılan ödemedir.
 - Karşı taraf, banka adından sonraki addır ("… A.Ş. <Ad Soyad> hesabına/hesabından").
 - Döviz satırları `İşlem Kuru` yazar.
 
-**e-cüzdan PDF'i** (`vakifbank_cuzdan`): mevduat koşulları 1. sayfada, hesap (`Cüzdan Seri No`, satırlar
+**e-cüzdan PDF'i** (`vakifbank.passbook`): mevduat koşulları 1. sayfada, hesap (`Cüzdan Seri No`, satırlar
 `NO tarih tutar bakiye metin`) sonraki sayfalarda.
 
 ## QNB
@@ -182,7 +182,7 @@ yapılan ödemedir.
 
 - Kart PDF'i `QNB Kredi Kart` ve `Kredi Kartı Numarası` ile tanınır; hesap PDF'i `Hesap Hareketleri` ve QNB IBAN'ı ile.
 - Yazı tiplerinde Türkçe glifler yoktur: `(cid:N)` görünür ve harfler düşer. Sınıflama için gereken etiketler
-  `qnb_pdf._REPAIRS` içinde onarılır.
+  `parsers/qnb/card_pdf.py` içindeki `_REPAIRS` ile onarılır.
 - Hesap listesi `DEVREDEN BAKİYE` ile açılır.
 - `Transfer İşlemleri - Alıcı/Gönderen :` başlıkları sonraki satırlara taşar.
 

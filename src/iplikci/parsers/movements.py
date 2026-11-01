@@ -21,27 +21,6 @@ from ..domain.text import fold
 # A cancelled transfer: it and its reversal turn out to be own transfers once the rows are all read.
 CANCELLED = "iptal"
 
-# Five-digit bank codes inside a Turkish IBAN (TRkk BBBBB ...).
-BANK_CODES = {
-    "00010": "Ziraat Bankası",
-    "00012": "Halkbank",
-    "00015": "Vakıfbank",
-    "00032": "TEB",
-    "00046": "Akbank",
-    "00062": "Garanti BBVA",
-    "00064": "İş Bankası",
-    "00067": "Yapı Kredi",
-    "00099": "ING",
-    "00111": "QNB",
-    "00134": "Denizbank",
-    "00205": "Kuveyt Türk",
-}
-
-
-def bank_from_iban(iban: str) -> str:
-    digits = re.sub(r"\D", "", iban)
-    return BANK_CODES.get(digits[2:7], "") if len(digits) >= 7 else ""
-
 
 @dataclass
 class Movement:

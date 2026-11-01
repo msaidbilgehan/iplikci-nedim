@@ -7,23 +7,17 @@ receiver on the right. The holder's name opens the first line.
 import re
 from decimal import Decimal
 
-from ..domain.codes import TransactionKind
-from ..domain.models import ParseResult, Transaction
-from ..domain.text import fold
-from .common import BUSINESS_REASON, Skipped, is_business
-from .hesap import bank_from_iban
-from .hesaplar import bank_account
-from .pdf import Line, Word, page_lines
-from .text import parse_dmy, parse_tr_amount, squash
+from ...domain.codes import DocumentKind, TransactionKind
+from ...domain.models import ParseResult, Transaction
+from ...domain.text import fold
+from ..accounts import bank_account, bank_from_iban
+from ..common import BUSINESS_REASON, Skipped, is_business
+from ..contract import Detection, Format, Probe, SourceDocument
+from ..pdf import Line, Word, page_lines
+from ..text import parse_dmy, parse_tr_amount, squash
 
-NAME = "İş Bankası dekont"
+ID = "isbank.receipt"
 _RIGHT = 290  # the right column's labels start here
-
-
-def detect(first_page: str) -> bool:
-    s = squash(first_page)
-    iban = re.search(r"IBAN:(TR\d{24})", s)
-    return bool(iban) and bank_from_iban(iban[1]) == "İş Bankası" and "ISLEMTUTARI" in s and "BELGENO" in s
 
 
 def _columns(line: Line) -> list[list[Word]]:
@@ -50,8 +44,8 @@ def _amount(text: str) -> Decimal | None:
     return parse_tr_amount(m[1]) if m else None
 
 
-def parse(doc, pdf) -> ParseResult:
-    lines = page_lines(pdf.pages[0])
+def read(doc: SourceDocument) -> ParseResult:
+    lines = page_lines(doc.pdf.pages[0])
     fields = _fields(lines)
     first = lines[0].words if lines else []
     holder = (
@@ -71,7 +65,7 @@ def parse(doc, pdf) -> ParseResult:
     title = f"{'Gelen' if incoming else 'Giden'} {method.title() if method == 'HAVALE' else method}"
     account = bank_account("İş Bankası", f"{branch_account[1]}-{branch_account[2]}", "TL")
     result = ParseResult(
-        parser=NAME,
+        parser=ID,
         accounts=[account],
         holder=holder,
         title=title,
@@ -107,3 +101,25 @@ def parse(doc, pdf) -> ParseResult:
             )
         )
     return result
+
+
+class Receipt:
+    id = ID
+    version = 1
+    bank = "İş Bankası"
+    name = "İş Bankası FAST/EFT dekontu"
+    document_type = DocumentKind.RECEIPT
+    formats = frozenset({Format.PDF})
+
+    def detect(self, probe: Probe) -> Detection | None:
+        s = squash(probe.text)
+        iban = re.search(r"IBAN:(TR\d{24})", s)
+        if iban and bank_from_iban(iban[1]) == "İş Bankası" and "ISLEMTUTARI" in s and "BELGENO" in s:
+            return Detection(1.0, "İş Bankası IBAN'ı, işlem tutarı ve belge no")
+        return None
+
+    def parse(self, doc: SourceDocument) -> ParseResult:
+        return read(doc)
+
+
+PARSER = Receipt()

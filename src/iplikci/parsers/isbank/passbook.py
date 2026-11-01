@@ -8,23 +8,18 @@ The first page names the account ("Hesap No: 1234-0765432", "Hesap Türü: Vadel
 import re
 from decimal import Decimal
 
-from ..domain.codes import AccountType
-from ..domain.models import ParseResult
-from ..domain.text import fold
-from .common import BUSINESS_REASON, Skipped, is_business
-from .hesap import Movement, bank_from_iban, build_statement
-from .hesaplar import bank_account
-from .pdf import Line, find_header, find_word, label_values, page_lines, take_amount
-from .text import parse_dmy, squash
+from ...domain.codes import AccountType, DocumentKind
+from ...domain.models import ParseResult
+from ...domain.text import fold
+from ..accounts import bank_account, bank_from_iban
+from ..common import BUSINESS_REASON, Skipped, is_business
+from ..contract import Detection, Format, Probe, SourceDocument
+from ..movements import Movement, build_statement
+from ..pdf import Line, find_header, find_word, label_values, page_lines, take_amount
+from ..text import parse_dmy, squash
 
-NAME = "İş Bankası e-cüzdan"
+ID = "isbank.passbook"
 _ROW = re.compile(r"^(\d{2}/\d{2}/\d{4})-\d{2}:\d{2}:\d{2}$")
-
-
-def detect(first_page: str) -> bool:
-    s = squash(first_page)
-    iban = re.search(r"IBAN:(TR\d{24})", s)
-    return "E-CUZDAN" in s and bool(iban) and bank_from_iban(iban[1]) == "İş Bankası"
 
 
 def _rows(lines: list[Line], holder: str) -> list[tuple[int, Movement]]:
@@ -50,7 +45,8 @@ def _rows(lines: list[Line], holder: str) -> list[tuple[int, Movement]]:
     return rows
 
 
-def parse(doc, pdf) -> ParseResult:
+def read(doc: SourceDocument) -> ParseResult:
+    pdf = doc.pdf
     info = label_values(page_lines(pdf.pages[0]))
     holder = info.get("MUSTERI ADI / NUMARASI", "").split("/")[0].strip()  # "AD SOYAD / 111222333"
     if is_business(holder):
@@ -77,4 +73,26 @@ def parse(doc, pdf) -> ParseResult:
         oldest_first=True,
         opening=Decimal(0) if opened == moves[0].date else None,
     )
-    return ParseResult(parser=NAME, accounts=[account], statements=[stmt], holder=holder)
+    return ParseResult(parser=ID, accounts=[account], statements=[stmt], holder=holder)
+
+
+class Passbook:
+    id = ID
+    version = 1
+    bank = "İş Bankası"
+    name = "İş Bankası e-cüzdan"
+    document_type = DocumentKind.ACCOUNT_STATEMENT
+    formats = frozenset({Format.PDF})
+
+    def detect(self, probe: Probe) -> Detection | None:
+        s = squash(probe.text)
+        iban = re.search(r"IBAN:(TR\d{24})", s)
+        if "E-CUZDAN" in s and iban and bank_from_iban(iban[1]) == "İş Bankası":
+            return Detection(1.0, "e-cüzdan başlığı ve İş Bankası IBAN'ı")
+        return None
+
+    def parse(self, doc: SourceDocument) -> ParseResult:
+        return read(doc)
+
+
+PARSER = Passbook()

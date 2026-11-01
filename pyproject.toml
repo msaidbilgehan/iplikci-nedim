@@ -52,7 +52,25 @@ known-local-folder = ["conftest"]
 pythonVersion = "3.13"
 # The modules written for V1 are checked strictly; the MVP's flat modules join as they move into the target
 # layout (architecture §6).
-include = ["src/iplikci/app", "src/iplikci/domain", "src/iplikci/settings", "src/iplikci/storage", "src/iplikci/vault"]
-strict = ["src/iplikci/app", "src/iplikci/domain", "src/iplikci/settings", "src/iplikci/storage", "src/iplikci/vault"]
+include = [
+    "src/iplikci/app",
+    "src/iplikci/domain",
+    "src/iplikci/parsers/accounts.py",
+    "src/iplikci/parsers/contract.py",
+    "src/iplikci/parsers/registry.py",
+    "src/iplikci/settings",
+    "src/iplikci/storage",
+    "src/iplikci/vault",
+]
+strict = [
+    "src/iplikci/app",
+    "src/iplikci/domain",
+    "src/iplikci/parsers/accounts.py",
+    "src/iplikci/parsers/contract.py",
+    "src/iplikci/parsers/registry.py",
+    "src/iplikci/settings",
+    "src/iplikci/storage",
+    "src/iplikci/vault",
+]
 # An ignore comment that hides nothing is noise, like an unused import.
 reportUnnecessaryTypeIgnoreComment = "error"

@@ -1,21 +1,17 @@
-"""Türkiye İş Bankası credit card statements (bireysel Maximum and şirket kartı)."""
+"""Türkiye İş Bankası Maximum credit card statements (PDF); the company card is out of scope."""
 
 import re
 
-from ..domain.codes import AccountType, TransactionKind
-from ..domain.models import TRY, Account, ParseResult, Statement, Transaction
-from ..domain.text import fold
-from .common import Skipped, classify_kind, currency_code, installment_label, split_interest
-from .pdf import Line, find_header, find_word, page_lines, page_text, take_amount
-from .text import parse_dmy, parse_tr_amount, squash
+from ...domain.codes import AccountType, DocumentKind, TransactionKind
+from ...domain.models import TRY, Account, ParseResult, Statement, Transaction
+from ...domain.text import fold
+from ..common import Skipped, classify_kind, currency_code, installment_label, split_interest
+from ..contract import Detection, Format, Probe, SourceDocument
+from ..pdf import Line, find_header, find_word, page_lines, page_text, take_amount
+from ..text import parse_dmy, parse_tr_amount, squash
 
-NAME = "İş Bankası kredi kartı"
+ID = "isbank.maximum_card"
 _DATE_PREFIX = re.compile(r"^(\d{2}/\d{2}/\d{4})(.*)$")
-
-
-def detect(first_page: str) -> bool:
-    s = squash(first_page)
-    return "KREDIKARTIHESAPOZETI" in s and "MAXIPUAN" in s
 
 
 def _account(card_last4: str) -> Account:
@@ -48,7 +44,8 @@ def _row_description(line: Line, first_rest: str, amount_x0: float, ref_right: f
     return " ".join(p for p in parts if p).strip()
 
 
-def parse(doc, pdf) -> ParseResult:
+def read(doc: SourceDocument) -> ParseResult:
+    pdf = doc.pdf
     first = page_text(pdf.pages[0])
     sq = squash(first)
     if "SIRKETKREDIKARTI" in sq:
@@ -134,4 +131,25 @@ def parse(doc, pdf) -> ParseResult:
         for part in (split_interest(t) if t.kind == TransactionKind.CASH_ADVANCE else [t])
     ]
     holder = re.search(r"SN\.\s*([A-ZÇĞİÖŞÜ ]+?)\s+Hesap Kesim", first)
-    return ParseResult(parser=NAME, accounts=[account], statements=[stmt], holder=holder[1] if holder else "")
+    return ParseResult(parser=ID, accounts=[account], statements=[stmt], holder=holder[1] if holder else "")
+
+
+class MaximumCard:
+    id = ID
+    version = 1
+    bank = "İş Bankası"
+    name = "İş Bankası Maximum kart hesap özeti"
+    document_type = DocumentKind.CARD_STATEMENT
+    formats = frozenset({Format.PDF})
+
+    def detect(self, probe: Probe) -> Detection | None:
+        s = squash(probe.text)
+        if "KREDIKARTIHESAPOZETI" in s and "MAXIPUAN" in s:
+            return Detection(1.0, '"Kredi Kartı Hesap Özeti" ve MaxiPuan')
+        return None
+
+    def parse(self, doc: SourceDocument) -> ParseResult:
+        return read(doc)
+
+
+PARSER = MaximumCard()

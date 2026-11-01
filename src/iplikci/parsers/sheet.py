@@ -1,8 +1,9 @@
-"""Read spreadsheet-like bank exports (real XLS, XLSX, or HTML saved as .xls) into rows."""
+"""Read spreadsheet-like bank exports (real XLS, XLSX, or HTML saved as .xls) into rows, and HTML into text."""
 
 import io
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Any
 
 from bs4 import BeautifulSoup
 
@@ -24,14 +25,14 @@ def sniff(data: bytes) -> str:
     return ""
 
 
-def read_xls(data: bytes) -> list[list]:
+def read_xls(data: bytes) -> list[list[Any]]:
     import xlrd
 
     sheet = xlrd.open_workbook(file_contents=data).sheet_by_index(0)
     return [[sheet.cell_value(r, c) for c in range(sheet.ncols)] for r in range(sheet.nrows)]
 
 
-def read_xlsx(data: bytes) -> list[list]:
+def read_xlsx(data: bytes) -> list[list[Any]]:
     import openpyxl
 
     wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
@@ -48,6 +49,21 @@ def decode_html(data: bytes) -> str:
         except UnicodeDecodeError:
             continue
     return data.decode("latin-1")
+
+
+def html_text(data: bytes) -> str:
+    """The visible text of an HTML document with its whitespace collapsed."""
+    # TEB saves some reports as UTF-16 with a byte-order mark.
+    encodings = ("utf-16",) if data[:2] in (b"\xff\xfe", b"\xfe\xff") else ("utf-8", "windows-1254")
+    for enc in encodings:
+        try:
+            raw = data.decode(enc)
+            break
+        except UnicodeDecodeError:
+            continue
+    else:
+        raw = data.decode("latin-1")
+    return " ".join(BeautifulSoup(raw, "html.parser").get_text(" ").split())
 
 
 def html_rows(data: bytes) -> list[list[str]]:
