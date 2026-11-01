@@ -11,7 +11,11 @@ import zipfile
 from datetime import date
 
 import pytest
+from fastapi.testclient import TestClient
 
+from iplikci import cli
+from iplikci.api.app import create_app
+from iplikci.api.context import Context
 from iplikci.app import background, kinds, reading
 from iplikci.app import mail as mail_app
 from iplikci.app.workspace import Workspace
@@ -22,6 +26,7 @@ from iplikci.ingest.mail import imap as protocol
 from iplikci.ingest.mail.idle import IdleWatcher, WatchTarget
 from iplikci.ingest.mail.imap import Account, LoginRefused, MailError, search_criteria
 from iplikci.parsers import registry
+from iplikci.service import client, instance
 from iplikci.settings import config
 from iplikci.settings.config import SettingsError
 from iplikci.storage import documents, events, jobs
@@ -383,3 +388,55 @@ def test_waiting_in_idle_stops_when_asked():
     stop = threading.Event()
     stop.set()
     assert protocol.wait_for_news(server, 30, stop) is False and server.idles == 1
+
+
+# --- the command line and the API ---------------------------------------------------------------------------
+
+
+def test_the_command_fetches_itself_when_no_service_runs(ws, mail, monkeypatch, capsys):
+    monkeypatch.setenv("IPLIKCI_HOME", str(ws.home))
+    mail.messages[101] = bank_mail(teb.account_export(JANUARY))
+    assert cli.main(["eposta", "al"]) == 0
+    assert "1 ileti arşive alındı" in capsys.readouterr().out and len(kept(ws)) == 2
+    assert cli.main(["eposta", "durum"]) == 0
+    out = capsys.readouterr().out
+    assert "Bağlantı: IMAP (imap.gmail.com) · 2026-01-01 sonrası gelenler" in out and "Son alım: " in out
+    assert ADDRESS not in out  # never the address
+
+
+def test_the_command_asks_the_running_service_to_fetch(ws, mail, monkeypatch, capsys):
+    monkeypatch.setenv("IPLIKCI_HOME", str(ws.home))
+    asked: list[tuple[str, str]] = []
+    monkeypatch.setattr(client, "call", lambda ws, method, path, body=None: asked.append((method, path)) or {})
+    opened = mail.connections
+    with instance.held(ws.run, instance.Holder(111, ws.port, "", "")):
+        assert cli.main(["eposta", "al"]) == 0
+    assert asked == [("POST", "/api/mail/fetch")] and mail.connections == opened  # no connection beside its own
+    assert "Servis yeni e-postaları alıyor" in capsys.readouterr().out
+
+
+def test_the_command_says_what_is_missing(ws, monkeypatch, capsys):
+    monkeypatch.setenv("IPLIKCI_HOME", str(ws.home))
+    assert cli.main(["eposta", "al"]) == 1
+    assert "iplikci eposta kur" in capsys.readouterr().err
+    assert cli.main(["eposta", "durum"]) == 0 and "IMAP, kurulu değil" in capsys.readouterr().out
+    config.update(ws.layout.settings, "mail", {"connector": "browser_bridge"})
+    assert cli.main(["eposta", "al"]) == 0 and "tarayıcı eklentisi getiriyor" in capsys.readouterr().out
+
+
+def test_the_command_forgets_the_account(ws, mail, monkeypatch, capsys):
+    monkeypatch.setenv("IPLIKCI_HOME", str(ws.home))
+    assert cli.main(["eposta", "kaldir"]) == 0 and "silindi" in capsys.readouterr().out
+    assert mail.stored == {} and mail_app.account(ws) is None
+
+
+def test_the_interface_asks_for_a_fetch_only_of_a_ready_imap_account(ws, imap):
+    app = TestClient(create_app(Context(ws=ws, token="belirtec")), base_url="http://127.0.0.1:8643")
+    bearer = {"Authorization": "Bearer belirtec"}
+    assert app.post("/api/mail/fetch", headers=bearer).json()["code"] == "mail_not_ready"
+    mail_app.setup_imap(ws, ADDRESS, APP_PASSWORD, date(2026, 1, 1))
+    assert app.post("/api/mail/fetch", headers=bearer).status_code == 202
+    with ws.db() as db:
+        assert db.scalar("SELECT count(*) FROM jobs WHERE kind = ? AND status = 'queued'", (kinds.MAIL_FETCH,)) == 1
+    config.update(ws.layout.settings, "mail", {"connector": "browser_bridge"})
+    assert app.post("/api/mail/fetch", headers=bearer).json()["code"] == "mail_by_extension"

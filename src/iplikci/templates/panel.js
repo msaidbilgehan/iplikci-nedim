@@ -248,7 +248,7 @@
     const info = $("eposta-bilgi");
     if (!mail.configured) {
       info.replaceChildren("Bankaların e-postayla gönderdiği belgeleri almak için bir kez terminalde çalıştırın: ",
-        h("code", { text: "uv run iplikci eposta --kur" }));
+        h("code", { text: "uv run iplikci eposta kur" }));
       return;
     }
     const parts = [`E-posta: ${mail.address}`];

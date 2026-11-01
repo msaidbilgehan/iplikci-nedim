@@ -72,7 +72,7 @@ class Panel:
 
     def page(self) -> str:
         """The report with the panel's parts, redone when a document, the inbox, the rules or the
-        e-mail setup changed (`eposta --kur` may run while the panel is open)."""
+        e-mail setup changed (`eposta kur` may run while the panel is open)."""
         a = self.current.get()
         status = email.status(self.ws)
         mail = {k: status.get(k) for k in ("configured", "lastRun", "lastError", "stopped")}

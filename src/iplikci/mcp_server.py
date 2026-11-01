@@ -5,7 +5,7 @@ documents through the same pipeline as the report.
 
 The MCP client starts it and speaks JSON-RPC 2.0 over stdin/stdout, one message per line (the MCP
 stdio transport). Only tools are offered. The server makes no network calls itself except
-fetch_email, which reads the user's own mailbox over IMAP as set up with `eposta --kur` (the
+fetch_email, which reads the user's own mailbox over IMAP as set up with `eposta kur` (the
 password never passes through the model); what a tool returns becomes part of the conversation with
 the model that called it.
 """
@@ -69,7 +69,8 @@ gelir, gereklilik ve tahmin raporu üreten, bu bilgisayarda çalışan program.
   apply_inbox(plan_id) belgeleri arşive alır. Eksik belgeleri status → documentGaps söyler.
 - E-posta: fetch_email bankaların e-postayla gönderdiği belgeleri doğrudan arşive alır (status → email kurulu
   mu söyler).
-  Kurulu değilse kullanıcı kendi terminalinde `uv run iplikci eposta --kur` çalıştırmalı; e-posta
+  Kurulu değilse bağlantıyı kullanıcı kendisi kurar: Gelişmiş Koruma'daki Gmail tarayıcı eklentisiyle
+  (arayüzde eşleştirilir), uygulama şifresine izin veren hesaplar `iplikci eposta kur` ile. E-posta
   şifresini ya da uygulama şifresini asla sohbette istemeyin, almayın.
 - Kullanıcı bir yorumu düzeltirse ("X bitti", "Y yanlış kategoride"): mark_ended ya da add_rule ile
   kişisel kural dosyasına yazın; araç değişikliğin hangi işlemleri etkilediğini döndürür. Başka değişiklikler
@@ -766,8 +767,8 @@ TOOLS = (
         "Kullanıcının e-posta kutusunu (Gmail, IMAP) salt okunur açar ve bankaların gönderdiği kart ekstresi, hesap "
         "dökümü ve dekont eklerini doğrudan arşive alır (şirket belgeleri hariç); e-posta kutusunda hiçbir şeyi "
         "değiştirmez. Yalnızca ayarlardaki banka alan adlarından gelen ve sunucunun göndereni doğruladığı (DMARC) "
-        "e-postalar sayılır. Son alımdan sonra gelenleri okur. Kurulu değilse kullanıcı kendi terminalinde "
-        "`uv run iplikci eposta --kur` çalıştırmalı.",
+        "e-postalar sayılır. Son alımdan sonra gelenleri okur. Kurulu değilse bağlantıyı kullanıcı kendisi "
+        "kurar; şifre sohbete girmez.",
         _schema(),
         _fetch_email,
         read_only=False,
