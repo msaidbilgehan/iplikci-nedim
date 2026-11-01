@@ -156,7 +156,11 @@ messages no reader takes (`parsers/messages.py`), the notice readers (`parsers/<
 e-invoice reader (`parsers/invoice/ubl_tr.py`), `invoices.py` (non-bank bills against the bank's rows), `upcoming.py`
 and `forecast.py` (pure over the ledger and the insights, tests/test_architecture.py), `app/inventory.py` (the mailbox
 inventory and F01's coverage), `app/outlook.py` and `app/invoices.py` (the views of the calendar, the forecast, the
-series and the bills), `app/senders.py` (the non-bank senders) and their routes. The rest keeps the MVP's flat layout
+series and the bills), `app/senders.py` (the non-bank senders) and their routes. Phase 5 added `notify` (the alert
+rules of `rules/alerts.yaml`, the texts at each level of detail, the quiet hours and the desktop, Telegram and e-mail
+channels; no storage, the network only through egress), `app/notify.py` (events into notifications, sending, retries,
+the digest, the Telegram pairing), `storage/notifications.py` and their routes, CLI group and MCP tool. The rest keeps
+the MVP's flat layout
 (`analysis`, `insights`, `month_end`, `report` with its `templates`, `mcp_server`, …) until the phases in the roadmap's
 MVP module table move it. Next to them: `fakes` (the fake document builders and every reader's specimens, shared with
 the tests and the demo), `demo` (the demo data folder), `baseline` (the verification baseline) and `mvp_codes` (the MVP
@@ -190,10 +194,12 @@ uv run iplikci dev parser test [<id>]          # the readers' fake documents sti
 uv run iplikci dev eposta-envanteri [--csv]    # the kept e-mails by sender domain and subject template (data dir only)
 uv run iplikci servis calistir                 # the service in the foreground, http://127.0.0.1:8643
 uv run iplikci ac                              # open the interface with a one-time login link (service running)
-uv run iplikci servis durum                    # running or not; queue, e-mail, backups and disk; exits 1 if not running
+uv run iplikci servis durum                    # queue, e-mail, backups, disk and notifications; exits 1 if not running
 uv run iplikci servis kur | kaldir | yeniden-baslat   # launchd, systemd or Task Scheduler; kur refuses a dev copy
 uv run iplikci yedek al | liste | prova        # backups; geri-yukle restores (--uygula acts, --hedef a new folder)
 uv run iplikci eposta kur | durum | kaldir | al   # the IMAP account; al asks the running service when there is one
+uv run iplikci bildirim durum | kurallar | gecmis | dene <kanal>   # notification channels, rules, history, a test
+uv run iplikci telegram kur | eslestir | kaldir   # the bot's token in a hidden prompt (the user types it), pairing
 (cd web && npm ci && npm run typecheck && npm test && npm run build)         # the interface, built into the package
 uv run iplikci dev api-tipleri web/src/api/schema.ts   # the interface's API types from the OpenAPI document (ADR-0007)
 (cd extension && npm ci && npm run typecheck && npm test && npm run build)   # the extension; load extension/dist
