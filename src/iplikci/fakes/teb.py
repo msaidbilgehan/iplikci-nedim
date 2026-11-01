@@ -99,9 +99,10 @@ def bonus_statement(
     previous: Decimal = Decimal(3250),
     last4: str = "1234",
     holder: str = HOLDER,
+    note: str = "",
 ) -> bytes:
     """A TEB Bonus card statement ("Kredi Kart Ekstre Özeti") with a text layer: a section per card, each under
-    its own header and closed by the card's subtotal, and the period's debt."""
+    its own header and closed by the card's subtotal, and the period's debt; note goes at the foot of the page."""
     total = previous + sum((charged(c) for c in cards), Decimal(0))
     runs: list[Run] = [
         (40, 40, "TÜRK EKONOMİ BANKASI A.Ş."),
@@ -133,7 +134,7 @@ def bonus_statement(
         y += _LINE
         runs += [(_TEXT_X, y, "KART TOPLAMI"), (_AMOUNT_X, y, _amount(charged(rows)))]
         y += 24
-    return text_pdf(runs)
+    return text_pdf([*runs, (40, 800, note)] if note else runs)
 
 
 def _amount(value: Decimal) -> str:

@@ -6,7 +6,7 @@ from decimal import Decimal
 from ...domain.codes import DocumentKind
 from ...domain.models import TRY, Account, ParseResult, Statement, Transaction
 from ...domain.text import fold
-from ..common import Skipped, classify_kind, installment_label
+from ..common import BUSINESS_REASON, Skipped, classify_kind, installment_label
 from ..contract import Detection, Format, Probe, SourceDocument
 from ..pdf import Line, find_header, find_word, page_lines, page_text, take_amount
 from ..text import parse_dmy, parse_tr_amount, squash
@@ -154,7 +154,7 @@ def _parse_ocr(doc: SourceDocument, pages: list[list[Line]]) -> ParseResult:
 
 class BonusCard:
     id = ID
-    version = 2
+    version = 3
     bank = "TEB"
     name = "TEB Bonus kart ekstresi"
     document_type = DocumentKind.CARD_STATEMENT
@@ -172,7 +172,7 @@ class BonusCard:
             return _parse_ocr(doc, doc.ocr_pages)
         first = page_text(doc.pdf.pages[0])
         if "GIRISIMCI" in squash(first):
-            raise Skipped("şirket kartı (Girişimci) — kapsam dışı")
+            raise Skipped(BUSINESS_REASON, business=True)  # the Girişimci card is a company's
         return _parse_statement(doc, first)
 
 

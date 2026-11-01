@@ -3,12 +3,16 @@
 from datetime import date
 from decimal import Decimal
 
+import pytest
+
 from iplikci import parsers
 from iplikci.domain.codes import AccountType, TransactionKind
 from iplikci.domain.models import ParseResult, Statement
 from iplikci.fakes import HOLDER, garanti, isbank, qnb, teb
 from iplikci.fakes.files import scan_pdf
 from iplikci.parsers import contract
+from iplikci.parsers.common import BUSINESS_REASON, is_business
+from iplikci.parsers.pdf import open_pdf, page_text
 from iplikci.sources import Document
 
 K = TransactionKind
@@ -150,3 +154,16 @@ def test_qnb_card_statement_repairs_the_labels_its_font_breaks():
         "Yıllık üyelik ücreti",
     ]
     assert [(t.ref.page, t.ref.line) for t in s.transactions[-2:]] == [(2, 2), (2, 3)]
+
+
+def test_a_company_card_that_shows_only_late_on_the_page_is_still_a_company_document():
+    # The selection looks for company marks in the first 600 characters; the readers look at the whole first page.
+    for statement in (
+        teb.bonus_statement(note="TEB GİRİŞİMCİ KREDİ KARTI ÜYE İŞYERİ BİLGİLENDİRMESİ"),
+        isbank.maximum_statement(note="BU HESAP ÖZETİ ŞİRKET KREDİ KARTINIZA AİTTİR"),
+    ):
+        first = page_text(open_pdf(statement).pages[0])
+        assert not is_business(first[:600])
+        with pytest.raises(parsers.Skipped) as found:
+            read(statement)
+        assert found.value.business and str(found.value) == BUSINESS_REASON

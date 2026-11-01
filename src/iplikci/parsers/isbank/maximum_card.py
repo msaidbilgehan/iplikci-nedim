@@ -5,7 +5,7 @@ import re
 from ...domain.codes import AccountType, DocumentKind, TransactionKind
 from ...domain.models import TRY, Account, ParseResult, Statement, Transaction
 from ...domain.text import fold
-from ..common import Skipped, classify_kind, currency_code, installment_label, split_interest
+from ..common import BUSINESS_REASON, Skipped, classify_kind, currency_code, installment_label, split_interest
 from ..contract import Detection, Format, Probe, SourceDocument
 from ..pdf import Line, find_header, find_word, page_lines, page_text, take_amount
 from ..text import parse_dmy, parse_tr_amount, squash
@@ -49,7 +49,7 @@ def read(doc: SourceDocument) -> ParseResult:
     first = page_text(pdf.pages[0])
     sq = squash(first)
     if "SIRKETKREDIKARTI" in sq:
-        raise Skipped("şirket kredi kartı — kapsam dışı")
+        raise Skipped(BUSINESS_REASON, business=True)
     card = re.search(r"KARTNUMARASI:?(\d{4})\*+(\d{4})", sq)
     cut = re.search(r"(?<!SONRAKI)HESAPKESIMTARIHI:?(\d{2}[./]\d{2}[./]\d{4})", sq)
     total_m = re.search(
@@ -137,7 +137,7 @@ def read(doc: SourceDocument) -> ParseResult:
 
 class MaximumCard:
     id = ID
-    version = 1
+    version = 2
     bank = "İş Bankası"
     name = "İş Bankası Maximum kart hesap özeti"
     document_type = DocumentKind.CARD_STATEMENT

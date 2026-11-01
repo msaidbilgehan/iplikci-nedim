@@ -34,9 +34,11 @@ def maximum_statement(
     previous: Decimal = Decimal(3250),
     last4: str = "1234",
     holder: str = HOLDER,
+    note: str = "",
 ) -> bytes:
     """An İş Bankası Maximum card statement ("Kredi Kartı Hesap Özeti"): the previous debt, the rows page by page,
-    and the debt they add up to. A fold mark sits in the left margin of every page."""
+    and the debt they add up to; note goes at the foot of the first page. A fold mark sits in the left margin of
+    every page."""
     total = previous + sum((charged(p) for p in pages), Decimal(0))
     summary: list[Run] = [
         (40, 40, "TÜRKİYE İŞ BANKASI A.Ş."),
@@ -53,6 +55,8 @@ def maximum_statement(
     for i, rows in enumerate(pages):
         top = 200 if i == 0 else 60
         runs = [*(summary if i == 0 else []), (12, 420, "-"), *_table(top, rows)]
+        if i == 0 and note:
+            runs.append((40, 800, note))
         if i == 0:
             runs += [
                 (_DATE_X, top + 3 + _LINE, "*** ÖNCEKİ DÖNEM BORCU"),
