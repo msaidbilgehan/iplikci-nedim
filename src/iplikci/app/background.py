@@ -124,7 +124,8 @@ def request_backup(ws: Workspace) -> None:
 
 def rehearse(ws: Workspace) -> bool:
     """Rehearse restoring the newest backup; a rehearsal that fails is told once that month (backup.failed). With no
-    backup yet, the attempt fails and runs again later, after the night's backup. Whether it passed."""
+    backup yet the attempt fails and is retried a few times; the scheduler queues the day's backup before it, so a new
+    service rehearses the backup it has just made. Whether it passed."""
     result = backup.rehearse(ws)
     if not result.ok:
         with ws.db() as db:
