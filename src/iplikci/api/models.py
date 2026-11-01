@@ -1,8 +1,11 @@
 """The API's answers (pydantic at the boundary). Amounts, when they come, are minor units with their currency."""
 
+from datetime import date
 from typing import Any, Literal
 
 from pydantic import BaseModel
+
+from ..app.invoices import InvoiceKind, InvoiceStatus
 
 
 class LoginLink(BaseModel):
@@ -135,3 +138,62 @@ class EventOut(BaseModel):
     kind: str
     target: str
     detail: dict[str, Any]
+
+
+# --- non-bank bills and receipts, and their senders (F14) -----------------------------------------------------------
+
+
+class InvoiceLineOut(BaseModel):
+    """An item of a bill or a receipt, as it prints it."""
+
+    description: str
+    amount: MoneyOut  # its total, taxes included, in the document's currency
+    quantity: str | None  # a decimal number as text ("2", "1.5"); null when the document prints none
+
+
+class WindowOut(BaseModel):
+    """The days a document's bank row is looked for in."""
+
+    start: date
+    end: date
+
+
+class BankRowOut(BaseModel):
+    """The bank row that paid a bill or a receipt."""
+
+    fingerprint: str
+    day: date
+    account: AccountRefOut
+    amount: MoneyOut  # in TL, as the ledger counts it: money out above zero, a refund below
+    description: str
+
+
+class InvoiceOut(BaseModel):
+    """A non-bank sender's bill or receipt and what the bank's rows say of it. None changes a total: the bank row
+    that paid it is what counts."""
+
+    key: str  # "<sha256>:<position>": the document and the bill's place in it
+    kind: InvoiceKind
+    status: InvoiceStatus
+    seller: str
+    number: str  # "" when the document prints none
+    issued: date
+    due: date | None  # a bill's last day to pay, when it prints one
+    total: MoneyOut  # in the document's currency, taxes included; below zero for a refund
+    lines: list[InvoiceLineOut]
+    window: WindowOut
+    document: str  # the name of the document it is read from
+    sha256: str
+    row: BankRowOut | None  # matched: the bank row that paid it
+    reasons: list[str]  # unmatched: what may explain it
+
+
+class InvoiceCountsOut(BaseModel):
+    pending: int
+    unmatched: int
+    matched: int
+
+
+class InvoicesOut(BaseModel):
+    items: list[InvoiceOut]  # pending first by due date; then unmatched, then matched, newest first
+    counts: InvoiceCountsOut

@@ -73,6 +73,15 @@ export interface BalanceOut {
   balance: MoneyOut;
 }
 
+/** The bank row that paid a bill or a receipt. */
+export interface BankRowOut {
+  fingerprint: string;
+  day: string;
+  account: AccountRefOut;
+  amount: MoneyOut;
+  description: string;
+}
+
 export interface BridgeOut {
   id: string;
   name: string;
@@ -190,6 +199,51 @@ export interface InstallmentOut {
   remaining: MoneyOut;
   last_day: string;
   fingerprint: string;
+}
+
+export interface InvoiceCountsOut {
+  pending: number;
+  unmatched: number;
+  matched: number;
+}
+
+/** What a non-bank document asks for (F14): it sets the days its bank row is looked for in. */
+export type InvoiceKind = "bill" | "receipt";
+
+/** An item of a bill or a receipt, as it prints it. */
+export interface InvoiceLineOut {
+  description: string;
+  amount: MoneyOut;
+  quantity: string | null;
+}
+
+/**
+ * A non-bank sender's bill or receipt and what the bank's rows say of it. None changes a total: the bank row that paid
+ * it is what counts.
+ */
+export interface InvoiceOut {
+  key: string;
+  kind: InvoiceKind;
+  status: InvoiceStatus;
+  seller: string;
+  number: string;
+  issued: string;
+  due: string | null;
+  total: MoneyOut;
+  lines: InvoiceLineOut[];
+  window: WindowOut;
+  document: string;
+  sha256: string;
+  row: BankRowOut | null;
+  reasons: string[];
+}
+
+/** What the bank's rows say of a non-bank document (docs/domain/ledger.md, "Banka dışı faturalar"). */
+export type InvoiceStatus = "matched" | "pending" | "unmatched";
+
+export interface InvoicesOut {
+  items: InvoiceOut[];
+  counts: InvoiceCountsOut;
 }
 
 export interface KnownIn {
@@ -453,4 +507,10 @@ export interface ValidationError {
   type: string;
   input?: unknown;
   ctx?: Record<string, unknown>;
+}
+
+/** The days a document's bank row is looked for in. */
+export interface WindowOut {
+  start: string;
+  end: string;
 }

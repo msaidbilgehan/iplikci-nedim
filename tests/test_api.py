@@ -2,6 +2,7 @@
 the login link, the System screen's data and the event stream."""
 
 from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,8 +13,11 @@ from iplikci.api.context import Context
 from iplikci.app import access, system
 from iplikci.app.access import LoginKeys, SessionState
 from iplikci.app.workspace import Busy, Workspace
+from iplikci.domain.codes import InvoiceKind
+from iplikci.domain.models import Invoice, InvoiceLine
 from iplikci.fakes import teb
 from iplikci.fakes.files import text_pdf
+from iplikci.invoices import UNMATCHED_REASONS, UNPAID_REASON, match
 from iplikci.parsers import registry
 from iplikci.storage import events
 
@@ -403,3 +407,106 @@ def test_the_outlook_needs_a_session_and_says_when_the_documents_are_busy(client
     monkeypatch.setattr(context.analysis, "get", busy)
     refused = client.get("/api/forecast", headers=bearer())
     assert (refused.status_code, refused.json()["code"]) == (503, "busy")
+
+
+# --- the Bills screen and the non-bank senders (F14) ----------------------------------------------------------------
+
+
+def extension_token(client: TestClient, context: Context) -> str:
+    """A paired browser extension's token: it opens the mail intake and nothing else."""
+    code, _ = context.pairing.issue()
+    paired = TestClient(client.app, base_url=BASE).post("/api/bridge/pair", json={"code": code, "name": "Deneme"})
+    return paired.json()["token"]
+
+
+def test_the_invoices_need_a_session_or_the_token_and_say_when_the_documents_are_busy(client, context, monkeypatch):
+    assert client.get("/api/invoices").status_code == 401
+    refused = client.get("/api/invoices", headers=bearer(extension_token(client, context)))
+    assert (refused.status_code, refused.json()["code"]) == (403, "forbidden")  # the extension delivers mail only
+    nothing = {"items": [], "counts": {"pending": 0, "unmatched": 0, "matched": 0}}
+    assert client.get("/api/invoices", headers=bearer()).json() == nothing
+    assert signed_in(client).get("/api/invoices").json() == nothing
+
+    def busy():
+        raise Busy("başka bir işlem belgeleri işliyor; biraz sonra yeniden deneyin")
+
+    monkeypatch.setattr(context.analysis, "get", busy)
+    refused = client.get("/api/invoices")
+    assert (refused.status_code, refused.json()["code"]) == (503, "busy")
+
+
+PHONE = Invoice(
+    InvoiceKind.BILL,
+    "ÖRNEKCELL İLETİŞİM HİZMETLERİ A.Ş.",
+    date(2026, 1, 3),
+    Decimal("412.90"),
+    number="OC2026000000101",
+    due=date(2026, 1, 20),
+    lines=[InvoiceLine("Aylık paket", Decimal("400.00"), Decimal(1)), InvoiceLine("Ek internet", Decimal("12.90"))],
+)
+COFFEE = Invoice(InvoiceKind.RECEIPT, "Kahveci Dükkan Ltd. Şti.", date(2026, 1, 20), Decimal("120.00"), number="K-7")
+ENERGY = Invoice(
+    InvoiceKind.BILL,
+    "Örnekenerji Elektrik Perakende Satış A.Ş.",
+    date(2026, 1, 25),
+    Decimal(250),
+    due=date(2026, 2, 10),
+)
+STREAMING = Invoice(InvoiceKind.RECEIPT, "Örnekflix International B.V.", date(2026, 1, 30), Decimal("9.99"), "USD")
+
+
+def test_the_invoices_come_pending_first_then_unmatched_then_matched_with_their_rows_and_reasons(
+    client, context, ws, monkeypatch
+):
+    add(ws, "ocak.xls", teb.account_export(JANUARY))  # pays the coffee on 20 January; the list ends on the 31st
+    analysis = context.analysis.get()
+    found = [
+        (f"{'a' * 64}:0", COFFEE, "Kahveci makbuzu.eml"),
+        (f"{'b' * 64}:0", PHONE, "Örnekcell faturası.xml"),
+        (f"{'c' * 64}:0", ENERGY, "Enerji faturası.xml"),
+        (f"{'c' * 64}:1", STREAMING, "Enerji faturası.xml"),  # a second bill of the same document
+    ]
+    analysis.dataset.invoices = match(found, analysis.dataset.transactions, date(2026, 1, 31))
+    monkeypatch.setattr(context.analysis, "get", lambda: analysis)
+    listed = client.get("/api/invoices", headers=bearer()).json()
+    assert listed["counts"] == {"pending": 2, "unmatched": 1, "matched": 1}
+    # Pending by the last day their row is looked for: the receipt's few days end before the bill's due date.
+    assert [(i["seller"], i["status"]) for i in listed["items"]] == [
+        ("Örnekflix International B.V.", "pending"),
+        ("Örnekenerji Elektrik Perakende Satış A.Ş.", "pending"),
+        ("ÖRNEKCELL İLETİŞİM HİZMETLERİ A.Ş.", "unmatched"),
+        ("Kahveci Dükkan Ltd. Şti.", "matched"),
+    ]
+    streaming, energy, phone, coffee = listed["items"]
+    assert phone == {
+        "key": f"{'b' * 64}:0",
+        "kind": "bill",
+        "status": "unmatched",
+        "seller": "ÖRNEKCELL İLETİŞİM HİZMETLERİ A.Ş.",
+        "number": "OC2026000000101",
+        "issued": "2026-01-03",
+        "due": "2026-01-20",
+        "total": tl(41290),
+        "lines": [
+            {"description": "Aylık paket", "amount": tl(40000), "quantity": "1"},
+            {"description": "Ek internet", "amount": tl(1290), "quantity": None},
+        ],
+        "window": {"start": "2026-01-03", "end": "2026-01-23"},
+        "document": "Örnekcell faturası.xml",
+        "sha256": "b" * 64,
+        "row": None,
+        "reasons": [*UNMATCHED_REASONS, UNPAID_REASON],
+    }
+    (account,) = analysis.dataset.accounts.values()
+    (paid,) = [t for t in analysis.dataset.transactions if t.invoice]
+    assert (coffee["status"], coffee["reasons"]) == ("matched", [])
+    assert coffee["row"] == {
+        "fingerprint": paid.fingerprint,
+        "day": "2026-01-20",
+        "account": {"id": account.id, "label": account.label},
+        "amount": tl(12000),  # in TL, as the ledger counts it
+        "description": "KAHVECI DUKKAN",
+    }
+    assert (streaming["total"], streaming["due"], streaming["row"]) == ({"minor": 999, "currency": "USD"}, None, None)
+    assert (streaming["sha256"], streaming["key"]) == ("c" * 64, f"{'c' * 64}:1")
+    assert energy["window"] == {"start": "2026-01-25", "end": "2026-02-13"}  # its due date and three days more
