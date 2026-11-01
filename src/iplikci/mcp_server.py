@@ -20,22 +20,24 @@ from calendar import monthrange
 from collections import Counter, defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
 from . import __version__, month_end, rulefile
 from .analysis import Dataset
-from .app import intake
+from .app import intake, outlook
 from .app import mail as email
 from .app.analysis import Current, document_gaps, summary
 from .app.uploads import inbox_files
 from .app.workspace import Busy, StalePlan, Workspace
 from .categorize import Categorizer
-from .domain.codes import Actor, Necessity, TransactionKind
+from .domain.codes import Actor, Necessity, SeriesPeriod, TransactionKind
+from .domain.labels import PAYMENT_KIND, SERIES_PERIOD, SERIES_STATUS
 from .domain.money import round_half_up, to_decimal
 from .domain.text import fold
 from .insights import HABIT_STATUS, STATUS, receipt_amount
+from .upcoming import HORIZON
 
 PROTOCOL_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
 ZERO = Decimal(0)
@@ -59,6 +61,9 @@ gelir, gereklilik ve tahmin raporu üreten, bu bilgisayarda çalışan program.
   ayrı tutulur, gidere eklemek çift sayım olur. Gereklilik (necessity): required, optional, unnecessary, unknown.
 - Ortalamalar ve eğilimler yalnızca tam aylardan (status → completeMonths): kart ekstreleri kesim tarihinde
   bittiği için son ay eksiktir. Düzensiz harcamaları yıllığa çevirmeyin ya da 12 ile çarpmayın.
+- Abonelikler (aylık ve dönemsel) subscriptions, önümüzdeki 60 gün upcoming_payments, hesap bakiyelerinin gün gün
+  öngörüsü cash_flow_forecast ile gelir. Beklenen ödemeler ve öngörü tahmindir; kullanıcıya da tahmin diye söyleyin
+  ve dayandığı pencereyi ve varsayımları (basis, notes) aktarın.
 - Bankanın e-postayla gönderdiği dekontlar, hesabın ekstresi ya da dökümü gelmeden işlenir: bu satırlar
   geçicidir (transactions → provisional: true) ve belge gelince onun satırıyla eşleşip kesinleşir. Bir ayın
   kapanıp kapanmadığını, neyi beklediğini ve ay sonu özetini month_end söyler.
@@ -128,6 +133,7 @@ class Server:
         self.ws = ws
         self.current = Current(ws, write=False)
         self.plans: dict[str, intake.Plan] = {}
+        self.today: Callable[[], date] = date.today  # the day the calendar and the forecast start from
 
     def handle(self, message) -> dict | list | None:
         """The reply to one JSON-RPC message (None for notifications and responses)."""
@@ -473,6 +479,136 @@ def _regular(s: Server, args: dict) -> dict:
         "series": rows,
         "income": income,
         "note": "Varsayılan liste raporla aynı: sürenler ve pencere içinde bitenler. status ile süzülebilir.",
+    }
+
+
+def _series_view(v: outlook.SeriesView, labels: dict[str, str]) -> dict:
+    change = v.price_change
+    return {
+        "id": v.id,
+        "payee": v.payee,
+        "period": v.period,
+        "periodLabel": SERIES_PERIOD[v.period],
+        "status": v.status,
+        "statusLabel": SERIES_STATUS[v.status],
+        "note": v.note or None,
+        "category": v.category,
+        "necessity": v.necessity,
+        "kind": v.kind,
+        "account": labels.get(v.account, v.account),
+        "amount": round_half_up(v.amount),
+        "lastDay": v.last_day,
+        "lastAmount": round_half_up(v.last_amount),
+        "nextDay": v.next_day,
+        "priceChange": change
+        and {"from": round_half_up(change.before), "to": round_half_up(change.after), "since": change.since},
+        "payments": len(v.rows),
+        "provisional": sum(r.certainty == "provisional" for r in v.rows),
+        "documents": sorted({r.document for r in v.rows if r.document}),
+        "lastFingerprints": [r.fingerprint for r in v.rows[-3:]],
+    }
+
+
+def _subscriptions(s: Server, args: dict) -> dict:
+    found = outlook.subscriptions(s.current.get())
+    labels = found.labels
+    series = [v for v in found.series if (args.get("all") or v.listed) and args.get("period", v.period) == v.period]
+    return {
+        "window": found.window,
+        "asOf": found.as_of,
+        "series": [_series_view(v, labels) for v in series],
+        "income": [_series_view(v, labels) for v in found.income if args.get("all") or v.listed],
+        "installments": [
+            {
+                "card": labels.get(i.account, i.account),
+                "title": i.title,
+                "installment": f"{i.number}/{i.count}",
+                "amount": round_half_up(i.amount),
+                "left": i.left,
+                "remaining": round_half_up(i.remaining),
+                "lastCut": i.last,
+                "fingerprint": i.row,
+            }
+            for i in found.installments
+        ],
+        "note": "amount: aylık seride ayda, dönemselde dönem başına beklenen tutar (süren serilerde). nextDay son "
+        "ödemeden sonraki beklenen gün; belgeler o günden önce bitiyorsa geçmiş bir gün olabilir. Varsayılan liste "
+        "sürenler ve pencere içinde biten taahhütlerdir; all=true hepsini verir.",
+    }
+
+
+def _due_view(item: outlook.Due, labels: dict[str, str]) -> dict:
+    return {
+        "day": item.day,
+        "kind": item.kind,
+        "kindLabel": PAYMENT_KIND[item.kind],
+        "title": item.title,
+        "account": labels.get(item.account, item.account),
+        "amount": round_half_up(item.amount),
+        "minimum": None if item.minimum is None else round_half_up(item.minimum),
+        "basis": item.basis,
+        "series": item.series or None,
+        "fingerprints": list(item.rows),
+    }
+
+
+def _upcoming(s: Server, args: dict) -> dict:
+    found = outlook.calendar(s.current.get(), s.today())
+    until = min(found.end, found.today + timedelta(days=args.get("days", HORIZON) - 1))
+    items = [item for item in found.items if item.day <= until]
+    return {
+        "today": found.today,
+        "until": until,
+        "items": [_due_view(item, found.labels) for item in items],
+        "totalOut": round_half_up(sum((item.amount for item in items if item.amount > 0), ZERO)),
+        "totalIn": round_half_up(-sum((item.amount for item in items if item.amount < 0), ZERO)),
+        "note": "Tahmin: amount > 0 para çıkışı, < 0 para girişi; gün ve tutarlar geçmiş ödemelerden beklenendir, "
+        "basis neye dayandığını söyler. Taksit kartın kesim gününde, kart son ödemesi ekstreden gelir.",
+    }
+
+
+def _cash_flow(s: Server, args: dict) -> dict:
+    found = outlook.cash_flow(s.current.get(), s.today())
+    f, labels = found.forecast, found.labels
+    step = 1 if args.get("daily") else 7
+
+    def point(p: tuple[date, Decimal] | None) -> dict | None:
+        return p and {"day": p[0], "balance": p[1]}
+
+    def spread(sp: outlook.Spread | None) -> dict | None:
+        return sp and {"monthly": round_half_up(sp.monthly), "months": list(sp.months), "after": sp.after}
+
+    return {
+        "label": f.label,
+        "today": f.today,
+        "until": f.end,
+        "accounts": [
+            {
+                "account": a.label,
+                "start": {
+                    "balance": a.start.balance,
+                    "stated": a.start.stated,
+                    "day": a.start.on,
+                    "source": "banka bildirimi" if a.start.notice else "hesap dökümü",
+                    "movesAfter": a.start.moves,
+                    "knownThrough": a.start.through,
+                },
+                "endBalance": a.end,
+                "lowest": point(a.lowest),
+                "firstBelowZero": point(a.negative),
+                "spend": spread(a.spend),
+                "cardPayments": spread(a.cards),
+                "overdraftInterest": a.interest,
+                "items": [_due_view(item, labels) for item in a.items],
+                "balances": [point(p) for p in a.days[::step]]
+                + ([point(a.days[-1])] if (len(a.days) - 1) % step else []),
+                "notes": a.notes,
+            }
+            for a in f.accounts
+        ],
+        "elsewhere": [_due_view(item, labels) for item in f.elsewhere],
+        "skipped": [{"account": labels.get(account, account), "reason": why} for account, why in f.skipped],
+        "notes": f.notes,
     }
 
 
@@ -848,6 +984,36 @@ TOOLS = (
         "aylık tutarı, son ve beklenen sonraki ödeme, fiyat değişimi; ayrıca düzenli gelirler.",
         _schema(status={"type": "string", "enum": list(STATUS)}),
         _regular,
+    ),
+    Tool(
+        "subscriptions",
+        "Abonelikler",
+        "Düzenli (aylık) ve dönemsel (altı ayda ya da yılda bir) ödemeler: durumu (active, ended, cancelled, "
+        "paid_after_cancel), beklenen tutarı (aylıkta ayda, dönemselde dönem başına), son ve beklenen sonraki ödeme, "
+        "fiyat değişimi, dayandığı belgeler ve satırlar; ayrıca düzenli gelirler ve kalan taksitli alışverişler.",
+        _schema(
+            all={"type": "boolean", "description": "biten ve listede görünmeyenler de"},
+            period={"type": "string", "enum": [p.value for p in SeriesPeriod]},
+        ),
+        _subscriptions,
+    ),
+    Tool(
+        "upcoming_payments",
+        "Yaklaşan ödemeler",
+        "Bugünden itibaren 60 günün takvimi: düzenli ve dönemsel ödemeler (en son hangi hesaptan ödendiyse), maaş ve "
+        "düzenli gelirler, kalan kart taksitleri, kredi taksitleri ve kart son ödemeleri; her biri günü, tutarı, "
+        "hesabı ve neye dayandığıyla. Tahmindir.",
+        _schema(days={"type": "integer", "minimum": 1, "maximum": HORIZON, "description": "kaç gün (varsayılan 60)"}),
+        _upcoming,
+    ),
+    Tool(
+        "cash_flow_forecast",
+        "Nakit akışı öngörüsü",
+        "TL banka hesaplarının önümüzdeki 60 gün için gün gün bakiye tahmini: başlangıç bakiyesi (son belge ve "
+        "sonraki dekont ve bildirimler), beklenen ödemeler ve gelirler, seri dışı çıkışların aylık medyanı, eksiye "
+        "düştüğü gün ve tutar, en düşük gün, varsayımlar. Öngörüye girmeyen hesaplar nedeniyle listelenir.",
+        _schema(daily={"type": "boolean", "description": "bakiyeleri haftalık değil gün gün ver"}),
+        _cash_flow,
     ),
     Tool(
         "habits",

@@ -2,11 +2,15 @@
 
 import io
 import json
+from datetime import date
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
 
-from iplikci.fakes import teb
+from iplikci import demo
+from iplikci.app.workspace import Workspace
+from iplikci.fakes import Move, teb
 from iplikci.mcp_server import PROTOCOL_VERSIONS, TOOLS, Server, serve
 
 from conftest import FEBRUARY, JANUARY, add, bank_mail, put
@@ -162,3 +166,80 @@ def test_month_end_tells_what_closed_a_month(server):
     assert (january["totals"]["expense"], january["totals"]["income"]) == (120.0, 1000.0)
     text, failed = call(server, "month_end", month="Ocak")
     assert failed and "'month' biçimi" in text
+
+
+# --- the regular payments, the calendar and the forecast (F08, F09) ------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def demo_server(tmp_path_factory):
+    """The demo data folder's MCP server, as on the day its baseline is taken."""
+    found = Server(Workspace.load(demo.build(tmp_path_factory.mktemp("demo"))))
+    found.today = lambda: demo.AS_OF
+    found.current.get()
+    return found
+
+
+def test_subscriptions_list_the_series_with_their_period_status_and_next_payment(demo_server):
+    found, failed = call(demo_server, "subscriptions")
+    assert not failed and found["asOf"] == "2026-10-31"
+    rent = next(s for s in found["series"] if s["payee"] == "Veli Örneksoy Kira Ödemesi")
+    assert (rent["period"], rent["status"], rent["statusLabel"]) == ("month", "active", "Devam ediyor")
+    assert (rent["amount"], rent["lastDay"], rent["nextDay"]) == (15000.0, "2026-10-03", "2026-11-03")
+    assert rent["payments"] == 9 and rent["provisional"] == 0 and len(rent["lastFingerprints"]) == 3
+    assert rent["documents"] and all(name.endswith(".xls") for name in rent["documents"])
+    assert [i["payee"] for i in found["income"]] == ["Örnek İşveren A.Ş."]
+    yearly, _ = call(demo_server, "subscriptions", period="year")
+    assert yearly["series"] == []  # the demo pays nothing once a year
+    text, failed = call(demo_server, "subscriptions", period="haftalık")
+    assert failed and "'period' şunlardan biri olmalı" in text
+
+
+def test_upcoming_payments_are_the_next_days_items_with_what_they_rest_on(demo_server):
+    found, failed = call(demo_server, "upcoming_payments", days=14)
+    assert not failed and (found["today"], found["until"]) == ("2026-11-15", "2026-11-28")
+    assert [(i["day"], i["title"], i["amount"], i["kindLabel"]) for i in found["items"]] == [
+        ("2026-11-19", "Ornek Kahve", 180.0, "Düzenli ödeme"),
+        ("2026-11-22", "Migros", 1840.0, "Düzenli ödeme"),
+    ]
+    assert (found["totalOut"], found["totalIn"]) == (2020.0, 0.0)
+    whole, _ = call(demo_server, "upcoming_payments")
+    assert whole["until"] == "2027-01-13"
+    salary = next(i for i in whole["items"] if i["kind"] == "income")
+    assert (salary["day"], salary["amount"], salary["account"]) == ("2026-12-01", -40000.0, "TEB Vadesiz TL 123456789")
+    text, failed = call(demo_server, "upcoming_payments", days=90)
+    assert failed and "'days' 1–60 arasında olmalı" in text
+
+
+def test_the_cash_flow_forecast_is_an_estimate_with_its_start_and_assumptions(demo_server):
+    found, failed = call(demo_server, "cash_flow_forecast")
+    assert not failed and (found["label"], found["until"]) == ("tahmin", "2027-01-13")
+    (teb_account,) = found["accounts"]
+    assert teb_account["start"]["source"] == "hesap dökümü" and teb_account["start"]["stated"] == 184380.1
+    assert teb_account["firstBelowZero"] is None and teb_account["lowest"]["day"] == "2026-11-30"
+    assert len(teb_account["balances"]) == 10  # every seventh day, and the last one
+    assert teb_account["notes"][0].startswith("Başlangıç: 31.10.2026 tarihli hesap dökümünün kapanış bakiyesi")
+    daily, _ = call(demo_server, "cash_flow_forecast", daily=True)
+    assert len(daily["accounts"][0]["balances"]) == 60
+    garanti = {"account": "Garanti BBVA Vadesiz TL 1234567", "reason": "bakiyesi hiçbir belgede yazmıyor"}
+    assert found["skipped"] == [garanti]  # known only from receipts
+
+
+def test_a_tax_paid_twice_a_year_is_a_periodic_series(ws):
+    salary = "ORNEK ISVEREN A.S. den gelen havale"
+    moves = [Move(date(2025 + i // 12, i % 12 + 1, 1), salary, Decimal(30000)) for i in range(18)]
+    taxes = ((date(2025, 1, 15), 3200), (date(2025, 7, 16), 3200), (date(2026, 1, 14), 3800))
+    moves += [Move(d, "MTV ODEMESI", Decimal(-a)) for d, a in taxes]
+    moves.sort(key=lambda m: m.day)
+    add(ws, "liste.xls", teb.account_export(teb.running_rows(moves), period="01/01/2025 - 30/06/2026"))
+    server = Server(ws)
+    server.today = lambda: date(2026, 7, 1)
+    found, _ = call(server, "subscriptions", period="half_year")
+    (tax,) = found["series"]
+    assert (tax["payee"], tax["periodLabel"], tax["status"]) == ("Mtv Odemesi", "Altı ayda bir", "active")
+    assert (tax["amount"], tax["nextDay"], tax["payments"]) == (3800.0, "2026-07-15", 3)  # a period after the last
+    assert tax["priceChange"] == {"from": 3200.0, "to": 3800.0, "since": "2026-01-14"}
+    upcoming, _ = call(server, "upcoming_payments")
+    assert [(i["day"], i["kind"], i["amount"]) for i in upcoming["items"] if i["title"] == "Mtv Odemesi"] == [
+        ("2026-07-15", "periodic", 3800.0)
+    ]
