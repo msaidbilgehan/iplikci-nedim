@@ -15,6 +15,7 @@ from iplikci.domain.models import Invoice, InvoiceLine
 from iplikci.fakes import Move, teb
 from iplikci.invoices import UNPAID_REASON, match
 from iplikci.mcp_server import PROTOCOL_VERSIONS, TOOLS, Server, serve
+from iplikci.storage import audit
 
 from conftest import FEBRUARY, JANUARY, add, bank_mail, put
 
@@ -296,3 +297,34 @@ def test_invoices_tell_each_bill_and_receipt_with_its_status_and_the_row_that_pa
     assert failed and "'status' şunlardan biri olmalı" in text
     hints = {t["name"]: t["annotations"] for t in rpc(server, "tools/list")["result"]["tools"]}
     assert hints["invoices"]["readOnlyHint"]
+
+
+def alerts(server, **arguments):
+    """The alerts tool, whose rule is named by an argument called name, as call's tool is."""
+    reply = rpc(server, "tools/call", {"name": "alerts", "arguments": arguments})["result"]
+    text = reply["content"][0]["text"]
+    return (json.loads(text) if not reply["isError"] else text), reply["isError"]
+
+
+def test_the_alert_rules_are_listed_added_closed_and_opened_again(server, ws):
+    found, failed = alerts(server)
+    assert not failed and not found["own"] and found["rules"][0]["name"] == "Son ödemeye 3 gün"
+    assert {e["event"] for e in found["events"]} >= {"payment.due_soon", "transaction.large"}
+    added, failed = alerts(
+        server, action="add", name="Büyük market", event="transaction.large", amount=7500, text="market"
+    )
+    assert not failed and added["own"] and added["rules"][-1]["amount"] == 7500.0
+    closed, _ = alerts(server, action="close", name="büyük MARKET")
+    assert closed["rules"][-1]["enabled"] is False
+    opened, _ = alerts(server, action="open", name="Büyük market")
+    assert opened["rules"][-1]["enabled"] is True
+    with ws.db() as db:
+        assert {e.actor for e in audit.entries(db, "rules.alerts_changed")} == {"mcp"}
+
+
+def test_an_alert_rule_the_program_would_not_read_is_never_written(server, ws):
+    message, failed = alerts(server, action="add", name="X", event="transaction.large", days=3)
+    assert failed and "'gun' koşulu" in message
+    message, failed = alerts(server, action="close", name="yok böyle")
+    assert failed and "kural yok" in message
+    assert not ws.layout.alert_rules.exists()

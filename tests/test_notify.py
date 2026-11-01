@@ -2,6 +2,7 @@
 notification per rule, event and channel, a failed one tried again and a sent one never again, the digest, and the
 Telegram, desktop and e-mail channels. No test reaches the network, the keyring or the screen."""
 
+import io
 import json
 import smtplib
 from dataclasses import dataclass, field
@@ -10,8 +11,9 @@ from decimal import Decimal
 
 import pytest
 
-from iplikci import egress
+from iplikci import cli, egress
 from iplikci.app import notify, rebuild
+from iplikci.cli import notify as notify_cli
 from iplikci.domain.codes import Actor, Channel, DeliveryStatus, DetailLevel, EventKind
 from iplikci.notify import channels, content, timing
 from iplikci.notify import rules as alert_rules
@@ -583,3 +585,42 @@ def test_the_notify_settings_are_checked(tmp_path):
         config.load(path)
     path.write_text('[notify]\nchannels = ["telegram"]\ntelegram_chat = 42\n', encoding="utf-8")
     assert (config.load(path).notify.channels, config.load(path).notify.telegram_chat) == (("telegram",), 42)
+
+
+# --- the command line ----------------------------------------------------------------------------------
+
+
+def test_the_commands_show_the_channels_the_rules_and_the_history(ws, desk, monkeypatch, capsys):
+    monkeypatch.setenv("IPLIKCI_HOME", str(ws.home))
+    started(ws)
+    happen(ws, E.MONTH_CLOSED, "2026-10")
+    notify.run(ws, NOON)
+    assert cli.main(["bildirim", "durum"]) == 0
+    out = capsys.readouterr().out
+    assert "Sessiz saat: 23:00-08:00" in out and "Masaüstü: hazır" in out and "belirteci girilmedi" in out
+    assert cli.main(["bildirim", "kurallar"]) == 0
+    out = capsys.readouterr().out
+    assert "Uygulamayla gelen kurallar" in out and "Son ödemeye 3 gün: Son ödeme yaklaşıyor [en çok 3 gün kala]" in out
+    assert cli.main(["bildirim", "gecmis", "--kanal", "masaustu"]) == 0
+    assert "Masaüstü  Gönderildi" in capsys.readouterr().out
+    assert cli.main(["bildirim", "dene", "telegram"]) == 1
+    assert "belirteci girilmedi" in capsys.readouterr().err
+
+
+def test_telegram_is_set_up_with_the_token_read_from_a_line_never_an_argument(ws, keyring, monkeypatch, capsys):
+    monkeypatch.setenv("IPLIKCI_HOME", str(ws.home))
+    bot = FakeBot()
+    monkeypatch.setattr(notify, "_post_for", lambda settings: bot.post_for)
+    monkeypatch.setattr(notify_cli.sys, "stdin", io.StringIO(TOKEN + "\n"))
+    looked: list[bool] = []
+
+    def check(ws_):
+        looked.append(True)
+        return len(looked) == 2  # the code comes at the second look
+
+    monkeypatch.setattr(notify, "check_pairing", check)
+    monkeypatch.setattr(notify_cli.time, "sleep", lambda seconds: None)
+    assert cli.main(["telegram", "kur"]) == 0
+    out = capsys.readouterr().out
+    assert "Bot doğrulandı: @ornek_bot" in out and "/start " in out and "Eşleşti" in out
+    assert TOKEN not in out and keyring == {"telegram-bot": TOKEN}

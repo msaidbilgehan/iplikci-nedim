@@ -26,14 +26,23 @@ from typing import Any
 
 from . import __version__, month_end, rulefile
 from .analysis import Dataset
-from .app import intake, invoices, outlook
+from .app import intake, invoices, notify, outlook
 from .app import mail as email
 from .app.analysis import Current, document_gaps, summary
 from .app.uploads import inbox_files
 from .app.workspace import Busy, StalePlan, Workspace
 from .categorize import Categorizer
-from .domain.codes import Actor, InvoiceStatus, Necessity, SeriesPeriod, TransactionKind
-from .domain.labels import INVOICE_KIND, INVOICE_STATUS, PAYMENT_KIND, SERIES_PERIOD, SERIES_STATUS
+from .domain.codes import Actor, EventKind, InvoiceStatus, Necessity, SeriesPeriod, TransactionKind
+from .domain.labels import (
+    CHANNEL,
+    DETAIL_LEVEL,
+    EVENT_KIND,
+    INVOICE_KIND,
+    INVOICE_STATUS,
+    PAYMENT_KIND,
+    SERIES_PERIOD,
+    SERIES_STATUS,
+)
 from .domain.money import round_half_up, to_decimal
 from .domain.text import fold
 from .insights import HABIT_STATUS, STATUS, receipt_amount
@@ -67,6 +76,10 @@ gelir, gereklilik ve tahmin raporu üreten, bu bilgisayarda çalışan program.
 - Banka dışı göndericilerin (telefon, internet, enerji, abonelik, alışveriş) faturaları ve makbuzları invoices ile
   gelir: eşleşti (onu ödeyen banka satırıyla), bekliyor ya da eşleşmedi (yalnızca bilgi, olası nedenleriyle).
   Hiçbiri toplamlara girmez; harcamayı onu ödeyen banka satırı sayar.
+- Bildirimler: alerts bildirim kurallarını listeler, ekler, kapatır ya da yeniden açar (kurallar
+  rules/alerts.yaml'da; uygulama içi kutu her zaman açık, kanallar masaüstü, Telegram ve e-posta). Telegram
+  botunun belirtecini ya da e-posta şifresini asla sohbette istemeyin: kullanıcı onları Bildirimler ekranına ya
+  da `iplikci telegram kur`'un gizli istemine kendisi girer.
 - Bankanın e-postayla gönderdiği dekontlar, hesabın ekstresi ya da dökümü gelmeden işlenir: bu satırlar
   geçicidir (transactions → provisional: true) ve belge gelince onun satırıyla eşleşip kesinleşir. Bir ayın
   kapanıp kapanmadığını, neyi beklediğini ve ay sonu özetini month_end söyler.
@@ -909,6 +922,83 @@ def _write_rules(s: Server, args: dict) -> dict:
     return _change_rules(s, args["content"])
 
 
+def _alert_view(rule: notify.AlertRule) -> dict:
+    c = rule.condition
+    return {
+        "name": rule.name,
+        "event": rule.event,
+        "eventLabel": EVENT_KIND[rule.event],
+        "days": c.days,
+        "amount": c.amount,
+        "text": c.text or None,
+        "channels": [CHANNEL[ch] for ch in rule.channels],
+        "detail": DETAIL_LEVEL[rule.detail] if rule.detail else None,
+        "enabled": rule.enabled,
+    }
+
+
+def _alert_from(args: dict) -> notify.AlertRule:
+    try:
+        event = notify.EventKind(args.get("event"))
+    except ValueError:
+        raise ToolError("event bilinen bir olay olmalı (alerts action=list olayları listeler)") from None
+    amount = args.get("amount")
+    return notify.AlertRule(
+        str(args.get("name", "")).strip(),
+        event,
+        notify.Condition(args.get("days"), None if amount is None else to_decimal(amount), str(args.get("text", ""))),
+        tuple(notify.Channel(ch) for ch in args.get("channels", ["desktop", "telegram"])),
+        notify.DetailLevel(args["detail"]) if args.get("detail") else None,
+    )
+
+
+def _alerts(s: Server, args: dict) -> dict:
+    found = notify.load_rules(s.ws)
+    rules = list(found.rules)
+    action = args.get("action", "list")
+    if action != "list":
+        if action == "add":
+            rule = _alert_from(args)
+            if any(r.key == rule.key for r in rules):
+                raise ToolError(f"'{rule.name}' adında bir kural zaten var")
+            rules.append(rule)
+        else:
+            name = fold(str(args.get("name", "")))
+            if not any(r.key == name for r in rules):
+                raise ToolError(
+                    f"'{args.get('name', '')}' adında bir kural yok (alerts action=list kuralları listeler)"
+                )
+            rules = [
+                notify.AlertRule(r.name, r.event, r.condition, r.channels, r.detail, action == "open")
+                if r.key == name
+                else r
+                for r in rules
+            ]
+        try:
+            notify.save_rules(s.ws, rules, Actor.MCP)
+        except notify.RulesError as exc:
+            raise ToolError(str(exc)) from exc
+        found = notify.load_rules(s.ws)
+    state = notify.status(s.ws)
+    return {
+        "rules": [_alert_view(r) for r in found.rules],
+        "own": found.own,
+        "problem": found.problem or None,
+        "channels": [
+            {"channel": CHANNEL[c.channel], "on": c.on, "ready": c.ready, "note": c.note} for c in state.channels
+        ],
+        "events": [
+            {"event": e.kind, "label": e.label, "days": e.days, "amount": e.amount, "text": e.text}
+            for e in notify.event_catalog()
+        ]
+        if action == "list"
+        else None,
+        "note": "Her kural bir olayı izler; olay olunca uygulama içi kutuya ve kuralın kanallarına bildirim gider, "
+        "bir olay için her kanala bir kez. days: en çok kaç gün kala, amount: en az kaç TL, text: başlığında geçen "
+        "yazı (yalnızca olayın izin verdiği koşullar). Sessiz saatte gelenler özetle gider.",
+    }
+
+
 def _schema(required: tuple[str, ...] = (), **properties) -> dict:
     return {"type": "object", "properties": properties, "required": list(required), "additionalProperties": False}
 
@@ -1072,6 +1162,26 @@ TOOLS = (
         "(yalnızca bilgi, olası nedenleriyle). Hiçbiri toplamlara girmez.",
         _schema(status={"type": "string", "enum": [s.value for s in InvoiceStatus]}),
         _invoices,
+    ),
+    Tool(
+        "alerts",
+        "Bildirim kuralları",
+        "Bildirim kurallarını listeler (action=list; olaylar, koşulları ve kanalların durumu ile), yeni kural ekler "
+        "(action=add: name, event, isteğe bağlı days, amount, text, channels, detail) ya da bir kuralı kapatır "
+        "(action=close) veya yeniden açar (action=open; name ile). Değişiklik rules/alerts.yaml'a yazılır, önceki "
+        "dosya kural geçmişinde saklanır; okunamayacak bir kural yazılmaz.",
+        _schema(
+            action={"type": "string", "enum": ["list", "add", "close", "open"]},
+            name=_TEXT,
+            event={"type": "string", "enum": [k.value for k in EventKind]},
+            days={"type": "integer", "minimum": 0, "maximum": 60},
+            amount={"type": "number", "minimum": 0},
+            text=_TEXT,
+            channels={"type": "array", "items": {"type": "string", "enum": ["desktop", "telegram", "email"]}},
+            detail={"type": "string", "enum": ["full", "summary", "minimal"]},
+        ),
+        _alerts,
+        read_only=False,
     ),
     Tool(
         "habits",

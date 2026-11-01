@@ -8,6 +8,8 @@ iplikci ekle [YOL ...]          belgeleri arşive al: önce plan, --uygula ile u
 iplikci aysonu [AY] [--ac]      ay sonu raporları: hangi ay kapandı, hangisi neyi bekliyor
 iplikci islem ara|duzelt|yetimler   işlem ara; nota, etikete, kategori ve gereklilik düzeltmesine bak ya da ekle
 iplikci eposta kur|durum|kaldir|al   IMAP hesabı (uygulama şifresine izin veren hesaplar) ve şimdi alım
+iplikci bildirim durum|kurallar|gecmis|dene   bildirim kanalları, kuralları, gönderilenler, deneme bildirimi
+iplikci telegram kur|eslestir|kaldir   Telegram botunun belirteci (gizli istemle) ve sohbet eşleştirmesi
 iplikci mcp                     Claude için MCP sunucusu (istemci başlatır)
 iplikci servis calistir         servisi ön planda çalıştır (API, 127.0.0.1)
 iplikci servis kur|kaldir|durum|yeniden-baslat   arka plan servisi (launchd, systemd, Görev Zamanlayıcı)
@@ -28,6 +30,7 @@ from .dev import dev_command
 from .documents import add_command
 from .mail import mail_command
 from .mcp import mcp_command
+from .notify import notify_command, telegram_command
 from .report import month_end_command, report
 from .service import open_command, service_command
 from .transactions import transaction_command
@@ -36,6 +39,8 @@ from .verify import verify_command
 COMMANDS: dict[str, Callable[[list[str]], int]] = {
     "ekle": add_command,
     "eposta": mail_command,
+    "bildirim": notify_command,
+    "telegram": telegram_command,
     "mcp": mcp_command,
     "aysonu": month_end_command,
     "islem": transaction_command,
