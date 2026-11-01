@@ -63,6 +63,8 @@ _BUSINESS_MARKS = (
     "KREDILITICARIMEVDUAT",
     "UCRETBORDROSU",
     "AYLIKOZETRAPORU",
+    "IMZASIRKULER",  # a company's signature circular …
+    "GENELKURUL",  # … and its general assembly
 )
 _given_names: tuple[str, ...] = ()
 _business_names: tuple[str, ...] = ()

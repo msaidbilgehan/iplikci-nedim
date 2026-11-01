@@ -4,12 +4,14 @@ as the running service reports it (/api/system), and a login link from it."""
 import argparse
 import sys
 import webbrowser
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 from ..app.workspace import Workspace
 from ..domain.codes import DocumentStatus
 from ..domain.labels import DOCUMENT_STATUS
+from ..insights import pct
 from ..service import instance, logs, manager
 from .common import human_size, local_time, open_workspace
 
@@ -186,6 +188,8 @@ def _system_lines(found: dict[str, Any], ws: Workspace) -> list[str]:
     lines.append(f"Kuyruk: {counts.get('queued', 0)} bekleyen, {counts.get('failed', 0)} başarısız iş")
     if mail_state := found.get("mail"):
         lines.append(_mail_line(mail_state))
+        if covered := mail_state.get("coverage"):
+            lines.append(_coverage_line(covered))
     if backups := found.get("backup"):
         lines.append(_backups_line(backups))
     if disk := found.get("disk"):
@@ -212,6 +216,18 @@ def _mail_line(state: dict[str, Any]) -> str:
     last = f"son alım {local_time(state['last_run'])}" if state.get("last_run") else "henüz alım yok"
     error = f" · son hata: {state['last_error']}" if state.get("last_error") else ""
     return f"E-posta ({connector}): {last}{error}"
+
+
+def _coverage_line(covered: dict[str, Any]) -> str:
+    """F01's measure: the bank messages read or knowingly classified."""
+    total = int(covered.get("total", 0))
+    if not total:
+        return "E-posta kapsamı: henüz banka iletisi yok"
+    unknown = int(covered.get("unknown", 0))
+    return (
+        f"E-posta kapsamı: {total} banka iletisinin {pct(Decimal(total - unknown) / total)} işlendi ya da bilerek "
+        f"sınıflandı; {unknown} tanesi henüz tanınmıyor"
+    )
 
 
 def _backups_line(state: dict[str, Any]) -> str:

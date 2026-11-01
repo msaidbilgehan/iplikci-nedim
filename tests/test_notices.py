@@ -12,10 +12,11 @@ from iplikci.app import mail, reading
 from iplikci.domain.codes import DocumentKind, DocumentStatus, TransactionKind
 from iplikci.fakes import vakifbank
 from iplikci.fakes.files import html_mail
-from iplikci.parsers import Skipped, Unreadable, parse_document
+from iplikci.parsers import Skipped, Unreadable, messages, parse_document
 from iplikci.parsers.common import BUSINESS_REASON, MESSAGE_REASON, set_business_names
 from iplikci.parsers.contract import Document
-from iplikci.parsers.mail import read_mail
+from iplikci.parsers.mail import Mail, read_mail
+from iplikci.parsers.messages import message_reason
 from iplikci.settings.config import BANK_SENDERS
 from iplikci.storage import documents
 
@@ -118,7 +119,7 @@ def test_a_vakifbank_mail_that_moves_no_money_is_left_unread_without_an_alarm():
     )
     with pytest.raises(Skipped) as raised:
         read(raw)
-    assert (str(raised.value), raised.value.parser, raised.value.business) == (MESSAGE_REASON, "", False)
+    assert (str(raised.value), raised.value.parser, raised.value.business) == (messages.CAMPAIGN, "", False)
 
 
 def test_a_company_name_in_the_subject_or_as_the_holder_makes_the_notice_a_companys():
@@ -144,3 +145,60 @@ def test_a_kept_notice_is_a_bank_notice_named_by_its_day_and_title(ws):
     assert doc is not None
     assert (doc.status, doc.kind, doc.parser) == (DocumentStatus.PROCESSED, DocumentKind.NOTICE, NOTICES)
     assert doc.display_name == "2026-10-15 Vakıfbank Gelen FAST Bildirim.eml"
+
+
+# --- what a message no reader took is ---------------------------------------------------------------------------
+
+
+def mail_of(subject: str, sender: str = "ileti.ornekbank.example", text: str = "", attached: bool = False):
+    return Mail(sender, subject, None, text, attached)
+
+
+@pytest.mark.parametrize(
+    ("sender", "subject", "reason"),
+    [
+        ("kampanya.ornekbank.example", "Ekstre borcunuza taksit fırsatı!", messages.CAMPAIGN),  # a campaign sender
+        ("ileti.ornekbank.example", "Kampanya: Maaş ödemelerinize özel avantaj", messages.CAMPAIGN),  # the bank's label
+        ("ileti.ornekbank.example", "Tanıtım: Girişimcilere özel buluşma", messages.CAMPAIGN),
+        ("ornekbank.example", "Müşteri Şifresi Bloke Öncesi Bilgilendirme", messages.SECURITY),
+        ("ornekbank.example", "Mobil'e Yeni Cihazdan Giriş Yapıldı", messages.SECURITY),
+        ("ornekbank.example", "E-posta Adresinizi Doğrulayınız!", messages.SECURITY),
+        ("ornekbank.example", "Kartınızı Kuryeye Teslim Ettik.", messages.CARD),
+        ("ornekbank.example", "Kredi Kartı Limit Artışı Değerlendirme Sonucunuz", messages.CARD),
+        ("ornekbank.example", "Ücret ve Komisyon Tahsilatında Değişiklik Hakkında", messages.ANNOUNCEMENT),
+        ("bilgi.ornekbank.example", "Bayram Tatili İşlem Saatleri", messages.ANNOUNCEMENT),  # an announcement sender
+        ("ornekbank.example", "Örnek Gıda Halka Arz Oluyor!", messages.ANNOUNCEMENT),
+        ("ornekbank.example", "Yeni yılda size özel 500 TL bonus!", messages.CAMPAIGN),
+        ("ornekbank.example", "Mobil ödemelerinizle bonus kazanın!", messages.CAMPAIGN),
+        # Money moving or owed: unknown until a reader reads it, however it is worded.
+        ("ornekbank.example", "Bonus Hesap Özetiniz", MESSAGE_REASON),
+        ("ornekbank.example", "HGS EKSTRE BİLGİLENDİRME", MESSAGE_REASON),
+        ("ornekbank.example", "Para Transferi Bilgilendirmesi", MESSAGE_REASON),
+        ("ornekbank.example", "Son Ödeme Tarihi Bugün Olan SGK Prim Bilgileriniz", MESSAGE_REASON),
+        ("ornekbank.example", "Hesabınızdan Gecikmedeki Kredi Kartı Borcunuzun Tahsilatı", MESSAGE_REASON),
+        ("bilgi.ornekbank.example", "Harcamalarınızı döviz ekstre ile izleyin", MESSAGE_REASON),
+        ("ornekbank.example", "Haftalık bildiriminiz", MESSAGE_REASON),  # a subject no rule knows
+    ],
+)
+def test_a_message_no_reader_took_is_named_by_its_sender_and_subject(sender, subject, reason):
+    assert message_reason(mail_of(subject, sender)) == reason
+
+
+def test_a_message_with_documents_is_read_through_them_and_a_bare_subject_through_its_opening():
+    assert message_reason(mail_of("Hesap Özetiniz", attached=True)) == messages.ATTACHED
+    announced = "Değerli Müşterimiz, 01.10.2026 itibarıyla tahsilat işlemlerinde komisyonlarımız güncellenecektir."
+    assert message_reason(mail_of("BİLGİLENDİRME [İletiNo:123]", text=announced)) == messages.ANNOUNCEMENT
+    assert message_reason(mail_of("BİLGİLENDİRME [İletiNo:123]", text="Değerli Müşterimiz, ...")) == MESSAGE_REASON
+
+
+def test_only_documents_count_as_attached_never_an_image_or_a_file_left_out():
+    msg = EmailMessage()
+    msg["From"] = "bilgi@ornekbank.example"
+    msg["Subject"] = "Kampanya"
+    msg.set_content("<p>Fırsat</p>", subtype="html")
+    msg.add_attachment(b"\x89PNG", maintype="image", subtype="png", filename="logo.png")
+    assert not read_mail(msg.as_bytes()).attached
+    msg.add_attachment(b"", maintype="application", subtype="pdf", filename="ekstre.pdf")  # "Show original" left it out
+    assert not read_mail(msg.as_bytes()).attached
+    msg.add_attachment(b"%PDF-1.4", maintype="application", subtype="pdf", filename="ekstre.pdf")
+    assert read_mail(msg.as_bytes()).attached

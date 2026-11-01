@@ -137,6 +137,18 @@ export interface LoginLink {
   url: string;
 }
 
+/** F01's measure: the kept bank messages read or knowingly classified as moving no money. */
+export interface MailCoverageOut {
+  total: number;
+  read: number;
+  attached: number;
+  no_money: number;
+  business: number;
+  unknown: number;
+  share: number;
+  left: UnknownMailOut[];
+}
+
 export interface MailOut {
   connector: "imap" | "browser_bridge";
   configured: boolean;
@@ -146,6 +158,7 @@ export interface MailOut {
   start_day: string;
   history_due: boolean;
   refused: RefusedMailOut[];
+  coverage: MailCoverageOut;
 }
 
 export interface PairIn {
@@ -259,6 +272,12 @@ export interface SystemOut {
   queue: QueueOut;
   mail: MailOut;
   backup: BackupHealthOut;
+}
+
+export interface UnknownMailOut {
+  domain: string;
+  template: string;
+  count: number;
 }
 
 export interface UploadOut {

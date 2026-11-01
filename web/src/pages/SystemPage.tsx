@@ -2,7 +2,7 @@
 // doing. Every number comes from /api/system; the event stream keeps it current.
 
 import { useBackupNow, useBridges, useLabels, useSystem } from "../api/queries";
-import type { Bridge, Labels, RefusedMail, SystemStatus } from "../api/types";
+import type { Bridge, Labels, MailCoverage, RefusedMail, SystemStatus } from "../api/types";
 import { HistoryDue } from "../components/HistoryDue";
 import { Failure, Loading } from "../components/QueryState";
 import { Alert } from "../components/ui/Alert";
@@ -78,6 +78,7 @@ function MailCard({ status }: { status: SystemStatus }) {
             ["Başlangıç günü", formatDay(mail.start_day)],
           ]}
         />
+        {mail.coverage.total > 0 ? <MailCoverageFacts coverage={mail.coverage} /> : null}
         {mail.history_due ? <HistoryDue startDay={mail.start_day} /> : null}
         {mail.refused.length > 0 ? <RefusedList refused={mail.refused} /> : null}
         {mail.stopped ? (
@@ -104,6 +105,44 @@ function mailBadge({ mail }: SystemStatus) {
     return <Badge tone="neutral">Kurulu değil</Badge>;
   }
   return mail.last_error ? <Badge tone="warning">Sorunlu</Badge> : <Badge tone="good">Çalışıyor</Badge>;
+}
+
+// F01: at least this share of the bank messages is read or knowingly classified as moving no money.
+const COVERAGE_TARGET = 0.9;
+
+/** How much of the bank mail was read or knowingly classified (F01), and the kinds of message nothing knows yet. */
+function MailCoverageFacts({ coverage }: { coverage: MailCoverage }) {
+  // Rounded down, so that a share just under the target never shows as the target itself.
+  const percent = Math.floor(coverage.share * 100);
+  const onTarget = coverage.share >= COVERAGE_TARGET;
+  return (
+    <div className="flex flex-col gap-1 text-sm">
+      <p className="font-medium">
+        E-posta kapsamı: %{percent}{" "}
+        <Badge tone={onTarget ? "good" : "warning"}>{onTarget ? "Hedefte" : "Hedefin altında"}</Badge>
+      </p>
+      <ul className="list-disc pl-5 text-zinc-700 dark:text-zinc-300">
+        <li>Banka iletisi: {coverage.total}</li>
+        <li>Bildirimi okunan: {coverage.read}</li>
+        <li>Ekindeki belgeleri okunan: {coverage.attached}</li>
+        <li>Para hareketi taşımayan (kampanya, duyuru, güvenlik, kart): {coverage.no_money}</li>
+        <li>Şirket belgesi: {coverage.business}</li>
+        <li>Henüz tanınmayan: {coverage.unknown}</li>
+      </ul>
+      {coverage.left.length > 0 ? (
+        <details>
+          <summary className="cursor-pointer">Henüz tanınmayan iletiler</summary>
+          <ul className="list-disc pl-5 text-zinc-700 dark:text-zinc-300">
+            {coverage.left.map((kind) => (
+              <li key={`${kind.domain}|${kind.template}`}>
+                {kind.domain} · {kind.template || "konusuz"} ({kind.count})
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+    </div>
+  );
 }
 
 /** The messages the extension delivered that were not kept, by why: the trust rule's findings, never their text. */

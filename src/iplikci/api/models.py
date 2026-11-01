@@ -55,6 +55,25 @@ class RefusedMailOut(BaseModel):
     label: str  # why, in Turkish
 
 
+class UnknownMailOut(BaseModel):
+    domain: str
+    template: str  # the subject with numbers and month names masked
+    count: int
+
+
+class MailCoverageOut(BaseModel):
+    """F01's measure: the kept bank messages read or knowingly classified as moving no money."""
+
+    total: int
+    read: int  # a reader read the body
+    attached: int  # read through the documents it carries
+    no_money: int  # a campaign, an announcement, a security or a card notice
+    business: int  # a company's: gone to the Trash
+    unknown: int
+    share: float  # what is not unknown, of the total; 1.0 when there is nothing yet
+    left: list[UnknownMailOut]  # the unknown ones by kind, most first
+
+
 class MailOut(BaseModel):
     connector: Literal["imap", "browser_bridge"]
     configured: bool
@@ -64,6 +83,7 @@ class MailOut(BaseModel):
     start_day: str  # where the history begins
     history_due: bool  # the extension has not scanned Gmail for this start day and these senders yet
     refused: list[RefusedMailOut]  # messages the extension delivered that were not kept, by why; most first
+    coverage: MailCoverageOut
 
 
 class BackupHealthOut(BaseModel):

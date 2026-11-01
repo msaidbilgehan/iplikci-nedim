@@ -20,6 +20,25 @@ describe("SystemPage", () => {
     expect(screen.getByRole("cell", { name: "2/3" })).toBeInTheDocument();
   });
 
+  it("shows how much of the bank mail was read or knowingly classified, and what is left", async () => {
+    renderScreen(<SystemPage />);
+    const card = await screen.findByRole("region", { name: "E-posta" });
+    expect(within(card).getByText("E-posta kapsamı: %91", { exact: false })).toBeInTheDocument();
+    expect(within(card).getByText("Hedefte")).toBeInTheDocument();
+    expect(within(card).getByText("Henüz tanınmayan: 18")).toBeInTheDocument();
+    expect(within(card).getByText("banka.example · Haftalık bildiriminiz (18)")).toBeInTheDocument();
+  });
+
+  it("says when the coverage is under the target", async () => {
+    const coverage = { ...systemStatus().mail.coverage, unknown: 21, share: 0.895 };
+    const mail = { ...systemStatus().mail, coverage };
+    server.use(http.get("/api/system", () => HttpResponse.json(systemStatus({ mail }))));
+    renderScreen(<SystemPage />);
+    const card = await screen.findByRole("region", { name: "E-posta" });
+    expect(within(card).getByText("E-posta kapsamı: %89", { exact: false })).toBeInTheDocument();
+    expect(within(card).getByText("Hedefin altında")).toBeInTheDocument();
+  });
+
   it("says a refused login stopped the mail and is never tried again", async () => {
     const mail = { ...systemStatus().mail, last_run: "", last_error: "giriş reddedildi", stopped: true };
     server.use(http.get("/api/system", () => HttpResponse.json(systemStatus({ mail }))));

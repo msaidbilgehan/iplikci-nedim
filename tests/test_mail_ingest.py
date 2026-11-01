@@ -10,7 +10,8 @@ from iplikci.app import intake, reading
 from iplikci.app.mail import Taken, take
 from iplikci.domain.codes import DocumentStatus, SourceKind
 from iplikci.ingest.mail.trust import MAX_MESSAGE_BYTES
-from iplikci.parsers.common import BUSINESS_REASON, MESSAGE_REASON, set_business_names
+from iplikci.parsers.common import BUSINESS_REASON, set_business_names
+from iplikci.parsers.messages import ATTACHED
 from iplikci.settings.config import BANK_SENDERS
 from iplikci.storage import audit, documents, events
 
@@ -32,7 +33,7 @@ def test_a_trusted_bank_mail_is_kept_whole_with_its_statement_as_its_child(ws):
     assert message.name == "E-posta 2026-02-02 teb.com.tr.eml"
     assert (message.status, message.reason, message.sha256) == (
         DocumentStatus.UNPROCESSED,
-        MESSAGE_REASON,
+        ATTACHED,  # read through the statement it carries
         outcome.sha256,
     )
     assert (statement.name, statement.status, statement.parent) == (

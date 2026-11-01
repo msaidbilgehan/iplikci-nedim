@@ -13,6 +13,7 @@ from functools import cache
 from importlib.metadata import entry_points
 
 from ..domain.codes import DocumentKind
+from . import messages
 from .contract import Parser
 from .garanti import account_xls as garanti_account_xls
 from .garanti import bonus_card as garanti_bonus_card
@@ -101,8 +102,12 @@ def version_of(reader: Parser) -> str:
 
 def signature() -> str:
     """The version a reading no reader took keeps: it changes whenever a reader comes, goes or changes its version,
-    or the selection changes."""
-    parts = [f"selection={SELECTION}", *sorted(f"{r.id}={r.version}" for r in readers())]
+    the selection changes, or the rules that say what an e-mail no reader took is (messages.py)."""
+    parts = [
+        f"selection={SELECTION}",
+        f"messages={messages.VERSION}",
+        *sorted(f"{r.id}={r.version}" for r in readers()),
+    ]
     return hashlib.sha256("\n".join(parts).encode()).hexdigest()[:16]
 
 

@@ -9,6 +9,7 @@ import type {
   DocumentPageOut,
   EventOut,
   LabelsOut,
+  MailCoverageOut,
   PairingOut,
   PlanOut,
   QueuedOut,
@@ -29,3 +30,4 @@ export type Applied = AppliedOut;
 export type LoggedEvent = EventOut;
 export type Queued = QueuedOut;
 export type RefusedMail = RefusedMailOut;
+export type MailCoverage = MailCoverageOut;

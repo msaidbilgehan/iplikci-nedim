@@ -38,6 +38,16 @@ export function systemStatus(overrides: Partial<SystemStatus> = {}): SystemStatu
       start_day: "2024-01-01",
       history_due: false,
       refused: [],
+      coverage: {
+        total: 200,
+        read: 30,
+        attached: 40,
+        no_money: 100,
+        business: 12,
+        unknown: 18,
+        share: 0.91,
+        left: [{ domain: "banka.example", template: "Haftalık bildiriminiz", count: 18 }],
+      },
     },
     backup: {
       last: "2026-11-01T00:30:00+00:00",

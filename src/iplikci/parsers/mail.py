@@ -7,6 +7,7 @@ unknown character set gives less text, never an error.
 """
 
 import email
+import os
 import warnings
 from dataclasses import dataclass
 from datetime import datetime
@@ -14,7 +15,10 @@ from email.message import Message
 
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
 
-from ..ingest.archives import decode_header_text, sender_domain, sent_at
+from ..ingest.archives import DOCUMENT_EXTENSIONS, decode_header_text, sender_domain, sent_at
+
+# The attachments the intake keeps as documents of their own (app.intake): documents, zips and attached messages.
+_DOCUMENTS = frozenset({*DOCUMENT_EXTENSIONS, ".zip", ".eml"})
 
 # Characters that take no room yet split a word for a pattern: zero-width spaces and joiners, the byte-order mark and
 # the soft hyphen, which some e-mail templates put inside words.
@@ -27,7 +31,7 @@ class Mail:
     subject: str
     sent: datetime | None  # the Date header, in the sender's time zone
     text: str  # the body's visible text, its whitespace collapsed: the HTML part's when there is one
-    attached: bool  # the message carries files of its own, read as documents of their own
+    attached: bool  # the message carries documents of its own (a PDF, a sheet, a zip), kept and read on their own
 
 
 def read_mail(data: bytes) -> Mail:
@@ -37,8 +41,20 @@ def read_mail(data: bytes) -> Mail:
         subject=collapse(decode_header_text(msg["Subject"])),
         sent=sent_at(msg),
         text=_body(msg),
-        attached=any(part.get_filename() for part in msg.walk() if not part.is_multipart()),
+        attached=_carries_documents(msg),
     )
+
+
+def _carries_documents(msg: Message) -> bool:
+    """Whether an attachment is one the intake keeps as a document of its own: a logo or a signature image is not,
+    nor a file whose contents Gmail's "Show original" left out (ADR-0016)."""
+    for part in msg.walk():
+        name = part.get_filename()
+        if not name or part.is_multipart() or os.path.splitext(decode_header_text(name))[1].lower() not in _DOCUMENTS:
+            continue
+        if part.get_payload(decode=True):
+            return True
+    return False
 
 
 def collapse(text: str) -> str:

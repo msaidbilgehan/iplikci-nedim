@@ -228,6 +228,29 @@ yapılan ödemedir.
 - Dekont anahtarı `FİŞ NO`'dur.
 - Bazı gelen transfer bildirimlerinde tutar satırı hiç yoktur; bunlar "dekontta tutar yazmıyor" nedeniyle atlanır.
 
+## Okuyucusu olmayan e-postalar
+
+Bankalar para hareketi bildirimlerinden çok daha fazlasını gönderir. Gövdesini hiçbir okuyucunun okumadığı bir ileti,
+gönderenin alan adına ve konusuna göre adlandırılır (`parsers/messages.py`). Kurallar kutunun envanterinden çıkarıldı
+(`iplikci dev eposta-envanteri`).
+
+- Belge taşıyan ileti (PDF, tablo, zip) ekleriyle okunur. Logo ve imza resmi belge sayılmaz. "Orijinali göster"in
+  içeriğini boş bıraktığı ek de sayılmaz.
+- `kampanya.` alt alan adından gelen her ileti, bankanın kendi "Kampanya:" ya da "Tanıtım:" etiketini taşıyan konu da
+  kampanyadır.
+- Konu şifre, cihaz, e-posta doğrulama, adres ya da tercih anıyorsa güvenlik ve hesap ayarı bildirimidir. Kart teslimi,
+  başvuru ya da limit artışı anıyorsa kart bildirimidir. Ücret, oran ya da koşul değişikliği anıyorsa duyurudur.
+- Konuda para hareketi ya da borç geçiyorsa ileti tanınmamış kalır: ekstre, hesap özeti, dekont, transfer, para
+  çıkışı, tahsilat, prim, SGK, borç, fatura, vade tarihi, dönem ücreti, bakiye, maaş, havale, EFT, FAST. Henüz
+  okuyucusu olmayan bir bildirim olabilir; okuyucusu yazılana dek gözden kaybolmaz.
+- `bilgi.` alt alan adından gelen ileti duyurudur. Kampanya kelimeleri (fırsat, davet, bonus, indirim, taksit…) ve duyuru
+  kelimeleri (tatil, işlem saatleri, halka arz, ücret, tarife…) en son denenir.
+- Hiçbir şey söylemeyen bir konu ("BİLGİLENDİRME") için gövdenin ilk cümlesine bakılır. Bir ücret değişikliği
+  duyuruyorsa ileti duyurudur.
+- Kampanya, duyuru, güvenlik ve kart bildirimleri "para hareketi yok" diye bilerek sınıflanır. F01'in kapsam ölçütü
+  bunları sayar. Kurallar değişince okuyucusu olmayan iletiler yeniden sınıflanır (`messages.VERSION`).
+- İmza sirküleri ve genel kurul, şirketin belgeleridir: konusunda bunları anan ileti şirket belgesi sayılır.
+
 ## V1'de eklenecek bilgiler
 
 E-posta gövdesi okuyucuları (banka bildirimleri) ve banka dışı göndericiler yazıldıkça biçimleri ve tuzakları burada,

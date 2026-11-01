@@ -17,6 +17,13 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 - `vakifbank.notice.transfer`: Vakıfbank'ın FAST ve para çıkışı bildirimleri okunur (K21). FAST bildiriminin yazdığı
   işlem sonrası bakiye satırla birlikte saklanır (göç 0012).
 - Maskeli bir ad ("Ör**** Ku******"), kullanıcının adlarından biriyle kelime kelime uyuşuyorsa kullanıcının sayılır.
+- Okuyucusu olmayan banka iletileri gönderene ve konuya göre adlandırılır:
+  - kampanya, duyuru, güvenlik ve kart bildirimleri "para hareketi yok" diye sınıflanır;
+  - belge taşıyan ileti ekleriyle okunur;
+  - konusu para hareketi anan ileti, okuyucusu yazılana dek tanınmamış kalır.
+- F01'in kapsam ölçütü: banka iletilerinin ne kadarının işlendiği ya da bilerek sınıflandığı Sistem ekranında ve
+  `iplikci servis durum`'da görünür; tanınmayan ileti türleri listelenir.
+- İmza sirküleri ve genel kurul iletileri şirket belgesi sayılır.
 
 ### Düzeltilenler
 

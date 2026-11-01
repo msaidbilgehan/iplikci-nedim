@@ -2,9 +2,11 @@
 
 from email.message import EmailMessage
 
-from iplikci.app import mail
-from iplikci.app.inventory import mail_inventory, subject_template, write_csv
-from iplikci.parsers.common import MESSAGE_REASON
+from iplikci.app import mail, reading
+from iplikci.app.inventory import mail_coverage, mail_inventory, subject_template, write_csv
+from iplikci.fakes import vakifbank
+from iplikci.parsers.common import MESSAGE_REASON, set_business_names
+from iplikci.settings.config import BANK_SENDERS
 
 from conftest import ADDRESS, FEBRUARY, bank_mail
 
@@ -52,3 +54,23 @@ def test_the_kept_e_mails_are_counted_by_sender_and_template(ws, tmp_path):
     lines = target.read_text(encoding="utf-8").splitlines()
     assert lines[0] == "Gönderen,Konu kalıbı,İleti,İlk,Son,Ekli,Ne oldu"
     assert lines[1].startswith("banka.example,<ay> # Hisse Senedi Ekstreniz,2,2026-02-02,2026-03-02,0,")
+
+
+def test_the_coverage_counts_the_bank_messages_read_or_knowingly_classified(ws):
+    taken = [
+        mail.take(ws, vakifbank.fast_in(), BANK_SENDERS),  # a notice its reader reads
+        mail.take(ws, bank_mail(FEBRUARY), BANK_SENDERS),  # read through the statement it carries
+        mail.take(ws, notice("Size özel %5 bonus!", "firsat@kampanya.garantibbva.com.tr"), BANK_SENDERS),
+        mail.take(ws, notice("Haftası Ödeme Bilgileriniz", "bilgi@ileti.isbank.com.tr"), BANK_SENDERS),
+        mail.take(ws, notice("ÖRNEK TEKNOLOJİ hesap bilgileri", "bilgi@isbank.com.tr"), BANK_SENDERS),
+    ]
+    assert all(t.taken is mail.Taken.STORED for t in taken)
+    set_business_names(["Örnek Teknoloji A.Ş."])  # the last one turns out to be the company's
+    with ws.db() as db:
+        reading.read_pending(ws, db)
+        found = mail_coverage(db, BANK_SENDERS)
+    assert (found.read, found.attached, found.no_money, found.business, found.unknown) == (1, 1, 1, 1, 1)
+    assert (found.total, found.share) == (5, 0.8)
+    assert found.left == {("ileti.isbank.com.tr", "Haftası Ödeme Bilgileriniz"): 1}
+    with ws.db() as db:
+        assert mail_coverage(db, ("teb.com.tr",)).total == 1  # only the bank senders' messages count

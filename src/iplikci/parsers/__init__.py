@@ -10,8 +10,9 @@ from pdfminer.pdfdocument import PDFEncryptionError
 
 from ..domain.models import ParseResult
 from ..ingest.archives import UnreadableArchive, from_zip
-from .common import BUSINESS_REASON, MESSAGE_REASON, Skipped, Unreadable, caused_by, is_business, not_a_statement
+from .common import BUSINESS_REASON, Skipped, Unreadable, caused_by, is_business, not_a_statement
 from .contract import THRESHOLD, Document, Format, Parser, Probe, SourceDocument
+from .messages import message_reason
 from .pdf import ocr_available, page_text
 from .registry import readers
 from .teb.account_html import holder_info
@@ -94,7 +95,7 @@ def _read_mail(source: SourceDocument) -> ParseResult:
         raise Skipped(BUSINESS_REASON, business=True)
     reader = choose(mail_probe(source))
     if reader is None:
-        raise Skipped(MESSAGE_REASON)
+        raise Skipped(message_reason(source.mail))
     return _parse(reader, source)
 
 

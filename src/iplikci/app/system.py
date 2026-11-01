@@ -17,9 +17,12 @@ from ..storage.db import Database
 from . import bridge
 from .backup import Health as BackupHealth
 from .backup import health as backup_health
+from .inventory import mail_coverage
 from .mail import BRIDGE, default_start, refusal_label
 from .reading import FORMAT_ALARM
 from .workspace import Workspace
+
+_LEFT = 10  # kinds of unknown message the System screen lists
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,6 +70,27 @@ class RefusedMail:
 
 
 @dataclass(frozen=True, slots=True)
+class UnknownMail:
+    domain: str
+    template: str  # the subject with numbers and month names masked (app.inventory.subject_template)
+    count: int
+
+
+@dataclass(frozen=True, slots=True)
+class MailCoverage:
+    """F01's measure (app.inventory.Coverage): the kept bank messages read or knowingly classified."""
+
+    total: int
+    read: int  # a reader read the body
+    attached: int  # read through the documents it carries
+    no_money: int  # a campaign, an announcement, a security or a card notice
+    business: int  # a company's: gone to the Trash
+    unknown: int
+    share: float  # of the total, what is not unknown; 1.0 when there is nothing yet
+    left: list[UnknownMail]  # the unknown ones by kind, most first; at most _LEFT of them
+
+
+@dataclass(frozen=True, slots=True)
 class MailHealth:
     connector: str  # imap or browser_bridge (ADR-0016)
     configured: bool  # an account set up, or an extension paired
@@ -76,6 +100,7 @@ class MailHealth:
     start_day: str  # where the history begins
     history_due: bool  # the extension has not scanned Gmail for this start day and these senders (ADR-0016)
     refused: list[RefusedMail]  # messages the extension delivered that were not kept, by why; most first
+    coverage: MailCoverage
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,7 +156,18 @@ def mail_health(ws: Workspace, db: Database) -> MailHealth:
         configured = bool(settings.mail.address)
         due = False  # the service reads the mailbox from the start day by itself
     start = (settings.mail.start_day or default_start()).isoformat()
-    return MailHealth(connector, configured, state.last_run, state.last_error, state.stopped, start, due, refused)
+    covered = coverage(db, settings.mail.bank_senders)
+    return MailHealth(
+        connector, configured, state.last_run, state.last_error, state.stopped, start, due, refused, covered
+    )
+
+
+def coverage(db: Database, bank_senders: tuple[str, ...]) -> MailCoverage:
+    found = mail_coverage(db, bank_senders)
+    left = [UnknownMail(domain, template, n) for (domain, template), n in found.left.most_common(_LEFT)]
+    return MailCoverage(
+        found.total, found.read, found.attached, found.no_money, found.business, found.unknown, found.share, left
+    )
 
 
 def reader_health(db: Database) -> list[ReaderHealth]:
