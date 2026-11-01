@@ -36,6 +36,23 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
   gizli istemle sorulur, argüman olarak hiç alınmaz.
 - MCP aracı `alerts`: kuralları listeler, ekler, kapatır ya da yeniden açar.
 - Birincil veri dökümünün 3. sürümü bildirimleri de taşır; 2. sürüm dökümler yine okunur.
+- Akışın yeni olayları (mimari §13; eşikler `docs/domain/interpretation.md`'nin "Akış olayları" bölümünde):
+  - Yaklaşan ödeme, 7, 3, 1 ve 0 gün kala. Yalnızca kullanıcının ilgilenmesi gerekenler sayılır: kart son ödemesi,
+    banka dışı fatura, kredi taksidi ve bir hesaptan yapılan düzenli ya da dönemsel ödeme.
+  - Öngörüde eksiye düşen hesap: hesap yeni eksiye düşünce ya da gün öne gelince.
+  - Gelmeyen ödeme ve gecikmiş gelir: hesabın belgeleri beklenen günü ve payını ödemesiz geçince; iptal edilen seri
+    beklenmez.
+  - Abonelik zammı ve iptalden sonra ödeme.
+  - Gelen gelir ve büyük harcama: yalnızca son yedi günün satırları; geçmişi getiren bir ekstre bildirim yağdırmaz.
+  - Ekstrede görünmeyen dekont.
+  - Her olay bir kez söylenir. Bu olayları tanımayan eski anlık görüntüden sonraki ilk analiz onları yalnızca not
+    eder.
+- `iplikci servis durum` bildirim kanallarını ve bildirimlerin nasıl gittiğini de yazar.
+
+### Değişenler
+
+- Büyük alışveriş eşiği, iptalden sonraki ödemeler ve en yakın kur birer yardımcıda toplandı. Bulgular, akış ve
+  defter aynı kuralı kullanır.
 
 ## [0.5.0] — 2026-11-02 — Aşama 4: E-postanın tamamı
 
