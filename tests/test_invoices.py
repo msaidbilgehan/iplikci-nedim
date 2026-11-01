@@ -176,6 +176,46 @@ def test_bills_and_receipts_change_no_total_matched_or_not(cat):
     assert (paid.description, paid.invoice) == ("ORNEKCELL FATURA ODEME", "sha1:0")
 
 
+SELLER_RULES = """\
+Sağlık:
+  Eczane:
+    _: [ECZANE]
+Birikim & Yatırım:
+  Bireysel Emeklilik (BES):
+    _tür: yatırım
+    _: [EMEKLILIK]
+"""
+
+
+def test_a_matched_receipt_names_the_category_of_a_row_no_rule_named_and_counts_it_as_before(tmp_path):
+    rules = tmp_path / "kategoriler.yaml"
+    rules.write_text(SELLER_RULES, encoding="utf-8")
+    cat = Categorizer(rules)
+
+    def card() -> ParseResult:
+        rows = [row(date(2026, 10, 10), "IYZICO *ORNEKSIFA", "245.50"), row(date(2026, 10, 12), "ORNEKHAYAT", "500")]
+        s = Statement(CARD.id, date(2026, 11, 5), "TRY", "ekstre.pdf", Decimal(0), Decimal("745.50"), rows)
+        return ParseResult("ekstre", accounts=[CARD], statements=[s])
+
+    mailed = ParseResult(
+        "invoice.ubl_tr",
+        invoices=[
+            receipt("245.50", date(2026, 10, 10), "ÖRNEKŞİFA ECZANESİ"),
+            receipt("500", date(2026, 10, 12), "ÖRNEKHAYAT EMEKLİLİK A.Ş."),  # its rule would count the row otherwise
+        ],
+    )
+
+    def rows(ds) -> dict[str, tuple]:
+        return {t.description: (t.category, t.group, t.kind, t.amount) for t in ds.transactions}
+
+    both = analyse(cat, card(), mailed)
+    assert [i.status for i in both.invoices] == [InvoiceStatus.MATCHED] * 2
+    before, after = rows(analyse(cat, card())), rows(both)
+    assert before["IYZICO *ORNEKSIFA"] == ("Diğer Harcamalar", "Diğer", TransactionKind.PURCHASE, Decimal("245.50"))
+    assert after["IYZICO *ORNEKSIFA"] == ("Eczane", "Sağlık", TransactionKind.PURCHASE, Decimal("245.50"))
+    assert after["ORNEKHAYAT"] == before["ORNEKHAYAT"]
+
+
 # --- Turkish e-invoices (UBL-TR XML) ---------------------------------------------------------------------------
 
 UBL = "invoice.ubl_tr"

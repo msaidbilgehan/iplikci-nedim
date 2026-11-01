@@ -330,6 +330,19 @@ class Categorizer:
         txn.group = self.categories.get(txn.category, OTHER_GROUP)
         txn.necessity = self.necessity_for(txn)
 
+    def name_by(self, txn: Transaction, name: str) -> None:
+        """Give a row no rule named the category the rules give another name of its merchant: the seller a bill or a
+        receipt names in full ("ÖRNEK ECZANESİ") where the bank prints a few characters ("IYZICO *ORNEK"). Only a
+        category that counts the row as it is counted is taken; the row's kind, and so every total, stays."""
+        if txn.category != UNCATEGORIZED:
+            return
+        rule = self.match(name)
+        if rule is None or self.kind_for(rule.category, txn.amount) != txn.kind:
+            return
+        txn.category, txn.merchant = rule.category, rule.merchant or txn.merchant
+        txn.group = self.categories.get(txn.category, OTHER_GROUP)
+        txn.necessity = self.necessity_for(txn)
+
     def necessity_for(self, txn: Transaction) -> Necessity | None:
         """The necessity level the rules give a categorized row (None for rows that are no spending)."""
         if txn.kind == TransactionKind.INTEREST_FEE:

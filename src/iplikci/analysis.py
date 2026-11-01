@@ -637,8 +637,12 @@ def build(
     for t in txns:
         categorizer.apply(t, accounts.get(t.account))
     txns.sort(key=lambda t: (t.date, t.account, t.description))
-    # Bills and receipts of non-bank senders only mark the rows that paid them; they add no row (F14).
+    # Bills and receipts of non-bank senders only mark the rows that paid them, and may name what such a row bought;
+    # they add no row (F14).
     invoices = match_invoices(one_copy(bills), txns, settled_until(days))
+    for found in invoices:
+        if found.row is not None:
+            categorizer.name_by(found.row, found.invoice.seller)
     return Dataset(
         accounts=accounts,
         statements=stmts,
