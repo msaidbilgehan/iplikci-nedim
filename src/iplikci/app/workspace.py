@@ -64,7 +64,7 @@ else:
 def file_lock(folder: Path, name: str = _LOCK_NAME, timeout: float = 120.0, busy: str = BUSY) -> Generator[None]:
     """One holder at a time across processes; another name is another lock (the e-mail fetch has its own)."""
     folder.mkdir(parents=True, exist_ok=True)
-    with open(folder / name, "a+") as f:
+    with os.fdopen(os.open(folder / name, os.O_RDWR | os.O_CREAT, 0o600), "r+") as f:
         deadline = time.monotonic() + timeout
         while not _try_lock(f):
             if time.monotonic() > deadline:
@@ -80,6 +80,10 @@ def file_lock(folder: Path, name: str = _LOCK_NAME, timeout: float = 120.0, busy
 class Workspace:
     layout: Layout
     settings: config.Settings
+    # A database somewhere else and a vault only read: the rebuild check makes the database again beside the real
+    # one and must never change the vault.
+    database: Path | None = None
+    read_only: bool = False
 
     @classmethod
     def load(cls, home: Path | None = None) -> "Workspace":
@@ -129,6 +133,8 @@ class Workspace:
         return Vault(self.layout)
 
     def connect(self) -> db.Database:
+        if self.database is not None:
+            return db.connect(self.database, self.database.parent)
         return db.connect(self.layout.database, self.layout.backups)
 
     @contextmanager

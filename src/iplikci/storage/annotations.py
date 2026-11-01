@@ -143,6 +143,26 @@ def change(
     return get(db, fingerprint)
 
 
+def restore(db: Database, annotation: Annotation) -> None:
+    """An annotation as a dump of the primary data recorded it, with its own times."""
+    with db.transaction():
+        db.execute(
+            "INSERT INTO annotations (fingerprint, note, tags, category, necessity, subject, created_at, updated_at, "
+            "actor) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                annotation.fingerprint,
+                annotation.note,
+                json.dumps(list(annotation.tags), ensure_ascii=False),
+                annotation.category,
+                annotation.necessity or "",
+                json.dumps(asdict(annotation.subject), ensure_ascii=False, sort_keys=True),
+                annotation.created_at,
+                annotation.updated_at,
+                annotation.actor,
+            ),
+        )
+
+
 def remove(db: Database, fingerprint: str, actor: Actor) -> bool:
     """Forget an annotation altogether (an orphan the user let go); False if there was none."""
     with db.transaction():

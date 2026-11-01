@@ -12,6 +12,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 from .analysis import RECEIPT_STATUS, Dataset
 from .insights import month_name, month_of, shift
@@ -32,7 +33,7 @@ DOCUMENT_STATUS = {
 _MONTHS = 12  # the expense total covers the month of the day and the eleven before it
 
 
-def take(ds: Dataset, stats: dict, months: list[MonthEnd], day: date) -> dict:
+def take(ds: Dataset, stats: dict[str, int], months: list[MonthEnd], day: date) -> dict[str, Any]:
     """The baseline of an analysis whose months were closed as on day."""
     cards = [s for s in ds.statements if not s.is_account]
     lists = [s for s in ds.statements if s.is_account]
@@ -86,7 +87,7 @@ class Change:
     regression: bool = False
 
 
-def compare(before: dict, after: dict) -> list[Change]:
+def compare(before: dict[str, Any], after: dict[str, Any]) -> list[Change]:
     """What moved between two baselines of the same workspace, regressions marked."""
     changes: list[Change] = []
 
@@ -125,7 +126,7 @@ def _status(code: str) -> str:
     return MONTH_STATUS.get(code, code)
 
 
-def describe(baseline: dict) -> list[str]:
+def describe(baseline: dict[str, Any]) -> list[str]:
     """The baseline in a few lines of Turkish, for the terminal."""
     docs, statements = baseline["documents"], baseline["statements"]
     by_status = " · ".join(f"{DOCUMENT_STATUS.get(k, k)} {v}" for k, v in docs["by_status"].items())
@@ -149,7 +150,7 @@ def describe(baseline: dict) -> list[str]:
     return lines
 
 
-def load(path: Path) -> dict | None:
+def load(path: Path) -> dict[str, Any] | None:
     """The saved baseline, or None when there is none yet (or it was written by another version)."""
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -158,12 +159,12 @@ def load(path: Path) -> dict | None:
     return data if isinstance(data, dict) and data.get("version") == VERSION else None
 
 
-def save(path: Path, baseline: dict) -> None:
+def save(path: Path, baseline: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
     tmp.write_text(dumps(baseline), encoding="utf-8")
     tmp.replace(path)
 
 
-def dumps(baseline: dict) -> str:
+def dumps(baseline: dict[str, Any]) -> str:
     return json.dumps(baseline, ensure_ascii=False, indent=2) + "\n"

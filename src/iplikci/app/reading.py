@@ -114,10 +114,11 @@ def read_pending(ws: Workspace, db: Database, progress: Progress | None = None, 
 
 
 def _remove_business(ws: Workspace, db: Database, doc: documents.DocumentRow, reason: str) -> None:
-    """A kept document that turned out to be a company's (ADR-0003): to the Trash, its rows gone, recorded."""
-    where = ws.vault.remove(doc.sha256)
+    """A kept document that turned out to be a company's (ADR-0003): to the Trash, its rows gone, recorded. A
+    read-only workspace (the rebuild check) only marks it."""
+    where = None if ws.read_only else ws.vault.remove(doc.sha256)
     with db.transaction():
         readings.clear(db, doc.sha256)
         documents.set_status(db, doc.sha256, DocumentStatus.REMOVED, reason)
         audit.record(db, Actor.SYSTEM, "document.business", doc.sha256, stage="reread")
-        audit.record(db, Actor.SYSTEM, "document.removed", doc.sha256, trash=where.parent.name)
+        audit.record(db, Actor.SYSTEM, "document.removed", doc.sha256, trash=where.parent.name if where else "")

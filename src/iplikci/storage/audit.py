@@ -26,6 +26,21 @@ def record(db: Database, actor: Actor, action: str, target: str = "", **detail: 
         )
 
 
+def restore(db: Database, entry: Entry) -> None:
+    """An entry as a dump of the primary data recorded it, with its own time."""
+    with db.transaction():
+        db.execute(
+            "INSERT INTO audit_log (at, actor, action, target, detail) VALUES (?, ?, ?, ?, ?)",
+            (
+                entry.at,
+                entry.actor,
+                entry.action,
+                entry.target,
+                json.dumps(entry.detail, ensure_ascii=False, sort_keys=True),
+            ),
+        )
+
+
 def entries(db: Database, action: str | None = None) -> list[Entry]:
     rows = (
         db.rows("SELECT * FROM audit_log ORDER BY id")

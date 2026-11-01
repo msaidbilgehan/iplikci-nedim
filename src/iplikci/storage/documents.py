@@ -110,6 +110,25 @@ def add(db: Database, sha256: str, name: str, size: int, parent: str = "") -> bo
     return bool(cursor.rowcount)
 
 
+def restore(db: Database, doc: DocumentRow) -> None:
+    """A document as a dump of the primary data recorded it, not read yet; a removed one stays removed."""
+    removed = doc.status is DocumentStatus.REMOVED
+    with db.transaction():
+        db.execute(
+            "INSERT INTO documents (sha256, name, size, status, reason, parent, added_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                doc.sha256,
+                doc.name,
+                doc.size,
+                DocumentStatus.REMOVED if removed else DocumentStatus.UNPROCESSED,
+                doc.reason if removed else "",
+                doc.parent,
+                doc.added_at,
+            ),
+        )
+        _index(db, doc.sha256, doc.name)
+
+
 def get(db: Database, sha256: str) -> DocumentRow | None:
     row = db.one("SELECT * FROM documents WHERE sha256 = ?", (sha256,))
     return None if row is None else _row(row)

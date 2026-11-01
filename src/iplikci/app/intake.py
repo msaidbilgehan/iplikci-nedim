@@ -272,6 +272,8 @@ def plan_documents(ws: Workspace, incoming: Iterable[Incoming]) -> Plan:
 
 def apply(ws: Workspace, plan: Plan, actor: Actor = Actor.USER) -> Applied:
     """Carry out exactly the plan that was shown; refuse if one of its inbox files changed since."""
+    if ws.read_only:
+        raise PermissionError("bu çalışma alanı yalnızca okunur: belge alınamaz")
     for path, sha in plan.files.items():
         if not path.exists() or (sha and file_sha256(path) != sha):
             raise StalePlan(f"{path.name} plan hazırlandıktan sonra değişti; planı yeniden alın")
