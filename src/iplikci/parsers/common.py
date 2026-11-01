@@ -3,9 +3,11 @@
 import hashlib
 import re
 from collections.abc import Iterable
+from decimal import Decimal
 
 from ..domain.codes import TransactionKind
 from ..domain.models import TRY, Transaction
+from ..domain.money import CENT, round_half_up
 from ..textutil import fold, parse_us_amount, squash
 
 
@@ -140,7 +142,7 @@ def _has(patterns: tuple[str, ...], f: str, sq: str) -> bool:
     return any(p in f or (" " in p.strip() and p.replace(" ", "") in sq) for p in patterns)
 
 
-def classify_kind(description: str, amount: float) -> TransactionKind:
+def classify_kind(description: str, amount: Decimal) -> TransactionKind:
     """Decide the transaction kind from a statement line."""
     f = fold(description)
     sq = f.replace(" ", "")
@@ -166,7 +168,7 @@ def pair_deferrals(txns: list[Transaction]) -> None:
                 for t in txns
                 if t.kind == TransactionKind.CARD_PAYMENT
                 and t.date == deferred.date
-                and abs(t.amount + deferred.amount) < 0.01
+                and abs(t.amount + deferred.amount) < CENT
             ),
             None,
         )
@@ -186,9 +188,9 @@ def split_interest(txn: Transaction) -> list[Transaction]:
     m = _FZ.search(fold(txn.description))
     if not m or "NAKIT AVANS" not in fold(txn.description) or "UCRET" in fold(txn.description):
         return [txn]
-    interest = (parse_us_amount(m[1]) or 0) + (parse_us_amount(m[2]) or 0)
-    interest = round(min(interest, txn.amount), 2)
-    principal = round(txn.amount - interest, 2)
+    interest = (parse_us_amount(m[1]) or Decimal(0)) + (parse_us_amount(m[2]) or Decimal(0))
+    interest = round_half_up(min(interest, txn.amount))
+    principal = round_half_up(txn.amount - interest)
     out = []
     if principal:
         out.append(Transaction(**{**txn.__dict__, "amount": principal, "kind": TransactionKind.LOAN_PRINCIPAL}))

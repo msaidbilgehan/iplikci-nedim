@@ -2,6 +2,7 @@
 its row or flagged when it does not show them; balances and card debt move with the provisional ones."""
 
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
@@ -32,7 +33,7 @@ def cat(tmp_path_factory):
 def row(
     d: date,
     desc: str,
-    amount: float,
+    amount: Decimal,
     account: Account,
     kind: TransactionKind = TransactionKind.TRANSFER_CANDIDATE,
     who: str = "",
@@ -40,7 +41,9 @@ def row(
     return Transaction(d, desc, amount, kind, account.id, counterparty=who, source="belge")
 
 
-def listing(account: Account, start: date, end: date, *rows: Transaction, closing: float = 10000.0) -> ParseResult:
+def listing(
+    account: Account, start: date, end: date, *rows: Transaction, closing: Decimal = Decimal(10000)
+) -> ParseResult:
     """An account movement list that checks out, closing at the given balance."""
     opening = round(closing + sum(r.amount for r in rows), 2)
     s = Statement(
@@ -59,7 +62,7 @@ def listing(account: Account, start: date, end: date, *rows: Transaction, closin
     return ParseResult("liste", accounts=[account], statements=[s])
 
 
-def card_statement(cut: date, *rows: Transaction, total: float = 4000.0) -> ParseResult:
+def card_statement(cut: date, *rows: Transaction, total: Decimal = Decimal(4000)) -> ParseResult:
     previous = round(total - sum(r.amount for r in rows), 2)
     s = Statement(CARD.id, cut, "TRY", "ekstre.pdf", previous, total, list(rows))
     return ParseResult("ekstre", accounts=[CARD], statements=[s])
@@ -88,8 +91,8 @@ def test_a_receipt_after_the_newest_statement_counts_now_as_provisional(cat):
         receipt(
             "r1",
             CHECKING,
-            row(date(2026, 11, 3), "Giden FAST → VELİ ÖRNEKSOY", 15000.0, CHECKING, who="VELİ ÖRNEKSOY"),
-            row(date(2026, 11, 3), "FAST ücreti", 5.0, CHECKING, kind=TransactionKind.INTEREST_FEE),
+            row(date(2026, 11, 3), "Giden FAST → VELİ ÖRNEKSOY", Decimal(15000), CHECKING, who="VELİ ÖRNEKSOY"),
+            row(date(2026, 11, 3), "FAST ücreti", Decimal(5), CHECKING, kind=TransactionKind.INTEREST_FEE),
         ),
     )
     assert statuses(ds) == [("Giden FAST → VELİ ÖRNEKSOY", PROVISIONAL), ("FAST ücreti", PROVISIONAL)]
@@ -101,7 +104,7 @@ def test_a_receipt_after_the_newest_statement_counts_now_as_provisional(cat):
 
 def test_the_statements_row_takes_the_place_of_a_confirmed_receipt(cat):
     # The list books the evening transfer the next day, and splits the fee into the fee and its tax.
-    booked = row(date(2026, 11, 4), "FAST VELİ ÖRNEKSOY KIRA", 15000.0, CHECKING, who="VELİ ÖRNEKSOY")
+    booked = row(date(2026, 11, 4), "FAST VELİ ÖRNEKSOY KIRA", Decimal(15000), CHECKING, who="VELİ ÖRNEKSOY")
     ds = analyse(
         cat,
         listing(
@@ -109,14 +112,14 @@ def test_the_statements_row_takes_the_place_of_a_confirmed_receipt(cat):
             date(2026, 11, 1),
             date(2026, 11, 30),
             booked,
-            row(date(2026, 11, 4), "FAST ÜCRETİ", 4.76, CHECKING, kind=TransactionKind.INTEREST_FEE),
-            row(date(2026, 11, 4), "BSMV", 0.24, CHECKING, kind=TransactionKind.INTEREST_FEE),
+            row(date(2026, 11, 4), "FAST ÜCRETİ", Decimal("4.76"), CHECKING, kind=TransactionKind.INTEREST_FEE),
+            row(date(2026, 11, 4), "BSMV", Decimal("0.24"), CHECKING, kind=TransactionKind.INTEREST_FEE),
         ),
         receipt(
             "r1",
             CHECKING,
-            row(date(2026, 11, 3), "Giden FAST → VELİ ÖRNEKSOY", 15000.0, CHECKING),
-            row(date(2026, 11, 3), "FAST ücreti", 5.0, CHECKING, kind=TransactionKind.INTEREST_FEE),
+            row(date(2026, 11, 3), "Giden FAST → VELİ ÖRNEKSOY", Decimal(15000), CHECKING),
+            row(date(2026, 11, 3), "FAST ücreti", Decimal(5), CHECKING, kind=TransactionKind.INTEREST_FEE),
         ),
     )
     assert statuses(ds) == [("Giden FAST → VELİ ÖRNEKSOY", CONFIRMED), ("FAST ücreti", CONFIRMED)]
@@ -129,7 +132,7 @@ def test_a_receipt_the_statement_does_not_show_is_left_out_and_flagged(cat):
     ds = analyse(
         cat,
         listing(CHECKING, date(2026, 11, 1), date(2026, 11, 30)),
-        receipt("r1", CHECKING, row(date(2026, 11, 10), "Giden FAST → ALİ VELİ", 300.0, CHECKING)),
+        receipt("r1", CHECKING, row(date(2026, 11, 10), "Giden FAST → ALİ VELİ", Decimal(300), CHECKING)),
     )
     assert statuses(ds) == [("Giden FAST → ALİ VELİ", NOT_ON_STATEMENT)]
     assert ds.transactions == []
@@ -142,7 +145,7 @@ def test_a_receipt_on_the_lists_last_days_waits_for_the_next_one(cat):
     ds = analyse(
         cat,
         listing(CHECKING, date(2026, 11, 1), date(2026, 11, 30)),
-        receipt("r1", CHECKING, row(date(2026, 11, 30), "Giden FAST → ALİ VELİ", 300.0, CHECKING)),
+        receipt("r1", CHECKING, row(date(2026, 11, 30), "Giden FAST → ALİ VELİ", Decimal(300), CHECKING)),
     )
     assert statuses(ds) == [("Giden FAST → ALİ VELİ", PROVISIONAL)]
 
@@ -154,7 +157,7 @@ def test_a_receipt_from_before_the_accounts_documents_counts_as_it_is(cat):
         receipt(
             "r1",
             CHECKING,
-            row(date(2024, 1, 16), "Giden Havale → VELİ ÖRNEKSOY", 8400.0, CHECKING, who="VELİ ÖRNEKSOY"),
+            row(date(2024, 1, 16), "Giden Havale → VELİ ÖRNEKSOY", Decimal(8400), CHECKING, who="VELİ ÖRNEKSOY"),
         ),
     )
     assert statuses(ds) == [("Giden Havale → VELİ ÖRNEKSOY", NO_STATEMENT)]
@@ -165,12 +168,16 @@ def test_a_receipt_from_before_the_accounts_documents_counts_as_it_is(cat):
 def test_an_own_transfer_receipt_is_told_apart_by_the_senders_name(cat):
     ds = analyse(
         cat,
-        listing(OVERDRAFT, date(2026, 10, 1), date(2026, 10, 31), closing=-2000.0),
+        listing(OVERDRAFT, date(2026, 10, 1), date(2026, 10, 31), closing=Decimal(-2000)),
         receipt(
-            "r1", OVERDRAFT, row(date(2026, 11, 2), "Gelen transfer ← Garanti BBVA", -12750.0, OVERDRAFT, who=HOLDER)
+            "r1",
+            OVERDRAFT,
+            row(date(2026, 11, 2), "Gelen transfer ← Garanti BBVA", Decimal(-12750), OVERDRAFT, who=HOLDER),
         ),
         receipt(
-            "r2", OVERDRAFT, row(date(2026, 11, 5), "Gelen transfer ← TEB", -750.0, OVERDRAFT, who="AYŞE SOYADOĞLU")
+            "r2",
+            OVERDRAFT,
+            row(date(2026, 11, 5), "Gelen transfer ← TEB", Decimal(-750), OVERDRAFT, who="AYŞE SOYADOĞLU"),
         ),
     )
     assert [(t.kind, t.provisional) for t in ds.transactions] == [
@@ -183,7 +190,7 @@ def test_an_own_transfer_receipt_is_told_apart_by_the_senders_name(cat):
 
 
 def test_the_card_statement_confirms_a_card_payment_receipt(cat):
-    credit = row(date(2026, 10, 2), "ÖDEME - TEŞEKKÜRLER", -1500.0, CARD, kind=TransactionKind.CARD_PAYMENT)
+    credit = row(date(2026, 10, 2), "ÖDEME - TEŞEKKÜRLER", Decimal(-1500), CARD, kind=TransactionKind.CARD_PAYMENT)
     ds = analyse(
         cat,
         card_statement(date(2026, 10, 18), credit),
@@ -193,7 +200,7 @@ def test_the_card_statement_confirms_a_card_payment_receipt(cat):
             row(
                 date(2026, 10, 1),
                 "QNB Mastercard •4321 borç ödemesi",
-                1500.0,
+                Decimal(1500),
                 CARD,
                 kind=TransactionKind.CARD_PAYMENT_NO_STATEMENT,
             ),
@@ -206,14 +213,14 @@ def test_the_card_statement_confirms_a_card_payment_receipt(cat):
 def test_a_payment_after_the_cut_lowers_the_card_debt_until_the_next_statement(cat):
     ds = analyse(
         cat,
-        card_statement(date(2026, 10, 18), total=4000.0),
+        card_statement(date(2026, 10, 18), total=Decimal(4000)),
         receipt(
             "r1",
             CARD,
             row(
                 date(2026, 10, 25),
                 "QNB Mastercard •4321 borç ödemesi",
-                1500.0,
+                Decimal(1500),
                 CARD,
                 kind=TransactionKind.CARD_PAYMENT_NO_STATEMENT,
             ),
@@ -223,12 +230,16 @@ def test_a_payment_after_the_cut_lowers_the_card_debt_until_the_next_statement(c
     # The card's statements show its purchases: the payment is not spending on an unseen card.
     assert (payment.kind, payment.provisional) == (TransactionKind.CARD_PAYMENT, True)
     [card] = interpret(ds).holdings
-    assert card.amount == -2500.0 and "sonra ₺1.500 ödendi" in card.note
+    assert card.amount == Decimal(-2500) and "sonra ₺1.500 ödendi" in card.note
 
 
 def test_the_paying_accounts_list_confirms_a_card_payment_receipt(cat):
     paid = row(
-        date(2026, 10, 25), "123456******4321 NOLU KART ODEMESI", 1500.0, OVERDRAFT, kind=TransactionKind.CARD_PAYMENT
+        date(2026, 10, 25),
+        "123456******4321 NOLU KART ODEMESI",
+        Decimal(1500),
+        OVERDRAFT,
+        kind=TransactionKind.CARD_PAYMENT,
     )
     ds = analyse(
         cat,
@@ -240,7 +251,7 @@ def test_the_paying_accounts_list_confirms_a_card_payment_receipt(cat):
             row(
                 date(2026, 10, 25),
                 "QNB Mastercard •4321 borç ödemesi",
-                1500.0,
+                Decimal(1500),
                 CARD,
                 kind=TransactionKind.CARD_PAYMENT_NO_STATEMENT,
             ),
@@ -248,7 +259,7 @@ def test_the_paying_accounts_list_confirms_a_card_payment_receipt(cat):
     )
     assert statuses(ds) == [("QNB Mastercard •4321 borç ödemesi", CONFIRMED)]
     card = next(h for h in interpret(ds).holdings if h.kind == "kart")
-    assert card.amount == -2500.0  # counted once, from the list
+    assert card.amount == Decimal(-2500)  # counted once, from the list
 
 
 def test_a_payment_before_the_cards_statements_stays_a_payment_to_an_unseen_card(cat):
@@ -261,7 +272,7 @@ def test_a_payment_before_the_cards_statements_stays_a_payment_to_an_unseen_card
             row(
                 date(2024, 6, 7),
                 "QNB Mastercard •4321 borç ödemesi",
-                900.0,
+                Decimal(900),
                 CARD,
                 kind=TransactionKind.CARD_PAYMENT_NO_STATEMENT,
             ),
@@ -277,17 +288,17 @@ def test_a_payment_before_the_cards_statements_stays_a_payment_to_an_unseen_card
 def test_provisional_receipts_move_the_balance_their_list_closed_with(cat):
     ds = analyse(
         cat,
-        listing(CHECKING, date(2026, 10, 1), date(2026, 10, 31), closing=10000.0),
+        listing(CHECKING, date(2026, 10, 1), date(2026, 10, 31), closing=Decimal(10000)),
         receipt(
             "r1",
             CHECKING,
-            row(date(2026, 11, 3), "Giden FAST → ALİ VELİ", 2500.0, CHECKING),
-            row(date(2026, 11, 3), "FAST ücreti", 5.0, CHECKING, kind=TransactionKind.INTEREST_FEE),
+            row(date(2026, 11, 3), "Giden FAST → ALİ VELİ", Decimal(2500), CHECKING),
+            row(date(2026, 11, 3), "FAST ücreti", Decimal(5), CHECKING, kind=TransactionKind.INTEREST_FEE),
         ),
     )
     ins = interpret(ds)
     [cash] = ins.holdings
-    assert (cash.amount, cash.as_of) == (7495.0, date(2026, 11, 3))
+    assert (cash.amount, cash.as_of) == (Decimal(7495), date(2026, 11, 3))
     assert "31.10.2026 dökümünde ₺10.000; sonraki 2 dekontla −₺2.505 (geçici" in cash.note
     finding = next(f for f in ins.findings if f.title == "Ekstre gelmeden işlenen dekontlar")
     assert "2 işlem" in finding.text and "kişilere giden ₺2.500" in finding.text

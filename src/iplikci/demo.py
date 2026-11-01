@@ -9,6 +9,7 @@ statements join the demo once their readers get document builders with the parse
 
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 
 from .app import intake
@@ -136,14 +137,14 @@ class Move:
 
     day: date
     text: str
-    amount: float
+    amount: Decimal
 
 
-def running_rows(moves: list[Move], opening: float = 0.0) -> list[tuple[str, str, str, str]]:
+def running_rows(moves: list[Move], opening: Decimal = Decimal(0)) -> list[tuple[str, str, str, str]]:
     """teb_export rows for moves in date order, each with the balance after it, newest first."""
     rows, balance = [], opening
     for m in moves:
-        balance = round(balance + m.amount, 2)
+        balance += m.amount
         rows.append((f"{m.day:%d/%m/%Y}", m.text, format_tr_amount(m.amount), format_tr_amount(balance)))
     return rows[::-1]
 
@@ -271,7 +272,7 @@ _GARANTI_FOLDER = "Bankalar/Garanti BBVA/Vadesiz Hesap TL 1234567"
 _BROKERAGE_FOLDER = "Bankalar/Garanti BBVA/Yatırım Hesabı 1234567-101"
 _INBOX = "Gelen Belgeler"
 _SECOND_LIST_FROM = date(2026, 7, 5)
-_GAS = (1500.0, 1300.0, 900.0, 500.0, 250.0, 150.0, 120.0, 120.0, 200.0, 600.0)  # a bill moving with the seasons
+_GAS = [Decimal(n) for n in (1500, 1300, 900, 500, 250, 150, 120, 120, 200, 600)]  # a bill moving with the seasons
 
 
 def _teb_moves(month: int) -> list[Move]:
@@ -281,20 +282,20 @@ def _teb_moves(month: int) -> list[Move]:
         return date(2026, month, day)
 
     moves = [
-        Move(on(1), "ÖRNEK İŞVEREN A.Ş. den gelen havale", 40000.0),
-        Move(on(3), "VELİ ÖRNEKSOY KİRA ÖDEMESİ", -15000.0),
-        Move(on(3), "FAST Ücreti", -8.0),
+        Move(on(1), "ÖRNEK İŞVEREN A.Ş. den gelen havale", Decimal(40000)),
+        Move(on(3), "VELİ ÖRNEKSOY KİRA ÖDEMESİ", Decimal(-15000)),
+        Move(on(3), "FAST Ücreti", Decimal(-8)),
         Move(on(6), "İGDAŞ FATURA ÖDEMESİ", -_GAS[month - 1]),
-        Move(on(8), "TURKCELL FATURA ÖDEMESİ", -450.0),
-        Move(on(9), "SPOTIFY ISTANBUL TR", -99.99),
-        Move(on(12), "MIGROS ORNEK SUBE ISTANBUL", -2150.0),
-        Move(on(19), "ORNEK KAHVE", -180.0),
-        Move(on(22), "MIGROS ORNEK SUBE ISTANBUL", -1840.0),
+        Move(on(8), "TURKCELL FATURA ÖDEMESİ", Decimal(-450)),
+        Move(on(9), "SPOTIFY ISTANBUL TR", Decimal("-99.99")),
+        Move(on(12), "MIGROS ORNEK SUBE ISTANBUL", Decimal(-2150)),
+        Move(on(19), "ORNEK KAHVE", Decimal(-180)),
+        Move(on(22), "MIGROS ORNEK SUBE ISTANBUL", Decimal(-1840)),
     ]
     if month == 4:
-        moves.append(Move(on(25), "TEKNOSA ORNEK AVM", -8500.0))
+        moves.append(Move(on(25), "TEKNOSA ORNEK AVM", Decimal(-8500)))
     if month == 7:
-        moves.append(Move(on(14), "TURKISH AIRLINES ISTANBUL", -4200.0))
+        moves.append(Move(on(14), "TURKISH AIRLINES ISTANBUL", Decimal(-4200)))
     return sorted(moves, key=lambda m: m.day)
 
 
@@ -304,7 +305,7 @@ def _teb_lists() -> dict[str, bytes]:
     first = [m for month in range(1, 7) for m in _teb_moves(month)]
     later = [m for month in range(7, 11) for m in _teb_moves(month)]
     second = [m for m in later if m.day >= _SECOND_LIST_FROM]
-    opening = round(sum(m.amount for m in first + later if m.day < _SECOND_LIST_FROM), 2)
+    opening = sum((m.amount for m in first + later if m.day < _SECOND_LIST_FROM), Decimal(0))
     who = f"TEB Vadesiz TL {_TEB_NUMBER} Hesap Hareketleri.xls"
     return {
         f"{_TEB_FOLDER}/2026-01-01 - 2026-06-30 {who}": teb_export(
@@ -368,7 +369,7 @@ def _month_end(day: date) -> date:
 
 def _inbox(lists: dict[str, bytes]) -> dict[str, bytes]:
     """Waiting to be filed: a second copy of a list, a company's list and a form that is not a statement."""
-    company = running_rows([Move(date(2026, 10, 2), "ÖRNEK MÜŞTERİ den gelen havale", 25000.0)])
+    company = running_rows([Move(date(2026, 10, 2), "ÖRNEK MÜŞTERİ den gelen havale", Decimal(25000))])
     form = text_pdf([(201, 97, "SGK Otomatik Ödeme Talimat Formu"), (70, 146, "Türk Ekonomi Bankası A.Ş.")])
     return {
         f"{_INBOX}/HesapHareketleri.xls": next(iter(lists.values())),

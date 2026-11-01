@@ -4,6 +4,7 @@ import sqlite3
 import stat
 import sys
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
@@ -134,32 +135,32 @@ def sample() -> ParseResult:
     )
     teb = Account("teb-123456789", "TEB Vadesiz TL 123456789", "TEB", AccountType.CURRENT, "TRY", "123456789")
     rows = [
-        Transaction(date(2026, 9, 10), "MIGROS ORNEK SUBE ISTANBUL", 2150.0, TransactionKind.PURCHASE, card.id),
+        Transaction(date(2026, 9, 10), "MIGROS ORNEK SUBE ISTANBUL", Decimal(2150), TransactionKind.PURCHASE, card.id),
         Transaction(
-            date(2026, 9, 10), "MIGROS ORNEK SUBE ISTANBUL", 2150.0, TransactionKind.PURCHASE, card.id
+            date(2026, 9, 10), "MIGROS ORNEK SUBE ISTANBUL", Decimal(2150), TransactionKind.PURCHASE, card.id
         ),  # both real
         Transaction(
             date(2026, 9, 12),
             "ODEMENIZ ICIN TESEKKUR",
-            -4300.0,
+            Decimal(-4300),
             TransactionKind.CARD_PAYMENT,
             card.id,
             installment="1/3",
         ),
     ]
-    statement = Statement(card.id, date(2026, 10, 5), "TRY", "ekstre.pdf", 1000.0, 1000.0, rows)
+    statement = Statement(card.id, date(2026, 10, 5), "TRY", "ekstre.pdf", Decimal(1000), Decimal(1000), rows)
     listing = Statement(
         teb.id,
         date(2026, 10, 31),
         "TRY",
         "liste.xls",
-        0.0,
-        39.99,
+        Decimal(0),
+        Decimal("39.99"),
         [
             Transaction(
                 date(2026, 10, 1),
                 "ÖRNEK İŞVEREN A.Ş.",
-                -40000.0,
+                Decimal(-40000),
                 TransactionKind.TRANSFER_CANDIDATE,
                 teb.id,
                 counterparty="ÖRNEK İŞVEREN",
@@ -168,10 +169,12 @@ def sample() -> ParseResult:
         start=date(2026, 10, 1),
         checks_ok=1,
         checks_total=1,
-        balances={"2026-10": 39.99},
-        securities=[Security("ORNEK", "ÖRNEK SANAYİ A.Ş.", 20.0, 1342.0, date(2026, 10, 30))],
+        balances={"2026-10": Decimal("39.99")},
+        securities=[Security("ORNEK", "ÖRNEK SANAYİ A.Ş.", Decimal(20), Decimal(1342), date(2026, 10, 30))],
     )
-    receipt = [Transaction(date(2026, 9, 10), "AİDAT ÖDEMESİ", 1250.0, TransactionKind.TRANSFER_CANDIDATE, teb.id)]
+    receipt = [
+        Transaction(date(2026, 9, 10), "AİDAT ÖDEMESİ", Decimal(1250), TransactionKind.TRANSFER_CANDIDATE, teb.id)
+    ]
     return ParseResult("deneme", [card, teb], [statement, listing], receipt, "dekont-1", "ÖRNEK KULLANICI", "Aidat")
 
 

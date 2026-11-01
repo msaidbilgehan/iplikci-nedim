@@ -2,8 +2,10 @@
 
 from dataclasses import dataclass, field
 from datetime import date
+from decimal import Decimal
 
 from .codes import AccountType, Necessity, TransactionKind
+from .money import TOLERANCE, round_half_up
 
 # The lira as the models carry it (ADR-0006); labels.currency_label writes it as "TL".
 TRY = "TRY"
@@ -26,7 +28,7 @@ class Transaction:
 
     date: date
     description: str
-    amount: float
+    amount: Decimal  # in the account's (the statement's) currency until the ledger turns it into TRY
     kind: TransactionKind
     account: str
     original: str = ""  # foreign amount, e.g. "19,99 USD"
@@ -53,8 +55,8 @@ class Security:
 
     code: str  # exchange ticker, e.g. "ORNEK"
     name: str
-    quantity: float
-    value: float  # market value in TL on as_of
+    quantity: Decimal
+    value: Decimal  # market value in TRY on as_of
     as_of: date
 
 
@@ -66,8 +68,8 @@ class Statement:
     cut_date: date  # statement cut date, or the last day of an account movement list
     currency: str
     source: str
-    previous: float | None  # previous balance printed on the statement
-    total: float | None  # statement balance printed on the statement
+    previous: Decimal | None  # previous balance printed on the statement
+    total: Decimal | None  # statement balance printed on the statement
     transactions: list[Transaction] = field(default_factory=list[Transaction])
     # Debit-card statements only print the sum of purchases, not a balance.
     total_is_sum: bool = False
@@ -76,7 +78,7 @@ class Statement:
     start: date | None = None
     checks_ok: int = 0
     checks_total: int = 0
-    balances: dict[str, float] = field(default_factory=dict[str, float])  # "YYYY-MM" -> month-end balance
+    balances: dict[str, Decimal] = field(default_factory=dict[str, Decimal])  # "YYYY-MM" -> month-end balance
     # Investment accounts: the securities held at the end of the statement (previous / total are the cash).
     securities: list[Security] = field(default_factory=list[Security])
 
@@ -85,23 +87,25 @@ class Statement:
         return self.start is not None
 
     @property
-    def computed_total(self) -> float:
-        lines = round(sum(t.amount for t in self.transactions), 2)
-        return lines if self.total_is_sum else round((self.previous or 0) + lines, 2)
+    def computed_total(self) -> Decimal:
+        lines = round_half_up(sum((t.amount for t in self.transactions), Decimal(0)))
+        return lines if self.total_is_sum else round_half_up((self.previous or Decimal(0)) + lines)
 
     @property
-    def difference(self) -> float | None:
+    def difference(self) -> Decimal | None:
+        """A card statement: its lines against the total it prints. An account list: how many running-balance
+        checks failed."""
         if self.is_account:
-            return float(self.checks_total - self.checks_ok)
+            return Decimal(self.checks_total - self.checks_ok)
         if self.total is None:
             return None
-        return round(self.computed_total - self.total, 2)
+        return round_half_up(self.computed_total - self.total)
 
     @property
     def verified(self) -> bool:
         if self.is_account:
             return self.checks_total > 0 and self.checks_ok == self.checks_total
-        return self.difference is not None and abs(self.difference) < 0.015
+        return self.difference is not None and abs(self.difference) <= TOLERANCE
 
 
 @dataclass

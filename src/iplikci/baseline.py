@@ -11,6 +11,7 @@ from collections import Counter
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,7 @@ from .analysis import Dataset
 from .domain.codes import DEFAULT_EXPENSE_KINDS, MonthStatus
 from .domain.labels import ACCOUNT_TYPE
 from .domain.models import Statement
+from .domain.money import round_half_up
 from .insights import month_name, month_of, shift
 from .month_end import MonthEnd
 from .textutil import format_tr_amount
@@ -43,7 +45,7 @@ def take(ds: Dataset, stats: dict[str, int], months: list[MonthEnd], day: date) 
     """The baseline of an analysis whose months were closed as on day."""
     cards = [s for s in ds.statements if not s.is_account]
     lists = [s for s in ds.statements if s.is_account]
-    spent = dict.fromkeys((shift(month_of(day), -n) for n in range(_MONTHS - 1, -1, -1)), 0.0)
+    spent = dict.fromkeys((shift(month_of(day), -n) for n in range(_MONTHS - 1, -1, -1)), Decimal(0))
     for t in ds.transactions:
         month = month_of(t.date)
         if month in spent and t.kind in DEFAULT_EXPENSE_KINDS:
@@ -68,7 +70,10 @@ def take(ds: Dataset, stats: dict[str, int], months: list[MonthEnd], day: date) 
         },
         "receipt_rows": _counts(mvp_codes.RECEIPT[line.status] for line in ds.receipts),
         "months": {me.month: mvp_codes.MONTH[me.status] for me in months},
-        "expenses": {"total": _money(sum(spent.values())), "by_month": {m: _money(v) for m, v in spent.items()}},
+        "expenses": {
+            "total": _money(sum(spent.values(), Decimal(0))),
+            "by_month": {m: _money(v) for m, v in spent.items()},
+        },
     }
 
 
@@ -76,12 +81,12 @@ def _counts(values: Iterable[str]) -> dict[str, int]:
     return dict(sorted(Counter(values).items()))
 
 
-def _money(value: float) -> str:
-    return f"{round(value, 2) + 0.0:.2f}"  # + 0.0 turns -0.0 into 0.0
+def _money(value: Decimal) -> str:
+    return f"{round_half_up(value) + 0:.2f}"  # + 0 turns -0.00 into 0.00
 
 
 def _unverified(ds: Dataset, s: Statement) -> str:
-    detail = f"bakiye {s.checks_ok}/{s.checks_total}" if s.is_account else f"fark {_money(s.difference or 0.0)}"
+    detail = f"bakiye {s.checks_ok}/{s.checks_total}" if s.is_account else f"fark {_money(s.difference or Decimal(0))}"
     return f"{ds.accounts[s.account].label} {s.cut_date}: {detail} ({Path(s.source).name})"
 
 
@@ -150,7 +155,7 @@ def describe(baseline: dict[str, Any]) -> list[str]:
         ),
         f"  Dekont satırları: {rows or 'yok'}",
         f"  Aylar: {months or 'yok'}",
-        f"  Son 12 ay gider: {format_tr_amount(float(baseline['expenses']['total']))} TL",
+        f"  Son 12 ay gider: {format_tr_amount(Decimal(baseline['expenses']['total']))} TL",
     ]
     lines += [f"  ! doğrulanamadı: {line}" for line in statements["unverified"]]
     lines += [f"  ! okunamadı: {line}" for line in docs["unreadable"]]

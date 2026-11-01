@@ -5,6 +5,7 @@ receiver on the right. The holder's name opens the first line.
 """
 
 import re
+from decimal import Decimal
 
 from ..domain.codes import TransactionKind
 from ..domain.models import ParseResult, Transaction
@@ -43,7 +44,7 @@ def _fields(lines: list[Line]) -> dict[str, str]:
     return out
 
 
-def _amount(text: str) -> float | None:
+def _amount(text: str) -> Decimal | None:
     m = re.match(r"([\d.]+,\d{2})", text)
     return parse_tr_amount(m[1]) if m else None
 

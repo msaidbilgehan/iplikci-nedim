@@ -14,9 +14,11 @@ no statement of that emanet account covers.
 import calendar
 import re
 from datetime import date
+from decimal import Decimal
 
 from ..domain.codes import AccountType, TransactionKind
 from ..domain.models import TRY, Account, ParseResult, Security, Statement, Transaction
+from ..domain.money import TOLERANCE, round_half_up
 from ..pdfutil import Line, page_lines
 from ..textutil import fold, parse_dmy, parse_us_amount, squash
 from .common import BUSINESS_REASON, Skipped, is_business
@@ -42,24 +44,24 @@ def _account(number: str) -> Account:
     )
 
 
-def _us(text: str) -> float | None:
+def _us(text: str) -> Decimal | None:
     """'+123.40', '-0.12', '2,345.00', '20.000'."""
     value = parse_us_amount(text.lstrip("+-"))
     return -value if value is not None and text.startswith("-") else value
 
 
-def _tr3(text: str) -> float | None:
+def _tr3(text: str) -> Decimal | None:
     """Turkish format with up to three decimals, as the trade form prints it: '1.234,560', '12,000'."""
     m = re.fullmatch(r"(\d{1,3}(?:\.\d{3})*|\d+),(\d{1,3})", text.strip())
-    return round(int(m[1].replace(".", "")) + int(m[2]) / 10 ** len(m[2]), 3) if m else None
+    return Decimal(f"{m[1].replace('.', '')}.{m[2]}") if m else None
 
 
-def _count(quantity: float) -> str:
-    return f"{quantity:g}".replace(".", ",")
+def _count(quantity: Decimal | float) -> str:
+    return f"{float(quantity):g}".replace(".", ",")  # in a description only: "10 adet", "2,5 adet"
 
 
-def _price(value: float) -> str:
-    return f"{value:.2f}".replace(".", ",")
+def _price(value: Decimal | float) -> str:
+    return f"{float(value):.2f}".replace(".", ",")
 
 
 # --- monthly statement ----------------------------------------------------------------------------
@@ -74,7 +76,7 @@ def _page_kind(lines: list[Line]) -> str:
     return "durum"
 
 
-def _securities(lines: list[Line], as_of: date) -> tuple[list[Security], list[float]]:
+def _securities(lines: list[Line], as_of: date) -> tuple[list[Security], list[Decimal]]:
     """Securities rows ("HS ORNEK ÖRNEK SANAYİ ... 20.000 1,234.50 0.000") and the group totals printed
     under them ("Hisse toplamı : 20.000 1,234.50 0.000")."""
     held, totals = [], []
@@ -92,11 +94,11 @@ def _securities(lines: list[Line], as_of: date) -> tuple[list[Security], list[fl
             continue
         quantity = next((_us(w.text) for w in words if 300 <= w.x0 < 400 and _us(w.text) is not None), None)
         name = " ".join(w.text for w in words[2:] if w.x0 < 300)
-        held.append(Security(words[1].text, name, quantity or 0.0, value, as_of))
+        held.append(Security(words[1].text, name, quantity or Decimal(0), value, as_of))
     return held, totals
 
 
-def _portfolio_total(lines: list[Line]) -> float | None:
+def _portfolio_total(lines: list[Line]) -> Decimal | None:
     """'Portföy toplamı(TL ) :' — its value is printed lower, at the right edge, often inside a footer line."""
     label = next((i for i, line in enumerate(lines) if "TOPLAMI(TL" in line.folded.replace(" ", "")), None)
     for line in lines[label + 1 :] if label is not None else []:
@@ -181,17 +183,17 @@ def _statement(doc, pdf, first: list[Line]) -> ParseResult:
     # The first cash move is the carried-over balance ("Devir ... Cari TRY Bakiye Hareketleri").
     opening = cash
     if moves and "DEVIR" in fold(moves[0].description):
-        opening = round(moves[0].balance - moves[0].amount, 2)
+        opening = round_half_up(moves[0].balance - moves[0].amount)
         moves = moves[1:]
     ok, checks = check_balances(moves, oldest_first=True, opening=opening)
     # The parse is checked against what the statement prints: the closing cash, the securities total and
     # the portfolio total (securities plus cash).
-    worth = round(sum(s.value for s in held), 2)
+    worth = round_half_up(sum((s.value for s in held), Decimal(0)))
     portfolio = _portfolio_total(first)
-    expected = [(round(opening + sum(m.amount for m in moves), 2), cash)]
-    expected += [(worth, totals[-1] if len(totals) == 1 else round(sum(totals), 2))] if totals else []
-    expected += [(round(worth + cash, 2), portfolio)] if portfolio is not None else []
-    ok += sum(abs(a - b) < 0.015 for a, b in expected)
+    expected = [(round_half_up(opening + sum((m.amount for m in moves), Decimal(0))), cash)]
+    expected += [(worth, totals[-1] if len(totals) == 1 else round_half_up(sum(totals, Decimal(0))))] if totals else []
+    expected += [(round_half_up(worth + cash), portfolio)] if portfolio is not None else []
+    ok += sum(abs(a - b) <= TOLERANCE for a, b in expected)
     stmt = Statement(
         account=account.id,
         cut_date=end,
@@ -211,7 +213,7 @@ def _statement(doc, pdf, first: list[Line]) -> ParseResult:
             Transaction(
                 date=m.date,
                 description=desc,
-                amount=round(-m.amount, 2),
+                amount=-m.amount,
                 kind=kind,
                 account=account.id,
                 source=doc.name,
@@ -276,7 +278,7 @@ def _form(doc, lines: list[Line]) -> ParseResult:
             Transaction(
                 date=when,
                 description="Hisse senedi komisyon ve MKK ücretleri",
-                amount=round(fees, 2),
+                amount=round_half_up(fees),
                 kind=TransactionKind.INTEREST_FEE,
                 account=account.id,
                 source=doc.name,

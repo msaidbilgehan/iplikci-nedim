@@ -1,6 +1,7 @@
 """TEB: Bonus credit card statements (text or scanned) and card payment receipts."""
 
 import re
+from decimal import Decimal
 
 from ..domain.codes import AccountType, TransactionKind
 from ..domain.models import TRY, Account, ParseResult, Statement, Transaction
@@ -66,7 +67,7 @@ def _parse_statement(doc, pdf, first: str) -> ParseResult:
         cut_date=parse_dmy(cut[1]),
         currency=TRY,
         source=doc.name,
-        previous=0.0,
+        previous=Decimal(0),
         total=parse_tr_amount(total[1]) if total else None,
     )
     for page in pdf.pages:
@@ -83,7 +84,7 @@ def _parse_statement(doc, pdf, first: str) -> ParseResult:
     return ParseResult(parser=NAME, accounts=[account], statements=[stmt], holder=holder[1] if holder else "")
 
 
-def _add(stmt: Statement, account: Account, doc, date, desc: str, amount: float) -> None:
+def _add(stmt: Statement, account: Account, doc, date, desc: str, amount: Decimal) -> None:
     desc, installment, original = _split_description(desc)
     stmt.transactions.append(
         Transaction(
@@ -124,7 +125,7 @@ def detect_ocr(text: str) -> bool:
     return "KREDIKARTEKSTREOZETI" in squash(text)
 
 
-def _tl(text: str) -> float | None:
+def _tl(text: str) -> Decimal | None:
     m = re.search(r"-?TL\.?\s*[\d.]+,(?:\d{1,2}|-)", text.replace(" ", ""))
     return parse_tr_amount(m[0]) if m else None
 
@@ -140,11 +141,11 @@ def parse_ocr(doc, pages: list[list[Line]]) -> ParseResult:
         raise ValueError("OCR: kart numarası / hesap kesim tarihi okunamadı")
     account = _account(card[1])
     stmt = Statement(
-        account=account.id, cut_date=parse_dmy(cut[0]), currency=TRY, source=doc.name, previous=0.0, total=total
+        account=account.id, cut_date=parse_dmy(cut[0]), currency=TRY, source=doc.name, previous=Decimal(0), total=total
     )
     for line in lines:
         if "ÖNCEKİ DÖNEM" in line.text.upper():
-            stmt.previous = _tl(line.text) or 0.0
+            stmt.previous = _tl(line.text) or Decimal(0)
             continue
         date_i = next((i for i, w in enumerate(line.words) if re.fullmatch(r"\d{2}/\d{2}/\d{4}", w.text)), None)
         if date_i is None or date_i > 1:

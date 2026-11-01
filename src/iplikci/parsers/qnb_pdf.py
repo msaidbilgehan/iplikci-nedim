@@ -7,6 +7,7 @@ labels that matter for classification are repaired by pattern.
 """
 
 import re
+from decimal import Decimal
 
 from ..domain.codes import AccountType
 from ..domain.models import TRY, Account, ParseResult, Statement, Transaction
@@ -85,7 +86,7 @@ def parse_card(doc, pdf) -> ParseResult:
     return ParseResult(parser=NAME, accounts=[account], statements=[stmt], holder=holder[1] if holder else "")
 
 
-def _us(match) -> float | None:
+def _us(match) -> Decimal | None:
     if not match:
         return None
     value = parse_us_amount(match[1].lstrip("-"))
@@ -161,6 +162,6 @@ def parse_account(doc, pdf) -> ParseResult:
     return ParseResult(parser=NAME, accounts=[account], statements=[stmt], holder=iban[2].strip())
 
 
-def _us_signed(text: str) -> float:
+def _us_signed(text: str) -> Decimal:
     value = parse_us_amount(text.lstrip("-"))
     return -value if text.startswith("-") else value

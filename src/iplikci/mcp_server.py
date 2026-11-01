@@ -21,6 +21,7 @@ from collections import Counter, defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Any
 
 from . import __version__, automation, email_fetch, month_end, rulefile
@@ -31,10 +32,20 @@ from .app.uploads import inbox_files
 from .app.workspace import Busy, StalePlan, Workspace
 from .categorize import Categorizer
 from .domain.codes import Actor, Necessity, TransactionKind
+from .domain.money import round_half_up, to_decimal
 from .insights import HABIT_STATUS, STATUS, receipt_amount
 from .textutil import fold
 
 PROTOCOL_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
+ZERO = Decimal(0)
+
+
+def _plain(value: object) -> object:
+    """What JSON cannot hold, as the model reads it: an exact amount as a number, anything else (a date) as text."""
+    if isinstance(value, Decimal):
+        return float(value)
+    return str(value)
+
 
 INSTRUCTIONS = """\
 İplikçi Nedim: kullanıcının kişisel banka belgelerinden (kart ekstreleri, hesap hareketleri, dekontlar) gider,
@@ -163,7 +174,7 @@ class Server:
                 "content": [{"type": "text", "text": f"beklenmeyen hata: {type(exc).__name__}: {exc}"}],
                 "isError": True,
             }
-        text = json.dumps(value, ensure_ascii=False, default=str)
+        text = json.dumps(value, ensure_ascii=False, default=_plain)
         return {"content": [{"type": "text", "text": text}], "isError": False}
 
     def keep(self, plan: intake.Plan) -> None:
@@ -323,7 +334,7 @@ def _insights(s: Server, args: dict) -> dict:
         "lastComplete": ins.timeline.last_complete,
         "asOf": ins.timeline.as_of,
         "findings": [{"tone": f.tone, "title": f.title, "text": f.text} for f in ins.findings],
-        "steps": [{"title": st.title, "text": st.text, "monthly": round(st.monthly, 2)} for st in ins.steps],
+        "steps": [{"title": st.title, "text": st.text, "monthly": round_half_up(st.monthly)} for st in ins.steps],
         "budget": p["budget"],
         "flow": p["flow"],
         "trend": p["trend"],
@@ -362,17 +373,17 @@ def _transactions(s: Server, args: dict) -> dict:
             continue
         if "necessity" in args and (t.necessity or Necessity.UNKNOWN) != args["necessity"]:
             continue
-        if "min_amount" in args and t.amount < args["min_amount"]:
+        if "min_amount" in args and t.amount < to_decimal(args["min_amount"]):
             continue
-        if "max_amount" in args and t.amount > args["max_amount"]:
+        if "max_amount" in args and t.amount > to_decimal(args["max_amount"]):
             continue
         picked.append(t)
     limit = args.get("limit", 50)
     out = {
         "count": len(picked),
-        "total": round(sum(t.amount for t in picked), 2),
-        "out": round(sum(t.amount for t in picked if t.amount > 0), 2),
-        "in": round(sum(t.amount for t in picked if t.amount < 0), 2),
+        "total": round_half_up(sum((t.amount for t in picked), ZERO)),
+        "out": round_half_up(sum((t.amount for t in picked if t.amount > 0), ZERO)),
+        "in": round_half_up(sum((t.amount for t in picked if t.amount < 0), ZERO)),
     }
     if args.get("group_by"):
         keys = {
@@ -384,12 +395,12 @@ def _transactions(s: Server, args: dict) -> dict:
             "necessity": lambda t: t.necessity or Necessity.UNKNOWN,
             "account": lambda t: ds.accounts[t.account].label,
         }
-        totals: dict[str, list] = defaultdict(lambda: [0.0, 0])
+        totals: dict[str, list] = defaultdict(lambda: [ZERO, 0])
         for t in picked:
             g = totals[keys[args["group_by"]](t)]
             g[0] += t.amount
             g[1] += 1
-        rows = [{"key": k, "total": round(v[0], 2), "count": v[1]} for k, v in totals.items()]
+        rows = [{"key": k, "total": round_half_up(v[0]), "count": v[1]} for k, v in totals.items()]
         rows.sort(key=(lambda r: r["key"]) if args["group_by"] == "month" else (lambda r: -abs(r["total"])))
         out["groups"], out["groupsShown"] = rows[:limit], min(limit, len(rows))
         return out
@@ -443,19 +454,20 @@ def _regular(s: Server, args: dict) -> dict:
                 "kind": sr.last.kind,
                 "status": sr.status,
                 "statusLabel": STATUS[sr.status],
-                "monthly": round(sr.monthly, 2),
-                "lastAmount": round(abs(sr.last.amount), 2),
+                "monthly": round_half_up(sr.monthly),
+                "lastAmount": round_half_up(abs(sr.last.amount)),
                 "last": sr.last.date,
                 "first": sr.payments[0].date,
                 "next": sr.expected,
                 "payments": len(sr.payments),
                 "dayOfMonth": sr.day,
-                "priceChange": change and {"from": round(change[0], 2), "to": round(change[1], 2), "since": change[2]},
+                "priceChange": change
+                and {"from": round_half_up(change[0]), "to": round_half_up(change[1]), "since": change[2]},
                 "accounts": sorted({ds.accounts[t.account].label for t in sr.payments}),
             }
         )
     income = [
-        {"payer": sr.merchant, "monthly": round(sr.monthly, 2), "last": sr.last.date, "status": STATUS[sr.status]}
+        {"payer": sr.merchant, "monthly": round_half_up(sr.monthly), "last": sr.last.date, "status": STATUS[sr.status]}
         for sr in ins.income
         if sr.running
     ]
@@ -482,9 +494,9 @@ def _habits(s: Server, args: dict) -> dict:
                 "count": h.count,
                 "months": h.months,
                 "windowMonths": h.span,
-                "total": round(h.total, 2),
-                "recentMonthly": round(h.recent, 2),
-                "expectedMonthly": round(h.monthly, 2),
+                "total": round_half_up(h.total),
+                "recentMonthly": round_half_up(h.recent),
+                "expectedMonthly": round_half_up(h.monthly),
                 "last": h.last,
             }
             for h in ins.habits
@@ -522,13 +534,13 @@ def _accounts(s: Server, args: dict) -> dict:
 
 def _totals(t) -> dict:
     return {
-        "expense": round(t.expense, 2),
-        "income": None if t.income is None else round(t.income, 2),
-        "people": round(t.people, 2),
-        "debt": round(t.debt, 2),
-        "saving": round(t.saving, 2),
-        "feesAndInterest": round(t.fees, 2),
-        "left": None if t.left is None else round(t.left, 2),
+        "expense": round_half_up(t.expense),
+        "income": None if t.income is None else round_half_up(t.income),
+        "people": round_half_up(t.people),
+        "debt": round_half_up(t.debt),
+        "saving": round_half_up(t.saving),
+        "feesAndInterest": round_half_up(t.fees),
+        "left": None if t.left is None else round_half_up(t.left),
     }
 
 
@@ -580,9 +592,9 @@ def _month_end(s: Server, args: dict) -> dict:
             }
             for ac in me.accounts
         ],
-        "expenseByGroup": [{"group": g, "total": round(v, 2)} for g, _, v in me.groups],
-        "expenseByNecessity": [{"necessity": n, "total": round(v, 2)} for n, _, v in me.levels],
-        "topCategories": [{"category": c, "total": round(v, 2), "count": n} for c, _, v, n in me.categories],
+        "expenseByGroup": [{"group": g, "total": round_half_up(v)} for g, _, v in me.groups],
+        "expenseByNecessity": [{"necessity": n, "total": round_half_up(v)} for n, _, v in me.levels],
+        "topCategories": [{"category": c, "total": round_half_up(v), "count": n} for c, _, v, n in me.categories],
         "regularPayments": [
             {
                 "merchant": sr.merchant,
@@ -641,7 +653,7 @@ def _effect(before: Dataset, after: Dataset) -> dict:
     def index(ds: Dataset) -> dict:
         out = defaultdict(list)
         for t in ds.transactions:
-            out[(t.source, t.date, t.account, round(t.amount, 2), t.description)].append(t)
+            out[(t.source, t.date, t.account, t.amount, t.description)].append(t)
         return out
 
     def labels(t) -> dict:
@@ -649,7 +661,7 @@ def _effect(before: Dataset, after: Dataset) -> dict:
 
     old, new = index(before), index(after)
     moves: Counter = Counter()
-    totals: dict = defaultdict(float)
+    totals: dict = defaultdict(Decimal)
     examples = []
     for key, items in old.items():
         for x, y in zip(items, new.get(key, [])):
@@ -671,7 +683,8 @@ def _effect(before: Dataset, after: Dataset) -> dict:
         "changed": sum(moves.values()),
         "examples": examples,
         "moves": [
-            {"from": f, "to": t, "count": n, "total": round(totals[(f, t)], 2)} for (f, t), n in moves.most_common(20)
+            {"from": f, "to": t, "count": n, "total": round_half_up(totals[(f, t)])}
+            for (f, t), n in moves.most_common(20)
         ],
     }
 
@@ -860,9 +873,10 @@ TOOLS = (
         "Ay sonu ve kapanış",
         "Ay sonu raporu ve ekstre ile kapanış. month verilmezse son aylar: her ayın durumu (closed: bütün "
         "hesapların ekstresi/dökümü ayın tamamını kapsıyor, tutarlı ve dekontlar eşleşti; waiting: ekstre "
-        "bekleniyor; missing: belge eksik; check: kontrol gerekli; running: ay sürüyor), gider, gelir, kalan. month ile o ayın ayrıntısı: hesap hesap hangi ekstre ya da döküm "
-        "bekleniyor (sonraki kesim tarihi), ay sonu bakiyeleri, gider dağılımı, düzenli ödemeler, ekstresi gelmeden "
-        "dekontlardan işlenen geçici kayıtlar ve ekstrede görünmeyen dekontlar.",
+        "bekleniyor; missing: belge eksik; check: kontrol gerekli; running: ay sürüyor), gider, gelir, kalan. "
+        "month ile o ayın ayrıntısı: hesap hesap hangi ekstre ya da döküm bekleniyor (sonraki kesim tarihi), ay "
+        "sonu bakiyeleri, gider dağılımı, düzenli ödemeler, ekstresi gelmeden dekontlardan işlenen geçici kayıtlar "
+        "ve ekstrede görünmeyen dekontlar.",
         _schema(month={"type": "string", "pattern": r"\d{4}-\d{2}", "description": "YYYY-AA"}),
         _month_end,
     ),
@@ -940,6 +954,6 @@ def serve(ws: Workspace, stdin=None, stdout=None) -> int:
         else:
             reply = server.handle(message)
         if reply is not None:
-            stdout.write(json.dumps(reply, ensure_ascii=False, default=str) + "\n")
+            stdout.write(json.dumps(reply, ensure_ascii=False, default=_plain) + "\n")
             stdout.flush()
     return 0

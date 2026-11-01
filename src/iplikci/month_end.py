@@ -18,6 +18,7 @@ import html
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from decimal import Decimal
 from importlib import resources
 from pathlib import Path
 from statistics import median
@@ -44,6 +45,7 @@ from .domain.codes import (
 from .domain.labels import ACCOUNT_MONTH_STATUS, KIND, NECESSITY
 from .domain.labels import MONTH_STATUS as _MONTH_LABELS
 from .domain.models import TRY, Account, Statement, Transaction
+from .domain.money import TOLERANCE, round_half_up
 from .insights import (
     MONTHS_TR,
     NOT_BANK_ACCOUNTS,
@@ -78,6 +80,7 @@ ACCOUNT_STATUS = ACCOUNT_MONTH_STATUS
 MONTH_STATUS = _MONTH_LABELS
 _LATE_DAYS = 5  # a card statement this long past its expected cut date is late (the e-mail did not come)
 INCOME_NOTE = "hesap dökümlerindeki gelen para"  # the income note when there is nothing to add
+ZERO = Decimal(0)
 
 
 # --- days ----------------------------------------------------------------------------------------
@@ -124,7 +127,7 @@ def _fails(s: Statement) -> bool:
     statement without a printed total) does not hold a month open."""
     if s.is_account:
         return s.checks_ok < s.checks_total
-    return s.difference is not None and abs(s.difference) >= 0.015
+    return s.difference is not None and abs(s.difference) > TOLERANCE
 
 
 def statement_check(s: Statement) -> tuple[str, str, str]:
@@ -162,7 +165,7 @@ class AccountClose:
     open: list[tuple[date, date]]  # days not covered: missing before its newest statement, waiting after it
     statements: list[tuple[Statement, date, date]]  # overlapping the month, with the days each one covers
     receipts: list[ReceiptLine]
-    balance: float | None  # month-end balance as the list prints it (account lists only)
+    balance: Decimal | None  # month-end balance as the list prints it (account lists only)
     last: date  # newest day its statements cover
     next_cut: date | None = None  # cards: the cut date of the statement that will cover the open days
     late: bool = False  # that cut date passed days ago and the statement did not come
@@ -246,15 +249,15 @@ class AccountClose:
 
 @dataclass(frozen=True)
 class Totals:
-    income: float | None  # None when no account movement list covers the month
-    expense: float  # harcama, iade, faiz_ucret
-    people: float
-    debt: float  # loan principal repaid
-    saving: float
-    fees: float  # interest and fees, part of expense
+    income: Decimal | None  # None when no account movement list covers the month
+    expense: Decimal  # purchases, refunds, interest and fees
+    people: Decimal
+    debt: Decimal  # loan principal repaid
+    saving: Decimal
+    fees: Decimal  # interest and fees, part of expense
 
     @property
-    def left(self) -> float | None:
+    def left(self) -> Decimal | None:
         if self.income is None:
             return None
         return self.income - self.expense - self.people - self.debt - self.saving
@@ -267,20 +270,20 @@ class MonthEnd:
     accounts: list[AccountClose]
     totals: Totals
     previous: Totals | None
-    typical: float | None  # median expense of up to six complete months before this one
+    typical: Decimal | None  # median expense of up to six complete months before this one
     typical_months: int
-    groups: list[tuple[str, int, float]]  # (group, colour slot, expense)
-    levels: list[tuple[str, int, float]]  # (necessity level, colour slot, expense)
-    categories: list[tuple[str, int, float, int]]  # (category, its group's slot, expense, count)
-    merchants: list[tuple[str, int, float, int]]
+    groups: list[tuple[str, int, Decimal]]  # (group, colour slot, expense)
+    levels: list[tuple[str, int, Decimal]]  # (necessity level, colour slot, expense)
+    categories: list[tuple[str, int, Decimal, int]]  # (category, its group's slot, expense, count)
+    merchants: list[tuple[str, int, Decimal, int]]
     regular: list[tuple[Series, list[Transaction], date | None]]  # payee, payments this month, expected day
     big: list[Transaction]
     provisional: list[Transaction]
     unmatched: list[ReceiptLine]
     count: int  # expense transactions
-    trend: list[tuple[str, float]]  # expense of the twelve months up to this one
+    trend: list[tuple[str, Decimal]]  # expense of the twelve months up to this one
     income_note: str
-    debt_end: float | None  # card statement balances and overdraft use at the month's end
+    debt_end: Decimal | None  # card statement balances and overdraft use at the month's end
 
     @property
     def label(self) -> str:
@@ -343,8 +346,8 @@ class _Shared:
             self.receipts[line.txn.account].append(line)
 
     # -- money ---------------------------------------------------------------------------------
-    def expense(self, month: str) -> float:
-        return sum(t.amount for t in self.by_month.get(month, []) if t.kind in DEFAULT_EXPENSE_KINDS)
+    def expense(self, month: str) -> Decimal:
+        return sum((t.amount for t in self.by_month.get(month, []) if t.kind in DEFAULT_EXPENSE_KINDS), ZERO)
 
     def income_known(self, month: str) -> bool:
         """Like the report: a bank account's movement list covers at least half of the month (of its days so
@@ -356,7 +359,7 @@ class _Shared:
         )
 
     def totals(self, month: str) -> Totals:
-        sums: dict[str, float] = defaultdict(float)
+        sums: dict[str, Decimal] = defaultdict(Decimal)
         for t in self.by_month.get(month, []):
             sums["expense" if t.kind in DEFAULT_EXPENSE_KINDS else t.kind] += t.amount
             if t.kind == TransactionKind.INTEREST_FEE:
@@ -412,7 +415,9 @@ class _Shared:
                 covering = next((s for s, a, b in self.periods if s.account == account and a <= hi <= b), None)
                 if covering is not None and acc.type == AccountType.BROKERAGE:
                     # Cash plus the securities at the market value the month's statement prints.
-                    ac.balance = round((covering.total or 0.0) + sum(x.value for x in covering.securities), 2)
+                    ac.balance = round_half_up(
+                        (covering.total or ZERO) + sum((x.value for x in covering.securities), ZERO)
+                    )
                 elif covering is not None:
                     known = [m for m in covering.balances if m <= month]
                     ac.balance = covering.balances[max(known)] if known else covering.previous
@@ -450,8 +455,8 @@ class _Shared:
         prior = [m for m in self.full if m < month][-6:]
         typical = median(self.expense(m) for m in prior) if len(prior) >= 3 else None
 
-        def ranked(key) -> list[tuple[str, float, int]]:
-            sums: dict[str, list] = defaultdict(lambda: [0.0, 0])
+        def ranked(key) -> list[tuple[str, Decimal, int]]:
+            sums: dict[str, list] = defaultdict(lambda: [ZERO, 0])
             for t in spent:
                 entry = sums[key(t)]
                 entry[0] += t.amount
@@ -478,7 +483,7 @@ class _Shared:
         regular.sort(key=lambda r: (not r[1], -_regular_amount(r)))
 
         expense = self.expense(month)
-        threshold = max(5000.0, 0.1 * (typical or expense))
+        threshold = max(Decimal(5000), Decimal("0.1") * (typical or expense))
         big = sorted(
             (t for t in spent if t.kind == TransactionKind.PURCHASE and t.amount >= threshold), key=lambda t: -t.amount
         )[:8]
@@ -524,9 +529,9 @@ class _Shared:
         return "; ".join(notes) or INCOME_NOTE
 
 
-def _regular_amount(row: tuple[Series, list[Transaction], date | None]) -> float:
+def _regular_amount(row: tuple[Series, list[Transaction], date | None]) -> Decimal:
     series, paid, _ = row
-    return sum(abs(t.amount) for t in paid) or series.monthly
+    return sum((abs(t.amount) for t in paid), ZERO) or series.monthly
 
 
 def report_months(ds: Dataset, today: date) -> list[str]:
@@ -593,11 +598,11 @@ def _badge(status: MonthStatus, label: str) -> str:
     return f'<span class="tone {tone}"><span class="icon" aria-hidden="true">{icon}</span>{_e(label)}</span>'
 
 
-def _money(value: float | None) -> str:
+def _money(value: Decimal | None) -> str:
     return "–" if value is None else _e(tl(value))
 
 
-def _amount(value: float, currency: str) -> str:
+def _amount(value: Decimal, currency: str) -> str:
     if currency == TRY:
         return _e(tl(value))
     return _e(("−" if value < 0 else "") + f"{format_tr_amount(abs(value))} {currency}")
@@ -608,9 +613,9 @@ def _swatch(slot: int) -> str:
     return f'<span class="swatch" style="background:{color}" aria-hidden="true"></span>'
 
 
-def _sparkline(points: list[tuple[str, float]]) -> str:
+def _sparkline(points: list[tuple[str, Decimal]]) -> str:
     """The month's expense against the eleven before it: de-emphasis line, this month in the accent."""
-    values = [v for _, v in points]
+    values = [float(v) for _, v in points]  # drawing coordinates, not money
     if len([v for v in values if v]) < 2:
         return ""
     width, height = 150, 36
@@ -629,7 +634,7 @@ def _sparkline(points: list[tuple[str, float]]) -> str:
     )
 
 
-def _delta(now: float, before: float | None, what: str) -> str:
+def _delta(now: Decimal, before: Decimal | None, what: str) -> str:
     """Change against a named period; for spending, up is the bad direction."""
     if not before or before <= 0:
         return ""
@@ -667,7 +672,7 @@ def _table(head: list[tuple[str, bool]], rows: list[list[str]], foot: list[str] 
     return f'<div class="table-wrap"><table><thead><tr>{th}</tr></thead><tbody>{body}</tbody>{tfoot}</table></div>'
 
 
-def _bars(rows: list[tuple[str, int, float]], total: float, what: str) -> str:
+def _bars(rows: list[tuple[str, int, Decimal]], total: Decimal, what: str) -> str:
     """A ranked bar list that is also its own table: name, bar, amount, share."""
     if not rows:
         return '<p class="empty">Bu ay gider yok.</p>'
@@ -877,7 +882,7 @@ def render_month(me: MonthEnd, ds: Dataset, months: list[str], made: datetime, h
                     _e(s.merchant),
                     _e(s.last.category),
                     _e(when),
-                    _e(tl(sum(abs(x.amount) for x in paid))) if paid else "–",
+                    _e(tl(sum((abs(x.amount) for x in paid), ZERO))) if paid else "–",
                     _e(tl(s.monthly)),
                 ]
             )

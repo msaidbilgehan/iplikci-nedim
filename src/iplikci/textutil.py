@@ -2,8 +2,10 @@
 
 import re
 from datetime import date
+from decimal import Decimal, InvalidOperation
 
 # Folding lives in the domain so every layer compares text the same way; the parsers keep importing it here.
+from .domain.money import round_half_up, to_decimal
 from .domain.text import fold, nfc
 
 __all__ = [
@@ -33,37 +35,38 @@ _TR_AMOUNT = re.compile(
 )
 
 
-def parse_tr_amount(text: str) -> float | None:
+def parse_tr_amount(text: str) -> Decimal | None:
     """Parse a Turkish-format amount. A leading '-' or a trailing '+'/'-' makes it negative."""
     m = _TR_AMOUNT.match(text.replace(" ", ""))
     if not m:
         return None
     frac = m["frac"]
     cents = 0 if frac == "-" else int(frac.ljust(2, "0"))
-    value = int(m["int"].replace(".", "")) + cents / 100
-    if m["lead"] == "-" or m["trail"] in ("+", "-"):
-        value = -value
-    return round(value, 2)
+    value = Decimal(int(m["int"].replace(".", "")) * 100 + cents).scaleb(-2)
+    return -value if m["lead"] == "-" or m["trail"] in ("+", "-") else value
 
 
 def is_tr_amount(text: str) -> bool:
     return parse_tr_amount(text) is not None
 
 
-def format_tr_amount(value: float) -> str:
-    """1234.5 -> '1.234,50'."""
-    return f"{value:,.2f}".replace(",", " ").replace(".", ",").replace(" ", ".")
+def format_tr_amount(value: Decimal | float) -> str:
+    """1234.5 -> '1.234,50': two decimals, halves rounded up."""
+    return f"{round_half_up(to_decimal(value)):,.2f}".replace(",", " ").replace(".", ",").replace(" ", ".")
 
 
 _US_AMOUNT = re.compile(r"^\d{1,3}(?:,\d{3})*(?:\.\d+)?$|^\d+(?:\.\d+)?$")
 
 
-def parse_us_amount(text: str) -> float | None:
-    """Parse '2,345.67' / '12.34' / '4,321.0' (QNB receipts, interest breakdowns)."""
+def parse_us_amount(text: str) -> Decimal | None:
+    """Parse '2,345.67' / '12.34' / '4,321.0' (QNB receipts, interest breakdowns), to two decimals."""
     text = text.strip()
     if not _US_AMOUNT.match(text):
         return None
-    return round(float(text.replace(",", "")), 2)
+    try:
+        return round_half_up(Decimal(text.replace(",", "")))
+    except InvalidOperation:
+        return None
 
 
 TR_MONTHS = {

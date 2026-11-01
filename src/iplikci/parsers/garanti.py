@@ -1,9 +1,11 @@
 """Garanti BBVA statements: Bonus credit cards and the Paracard debit card."""
 
 import re
+from decimal import Decimal
 
 from ..domain.codes import AccountType, TransactionKind
 from ..domain.models import TRY, Account, ParseResult, Statement, Transaction
+from ..domain.money import round_half_up
 from ..pdfutil import find_header, find_word, page_lines, page_text, take_amount
 from ..textutil import fold, parse_tr_amount, parse_tr_words_date, squash
 from .common import classify_kind, installment_label, pair_deferrals
@@ -31,7 +33,7 @@ def parse(doc, pdf) -> ParseResult:
         cash = re.search(r"TOPLAM NAKIT CEKIM TUTARINIZ ([\d.]+,\d{2})", f)
         total = None
         if purchases:
-            total = round(parse_tr_amount(purchases[1]) + (parse_tr_amount(cash[1]) if cash else 0), 2)
+            total = round_half_up(parse_tr_amount(purchases[1]) + (parse_tr_amount(cash[1]) if cash else Decimal(0)))
     else:
         card = re.search(r"KART NUMARASI (\d{4}) ?(\d{2})\*\* \*\*\*\* (\d{4})", f)
         cut = re.search(r"HESAP KESIM TARIHI (\d{1,2}) (\w+) (\d{4})", f)
@@ -63,7 +65,7 @@ def parse(doc, pdf) -> ParseResult:
         cut_date=cut_date,
         currency=TRY,
         source=doc.name,
-        previous=None if paracard else 0.0,
+        previous=None if paracard else Decimal(0),
         total=total,
         total_is_sum=paracard,
     )

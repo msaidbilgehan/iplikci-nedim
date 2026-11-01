@@ -19,6 +19,7 @@ newest month is usually partial.
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date, timedelta
+from decimal import Decimal
 from itertools import pairwise
 from statistics import median
 
@@ -26,6 +27,7 @@ from .analysis import NOT_ON_STATEMENT, PROVISIONAL, Dataset, ReceiptLine
 from .categorize import FX_CATEGORY
 from .domain.codes import CARD_TYPES, DEFAULT_EXPENSE_KINDS, AccountType, Necessity, TransactionKind
 from .domain.models import TRY, Transaction
+from .domain.money import CENT, round_half_up, to_decimal
 from .textutil import fold, format_tr_amount
 
 # Statements that say whether a month's income is known: bank accounts, not cards or a brokerage account.
@@ -49,6 +51,8 @@ NEEDED, OPTIONAL, AVOIDABLE = Necessity.REQUIRED, Necessity.OPTIONAL, Necessity.
 INTEREST = ("Kredi Kartı Faizi", "Ek Hesap (KMH) Faizi", "Kredi Faizi")
 CARD_FEES = "Kart Aidatı & Ücretleri"
 WORK_CATEGORIES = ("Yazılım, Bulut & Dijital Hizmet", "Muhasebe & Şirket Hizmetleri")
+ZERO = Decimal(0)
+GOLD_DUST = Decimal("0.001")  # grams of gold below this are a rounding remainder, not a holding
 
 
 # --- months and money ---------------------------------------------------------------
@@ -119,24 +123,25 @@ _TENS_POSSESSIVE = {
 }
 
 
-def pct(share: float) -> str:
+def pct(share: Decimal | float) -> str:
     """0.64 -> "%64'ü": a share of something, with the suffix Turkish needs after it."""
     n = str(round(share * 100))
     suffix = _ONES_POSSESSIVE.get(n[-1]) or ("ı" if n == "0" else _TENS_POSSESSIVE[n[-2]])
     return f"%{n}'{suffix}"
 
 
-def tl(value: float) -> str:
-    """1234.5 -> '₺1.235', -50 -> '−₺50'."""
-    return ("−" if value < -0.5 else "") + "₺" + f"{abs(value):,.0f}".replace(",", ".")
+def tl(value: Decimal | float) -> str:
+    """1234.5 -> '₺1.235', -50 -> '−₺50': whole liras, halves rounded up."""
+    whole = round_half_up(to_decimal(value), 0)
+    return ("−" if whole < 0 else "") + "₺" + f"{abs(whole):,.0f}".replace(",", ".")
 
 
 def _day(d: date) -> str:
     return f"{d:%d.%m.%Y}"
 
 
-def _change(a: float, b: float) -> float:
-    return abs(abs(a) - abs(b)) / max(abs(a), abs(b), 0.01)
+def _change(a: Decimal, b: Decimal) -> Decimal:
+    return abs(abs(a) - abs(b)) / max(abs(a), abs(b), CENT)
 
 
 # --- timeline -------------------------------------------------------------------------
@@ -156,7 +161,7 @@ def fresh_starts(ds: Dataset) -> set[str]:
     for s in sorted(ds.statements, key=lambda s: s.cut_date):
         if s.currency == ds.accounts[s.account].currency:
             first.setdefault(s.account, s)
-    return {a for a, s in first.items() if abs(s.previous or 0) < 0.01}
+    return {a for a, s in first.items() if abs(s.previous or ZERO) < CENT}
 
 
 def complete_months(ds: Dataset) -> set[str]:
@@ -210,7 +215,8 @@ STATUS = {
 
 _GAP = (15, 50)  # days between two payments of a monthly series; salary and rent days drift
 _SKIPPED = 70  # one missed month is fine when the amount stayed the same
-_SAME, _STRICT, _SIMILAR, _REPRICED = 0.03, 0.10, 0.25, 0.70  # relative amount change
+# Relative amount change between two payments of a series.
+_SAME, _STRICT, _SIMILAR, _REPRICED = Decimal("0.03"), Decimal("0.10"), Decimal("0.25"), Decimal("0.70")
 _ONE_A_MONTH = 1.3  # payments per active month of a payee that bills once a month
 _BUSY = 5  # payments per active month above which a payee is a shop, not a subscription
 _STALE = 90  # days after the expected payment with no trace of it anywhere: over
@@ -233,11 +239,11 @@ class Series:
         return self.payments[-1]
 
     @property
-    def amount(self) -> float:
+    def amount(self) -> Decimal:
         return abs(self.last.amount)
 
     @property
-    def monthly(self) -> float:
+    def monthly(self) -> Decimal:
         """Amount to expect next: the last one, or the median of the last three when it moves
         from month to month (bills)."""
         recent = [abs(t.amount) for t in self.payments[-3:]]
@@ -261,17 +267,17 @@ class Series:
     def running(self) -> bool:
         return self.status in ("devam", "iptal_sonrasi")
 
-    def price_change(self) -> tuple[float, float, date] | None:
+    def price_change(self) -> tuple[Decimal, Decimal, date] | None:
         """(old price, new price, first payment at the new price) when the latest price has held
         for at least two payments and differs from the three payments before it."""
         amounts = [abs(t.amount) for t in self.payments]
         i = len(amounts) - 1
-        while i > 0 and _change(amounts[i - 1], amounts[-1]) <= 0.02:
+        while i > 0 and _change(amounts[i - 1], amounts[-1]) <= Decimal("0.02"):
             i -= 1
         if len(amounts) - i < 2 or i == 0:
             return None
         old = median(amounts[max(0, i - 3) : i])
-        return (old, amounts[-1], self.payments[i].date) if _change(old, amounts[-1]) > 0.05 else None
+        return (old, amounts[-1], self.payments[i].date) if _change(old, amounts[-1]) > Decimal("0.05") else None
 
 
 def _day_gap(a: date, b: date) -> int:
@@ -279,7 +285,7 @@ def _day_gap(a: date, b: date) -> int:
     return min(d, 30 - d) if d <= 30 else 0
 
 
-def _fit(s: Series, t: Transaction, limit: float) -> float | None:
+def _fit(s: Series, t: Transaction, limit: Decimal) -> Decimal | None:
     """How well t continues s, lower is better; None when it does not."""
     gap = (t.date - s.last.date).days
     change = _change(s.last.amount, t.amount)
@@ -293,7 +299,7 @@ def _fit(s: Series, t: Transaction, limit: float) -> float | None:
     return None
 
 
-def _chain(payee: str, items: list[Transaction], limit: float) -> list[Series]:
+def _chain(payee: str, items: list[Transaction], limit: Decimal) -> list[Series]:
     series: list[Series] = []
     for t in items:
         fits = [(score, s) for s in series if (score := _fit(s, t, limit)) is not None]
@@ -426,31 +432,31 @@ class Habit:
     count: int  # purchases in the window
     months: int  # months of the window with a purchase
     span: int  # months in the window
-    total: float  # spent in the window
-    recent: float  # monthly average of the last three complete months
+    total: Decimal  # spent in the window
+    recent: Decimal  # monthly average of the last three complete months
     first: date  # first purchase in all the data
     last: date
     status: str = ""
     since: str = ""  # month a new habit started
     idle: int = 0  # days from the last purchase to the newest statement of its cards
-    low: float = 0.0  # smallest and largest purchase in the window
-    high: float = 0.0
+    low: Decimal = ZERO  # smallest and largest purchase in the window
+    high: Decimal = ZERO
 
     @property
-    def monthly(self) -> float:
+    def monthly(self) -> Decimal:
         """What the habit costs per month from now on, as far as the data tells."""
         if self.status in ("duzenli", "yeni"):
             return self.recent
         if self.status == "ara_sira":
             return self.total / self.span
-        return 0.0
+        return ZERO
 
     @property
     def pattern(self) -> str:
         what = "işlem" if self.by_category else "alışveriş"
         amounts = (
             f", tutarlar {tl(self.low)}–{tl(self.high)}"
-            if not self.by_category and self.count >= 3 and self.high > self.low * 1.2
+            if not self.by_category and self.count >= 3 and self.high > self.low * Decimal("1.2")
             else ""
         )
         if self.status == "yeni":
@@ -508,8 +514,8 @@ def habits(ds: Dataset, tl_: Timeline, series: list[Series]) -> list[Habit]:
             count=len(inside),
             months=len({month_of(t.date) for t in inside}),
             span=len(window),
-            total=sum(t.amount for t in inside),
-            recent=sum(t.amount for t in inside if month_of(t.date) in recent) / len(recent),
+            total=sum((t.amount for t in inside), ZERO),
+            recent=sum((t.amount for t in inside if month_of(t.date) in recent), ZERO) / len(recent),
             first=min(t.date for t in items),
             last=max(t.date for t in items),
             low=min(t.amount for t in inside),
@@ -529,18 +535,18 @@ def habits(ds: Dataset, tl_: Timeline, series: list[Series]) -> list[Habit]:
 @dataclass
 class Change:
     category: str
-    before: float  # monthly average
-    recent: float
+    before: Decimal  # monthly average
+    recent: Decimal
 
 
 @dataclass
 class Trend:
     before: list[str]
     recent: list[str]
-    before_avg: float
-    recent_avg: float
-    usual_before: float  # without large single purchases
-    usual_recent: float
+    before_avg: Decimal
+    recent_avg: Decimal
+    usual_before: Decimal  # without large single purchases
+    usual_recent: Decimal
     changes: list[Change]  # largest movers first
     big: list[Transaction]  # large single purchases in the window, largest first
 
@@ -556,19 +562,19 @@ def trend(ds: Dataset, tl_: Timeline, in_series: set[int]) -> Trend | None:
         return None
     recent, before = tl_.window[-k:], tl_.window[:-k][-6:]
     spent = _expenses(ds, set(tl_.window))
-    average = sum(t.amount for t in spent) / n
-    threshold = max(5000.0, 0.1 * average)
+    average = sum((t.amount for t in spent), ZERO) / n
+    threshold = max(Decimal(5000), Decimal("0.1") * average)
     big = sorted(
         (t for t in spent if t.kind == TransactionKind.PURCHASE and id(t) not in in_series and t.amount >= threshold),
         key=lambda t: -t.amount,
     )
 
-    def avg(months: list[str], skip: set[int] = frozenset()) -> float:
+    def avg(months: list[str], skip: set[int] = frozenset()) -> Decimal:
         inside = set(months)
-        return sum(t.amount for t in spent if month_of(t.date) in inside and id(t) not in skip) / len(months)
+        return sum((t.amount for t in spent if month_of(t.date) in inside and id(t) not in skip), ZERO) / len(months)
 
     skip = {id(t) for t in big}
-    by_cat: dict[str, list[float]] = defaultdict(lambda: [0.0, 0.0])
+    by_cat: dict[str, list[Decimal]] = defaultdict(lambda: [ZERO, ZERO])
     for t in spent:
         if id(t) in skip:
             continue
@@ -589,19 +595,19 @@ class Flow:
     """Monthly averages over the window."""
 
     months: list[str]
-    income: float
-    expense: float
-    people: float  # money sent to other people
-    debt: float  # debt principal repaid
-    saving: float  # pension and other investments
-    fx: float  # foreign currency and gold bought (+) or sold (-) with TL
-    unnamed_people: float  # sent to people the statement does not name (bank name only)
-    debt_start: float = 0.0  # card statement balances and overdraft use before the window
-    debt_end: float = 0.0  # and at its end
-    other_typical: float = 0.0  # median month of money to people and debt repaid, last six months
+    income: Decimal
+    expense: Decimal
+    people: Decimal  # money sent to other people
+    debt: Decimal  # debt principal repaid
+    saving: Decimal  # pension and other investments
+    fx: Decimal  # foreign currency and gold bought (+) or sold (-) with TL
+    unnamed_people: Decimal  # sent to people the statement does not name (bank name only)
+    debt_start: Decimal = ZERO  # card statement balances and overdraft use before the window
+    debt_end: Decimal = ZERO  # and at its end
+    other_typical: Decimal = ZERO  # median month of money to people and debt repaid, last six months
 
     @property
-    def left(self) -> float:
+    def left(self) -> Decimal:
         return self.income - self.expense - self.people - self.debt - self.saving
 
 
@@ -609,7 +615,7 @@ def flow(ds: Dataset, tl_: Timeline) -> Flow | None:
     months = set(tl_.window)
     if not any(ds.accounts[a].type not in NOT_BANK_ACCOUNTS for a in ds.coverage):
         return None
-    sums: dict[str, float] = defaultdict(float)
+    sums: dict[str, Decimal] = defaultdict(Decimal)
     for t in ds.transactions:
         if month_of(t.date) not in months:
             continue
@@ -625,7 +631,7 @@ def flow(ds: Dataset, tl_: Timeline) -> Flow | None:
             sums["unnamed"] += t.amount
     n = len(months)
     base = tl_.window[-6:]
-    other = dict.fromkeys(base, 0.0)
+    other = dict.fromkeys(base, ZERO)
     for t in ds.transactions:
         if t.kind in (TransactionKind.P2P_TRANSFER, TransactionKind.LOAN_PRINCIPAL) and month_of(t.date) in other:
             other[month_of(t.date)] += t.amount
@@ -671,29 +677,29 @@ class Holding:
     label: str
     kind: str  # "nakit", "vadeli", "kmh", "kart", "doviz", "altin", "yatirim"
     currency: str
-    amount: float  # in the account's currency; debt is negative
-    value: float | None  # in TL; None when no rate is known
+    amount: Decimal  # in the account's currency; debt is negative
+    value: Decimal | None  # in TL; None when no rate is known
     as_of: date
     note: str = ""
-    cost: float = 0.0  # TL paid for gold; its market price is not in the documents
+    cost: Decimal = ZERO  # TL paid for gold; its market price is not in the documents
 
 
-def _latest_rate(ds: Dataset, currency: str) -> tuple[date, float] | None:
+def _latest_rate(ds: Dataset, currency: str) -> tuple[date, Decimal] | None:
     found = ds.rates.get(currency)
     return max(found) if found else None
 
 
-def _paid_after(ds: Dataset, card: str, cut: date) -> float:
+def _paid_after(ds: Dataset, card: str, cut: date) -> Decimal:
     """Card payments after the statement's cut date: from bank accounts' lists, and from payment receipts
     (booked on the card itself) the next statement will show."""
     acc = ds.accounts[card]
     digits = acc.number[-4:]
-    paid = 0.0
+    paid = ZERO
     for t in ds.transactions:
         if t.kind != TransactionKind.CARD_PAYMENT or t.date <= cut or t.amount <= 0:
             continue
         if t.account == card:
-            paid += t.amount if t.provisional else 0.0
+            paid += t.amount if t.provisional else ZERO
             continue
         src = ds.accounts.get(t.account)
         if src and src.type not in CARD_TYPES and (digits in t.description or src.bank == acc.bank):
@@ -710,18 +716,18 @@ def _waiting(ds: Dataset) -> dict[str, list[ReceiptLine]]:
     return out
 
 
-def _with_receipts(h: "Holding", lines: list[ReceiptLine], rate: float | None) -> None:
+def _with_receipts(h: "Holding", lines: list[ReceiptLine], rate: Decimal | None) -> None:
     """Move a balance by the receipts that came after its statement (money out lowers it)."""
     if not lines:
         return
-    change = -round(sum(line.native for line in lines), 2)
+    change = -round_half_up(sum((line.native for line in lines), ZERO))
     stated = h.amount
-    h.amount = round(h.amount + change, 2)
+    h.amount = round_half_up(h.amount + change)
     if h.currency == TRY:
         h.value = h.amount
         moved, before = ("+" if change > 0 else "−") + tl(abs(change)), tl(stated)
     else:
-        h.value = round(h.amount * rate, 2) if rate else None
+        h.value = round_half_up(h.amount * rate) if rate else None
         moved = ("+" if change > 0 else "−") + f"{format_tr_amount(abs(change))} {h.currency}"
         before = f"{format_tr_amount(stated)} {h.currency}"
     h.note = (
@@ -736,9 +742,9 @@ _STALE_DAYS = 180  # a balance this much older than the newest statement says no
 
 def _stocks(label: str, s) -> Holding:
     """A brokerage account: its securities at the market value the statement prints, plus its cash."""
-    worth = round(sum(x.value for x in s.securities) + (s.total or 0), 2)
+    worth = round_half_up(sum((x.value for x in s.securities), ZERO) + (s.total or ZERO))
     as_of = max((x.as_of for x in s.securities), default=s.cut_date)
-    held = ", ".join(f"{x.code} {x.quantity:g} adet".replace(".", ",") for x in s.securities)
+    held = ", ".join(f"{x.code} {float(x.quantity):g} adet".replace(".", ",") for x in s.securities)
     note = f"{held}; {_day(as_of)} piyasa değeriyle" if held else "hisse senedi yok"
     return Holding(label, "yatirim", TRY, worth, worth, as_of, note + (f"; nakit {tl(s.total)}" if s.total else ""))
 
@@ -758,27 +764,30 @@ def holdings(ds: Dataset) -> list[Holding]:
         a = ds.accounts[account]
         if not s.is_account:
             paid = _paid_after(ds, account, s.cut_date)
-            owed = max(0.0, s.total - paid)
+            owed = max(ZERO, s.total - paid)
             note = f"{_day(s.cut_date)} ekstresi {tl(s.total)}" + (f"; sonra {tl(paid)} ödendi" if paid >= 1 else "")
             h = Holding(a.label, "kart", TRY, -owed, -owed, s.cut_date, note)
         elif a.type == AccountType.BROKERAGE:
             h = _stocks(a.label, s)
         elif a.type == AccountType.GOLD:
             paid = sum(
-                t.amount
-                for t in ds.transactions
-                if t.category == FX_CATEGORY
-                and "ALTIN" in fold(t.description)
-                and ds.accounts[t.account].bank == a.bank
-                and ds.accounts[t.account].currency == TRY
+                (
+                    t.amount
+                    for t in ds.transactions
+                    if t.category == FX_CATEGORY
+                    and "ALTIN" in fold(t.description)
+                    and ds.accounts[t.account].bank == a.bank
+                    and ds.accounts[t.account].currency == TRY
+                ),
+                ZERO,
             )
             note = (
                 f"alışta ödenen {tl(paid)}; güncel fiyat belgelerde yok" if paid >= 1 else "güncel fiyat belgelerde yok"
             )
-            h = Holding(a.label, "altin", "gr", s.total, None, s.cut_date, note, max(0.0, paid))
+            h = Holding(a.label, "altin", "gr", s.total, None, s.cut_date, note, max(ZERO, paid))
         elif a.currency != TRY:
             rate = _latest_rate(ds, a.currency)
-            value = round(s.total * rate[1], 2) if rate else None
+            value = round_half_up(s.total * rate[1]) if rate else None
             note = f"kur {rate[1]:.2f} ({_day(rate[0])} belgesinden)".replace(".", ",", 1) if rate else "kur bulunamadı"
             h = Holding(a.label, "doviz", a.currency, s.total, value, s.cut_date, note)
             _with_receipts(h, waiting.get(account, []), rate[1] if rate else None)
@@ -789,37 +798,37 @@ def holdings(ds: Dataset) -> list[Holding]:
             h.kind = "vadeli" if h.kind == "nakit" and a.type == AccountType.DEPOSIT else h.kind
         if newest and (newest - s.cut_date).days > _STALE_DAYS:
             # E.g. a term deposit known only from the passbook sent when it was opened.
-            h.value, h.cost = None, 0.0
+            h.value, h.cost = None, ZERO
             h.note = f"son belge {_day(s.cut_date)}; bugünkü bakiyesi belgelerde yok"
         out.append(h)
     order = {"nakit": 0, "vadeli": 1, "doviz": 2, "yatirim": 3, "altin": 4, "kmh": 5, "kart": 6}
-    return sorted(out, key=lambda h: (order[h.kind], -(h.value or 0)))
+    return sorted(out, key=lambda h: (order[h.kind], -(h.value or ZERO)))
 
 
-def debt_at(ds: Dataset, day: date) -> float:
+def debt_at(ds: Dataset, day: date) -> Decimal:
     """Card statement balances and overdraft use on a day, as far as the statements show. Before
     a card's first statement its opening balance stands in, if that statement is near."""
     cards: dict[str, list] = defaultdict(list)
-    balances: dict[str, dict[str, float]] = defaultdict(dict)
+    balances: dict[str, dict[str, Decimal]] = defaultdict(dict)
     for s in ds.statements:
         a = ds.accounts[s.account]
         if not s.is_account and a.type == AccountType.CREDIT_CARD and s.currency == TRY and s.total is not None:
             cards[s.account].append(s)
         elif s.is_account and a.currency == TRY:
             balances[s.account].update(s.balances)
-    total = 0.0
+    total = ZERO
     for stmts in cards.values():
         stmts.sort(key=lambda s: s.cut_date)
         before = [s for s in stmts if s.cut_date <= day]
         if before:
-            total += max(0.0, before[-1].total)
+            total += max(ZERO, before[-1].total)
         elif stmts[0].cut_date <= day + timedelta(days=45):
-            total += max(0.0, stmts[0].previous or 0.0)
+            total += max(ZERO, stmts[0].previous or ZERO)
     month = month_of(day)
     for months in balances.values():
         known = [m for m in months if m <= month]
         if known:
-            total += max(0.0, -months[max(known)])
+            total += max(ZERO, -months[max(known)])
     return total
 
 
@@ -827,9 +836,9 @@ def month_end(month: str) -> date:
     return date.fromisoformat(shift(month, 1) + "-01") - timedelta(days=1)
 
 
-def overdraft_history(ds: Dataset, window: list[str]) -> dict[str, dict[str, float]]:
+def overdraft_history(ds: Dataset, window: list[str]) -> dict[str, dict[str, Decimal]]:
     """Month-end balances of overdraft (KMH) accounts in the window, by label."""
-    out: dict[str, dict[str, float]] = {}
+    out: dict[str, dict[str, Decimal]] = {}
     for s in ds.statements:
         a = ds.accounts[s.account]
         if s.is_account and a.currency == TRY and a.type in (AccountType.OVERDRAFT, AccountType.CURRENT):
@@ -855,14 +864,14 @@ class Finding:
 class Step:
     title: str
     text: str
-    monthly: float = 0.0  # money freed per month; 0 when it depends on a choice the data cannot price
+    monthly: Decimal = ZERO  # money freed per month; 0 when it depends on a choice the data cannot price
 
 
 @dataclass
 class BudgetLine:
     label: str
-    now: float
-    plan: float
+    now: Decimal
+    plan: Decimal
     note: str = ""
 
 
@@ -889,8 +898,8 @@ class _Context:
     in_series: set[int]
     expenses: list[Transaction]  # window
     salary: Series | None
-    savings: float  # cash, term deposits, foreign currency, stocks at market value and gold at cost
-    debts: float  # overdraft and card debt, positive
+    savings: Decimal  # cash, term deposits, foreign currency, stocks at market value and gold at cost
+    debts: Decimal  # overdraft and card debt, positive
 
     @property
     def window(self) -> list[str]:
@@ -901,20 +910,21 @@ class _Context:
         """Months the typical (median) month is taken from."""
         return self.window[-6:]
 
-    def recent_avg(self, pred) -> float:
+    def recent_avg(self, pred) -> Decimal:
         last3 = set(self.window[-3:])
-        return sum(t.amount for t in self.expenses if month_of(t.date) in last3 and pred(t)) / min(3, len(self.window))
+        picked = (t.amount for t in self.expenses if month_of(t.date) in last3 and pred(t))
+        return sum(picked, ZERO) / min(3, len(self.window))
 
-    def typical(self, pred) -> float:
+    def typical(self, pred) -> Decimal:
         """Median month of the expenses pred accepts, over the base months."""
-        totals = dict.fromkeys(self.base, 0.0)
+        totals = dict.fromkeys(self.base, ZERO)
         for t in self.expenses:
             m = month_of(t.date)
             if m in totals and pred(t):
                 totals[m] += t.amount
-        return median(totals.values()) if totals else 0.0
+        return median(totals.values()) if totals else ZERO
 
-    def level(self, level: Necessity, work: bool = False) -> float:
+    def level(self, level: Necessity, work: bool = False) -> Decimal:
         """Typical month of one necessity level without regular payments (and without work costs)."""
         return self.typical(
             lambda t: (
@@ -929,7 +939,7 @@ def _window_text(window: list[str]) -> str:
     return f"{month_name(window[0])} – {month_name(window[-1])}"
 
 
-def _decimal(value: float) -> str:
+def _decimal(value: Decimal) -> str:
     return f"{value:.1f}".replace(".", ",")
 
 
@@ -939,8 +949,8 @@ def interpret(ds: Dataset) -> Insights:
     in_series = {id(t) for s in series for t in s.payments}
     held = holdings(ds)
     ins = Insights(tl_, series, income, habits(ds, tl_, series), trend(ds, tl_, in_series), flow(ds, tl_), held)
-    savings = sum(h.value or 0 for h in held if h.kind in SAVINGS) + sum(h.cost for h in held)
-    debts = -sum(h.value or 0 for h in held if h.kind in ("kmh", "kart") and (h.value or 0) < 0)
+    savings = sum((h.value or ZERO for h in held if h.kind in SAVINGS), ZERO) + sum((h.cost for h in held), ZERO)
+    debts = -sum((h.value or ZERO for h in held if h.kind in ("kmh", "kart") and (h.value or ZERO) < 0), ZERO)
     ctx = _Context(
         ds, ins, in_series, _expenses(ds, set(tl_.window)), next((s for s in income if s.running), None), savings, debts
     )
@@ -968,11 +978,11 @@ def _top_habit(ins: Insights) -> Habit | None:
     return next((h for h in ins.habits if not h.by_category and h.status in ("duzenli", "yeni")), None)
 
 
-def _by_payee(series: list[Series]) -> list[tuple[str, float, int]]:
+def _by_payee(series: list[Series]) -> list[tuple[str, Decimal, int]]:
     """(payee, monthly total, number of series), largest first: two YouTube payments are one line."""
     totals: dict[str, list] = {}
     for s in series:
-        entry = totals.setdefault(s.merchant, [0.0, 0])
+        entry = totals.setdefault(s.merchant, [ZERO, 0])
         entry[0] += s.monthly
         entry[1] += 1
     return sorted(((m, v, n) for m, (v, n) in totals.items()), key=lambda x: -x[1])
@@ -992,7 +1002,7 @@ def _balance(c: _Context) -> None:
         f"{tl(fl.expense)} (gelirin {pct(share)}). Kişilere gönderilen {tl(fl.people)}, borç ödemesi "
         f"{tl(fl.debt)} ve BES/birikim {tl(fl.saving)} de düşülünce ayda {tl(fl.left)} kalıyor."
     )
-    tone = "iyi" if fl.left >= 0.15 * fl.income else "dikkat"
+    tone = "iyi" if fl.left >= Decimal("0.15") * fl.income else "dikkat"
     c.ins.findings.append(Finding(tone, "Gelir ve gider dengesi", text))
 
 
@@ -1018,24 +1028,25 @@ def _debt_finding(c: _Context) -> None:
     extra = _extra_income(c)
     if extra:
         text += f" {months_in(extra[2])} (henüz eksik ay) maaş dışında {tl(extra[1])} gelir girdi ({extra[0]})."
-    tone = "dikkat" if fl.debt_end > fl.debt_start or c.debts > 0.5 * (c.salary.amount if c.salary else 0) else "iyi"
+    salary = c.salary.amount if c.salary else ZERO
+    tone = "dikkat" if fl.debt_end > fl.debt_start or c.debts > Decimal("0.5") * salary else "iyi"
     c.ins.findings.append(Finding(tone, "Borç nasıl değişti", text))
 
 
-def _extra_income(c: _Context) -> tuple[str, float, list[str]] | None:
+def _extra_income(c: _Context) -> tuple[str, Decimal, list[str]] | None:
     """Large income after the last complete month that is not the salary: (payers, total, months)."""
     last = c.ins.timeline.last_complete
     salary = c.salary.merchant if c.salary else None
-    found: dict[str, float] = defaultdict(float)
+    found: dict[str, Decimal] = defaultdict(Decimal)
     months = set()
     for t in c.ds.transactions:
         if t.kind == TransactionKind.INCOME and month_of(t.date) > last and t.merchant != salary:
             found[t.merchant] -= t.amount
             months.add(month_of(t.date))
-    total = sum(found.values())
-    if total < 0.5 * (c.salary.amount if c.salary else 1e12):
+    total = sum(found.values(), ZERO)
+    if not c.salary or total < Decimal("0.5") * c.salary.amount:
         return None
-    payers = ", ".join(m for m, v in sorted(found.items(), key=lambda kv: -kv[1]) if v >= 0.1 * total)
+    payers = ", ".join(m for m, v in sorted(found.items(), key=lambda kv: -kv[1]) if v >= Decimal("0.1") * total)
     return payers, total, sorted(months)
 
 
@@ -1081,7 +1092,7 @@ def _change_finding(c: _Context) -> None:
             " En çok artanlar: " + ", ".join(f"{ch.category} (ayda +{tl(ch.recent - ch.before)})" for ch in ups) + "."
         )
     usual = tr.usual_recent / tr.usual_before - 1 if tr.usual_before > 0 else delta
-    c.ins.findings.append(Finding("dikkat" if usual > 0.15 else "bilgi", "Harcamalar nasıl değişti", text))
+    c.ins.findings.append(Finding("dikkat" if usual > Decimal("0.15") else "bilgi", "Harcamalar nasıl değişti", text))
 
 
 def _habit_finding(c: _Context) -> None:
@@ -1090,22 +1101,23 @@ def _habit_finding(c: _Context) -> None:
         return
     last3 = set(c.window[-3:])
     count = sum(1 for t in c.expenses if t.merchant == top.name and month_of(t.date) in last3)
-    same_category = sum(t.amount for t in c.expenses if t.category == top.category and month_of(t.date) in last3) / 3
+    same = (t.amount for t in c.expenses if t.category == top.category and month_of(t.date) in last3)
+    same_category = sum(same, ZERO) / 3
     text = (
         f"İsteğe bağlı harcamaların en büyüğü {top.name}: son 3 ayda ayda {tl(top.recent)}, "
         f"ayda ortalama {count / 3:.0f} alışveriş, alışveriş başına {tl(top.recent * 3 / max(1, count))}"
     )
-    if same_category > top.recent * 1.05:
+    if same_category > top.recent * Decimal("1.05"):
         text += f"; {top.category} harcamasının {pct(top.recent / same_category)}"
     c.ins.findings.append(Finding("dikkat", "En büyük alışkanlık", text + ".", {"merchant": top.name}))
 
 
 def _fees_finding(c: _Context) -> None:
-    by_category: dict[str, float] = defaultdict(float)
+    by_category: dict[str, Decimal] = defaultdict(Decimal)
     for t in c.expenses:
         if t.kind == TransactionKind.INTEREST_FEE:
             by_category[t.category] += t.amount
-    total = sum(by_category.values())
+    total = sum(by_category.values(), ZERO)
     if total < 1:
         return
     parts = ", ".join(f"{cat} {tl(v)}" for cat, v in sorted(by_category.items(), key=lambda kv: -kv[1]) if v >= 1)
@@ -1129,7 +1141,7 @@ def _overdraft_finding(c: _Context) -> None:
         minus = [v for v in months.values() if v < -1]
         parts.append(
             f"{label} {len(c.window)} ayın {len(minus)} ayını eksi bakiyeyle kapattı "
-            f"(ay sonu ortalaması {tl(sum(minus) / len(minus))})"
+            f"(ay sonu ortalaması {tl(sum(minus, ZERO) / len(minus))})"
         )
     text = "; ".join(parts) + "."
     rate = overdraft_rate(c.ds, c.window, history)
@@ -1138,10 +1150,10 @@ def _overdraft_finding(c: _Context) -> None:
     c.ins.findings.append(Finding("dikkat", "Ek hesap (KMH) kullanımı", text, {"category": "Ek Hesap (KMH) Faizi"}))
 
 
-def overdraft_rate(ds: Dataset, window: list[str], history: dict[str, dict[str, float]]) -> float | None:
+def overdraft_rate(ds: Dataset, window: list[str], history: dict[str, dict[str, Decimal]]) -> Decimal | None:
     """Overdraft interest paid in the window over the month-end overdraft balances."""
-    used = sum(-v for months in history.values() for v in months.values() if v < 0)
-    paid = sum(t.amount for t in _expenses(ds, set(window)) if t.category == "Ek Hesap (KMH) Faizi")
+    used = sum((-v for months in history.values() for v in months.values() if v < 0), ZERO)
+    paid = sum((t.amount for t in _expenses(ds, set(window)) if t.category == "Ek Hesap (KMH) Faizi"), ZERO)
     return paid / used if used > 0 and paid > 0 else None
 
 
@@ -1150,9 +1162,10 @@ def _regular_findings(c: _Context) -> None:
     running = [s for s in ins.series if s.running and s.last.kind == TransactionKind.PURCHASE]
     if running:
         optional = [s for s in running if s.last.necessity == OPTIONAL]
-        text = f"{len(running)} düzenli ödeme ayda {tl(sum(s.monthly for s in running))} tutuyor"
+        text = f"{len(running)} düzenli ödeme ayda {tl(sum((s.monthly for s in running), ZERO))} tutuyor"
         if optional:
-            text += f"; bunun {tl(sum(s.monthly for s in optional))} kadarı isteğe bağlı ({_payee_list(optional, 4)})"
+            chosen = sum((s.monthly for s in optional), ZERO)
+            text += f"; bunun {tl(chosen)} kadarı isteğe bağlı ({_payee_list(optional, 4)})"
         text += "."
         changes = [(s, ch) for s in running if (ch := s.price_change()) and month_of(ch[2]) >= window[0]]
         if changes:
@@ -1174,7 +1187,7 @@ def _regular_findings(c: _Context) -> None:
         text = (
             "Bitenler ve iptal ettikleriniz: "
             + ", ".join(f"{s.merchant} {tl(s.monthly)} (son ödeme {_day(s.last.date)})" for s in stopped[:6])
-            + f". Ayda {tl(sum(s.monthly for s in stopped))} tasarruf; tahmine girmiyorlar."
+            + f". Ayda {tl(sum((s.monthly for s in stopped), ZERO))} tasarruf; tahmine girmiyorlar."
         )
         ins.findings.append(Finding("iyi", "Biten abonelikler", text))
     missing = [s for s in ended if s.last.necessity == NEEDED and s.status == "bitti"]
@@ -1219,10 +1232,10 @@ def _position_finding(c: _Context) -> None:
     held = c.ins.holdings
     if not held:
         return
-    cash = sum(h.value or 0 for h in held if h.kind in ("nakit", "vadeli", "doviz"))
+    cash = sum((h.value or ZERO for h in held if h.kind in ("nakit", "vadeli", "doviz")), ZERO)
     parts = [f"nakit ve döviz {tl(cash)}"]
     for h in held:
-        if h.kind == "altin" and h.amount > 0.001:
+        if h.kind == "altin" and h.amount > GOLD_DUST:
             grams = f"{h.amount:.2f}".replace(".", ",")
             parts.append(f"altın {grams} gr" + (f" (alışta {tl(h.cost)} ödendi)" if h.cost else ""))
         elif h.kind == "yatirim" and h.value:
@@ -1260,7 +1273,7 @@ def _receipts_finding(c: _Context) -> None:
     if rows:
         parts = []
         for kinds, label in _RECEIPT_KINDS:
-            total = sum(t.amount for t in rows if t.kind in kinds)
+            total = sum((t.amount for t in rows if t.kind in kinds), ZERO)
             if abs(total) >= 1:
                 parts.append(f"{label} {tl(abs(total))}")
         first, last = min(t.date for t in rows), max(t.date for t in rows)
@@ -1285,11 +1298,11 @@ def _receipts_finding(c: _Context) -> None:
         c.ins.findings.append(Finding("dikkat", "Ekstrede görünmeyen dekontlar", text))
 
 
-def _optional_cut(c: _Context) -> tuple[float, float]:
+def _optional_cut(c: _Context) -> tuple[Decimal, Decimal]:
     """(typical discretionary month without subscriptions and work costs, suggested cut)."""
     typical = c.level(OPTIONAL)
     top = _top_habit(c.ins)
-    cut = max(0.2 * typical, top.recent / 2 if top else 0.0)
+    cut = max(Decimal("0.2") * typical, top.recent / 2 if top else ZERO)
     return typical, min(cut, typical)
 
 
@@ -1297,7 +1310,7 @@ def _write_steps(c: _Context) -> None:
     ins, window, steps = c.ins, c.window, c.ins.steps
     interest = c.recent_avg(lambda t: t.category in INTEREST)
     if interest >= 1:
-        overdraft = -sum(h.amount for h in ins.holdings if h.kind == "kmh" and h.amount < 0)
+        overdraft = -sum((h.amount for h in ins.holdings if h.kind == "kmh" and h.amount < 0), ZERO)
         text = (
             f"Son 3 ayda faize ayda {tl(interest)} gitti. Kart ekstresinin her ay tamamını ödeyin, ek hesabı "
             "sıfırlayıp eksiye düşürmeyin."
@@ -1310,7 +1323,7 @@ def _write_steps(c: _Context) -> None:
         steps.append(Step("Faiz ödemeyi bırakın", text, interest))
 
     fee_cards = {t.account for t in c.expenses if t.category == CARD_FEES}
-    fees = sum(t.amount for t in c.expenses if t.category == CARD_FEES)
+    fees = sum((t.amount for t in c.expenses if t.category == CARD_FEES), ZERO)
     if len(fee_cards) >= 2 and fees >= 1:
         steps.append(
             Step(
@@ -1347,7 +1360,7 @@ def _write_steps(c: _Context) -> None:
         steps.append(
             Step(
                 "Abonelikleri gözden geçirin",
-                f"İsteğe bağlı abonelikler ayda {tl(sum(s.monthly for s in subs))}: {_payee_list(subs)}. "
+                f"İsteğe bağlı abonelikler ayda {tl(sum((s.monthly for s in subs), ZERO))}: {_payee_list(subs)}. "
                 "İptal ettiklerinizi kategoriler.yaml'daki _biten listesine ekleyin; tahmin ona göre düşer.",
             )
         )
@@ -1365,7 +1378,7 @@ def _write_steps(c: _Context) -> None:
             )
         )
 
-    if ins.flow and ins.flow.income > 0 and (ins.flow.people + ins.flow.debt) >= 0.1 * ins.flow.income:
+    if ins.flow and ins.flow.income > 0 and (ins.flow.people + ins.flow.debt) >= Decimal("0.1") * ins.flow.income:
         other = ins.flow.people + ins.flow.debt
         text = (
             f"Kişilere gönderilen para ve borç geri ödemeleri ayda ortalama {tl(other)}, gelirin "
@@ -1378,7 +1391,7 @@ def _write_steps(c: _Context) -> None:
 
     big = [t for t in (ins.trend.big if ins.trend else []) if t.necessity != NEEDED]
     if big:
-        total = sum(t.amount for t in big)
+        total = sum((t.amount for t in big), ZERO)
         steps.append(
             Step(
                 "Büyük alışverişler için önceden biriktirin",
@@ -1390,7 +1403,7 @@ def _write_steps(c: _Context) -> None:
     needed = c.typical(lambda t: t.necessity == NEEDED)
     if needed >= 1:
         target = 3 * needed
-        have = max(0.0, c.savings - c.debts)
+        have = max(ZERO, c.savings - c.debts)
         text = (
             f"Zorunlu giderler ayda yaklaşık {tl(needed)}; 3 aylık tampon {tl(target)} eder. Borçlar düşülünce "
             f"birikiminiz {tl(have)}, yani yaklaşık {_decimal(have / needed)} aylık."
@@ -1406,22 +1419,22 @@ def _write_steps(c: _Context) -> None:
 def _write_budget(c: _Context) -> None:
     """The month now and after the priced steps; the difference is what the steps free."""
     ins = c.ins
-    income = c.salary.amount if c.salary else (ins.flow.income if ins.flow else 0.0)
+    income = c.salary.amount if c.salary else (ins.flow.income if ins.flow else ZERO)
     fixed = [s for s in ins.series if s.running and s.last.kind == TransactionKind.PURCHASE]
     needed = c.level(NEEDED)
     unsure = c.level(Necessity.UNKNOWN, work=True)
     fees = c.typical(lambda t: t.necessity == AVOIDABLE)
     work = c.typical(lambda t: t.category in WORK_CATEGORIES and id(t) not in c.in_series)
     optional, cut = _optional_cut(c)
-    saving = sum(s.monthly for s in ins.series if s.running and s.last.kind == TransactionKind.INVESTMENT)
+    saving = sum((s.monthly for s in ins.series if s.running and s.last.kind == TransactionKind.INVESTMENT), ZERO)
     lines = [
         BudgetLine(
             "Düzenli gelir", income, income, f"son maaş ({c.salary.merchant})" if c.salary else "ortalama gelir"
         ),
         BudgetLine(
             "Sabit ödemeler (kira, aidat, faturalar, abonelikler)",
-            sum(s.monthly for s in fixed),
-            sum(s.monthly for s in fixed),
+            sum((s.monthly for s in fixed), ZERO),
+            sum((s.monthly for s in fixed), ZERO),
             f"{len(fixed)} düzenli ödeme, son tutarlarıyla",
         ),
         BudgetLine(
@@ -1430,7 +1443,7 @@ def _write_budget(c: _Context) -> None:
         BudgetLine("İsteğe bağlı harcamalar", optional, optional - cut, "öneri: aylık sınır"),
         BudgetLine("Yazılım, bulut ve muhasebe (abonelik dışı)", work, work, "işinizse şirkete taşınabilir"),
         BudgetLine("Sınıflanmamış harcamalar", unsure, unsure, "kategoriler.yaml ile netleşir"),
-        BudgetLine("Faiz ve banka ücretleri", fees, 0.0, "öneri: borcu tam ödeyerek sıfırlayın"),
+        BudgetLine("Faiz ve banka ücretleri", fees, ZERO, "öneri: borcu tam ödeyerek sıfırlayın"),
         BudgetLine("BES ve düzenli birikim", saving, saving, "düzenli ödemelerden"),
     ]
     if ins.flow:
@@ -1444,8 +1457,8 @@ def _write_budget(c: _Context) -> None:
                 f"{tl(ins.flow.people + ins.flow.debt)})",
             )
         )
-    spent_now = sum(line.now for line in lines[1:])
-    spent_plan = sum(line.plan for line in lines[1:])
+    spent_now = sum((line.now for line in lines[1:]), ZERO)
+    spent_plan = sum((line.plan for line in lines[1:]), ZERO)
     lines.append(
         BudgetLine("Ay sonunda kalan", income - spent_now, income - spent_plan, "birikime ve acil durum fonuna")
     )

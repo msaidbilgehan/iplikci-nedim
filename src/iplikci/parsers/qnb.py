@@ -8,11 +8,13 @@ with the other documents (analysis.py).
 """
 
 import re
+from decimal import Decimal
 
 from bs4 import BeautifulSoup
 
 from ..domain.codes import AccountType, TransactionKind
 from ..domain.models import Account, ParseResult, Transaction
+from ..domain.money import round_half_up
 from ..textutil import fold, parse_dmy, parse_us_amount, title_tr
 from .common import Skipped
 
@@ -86,14 +88,14 @@ def parse_text(doc, text: str) -> ParseResult:
             number=ref[-4:],
         )
         result.title = f"Kredi Taksiti {ref[-4:]}"
-        principal = parse_us_amount(parts[1]) or 0.0
-        cost = sum(parse_us_amount(parts[i]) or 0.0 for i in (2, 3, 4))
+        principal = parse_us_amount(parts[1]) or Decimal(0)
+        cost = sum((parse_us_amount(parts[i]) or Decimal(0) for i in (2, 3, 4)), Decimal(0))
         result.accounts.append(acct)
         result.transactions += [
             Transaction(
                 date=day,
                 description=f"QNB ihtiyaç kredisi taksiti ({loan[2]}) — anapara",
-                amount=round(principal, 2),
+                amount=round_half_up(principal),
                 kind=TransactionKind.LOAN_PRINCIPAL,
                 account=acct.id,
                 source=doc.name,
@@ -101,7 +103,7 @@ def parse_text(doc, text: str) -> ParseResult:
             Transaction(
                 date=day,
                 description=f"QNB ihtiyaç kredisi taksiti ({loan[2]}) — faiz, KKDF, BSMV",
-                amount=round(cost, 2),
+                amount=round_half_up(cost),
                 kind=TransactionKind.INTEREST_FEE,
                 account=acct.id,
                 source=doc.name,

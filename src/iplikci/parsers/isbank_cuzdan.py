@@ -6,6 +6,7 @@ The first page names the account ("Hesap No: 1234-0765432", "Hesap Türü: Vadel
 """
 
 import re
+from decimal import Decimal
 
 from ..domain.codes import AccountType
 from ..domain.models import ParseResult
@@ -67,6 +68,12 @@ def parse(doc, pdf) -> ParseResult:
     start = min(opened or moves[0].date, moves[0].date)
     # A passbook that starts on the opening day starts from zero, so its first row is checked too.
     stmt = build_statement(
-        doc, account, moves, start, moves[-1].date, oldest_first=True, opening=0.0 if opened == moves[0].date else None
+        doc,
+        account,
+        moves,
+        start,
+        moves[-1].date,
+        oldest_first=True,
+        opening=Decimal(0) if opened == moves[0].date else None,
     )
     return ParseResult(parser=NAME, accounts=[account], statements=[stmt], holder=holder)

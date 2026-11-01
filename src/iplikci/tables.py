@@ -2,9 +2,11 @@
 
 import io
 from datetime import date, datetime
+from decimal import Decimal
 
 from bs4 import BeautifulSoup
 
+from .domain.money import round_half_up, to_decimal
 from .textutil import parse_dmy, parse_tr_amount, parse_us_amount
 
 XLS_MAGIC = b"\xd0\xcf\x11\xe0"
@@ -82,12 +84,12 @@ def to_date(value) -> date | None:
     return parse_dmy(str(value or "").strip()[:10]) if value else None
 
 
-def to_number(value) -> float | None:
-    """Spreadsheet number, or a Turkish ("1.234,56") / US ("1,234.56") formatted string."""
+def to_number(value) -> Decimal | None:
+    """Spreadsheet number, or a Turkish ("1.234,56") / US ("1,234.56") formatted string; two decimals."""
     if value is None or value == "":
         return None
     if isinstance(value, (int, float)):
-        return round(float(value), 2)
+        return round_half_up(to_decimal(float(value)))
     text = str(value).strip().replace(" ", "")
     if not text:
         return None
@@ -96,4 +98,4 @@ def to_number(value) -> float | None:
     parsed = parse_tr_amount(body) if "," in body and body.rfind(",") > body.rfind(".") else parse_us_amount(body)
     if parsed is None:
         parsed = parse_tr_amount(body)
-    return None if parsed is None else round(sign * abs(parsed), 2)
+    return None if parsed is None else sign * abs(parsed)

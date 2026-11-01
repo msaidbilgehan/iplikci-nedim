@@ -1,6 +1,7 @@
 """Interpretation: regular payments and their status, habits, balances and the findings."""
 
 from datetime import date, timedelta
+from decimal import Decimal
 
 import pytest
 
@@ -34,7 +35,7 @@ REGULAR = {"Dijital Abonelikler", "Elektrik, Su & Doğalgaz", "İnternet & Telef
 def tx(
     d: date,
     merchant: str,
-    amount: float,
+    amount: Decimal,
     category: str = "Dijital Abonelikler",
     necessity: Necessity | None = Necessity.OPTIONAL,
     kind: TransactionKind = TransactionKind.PURCHASE,
@@ -62,9 +63,9 @@ def monthly(first: date, count: int) -> list[date]:
     return out
 
 
-def card_statements(first_cut: date, count: int, account: str = "card", total: float = 0.0) -> list[Statement]:
+def card_statements(first_cut: date, count: int, account: str = "card", total: Decimal = Decimal(0)) -> list[Statement]:
     return [
-        Statement(account=account, cut_date=cut, currency="TRY", source="e.pdf", previous=0.0, total=total)
+        Statement(account=account, cut_date=cut, currency="TRY", source="e.pdf", previous=Decimal(0), total=total)
         for cut in monthly(first_cut, count)
     ]
 
@@ -105,35 +106,35 @@ def series_status(ds: Dataset) -> dict[tuple[str, float], str]:
 
 
 def test_subscription_ends_when_the_card_statements_go_on_without_it():
-    txns = [tx(d, "Örnek Müzik", 99.99) for d in monthly(date(2025, 6, 15), 7)]  # last 15.12.2025
+    txns = [tx(d, "Örnek Müzik", Decimal("99.99")) for d in monthly(date(2025, 6, 15), 7)]  # last 15.12.2025
     ds = dataset(txns, card_statements(date(2025, 6, 18), 16))  # statements until 18.09.2026
-    assert series_status(ds) == {("Örnek Müzik", 99.99): "bitti"}
+    assert series_status(ds) == {("Örnek Müzik", Decimal("99.99")): "bitti"}
 
 
 def test_subscription_runs_on_when_the_statements_stop_before_the_next_charge():
-    txns = [tx(d, "Örnek Dergi", 49.90) for d in monthly(date(2025, 12, 12), 11)]  # last 12.10.2026
+    txns = [tx(d, "Örnek Dergi", Decimal("49.90")) for d in monthly(date(2025, 12, 12), 11)]  # last 12.10.2026
     ds = dataset(txns, card_statements(date(2025, 12, 13), 11))  # last statement cut 13.10.2026
-    assert series_status(ds) == {("Örnek Dergi", 49.9): "devam"}
+    assert series_status(ds) == {("Örnek Dergi", Decimal("49.9")): "devam"}
 
 
 def test_listed_as_ended_is_cancelled_and_a_later_charge_is_reported():
-    txns = [tx(d, "Örnek Dergi", 49.90) for d in monthly(date(2025, 12, 12), 11)]
+    txns = [tx(d, "Örnek Dergi", Decimal("49.90")) for d in monthly(date(2025, 12, 12), 11)]
     statements = card_statements(date(2025, 12, 13), 12)
     assert series_status(dataset(txns, statements, ended={"ORNEK DERGI": "2026-10"})) == {
-        ("Örnek Dergi", 49.9): "iptal"
+        ("Örnek Dergi", Decimal("49.9")): "iptal"
     }
-    late = txns + [tx(date(2026, 11, 12), "Örnek Dergi", 49.90)]
+    late = txns + [tx(date(2026, 11, 12), "Örnek Dergi", Decimal("49.90"))]
     ds = dataset(late, statements, ended={"ORNEK DERGI": "2026-10"})
-    assert series_status(ds) == {("Örnek Dergi", 49.9): "iptal_sonrasi"}
+    assert series_status(ds) == {("Örnek Dergi", Decimal("49.9")): "iptal_sonrasi"}
     finding = next(f for f in interpret(ds).findings if "iptalden sonra" in f.title)
     assert "12.11.2026" in finding.text
 
 
 def test_two_subscriptions_with_one_payee_are_told_apart_by_amount():
-    premium = [tx(d, "Örnek Video", 129.99) for d in monthly(date(2026, 1, 1), 8)]
-    membership = [tx(d, "Örnek Video", 100.0, account="old") for d in monthly(date(2026, 1, 18), 8)]
+    premium = [tx(d, "Örnek Video", Decimal("129.99")) for d in monthly(date(2026, 1, 1), 8)]
+    membership = [tx(d, "Örnek Video", Decimal(100), account="old") for d in monthly(date(2026, 1, 18), 8)]
     found = find_series(premium + membership, REGULAR)
-    assert sorted(round(s.amount, 2) for s in found) == [100.0, 129.99]
+    assert sorted(round(s.amount, 2) for s in found) == [Decimal(100), Decimal("129.99")]
 
 
 def test_a_bill_moving_with_the_seasons_is_one_series_but_a_shop_is_none():
@@ -154,7 +155,7 @@ def test_a_bill_moving_with_the_seasons_is_one_series_but_a_shop_is_none():
 
 def test_an_unchanged_monthly_amount_is_regular_in_any_category():
     gym = [
-        tx(d, "Spor Salonu", 900.0, category="Diğer Harcamalar", necessity=Necessity.UNKNOWN)
+        tx(d, "Spor Salonu", Decimal(900), category="Diğer Harcamalar", necessity=Necessity.UNKNOWN)
         for d in monthly(date(2026, 1, 5), 5)
     ]
     assert len(find_series(gym, REGULAR)) == 1
@@ -162,11 +163,11 @@ def test_an_unchanged_monthly_amount_is_regular_in_any_category():
 
 def test_old_series_on_an_account_without_statements_is_over():
     loan = [
-        tx(d, "QNB ihtiyaç kredisi", 2500.0, kind=TransactionKind.LOAN_PRINCIPAL, account="old")
+        tx(d, "QNB ihtiyaç kredisi", Decimal(2500), kind=TransactionKind.LOAN_PRINCIPAL, account="old")
         for d in monthly(date(2024, 1, 15), 5)
     ]
     recent = card_statements(date(2026, 1, 14), 9)
-    assert series_status(dataset(loan, recent)) == {("QNB ihtiyaç kredisi", 2500.0): "bitti"}
+    assert series_status(dataset(loan, recent)) == {("QNB ihtiyaç kredisi", Decimal(2500)): "bitti"}
 
 
 def test_a_bill_paid_elsewhere_for_a_few_months_goes_on():
@@ -174,19 +175,19 @@ def test_a_bill_paid_elsewhere_for_a_few_months_goes_on():
     # to be a series of their own and continue the bill. The same-day card fee keeps it out of the
     # once-a-month path, so the payments are chained by amount.
     bills = [
-        (date(2026, 1, 9), 500.2),
-        (date(2026, 1, 31), 540.0),
-        (date(2026, 3, 10), 654.6),
-        (date(2026, 4, 8), 654.6),
-        (date(2026, 7, 30), 657.8),
-        (date(2026, 9, 9), 657.8),
+        (date(2026, 1, 9), Decimal("500.2")),
+        (date(2026, 1, 31), Decimal(540)),
+        (date(2026, 3, 10), Decimal("654.6")),
+        (date(2026, 4, 8), Decimal("654.6")),
+        (date(2026, 7, 30), Decimal("657.8")),
+        (date(2026, 9, 9), Decimal("657.8")),
     ]
-    fees = [(date(2026, 1, 9), 17.5), (date(2026, 9, 9), 23.02)]
+    fees = [(date(2026, 1, 9), Decimal("17.5")), (date(2026, 9, 9), Decimal("23.02"))]
     txns = [
         tx(d, "Türk Telekom", a, category="İnternet & Telefon", necessity=Necessity.REQUIRED) for d, a in bills + fees
     ]
     ds = dataset(txns, card_statements(date(2026, 1, 10), 10))  # statements until 10.10.2026
-    assert series_status(ds) == {("Türk Telekom", 657.8): "devam"}
+    assert series_status(ds) == {("Türk Telekom", Decimal("657.8")): "devam"}
     assert not any(f.title == "Görünmeyen faturalar" for f in interpret(ds).findings)
 
 
@@ -230,34 +231,36 @@ def test_habits_are_told_apart_and_only_habits_cost_from_now_on():
     txns = []
     for i, d in enumerate(monthly(date(2025, 12, 3), 10)):  # every month, 2 orders of 500
         txns += [
-            tx(d, "Getir", 500.0, category="Market & Gıda"),
-            tx(d + timedelta(days=7), "Getir", 500.0, category="Market & Gıda"),
+            tx(d, "Getir", Decimal(500), category="Market & Gıda"),
+            tx(d + timedelta(days=7), "Getir", Decimal(500), category="Market & Gıda"),
         ]
-    txns += [tx(d, "Örnek Büfe", 1000.0, category="Tekel & Büfe") for d in monthly(date(2026, 5, 18), 5)]  # since May
     txns += [
-        tx(date(2026, m, 10), "Hepsiburada", 1200.0, category="Online Alışveriş") for m in (1, 4, 8)
+        tx(d, "Örnek Büfe", Decimal(1000), category="Tekel & Büfe") for d in monthly(date(2026, 5, 18), 5)
+    ]  # since May
+    txns += [
+        tx(date(2026, m, 10), "Hepsiburada", Decimal(1200), category="Online Alışveriş") for m in (1, 4, 8)
     ]  # now and then
     txns += [
-        tx(date(2026, 1, 10), "Trendyol", 300.0, category="Online Alışveriş"),
-        tx(date(2026, 3, 10), "Trendyol", 300.0, category="Online Alışveriş"),
+        tx(date(2026, 1, 10), "Trendyol", Decimal(300), category="Online Alışveriş"),
+        tx(date(2026, 3, 10), "Trendyol", Decimal(300), category="Online Alışveriş"),
     ]  # stopped in March
-    txns.append(tx(date(2026, 8, 23), "sahibinden.com", 45000.0, category="Online Alışveriş"))  # once
+    txns.append(tx(date(2026, 8, 23), "sahibinden.com", Decimal(45000), category="Online Alışveriş"))  # once
     ds = dataset(txns, statements, coverage=window_cov)
     tl_ = timeline(ds)
     assert tl_.last_complete == "2026-09" and len(tl_.window) == 10
     found = {h.name: h for h in habits(ds, tl_, [])}
-    assert (found["Getir"].status, found["Getir"].monthly) == ("duzenli", 1000.0)
+    assert (found["Getir"].status, found["Getir"].monthly) == ("duzenli", Decimal(1000))
     assert (found["Örnek Büfe"].status, found["Örnek Büfe"].since) == ("yeni", "2026-05")
     assert found["Örnek Büfe"].pattern.startswith("Mayıs 2026'dan beri")
     assert found["Hepsiburada"].status == "ara_sira"
     assert found["Hepsiburada"].monthly == pytest.approx(3600 / 10)  # spread over the window, not times twelve
-    assert (found["Trendyol"].status, found["Trendyol"].monthly) == ("durdu", 0.0)
-    assert (found["sahibinden.com"].status, found["sahibinden.com"].monthly) == ("tek", 0.0)
+    assert (found["Trendyol"].status, found["Trendyol"].monthly) == ("durdu", Decimal(0))
+    assert (found["sahibinden.com"].status, found["sahibinden.com"].monthly) == ("tek", Decimal(0))
 
 
 def test_a_habit_listed_as_ended_stopped():
     statements = card_statements(date(2025, 12, 14), 11)
-    txns = [tx(d, "Örnek Büfe", 1000.0, category="Tekel & Büfe") for d in monthly(date(2026, 5, 18), 5)]
+    txns = [tx(d, "Örnek Büfe", Decimal(1000), category="Tekel & Büfe") for d in monthly(date(2026, 5, 18), 5)]
     ds = dataset(
         txns,
         statements,
@@ -265,7 +268,7 @@ def test_a_habit_listed_as_ended_stopped():
         ended={"ORNEK BUFE": "2026-09"},
     )
     (h,) = habits(ds, timeline(ds), [])
-    assert (h.status, h.monthly) == ("durdu", 0.0)
+    assert (h.status, h.monthly) == ("durdu", Decimal(0))
 
 
 # --- months, balances and debt ---------------------------------------------------------------
@@ -278,8 +281,8 @@ def test_complete_months_skip_a_partial_month_but_not_a_new_account():
             cut_date=date(2026, 10, 31),
             currency="USD",
             source="u.xls",
-            previous=0.0,
-            total=590.0,
+            previous=Decimal(0),
+            total=Decimal(590),
             start=date(2026, 4, 30),
         )
     ]
@@ -296,34 +299,39 @@ def test_complete_months_skip_a_partial_month_but_not_a_new_account():
 def test_holdings_value_foreign_currency_and_subtract_card_payments_after_the_cut():
     statements = [
         Statement(
-            account="card", cut_date=date(2026, 10, 13), currency="TRY", source="k.pdf", previous=50.0, total=90000.5
+            account="card",
+            cut_date=date(2026, 10, 13),
+            currency="TRY",
+            source="k.pdf",
+            previous=Decimal(50),
+            total=Decimal("90000.5"),
         ),
         Statement(
             account="usd",
             cut_date=date(2026, 10, 31),
             currency="USD",
             source="u.xls",
-            previous=0.0,
-            total=500.0,
+            previous=Decimal(0),
+            total=Decimal(500),
             start=date(2026, 4, 30),
-            balances={"2026-10": 500.0},
+            balances={"2026-10": Decimal(500)},
         ),
         Statement(
             account="cash",
             cut_date=date(2026, 10, 31),
             currency="TRY",
             source="v.xls",
-            previous=0.0,
-            total=-21000.75,
+            previous=Decimal(0),
+            total=Decimal("-21000.75"),
             start=date(2026, 1, 1),
-            balances={"2026-09": -19000.0, "2026-10": -21000.75},
+            balances={"2026-09": Decimal(-19000), "2026-10": Decimal("-21000.75")},
         ),
     ]
     paid = [
         tx(
             date(2026, 10, 14),
             "Kart ödemesi",
-            40000.25,
+            Decimal("40000.25"),
             kind=TransactionKind.CARD_PAYMENT,
             account="cash",
             description="123456******1234 no.lu Kredi Kartına Ödenen Tutar",
@@ -331,20 +339,20 @@ def test_holdings_value_foreign_currency_and_subtract_card_payments_after_the_cu
         tx(
             date(2026, 10, 17),
             "Kart ödemesi",
-            50000.25,
+            Decimal("50000.25"),
             kind=TransactionKind.CARD_PAYMENT,
             account="cash",
             description="123456******1234 no.lu Kredi Kartına Ödenen Tutar",
         ),
     ]
     ds = dataset(paid, statements)
-    ds.rates = {"USD": [(date(2026, 5, 2), 46.4), (date(2026, 7, 1), 47.18)]}
+    ds.rates = {"USD": [(date(2026, 5, 2), Decimal("46.4")), (date(2026, 7, 1), Decimal("47.18"))]}
     by_kind = {h.kind: h for h in holdings(ds)}
-    assert by_kind["kart"].value == pytest.approx(0.0, abs=0.01)
-    assert by_kind["doviz"].value == pytest.approx(500.0 * 47.18, abs=0.01)
-    assert by_kind["kmh"].amount == pytest.approx(-21000.75)
+    assert by_kind["kart"].value == pytest.approx(Decimal(0), abs=Decimal("0.01"))
+    assert by_kind["doviz"].value == pytest.approx(Decimal(500) * Decimal("47.18"), abs=Decimal("0.01"))
+    assert by_kind["kmh"].amount == pytest.approx(Decimal("-21000.75"))
     # Before its first statement a card counts with that statement's opening balance (50).
-    assert debt_at(ds, date(2026, 9, 30)) == pytest.approx(19000.0 + 50.0)
+    assert debt_at(ds, date(2026, 9, 30)) == pytest.approx(Decimal(19000) + Decimal(50))
 
 
 def test_a_missing_brokerage_statement_leaves_the_month_complete():
@@ -365,8 +373,8 @@ def test_stocks_count_at_market_value_and_an_old_balance_is_shown_but_not_counte
             cut_date=date(2026, 10, 31),
             currency="TRY",
             source="v.xls",
-            previous=0.0,
-            total=1000.0,
+            previous=Decimal(0),
+            total=Decimal(1000),
             start=date(2026, 10, 1),
         ),
         Statement(
@@ -374,42 +382,42 @@ def test_stocks_count_at_market_value_and_an_old_balance_is_shown_but_not_counte
             cut_date=date(2026, 9, 30),
             currency="TRY",
             source="h.pdf",
-            previous=0.0,
-            total=5.0,
+            previous=Decimal(0),
+            total=Decimal(5),
             start=date(2026, 9, 1),
-            securities=[Security("ORNEK", "ÖRNEK A.Ş.", 20.0, 600.0, date(2026, 9, 30))],
+            securities=[Security("ORNEK", "ÖRNEK A.Ş.", Decimal(20), Decimal(600), date(2026, 9, 30))],
         ),
         Statement(
             account="vadeli",
             cut_date=date(2024, 1, 17),
             currency="TRY",
             source="c.pdf",
-            previous=0.0,
-            total=7500.0,
+            previous=Decimal(0),
+            total=Decimal(7500),
             start=date(2024, 1, 17),
         ),  # known only from the passbook sent when it was opened
     ]
     by_kind = {h.kind: h for h in holdings(dataset([], statements))}
     stocks, term = by_kind["yatirim"], by_kind["vadeli"]
-    assert (stocks.value, stocks.as_of) == (605.0, date(2026, 9, 30))
+    assert (stocks.value, stocks.as_of) == (Decimal(605), date(2026, 9, 30))
     assert stocks.note.startswith("ORNEK 20 adet; 30.09.2026 piyasa değeriyle; nakit")
-    assert (term.amount, term.value) == (7500.0, None) and term.note.startswith("son belge 17.01.2024")
+    assert (term.amount, term.value) == (Decimal(7500), None) and term.note.startswith("son belge 17.01.2024")
 
 
 # --- findings ---------------------------------------------------------------------------------
 
 
 def test_interpretation_prices_the_steps_and_balances_the_budget():
-    statements = card_statements(date(2025, 12, 14), 11, total=5000.0) + [
+    statements = card_statements(date(2025, 12, 14), 11, total=Decimal(5000)) + [
         Statement(
             account="cash",
             cut_date=date(2026, 10, 31),
             currency="TRY",
             source="v.xls",
-            previous=0.0,
-            total=-20000.0,
+            previous=Decimal(0),
+            total=Decimal(-20000),
             start=date(2025, 11, 30),
-            balances={"2026-09": -20000.0, "2026-10": -20000.0},
+            balances={"2026-09": Decimal(-20000), "2026-10": Decimal(-20000)},
         )
     ]
     coverage = {
@@ -420,7 +428,7 @@ def test_interpretation_prices_the_steps_and_balances_the_budget():
         tx(
             d,
             "Örnek (maaş)",
-            -100000.0,
+            Decimal(-100000),
             kind=TransactionKind.INCOME,
             category="Maaş & İş Geliri",
             necessity=None,
@@ -429,11 +437,11 @@ def test_interpretation_prices_the_steps_and_balances_the_budget():
         for d in monthly(date(2025, 12, 1), 11)
     ]
     txns += [
-        tx(d, "Ev kirası", 20000.0, category="Kira", necessity=Necessity.REQUIRED, account="cash")
+        tx(d, "Ev kirası", Decimal(20000), category="Kira", necessity=Necessity.REQUIRED, account="cash")
         for d in monthly(date(2025, 12, 5), 11)
     ]
     txns += [
-        tx(d + timedelta(days=4 * k), "Getir", 1400.0, category="Market & Gıda")  # six orders a month: a shop
+        tx(d + timedelta(days=4 * k), "Getir", Decimal(1400), category="Market & Gıda")  # six orders a month: a shop
         for d in monthly(date(2025, 12, 2), 10)
         for k in range(6)
     ]
@@ -441,7 +449,7 @@ def test_interpretation_prices_the_steps_and_balances_the_budget():
         tx(
             d,
             "TEB faiz & ücretleri",
-            1000.0,
+            Decimal(1000),
             kind=TransactionKind.INTEREST_FEE,
             category="Ek Hesap (KMH) Faizi",
             necessity=Necessity.UNNECESSARY,
@@ -455,9 +463,9 @@ def test_interpretation_prices_the_steps_and_balances_the_budget():
         "Gelir ve gider dengesi" in titles and "En büyük alışkanlık" in titles and "Faiz ve banka ücretleri" in titles
     )
     steps = {s.title: s.monthly for s in ins.steps}
-    assert steps["Faiz ödemeyi bırakın"] == pytest.approx(1000.0)
+    assert steps["Faiz ödemeyi bırakın"] == pytest.approx(Decimal(1000))
     income, *spent, left = ins.budget
-    assert income.now == 100000.0
+    assert income.now == Decimal(100000)
     assert left.now == pytest.approx(income.now - sum(line.now for line in spent))
     assert left.plan - left.now == pytest.approx(sum(line.now - line.plan for line in spent))
 

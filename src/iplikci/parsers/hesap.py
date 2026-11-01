@@ -10,9 +10,11 @@ a relative is decided later, once all accounts are known (analysis.py).
 import re
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
 
 from ..domain.codes import TransactionKind
 from ..domain.models import TRY, Account, Statement, Transaction
+from ..domain.money import CENT, TOLERANCE, round_half_up
 from ..textutil import fold, format_tr_amount
 
 # A cancelled transfer: it and its reversal turn out to be own transfers once the rows are all read.
@@ -44,13 +46,13 @@ def bank_from_iban(iban: str) -> str:
 class Movement:
     date: date
     description: str
-    amount: float  # as printed by the bank: + money in, - money out
-    balance: float | None = None
+    amount: Decimal  # as printed by the bank: + money in, - money out
+    balance: Decimal | None = None
     label: str = ""  # the bank's own type column (Etiket, İşlem Tipi, İŞLEM)
     counterparty: str = ""
 
 
-def check_balances(movements: list[Movement], oldest_first: bool, opening: float | None = None) -> tuple[int, int]:
+def check_balances(movements: list[Movement], oldest_first: bool, opening: Decimal | None = None) -> tuple[int, int]:
     """Count rows whose printed balance equals the previous balance plus the amount."""
     rows = movements if oldest_first else list(reversed(movements))
     ok = total = 0
@@ -58,7 +60,7 @@ def check_balances(movements: list[Movement], oldest_first: bool, opening: float
     for m in rows:
         if prev_balance is not None and m.balance is not None:
             total += 1
-            ok += abs(prev_balance + m.amount - m.balance) < 0.015
+            ok += abs(prev_balance + m.amount - m.balance) <= TOLERANCE
         if m.balance is not None:
             prev_balance = m.balance
     return ok, total
@@ -124,7 +126,7 @@ def classify(m: Movement, currency: str) -> TransactionKind | str | None:
     return TransactionKind.TRANSFER_CANDIDATE
 
 
-def month_end_balances(movements: list[Movement], oldest_first: bool) -> dict[str, float]:
+def month_end_balances(movements: list[Movement], oldest_first: bool) -> dict[str, Decimal]:
     """Balance after the last movement of each month, in the account's currency."""
     rows = movements if oldest_first else list(reversed(movements))
     return {f"{m.date:%Y-%m}": m.balance for m in rows if m.balance is not None}
@@ -137,14 +139,14 @@ def build_statement(
     start: date,
     end: date,
     oldest_first: bool,
-    opening: float | None = None,
-    closing: float | None = None,
+    opening: Decimal | None = None,
+    closing: Decimal | None = None,
 ) -> Statement:
     ok, total = check_balances(movements, oldest_first, opening)
     chronological = movements if oldest_first else list(reversed(movements))
     with_balance = [m for m in chronological if m.balance is not None]
     if opening is None and with_balance:
-        opening = round(with_balance[0].balance - with_balance[0].amount, 2)
+        opening = round_half_up(with_balance[0].balance - with_balance[0].amount)
     if closing is None and with_balance:
         closing = with_balance[-1].balance
     stmt = Statement(
@@ -167,7 +169,7 @@ def build_statement(
         t = Transaction(
             date=m.date,
             description=m.description.strip(),
-            amount=round(-m.amount, 2),
+            amount=-m.amount,
             kind=TransactionKind.OWN_TRANSFER if kind == CANCELLED else TransactionKind(kind),
             account=account.id,
             counterparty=m.counterparty.strip(),
@@ -189,7 +191,7 @@ def _pair_cancellations(txns: list[Transaction], cancelled: list[Transaction]) -
                 other is not t
                 and other.date == t.date
                 and other.kind == TransactionKind.TRANSFER_CANDIDATE
-                and abs(other.amount + t.amount) < 0.01
+                and abs(other.amount + t.amount) < CENT
             ):
                 other.kind = TransactionKind.OWN_TRANSFER
                 break

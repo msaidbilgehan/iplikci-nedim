@@ -20,6 +20,7 @@ from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, timedelta
+from decimal import Decimal
 from typing import Any
 
 from .categorize import Categorizer, clean_description
@@ -27,6 +28,7 @@ from .domain.codes import CARD_TYPES, AccountType, EvidenceStatus, TransactionKi
 from .domain.fingerprint import Fingerprints
 from .domain.labels import EVIDENCE_STATUS
 from .domain.models import TRY, Account, ParseResult, Statement, Transaction
+from .domain.money import CENT, round_half_up
 from .textutil import fold, format_tr_amount
 
 # What the statements say about a receipt's row.
@@ -58,7 +60,7 @@ class ReceiptLine:
     txn: Transaction
     key: str  # the receipt it came from
     status: EvidenceStatus
-    native: float  # amount in the account's currency (txn.amount is turned into TL for a foreign-currency account)
+    native: Decimal  # amount in the account's currency (txn.amount is turned into TRY for a foreign-currency account)
     match: Transaction | None = None  # the statement's row that confirmed it
 
 
@@ -72,7 +74,7 @@ class Dataset:
     categories: dict[str, str]  # category -> group, in rule-file order
     coverage: dict[str, dict[str, float]] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
-    rates: dict[str, list[tuple[date, float]]] = field(default_factory=dict)  # currency -> (date, TL rate)
+    rates: dict[str, list[tuple[date, Decimal]]] = field(default_factory=dict)  # currency -> (date, TRY rate)
     ended: dict[str, str] = field(default_factory=dict)  # folded merchant -> last month (kategoriler.yaml `_biten`)
     regular: set[str] = field(default_factory=set)  # commitment categories (kategoriler.yaml `_düzenli`)
     receipts: list[ReceiptLine] = field(default_factory=list)  # every receipt row, counted or not
@@ -97,7 +99,7 @@ def _link_foreign_currency(statements: list[Statement]) -> None:
             if buys:
                 names = list(dict.fromkeys(clean_description(x.description) for x in buys))
                 t.description = "Yurt dışı harcama: " + ", ".join(names)
-                t.original = f"{format_tr_amount(sum(x.amount for x in buys))} {fx.currency}"
+                t.original = f"{format_tr_amount(sum((x.amount for x in buys), Decimal(0)))} {fx.currency}"
             else:
                 t.description = "Yurt dışı harcamaların TL karşılığı"
 
@@ -123,7 +125,7 @@ def statement_periods(statements: list[Statement]) -> list[tuple[Statement, date
             else:
                 prev = stmts[i - 1] if i else None
                 continuous = (
-                    prev and prev.total is not None and s.previous is not None and abs(prev.total - s.previous) < 0.01
+                    prev and prev.total is not None and s.previous is not None and abs(prev.total - s.previous) < CENT
                 )
                 if prev and ((s.cut_date - prev.cut_date).days <= 45 or continuous):
                     start = prev.cut_date + timedelta(days=1)
@@ -192,7 +194,7 @@ class _Rows:
             found = [
                 r
                 for r in rows
-                if id(r) not in self.used and lo <= r.date <= hi and abs(r.amount - amount) < 0.011 and extra(r)
+                if id(r) not in self.used and lo <= r.date <= hi and abs(r.amount - amount) <= CENT and extra(r)
             ]
             return min(found, key=lambda r: abs((r.date - t.date).days), default=None)
 
@@ -322,7 +324,7 @@ def _free_card_payments(card_txns: list[Transaction], account_txns: list[Transac
     from_accounts = [t for t in account_txns if t.kind == TransactionKind.CARD_PAYMENT]
     free = []
     for p in (t for t in card_txns if t.kind == TransactionKind.CARD_PAYMENT):
-        if not any(abs(a.amount + p.amount) < 0.011 and -1 <= (p.date - a.date).days <= 4 for a in from_accounts):
+        if not any(abs(a.amount + p.amount) <= CENT and -1 <= (p.date - a.date).days <= 4 for a in from_accounts):
             free.append(p)
     return free
 
@@ -377,7 +379,7 @@ def _resolve_transfers(
             continue
         best, best_gap = None, None
         for other in pool:
-            if other is t or id(other) in paired or other.account == t.account or abs(other.amount + t.amount) > 0.01:
+            if other is t or id(other) in paired or other.account == t.account or abs(other.amount + t.amount) > CENT:
                 continue
             out, inc = (t, other) if t.amount > 0 else (other, t)
             gap = (inc.date - out.date).days
@@ -412,14 +414,14 @@ _RATE = re.compile(r"\b(USD|EUR|GBP)\s*:\s*(\d+(?:[.,]\d+)?)")
 _RATE_VAKIF = re.compile(r"\(([\d.,]+)\s*(USD|EUR|GBP) karşılığı\)\)\s*\(İşlem Kuru\s*:\s*([\d.,]+)\)")
 
 
-def _rates(txns: list[Transaction]) -> dict[str, list[tuple[date, float]]]:
+def _rates(txns: list[Transaction]) -> dict[str, list[tuple[date, Decimal]]]:
     rates: dict[str, list] = defaultdict(list)
     for t in txns:
         for cur, value in _RATE.findall(t.description):
-            rates[cur].append((t.date, float(value.replace(",", "."))))
+            rates[cur].append((t.date, Decimal(value.replace(",", "."))))
         m = _RATE_VAKIF.search(t.description)
         if m:
-            rates[m[2]].append((t.date, float(m[3].replace(".", "").replace(",", "."))))
+            rates[m[2]].append((t.date, Decimal(m[3].replace(".", "").replace(",", "."))))
     return rates
 
 
@@ -440,7 +442,7 @@ def _to_tl(
             warnings.append(f"{t.date} {currency} {t.amount}: kur bulunamadı, işlem dışarıda bırakıldı")
             continue
         rate = min(known, key=lambda r: abs((r[0] - t.date).days))[1]
-        t.amount = round(t.amount * rate, 2)
+        t.amount = round_half_up(t.amount * rate)
         t.original = f"{t.original} × {format_tr_amount(rate)}"
         out.append(t)
     return out

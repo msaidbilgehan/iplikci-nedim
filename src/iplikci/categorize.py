@@ -2,6 +2,7 @@
 
 import re
 from dataclasses import dataclass, field
+from decimal import Decimal
 from pathlib import Path
 
 import yaml
@@ -268,7 +269,7 @@ class Categorizer:
                     return rule
         return None
 
-    def kind_for(self, category: str, amount: float) -> TransactionKind:
+    def kind_for(self, category: str, amount: Decimal) -> TransactionKind:
         out_kind, in_kind = _KIND_BY_TYPE.get(self.types.get(category, ""), _KIND_BY_TYPE[""])
         return out_kind if amount > 0 else in_kind
 

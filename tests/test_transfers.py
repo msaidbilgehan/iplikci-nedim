@@ -1,6 +1,7 @@
 """Deciding what an account transfer is once every account is known."""
 
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
@@ -67,7 +68,7 @@ def test_own_names_and_numbers():
 
 
 def test_transfer_to_self_by_name(cat):
-    (t,) = resolve(cat, [cand(date(2026, 1, 5), "FAST", 1000.0, counterparty="ÖRNEK İSİM SOYADOĞLU")])
+    (t,) = resolve(cat, [cand(date(2026, 1, 5), "FAST", Decimal(1000), counterparty="ÖRNEK İSİM SOYADOĞLU")])
     assert t.kind == TransactionKind.OWN_TRANSFER
 
 
@@ -77,11 +78,11 @@ def test_bank_only_row_inherits_the_named_payment(cat):
         date(2026, 1, 31),
         "FAST Anlık Ödeme: k (31/01/2026 tarihli 1 sorgu no'lu ÖRNEK İSİM SOYADOĞLU "
         "hesabından Yapı ve Kredi Bankası A.Ş. Veli Örneksoy hesabına giden FAST ödemesi)",
-        15000.0,
+        Decimal(15000),
         account="vakifbank-0999000000123456",
         counterparty="Veli Örneksoy",
     )
-    bank_only = cand(date(2026, 3, 2), "YAPI VE KREDI BANKASI A.Ş.", 15000.0)
+    bank_only = cand(date(2026, 3, 2), "YAPI VE KREDI BANKASI A.Ş.", Decimal(15000))
     resolve(cat, [named, bank_only])
     assert (named.kind, named.category) == (TransactionKind.PURCHASE, "Kira")
     assert (bank_only.kind, bank_only.category) == (TransactionKind.PURCHASE, "Kira")
@@ -89,9 +90,9 @@ def test_bank_only_row_inherits_the_named_payment(cat):
 
 
 def test_opposite_rows_on_two_own_accounts_pair_up(cat):
-    out = cand(date(2026, 2, 1), "Giden FAST", 5000.0)
-    inc = cand(date(2026, 2, 2), "Gelen FAST", -5000.0, account="vakifbank-0999000000123456")
-    far = cand(date(2026, 2, 20), "Gelen FAST", -5000.0, account="vakifbank-0999000000123456")
+    out = cand(date(2026, 2, 1), "Giden FAST", Decimal(5000))
+    inc = cand(date(2026, 2, 2), "Gelen FAST", Decimal(-5000), account="vakifbank-0999000000123456")
+    far = cand(date(2026, 2, 20), "Gelen FAST", Decimal(-5000), account="vakifbank-0999000000123456")
     resolve(cat, [out, inc, far])
     assert (out.kind, inc.kind) == (TransactionKind.OWN_TRANSFER, TransactionKind.OWN_TRANSFER)
     assert far.kind == TransactionKind.INCOME  # nothing left to pair with: money from someone else
@@ -107,15 +108,15 @@ def test_bank_only_payment_outside_coverage_goes_to_own_account(cat):
         total=None,
         start=date(2026, 1, 1),
     )
-    t = cand(date(2025, 12, 15), "TÜRKİYE VAKIFLAR BANKASI T.A.O.", 3000.0)
+    t = cand(date(2025, 12, 15), "TÜRKİYE VAKIFLAR BANKASI T.A.O.", Decimal(3000))
     resolve(cat, [t], [covered])
     assert t.kind == TransactionKind.OWN_TRANSFER
 
 
 def test_unknown_people(cat):
     out, inc = (
-        cand(date(2026, 1, 5), "FAST", 300.0, counterparty="Ali Veli"),
-        cand(date(2026, 1, 6), "FAST", -300.0, counterparty="Ali Veli"),
+        cand(date(2026, 1, 5), "FAST", Decimal(300), counterparty="Ali Veli"),
+        cand(date(2026, 1, 6), "FAST", Decimal(-300), counterparty="Ali Veli"),
     )
     resolve(cat, [out, inc])
     assert (out.kind, inc.kind) == (TransactionKind.P2P_TRANSFER, TransactionKind.INCOME)
@@ -125,14 +126,14 @@ def test_foreign_currency_rows_valued_in_tl():
     rate_row = Transaction(
         date=date(2026, 3, 1),
         description="Döviz alış EUR:54.44",
-        amount=-10.0,
+        amount=Decimal(-10),
         kind=TransactionKind.OWN_TRANSFER,
         account="teb-111222333",
     )
     income = Transaction(
         date=date(2026, 3, 3),
         description="ORNEK MUSTERI",
-        amount=-1500.0,
+        amount=Decimal(-1500),
         kind=TransactionKind.INCOME,
         account="garanti-9000001",
         original="1.500,00 EUR",
@@ -140,19 +141,23 @@ def test_foreign_currency_rows_valued_in_tl():
     moved = Transaction(
         date=date(2026, 3, 4),
         description="Kendi hesabıma",
-        amount=500.0,
+        amount=Decimal(500),
         kind=TransactionKind.OWN_TRANSFER,
         account="garanti-9000001",
     )
     warnings: list[str] = []
     out = _to_tl([rate_row, income, moved], ACCOUNTS, _rates([rate_row]), warnings)
-    assert income.amount == round(-1500.0 * 54.44, 2) and "× 54,44" in income.original
+    assert income.amount == round(Decimal(-1500) * Decimal("54.44"), 2) and "× 54,44" in income.original
     assert moved not in out and not warnings  # EUR moved between own accounts changes nothing
 
 
 def test_missing_rate_is_reported():
     income = Transaction(
-        date=date(2026, 3, 3), description="X", amount=-10.0, kind=TransactionKind.INCOME, account="garanti-9000001"
+        date=date(2026, 3, 3),
+        description="X",
+        amount=Decimal(-10),
+        kind=TransactionKind.INCOME,
+        account="garanti-9000001",
     )
     warnings: list[str] = []
     assert _to_tl([income], ACCOUNTS, {}, warnings) == [] and "kur bulunamadı" in warnings[0]
@@ -172,8 +177,8 @@ def test_a_receipt_resolves_like_a_list_row_unless_a_list_covers_its_day(cat):
                 date(2026, 10, 31),
                 "EUR",
                 "l.xls",
-                0.0,
-                0.0,
+                Decimal(0),
+                Decimal(0),
                 start=date(2026, 10, 1),
                 checks_ok=1,
                 checks_total=1,
@@ -188,7 +193,7 @@ def test_a_receipt_resolves_like_a_list_row_unless_a_list_covers_its_day(cat):
             cand(
                 date(2024, 1, 16),
                 "Giden Havale → VELİ ÖRNEKSOY — 2024 OCAK",
-                8400.0,
+                Decimal(8400),
                 "garanti-1234567",
                 "VELİ ÖRNEKSOY",
             )
@@ -202,7 +207,7 @@ def test_a_receipt_resolves_like_a_list_row_unless_a_list_covers_its_day(cat):
         accounts=[masked],
         receipt_key="maas",
         transactions=[
-            cand(date(2026, 10, 15), "Gelen Transfer ← ÖRNEK FİRMA", -1000.0, "garanti-****001", "ÖRNEK FİRMA")
+            cand(date(2026, 10, 15), "Gelen Transfer ← ÖRNEK FİRMA", Decimal(-1000), "garanti-****001", "ÖRNEK FİRMA")
         ],
     )
     results = [
@@ -213,5 +218,5 @@ def test_a_receipt_resolves_like_a_list_row_unless_a_list_covers_its_day(cat):
     # The rent receipt fills a month no list covers; the masked salary receipt belongs to the EUR account,
     # whose list covers its day without showing it: left out (and flagged, see test_receipts.py).
     assert [(t.account, t.kind, t.category, t.amount) for t in ds.transactions] == [
-        ("garanti-1234567", TransactionKind.PURCHASE, "Kira", 8400.0)
+        ("garanti-1234567", TransactionKind.PURCHASE, "Kira", Decimal(8400))
     ]

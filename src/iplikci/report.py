@@ -5,6 +5,7 @@ import json
 import re
 from collections import defaultdict
 from datetime import date, datetime
+from decimal import Decimal
 from importlib import resources
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,7 @@ from .analysis import CONFIRMED, NOT_ON_STATEMENT, PROVISIONAL, Dataset
 from .categorize import NECESSITY_SLOTS, group_slot
 from .domain.codes import DEFAULT_EXPENSE_KINDS, Necessity, TransactionKind
 from .domain.labels import ACCOUNT_TYPE, KIND, NECESSITY, currency_label
+from .domain.money import round_half_up
 from .insights import HABIT_STATUS, STATUS, Insights, interpret, month_of
 from .textutil import fold
 
@@ -25,8 +27,14 @@ CLOSING_MONTHS = 7  # months the report's closing card lists: the current one an
 PROVISIONAL_LABEL = "Geçici (ekstre bekleniyor)"
 LEVELS = list(Necessity)  # the report's levels, in this order
 KINDS = [k for k in TransactionKind if k is not TransactionKind.TRANSFER_CANDIDATE]  # the ledger resolves those
+ZERO = Decimal(0)
 
 # The report's script still speaks the MVP's codes (mvp_codes); the exports write the Turkish labels.
+
+
+def _r(value: Decimal) -> Decimal:
+    """An amount as the report and the exports show it: two decimals, halves rounded up."""
+    return round_half_up(value)
 
 
 def _script_filter(found: dict[str, Any]) -> dict[str, Any]:
@@ -43,9 +51,9 @@ def _closing_payload(months: list[month_end.MonthEnd]) -> list[dict]:
             "status": mvp_codes.MONTH[me.status],
             "label": me.label,
             "summary": me.summary,
-            "expense": round(me.totals.expense, 2),
-            "income": None if me.totals.income is None else round(me.totals.income, 2),
-            "left": None if me.totals.left is None else round(me.totals.left, 2),
+            "expense": _r(me.totals.expense),
+            "income": None if me.totals.income is None else _r(me.totals.income),
+            "left": None if me.totals.left is None else _r(me.totals.left),
             "provisional": len(me.provisional),
             "unmatched": len(me.unmatched),
             "open": [f"{a.account.label}: {a.waiting_for}" for a in me.open],
@@ -190,8 +198,8 @@ def _insights_payload(ds: Dataset, ins: Insights, account_index: dict, category_
             "lv": _level(s.last.necessity),
             "k": mvp_codes.KIND[s.last.kind],
             "a": sorted({account_index[t.account] for t in s.payments}),
-            "v": round(s.monthly, 2),
-            "lastv": round(abs(s.last.amount), 2),
+            "v": _r(s.monthly),
+            "lastv": _r(abs(s.last.amount)),
             "last": s.last.date.isoformat(),
             "first": s.payments[0].date.isoformat(),
             "next": s.expected.isoformat() if s.expected else None,
@@ -199,8 +207,8 @@ def _insights_payload(ds: Dataset, ins: Insights, account_index: dict, category_
             "day": s.day,
             "status": s.status,
             "show": shown,
-            "change": [round(change[0], 2), round(change[1], 2), change[2].isoformat()] if change else None,
-            "total": round(sum(abs(t.amount) for t in s.payments if month_of(t.date) in window), 2),
+            "change": [_r(change[0]), _r(change[1]), change[2].isoformat()] if change else None,
+            "total": _r(sum((abs(t.amount) for t in s.payments if month_of(t.date) in window), ZERO)),
         }
 
     fl, tr = ins.flow, ins.trend
@@ -212,7 +220,7 @@ def _insights_payload(ds: Dataset, ins: Insights, account_index: dict, category_
         "habitLabels": HABIT_STATUS,
         "series": [series(s) for s in ins.series],
         "income": [
-            {"m": s.merchant, "v": round(s.monthly, 2), "last": s.last.date.isoformat(), "status": s.status}
+            {"m": s.merchant, "v": _r(s.monthly), "last": s.last.date.isoformat(), "status": s.status}
             for s in ins.income
             if s.running
         ],
@@ -225,9 +233,9 @@ def _insights_payload(ds: Dataset, ins: Insights, account_index: dict, category_
                 "count": h.count,
                 "months": h.months,
                 "span": h.span,
-                "total": round(h.total, 2),
-                "recent": round(h.recent, 2),
-                "monthly": round(h.monthly, 2),
+                "total": _r(h.total),
+                "recent": _r(h.recent),
+                "monthly": _r(h.monthly),
                 "last": h.last.isoformat(),
                 "status": h.status,
                 "pattern": h.pattern,
@@ -290,7 +298,14 @@ PANEL_CSP = REPORT_CSP + "; connect-src 'self'; form-action 'none'; base-uri 'no
 
 def _json_block(value) -> str:
     # "<" is escaped so no description can close the <script> element early.
-    return json.dumps(value, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c")
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"), default=_json_number).replace("<", "\\u003c")
+
+
+def _json_number(value: object) -> float:
+    """The page's script counts in JavaScript numbers: an exact amount becomes one at this boundary."""
+    if isinstance(value, Decimal):
+        return float(value)
+    raise TypeError(f"{type(value).__name__} JSON'a yazılamaz")
 
 
 def render_html(payload: dict[str, Any], panel: dict[str, Any] | None = None) -> str:
@@ -397,8 +412,8 @@ def _money(ws, first_col: int = 2) -> None:
     ws.auto_filter.ref = ws.dimensions
 
 
-def _monthly(ds: Dataset, key) -> dict[str, dict[str, float]]:
-    totals: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
+def _monthly(ds: Dataset, key) -> dict[str, dict[str, Decimal]]:
+    totals: dict[str, dict[str, Decimal]] = defaultdict(lambda: defaultdict(Decimal))
     for t in ds.transactions:
         k = key(t)
         if k is not None:
@@ -429,16 +444,16 @@ def write_xlsx(
     ws = wb.create_sheet("Aylık Özet")
     _sheet_header(ws, ["Ay", *groups, "Toplam"], [10] + [16] * len(groups) + [16])
     for month in sorted(by_group):
-        values = [round(by_group[month].get(g, 0.0), 2) for g in groups]
-        ws.append([month, *values, round(sum(values), 2)])
+        values = [_r(by_group[month].get(g, ZERO)) for g in groups]
+        ws.append([month, *values, _r(sum(values, ZERO))])
     _money(ws)
 
     by_level = _monthly(ds, lambda t: (t.necessity or Necessity.UNKNOWN) if expense(t) else None)
     ws = wb.create_sheet("Gereklilik")
     _sheet_header(ws, ["Ay", *(NECESSITY[n] for n in LEVELS), "Toplam"], [10] + [16] * (len(LEVELS) + 1))
     for month in sorted(by_level):
-        values = [round(by_level[month].get(n, 0.0), 2) for n in LEVELS]
-        ws.append([month, *values, round(sum(values), 2)])
+        values = [_r(by_level[month].get(n, ZERO)) for n in LEVELS]
+        ws.append([month, *values, _r(sum(values, ZERO))])
     _money(ws)
 
     flows = _monthly(ds, lambda t: t.kind)
@@ -450,17 +465,17 @@ def write_xlsx(
     )
     for month in sorted(flows):
         f = flows[month]
-        income = -f.get(TransactionKind.INCOME, 0.0)
-        spent = sum(f.get(k, 0.0) for k in DEFAULT_EXPENSE_KINDS)
+        income = -f.get(TransactionKind.INCOME, ZERO)
+        spent = sum((f.get(k, ZERO) for k in DEFAULT_EXPENSE_KINDS), ZERO)
         ws.append(
             [
                 month,
-                round(income, 2),
-                round(spent, 2),
-                round(income - spent, 2),
-                round(f.get(TransactionKind.P2P_TRANSFER, 0.0), 2),
-                round(f.get(TransactionKind.LOAN_PRINCIPAL, 0.0), 2),
-                round(f.get(TransactionKind.INVESTMENT, 0.0), 2),
+                _r(income),
+                _r(spent),
+                _r(income - spent),
+                _r(f.get(TransactionKind.P2P_TRANSFER, ZERO)),
+                _r(f.get(TransactionKind.LOAN_PRINCIPAL, ZERO)),
+                _r(f.get(TransactionKind.INVESTMENT, ZERO)),
             ]
         )
     _money(ws)
@@ -541,12 +556,12 @@ def _month_end_sheets(wb: Workbook, months: list[month_end.MonthEnd]) -> None:
             [
                 me.month,
                 me.label,
-                round(t.expense, 2),
-                None if t.income is None else round(t.income, 2),
-                round(t.people, 2),
-                round(t.debt, 2),
-                round(t.saving, 2),
-                None if t.left is None else round(t.left, 2),
+                _r(t.expense),
+                None if t.income is None else _r(t.income),
+                _r(t.people),
+                _r(t.debt),
+                _r(t.saving),
+                None if t.left is None else _r(t.left),
                 len(me.provisional),
                 len(me.unmatched),
                 me.summary,
@@ -606,11 +621,11 @@ def _insight_sheets(wb: Workbook, ds: Dataset, ins: Insights) -> None:
     for f in ins.findings:
         ws.append([{"dikkat": "Dikkat", "iyi": "İyi", "bilgi": "Bilgi"}[f.tone], f.title, f.text, None])
     for i, st in enumerate(ins.steps, 1):
-        ws.append([f"Adım {i}", st.title, st.text, round(st.monthly, 2) if st.monthly else None])
+        ws.append([f"Adım {i}", st.title, st.text, _r(st.monthly) if st.monthly else None])
     ws.append([])
     ws.append(["Bütçe", "Kalem", "Not", "Bugün (TL)", "Öneri (TL)"])
     for b in ins.budget:
-        ws.append(["Bütçe", b.label, b.note, round(b.now, 2), round(b.plan, 2)])
+        ws.append(["Bütçe", b.label, b.note, _r(b.now), _r(b.plan)])
     for row in ws.iter_rows(min_row=2):
         row[2].alignment = Alignment(wrap_text=True, vertical="top")
         for cell in row[3:5]:
@@ -643,9 +658,9 @@ def _insight_sheets(wb: Workbook, ds: Dataset, ins: Insights) -> None:
                 sr.last.category,
                 NECESSITY[sr.last.necessity] if sr.last.necessity else "",
                 STATUS[sr.status],
-                round(sr.monthly, 2),
+                _r(sr.monthly),
                 sr.last.date,
-                round(abs(sr.last.amount), 2),
+                _r(abs(sr.last.amount)),
                 sr.expected,
                 len(sr.payments),
                 ", ".join(dict.fromkeys(ds.accounts[t.account].label for t in sr.payments)),
@@ -679,9 +694,9 @@ def _insight_sheets(wb: Workbook, ds: Dataset, ins: Insights) -> None:
                 NECESSITY[h.necessity] if h.necessity else "",
                 HABIT_STATUS[h.status],
                 h.pattern,
-                round(h.recent, 2),
-                round(h.total, 2),
-                round(h.monthly, 2),
+                _r(h.recent),
+                _r(h.total),
+                _r(h.monthly),
             ]
         )
     for col in "FGH":

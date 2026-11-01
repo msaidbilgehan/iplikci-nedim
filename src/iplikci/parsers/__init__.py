@@ -26,8 +26,8 @@ __all__ = ["ENCRYPTED_REASON", "NO_OCR_REASON", "PARSER_VERSION", "Skipped", "Un
 PDF_PARSERS = (isbank, garanti, teb, garanti_dekont, garanti_yatirim, isbank_dekont, isbank_cuzdan, vakifbank_cuzdan)
 
 # Bump when what the readers make of a document changes: every stored document is read again. 13: English codes
-# and ISO currencies.
-PARSER_VERSION = "13"
+# and ISO currencies. 14: exact decimals, halves rounded up.
+PARSER_VERSION = "14"
 
 ENCRYPTED_REASON = (
     "şifreli PDF — Önizleme'de şifreyle açıp Dosya › PDF Olarak Dışa Aktar ile şifresiz kaydedin ve yeniden ekleyin"

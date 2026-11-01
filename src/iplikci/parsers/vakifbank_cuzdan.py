@@ -6,6 +6,7 @@ oldest first ("NO", "İŞLEM TARİHİ", "İŞLEM TUTARI", "BAKİYE", "AÇIKLAMA"
 """
 
 import re
+from decimal import Decimal
 
 from ..domain.codes import AccountType
 from ..domain.models import ParseResult
@@ -67,6 +68,6 @@ def parse(doc, pdf) -> ParseResult:
         min(opened or moves[0].date, moves[0].date),
         max(issued, moves[-1].date),
         oldest_first=True,
-        opening=0.0 if opened == moves[0].date else None,
+        opening=Decimal(0) if opened == moves[0].date else None,
     )
     return ParseResult(parser=NAME, accounts=[account], statements=[stmt], holder=holder)

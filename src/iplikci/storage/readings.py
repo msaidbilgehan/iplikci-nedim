@@ -7,23 +7,30 @@ import json
 import sqlite3
 from collections.abc import Iterable
 from datetime import date
+from decimal import Decimal
 
 from ..domain.codes import AccountType, TransactionKind
-from ..domain.models import Account, ParseResult, Security, Statement, Transaction
+from ..domain.models import TRY, Account, ParseResult, Security, Statement, Transaction
 from ..domain.text import fold
 from .db import Database
 from .documents import DocumentRow
 
-# Every currency the banks print has two decimals (domain.money.MINOR_DIGITS).
-_MINOR = 100
+# Every currency the banks print has two decimals (domain.money.MINOR_DIGITS); so do gold grams as the lists
+# print them.
+_DIGITS = 2
 
 
-def _to_minor(amount: float) -> int:
-    return round(amount * _MINOR)
+def _to_minor(amount: Decimal) -> int:
+    """An amount as stored: an exact count of the smallest unit. A reader keeps two decimals (ADR-0006); more is
+    a reader's bug, refused rather than rounded away."""
+    units = amount.scaleb(_DIGITS)
+    if units != units.to_integral_value():
+        raise ValueError(f"{amount} iki haneden fazla ondalık taşıyor; okuyucu tutarı yuvarlamalıydı")
+    return int(units)
 
 
-def _from_minor(units: int) -> float:
-    return units / _MINOR
+def _from_minor(units: int) -> Decimal:
+    return Decimal(units).scaleb(-_DIGITS)
 
 
 def clear(db: Database, sha256: str) -> None:
@@ -80,7 +87,7 @@ def save(db: Database, sha256: str, result: ParseResult) -> None:
                         j,
                         sec.code,
                         sec.name,
-                        repr(sec.quantity),
+                        str(sec.quantity),
                         _to_minor(sec.value),
                         sec.as_of.isoformat(),
                     ),
@@ -98,7 +105,7 @@ def save(db: Database, sha256: str, result: ParseResult) -> None:
                 "INSERT INTO evidence (sha256, position, date, description, amount, currency, kind, account, "
                 "original, installment, bank_category, counterparty, source) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (sha256, i, *_row_values(t, currencies.get(t.account, "TL"))),
+                (sha256, i, *_row_values(t, currencies.get(t.account, TRY))),
             ).lastrowid
             _index(db, sha256, "evidence", row_id, t)
 
@@ -164,7 +171,11 @@ def load(db: Database, documents: Iterable[DocumentRow]) -> dict[str, ParseResul
         ):
             statements[r["statement_id"]].securities.append(
                 Security(
-                    r["code"], r["name"], float(r["quantity"]), _from_minor(r["value"]), date.fromisoformat(r["as_of"])
+                    r["code"],
+                    r["name"],
+                    Decimal(r["quantity"]),
+                    _from_minor(r["value"]),
+                    date.fromisoformat(r["as_of"]),
                 )
             )
         for r in db.rows(

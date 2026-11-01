@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 
 from iplikci.analysis import _coverage, _link_foreign_currency, covered_days
 from iplikci.domain.codes import TransactionKind
@@ -15,13 +16,13 @@ def test_statement_check():
         cut_date=date(2024, 10, 7),
         currency="TRY",
         source="x",
-        previous=100.0,
-        total=150.0,
-        transactions=[txn(date(2024, 9, 10), "A", 70.0), txn(date(2024, 9, 11), "ODEME", -20.0)],
+        previous=Decimal(100),
+        total=Decimal(150),
+        transactions=[txn(date(2024, 9, 10), "A", Decimal(70)), txn(date(2024, 9, 11), "ODEME", Decimal(-20))],
     )
     assert s.verified and s.difference == 0
-    s.total = 151.0
-    assert not s.verified and s.difference == -1.0
+    s.total = Decimal(151)
+    assert not s.verified and s.difference == Decimal(-1)
 
 
 def test_foreign_currency_line_takes_merchant_names():
@@ -31,23 +32,23 @@ def test_foreign_currency_line_takes_merchant_names():
         currency="USD",
         source="usd.pdf",
         previous=0,
-        total=20.0,
-        transactions=[txn(date(2024, 12, 9), "OPENAI *CHATGPT SUBSCR HTTPSOPENAI.C CA US", 20.0)],
+        total=Decimal(20),
+        transactions=[txn(date(2024, 12, 9), "OPENAI *CHATGPT SUBSCR HTTPSOPENAI.C CA US", Decimal(20))],
     )
-    line = txn(date(2024, 12, 15), "15/12/2024 EKSTRENIZDEKI USD/EUR BORCUNUZUN TL", 700.0)
+    line = txn(date(2024, 12, 15), "15/12/2024 EKSTRENIZDEKI USD/EUR BORCUNUZUN TL", Decimal(700))
     tl = Statement(
         account="isbank-4321",
         cut_date=date(2025, 1, 15),
         currency="TRY",
         source="tl.pdf",
         previous=0,
-        total=700.0,
+        total=Decimal(700),
         transactions=[line],
     )
     _link_foreign_currency([tl, usd])
     assert line.description.startswith("Yurt dışı harcama: OPENAI *CHATGPT")
     assert line.original == "20,00 USD"
-    assert line.amount == 700.0  # the TL amount the bank charged stays the expense
+    assert line.amount == Decimal(700)  # the TL amount the bank charged stays the expense
 
 
 def _statements(*balances):

@@ -7,6 +7,7 @@ and the customer's name; analysis.resolve_masked points them at the account the 
 """
 
 import re
+from decimal import Decimal
 
 from ..domain.codes import TransactionKind
 from ..domain.models import TRY, Account, ParseResult, Transaction
@@ -53,7 +54,7 @@ def _holder(lines: list[Line]) -> str:
     return ""
 
 
-def _amount(lines: list[Line]) -> tuple[float, str] | None:
+def _amount(lines: list[Line]) -> tuple[Decimal, str] | None:
     """'TUTAR : - 500,00 TL' on the SIRA NO line: (signed amount as printed, currency)."""
     for line in lines:
         m = re.search(r"\bTUTAR\s*:\s*([+-])?\s*([\d.]+,\d{2})\s*(TL|EUR|USD|GBP)\b", line.folded)
@@ -126,7 +127,7 @@ def parse(doc, pdf) -> ParseResult:
         Transaction(
             date=day,
             description=text,
-            amount=round(-printed, 2),
+            amount=-printed,
             kind=TransactionKind.TRANSFER_CANDIDATE,
             account=account.id,
             counterparty=party,

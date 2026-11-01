@@ -3,6 +3,7 @@ and the bank documents without money movements, which are named rather than call
 
 import textwrap
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
@@ -37,12 +38,12 @@ def test_garanti_fast_receipt_leaves_the_receiver_to_the_analysis():
     transfer, fee = r.transactions
     assert (transfer.date, transfer.amount, transfer.kind, transfer.counterparty) == (
         date(2024, 10, 22),
-        650.0,
+        Decimal(650),
         TransactionKind.TRANSFER_CANDIDATE,
         "VELİ ÖRNEKSOY",
     )
     assert transfer.description == "Giden FAST → VELİ ÖRNEKSOY (Ziraat Bankası) — EKİM KİRA ÖDEMESİ"
-    assert (fee.amount, fee.kind, fee.account) == (4.43, TransactionKind.INTEREST_FEE, "garanti-1234567")
+    assert (fee.amount, fee.kind, fee.account) == (Decimal("4.43"), TransactionKind.INTEREST_FEE, "garanti-1234567")
 
 
 def test_garanti_havale_receipt_names_the_receiver_after_the_account_number():
@@ -57,8 +58,8 @@ def test_garanti_havale_receipt_names_the_receiver_after_the_account_number():
     ]
     r = read(garanti_receipt("HESAPTAN HESABA HAVALE", "106/1234567", HOLDER, body, "- 8.400,00 TL"))
     transfer, fee = r.transactions
-    assert (r.title, transfer.amount, transfer.counterparty) == ("Giden Havale", 8400.0, "VELİ ÖRNEKSOY")
-    assert transfer.description.endswith("— 2024 OCAK KİRA") and fee.amount == 4.43
+    assert (r.title, transfer.amount, transfer.counterparty) == ("Giden Havale", Decimal(8400), "VELİ ÖRNEKSOY")
+    assert transfer.description.endswith("— 2024 OCAK KİRA") and fee.amount == Decimal("4.43")
 
 
 def test_a_masked_incoming_receipt_lands_on_the_account_the_lists_name():
@@ -73,7 +74,12 @@ def test_a_masked_incoming_receipt_lands_on_the_account_the_lists_name():
     ]
     receipt = read(garanti_receipt("GELEN FON TRANSFERİ", "1012/****321", "ÖR***** KU*****", body, "+ 1.000,00 EUR"))
     [row] = receipt.transactions
-    assert (receipt.title, receipt.holder, row.amount, row.original) == ("Gelen Transfer", "", -1000.0, "1.000,00 EUR")
+    assert (receipt.title, receipt.holder, row.amount, row.original) == (
+        "Gelen Transfer",
+        "",
+        Decimal(-1000),
+        "1.000,00 EUR",
+    )
     assert receipt.accounts[0].label == "Garanti BBVA Vadesiz EUR …321"
     eur = Account(
         "garanti-7654321", "Garanti BBVA Vadesiz EUR 7654321", "Garanti BBVA", AccountType.FX, "EUR", "7654321"
@@ -104,14 +110,14 @@ QNB_TRANSFER = (
                 "GELEN FAST EFT AÇIKLAMA: kk ödemesi GÖNDEREN : AYŞE SOYADOĞLU HESAP NO: 12345678 "
                 "KATILIMCI: Türkiye Garanti Bankası A.Ş."
             ),
-            -2400.0,
+            Decimal(-2400),
             "AYŞE SOYADOĞLU",
             "Gelen transfer ← Garanti BBVA (kk odemesi)",
         ),
         (
             "GİDEN FAST EFT B",
             "AÇIKLAMA: kira ALICI : VELİ ÖRNEKSOY IBAN: TR000006700000000000000001",
-            2400.0,
+            Decimal(2400),
             "VELİ ÖRNEKSOY",
             "Giden transfer (kira)",
         ),
@@ -186,12 +192,16 @@ def test_isbank_fast_receipt_reads_both_columns():
     transfer, fee = r.transactions
     assert (transfer.date, transfer.amount, transfer.kind, transfer.counterparty) == (
         date(2024, 2, 8),
-        8400.0,
+        Decimal(8400),
         TransactionKind.TRANSFER_CANDIDATE,
         "Veli Örneksoy",
     )
     assert transfer.description == "Giden FAST → Veli Örneksoy (Yapı Kredi) — 2024 Şubat Kira Ödemesi"
-    assert (fee.amount, fee.kind, r.receipt_key) == (8.86, TransactionKind.INTEREST_FEE, "isbank-dekont-100000000001")
+    assert (fee.amount, fee.kind, r.receipt_key) == (
+        Decimal("8.86"),
+        TransactionKind.INTEREST_FEE,
+        "isbank-dekont-100000000001",
+    )
 
 
 def test_isbank_passbook_is_a_verified_list_of_a_new_term_deposit():
@@ -239,11 +249,16 @@ def test_isbank_passbook_is_a_verified_list_of_a_new_term_deposit():
         AccountType.DEPOSIT,
         "İş Bankası Vadeli TL 1234-0765432",
     )
-    assert (s.start, s.cut_date, s.previous, s.total) == (date(2024, 1, 17), date(2024, 1, 17), 0.0, 7500.0)
+    assert (s.start, s.cut_date, s.previous, s.total) == (
+        date(2024, 1, 17),
+        date(2024, 1, 17),
+        Decimal(0),
+        Decimal(7500),
+    )
     assert s.verified and (s.checks_ok, s.checks_total) == (3, 3)  # from zero: the account was opened that day
     [opening] = s.transactions  # rows of zero carry no money
     assert (opening.amount, opening.kind, opening.counterparty) == (
-        -7500.0,
+        Decimal(-7500),
         TransactionKind.TRANSFER_CANDIDATE,
         HOLDER,
     )  # from an own account
@@ -329,22 +344,22 @@ def test_brokerage_statement_holds_the_securities_and_the_cash_moves():
     [account], [s] = r.accounts, r.statements
     assert (account.id, account.type, r.holder) == ("garanti-yatirim-1234567-101", AccountType.BROKERAGE, HOLDER)
     # Dated the month's last business day, the statement covers the calendar month.
-    assert (s.start, s.cut_date, s.previous, s.total) == (date(2026, 6, 1), date(2026, 6, 30), 0.0, 0.0)
+    assert (s.start, s.cut_date, s.previous, s.total) == (date(2026, 6, 1), date(2026, 6, 30), Decimal(0), Decimal(0))
     # Two running balances, the closing cash, the securities total and the portfolio total.
     assert s.verified and (s.checks_ok, s.checks_total) == (5, 5)
     assert [(x.code, x.name, x.quantity, x.value, x.as_of) for x in s.securities] == [
-        ("ORNEK", "ÖRNEK SANAYİ A.Ş.", 20.0, 1234.5, date(2026, 6, 30)),
-        ("DENEM", "DENEME HOLDİNG", 5.0, 100.0, date(2026, 6, 30)),
+        ("ORNEK", "ÖRNEK SANAYİ A.Ş.", Decimal(20), Decimal("1234.5"), date(2026, 6, 30)),
+        ("DENEM", "DENEME HOLDİNG", Decimal(5), Decimal(100), date(2026, 6, 30)),
     ]
     dividend, moved = s.transactions
     assert (dividend.kind, dividend.amount, dividend.description) == (
         TransactionKind.INCOME,
-        -10.0,
+        Decimal(-10),
         "ORNEK temettüsü (20 adet)",
     )
     assert (moved.kind, moved.amount, moved.counterparty) == (
         TransactionKind.TRANSFER_CANDIDATE,
-        10.0,
+        Decimal(10),
         HOLDER,
     )  # on to the user's bank account
 
@@ -400,10 +415,10 @@ def test_trade_form_is_a_receipt_of_the_sale_and_its_costs():
     sale, costs = r.transactions
     assert (sale.kind, sale.amount, sale.description) == (
         TransactionKind.INVESTMENT,
-        -123.4,
+        Decimal("-123.4"),
         "Hisse satışı: ORNEK 10 adet × 12,34 TL",
     )
-    assert (costs.kind, costs.amount, costs.date) == (TransactionKind.INTEREST_FEE, 1.0, date(2024, 7, 1))
+    assert (costs.kind, costs.amount, costs.date) == (TransactionKind.INTEREST_FEE, Decimal(1), date(2024, 7, 1))
 
 
 # --- documents without money movements ------------------------------------------------------------------
@@ -444,7 +459,9 @@ def test_a_masked_account_is_never_guessed_across_currencies():
     )
     usd = Account("garanti-1999", "y", "Garanti BBVA", AccountType.FX, "USD", "1999")
     listed = ParseResult(
-        "liste", accounts=[usd], statements=[Statement("garanti-1999", date(2026, 1, 31), "USD", "l.xls", 0.0, 0.0)]
+        "liste",
+        accounts=[usd],
+        statements=[Statement("garanti-1999", date(2026, 1, 31), "USD", "l.xls", Decimal(0), Decimal(0))],
     )
     resolve_masked([receipt, listed])
     assert receipt.accounts[0].id == "garanti-****999"  # the only candidate holds another currency

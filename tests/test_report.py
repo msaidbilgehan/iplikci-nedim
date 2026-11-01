@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 
 from openpyxl import load_workbook
 
@@ -15,7 +16,7 @@ def dataset() -> Dataset:
     t = Transaction(
         date=date(2026, 1, 5),
         description="</script><script>alert(1)</script>",
-        amount=100.0,
+        amount=Decimal(100),
         kind=TransactionKind.PURCHASE,
         account="teb-2468",
         merchant="Kötü <b>",
@@ -29,8 +30,8 @@ def dataset() -> Dataset:
         cut_date=date(2026, 1, 10),
         currency="TRY",
         source="a.pdf",
-        previous=0.0,
-        total=100.0,
+        previous=Decimal(0),
+        total=Decimal(100),
         transactions=[t],
     )
     return Dataset(
@@ -49,7 +50,7 @@ def test_payload_shape():
     payload = build_payload(dataset(), {"documents": 1, "duplicates": 0})
     assert [lvl["name"] for lvl in payload["levels"]] == ["Gerekli", "İsteğe bağlı", "Gereksiz", "Belirsiz"]
     tx = payload["tx"][0]
-    assert (tx["n"], tx["v"]) == (3, 100.0)  # Necessity.UNKNOWN
+    assert (tx["n"], tx["v"]) == (3, Decimal(100))  # Necessity.UNKNOWN
     assert payload["statements"][0]["ok"] and payload["statements"][0]["checks"] is None
     assert payload["groups"][-1] == {"name": "Diğer", "slot": 0}  # "Diğer" takes the neutral color
     ins = payload["insights"]

@@ -1,6 +1,7 @@
 """Month-end closing and reports: when a month closes, what an open month waits for, the pages."""
 
 from datetime import date, datetime
+from decimal import Decimal
 
 import pytest
 
@@ -31,13 +32,13 @@ def cat(tmp_path_factory):
 
 
 def spend(
-    d: date, desc: str, amount: float, account: Account = CARD, kind: TransactionKind = TransactionKind.PURCHASE
+    d: date, desc: str, amount: Decimal, account: Account = CARD, kind: TransactionKind = TransactionKind.PURCHASE
 ) -> Transaction:
     return Transaction(d, desc, amount, kind, account.id, source="belge")
 
 
 def listing(
-    start: date, end: date, *rows: Transaction, checks: tuple[int, int] = (1, 1), opening: float = 5000.0
+    start: date, end: date, *rows: Transaction, checks: tuple[int, int] = (1, 1), opening: Decimal = Decimal(5000)
 ) -> ParseResult:
     closing = round(opening - sum(r.amount for r in rows), 2)
     s = Statement(
@@ -56,7 +57,7 @@ def listing(
     return ParseResult("liste", accounts=[CHECKING], statements=[s])
 
 
-def card(cut: date, *rows: Transaction, previous: float = 0.0) -> ParseResult:
+def card(cut: date, *rows: Transaction, previous: Decimal = Decimal(0)) -> ParseResult:
     s = Statement(
         CARD.id, cut, "TRY", f"ekstre-{cut}.pdf", previous, round(previous + sum(r.amount for r in rows), 2), list(rows)
     )
@@ -69,18 +70,18 @@ def brokerage(month_start: date, month_last: date) -> ParseResult:
         month_last,
         "TRY",
         "hisse.pdf",
-        100.0,
-        100.0,
+        Decimal(100),
+        Decimal(100),
         [],
         start=month_start,
         checks_ok=1,
         checks_total=1,
-        securities=[Security("ORNEK", "Örnek A.Ş.", 10, 2500.0, month_last)],
+        securities=[Security("ORNEK", "Örnek A.Ş.", Decimal(10), Decimal(2500), month_last)],
     )
     return ParseResult("hisse", accounts=[STOCKS], statements=[s])
 
 
-def receipt(d: date, amount: float, account: Account = CHECKING) -> ParseResult:
+def receipt(d: date, amount: Decimal, account: Account = CHECKING) -> ParseResult:
     t = Transaction(d, "Giden FAST → ALİ VELİ", amount, "aday", account.id, counterparty="ALİ VELİ", source="dekont")
     return ParseResult("dekont", accounts=[account], transactions=[t], receipt_key=f"r-{d}", holder=HOLDER)
 
@@ -95,10 +96,10 @@ def month(cat, today: date, which: str, *results: ParseResult) -> month_end.Mont
 def autumn(*extra: ParseResult) -> list[ParseResult]:
     """A checking account listed through October and a card whose statements cover it (cut on the 18th)."""
     return [
-        listing(date(2026, 9, 1), date(2026, 10, 31), spend(date(2026, 10, 5), "MARKET", 400.0, CHECKING)),
+        listing(date(2026, 9, 1), date(2026, 10, 31), spend(date(2026, 10, 5), "MARKET", Decimal(400), CHECKING)),
         card(date(2026, 9, 18)),
-        card(date(2026, 10, 18), spend(date(2026, 10, 2), "ORNEK KAHVE", 120.0)),
-        card(date(2026, 11, 18), spend(date(2026, 10, 25), "MARKET ALISVERIS", 300.0)),
+        card(date(2026, 10, 18), spend(date(2026, 10, 2), "ORNEK KAHVE", Decimal(120))),
+        card(date(2026, 11, 18), spend(date(2026, 10, 25), "MARKET ALISVERIS", Decimal(300))),
         *extra,
     ]
 
@@ -115,7 +116,7 @@ def test_a_month_closes_when_every_account_covers_it_and_checks_out(cat):
     assert me.status == month_end.CLOSED
     assert {a.status for a in me.accounts} == {month_end.CLOSED}
     assert me.summary.startswith("Bütün hesapların belgeleri ayın tamamını kapsıyor")
-    assert me.totals.expense == 820.0 and me.totals.income == 0.0
+    assert me.totals.expense == Decimal(820) and me.totals.income == Decimal(0)
 
 
 def test_an_open_month_waits_for_the_card_statement_after_the_next_cut(cat):
@@ -152,11 +153,11 @@ def test_a_missing_list_between_two_others_is_a_document_to_download(cat):
 
 
 def test_a_list_that_does_not_check_out_or_misses_a_receipt_needs_a_look(cat):
-    me = month(cat, date(2026, 11, 25), "2026-10", *autumn(receipt(date(2026, 10, 10), 300.0)))
+    me = month(cat, date(2026, 11, 25), "2026-10", *autumn(receipt(date(2026, 10, 10), Decimal(300))))
     checking = by_label(me)["TEB Vadesiz TL 123456789"]
     assert (me.status, checking.status) == (month_end.CHECK, month_end.CHECK)
     assert checking.note == "1 dekont satırı ekstrede yok"
-    assert [line.txn.amount for line in me.unmatched] == [300.0]
+    assert [line.txn.amount for line in me.unmatched] == [Decimal(300)]
 
     me = month(cat, date(2026, 11, 25), "2026-10", listing(date(2026, 10, 1), date(2026, 10, 31), checks=(3, 4)))
     assert me.status == month_end.CHECK
@@ -175,9 +176,9 @@ def test_the_brokerage_statement_never_holds_the_month_open(cat):
 
 
 def test_the_current_month_runs_and_counts_its_provisional_receipts(cat):
-    me = month(cat, date(2026, 11, 12), "2026-11", *autumn(receipt(date(2026, 11, 3), 250.0)))
+    me = month(cat, date(2026, 11, 12), "2026-11", *autumn(receipt(date(2026, 11, 3), Decimal(250))))
     assert me.status == month_end.RUNNING
-    assert [t.amount for t in me.provisional] == [250.0]
+    assert [t.amount for t in me.provisional] == [Decimal(250)]
     assert "1 işlem dekontlardan geçici olarak işlendi" in me.summary
     assert by_label(me)["TEB Vadesiz TL 123456789"].needed == 12  # the days so far
 
@@ -189,14 +190,16 @@ def test_income_is_unknown_in_a_month_only_card_statements_cover(cat):
 
 
 def test_the_current_month_knows_its_income_from_a_list_of_its_days_so_far(cat):
-    pay = Transaction(date(2026, 11, 3), "MAAS ODEMESI", -1000.0, TransactionKind.INCOME, CHECKING.id, source="belge")
+    pay = Transaction(
+        date(2026, 11, 3), "MAAS ODEMESI", Decimal(-1000), TransactionKind.INCOME, CHECKING.id, source="belge"
+    )
     me = month(cat, date(2026, 11, 12), "2026-11", listing(date(2026, 11, 1), date(2026, 11, 12), pay))
-    assert (me.status, me.totals.income, me.income_note) == (month_end.RUNNING, 1000.0, month_end.INCOME_NOTE)
+    assert (me.status, me.totals.income, me.income_note) == (month_end.RUNNING, Decimal(1000), month_end.INCOME_NOTE)
 
 
 def test_a_month_end_balance_is_the_one_the_list_printed(cat):
     me = month(cat, date(2026, 11, 25), "2026-10", *autumn())
-    assert by_label(me)["TEB Vadesiz TL 123456789"].balance == 4600.0
+    assert by_label(me)["TEB Vadesiz TL 123456789"].balance == Decimal(4600)
     assert by_label(me)["TEB Bonus •4321"].balance is None  # a card's balance is its statement total
 
 
@@ -204,7 +207,7 @@ def test_a_month_end_balance_is_the_one_the_list_printed(cat):
 
 
 def test_pages_escape_statement_text_and_carry_no_script(cat, tmp_path):
-    shop = spend(date(2026, 10, 2), '<img src=x onerror="alert(1)"> KAHVE', 120.0)
+    shop = spend(date(2026, 10, 2), '<img src=x onerror="alert(1)"> KAHVE', Decimal(120))
     docs = [
         (Document(f"{i}.pdf", "test", b"", f"sha{i}"), r, None)
         for i, r in enumerate([listing(date(2026, 9, 1), date(2026, 10, 31)), card(date(2026, 10, 18), shop)])
@@ -237,7 +240,11 @@ def test_the_month_end_command_writes_a_months_page_and_refuses_a_month_to_come(
 
 def test_the_pages_cover_the_current_month_and_the_twelve_before_it(cat):
     docs = [
-        (Document("0.pdf", "test", b"", "sha0"), card(date(2023, 1, 18), spend(date(2023, 1, 2), "MARKET", 1.0)), None)
+        (
+            Document("0.pdf", "test", b"", "sha0"),
+            card(date(2023, 1, 18), spend(date(2023, 1, 2), "MARKET", Decimal(1))),
+            None,
+        )
     ]
     ds = build(docs, cat, {"ad_soyad": HOLDER})
     months = month_end.report_months(ds, date(2026, 11, 2))
