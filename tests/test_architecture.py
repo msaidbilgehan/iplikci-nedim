@@ -1,5 +1,6 @@
-"""The dependency rules of architecture §6, checked on the imports: the domain stands alone, and the API reaches
-the rest only through the use cases in `app`. The MVP's flat modules join the rules as they move."""
+"""The dependency rules of architecture §6, checked on the imports: the domain stands alone, the API reaches the
+rest only through the use cases in `app`, the job queue knows only the storage and the feed only the analysis. The
+MVP's flat modules join the rules as they move."""
 
 import ast
 from pathlib import Path
@@ -13,6 +14,9 @@ ROOT = {"iplikci", "iplikci.__version__"}  # the package itself and its version:
 RULES = {
     "iplikci.domain": (),
     "iplikci.api": ("iplikci.app",),
+    "iplikci.jobs": ("iplikci.storage",),
+    # The feed compares analyses and touches no storage; the analysis still lives in the MVP's flat modules.
+    "iplikci.feed": ("iplikci.domain", "iplikci.analysis", "iplikci.insights", "iplikci.month_end"),
 }
 
 

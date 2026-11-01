@@ -6,8 +6,9 @@ import uvicorn
 
 from ..api.app import create_app
 from ..api.context import Context
-from ..app import access
+from ..app import access, background
 from ..app.workspace import Workspace
+from ..jobs.worker import Worker
 
 HOST = "127.0.0.1"
 
@@ -23,12 +24,24 @@ def context(ws: Workspace) -> Context:
     return Context(ws=ws, token=access.ensure_api_token())
 
 
+def worker(ws: Workspace) -> Worker:
+    return Worker(ws.connect, background.handlers(ws), background.PERIODIC)
+
+
 def run(ws: Workspace, announce: Callable[[str], None] = _say) -> None:
-    """Serve until interrupted. The login link printed at start opens the interface once, within two minutes."""
+    """Serve until interrupted. The login link printed at start opens the interface once, within two minutes.
+    The worker starts first: the jobs a stop interrupted run again, and the analysis is made again in case the
+    readers changed since the last run."""
     ctx = context(ws)
     app = create_app(ctx)
+    jobs = worker(ws)
+    background.request_refresh(ws)
+    jobs.start()
     announce(f"İplikçi Nedim servisi http://{HOST}:{ws.port} adresinde çalışıyor (durdurmak için Ctrl+C).")
     announce(f"Arayüz için tek kullanımlık giriş bağlantısı: {ctx.login_url(ctx.keys.issue())}")
     # No access log: a login link's key would land in it.
     config = uvicorn.Config(app, host=HOST, port=ws.port, access_log=False, log_level="warning", server_header=False)
-    uvicorn.Server(config).run()
+    try:
+        uvicorn.Server(config).run()
+    finally:
+        jobs.stop()

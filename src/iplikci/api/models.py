@@ -33,11 +33,26 @@ class ServiceOut(BaseModel):
     home: str
 
 
+class FailedJobOut(BaseModel):
+    id: int
+    kind: str
+    attempts: int
+    finished_at: str
+    error: str
+
+
+class QueueOut(BaseModel):
+    counts: dict[str, int]
+    next_run: str
+    failures: list[FailedJobOut]
+
+
 class SystemOut(BaseModel):
     service: ServiceOut
     documents: dict[str, int]
     readers: list[ReaderHealthOut]
     disk: DiskOut
+    queue: QueueOut
 
 
 class EventOut(BaseModel):

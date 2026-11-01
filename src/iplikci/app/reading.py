@@ -4,7 +4,9 @@ stored ones again when that may have changed.
 A document is read again when it was never read, when the reader that read it got a new version (ADR-0005), when
 no reader took it and the readers changed, or when the company names in the settings changed: another name can make
 a kept document a company one. Such a document leaves the vault for the system Trash and its rows go (ADR-0003); the
-audit log says so. A reading that suggests the bank changed its format raises parser.format_alarm in the event log.
+audit log says so. Every reading records its outcome in the event log (document.processed, .unprocessed or
+.unreadable; the same outcome again adds nothing), and one that suggests the bank changed its format also raises
+parser.format_alarm.
 """
 
 import os
@@ -53,6 +55,12 @@ class Outcome:
         if self.parser and not self.business:
             return {"parser": self.parser, "version": _version(self.parser), "reason": self.reason}
         return None
+
+    def event(self) -> dict[str, object]:
+        """What the document event of this reading says (architecture §13: processed, unprocessed, unreadable)."""
+        if self.result is not None:
+            return {"parser": self.result.parser, "kind": str(self.kind)}
+        return {"parser": self.parser, "reason": self.reason}
 
     @property
     def kind(self) -> DocumentKind | None:
@@ -119,6 +127,7 @@ def record(db: Database, sha256: str, name: str, outcome: Outcome) -> None:
             readings.save(db, sha256, outcome.result)
         else:
             readings.clear(db, sha256)
+        events.record(db, f"document.{outcome.status}", sha256, **outcome.event())
         if (alarm := outcome.format_alarm()) is not None:
             events.record(db, FORMAT_ALARM, sha256, **alarm)
 

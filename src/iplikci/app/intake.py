@@ -22,12 +22,12 @@ from ..domain.codes import Actor, DocumentKind, DocumentStatus, SourceKind
 from ..domain.models import ParseResult
 from ..domain.text import nfc
 from ..sources import DOCUMENT_EXTENSIONS, UnreadableArchive, from_mbox, from_zip, is_mbox
-from ..storage import audit, documents, readings
+from ..storage import audit, documents, events, jobs, readings
 from ..storage.db import Database
 from ..storage.documents import Source
 from ..vault import trash
 from ..vault.store import sha256_of
-from . import reading
+from . import background, reading
 from .uploads import file_sha256, inbox_files
 from .workspace import StalePlan, Workspace
 
@@ -300,6 +300,8 @@ def apply(ws: Workspace, plan: Plan, actor: Actor = Actor.USER) -> Applied:
         folder = _set_aside(ws, set_aside)
         if folder is not None:
             audit.record(db, actor, "inbox.set_aside", "", files=len(set_aside), trash=folder.name)
+        if any(c.verdict is Verdict.STORE for c in plan.items):
+            jobs.add(db, background.REFRESH)  # the service makes the analysis again and tells what changed
     _remove_empty_folders(ws.inbox)
     return Applied(counts, plan.items, folder)
 
@@ -313,6 +315,7 @@ def _store(ws: Workspace, db: Database, c: Candidate, actor: Actor) -> None:
     with db.transaction():
         documents.add(db, c.sha256, c.name, len(c.data))
         documents.add_source(db, c.sha256, c.source)
+        events.record(db, "document.received", c.sha256, source=str(c.source.kind))
         reading.record(db, c.sha256, c.name, c.outcome)
         audit.record(db, actor, "document.stored", c.sha256, status=str(c.outcome.status))
 

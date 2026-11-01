@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from .. import __version__
 from ..domain.codes import DocumentStatus
 from ..parsers import registry
+from ..storage import jobs
 from ..storage.db import Database
 from .reading import FORMAT_ALARM
 from .workspace import Workspace
@@ -35,12 +36,29 @@ class Disk:
 
 
 @dataclass(frozen=True, slots=True)
+class FailedJob:
+    id: int
+    kind: str
+    attempts: int
+    finished_at: str
+    error: str
+
+
+@dataclass(frozen=True, slots=True)
+class Queue:
+    counts: dict[str, int]  # by status: queued, running, done, failed
+    next_run: str  # when the earliest queued job may start; "" when none waits
+    failures: list[FailedJob]  # the latest, newest first
+
+
+@dataclass(frozen=True, slots=True)
 class SystemStatus:
     version: str
     home: str
     documents: dict[str, int]  # by status code
     readers: list[ReaderHealth]
     disk: Disk
+    queue: Queue
 
 
 def healthy(ws: Workspace) -> bool:
@@ -57,7 +75,12 @@ def status(ws: Workspace) -> SystemStatus:
         rows = db.rows("SELECT status, count(*) AS n FROM documents GROUP BY status")
         documents = {str(row["status"]): int(row["n"]) for row in rows}
         readers = reader_health(db)
-    return SystemStatus(__version__, str(ws.home), documents, readers, disk(ws))
+        queue = Queue(
+            jobs.counts(db),
+            jobs.next_due(db) or "",
+            [FailedJob(j.id, j.kind, j.attempts, j.finished_at, j.last_error) for j in jobs.failures(db)],
+        )
+    return SystemStatus(__version__, str(ws.home), documents, readers, disk(ws), queue)
 
 
 def reader_health(db: Database) -> list[ReaderHealth]:

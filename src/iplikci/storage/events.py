@@ -1,5 +1,6 @@
-"""The event log (ADR-0014, architecture §13): what happened, appended and never rewritten. The same event twice
-is no news: an event the log already holds, with the same kind, target and detail, is not added again."""
+"""The event log (ADR-0014, architecture §13): what happened, appended and never rewritten. For what a reading
+finds the same event twice is no news: `record` does not add an event the log already holds with the same kind,
+target and detail. The feed's changes are news each time it sees them (`append`)."""
 
 import json
 from dataclasses import dataclass
@@ -16,7 +17,7 @@ class Event:
     detail: dict[str, Any]
 
 
-def record(db: Database, kind: str, target: str = "", **detail: Any) -> bool:
+def record(db: Database, kind: str, target: str = "", /, **detail: Any) -> bool:
     """Add an event unless the log holds it already; whether it was added."""
     text = json.dumps(detail, ensure_ascii=False, sort_keys=True)
     with db.transaction():
@@ -24,6 +25,13 @@ def record(db: Database, kind: str, target: str = "", **detail: Any) -> bool:
             return False
         db.execute("INSERT INTO events (at, kind, target, detail) VALUES (?, ?, ?, ?)", (now(), kind, target, text))
     return True
+
+
+def append(db: Database, kind: str, target: str = "", /, **detail: Any) -> None:
+    """Add an event as it is: the feed records a change once, when it sees it, so the same event again is news."""
+    text = json.dumps(detail, ensure_ascii=False, sort_keys=True)
+    with db.transaction():
+        db.execute("INSERT INTO events (at, kind, target, detail) VALUES (?, ?, ?, ?)", (now(), kind, target, text))
 
 
 def restore(db: Database, event: Event) -> None:
