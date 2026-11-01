@@ -4,7 +4,17 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "./client";
-import type { Bridge, DocumentPage, Labels, Pairing, Queued, SystemStatus } from "./types";
+import type {
+  Bridge,
+  Calendar,
+  DocumentPage,
+  Forecast,
+  Labels,
+  Pairing,
+  Queued,
+  Subscriptions,
+  SystemStatus,
+} from "./types";
 
 export const keys = {
   system: ["system"] as const,
@@ -12,6 +22,9 @@ export const keys = {
   documents: (filter: DocumentFilter) => ["documents", filter] as const,
   allDocuments: ["documents"] as const,
   bridges: ["bridges"] as const,
+  subscriptions: ["subscriptions"] as const,
+  calendar: ["calendar"] as const,
+  forecast: ["forecast"] as const,
 };
 
 export type DocumentFilter = "all" | "unprocessed";
@@ -58,6 +71,21 @@ export function useDocuments(filter: DocumentFilter) {
 
 export function useBridges() {
   return useQuery({ queryKey: keys.bridges, queryFn: () => api.get<Bridge[]>("/api/bridge") });
+}
+
+/** The monthly and periodic payments, the regular income and the installments left (F08). */
+export function useSubscriptions() {
+  return useQuery({ queryKey: keys.subscriptions, queryFn: () => api.get<Subscriptions>("/api/subscriptions") });
+}
+
+/** The next 60 days' expected payments and income, from today (F09). */
+export function useCalendar() {
+  return useQuery({ queryKey: keys.calendar, queryFn: () => api.get<Calendar>("/api/calendar") });
+}
+
+/** Each bank account's balance day by day for the next 60 days: an estimate (F09). */
+export function useForecast() {
+  return useQuery({ queryKey: keys.forecast, queryFn: () => api.get<Forecast>("/api/forecast") });
 }
 
 export function useStartPairing() {

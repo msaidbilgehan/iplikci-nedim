@@ -7,10 +7,19 @@ import { useEffect } from "react";
 import { keys } from "../api/queries";
 import type { LoggedEvent } from "../api/types";
 
+// What a new analysis changes: the series, the calendar and the forecast.
+const ANALYSIS = [keys.subscriptions, keys.calendar, keys.forecast] as const;
+
 /** The query keys an event of this kind makes stale; the System screen follows everything. */
 export function staleBy(kind: string): ReadonlyArray<readonly unknown[]> {
-  if (kind.startsWith("document.") || kind.startsWith("parser.") || kind.startsWith("transaction.")) {
+  if (kind.startsWith("document.") || kind.startsWith("transaction.")) {
+    return [keys.allDocuments, ...ANALYSIS, keys.system];
+  }
+  if (kind.startsWith("parser.")) {
     return [keys.allDocuments, keys.system];
+  }
+  if (kind.startsWith("month.")) {
+    return [...ANALYSIS, keys.system];
   }
   if (kind.startsWith("bridge.")) {
     return [keys.bridges, keys.system];

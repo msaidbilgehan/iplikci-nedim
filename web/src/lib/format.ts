@@ -1,7 +1,12 @@
-// How the interface writes dates, times and sizes: 31.10.2026, 31.10.2026 14:03, 1,5 MB (features.md, shared rules).
-// Times are shown in the computer's own time zone.
+// How the interface writes dates, times, sizes and amounts: 31.10.2026, 31.10.2026 14:03, 1,5 MB, 1.234,56 TL
+// (features.md, shared rules). Times are shown in the computer's own time zone.
+
+import type { MoneyOut } from "../api/schema";
 
 const DAY = new Intl.DateTimeFormat("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
+const MONTH = new Intl.DateTimeFormat("tr-TR", { month: "long", year: "numeric" });
+const WHOLE = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0, useGrouping: "always" });
+const CURRENCIES: Record<string, string> = { TRY: "TL" };
 const MINUTE = new Intl.DateTimeFormat("tr-TR", {
   day: "2-digit",
   month: "2-digit",
@@ -58,4 +63,27 @@ export function formatPeriod(start: string, end: string): string {
 /** A pairing code as people type it: "ABCD-EFGH". */
 export function formatCode(code: string): string {
   return code.length === 8 ? `${code.slice(0, 4)}-${code.slice(4)}` : code;
+}
+
+/**
+ * An amount the service sends in its currency's smallest unit, as Turkish readers write it: {minor: 123456,
+ * currency: "TRY"} → "1.234,56 TL", below zero with a minus sign. Whole units and the rest are split in integers, so
+ * no amount is rounded on the way.
+ */
+export function formatMoney(money: MoneyOut): string {
+  const units = Math.abs(money.minor);
+  const sign = money.minor < 0 ? "−" : "";
+  const cents = String(units % 100).padStart(2, "0");
+  return `${sign}${WHOLE.format(Math.trunc(units / 100))},${cents} ${CURRENCIES[money.currency] ?? money.currency}`;
+}
+
+/** An amount with the way it goes: "+40.000,00 TL" in, "−15.000,00 TL" out. */
+export function formatFlow(money: MoneyOut, direction: "in" | "out"): string {
+  return `${direction === "in" ? "+" : "−"}${formatMoney(money)}`;
+}
+
+/** "2026-04" → "Nisan 2026". */
+export function formatMonth(month: string): string {
+  const [year, number] = month.split("-").map(Number);
+  return year && number ? MONTH.format(new Date(year, number - 1, 1)) : month;
 }

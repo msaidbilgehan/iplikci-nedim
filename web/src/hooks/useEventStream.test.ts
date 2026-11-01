@@ -5,7 +5,10 @@ import { staleBy } from "./useEventStream";
 
 describe("staleBy", () => {
   it("refreshes the documents on a document's events and the System screen on every event", () => {
-    expect(staleBy("document.received")).toEqual([keys.allDocuments, keys.system]);
+    const analysis = [keys.subscriptions, keys.calendar, keys.forecast];
+    expect(staleBy("document.received")).toEqual([keys.allDocuments, ...analysis, keys.system]);
+    expect(staleBy("transaction.created")).toEqual([keys.allDocuments, ...analysis, keys.system]);
+    expect(staleBy("month.closed")).toEqual([...analysis, keys.system]); // a new analysis: the days ahead move
     expect(staleBy("parser.format_alarm")).toEqual([keys.allDocuments, keys.system]);
     expect(staleBy("backup.failed")).toEqual([keys.system]);
     expect(staleBy("mail.auth_failed")).toEqual([keys.system]);
