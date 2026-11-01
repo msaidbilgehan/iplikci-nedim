@@ -28,6 +28,7 @@ UPLOADS = "yuklemeler"  # the upload area in vault/staging: one folder per batch
 MAX_UPLOAD_BYTES = 1 << 30  # an e-mail archive can be large; a statement is a few hundred KB
 PARTIAL_PREFIX = ".yukleniyor-"  # hidden: no reader picks up a file that is still being written
 _MAX_FOLDERS = 3  # folder levels kept from an uploaded tree
+_NAME_BYTES = 200  # file systems allow 255 bytes in a name; a Turkish letter takes two
 _UNSAFE = re.compile(r"[\x00-\x1f\x7f:]")
 _upload_lock = threading.Lock()
 _hashes: dict[tuple[str, int, int], str] = {}  # (path, size, mtime) -> sha256 of inbox files
@@ -53,10 +54,23 @@ def safe_upload_path(name: str) -> PurePosixPath | None:
             continue
         if part.startswith("."):
             return None  # .DS_Store and friends are never documents
-        parts.append(part[:150])
+        parts.append(_shortened(part))
     if not parts:
         return None
     return PurePosixPath(*parts[:-1][-_MAX_FOLDERS:], parts[-1])
+
+
+def _shortened(part: str) -> str:
+    """A name within _NAME_BYTES of UTF-8, cut at a whole letter and with its extension kept: the extension says
+    which reader the file is for."""
+    if len(part.encode()) <= _NAME_BYTES:
+        return part
+    stem, dot, suffix = part.rpartition(".")
+    if not dot or not stem or len(suffix) > 10:
+        stem, suffix = part, ""
+    room = _NAME_BYTES - (len(suffix.encode()) + 1 if suffix else 0)
+    short = stem.encode()[:room].decode("utf-8", "ignore").rstrip()
+    return f"{short}.{suffix}" if suffix else short
 
 
 def inbox_files(ws: Workspace) -> list[Path]:

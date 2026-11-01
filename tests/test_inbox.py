@@ -40,6 +40,14 @@ def test_hidden_or_empty_upload_names_are_refused(name):
     assert safe_upload_path(name) is None
 
 
+def test_a_long_upload_name_is_shortened_within_the_file_systems_limit_and_keeps_its_extension():
+    long = "Şubat ayı hesap özeti " * 20 + ".pdf"
+    safe = safe_upload_path(f"klasör/{long}")
+    assert safe is not None and safe.parent == PurePosixPath("klasör")
+    assert safe.name.endswith(".pdf") and safe.name.startswith("Şubat ayı hesap özeti")
+    assert len(safe.name.encode()) <= 200
+
+
 def test_upload_never_replaces_a_waiting_file(ws):
     a = save_upload(ws, "ekim.pdf", io.BytesIO(b"bir"), 3)
     b = save_upload(ws, "ekim.pdf", io.BytesIO(b"iki"), 3)
