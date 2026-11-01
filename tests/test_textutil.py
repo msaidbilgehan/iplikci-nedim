@@ -3,14 +3,8 @@ from decimal import Decimal
 
 import pytest
 
-from iplikci.textutil import (
-    fold,
-    parse_dmy,
-    parse_tr_amount,
-    parse_tr_words_date,
-    parse_us_amount,
-    title_tr,
-)
+from iplikci.domain.text import fold, title_tr
+from iplikci.parsers.text import parse_dmy, parse_tr_amount, parse_tr_words_date, parse_us_amount
 
 
 @pytest.mark.parametrize(

@@ -26,10 +26,10 @@ from typing import Any
 from .categorize import Categorizer, clean_description
 from .domain.codes import CARD_TYPES, AccountType, EvidenceStatus, TransactionKind
 from .domain.fingerprint import Fingerprints
-from .domain.labels import EVIDENCE_STATUS
+from .domain.labels import EVIDENCE_STATUS, format_amount
 from .domain.models import TRY, Account, ParseResult, Statement, Transaction
 from .domain.money import CENT, round_half_up
-from .textutil import fold, format_tr_amount
+from .domain.text import fold
 
 # What the statements say about a receipt's row.
 PROVISIONAL = EvidenceStatus.PROVISIONAL  # after the account's newest statement: counts now, the next one confirms it
@@ -99,7 +99,7 @@ def _link_foreign_currency(statements: list[Statement]) -> None:
             if buys:
                 names = list(dict.fromkeys(clean_description(x.description) for x in buys))
                 t.description = "Yurt dışı harcama: " + ", ".join(names)
-                t.original = f"{format_tr_amount(sum((x.amount for x in buys), Decimal(0)))} {fx.currency}"
+                t.original = f"{format_amount(sum((x.amount for x in buys), Decimal(0)))} {fx.currency}"
             else:
                 t.description = "Yurt dışı harcamaların TL karşılığı"
 
@@ -443,7 +443,7 @@ def _to_tl(
             continue
         rate = min(known, key=lambda r: abs((r[0] - t.date).days))[1]
         t.amount = round_half_up(t.amount * rate)
-        t.original = f"{t.original} × {format_tr_amount(rate)}"
+        t.original = f"{t.original} × {format_amount(rate)}"
         out.append(t)
     return out
 

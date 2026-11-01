@@ -1,26 +1,11 @@
-"""Turkish text folding plus amount and date parsing shared by all parsers."""
+"""Amounts and dates as Turkish bank documents print them, shared by every reader."""
 
 import re
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
-# Folding lives in the domain so every layer compares text the same way; the parsers keep importing it here.
-from .domain.money import round_half_up, to_decimal
-from .domain.text import fold, nfc
-
-__all__ = [
-    "TR_MONTHS",
-    "fold",
-    "format_tr_amount",
-    "is_tr_amount",
-    "nfc",
-    "parse_dmy",
-    "parse_tr_amount",
-    "parse_tr_words_date",
-    "parse_us_amount",
-    "squash",
-    "title_tr",
-]
+from ..domain.money import round_half_up
+from ..domain.text import fold
 
 
 def squash(s: str) -> str:
@@ -48,11 +33,6 @@ def parse_tr_amount(text: str) -> Decimal | None:
 
 def is_tr_amount(text: str) -> bool:
     return parse_tr_amount(text) is not None
-
-
-def format_tr_amount(value: Decimal | float) -> str:
-    """1234.5 -> '1.234,50': two decimals, halves rounded up."""
-    return f"{round_half_up(to_decimal(value)):,.2f}".replace(",", " ").replace(".", ",").replace(" ", ".")
 
 
 _US_AMOUNT = re.compile(r"^\d{1,3}(?:,\d{3})*(?:\.\d+)?$|^\d+(?:\.\d+)?$")
@@ -104,23 +84,3 @@ def parse_tr_words_date(day: str, month: str, year: str) -> date | None:
         return date(int(year), mon, int(day))
     except ValueError:
         return None
-
-
-_TR_LOWER = str.maketrans({"İ": "i", "I": "i"})
-_ABBREVIATION = re.compile(r"^(?:\w\.)+\w?\.?$")  # V.D., A.Ş., T.C.
-
-
-def title_tr(s: str) -> str:
-    """Readable title case for bank descriptions ('ORNEK KAHVE' -> 'Ornek Kahve').
-
-    Banks ASCII-fold most names, so a plain 'I' is lowered to 'i' rather than
-    the Turkish dotless 'ı'. Dotted abbreviations stay upper case.
-    """
-    words = []
-    for w in s.split():
-        if _ABBREVIATION.match(w):
-            words.append(w)
-            continue
-        low = w.translate(_TR_LOWER).lower()
-        words.append(low[:1].upper() + low[1:] if low[:1] != "i" else "İ" + low[1:])
-    return " ".join(words)

@@ -42,7 +42,7 @@ from .domain.codes import (
     Necessity,
     TransactionKind,
 )
-from .domain.labels import ACCOUNT_MONTH_STATUS, KIND, NECESSITY
+from .domain.labels import ACCOUNT_MONTH_STATUS, KIND, NECESSITY, format_amount
 from .domain.labels import MONTH_STATUS as _MONTH_LABELS
 from .domain.models import TRY, Account, Statement, Transaction
 from .domain.money import TOLERANCE, round_half_up
@@ -62,7 +62,6 @@ from .insights import (
     span,
     tl,
 )
-from .textutil import format_tr_amount
 
 FOLDER = "ay-sonu"
 INDEX = "index.html"
@@ -605,7 +604,7 @@ def _money(value: Decimal | None) -> str:
 def _amount(value: Decimal, currency: str) -> str:
     if currency == TRY:
         return _e(tl(value))
-    return _e(("−" if value < 0 else "") + f"{format_tr_amount(abs(value))} {currency}")
+    return _e(("−" if value < 0 else "") + f"{format_amount(abs(value))} {currency}")
 
 
 def _swatch(slot: int) -> str:

@@ -33,8 +33,8 @@ from .app.workspace import Busy, StalePlan, Workspace
 from .categorize import Categorizer
 from .domain.codes import Actor, Necessity, TransactionKind
 from .domain.money import round_half_up, to_decimal
+from .domain.text import fold
 from .insights import HABIT_STATUS, STATUS, receipt_amount
-from .textutil import fold
 
 PROTOCOL_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
 ZERO = Decimal(0)

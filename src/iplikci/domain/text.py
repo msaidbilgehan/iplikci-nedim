@@ -1,4 +1,4 @@
-"""Turkish text folding: the form names and descriptions are compared and searched in."""
+"""Turkish text folding, the form names and descriptions are compared and searched in, and title case."""
 
 import re
 import unicodedata
@@ -37,3 +37,23 @@ def fold(s: str) -> str:
     s = nfc(s).translate(_TR_FOLD)
     s = "".join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c))
     return _SPACES.sub(" ", s.upper()).strip()
+
+
+_TR_LOWER = str.maketrans({"İ": "i", "I": "i"})
+_ABBREVIATION = re.compile(r"^(?:\w\.)+\w?\.?$")  # V.D., A.Ş., T.C.
+
+
+def title_tr(s: str) -> str:
+    """Readable title case for bank descriptions ('ORNEK KAHVE' -> 'Ornek Kahve').
+
+    Banks ASCII-fold most names, so a plain 'I' is lowered to 'i' rather than
+    the Turkish dotless 'ı'. Dotted abbreviations stay upper case.
+    """
+    words: list[str] = []
+    for w in s.split():
+        if _ABBREVIATION.match(w):
+            words.append(w)
+            continue
+        low = w.translate(_TR_LOWER).lower()
+        words.append(low[:1].upper() + low[1:] if low[:1] != "i" else "İ" + low[1:])
+    return " ".join(words)

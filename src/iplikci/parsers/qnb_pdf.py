@@ -11,10 +11,11 @@ from decimal import Decimal
 
 from ..domain.codes import AccountType
 from ..domain.models import TRY, Account, ParseResult, Statement, Transaction
-from ..pdfutil import page_text
-from ..textutil import fold, parse_dmy, parse_us_amount
+from ..domain.text import fold
 from .common import classify_kind
 from .hesap import Movement, bank_from_iban, build_statement
+from .pdf import page_text
+from .text import parse_dmy, parse_us_amount
 
 NAME = "QNB"
 _CID = re.compile(r"\(cid:\d+\)")

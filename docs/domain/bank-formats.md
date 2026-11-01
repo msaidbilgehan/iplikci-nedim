@@ -12,13 +12,13 @@ düzeltirken önce buraya bakılır; yeni bir tuzak bulununca buraya eklenir.
 
 **Metin eşleştirme**
 
-- PDF'ler boşlukları ve Türkçe harfleri düşürebilir. Metin bu yüzden `textutil.fold()` (ASCII büyük harf) ve
-  `squash()` (boşluksuz) üzerinden eşleştirilir.
+- PDF'ler boşlukları ve Türkçe harfleri düşürebilir. Metin bu yüzden `domain.text.fold()` (ASCII büyük harf) ve
+  `parsers.text.squash()` (boşluksuz) üzerinden eşleştirilir.
 - `fold()` boşlukları birleştirir ve birleşik işaretleri atar; bu yüzden metnin uzunluğunu korumaz.
   - Katlanmış metinde bulunan bir konumla özgün metin asla kesilmez.
   - Bunun yerine kelime kelime katlanır ve özgün kelimeler tutulur (örnek: `qnb._other_side`).
 
-**Kart PDF'leri:** sütun konumuyla okunur (`pdfutil.page_lines`, `find_header`, `take_amount`). Düz metin üzerinde
+**Kart PDF'leri:** sütun konumuyla okunur (`parsers.pdf.page_lines`, `find_header`, `take_amount`). Düz metin üzerinde
 düzenli ifadeyle okunmaz.
 
 **Şirket belgesi işaretleri**
@@ -145,7 +145,7 @@ hareketi taşımaz. V1'de çöpe gitmez; "işlenmedi" durumunda saklanır (K11).
 
 **Bonus kart PDF'i** (`KREDIKARTEKSTREOZETI`)
 
-- Bazıları sayfa resmi olarak gelir; macOS Vision OCR ile okunur (`pdfutil.ocr_page_lines`, tr-TR).
+- Bazıları sayfa resmi olarak gelir; macOS Vision OCR ile okunur (`parsers.pdf.ocr_page_lines`, tr-TR).
 - `(9/8. Taksit)` "9 taksitten 8'incisi" demektir.
 - `(Yurt dışı işlem tutarı EUR.25,75)` orijinal tutardır.
 - Bir ekstrede birden çok kart bölümü olabilir.

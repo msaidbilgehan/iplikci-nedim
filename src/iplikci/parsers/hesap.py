@@ -13,9 +13,10 @@ from datetime import date
 from decimal import Decimal
 
 from ..domain.codes import TransactionKind
+from ..domain.labels import format_amount
 from ..domain.models import TRY, Account, Statement, Transaction
 from ..domain.money import CENT, TOLERANCE, round_half_up
-from ..textutil import fold, format_tr_amount
+from ..domain.text import fold
 
 # A cancelled transfer: it and its reversal turn out to be own transfers once the rows are all read.
 CANCELLED = "iptal"
@@ -174,7 +175,7 @@ def build_statement(
             account=account.id,
             counterparty=m.counterparty.strip(),
             source=doc.name,
-            original=f"{format_tr_amount(abs(m.amount))} {account.currency}" if account.currency != TRY else "",
+            original=f"{format_amount(abs(m.amount))} {account.currency}" if account.currency != TRY else "",
         )
         stmt.transactions.append(t)
         if kind == CANCELLED:

@@ -10,7 +10,7 @@ import yaml
 from .domain.codes import CARD_TYPES, AccountType, Necessity, TransactionKind
 from .domain.labels import NECESSITY
 from .domain.models import Account, Transaction
-from .textutil import fold, nfc, title_tr
+from .domain.text import fold, nfc, title_tr
 
 # The generic rules shipped with the app. The user's own rules go above them in a file of their own.
 DEFAULT_RULES = Path(__file__).parent / "rules" / "default.yaml"

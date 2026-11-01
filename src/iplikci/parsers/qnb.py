@@ -15,8 +15,9 @@ from bs4 import BeautifulSoup
 from ..domain.codes import AccountType, TransactionKind
 from ..domain.models import Account, ParseResult, Transaction
 from ..domain.money import round_half_up
-from ..textutil import fold, parse_dmy, parse_us_amount, title_tr
+from ..domain.text import fold, title_tr
 from .common import Skipped
+from .text import parse_dmy, parse_us_amount
 
 NAME = "QNB dekont"
 

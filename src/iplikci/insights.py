@@ -26,9 +26,10 @@ from statistics import median
 from .analysis import NOT_ON_STATEMENT, PROVISIONAL, Dataset, ReceiptLine
 from .categorize import FX_CATEGORY
 from .domain.codes import CARD_TYPES, DEFAULT_EXPENSE_KINDS, AccountType, Necessity, TransactionKind
+from .domain.labels import format_amount
 from .domain.models import TRY, Transaction
 from .domain.money import CENT, round_half_up, to_decimal
-from .textutil import fold, format_tr_amount
+from .domain.text import fold
 
 # Statements that say whether a month's income is known: bank accounts, not cards or a brokerage account.
 NOT_BANK_ACCOUNTS = (*CARD_TYPES, AccountType.BROKERAGE)
@@ -728,8 +729,8 @@ def _with_receipts(h: "Holding", lines: list[ReceiptLine], rate: Decimal | None)
         moved, before = ("+" if change > 0 else "−") + tl(abs(change)), tl(stated)
     else:
         h.value = round_half_up(h.amount * rate) if rate else None
-        moved = ("+" if change > 0 else "−") + f"{format_tr_amount(abs(change))} {h.currency}"
-        before = f"{format_tr_amount(stated)} {h.currency}"
+        moved = ("+" if change > 0 else "−") + f"{format_amount(abs(change))} {h.currency}"
+        before = f"{format_amount(stated)} {h.currency}"
     h.note = (
         f"{_day(h.as_of)} dökümünde {before}; sonraki {len(lines)} dekontla {moved} (geçici, döküm gelince "
         "kesinleşir)" + (f"; {h.note}" if h.note else "")
@@ -1265,7 +1266,7 @@ def receipt_amount(ds: Dataset, line: ReceiptLine) -> str:
     currency = ds.accounts[line.txn.account].currency if line.txn.account in ds.accounts else TRY
     if currency == TRY:
         return tl(abs(line.native))
-    return f"{format_tr_amount(abs(line.native))} {currency}"
+    return f"{format_amount(abs(line.native))} {currency}"
 
 
 def _receipts_finding(c: _Context) -> None:

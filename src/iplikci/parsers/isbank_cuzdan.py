@@ -10,11 +10,12 @@ from decimal import Decimal
 
 from ..domain.codes import AccountType
 from ..domain.models import ParseResult
-from ..pdfutil import Line, find_header, find_word, label_values, page_lines, take_amount
-from ..textutil import fold, parse_dmy, squash
+from ..domain.text import fold
 from .common import BUSINESS_REASON, Skipped, is_business
 from .hesap import Movement, bank_from_iban, build_statement
 from .hesaplar import bank_account
+from .pdf import Line, find_header, find_word, label_values, page_lines, take_amount
+from .text import parse_dmy, squash
 
 NAME = "İş Bankası e-cüzdan"
 _ROW = re.compile(r"^(\d{2}/\d{2}/\d{4})-\d{2}:\d{2}:\d{2}$")

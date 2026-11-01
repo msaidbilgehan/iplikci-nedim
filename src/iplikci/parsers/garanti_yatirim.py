@@ -19,10 +19,11 @@ from decimal import Decimal
 from ..domain.codes import AccountType, TransactionKind
 from ..domain.models import TRY, Account, ParseResult, Security, Statement, Transaction
 from ..domain.money import TOLERANCE, round_half_up
-from ..pdfutil import Line, page_lines
-from ..textutil import fold, parse_dmy, parse_us_amount, squash
+from ..domain.text import fold
 from .common import BUSINESS_REASON, Skipped, is_business
 from .hesap import Movement, check_balances, month_end_balances
+from .pdf import Line, page_lines
+from .text import parse_dmy, parse_us_amount, squash
 
 NAME = "Garanti BBVA Yatırım"
 _HOLDER_X = 300  # the customer's name and address are printed right of this

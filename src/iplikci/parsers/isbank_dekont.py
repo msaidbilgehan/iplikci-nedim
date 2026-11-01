@@ -9,11 +9,12 @@ from decimal import Decimal
 
 from ..domain.codes import TransactionKind
 from ..domain.models import ParseResult, Transaction
-from ..pdfutil import Line, Word, page_lines
-from ..textutil import fold, parse_dmy, parse_tr_amount, squash
+from ..domain.text import fold
 from .common import BUSINESS_REASON, Skipped, is_business
 from .hesap import bank_from_iban
 from .hesaplar import bank_account
+from .pdf import Line, Word, page_lines
+from .text import parse_dmy, parse_tr_amount, squash
 
 NAME = "İş Bankası dekont"
 _RIGHT = 290  # the right column's labels start here

@@ -17,7 +17,7 @@ from iplikci.parsers.common import (
     set_business_names,
     split_interest,
 )
-from iplikci.pdfutil import Line, Word, take_amount
+from iplikci.parsers.pdf import Line, Word, take_amount
 from iplikci.sources import Document
 
 

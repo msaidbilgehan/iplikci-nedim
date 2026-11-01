@@ -4,10 +4,11 @@ import re
 
 from ..domain.codes import AccountType
 from ..domain.models import TRY, Account, ParseResult
-from ..tables import cells, decode_html, html_rows, key_values, read_xls, read_xlsx, sniff, to_date, to_number
-from ..textutil import fold, parse_dmy, title_tr
+from ..domain.text import fold, title_tr
 from .common import BUSINESS_REASON, Skipped, currency_code, is_business
 from .hesap import Movement, bank_from_iban, build_statement, receiver_after_bank, sender_after_bank
+from .sheet import cells, decode_html, html_rows, key_values, read_xls, read_xlsx, sniff, to_date, to_number
+from .text import parse_dmy
 
 NAME = "Hesap hareketleri"
 

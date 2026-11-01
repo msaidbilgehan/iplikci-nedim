@@ -11,7 +11,8 @@ from dataclasses import dataclass
 
 import pdfplumber
 
-from .textutil import fold, parse_tr_amount
+from ..domain.text import fold
+from .text import parse_tr_amount
 
 # Garanti PDFs carry invisible "bosluk" spacer words; some fonts emit (cid:N) glyphs.
 _JUNK = re.compile(r"[bosluk]{6,}|\(cid:\d+\).*")

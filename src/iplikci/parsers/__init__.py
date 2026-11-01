@@ -3,9 +3,7 @@
 from pdfminer.pdfdocument import PDFEncryptionError
 
 from ..domain.models import ParseResult
-from ..pdfutil import ocr_available, ocr_page_lines, open_pdf, page_text
 from ..sources import Document, UnreadableArchive, from_zip
-from ..tables import sniff
 from . import (
     garanti,
     garanti_dekont,
@@ -20,6 +18,8 @@ from . import (
     vakifbank_cuzdan,
 )
 from .common import BUSINESS_REASON, Skipped, Unreadable, is_business, not_a_statement
+from .pdf import ocr_available, ocr_page_lines, open_pdf, page_text
+from .sheet import sniff
 
 __all__ = ["ENCRYPTED_REASON", "NO_OCR_REASON", "PARSER_VERSION", "Skipped", "Unreadable", "parse_document"]
 

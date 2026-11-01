@@ -23,6 +23,7 @@ import sys
 import webbrowser
 from collections import Counter
 from datetime import date, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 
 from . import baseline, demo, month_end
@@ -32,13 +33,12 @@ from .app.analysis import Analysis, analyze
 from .app.workspace import Busy, StalePlan, Workspace
 from .categorize import Categorizer
 from .domain.codes import DEFAULT_EXPENSE_KINDS, Actor
-from .domain.labels import NECESSITY
+from .domain.labels import NECESSITY, format_amount
 from .domain.text import fold
 from .insights import Insights, receipt_amount, tl
 from .settings.config import DEFAULT_PORT, SettingsError
 from .settings.paths import HOME_ENV
 from .storage import annotations
-from .textutil import format_tr_amount
 
 
 def _workspace(parser: argparse.ArgumentParser, home: Path | None = None) -> Workspace:
@@ -314,7 +314,7 @@ def transaction_command(argv: list[str]) -> int:
 
 def _row_line(t, label: str) -> str:
     what = t.category + (f" · {NECESSITY[t.necessity]}" if t.necessity else "")
-    line = f"{t.fingerprint[:10]}  {t.date:%d.%m.%Y}  {format_tr_amount(t.amount):>12} TL  {t.merchant[:30]:30}  {what}"
+    line = f"{t.fingerprint[:10]}  {t.date:%d.%m.%Y}  {format_amount(t.amount):>12} TL  {t.merchant[:30]:30}  {what}"
     extra = [f"not: {t.note}"] if t.note else []
     extra += [f"#{tag}" for tag in t.tags]
     return line + (f"  [{label}]" if label else "") + (f"\n{' ' * 12}{'  '.join(extra)}" if extra else "")
@@ -392,7 +392,7 @@ def _orphans(ws: Workspace, a: Analysis, args: argparse.Namespace, parser: argpa
         return 0
     for o in a.orphans:
         s = o.subject
-        amount = format_tr_amount(s.amount / 100)
+        amount = format_amount(Decimal(s.amount).scaleb(-2))  # the subject keeps kuruş
         print(f"{o.fingerprint[:10]}  {s.date}  {amount:>12} TL  {s.label}  {s.description}")
         parts = [f"not: {o.note}"] if o.note else []
         parts += [f"#{tag}" for tag in o.tags]

@@ -6,9 +6,10 @@ from decimal import Decimal
 from ..domain.codes import AccountType, TransactionKind
 from ..domain.models import TRY, Account, ParseResult, Statement, Transaction
 from ..domain.money import round_half_up
-from ..pdfutil import find_header, find_word, page_lines, page_text, take_amount
-from ..textutil import fold, parse_tr_amount, parse_tr_words_date, squash
+from ..domain.text import fold
 from .common import classify_kind, installment_label, pair_deferrals
+from .pdf import find_header, find_word, page_lines, page_text, take_amount
+from .text import parse_tr_amount, parse_tr_words_date, squash
 
 NAME = "Garanti BBVA"
 

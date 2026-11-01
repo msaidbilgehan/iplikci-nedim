@@ -8,7 +8,8 @@ from decimal import Decimal
 from ..domain.codes import TransactionKind
 from ..domain.models import TRY, Transaction
 from ..domain.money import CENT, round_half_up
-from ..textutil import fold, parse_us_amount, squash
+from ..domain.text import fold
+from .text import parse_us_amount, squash
 
 
 class Skipped(Exception):

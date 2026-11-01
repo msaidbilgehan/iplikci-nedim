@@ -17,7 +17,7 @@ from pathlib import Path
 import yaml
 
 from .categorize import DEFAULT_RULES, Categorizer, RuleSet
-from .textutil import fold
+from .domain.text import fold
 
 _MONTH = re.compile(r"\d{4}-(0[1-9]|1[0-2])")
 # A mapping key at the start of a line: quoted, or plain up to the first ": ".

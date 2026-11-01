@@ -14,7 +14,7 @@ from email.header import decode_header, make_header
 from email.message import Message
 from pathlib import Path
 
-from .textutil import nfc
+from .domain.text import nfc
 
 DOCUMENT_EXTENSIONS = {".pdf", ".html", ".htm", ".xls", ".xlsx"}
 MAX_MEMBER_BYTES = 50 * 1024 * 1024  # skip suspiciously large archive members

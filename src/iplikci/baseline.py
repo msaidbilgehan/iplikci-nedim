@@ -18,12 +18,11 @@ from typing import Any
 from . import mvp_codes
 from .analysis import Dataset
 from .domain.codes import DEFAULT_EXPENSE_KINDS, MonthStatus
-from .domain.labels import ACCOUNT_TYPE
+from .domain.labels import ACCOUNT_TYPE, format_amount
 from .domain.models import Statement
 from .domain.money import round_half_up
 from .insights import month_name, month_of, shift
 from .month_end import MonthEnd
-from .textutil import format_tr_amount
 
 # Version 1 writes the MVP's codes (mvp_codes) and the account types' Turkish labels: a saved baseline stays
 # comparable, and the demo's golden file is unchanged.
@@ -155,7 +154,7 @@ def describe(baseline: dict[str, Any]) -> list[str]:
         ),
         f"  Dekont satırları: {rows or 'yok'}",
         f"  Aylar: {months or 'yok'}",
-        f"  Son 12 ay gider: {format_tr_amount(Decimal(baseline['expenses']['total']))} TL",
+        f"  Son 12 ay gider: {format_amount(Decimal(baseline['expenses']['total']))} TL",
     ]
     lines += [f"  ! doğrulanamadı: {line}" for line in statements["unverified"]]
     lines += [f"  ! okunamadı: {line}" for line in docs["unreadable"]]

@@ -5,9 +5,10 @@ from decimal import Decimal
 
 from ..domain.codes import AccountType, TransactionKind
 from ..domain.models import TRY, Account, ParseResult, Statement, Transaction
-from ..pdfutil import Line, find_header, find_word, page_lines, page_text, take_amount
-from ..textutil import fold, parse_dmy, parse_tr_amount, squash
+from ..domain.text import fold
 from .common import Skipped, classify_kind, installment_label
+from .pdf import Line, find_header, find_word, page_lines, page_text, take_amount
+from .text import parse_dmy, parse_tr_amount, squash
 
 NAME = "TEB"
 

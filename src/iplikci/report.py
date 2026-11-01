@@ -20,8 +20,8 @@ from .categorize import NECESSITY_SLOTS, group_slot
 from .domain.codes import DEFAULT_EXPENSE_KINDS, Necessity, TransactionKind
 from .domain.labels import ACCOUNT_TYPE, KIND, NECESSITY, currency_label
 from .domain.money import round_half_up
+from .domain.text import fold
 from .insights import HABIT_STATUS, STATUS, Insights, interpret, month_of
-from .textutil import fold
 
 CLOSING_MONTHS = 7  # months the report's closing card lists: the current one and six before it
 PROVISIONAL_LABEL = "Geçici (ekstre bekleniyor)"

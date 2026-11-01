@@ -10,12 +10,14 @@ import re
 from decimal import Decimal
 
 from ..domain.codes import TransactionKind
+from ..domain.labels import format_amount
 from ..domain.models import TRY, Account, ParseResult, Transaction
-from ..pdfutil import Line, page_lines
-from ..textutil import fold, format_tr_amount, parse_dmy, parse_tr_amount, squash, title_tr
+from ..domain.text import fold, title_tr
 from .common import BUSINESS_REASON, Skipped, currency_code, is_business
 from .hesap import bank_from_iban
 from .hesaplar import bank_account
+from .pdf import Line, page_lines
+from .text import parse_dmy, parse_tr_amount, squash
 
 NAME = "Garanti BBVA dekont"
 _RIGHT_COLUMN = 300  # the customer's name and address start right of this in the header block
@@ -132,7 +134,7 @@ def parse(doc, pdf) -> ParseResult:
             account=account.id,
             counterparty=party,
             source=doc.name,
-            original=f"{format_tr_amount(abs(printed))} {currency}" if currency != TRY else "",
+            original=f"{format_amount(abs(printed))} {currency}" if currency != TRY else "",
         )
     )
     fee_text = fields.get("KOMISYON TOPLAMI") or fields.get("MASRAF TOPLAMI")

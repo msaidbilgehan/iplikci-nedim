@@ -6,8 +6,8 @@ from decimal import Decimal
 
 from bs4 import BeautifulSoup
 
-from .domain.money import round_half_up, to_decimal
-from .textutil import parse_dmy, parse_tr_amount, parse_us_amount
+from ..domain.money import round_half_up, to_decimal
+from .text import parse_dmy, parse_tr_amount, parse_us_amount
 
 XLS_MAGIC = b"\xd0\xcf\x11\xe0"
 XLSX_MAGIC = b"PK\x03\x04"

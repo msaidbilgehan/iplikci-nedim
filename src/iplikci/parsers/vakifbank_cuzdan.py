@@ -10,11 +10,12 @@ from decimal import Decimal
 
 from ..domain.codes import AccountType
 from ..domain.models import ParseResult
-from ..pdfutil import label_values, page_lines, page_text
-from ..textutil import fold, parse_dmy, parse_tr_amount, squash
+from ..domain.text import fold
 from .common import BUSINESS_REASON, Skipped, is_business
 from .hesap import Movement, build_statement
 from .hesaplar import bank_account
+from .pdf import label_values, page_lines, page_text
+from .text import parse_dmy, parse_tr_amount, squash
 
 NAME = "Vakıfbank e-cüzdan"
 

@@ -16,9 +16,9 @@ from .app import intake
 from .app.workspace import Workspace
 from .categorize import PERSONAL_TEMPLATE
 from .domain.codes import Actor, SourceKind
+from .domain.labels import format_amount
 from .settings.paths import Layout, write_private
 from .storage.documents import Source
-from .textutil import format_tr_amount
 
 HOLDER = "ÖRNEK KULLANICI"
 COMPANY = "ÖRNEK TEKNOLOJİ A.Ş."
@@ -145,7 +145,7 @@ def running_rows(moves: list[Move], opening: Decimal = Decimal(0)) -> list[tuple
     rows, balance = [], opening
     for m in moves:
         balance += m.amount
-        rows.append((f"{m.day:%d/%m/%Y}", m.text, format_tr_amount(m.amount), format_tr_amount(balance)))
+        rows.append((f"{m.day:%d/%m/%Y}", m.text, format_amount(m.amount), format_amount(balance)))
     return rows[::-1]
 
 
