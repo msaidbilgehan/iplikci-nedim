@@ -184,8 +184,9 @@ The service never runs from this folder when registered: `servis kur` needs a fi
 never reaches the real data. During development it runs in the foreground. For a throwaway service set `IPLIKCI_HOME` to
 a temp folder and `IPLIKCI_API_TOKEN` to a made-up token, so the keychain is not touched. Never install the service on
 the user's computer without asking. Once a uv tool copy is registered, a change reaches it only through an update with the service stopped, as reinstalling replaces the
-package under a running process: `~/.local/bin/iplikci servis kaldir`, then the `uv tool install` above, then
-`~/.local/bin/iplikci servis kur`.
+package under a running process: `~/.local/bin/iplikci servis kaldir` (it waits until the process has ended and exits 1
+if it does not), then the `uv tool install` above, then `~/.local/bin/iplikci servis kur`. Update only while no scan of
+the browser extension is running; it delivers to the service.
 
 `dogrula --taban` saves the baseline in the data dir (`baseline.json`) and keeps the saved one when it finds a
 regression; `--kabul` saves it anyway, for a deliberate change only. `dogrula --arsiv` and `--yeniden-kur` exit 1 on

@@ -53,6 +53,16 @@ def held(run: Path, holder: Holder, wait: float | None = None) -> Generator[None
             record.unlink(missing_ok=True)  # what this process wrote about itself
 
 
+def wait_stopped(run: Path, seconds: float) -> Holder | None:
+    """Wait up to `seconds` for the process serving this data folder to end; the one still serving it, or None. A
+    service told to stop finishes its requests first, and a program replaced under it would lose its files."""
+    try:
+        with file_lock(run, LOCK_NAME, seconds):
+            return None
+    except Busy:
+        return current(run) or UNKNOWN
+
+
 def current(run: Path) -> Holder | None:
     """The service that holds this data folder's lock, or None when no process does."""
     try:

@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 
 from iplikci import cli
+from iplikci.cli import service as service_cli
 from iplikci.service import instance, logs, manager
 
 TASK = "{http://schemas.microsoft.com/windows/2004/02/mit/task}"
@@ -190,6 +191,21 @@ def test_the_command_line_registers_the_installed_copy_for_its_data_folder(ws, m
     assert cli.main(["servis", "kaldir"]) == 0 and not launchd.path.exists()
     assert cli.main(["servis", "yeniden-baslat"]) == 1
     assert "kurulu değil" in capsys.readouterr().err
+
+
+def test_removing_the_service_waits_until_its_process_ended(ws, monkeypatch, capsys):
+    launchd = manager.Launchd(ws.home, run=Tools(), uid=501)
+    launchd.path.parent.mkdir(parents=True)
+    monkeypatch.setattr(manager, "for_platform", lambda: launchd)
+    monkeypatch.setattr(service_cli, "STOP_SECONDS", 0.3)
+    monkeypatch.setenv("IPLIKCI_HOME", str(ws.home))
+    launchd.path.write_bytes(b"")
+    with instance.held(ws.run, instance.Holder(111, 8643, "", "0.4.0")):  # it does not end in time
+        assert cli.main(["servis", "kaldir"]) == 1
+    assert "hâlâ süreç 111 sunuyor; o durmadan program güncellenmemeli" in capsys.readouterr().err
+    launchd.path.write_bytes(b"")
+    assert cli.main(["servis", "kaldir"]) == 0
+    assert "Arka plan servisi durdu ve kaldırıldı." in capsys.readouterr().out
 
 
 def test_one_service_per_data_folder(tmp_path):

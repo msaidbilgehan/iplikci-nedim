@@ -68,6 +68,8 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
   servisten ister; ikinci bir IMAP bağlantısı açılmaz.
 - `sources.py`, `ingest/archives.py` oldu; zip, mbox ve e-posta ekleri daha sıkı denetlenir. Okuyucunun girdisi
   (`Document`) okuyucu sözleşmesine taşındı.
+- `servis kaldir` servisin süreci bitene dek bekler (en çok 30 saniye); bitmezse 1 ile çıkar. Program güncellemesi
+  çalışan bir servisin dosyalarını değiştirmez.
 
 ### Kaldırılanlar
 

@@ -13,6 +13,8 @@ from ..domain.labels import DOCUMENT_STATUS
 from ..service import instance, logs, manager
 from .common import human_size, local_time, open_workspace
 
+STOP_SECONDS = 30.0  # how long removing the service waits for it to finish its requests and end
+
 
 def service_command(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
@@ -62,11 +64,28 @@ def service_command(argv: list[str]) -> int:
             return _service_install(ws)
         if args.komut == "yeniden-baslat":
             return _service_restart()
-        removed = manager.for_platform().uninstall()
+        return _service_remove(ws)
     except manager.ManagerError as exc:
         print(str(exc), file=sys.stderr)
         return 1
-    print("Arka plan servisi kaldırıldı." if removed else "Arka plan servisi kurulu değildi.")
+
+
+def _service_remove(ws: Workspace) -> int:
+    """Unregister the service and wait until its process ended: the program is updated right after, and a running
+    service whose files are replaced fails its requests."""
+    if not manager.for_platform().uninstall():
+        print("Arka plan servisi kurulu değildi.")
+        return 0
+    still = instance.wait_stopped(ws.run, STOP_SECONDS)
+    if still is not None:
+        who = f"süreç {still.pid}" if still.pid else "bir süreç"
+        print(
+            f"Arka plan servisi kaldırıldı, ama bu veri klasörünü hâlâ {who} sunuyor; o durmadan program "
+            "güncellenmemeli.",
+            file=sys.stderr,
+        )
+        return 1
+    print("Arka plan servisi durdu ve kaldırıldı.")
     return 0
 
 
