@@ -10,7 +10,7 @@ import pytest
 
 from iplikci import automation, email_fetch
 from iplikci.app.workspace import Workspace
-from iplikci.demo import teb_export
+from iplikci.fakes import teb
 from iplikci.storage import documents
 
 from conftest import JANUARY, add, bank_mail, put
@@ -41,7 +41,7 @@ def calls(monkeypatch) -> list[list[str]]:
 
 def test_automatic_run_takes_the_inbox_into_the_vault(ws):
     assert automation.run(ws, notify=False, quiet=0).message == "gelen kutusu boş"
-    put(ws.inbox / "TEBHareket.xls", teb_export(JANUARY))
+    put(ws.inbox / "TEBHareket.xls", teb.account_export(JANUARY))
     out = automation.run(ws, notify=False, quiet=0)
     assert (out.filed, out.trashed, out.unreadable) == (1, 0, 0)
     assert out.message.startswith("1 yeni belge arşive alındı (1 hesap dökümü)")
@@ -52,7 +52,7 @@ def test_automatic_run_takes_the_inbox_into_the_vault(ws):
 def test_automatic_run_fetches_the_bank_e_mails_first(ws, mail, monkeypatch):
     told = []
     monkeypatch.setattr(automation, "show_notification", lambda title, text: told.append(text))
-    mail.messages[101] = bank_mail(teb_export(JANUARY))
+    mail.messages[101] = bank_mail(teb.account_export(JANUARY))
     out = automation.run(ws, quiet=0)
     assert out.message == "E-postadan 1 yeni belge arşive alındı."
     assert told == [out.message]  # straight into the vault, not through the inbox: still told
@@ -146,7 +146,7 @@ def test_an_unknown_system_is_told_to_use_its_own_scheduler():
 
 
 def test_the_user_hears_once_when_a_month_ended_and_when_it_closed(ws):
-    add(ws, "ocak.xls", teb_export(JANUARY, period="01/01/2026 - 25/01/2026"))
+    add(ws, "ocak.xls", teb.account_export(JANUARY, period="01/01/2026 - 25/01/2026"))
     assert automation.month_news(ws, None, today=date(2026, 1, 20)) == ""  # the first look only takes note
     assert automation.month_news(ws, None, today=date(2026, 1, 28)) == ""
     assert automation.month_news(ws, None, today=date(2026, 2, 2)) == (
@@ -155,7 +155,7 @@ def test_the_user_hears_once_when_a_month_ended_and_when_it_closed(ws):
     assert automation.month_news(ws, None, today=date(2026, 2, 3)) == ""  # told once
     assert (ws.exports / "ay-sonu" / "2026-01.html").exists()
     # The list for the rest of January comes (through the panel, say): January closes.
-    add(ws, "subat.xls", teb_export([], period="26/01/2026 - 28/02/2026"))
+    add(ws, "subat.xls", teb.account_export([], period="26/01/2026 - 28/02/2026"))
     assert automation.month_news(ws, None, today=date(2026, 2, 4)) == (
         "Ocak 2026 kapandı: bütün ekstreler geldi ve tutarlı."
     )

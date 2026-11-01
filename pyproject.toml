@@ -55,6 +55,7 @@ pythonVersion = "3.13"
 include = [
     "src/iplikci/app",
     "src/iplikci/domain",
+    "src/iplikci/fakes",
     "src/iplikci/parsers/accounts.py",
     "src/iplikci/parsers/contract.py",
     "src/iplikci/parsers/registry.py",
@@ -67,6 +68,7 @@ include = [
 strict = [
     "src/iplikci/app",
     "src/iplikci/domain",
+    "src/iplikci/fakes",
     "src/iplikci/parsers/accounts.py",
     "src/iplikci/parsers/contract.py",
     "src/iplikci/parsers/registry.py",

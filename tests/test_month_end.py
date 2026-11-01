@@ -8,9 +8,9 @@ import pytest
 from iplikci import cli, month_end
 from iplikci.analysis import build
 from iplikci.categorize import Categorizer
-from iplikci.demo import teb_export
 from iplikci.domain.codes import AccountType, TransactionKind
 from iplikci.domain.models import Account, ParseResult, Security, Statement, Transaction
+from iplikci.fakes import teb
 from iplikci.insights import interpret
 from iplikci.sources import Document
 
@@ -228,7 +228,7 @@ def test_pages_escape_statement_text_and_carry_no_script(cat, tmp_path):
 
 
 def test_the_month_end_command_writes_a_months_page_and_refuses_a_month_to_come(ws, monkeypatch, capsys):
-    add(ws, "ocak.xls", teb_export(JANUARY))
+    add(ws, "ocak.xls", teb.account_export(JANUARY))
     monkeypatch.setenv("IPLIKCI_HOME", str(ws.home))
     assert cli.main(["aysonu", "2026-01"]) == 0
     assert "Ocak 2026 — Kapandı" in capsys.readouterr().out

@@ -8,7 +8,7 @@ from urllib.parse import quote
 import pytest
 
 from iplikci import email_fetch
-from iplikci.demo import teb_export
+from iplikci.fakes import teb
 from iplikci.panel import make_server
 
 from conftest import JANUARY, bank_mail
@@ -90,7 +90,7 @@ def test_writes_need_the_panel_origin_and_header(panel):
 
 
 def test_upload_plan_and_apply_through_the_panel(panel, ws):
-    status, up = upload(panel, "../../Indirilenler/TEBHareket.xls", teb_export(JANUARY))
+    status, up = upload(panel, "../../Indirilenler/TEBHareket.xls", teb.account_export(JANUARY))
     assert status == 200 and up == {"status": "eklendi", "name": "Indirilenler/TEBHareket.xls", "reason": ""}
     assert (ws.inbox / "Indirilenler" / "TEBHareket.xls").exists()
 
@@ -128,7 +128,7 @@ def test_the_page_shows_an_account_set_up_while_the_panel_runs(panel, ws, imap):
 
 
 def test_mail_fetched_through_the_panel_goes_into_the_vault(panel, ws, mail):
-    mail.messages[101] = bank_mail(teb_export(JANUARY))
+    mail.messages[101] = bank_mail(teb.account_export(JANUARY))
     status, body = post_json(panel, "/api/eposta")
     assert status == 200 and body["stored"] == ["HesapHareketleri.xls"] and body["lastRun"] and not body["more"]
     assert post_json(panel, "/api/plan")[1]["changes"] == 0  # not through the inbox

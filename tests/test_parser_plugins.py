@@ -10,6 +10,8 @@ from iplikci import demo, parsers
 from iplikci.app import reading
 from iplikci.domain.codes import DocumentKind, DocumentStatus
 from iplikci.domain.models import ParseResult
+from iplikci.fakes import HOLDER, Move, garanti, teb
+from iplikci.fakes.files import text_pdf
 from iplikci.parsers import registry
 from iplikci.parsers.contract import Detection, Format, Parser, Probe, SourceDocument
 from iplikci.sources import Document
@@ -146,16 +148,16 @@ def test_every_row_of_the_demo_documents_says_where_it_is_printed():
 
 
 def test_a_pdf_row_is_its_page_and_the_box_of_its_line():
-    fast = demo.garanti_fast_body("ŞUBAT AİDAT", "ÖRNEK SİTE YÖNETİMİ")
-    data = demo.garanti_receipt("HESAPTAN FAST", "106/1234567", demo.HOLDER, fast, "- 1.250,00 TL")
+    fast = garanti.fast_body("ŞUBAT AİDAT", "ÖRNEK SİTE YÖNETİMİ")
+    data = garanti.receipt("HESAPTAN FAST", "106/1234567", HOLDER, fast, "- 1.250,00 TL")
     transfer, fee = parsers.parse_document(Document("dekont.pdf", "test", data, "sha")).transactions
     assert transfer.ref.page == 1 and transfer.ref.box[1] == pytest.approx(563, abs=1)  # the SIRA NO … TUTAR line
     assert fee.ref.page == 1 and fee.ref.box[1] == pytest.approx(407, abs=1)  # KOMİSYON TOPLAMI
 
 
 def test_a_table_row_is_its_row_number():
-    rows = demo.running_rows([demo.Move(date(2026, 1, 5), "ORNEK KAHVE", Decimal(-180))])
-    result = parsers.parse_document(Document("liste.xls", "test", demo.teb_export(rows), "sha"))
+    rows = teb.running_rows([Move(date(2026, 1, 5), "ORNEK KAHVE", Decimal(-180))])
+    result = parsers.parse_document(Document("liste.xls", "test", teb.account_export(rows), "sha"))
     (coffee,) = result.statements[0].transactions
     assert (coffee.ref.sheet, coffee.ref.row) == ("", 9)  # the HTML table's ninth row, under the header row
 
@@ -171,28 +173,28 @@ def _reread(ws) -> list[str]:
 
 
 def test_a_new_reader_version_reads_only_that_readers_documents_again(ws, monkeypatch):
-    rows = demo.running_rows([demo.Move(date(2026, 1, 5), "ORNEK KAHVE", Decimal(-180))])
-    add(ws, "liste.xls", demo.teb_export(rows))
-    fast = demo.garanti_fast_body("ŞUBAT AİDAT", "ÖRNEK SİTE YÖNETİMİ")
-    add(ws, "dekont.pdf", demo.garanti_receipt("HESAPTAN FAST", "106/1234567", demo.HOLDER, fast, "- 1.250,00 TL"))
+    rows = teb.running_rows([Move(date(2026, 1, 5), "ORNEK KAHVE", Decimal(-180))])
+    add(ws, "liste.xls", teb.account_export(rows))
+    fast = garanti.fast_body("ŞUBAT AİDAT", "ÖRNEK SİTE YÖNETİMİ")
+    add(ws, "dekont.pdf", garanti.receipt("HESAPTAN FAST", "106/1234567", HOLDER, fast, "- 1.250,00 TL"))
     assert _reread(ws) == []
-    teb = registry.find("teb.account_html")
-    monkeypatch.setattr(teb, "version", teb.version + 1)
+    reader = registry.find("teb.account_html")
+    monkeypatch.setattr(reader, "version", reader.version + 1)
     assert _reread(ws) == ["liste.xls"]
     assert _reread(ws) == []  # read once
 
 
 def test_a_document_no_reader_took_is_shown_to_the_readers_again_when_they_change(ws, monkeypatch):
-    add(ws, "form.pdf", demo.text_pdf([(40, 40, "TALİMAT FORMU")]))
-    fast = demo.garanti_fast_body("ŞUBAT AİDAT", "ÖRNEK SİTE YÖNETİMİ")
-    add(ws, "dekont.pdf", demo.garanti_receipt("HESAPTAN FAST", "106/1234567", demo.HOLDER, fast, "- 1.250,00 TL"))
+    add(ws, "form.pdf", text_pdf([(40, 40, "TALİMAT FORMU")]))
+    fast = garanti.fast_body("ŞUBAT AİDAT", "ÖRNEK SİTE YÖNETİMİ")
+    add(ws, "dekont.pdf", garanti.receipt("HESAPTAN FAST", "106/1234567", HOLDER, fast, "- 1.250,00 TL"))
     receipt = registry.find("garanti.receipt")
     monkeypatch.setattr(receipt, "version", receipt.version + 1)
     assert _reread(ws) == ["dekont.pdf", "form.pdf"]
 
 
 def test_a_reader_that_fails_on_a_document_reads_it_again_in_its_next_version(ws, monkeypatch):
-    broken = demo.garanti_receipt("HESAPTAN FAST", "106/1234567", demo.HOLDER, [], "TUTAR YOK")  # no amount
+    broken = garanti.receipt("HESAPTAN FAST", "106/1234567", HOLDER, [], "TUTAR YOK")  # no amount
     [stored] = add(ws, "bozuk.pdf", broken).stored
     assert stored.status is DocumentStatus.UNREADABLE and stored.reason.startswith("ValueError: Garanti dekontunda")
     with ws.db() as db:

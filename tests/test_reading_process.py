@@ -15,6 +15,8 @@ from iplikci import demo, parsers
 from iplikci.app import reading
 from iplikci.domain.codes import AccountType, DocumentStatus, TransactionKind
 from iplikci.domain.models import Account, ParseResult, Security, SourceRef, Statement, Transaction
+from iplikci.fakes import HOLDER, garanti
+from iplikci.fakes.files import pdf_file, text_pdf
 from iplikci.parsers import Skipped, Unreadable, registry, wire, worker
 from iplikci.parsers.common import business_names, caused_by, set_business_names
 from iplikci.sources import Document
@@ -75,8 +77,8 @@ def doc(name: str = "belge.pdf", data: bytes = b"%PDF-1.4") -> Document:
 
 
 def receipt() -> Document:
-    fast = demo.garanti_fast_body("ŞUBAT AİDAT", "ÖRNEK SİTE YÖNETİMİ")
-    return doc("dekont.pdf", demo.garanti_receipt("HESAPTAN FAST", "106/1234567", demo.HOLDER, fast, "- 1.250,00 TL"))
+    fast = garanti.fast_body("ŞUBAT AİDAT", "ÖRNEK SİTE YÖNETİMİ")
+    return doc("dekont.pdf", garanti.receipt("HESAPTAN FAST", "106/1234567", HOLDER, fast, "- 1.250,00 TL"))
 
 
 def outcome(read, document: Document) -> ParseResult | tuple:
@@ -99,7 +101,7 @@ def test_every_demo_document_reads_the_same_in_the_reading_process():
 
 
 def test_the_reading_process_reads_with_the_company_names_of_the_moment(names):
-    form = doc("Ornek Tekstil talimat.pdf", demo.text_pdf([(40, 40, "TALİMAT FORMU")]))
+    form = doc("Ornek Tekstil talimat.pdf", text_pdf([(40, 40, "TALİMAT FORMU")]))
     names(["Örnek Tekstil A.Ş."])
     assert outcome(worker.parse_document, form) == ("skipped", "şirket belgesi — kapsam dışı", True, "")
     names([])
@@ -271,7 +273,7 @@ def _inflating_pdf(size: int) -> bytes:
     pack = zlib.compressobj(1)
     spaces = b" " * (1 << 24)
     data = b"".join(pack.compress(spaces) for _ in range(size >> 24)) + pack.flush()
-    return demo.pdf_file(
+    return pdf_file(
         [
             b"<< /Type /Catalog /Pages 2 0 R >>",
             b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",

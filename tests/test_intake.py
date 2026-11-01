@@ -8,8 +8,9 @@ import pytest
 
 from iplikci.app import intake
 from iplikci.app.workspace import StalePlan, Workspace
-from iplikci.demo import teb_export, text_pdf
 from iplikci.domain.codes import DocumentKind, DocumentStatus, SourceKind
+from iplikci.fakes import teb
+from iplikci.fakes.files import text_pdf
 from iplikci.storage import audit, documents
 
 from conftest import FEBRUARY, JANUARY, put
@@ -45,7 +46,7 @@ def stored_names(ws: Workspace) -> list[str]:
 
 
 def test_the_inbox_plan_touches_nothing(ws):
-    put(ws.inbox / "ocak.xls", teb_export(JANUARY))
+    put(ws.inbox / "ocak.xls", teb.account_export(JANUARY))
     plan = intake.plan_inbox(ws)
     [c] = plan.changes
     assert (c.verdict, c.status, c.outcome.kind) == ("store", DocumentStatus.PROCESSED, DocumentKind.ACCOUNT_STATEMENT)
@@ -54,7 +55,7 @@ def test_the_inbox_plan_touches_nothing(ws):
 
 
 def test_kept_documents_move_from_the_inbox_into_the_vault(ws):
-    put(ws.inbox / "ocak.xls", teb_export(JANUARY))
+    put(ws.inbox / "ocak.xls", teb.account_export(JANUARY))
     put(ws.inbox / "alt" / "subat.xls", FEBRUARY)
     done = intake.apply(ws, intake.plan_inbox(ws))
     assert sorted(c.name for c in done.stored) == ["ocak.xls", "subat.xls"]
@@ -68,7 +69,7 @@ def test_kept_documents_move_from_the_inbox_into_the_vault(ws):
 
 
 def test_company_documents_and_strangers_leave_the_inbox_for_the_trash(ws, private_trash):
-    put(ws.inbox / "sirket.xls", teb_export(JANUARY, holder=COMPANY))
+    put(ws.inbox / "sirket.xls", teb.account_export(JANUARY, holder=COMPANY))
     put(ws.inbox / "notlar.txt", "bir not")
     plan = intake.plan_inbox(ws)
     assert {c.name: c.action for c in plan.changes} == {"sirket.xls": "business", "notlar.txt": "not_document"}
@@ -98,7 +99,7 @@ def test_an_unreadable_document_is_kept_for_a_manual_look(ws):
 def test_an_archive_is_opened_and_then_set_aside(ws):
     put(
         ws.inbox / "e-posta.zip",
-        zipped(**{"ocak.xls": teb_export(JANUARY), "sirket.xls": teb_export(JANUARY, holder=COMPANY)}),
+        zipped(**{"ocak.xls": teb.account_export(JANUARY), "sirket.xls": teb.account_export(JANUARY, holder=COMPANY)}),
     )
     plan = intake.plan_inbox(ws)
     assert {c.name: c.action for c in plan.items} == {
@@ -113,9 +114,9 @@ def test_an_archive_is_opened_and_then_set_aside(ws):
 
 
 def test_known_bytes_add_an_arrival_and_leave_the_inbox(ws):
-    put(ws.inbox / "ocak.xls", teb_export(JANUARY))
+    put(ws.inbox / "ocak.xls", teb.account_export(JANUARY))
     intake.apply(ws, intake.plan_inbox(ws))
-    put(ws.inbox / "ocak (1).xls", teb_export(JANUARY))
+    put(ws.inbox / "ocak (1).xls", teb.account_export(JANUARY))
     [c] = intake.plan_inbox(ws).changes
     assert (c.verdict, c.new_source) == ("known", True)
     intake.apply(ws, intake.plan_inbox(ws))
@@ -125,7 +126,7 @@ def test_known_bytes_add_an_arrival_and_leave_the_inbox(ws):
 
 
 def test_a_plan_is_refused_when_its_files_changed(ws):
-    path = put(ws.inbox / "ocak.xls", teb_export(JANUARY))
+    path = put(ws.inbox / "ocak.xls", teb.account_export(JANUARY))
     plan = intake.plan_inbox(ws)
     path.write_bytes(FEBRUARY)
     with pytest.raises(StalePlan):
@@ -134,10 +135,10 @@ def test_a_plan_is_refused_when_its_files_changed(ws):
 
 
 def test_the_same_bytes_twice_in_one_plan_are_one_document(ws):
-    put(ws.inbox / "a.xls", teb_export(JANUARY))
-    put(ws.inbox / "b.xls", teb_export(JANUARY))
-    put(ws.inbox / "sirket-1.xls", teb_export(JANUARY, holder=COMPANY))
-    put(ws.inbox / "sirket-2.xls", teb_export(JANUARY, holder=COMPANY))
+    put(ws.inbox / "a.xls", teb.account_export(JANUARY))
+    put(ws.inbox / "b.xls", teb.account_export(JANUARY))
+    put(ws.inbox / "sirket-1.xls", teb.account_export(JANUARY, holder=COMPANY))
+    put(ws.inbox / "sirket-2.xls", teb.account_export(JANUARY, holder=COMPANY))
     plan = intake.plan_inbox(ws)
     assert [c.action for c in plan.items] == ["processed", "known", "business", "business"]
     intake.apply(ws, plan)
@@ -149,7 +150,7 @@ def test_the_same_bytes_twice_in_one_plan_are_one_document(ws):
 
 def test_imported_files_stay_where_they_are(ws, tmp_path):
     downloads = tmp_path / "Downloads"
-    original = put(downloads / "ekstreler" / "ocak.xls", teb_export(JANUARY))
+    original = put(downloads / "ekstreler" / "ocak.xls", teb.account_export(JANUARY))
     put(downloads / "notlar.txt", "bir not")
     plan = intake.plan_paths(ws, [downloads])
     assert [c.name for c in plan.changes] == ["ocak.xls"]  # a stranger outside the inbox is not ours to move
@@ -167,7 +168,7 @@ def test_paths_inside_the_data_folder_or_missing_are_refused(ws, tmp_path):
 
 
 def test_a_plan_item_says_what_it_is_and_where_it_goes(ws):
-    put(ws.inbox / "ocak.xls", teb_export(JANUARY))
+    put(ws.inbox / "ocak.xls", teb.account_export(JANUARY))
     [c] = intake.plan_inbox(ws).changes
     item = intake.describe(c, ws)
     assert item["action"] == "processed" and item["fromInbox"]

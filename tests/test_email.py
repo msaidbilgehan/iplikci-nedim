@@ -12,9 +12,10 @@ import pytest
 from iplikci import email_fetch
 from iplikci.app import reading
 from iplikci.app.workspace import Workspace
-from iplikci.demo import teb_export, text_pdf
 from iplikci.domain.codes import DocumentStatus, SourceKind
 from iplikci.email_fetch import Account, MailError, NotConfigured, fetch, search_criteria, setup
+from iplikci.fakes import teb
+from iplikci.fakes.files import text_pdf
 from iplikci.parsers import registry
 from iplikci.settings.config import SettingsError
 from iplikci.storage import documents
@@ -37,11 +38,11 @@ def kept(ws: Workspace) -> list[documents.DocumentRow]:
 
 
 def test_a_verified_bank_statement_goes_into_the_vault(ws, mail):
-    mail.messages[101] = bank_mail(teb_export(JANUARY))
+    mail.messages[101] = bank_mail(teb.account_export(JANUARY))
     got = fetch(ws)
     assert (got.scanned, got.with_documents, got.unverified) == (1, 1, 0)
     [c] = got.stored
-    assert c.status is DocumentStatus.PROCESSED and ws.vault.read(c.sha256) == teb_export(JANUARY)
+    assert c.status is DocumentStatus.PROCESSED and ws.vault.read(c.sha256) == teb.account_export(JANUARY)
     assert got.message.startswith("1 yeni banka e-postası okundu; 1 yeni belge arşive alındı (1 hesap dökümü)")
     assert got.folder == "[Gmail]/Tüm Postalar"  # All Mail, found by its \All flag in any language
     with ws.db() as db:
@@ -55,7 +56,7 @@ def test_a_verified_bank_statement_goes_into_the_vault(ws, mail):
 
 
 def test_the_mailbox_is_only_read(ws, mail):
-    mail.messages[101] = bank_mail(teb_export(JANUARY))
+    mail.messages[101] = bank_mail(teb.account_export(JANUARY))
     fetch(ws)
     assert ("SELECT", '"[Gmail]/T&APw-m Postalar"', True) in mail.commands  # EXAMINE: read-only
     sent = {c[1] if c[0] == "UID" else c[0] for c in mail.commands}
@@ -64,7 +65,7 @@ def test_the_mailbox_is_only_read(ws, mail):
 
 
 def test_mail_whose_sender_is_not_verified_is_ignored(ws, mail):
-    january = teb_export(JANUARY)
+    january = teb.account_export(JANUARY)
     mail.messages |= {
         101: bank_mail(january, results=("mx.google.com; dmarc=fail (p=NONE) header.from=teb.com.tr",)),
         # A forged "pass" below Gmail's own verdict: only the topmost header counts.
@@ -85,19 +86,19 @@ def test_mail_whose_sender_is_not_verified_is_ignored(ws, mail):
 
 
 def test_mail_from_other_senders_is_not_even_counted(ws, mail):
-    mail.messages[101] = bank_mail(teb_export(JANUARY), sender="kampanya@teb.com.tr.saldirgan.example")
-    mail.messages[102] = bank_mail(teb_export(JANUARY), sender="arkadas@example.com")
+    mail.messages[101] = bank_mail(teb.account_export(JANUARY), sender="kampanya@teb.com.tr.saldirgan.example")
+    mail.messages[102] = bank_mail(teb.account_export(JANUARY), sender="arkadas@example.com")
     got = fetch(ws)
     assert (got.scanned, got.stored) == (0, []) and got.message == "yeni banka e-postası yok"
 
 
 def test_a_subdomain_of_a_bank_counts(ws, mail):
-    mail.messages[101] = bank_mail(teb_export(JANUARY), sender="ekstre@ileti.teb.com.tr")
+    mail.messages[101] = bank_mail(teb.account_export(JANUARY), sender="ekstre@ileti.teb.com.tr")
     assert len(fetch(ws).stored) == 1
 
 
 def test_each_e_mail_is_read_once(ws, mail):
-    mail.messages[101] = bank_mail(teb_export(JANUARY))
+    mail.messages[101] = bank_mail(teb.account_export(JANUARY))
     assert len(fetch(ws).stored) == 1
     mail.messages[102] = bank_mail(FEBRUARY)
     mail.commands.clear()
@@ -109,7 +110,7 @@ def test_each_e_mail_is_read_once(ws, mail):
 
 
 def test_a_new_mailbox_generation_is_read_again_without_keeping_twice(ws, mail):
-    mail.messages[101] = bank_mail(teb_export(JANUARY))
+    mail.messages[101] = bank_mail(teb.account_export(JANUARY))
     fetch(ws)
     mail.uidvalidity = 8  # the server renumbered the mailbox: the old position means nothing
     again = fetch(ws)
@@ -118,8 +119,8 @@ def test_a_new_mailbox_generation_is_read_again_without_keeping_twice(ws, mail):
 
 
 def test_documents_already_in_the_vault_are_not_kept_again(ws, mail):
-    add(ws, "ocak.xls", teb_export(JANUARY))
-    mail.messages[101] = bank_mail(teb_export(JANUARY))
+    add(ws, "ocak.xls", teb.account_export(JANUARY))
+    mail.messages[101] = bank_mail(teb.account_export(JANUARY))
     got = fetch(ws)
     assert got.stored == [] and "1 zaten vardı" in got.message and len(kept(ws)) == 1
 
@@ -127,7 +128,7 @@ def test_documents_already_in_the_vault_are_not_kept_again(ws, mail):
 def test_zip_attachments_are_opened_in_memory(ws, mail):
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
-        zf.writestr("ekstreler/HesapHareketleri.xls", teb_export(JANUARY))
+        zf.writestr("ekstreler/HesapHareketleri.xls", teb.account_export(JANUARY))
         zf.writestr("okubeni.txt", "belge değil")
     mail.messages[101] = bank_mail(buf.getvalue(), name="ekstreler.zip")
     got = fetch(ws)
@@ -137,7 +138,7 @@ def test_zip_attachments_are_opened_in_memory(ws, mail):
 
 def test_a_large_backlog_is_read_in_parts(ws, mail, monkeypatch):
     monkeypatch.setattr(email_fetch, "MAX_MESSAGES", 1)
-    mail.messages |= {101: bank_mail(teb_export(JANUARY)), 102: bank_mail(FEBRUARY)}
+    mail.messages |= {101: bank_mail(teb.account_export(JANUARY)), 102: bank_mail(FEBRUARY)}
     first = fetch(ws)
     assert first.more and len(first.stored) == 1 and "sonraki alımda sürecek" in first.message
     second = fetch(ws)
@@ -178,7 +179,7 @@ def test_other_servers_read_the_inbox_with_a_plain_search(ws, imap):
     imap.capabilities = ("IMAP4REV1",)
     ws = with_settings(ws, '[mail]\nimap_host = "imap.example.com"\nbank_senders = ["teb.com.tr"]\n')
     setup(ws, ADDRESS, APP_PASSWORD, date(2026, 1, 1))
-    imap.messages[101] = bank_mail(teb_export(JANUARY))
+    imap.messages[101] = bank_mail(teb.account_export(JANUARY))
     assert len(fetch(ws).stored) == 1
     [search] = [c for c in imap.commands if c[:2] == ("UID", "SEARCH")]
     assert ("SELECT", "INBOX", True) in imap.commands and not any("X-GM-RAW" in a for a in search)
@@ -216,7 +217,7 @@ def test_folder_names_use_modified_utf7(name, coded):
 
 
 def test_a_changed_start_day_reads_the_mailbox_again(ws, mail):
-    mail.messages[101] = bank_mail(teb_export(JANUARY))
+    mail.messages[101] = bank_mail(teb.account_export(JANUARY))
     fetch(ws)
     email_fetch.set_start(ws, date(2025, 6, 1))
     mail.commands.clear()
@@ -226,7 +227,7 @@ def test_a_changed_start_day_reads_the_mailbox_again(ws, mail):
 
 
 def test_new_readers_read_the_archived_attachments_not_the_mailbox(ws, mail, monkeypatch):
-    mail.messages[101] = bank_mail(teb_export(JANUARY))
+    mail.messages[101] = bank_mail(teb.account_export(JANUARY))
     fetch(ws)
     reader = registry.find("teb.account_html")
     monkeypatch.setattr(reader, "version", reader.version + 1)

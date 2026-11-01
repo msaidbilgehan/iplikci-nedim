@@ -12,10 +12,10 @@ from iplikci.app.analysis import analyze
 from iplikci.app.workspace import Workspace
 from iplikci.categorize import Categorizer
 from iplikci.cli import main
-from iplikci.demo import teb_export
 from iplikci.domain.codes import Actor, Necessity, TransactionKind
 from iplikci.domain.fingerprint import Fingerprints, fingerprint
 from iplikci.domain.models import Transaction
+from iplikci.fakes import teb
 from iplikci.parsers import registry
 from iplikci.settings.paths import HOME_ENV
 from iplikci.storage import annotations, audit
@@ -73,7 +73,7 @@ def test_every_row_gets_its_own_fingerprint_and_alike_rows_keep_their_order(give
 
 
 def test_a_note_survives_reading_the_documents_again(ws, monkeypatch):
-    add(ws, "ocak.xls", teb_export(JANUARY))
+    add(ws, "ocak.xls", teb.account_export(JANUARY))
     note(ws, coffee(ws), note="arkadaşla", tags=("dışarıda",))
     again = [t for t in analyze(ws, reread=True).dataset.transactions if t.note]
     assert [(t.merchant, t.note, t.tags) for t in again] == [("Kahveci Dukkan", "arkadaşla", ("dışarıda",))]
@@ -84,7 +84,7 @@ def test_a_note_survives_reading_the_documents_again(ws, monkeypatch):
 
 
 def test_of_two_rows_alike_the_note_stays_on_the_one_it_was_given(ws):
-    add(ws, "ocak.xls", teb_export(TWO_COFFEES))
+    add(ws, "ocak.xls", teb.account_export(TWO_COFFEES))
     first, second = (coffee(ws, 0), coffee(ws, 1))
     assert first.fingerprint != second.fingerprint
     note(ws, second, note="ikincisi")
@@ -93,7 +93,7 @@ def test_of_two_rows_alike_the_note_stays_on_the_one_it_was_given(ws):
 
 
 def test_a_corrected_category_brings_its_group_and_the_necessity_its_rules_give(ws):
-    add(ws, "ocak.xls", teb_export(JANUARY))
+    add(ws, "ocak.xls", teb.account_export(JANUARY))
     t = coffee(ws)
     assert (t.category, t.necessity) == ("Kafe & Kahve", Necessity.OPTIONAL)
     note(ws, t, category="Market & Gıda")
@@ -106,7 +106,7 @@ def test_a_corrected_category_brings_its_group_and_the_necessity_its_rules_give(
 
 
 def test_an_annotation_left_empty_is_removed_and_the_log_names_fields_not_contents(ws):
-    add(ws, "ocak.xls", teb_export(JANUARY))
+    add(ws, "ocak.xls", teb.account_export(JANUARY))
     t = coffee(ws)
     kept = note(ws, t, note="gizli not", tags=("a", " a ", "", "b"))
     assert kept is not None and kept.tags == ("a", "b")
@@ -118,7 +118,7 @@ def test_an_annotation_left_empty_is_removed_and_the_log_names_fields_not_conten
 
 
 def test_an_annotation_whose_row_went_is_kept_as_an_orphan(ws):
-    add(ws, "ocak.xls", teb_export(JANUARY, holder="ÖRNEK TEKNOLOJİ A.Ş."))
+    add(ws, "ocak.xls", teb.account_export(JANUARY, holder="ÖRNEK TEKNOLOJİ A.Ş."))
     note(ws, coffee(ws), note="iş yemeği değil")
     ws.layout.settings.write_text('[identity]\nbusiness_names = ["Örnek Teknoloji"]\n', encoding="utf-8")
     ws = Workspace.load(ws.home)  # the list turns out to be a company's: it leaves the vault, and its rows
@@ -158,7 +158,7 @@ def test_a_receipts_note_moves_to_the_statement_row_that_confirmed_it():
 
 @pytest.fixture
 def home(ws, monkeypatch):
-    add(ws, "ocak.xls", teb_export(JANUARY))
+    add(ws, "ocak.xls", teb.account_export(JANUARY))
     monkeypatch.setenv(HOME_ENV, str(ws.home))
     return ws
 

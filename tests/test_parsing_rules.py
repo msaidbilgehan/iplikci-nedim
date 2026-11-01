@@ -8,6 +8,7 @@ from pdfplumber.utils.exceptions import PdfminerException
 from iplikci import parsers
 from iplikci.domain.codes import TransactionKind
 from iplikci.domain.models import Transaction
+from iplikci.fakes.files import pdf_file
 from iplikci.parsers import contract
 from iplikci.parsers.common import (
     business_names_signature,
@@ -178,14 +179,7 @@ def _image_only_pdf() -> bytes:
         ),
         b"<< /Length %d >>\nstream\n%s\nendstream" % (len(content), content),
     ]
-    out, offsets = b"%PDF-1.4\n", []
-    for number, body in enumerate(objects, 1):
-        offsets.append(len(out))
-        out += b"%d 0 obj\n%s\nendobj\n" % (number, body)
-    xref = len(out)
-    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objects) + 1)
-    out += b"".join(b"%010d 00000 n \n" % o for o in offsets)
-    return out + b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objects) + 1, xref)
+    return pdf_file(objects)
 
 
 def test_page_image_pdf_without_ocr_is_kept_for_a_manual_look(monkeypatch):

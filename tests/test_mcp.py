@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from iplikci.demo import teb_export
+from iplikci.fakes import teb
 from iplikci.mcp_server import PROTOCOL_VERSIONS, TOOLS, Server, serve
 
 from conftest import FEBRUARY, JANUARY, add, bank_mail, put
@@ -24,7 +24,7 @@ def call(server, name, **arguments):
 
 @pytest.fixture
 def server(ws):
-    add(ws, "ocak.xls", teb_export(JANUARY))
+    add(ws, "ocak.xls", teb.account_export(JANUARY))
     return Server(ws)
 
 
@@ -95,7 +95,7 @@ def test_fetch_email_without_an_account_says_how_to_set_it_up(server):
 
 def test_fetch_email_takes_new_documents_into_the_vault(server, ws, mail):
     mail.messages[101] = bank_mail(FEBRUARY)
-    mail.messages[102] = bank_mail(teb_export(JANUARY))  # already in the vault
+    mail.messages[102] = bank_mail(teb.account_export(JANUARY))  # already in the vault
     got, failed = call(server, "fetch_email")
     assert not failed and got["emails"] == 2 and [d["name"] for d in got["stored"]] == ["HesapHareketleri.xls"]
     assert got["skipped"] == [{"name": "HesapHareketleri.xls", "label": "zaten arşivde", "reason": ""}]

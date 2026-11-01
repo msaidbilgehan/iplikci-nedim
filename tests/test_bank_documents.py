@@ -11,9 +11,10 @@ from iplikci import parsers
 from iplikci.analysis import resolve_masked
 from iplikci.app import intake
 from iplikci.app.analysis import analyze
-from iplikci.demo import HOLDER, brokerage_page, garanti_fast_body, garanti_receipt, holdings_page, right, text_pdf
 from iplikci.domain.codes import AccountType, TransactionKind
 from iplikci.domain.models import Account, ParseResult, Statement
+from iplikci.fakes import HOLDER, garanti
+from iplikci.fakes.files import right, text_pdf
 from iplikci.parsers.common import not_a_statement, set_business_names
 from iplikci.sources import Document
 from iplikci.vault.names import account_names, display_path
@@ -28,11 +29,11 @@ def read(data: bytes, name: str = "belge.pdf") -> ParseResult:
 # --- Garanti BBVA receipts ------------------------------------------------------------------------
 
 
-FAST = garanti_fast_body("EKİM KİRA ÖDEMESİ", "VELİ ÖRNEKSOY")
+FAST = garanti.fast_body("EKİM KİRA ÖDEMESİ", "VELİ ÖRNEKSOY")
 
 
 def test_garanti_fast_receipt_leaves_the_receiver_to_the_analysis():
-    r = read(garanti_receipt("HESAPTAN FAST", "106/1234567", HOLDER, FAST, "- 650,00 TL"))
+    r = read(garanti.receipt("HESAPTAN FAST", "106/1234567", HOLDER, FAST, "- 650,00 TL"))
     assert [a.id for a in r.accounts] == ["garanti-1234567"]  # the id the Garanti account lists use
     assert (r.title, r.holder, r.receipt_key) == ("Giden FAST", HOLDER, "garanti-dekont-2024-10-22-00.03.19.000001")
     transfer, fee = r.transactions
@@ -56,7 +57,7 @@ def test_garanti_havale_receipt_names_the_receiver_after_the_account_number():
         (172, 421, ":"),
         (184, 421, "4,43 TL"),
     ]
-    r = read(garanti_receipt("HESAPTAN HESABA HAVALE", "106/1234567", HOLDER, body, "- 8.400,00 TL"))
+    r = read(garanti.receipt("HESAPTAN HESABA HAVALE", "106/1234567", HOLDER, body, "- 8.400,00 TL"))
     transfer, fee = r.transactions
     assert (r.title, transfer.amount, transfer.counterparty) == ("Giden Havale", Decimal(8400), "VELİ ÖRNEKSOY")
     assert transfer.description.endswith("— 2024 OCAK KİRA") and fee.amount == Decimal("4.43")
@@ -72,7 +73,7 @@ def test_a_masked_incoming_receipt_lands_on_the_account_the_lists_name():
         (122, 378, ":"),
         (133, 378, "DENEME BANK NV (EX BANK)"),
     ]
-    receipt = read(garanti_receipt("GELEN FON TRANSFERİ", "1012/****321", "ÖR***** KU*****", body, "+ 1.000,00 EUR"))
+    receipt = read(garanti.receipt("GELEN FON TRANSFERİ", "1012/****321", "ÖR***** KU*****", body, "+ 1.000,00 EUR"))
     [row] = receipt.transactions
     assert (receipt.title, receipt.holder, row.amount, row.original) == (
         "Gelen Transfer",
@@ -320,7 +321,7 @@ def test_vakifbank_passbook_reads_the_account_page_after_the_terms():
 
 
 def test_brokerage_statement_holds_the_securities_and_the_cash_moves():
-    cash = brokerage_page("Hesap Ekstresi", "1234567-101", "30/06/2026") + [
+    cash = garanti.brokerage_page("Hesap Ekstresi", "1234567-101", "30/06/2026") + [
         (43, 140, "Dönemi : 01/06/2026 - 30/06/2026"),
         (54, 242, "Tarih"),
         (196, 242, "Açıklama"),
@@ -340,7 +341,7 @@ def test_brokerage_statement_holds_the_securities_and_the_cash_moves():
         right(550, 283, "0.00"),
     ]
     held = [("ORNEK", "ÖRNEK SANAYİ A.Ş.", "20.000", "1,234.50"), ("DENEM", "DENEME HOLDİNG", "5.000", "100.00")]
-    r = read(text_pdf(holdings_page("30/06/2026", held, "1,334.50", "1,334.50"), cash))
+    r = read(text_pdf(garanti.holdings_page("30/06/2026", held, "1,334.50", "1,334.50"), cash))
     [account], [s] = r.accounts, r.statements
     assert (account.id, account.type, r.holder) == ("garanti-yatirim-1234567-101", AccountType.BROKERAGE, HOLDER)
     # Dated the month's last business day, the statement covers the calendar month.
@@ -365,10 +366,14 @@ def test_brokerage_statement_holds_the_securities_and_the_cash_moves():
 
 
 def test_a_quiet_month_is_checked_against_the_totals_it_prints():
-    page = holdings_page("26/05/2026", [("ORNEK", "ÖRNEK SANAYİ A.Ş.", "20.000", "1,234.50")], "1,234.50", "1,234.50")
+    page = garanti.holdings_page(
+        "26/05/2026", [("ORNEK", "ÖRNEK SANAYİ A.Ş.", "20.000", "1,234.50")], "1,234.50", "1,234.50"
+    )
     [s] = read(text_pdf(page)).statements
     assert (s.cut_date, s.verified, s.checks_total, s.transactions) == (date(2026, 5, 31), True, 3, [])
-    wrong = holdings_page("26/05/2026", [("ORNEK", "ÖRNEK SANAYİ A.Ş.", "20.000", "1,234.50")], "1,300.00", "1,300.00")
+    wrong = garanti.holdings_page(
+        "26/05/2026", [("ORNEK", "ÖRNEK SANAYİ A.Ş.", "20.000", "1,234.50")], "1,300.00", "1,300.00"
+    )
     assert not read(text_pdf(wrong)).statements[0].verified  # a row the reader missed shows
 
 
@@ -472,8 +477,11 @@ def test_a_masked_account_is_never_guessed_across_currencies():
 
 def test_brokerage_statements_are_kept_and_a_resent_month_is_one(ws):
     rows = [("ORNEK", "ÖRNEK SANAYİ A.Ş.", "20.000", "1,234.50")]
-    put(ws.inbox / "HisseSenediEkstresi.pdf", text_pdf(holdings_page("30/06/2026", rows, "1,234.50", "1,234.50")))
-    resent = holdings_page("30/06/2026", rows, "1,234.50", "1,234.50") + [(37, 830, "tekrar gönderildi")]
+    put(
+        ws.inbox / "HisseSenediEkstresi.pdf",
+        text_pdf(garanti.holdings_page("30/06/2026", rows, "1,234.50", "1,234.50")),
+    )
+    resent = garanti.holdings_page("30/06/2026", rows, "1,234.50", "1,234.50") + [(37, 830, "tekrar gönderildi")]
     put(ws.inbox / "ikinci" / "HisseSenediEkstresi.pdf", text_pdf(resent))  # other bytes, the same statement
     plan = intake.plan_inbox(ws)
     first, second = plan.items

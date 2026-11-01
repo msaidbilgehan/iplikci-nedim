@@ -11,8 +11,8 @@ from iplikci.app import annotate, checks, intake, rebuild
 from iplikci.app.analysis import analyze
 from iplikci.app.workspace import Workspace
 from iplikci.cli import main
-from iplikci.demo import teb_export
 from iplikci.domain.codes import Actor, DocumentStatus, Necessity
+from iplikci.fakes import teb
 from iplikci.settings.paths import HOME_ENV
 from iplikci.storage import annotations, documents
 
@@ -27,7 +27,7 @@ def demo_home(tmp_path_factory) -> Path:
 @pytest.fixture
 def noted(ws) -> Workspace:
     """ws with January's list and a note, a tag and a corrected necessity on its coffee."""
-    add(ws, "ocak.xls", teb_export(JANUARY))
+    add(ws, "ocak.xls", teb.account_export(JANUARY))
     [t] = [t for t in analyze(ws).dataset.transactions if t.merchant == "Kahveci Dukkan"]
     with ws.db() as db:
         annotations.change(

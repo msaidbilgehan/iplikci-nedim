@@ -5,8 +5,8 @@ import pytest
 from iplikci.app import reading
 from iplikci.app.analysis import analyze
 from iplikci.app.workspace import Workspace
-from iplikci.demo import teb_export
 from iplikci.domain.codes import DocumentStatus
+from iplikci.fakes import teb
 from iplikci.settings.config import SettingsError
 from iplikci.settings.paths import HOME_ENV
 from iplikci.storage import audit, documents
@@ -37,8 +37,8 @@ def test_a_fresh_data_folder_has_the_default_settings(ws):
 
 def test_documents_of_the_companies_in_the_settings_are_never_kept(ws):
     ws = settings(ws, '[identity]\nbusiness_names = ["Örnek Teknoloji A.Ş."]\n')
-    company = add(ws, "sirket.xls", teb_export(JANUARY, holder=COMPANY))
-    personal = add(ws, "kisisel.xls", teb_export(JANUARY, number="987654321"))
+    company = add(ws, "sirket.xls", teb.account_export(JANUARY, holder=COMPANY))
+    personal = add(ws, "kisisel.xls", teb.account_export(JANUARY, number="987654321"))
     assert [c.verdict for c in company.items] == ["business"]
     assert [c.status for c in personal.items] == [DocumentStatus.PROCESSED]
     assert not ws.vault.has(company.items[0].sha256)
@@ -61,7 +61,7 @@ def test_company_names_of_the_wrong_shape_are_an_error(ws, text):
 
 
 def test_a_kept_document_that_turns_out_to_be_a_company_one_goes_to_the_trash(ws, private_trash):
-    [kept] = add(ws, "hareket.xls", teb_export(JANUARY, holder=COMPANY)).items
+    [kept] = add(ws, "hareket.xls", teb.account_export(JANUARY, holder=COMPANY)).items
     assert kept.status is DocumentStatus.PROCESSED  # no company names yet: read as a personal account
     ws = settings(ws, '[identity]\nbusiness_names = ["Örnek Teknoloji"]\n')
     with ws.db() as db:
@@ -77,7 +77,7 @@ def test_a_kept_document_that_turns_out_to_be_a_company_one_goes_to_the_trash(ws
 
 
 def test_readings_are_kept_until_the_readers_or_the_names_change(ws):
-    add(ws, "hareket.xls", teb_export(JANUARY))
+    add(ws, "hareket.xls", teb.account_export(JANUARY))
     with ws.db() as db:
         assert reading.read_pending(ws, db) == 0
         assert reading.read_pending(ws, db, every=True) == 1

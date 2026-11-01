@@ -16,8 +16,8 @@ import pytest
 from iplikci import email_fetch
 from iplikci.app import intake
 from iplikci.app.workspace import Workspace
-from iplikci.demo import teb_export
 from iplikci.domain.codes import SourceKind
+from iplikci.fakes import teb
 from iplikci.parsers.common import set_business_names
 from iplikci.settings import secrets
 from iplikci.settings.paths import HOME_ENV
@@ -74,7 +74,9 @@ JANUARY = [  # verified: 0 + 1.000 = 1.000, 1.000 - 120 = 880
 ]
 
 
-FEBRUARY = teb_export([("10/02/2026", "MARKET ALISVERIS", "-80,00", "800,00")], period="01/02/2026 - 28/02/2026")
+FEBRUARY = teb.account_export(
+    [("10/02/2026", "MARKET ALISVERIS", "-80,00", "800,00")], period="01/02/2026 - 28/02/2026"
+)
 
 
 @pytest.fixture(autouse=True)
