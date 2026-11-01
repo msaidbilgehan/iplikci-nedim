@@ -30,7 +30,7 @@ from ..storage.documents import Source
 from ..vault import trash
 from ..vault.store import sha256_of
 from . import kinds, reading
-from .uploads import file_sha256, inbox_files
+from .uploads import UPLOADS, file_sha256, inbox_files
 from .workspace import StalePlan, Workspace
 
 _IMPORT_LIMIT = (2000, 2 << 30)  # files and bytes one plan may read into memory
@@ -282,6 +282,18 @@ def plan_paths(ws: Workspace, paths: Sequence[str | Path]) -> Plan:
     return _plan(ws, [c for path in resolved for c in _walk(path, SourceKind.IMPORT, None, in_inbox=False)])
 
 
+def plan_upload(ws: Workspace, folder: Path) -> Plan:
+    """What taking in a batch of uploads would do; its files, copies in the staging area, leave it once the plan is
+    applied (ADR-0007)."""
+    files = [
+        p
+        for p in sorted(folder.rglob("*"))
+        if p.is_file() and not any(part.startswith(".") for part in p.relative_to(folder).parts)
+    ]
+    _check_size(files)
+    return _plan(ws, [c for f in files for c in _walk(f, SourceKind.UPLOAD, folder, in_inbox=True)])
+
+
 def plan_documents(ws: Workspace, incoming: Iterable[Incoming]) -> Plan:
     """What taking in documents held in memory would do (e-mail attachments; their zips are opened)."""
     return _plan(ws, [c for doc in incoming for c in _expand(nfc(doc.name), doc.data, doc.source, None)])
@@ -323,6 +335,7 @@ def apply(ws: Workspace, plan: Plan, actor: Actor = Actor.USER) -> Applied:
         if any(c.verdict is Verdict.STORE for c in plan.items):
             jobs.add(db, kinds.REFRESH)  # the service makes the analysis again and tells what changed
     _remove_empty_folders(ws.inbox)
+    _remove_empty_folders(ws.layout.staging / UPLOADS, keep_root=False)
     return Applied(counts, plan.items, folder)
 
 
@@ -347,10 +360,18 @@ def _set_aside(ws: Workspace, paths: list[Path]) -> Path | None:
         return None
     folder = trash.default_folder(ws.home)
     for path in moving:
-        dest = folder / path.relative_to(ws.inbox)
+        dest = folder / _within(ws, path)
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(path, _free(dest))
     return trash.move_to_system_trash(folder)
+
+
+def _within(ws: Workspace, path: Path) -> Path:
+    """A file's place in the inbox or in the upload area, kept when it is set aside."""
+    for root in (ws.inbox, ws.layout.staging / UPLOADS):
+        if path.is_relative_to(root):
+            return path.relative_to(root)
+    return Path(path.name)
 
 
 def _free(path: Path) -> Path:
@@ -362,13 +383,13 @@ def _free(path: Path) -> Path:
     return candidate
 
 
-def _remove_empty_folders(inbox: Path) -> None:
-    """Folders the move emptied, below the inbox (the inbox itself stays)."""
+def _remove_empty_folders(inbox: Path, keep_root: bool = True) -> None:
+    """Folders the move emptied, below the inbox (the inbox itself stays) or the upload area."""
     if not inbox.is_dir():
         return
     for folder, dirs, files in os.walk(inbox, topdown=False):
         here = Path(folder)
-        if here == inbox:
+        if here == inbox and keep_root:
             continue
         leftovers = [f for f in files if f != ".DS_Store"]
         if not leftovers and not any((here / d).exists() for d in dirs):

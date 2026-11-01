@@ -1,4 +1,5 @@
-"""Files the user drops into the inbox, through the panel or the file manager.
+"""Files the user drops into the inbox, through the panel or the file manager, and uploads through the interface,
+which wait in vault/staging until the user confirms their plan (ADR-0007).
 
 An upload is written under a hidden name first and gets its real name only when complete, so a plan or the
 automatic run never sees half a file. Nothing in the inbox is ever replaced: a second file with a taken name
@@ -8,9 +9,11 @@ gets "(2)" and so on.
 import hashlib
 import os
 import re
+import secrets
 import shutil
 import tempfile
 import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import BinaryIO
@@ -20,6 +23,8 @@ from ..ingest.archives import DOCUMENT_EXTENSIONS
 from .workspace import Workspace
 
 UPLOAD_EXTENSIONS = frozenset(DOCUMENT_EXTENSIONS | {".zip", ".mbox"})
+BATCH_EXTENSIONS = UPLOAD_EXTENSIONS | {".eml"}  # an e-mail file is read with its attachments
+UPLOADS = "yuklemeler"  # the upload area in vault/staging: one folder per batch
 MAX_UPLOAD_BYTES = 1 << 30  # an e-mail archive can be large; a statement is a few hundred KB
 PARTIAL_PREFIX = ".yukleniyor-"  # hidden: no reader picks up a file that is still being written
 _MAX_FOLDERS = 3  # folder levels kept from an uploaded tree
@@ -149,3 +154,60 @@ def save_upload(ws: Workspace, name: str, stream: BinaryIO, length: int) -> Uplo
         return Upload("eklendi", str(final.relative_to(ws.inbox)))
     finally:
         tmp.unlink(missing_ok=True)  # our own partial file, never a document
+
+
+# --- uploads through the interface: a batch in the staging area, planned and applied on confirmation -----------
+
+BATCH_LIMIT = (2000, 2 << 30)  # files and bytes one batch may hold (F02)
+_BATCH = re.compile(r"[0-9a-f]{16}")
+
+
+def batch_folder(ws: Workspace, batch: str = "") -> tuple[str, Path]:
+    """The folder of an upload batch in vault/staging, made when missing; a new batch when none is named."""
+    batch = batch or secrets.token_hex(8)
+    if not _BATCH.fullmatch(batch):
+        raise ValueError("yükleme kimliği geçersiz")
+    folder = ws.layout.staging / UPLOADS / batch
+    folder.mkdir(parents=True, exist_ok=True)
+    return batch, folder
+
+
+def partial_file(folder: Path) -> Path:
+    """A hidden file in folder for an upload still arriving."""
+    fd, name = tempfile.mkstemp(prefix=PARTIAL_PREFIX, dir=folder)
+    os.close(fd)
+    return Path(name)
+
+
+def finish_upload(folder: Path, name: str, partial: Path, size: int) -> Upload:
+    """Give an arrived upload its name in the batch, or refuse it; the partial file never stays."""
+    try:
+        rel = safe_upload_path(name)
+        if rel is None or rel.suffix.lower() not in BATCH_EXTENSIONS:
+            kinds = ", ".join(sorted(e.lstrip(".").upper() for e in BATCH_EXTENSIONS))
+            return Upload("reddedildi", name, f"desteklenmeyen dosya türü (kabul edilenler: {kinds})")
+        if size > MAX_UPLOAD_BYTES:
+            return Upload("reddedildi", name, f"dosya {MAX_UPLOAD_BYTES >> 20} MB sınırından büyük")
+        present = [p for p in folder.rglob("*") if p.is_file() and not p.name.startswith(".")]
+        if len(present) >= BATCH_LIMIT[0] or sum(p.stat().st_size for p in present) + size > BATCH_LIMIT[1]:
+            return Upload("reddedildi", name, "bir yüklemede en çok 2.000 dosya ve 2 GB olabilir")
+        sha = file_sha256(partial)
+        with _upload_lock:
+            twin = next((p for p in present if file_sha256(p) == sha), None)
+            if twin:
+                return Upload("zaten-var", str(twin.relative_to(folder)), "aynı dosya bu yüklemede zaten var")
+            dest = folder / rel
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            final = link_free(partial, dest)
+        return Upload("eklendi", str(final.relative_to(folder)))
+    finally:
+        partial.unlink(missing_ok=True)  # our own partial file, never a document
+
+
+def abandoned_batches(ws: Workspace, older_than: float) -> list[Path]:
+    """Upload batches nobody applied, untouched for older_than seconds."""
+    root = ws.layout.staging / UPLOADS
+    if not root.is_dir():
+        return []
+    limit = time.time() - older_than
+    return [p for p in sorted(root.iterdir()) if p.is_dir() and p.stat().st_mtime < limit]

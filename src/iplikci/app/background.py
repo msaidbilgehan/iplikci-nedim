@@ -4,17 +4,20 @@ can end a month); each time the feed compares it with the last one and records t
 
 from datetime import UTC, date, datetime, time, timedelta
 
+from ..domain.codes import Actor
 from ..feed import snapshot
 from ..jobs.schedule import Periodic, daily, every
 from ..jobs.worker import Handler
-from ..storage import events, feed_state, jobs
-from . import access, mail
+from ..storage import audit, events, feed_state, jobs
+from ..vault import trash
+from . import access, intake, mail, uploads
 from .analysis import analyze
-from .kinds import PURGE, REFRESH
+from .kinds import INBOX_TAKE, PURGE, REFRESH
 from .workspace import Workspace
 
 SNAPSHOT = "snapshot"
 JOBS_KEPT = timedelta(days=30)
+UPLOADS_KEPT = timedelta(days=1)  # an upload batch nobody applied goes to the Trash after this
 
 PERIODIC = (
     Periodic(REFRESH, daily(time(0, 5))),
@@ -30,6 +33,7 @@ def handlers(ws: Workspace) -> dict[str, Handler]:
         REFRESH: lambda _payload: refresh(ws),
         PURGE: lambda _payload: purge(ws),
         mail.FETCH_JOB: lambda _payload: poll_mail(ws),
+        INBOX_TAKE: lambda _payload: take_inbox(ws),
     }
 
 
@@ -66,8 +70,25 @@ def poll_mail(ws: Workspace) -> None:
         mail.request_fetch(ws)
 
 
+def take_inbox(ws: Workspace) -> int:
+    """Take in what waits in the inbox, without showing a plan: putting files there is the user's consent (F02).
+    A file that changes between the plan and its use fails the attempt, which runs again later. How many documents
+    were kept."""
+    applied = intake.apply(ws, intake.plan_inbox(ws), Actor.SYSTEM)
+    return len(applied.stored)
+
+
+def request_inbox(ws: Workspace) -> None:
+    with ws.db() as db:
+        jobs.add(db, INBOX_TAKE)
+
+
 def purge(ws: Workspace) -> None:
-    """Forget expired sessions and the jobs that finished more than a month ago."""
+    """Forget expired sessions and the jobs that finished more than a month ago; upload batches nobody applied go to
+    the system Trash, with an audit entry (ADR-0003: nothing is deleted for good)."""
     with ws.db() as db:
         access.purge_sessions(db)
         jobs.purge(db, (datetime.now(UTC) - JOBS_KEPT).replace(microsecond=0).isoformat())
+        for batch in uploads.abandoned_batches(ws, UPLOADS_KEPT.total_seconds()):
+            where = trash.move_to_system_trash(batch)
+            audit.record(db, Actor.SYSTEM, "upload.abandoned", "", batch=batch.name, trash=where.name)

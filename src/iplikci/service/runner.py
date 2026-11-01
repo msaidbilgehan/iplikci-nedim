@@ -8,6 +8,7 @@ from ..api.app import create_app
 from ..api.context import Context
 from ..app import access, background, mail
 from ..app.workspace import Workspace
+from ..ingest.inbox import InboxWatcher
 from ..ingest.mail.idle import IdleWatcher
 from ..jobs.worker import Worker
 
@@ -37,10 +38,19 @@ def watcher(ws: Workspace, jobs: Worker) -> IdleWatcher:
     return IdleWatcher(lambda: mail.watch_target(ws), news, lambda message: mail.refused(ws, message))
 
 
+def inbox_watcher(ws: Workspace, jobs: Worker) -> InboxWatcher:
+    def settled() -> None:
+        background.request_inbox(ws)
+        jobs.wake()
+
+    return InboxWatcher(ws.inbox, settled)
+
+
 def run(ws: Workspace, announce: Callable[[str], None] = _say) -> None:
     """Serve until interrupted. The login link printed at start opens the interface once, within two minutes.
     The worker starts first: the jobs a stop interrupted run again, and the analysis is made again in case the
-    readers changed since the last run. The IMAP watcher waits for a set-up account and then for its new mail."""
+    readers changed since the last run. The IMAP watcher waits for a set-up account and then for its new mail; the
+    inbox watcher hands over what is dropped into the inbox folder."""
     ctx = context(ws)
     app = create_app(ctx)
     jobs = worker(ws)
@@ -48,6 +58,8 @@ def run(ws: Workspace, announce: Callable[[str], None] = _say) -> None:
     jobs.start()
     ear = watcher(ws, jobs)
     ear.start()
+    inbox = inbox_watcher(ws, jobs)
+    inbox.start()
     announce(f"İplikçi Nedim servisi http://{HOST}:{ws.port} adresinde çalışıyor (durdurmak için Ctrl+C).")
     announce(f"Arayüz için tek kullanımlık giriş bağlantısı: {ctx.login_url(ctx.keys.issue())}")
     # No access log: a login link's key would land in it.
@@ -55,5 +67,6 @@ def run(ws: Workspace, announce: Callable[[str], None] = _say) -> None:
     try:
         uvicorn.Server(config).run()
     finally:
+        inbox.stop()
         ear.stop()
         jobs.stop()
