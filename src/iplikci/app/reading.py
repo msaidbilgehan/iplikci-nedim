@@ -1,9 +1,10 @@
 """Reading documents (the reading job of architecture §7): what a reader makes of a document, and reading the
 stored ones again when that may have changed.
 
-A document is read again when it was never read, when the readers changed (PARSER_VERSION) or when the company
-names in the settings changed: another name can make a kept document a company one. Such a document leaves the
-vault for the system Trash and its rows go (ADR-0003); the audit log says so.
+A document is read again when it was never read, when the reader that read it got a new version (ADR-0005), when
+no reader took it and the readers changed, or when the company names in the settings changed: another name can make
+a kept document a company one. Such a document leaves the vault for the system Trash and its rows go (ADR-0003); the
+audit log says so.
 """
 
 import os
@@ -12,7 +13,7 @@ from dataclasses import dataclass
 
 from ..domain.codes import Actor, DocumentKind, DocumentStatus
 from ..domain.models import ParseResult
-from ..parsers import PARSER_VERSION, Skipped, Unreadable, parse_document
+from ..parsers import Skipped, Unreadable, parse_document, registry
 from ..parsers.common import business_names_signature
 from ..sources import Document
 from ..storage import audit, documents, readings
@@ -31,6 +32,7 @@ class Outcome:
     reason: str = ""
     business: bool = False  # a company document: never kept
     result: ParseResult | None = None
+    parser: str = ""  # the reader that recognised the document and then gave up on it
 
     @property
     def kind(self) -> DocumentKind | None:
@@ -46,7 +48,8 @@ class Outcome:
             return documents.Reading(
                 self.status,
                 self.reason,
-                parser_version=PARSER_VERSION,
+                parser=self.parser,
+                parser_version=_version(self.parser),
                 business_sig=business_names_signature(),
             )
         first = r.statements[0] if r.statements else None
@@ -54,7 +57,7 @@ class Outcome:
             self.status,
             kind=self.kind,
             parser=r.parser,
-            parser_version=PARSER_VERSION,
+            parser_version=_version(r.parser),
             business_sig=business_names_signature(),
             holder=r.holder,
             receipt_key=r.receipt_key,
@@ -66,6 +69,13 @@ class Outcome:
         )
 
 
+def _version(parser_id: str) -> str:
+    """What a reading keeps to tell later whether it is current: its reader's version, or with no reader the
+    signature of them all."""
+    reader = registry.find(parser_id) if parser_id else None
+    return registry.version_of(reader) if reader else registry.signature()
+
+
 def read(name: str, data: bytes, sha256: str, origin: str = "") -> Outcome:
     """Read one document in memory. A broken document never stops the others: it is unreadable, with the
     reason."""
@@ -74,9 +84,9 @@ def read(name: str, data: bytes, sha256: str, origin: str = "") -> Outcome:
     except Skipped as exc:
         if exc.business:
             return Outcome(DocumentStatus.UNPROCESSED, str(exc), business=True)
-        return Outcome(DocumentStatus.UNPROCESSED, str(exc))
+        return Outcome(DocumentStatus.UNPROCESSED, str(exc), parser=exc.parser)
     except Unreadable as exc:
-        return Outcome(DocumentStatus.UNREADABLE, str(exc))
+        return Outcome(DocumentStatus.UNREADABLE, str(exc), parser=exc.parser)
     except Exception as exc:  # a reader that fails on one document must not stop the run  # noqa: BLE001
         return Outcome(DocumentStatus.UNREADABLE, f"{type(exc).__name__}: {exc}")
     return Outcome(DocumentStatus.PROCESSED, result=result)
@@ -94,7 +104,9 @@ def record(db: Database, sha256: str, name: str, outcome: Outcome) -> None:
 
 def stale(doc: documents.DocumentRow) -> bool:
     return doc.status is not DocumentStatus.REMOVED and (
-        not doc.read_at or doc.parser_version != PARSER_VERSION or doc.business_sig != business_names_signature()
+        not doc.read_at
+        or not registry.current(doc.parser, doc.parser_version)
+        or doc.business_sig != business_names_signature()
     )
 
 

@@ -7,11 +7,15 @@ from decimal import Decimal
 import pytest
 
 from iplikci import demo, parsers
-from iplikci.domain.codes import DocumentKind
+from iplikci.app import reading
+from iplikci.domain.codes import DocumentKind, DocumentStatus
 from iplikci.domain.models import ParseResult
 from iplikci.parsers import registry
 from iplikci.parsers.contract import Detection, Format, Parser, Probe, SourceDocument
 from iplikci.sources import Document
+from iplikci.storage import documents
+
+from conftest import add
 
 # Architecture §10: the readers that come from the MVP.
 SHIPPED = {
@@ -154,3 +158,48 @@ def test_a_table_row_is_its_row_number():
     result = parsers.parse_document(Document("liste.xls", "test", demo.teb_export(rows), "sha"))
     (coffee,) = result.statements[0].transactions
     assert (coffee.ref.sheet, coffee.ref.row) == ("", 9)  # the HTML table's ninth row, under the header row
+
+
+# --- a version per reader --------------------------------------------------------------------------------------
+
+
+def _reread(ws) -> list[str]:
+    names: list[str] = []
+    with ws.db() as db:
+        reading.read_pending(ws, db, progress=lambda i, n, name: names.append(name))
+    return sorted(names)
+
+
+def test_a_new_reader_version_reads_only_that_readers_documents_again(ws, monkeypatch):
+    rows = demo.running_rows([demo.Move(date(2026, 1, 5), "ORNEK KAHVE", Decimal(-180))])
+    add(ws, "liste.xls", demo.teb_export(rows))
+    fast = demo.garanti_fast_body("ŞUBAT AİDAT", "ÖRNEK SİTE YÖNETİMİ")
+    add(ws, "dekont.pdf", demo.garanti_receipt("HESAPTAN FAST", "106/1234567", demo.HOLDER, fast, "- 1.250,00 TL"))
+    assert _reread(ws) == []
+    teb = registry.find("teb.account_html")
+    monkeypatch.setattr(teb, "version", teb.version + 1)
+    assert _reread(ws) == ["liste.xls"]
+    assert _reread(ws) == []  # read once
+
+
+def test_a_document_no_reader_took_is_shown_to_the_readers_again_when_they_change(ws, monkeypatch):
+    add(ws, "form.pdf", demo.text_pdf([(40, 40, "TALİMAT FORMU")]))
+    fast = demo.garanti_fast_body("ŞUBAT AİDAT", "ÖRNEK SİTE YÖNETİMİ")
+    add(ws, "dekont.pdf", demo.garanti_receipt("HESAPTAN FAST", "106/1234567", demo.HOLDER, fast, "- 1.250,00 TL"))
+    receipt = registry.find("garanti.receipt")
+    monkeypatch.setattr(receipt, "version", receipt.version + 1)
+    assert _reread(ws) == ["dekont.pdf", "form.pdf"]
+
+
+def test_a_reader_that_fails_on_a_document_reads_it_again_in_its_next_version(ws, monkeypatch):
+    broken = demo.garanti_receipt("HESAPTAN FAST", "106/1234567", demo.HOLDER, [], "TUTAR YOK")  # no amount
+    [stored] = add(ws, "bozuk.pdf", broken).stored
+    assert stored.status is DocumentStatus.UNREADABLE and stored.reason.startswith("ValueError: Garanti dekontunda")
+    with ws.db() as db:
+        assert documents.get(db, stored.sha256).parser == "garanti.receipt"
+    other = registry.find("teb.account_html")
+    monkeypatch.setattr(other, "version", other.version + 1)
+    assert _reread(ws) == []  # another reader's version leaves it alone
+    receipt = registry.find("garanti.receipt")
+    monkeypatch.setattr(receipt, "version", receipt.version + 1)
+    assert _reread(ws) == ["bozuk.pdf"]

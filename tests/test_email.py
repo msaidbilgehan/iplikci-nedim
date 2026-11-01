@@ -10,10 +10,12 @@ from datetime import date
 import pytest
 
 from iplikci import email_fetch
+from iplikci.app import reading
 from iplikci.app.workspace import Workspace
 from iplikci.demo import teb_export, text_pdf
 from iplikci.domain.codes import DocumentStatus, SourceKind
 from iplikci.email_fetch import Account, MailError, NotConfigured, fetch, search_criteria, setup
+from iplikci.parsers import registry
 from iplikci.settings.config import SettingsError
 from iplikci.storage import documents
 
@@ -223,15 +225,17 @@ def test_a_changed_start_day_reads_the_mailbox_again(ws, mail):
     assert "UID 1:*" in search and "SINCE 1-Jun-2025" in search
 
 
-def test_new_readers_read_the_mailbox_again_once(ws, mail, monkeypatch):
+def test_new_readers_read_the_archived_attachments_not_the_mailbox(ws, mail, monkeypatch):
     mail.messages[101] = bank_mail(teb_export(JANUARY))
     fetch(ws)
-    monkeypatch.setattr(email_fetch, "PARSER_VERSION", "yeni okuyucular")  # attachments get another chance
+    reader = registry.find("teb.account_html")
+    monkeypatch.setattr(reader, "version", reader.version + 1)
     mail.commands.clear()
-    again = fetch(ws)
-    [search] = [c for c in mail.commands if c[:2] == ("UID", "SEARCH")]
-    assert "UID 1:*" in search and again.message.startswith("1 banka e-postası baştan okundu")
     assert fetch(ws).message == "yeni banka e-postası yok"
+    [search] = [c for c in mail.commands if c[:2] == ("UID", "SEARCH")]
+    assert "UID 1:*" not in search  # the mailbox is not read from the start (ADR-0005)
+    with ws.db() as db:
+        assert reading.read_pending(ws, db) == 1  # the attachment is read again from the archive
 
 
 def test_a_bank_document_without_money_movements_is_kept_and_named(ws, mail):

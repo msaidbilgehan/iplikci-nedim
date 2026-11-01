@@ -41,7 +41,6 @@ from pathlib import Path
 from .app import intake
 from .app.workspace import Workspace, file_lock
 from .domain.codes import Actor, DocumentKind, DocumentStatus, SourceKind
-from .parsers import PARSER_VERSION
 from .settings import secrets
 from .settings.config import BANK_SENDERS
 from .sources import attachments
@@ -95,16 +94,9 @@ class Account:
         return self.server.lower() in (GMAIL, "imap.googlemail.com")
 
     def scan_key(self) -> list:
-        """Changes when what is searched changes: the mailbox is then read again from the start. So do
-        the readers: attachments an older reader could not use get another chance once."""
-        return [
-            self.server,
-            self.address.lower(),
-            self.folder,
-            sorted(self.senders),
-            self.start.isoformat(),
-            PARSER_VERSION,
-        ]
+        """Changes when what is searched changes: the mailbox is then read again from the start. New readers do
+        not change it (ADR-0005): every attachment is in the archive, and that is what they read again."""
+        return [self.server, self.address.lower(), self.folder, sorted(self.senders), self.start.isoformat()]
 
 
 # --- settings and state -----------------------------------------------------------------------------

@@ -7,7 +7,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from iplikci.analysis import CONFIRMED, Dataset, ReceiptLine
-from iplikci.app import annotate, reading
+from iplikci.app import annotate
 from iplikci.app.analysis import analyze
 from iplikci.app.workspace import Workspace
 from iplikci.categorize import Categorizer
@@ -16,6 +16,7 @@ from iplikci.demo import teb_export
 from iplikci.domain.codes import Actor, Necessity, TransactionKind
 from iplikci.domain.fingerprint import Fingerprints, fingerprint
 from iplikci.domain.models import Transaction
+from iplikci.parsers import registry
 from iplikci.settings.paths import HOME_ENV
 from iplikci.storage import annotations, audit
 
@@ -76,7 +77,8 @@ def test_a_note_survives_reading_the_documents_again(ws, monkeypatch):
     note(ws, coffee(ws), note="arkadaşla", tags=("dışarıda",))
     again = [t for t in analyze(ws, reread=True).dataset.transactions if t.note]
     assert [(t.merchant, t.note, t.tags) for t in again] == [("Kahveci Dukkan", "arkadaşla", ("dışarıda",))]
-    monkeypatch.setattr(reading, "PARSER_VERSION", "yeni okuyucular")  # every document is read again
+    for reader in registry.readers():  # new versions of every reader: every document is read again
+        monkeypatch.setattr(reader, "version", reader.version + 1)
     a = analyze(ws)
     assert [t.note for t in a.dataset.transactions if t.note] == ["arkadaşla"] and a.orphans == []
 

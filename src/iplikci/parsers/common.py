@@ -16,17 +16,24 @@ class Skipped(Exception):
     """The document is not a statement or receipt this program understands.
 
     business=True marks documents of the user's company accounts, which are out
-    of scope: only personal money flows are analysed.
+    of scope: only personal money flows are analysed. parser names the reader that
+    recognised the document and then gave up on it.
     """
 
-    def __init__(self, reason: str, business: bool = False):
+    def __init__(self, reason: str, business: bool = False, parser: str = ""):
         super().__init__(reason)
         self.business = business
+        self.parser = parser
 
 
 class Unreadable(Exception):
-    """A bank document that cannot be read as it is (a password-protected PDF). Unlike Skipped it
-    is kept for a manual look: the organizer never sets it aside as unused."""
+    """A bank document that cannot be read as it is (a password-protected PDF, a reader that failed on it).
+    Unlike Skipped it is kept for a manual look, never set aside as unused. parser names the reader that
+    recognised the document, when one did."""
+
+    def __init__(self, reason: str, parser: str = ""):
+        super().__init__(reason)
+        self.parser = parser
 
 
 # Marks of company documents: business card and account products, payroll. The user's company names come from

@@ -16,12 +16,7 @@ from .pdf import ocr_available, page_text
 from .registry import readers
 from .teb.account_html import holder_info
 
-__all__ = ["ENCRYPTED_REASON", "NO_OCR_REASON", "PARSER_VERSION", "Skipped", "Unreadable", "parse_document"]
-
-# Bump when what the readers make of a document changes: every stored document is read again. 13: English codes
-# and ISO currencies. 14: exact decimals, halves rounded up. 15: plugin readers, named by their ids. 16: every row
-# knows where it is printed.
-PARSER_VERSION = "16"
+__all__ = ["ENCRYPTED_REASON", "NO_OCR_REASON", "Skipped", "Unreadable", "parse_document"]
 
 ENCRYPTED_REASON = (
     "şifreli PDF — Önizleme'de şifreyle açıp Dosya › PDF Olarak Dışa Aktar ile şifresiz kaydedin ve yeniden ekleyin"
@@ -49,6 +44,18 @@ def choose(probe: Probe) -> Parser | None:
     if len(found) > 1:
         raise Unreadable(f"birden çok okuyucu tanıdı: {', '.join(r.id for r in found)}")
     return found[0] if found else None
+
+
+def _parse(reader: Parser, source: SourceDocument) -> ParseResult:
+    """reader's reading of source. What goes wrong on the way names the reader, so that only its next version
+    reads the document again."""
+    try:
+        return reader.parse(source)
+    except (Skipped, Unreadable) as exc:
+        exc.parser = reader.id
+        raise
+    except Exception as exc:  # a reader that fails on one document leaves it unreadable, never stops the others
+        raise Unreadable(f"{type(exc).__name__}: {exc}", parser=reader.id) from exc
 
 
 def parse_document(doc: Document) -> ParseResult:
@@ -85,7 +92,7 @@ def _read_sheet(source: SourceDocument) -> ParseResult:
     reader = choose(Probe(source.name, Format.SHEET, rows=rows[:20], sheet=source.kind))
     if reader is None:
         raise Skipped("tanınmayan tablo")
-    result = reader.parse(source)
+    result = _parse(reader, source)
     if is_business(result.holder):
         raise Skipped(BUSINESS_REASON, business=True)
     return result
@@ -95,7 +102,7 @@ def _read_html(source: SourceDocument) -> ParseResult:
     text = source.text
     reader = choose(Probe(source.name, Format.HTML, text=text))
     if reader is not None:
-        return reader.parse(source)
+        return _parse(reader, source)
     if is_business(text[:600]):  # e.g. TEB's yearly withholding-tax letter to the company
         raise Skipped(BUSINESS_REASON, business=True)
     raise Skipped(not_a_statement(text) if text.strip() else "tanınmayan HTML")
@@ -116,14 +123,14 @@ def _read_pdf(source: SourceDocument) -> ParseResult:
         raise Skipped(BUSINESS_REASON, business=True)
     reader = choose(Probe(source.name, Format.PDF, text=first))
     if reader is not None:
-        return reader.parse(source)
+        return _parse(reader, source)
     scanned = len(first.strip()) < 80 and any(p.images for p in pdf.pages)
     if scanned and ocr_available():
         source.scanned = True
         text = "\n".join(line.text for page in source.ocr_pages for line in page)
         reader = choose(Probe(source.name, Format.SCAN, text=text))
         if reader is not None:
-            return reader.parse(source)
+            return _parse(reader, source)
     elif scanned:
         # Without OCR nobody can tell whether it is a statement (TEB sends some as page images):
         # kept for a manual look rather than set aside as unused.
