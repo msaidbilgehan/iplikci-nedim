@@ -4,6 +4,7 @@
  * Authorization header only; no cookie is sent.
  */
 
+import type { PageTraits } from "../gmail/original";
 import { expectedProof, newNonce } from "./proof";
 
 export const SERVICE = "http://127.0.0.1:8643";
@@ -182,11 +183,24 @@ export async function scanned(
   return found.history_due === true;
 }
 
-/** Tell the service a layer stopped on a Gmail page it does not know (ADR-0016's format alarm). */
-export async function alarm(fetcher: Fetcher, paired: Paired, layer: 1 | 2 | 3, version: string): Promise<void> {
+/**
+ * Tell the service a layer stopped on a Gmail page it does not know (ADR-0016's format alarm), with what a "Show
+ * original" page showed when it was one: its length, masked title and links, never its text.
+ */
+export async function alarm(
+  fetcher: Fetcher,
+  paired: Paired,
+  layer: 1 | 2 | 3,
+  version: string,
+  page?: PageTraits,
+): Promise<void> {
+  const shown =
+    page === undefined
+      ? {}
+      : { page: { length: page.length, title: page.title, download: page.download, raw_id: page.rawId } };
   await call(fetcher, "/api/ingest/mail/alarm", {
     method: "POST",
     headers: { ...bearer(paired), "Content-Type": "application/json" },
-    body: JSON.stringify({ layer, version }),
+    body: JSON.stringify({ layer, version, ...shown }),
   });
 }

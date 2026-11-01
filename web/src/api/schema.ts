@@ -4,10 +4,19 @@
 export interface AlarmIn {
   layer: number;
   version?: string;
+  page?: AlarmPageIn | null;
 }
 
 export interface AlarmOut {
   news: boolean;
+}
+
+/** What a "Show original" page without the message showed: never its text, only its masked title. */
+export interface AlarmPageIn {
+  length: number;
+  title?: string;
+  download: boolean;
+  raw_id: boolean;
 }
 
 export interface AppliedOut {

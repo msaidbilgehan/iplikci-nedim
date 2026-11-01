@@ -186,13 +186,15 @@ def scanned(ws: Workspace, start_day: str, senders: Iterable[str]) -> bool:
     return history_due(settings, state)
 
 
-def alarm(ws: Workspace, layer: int, version: str) -> bool:
+def alarm(ws: Workspace, layer: int, version: str, page: dict[str, object] | None = None) -> bool:
     """A layer of the extension stopped on a Gmail page it does not know; told once per layer and extension version
-    (the fix comes with an update of the extension). Whether it was news."""
+    (the fix comes with an update of the extension). page: what a "Show original" page showed, without its text, for
+    whoever fixes the extension. Whether it was news."""
     if layer not in LAYERS:
         raise ValueError(f"bilinmeyen katman: {layer}")
+    shown: dict[str, object] = {} if page is None else {"page": page}
     with ws.db() as db:
-        added = events.record(db, ALARM, f"katman-{layer}", version=version)
+        added = events.record(db, ALARM, f"katman-{layer}", version=version, **shown)
         state = mail_store.load(db, mail.BRIDGE)
         state.last_error = f"eklentinin {LAYERS[layer]} katmanı durdu: Gmail'in sayfası tanınmadı"
         mail_store.save(db, state)

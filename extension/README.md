@@ -19,6 +19,9 @@ açık Gmail oturumuyla okuyup bu bilgisayardaki İplikçi Nedim servisine taş�
 - **Sorunlar:**
   - Tanınmayan bir Gmail sayfası o katmanı durdurur ve servise bir kez bildirilir (biçim alarmı). Düzeltme eklentinin
     yeni sürümüyle gelir.
+  - "Orijinali göster" bir iletinin metnini göstermezse, örneğin büyük bir iletide, o ileti atlanır. Pencere, iletiyi
+    Gmail'den indirip İplikçi Nedim'e yüklemenizi söyler. Art arda üç ileti gösterilmezse sayfa değişmiş sayılır.
+    Alarm sayfanın metnini değil yalnızca özelliklerini taşır.
   - Gmail yavaşlamayı isterse ya da başka bir sorun çıkarsa sonraki deneme her seferinde daha geç yapılır: önce bir
     dakika sonra, en geç bir saat sonra.
 - **Geçmiş ve kaçan iletiler ("Gmail'de eksikleri tara"):** doğrulamada tam tarama (3. madde) tutmadı; Gmail'in konu

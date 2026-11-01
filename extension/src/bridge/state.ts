@@ -16,6 +16,7 @@ export type Outcome =
   | "gmail-signed-out"
   | "gmail-busy"
   | "stopped"
+  | "unshown" // Gmail did not show some messages' originals: the user downloads them
   | "failed";
 
 export interface RunSummary {
@@ -37,6 +38,8 @@ export interface ScanSummary {
   readonly found: number;
   readonly missing: number;
   readonly delivered: number;
+  /** Messages whose original Gmail did not show: the user downloads them from Gmail. */
+  readonly unshown: number;
   /** Messages inside conversations, between the first and the last, that the list does not name. */
   readonly between: number;
   /** Turkish, for the window; never an address, subject or message text. */

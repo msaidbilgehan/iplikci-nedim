@@ -10,7 +10,6 @@
 
 import { HttpError, Redirected } from "../gmail/http";
 import { type Conversation, type ListPage, searchHash, searchQuery, searchUrl } from "../gmail/list";
-import { readOriginal } from "../gmail/original";
 import { decimalId } from "../gmail/search";
 import { type Cursor, MAX_MESSAGE_BYTES, type Paired, cursor, missing, prove, scanned } from "./service";
 import type { ScanSummary, Store } from "./state";
@@ -18,6 +17,7 @@ import {
   type Environment,
   LayerStopped,
   PACE_MS,
+  Unshown,
   accountKey,
   deliverOne,
   layer,
@@ -27,6 +27,7 @@ import {
   stopLayer,
   stoppedNow,
   trouble,
+  unshownSentence,
 } from "./steps";
 
 /** The browser tab the scan reads Gmail's search in. */
@@ -77,6 +78,7 @@ export async function scanGmail(env: ScanEnvironment, store: Store): Promise<Sca
     found: 0,
     missing: 0,
     delivered: 0,
+    unshown: 0,
     between: 0,
     detail: "Gmail'de aranıyor…",
   };
@@ -189,11 +191,15 @@ async function download(
   account: number,
   lacking: readonly string[],
 ): Promise<void> {
+  const unshown = new Unshown(env, store);
   let delivered = 0;
   for (const id of lacking) {
     await env.sleep(PACE_MS);
     const ik = await accountKey(env, store, account);
-    const original = await layer(3, () => readOriginal(env.gmail, account, id, ik));
+    const original = await unshown.read(account, id, ik);
+    if (original === null) {
+      continue;
+    }
     const raw = new TextEncoder().encode(original.raw);
     if (raw.byteLength > MAX_MESSAGE_BYTES) {
       await skip(store, id);
@@ -204,6 +210,8 @@ async function download(
       await report({ delivered, detail: `${delivered}/${lacking.length} ileti teslim edildi…` });
     }
   }
+  await unshown.settle();
+  await report({ unshown: unshown.count });
 }
 
 /**
@@ -237,11 +245,12 @@ function finished(summary: ScanSummary): string {
     summary.missing === 0
       ? `${found}; hepsi İplikçi Nedim'de.`
       : `${found}; eksik ${summary.missing} iletiden ${summary.delivered} tanesi teslim edildi.`;
+  const unshown = unshownSentence(summary.unshown);
   if (summary.between === 0) {
-    return result;
+    return `${result}${unshown}`;
   }
   const reason = "konuşmayı açmak iletilerini okundu yapar";
-  return `${result} Konuşmaların ortasındaki ${summary.between} ileti bu yolla alınamaz: ${reason}.`;
+  return `${result}${unshown} Konuşmaların ortasındaki ${summary.between} ileti bu yolla alınamaz: ${reason}.`;
 }
 
 async function scanTrouble(
@@ -252,7 +261,7 @@ async function scanTrouble(
   stop: (detail: string) => Promise<ScanSummary>,
 ): Promise<ScanSummary> {
   if (error instanceof LayerStopped) {
-    await stopLayer(env, store, paired, error.layer);
+    await stopLayer(env, store, paired, error);
     return stop(STOPPED);
   }
   if (error instanceof Redirected || error instanceof NotGmail) {

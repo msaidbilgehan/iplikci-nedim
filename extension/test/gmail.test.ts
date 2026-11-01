@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { FormatError } from "../src/gmail/errors";
 import { feedUrl, parseFeed, sameMessage } from "../src/gmail/feed";
 import { HttpError, Redirected, get } from "../src/gmail/http";
-import { originalUrl, parseOriginal } from "../src/gmail/original";
+import { NoRawText, originalUrl, parseOriginal } from "../src/gmail/original";
 import { answerKind, decimalId, senderQuery, threadIds, threadListUrl } from "../src/gmail/search";
 import { appUrl, parseAccountKey } from "../src/gmail/session";
 import { attribute, decodeEntities, elements, text } from "../src/gmail/xml";
@@ -107,6 +107,25 @@ describe('"Show original" (layer 3)', () => {
     );
     const page = parseOriginal(originalPage("From: a@b.c", 1n, false), "https://mail.google.com/mail/u/0/");
     expect(page.download).toBeNull();
+  });
+
+  it("tells what a page without the message showed, but no text of it except its title, masked", () => {
+    const page = originalPage("From: a@b.c", 1n)
+      .replace(/<pre[\s\S]*<\/pre>/, "<p>Çok büyük</p>")
+      .replace("Original Message", "Ileti 12345 kisi@example.org Gmail");
+    let error: unknown;
+    try {
+      parseOriginal(page, "https://mail.google.com/mail/u/0/");
+    } catch (thrown) {
+      error = thrown;
+    }
+    expect(error).toBeInstanceOf(NoRawText);
+    expect((error as NoRawText).traits).toEqual({
+      length: page.length,
+      title: "Ileti ##### Gmail",
+      download: true,
+      rawId: false,
+    });
   });
 });
 

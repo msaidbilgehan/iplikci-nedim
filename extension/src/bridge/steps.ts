@@ -5,6 +5,7 @@
 
 import { FormatError } from "../gmail/errors";
 import { type Fetcher as GmailFetcher, HttpError } from "../gmail/http";
+import { NoRawText, type Original, type PageTraits, readOriginal } from "../gmail/original";
 import { readAccountKey } from "../gmail/session";
 import { type Fetcher, NotTheService, type Paired, Refused, ServiceDown, alarm, deliver } from "./service";
 import type { BridgeState, Outcome, Store } from "./state";
@@ -19,7 +20,7 @@ export interface Environment {
 }
 
 export const PACE_MS = 1000;
-const SKIPPED_KEPT = 50;
+const SKIPPED_KEPT = 500;
 /** The service's answers for a message it can never take: retrying would only download it again. */
 const UNTAKEABLE: ReadonlySet<string> = new Set(["message_too_large", "message_empty"]);
 /** Whether the service no longer knows the pairing: it refuses the token, or says so when asked to prove itself. */
@@ -29,9 +30,12 @@ export function revoked(error: unknown): boolean {
 
 export type Layer = 1 | 2 | 3;
 
-/** A layer met a Gmail page it does not know. */
+/** A layer met a Gmail page it does not know; what a "Show original" page showed, when it was one. */
 export class LayerStopped extends Error {
-  constructor(readonly layer: Layer) {
+  constructor(
+    readonly layer: Layer,
+    readonly page?: PageTraits,
+  ) {
     super(`layer ${layer} met a page it does not know`);
   }
 }
@@ -59,13 +63,74 @@ export function scansFirst(state: BridgeState, version: string): boolean {
 }
 
 /** Stop a layer for this version and tell the service once; the stop holds even when the service does not hear. */
-export async function stopLayer(env: Environment, store: Store, paired: Paired, which: Layer): Promise<void> {
-  await store.update({ stopped: { ...(await store.get()).stopped, [String(which)]: env.version } });
+export async function stopLayer(env: Environment, store: Store, paired: Paired, stop: LayerStopped): Promise<void> {
+  await store.update({ stopped: { ...(await store.get()).stopped, [String(stop.layer)]: env.version } });
   try {
-    await alarm(env.service, paired, which, env.version);
+    await alarm(env.service, paired, stop.layer, env.version, stop.page);
   } catch {
     // the service hears of it at the next stop: the stop is kept here
   }
+}
+
+/** Messages in a row whose "Show original" page may show no raw text before the page counts as changed. */
+const UNSHOWN_IN_A_ROW = 3;
+/** The wait after such a page: Gmail may be busy, and the next request comes later. */
+export const UNSHOWN_WAIT_MS = 10_000;
+
+/**
+ * The messages whose "Show original" page showed no raw text. One such message among shown ones is that message's
+ * own trouble (Gmail does not show a message too large, it may be): it is skipped, counted and left for the user to
+ * download from Gmail. Several in a row mean the page changed: the layer stops, and those messages are tried again
+ * by the version that fixes it.
+ */
+export class Unshown {
+  private streak: string[] = [];
+  /** The messages skipped so far. */
+  count = 0;
+
+  constructor(
+    private readonly env: Environment,
+    private readonly store: Store,
+  ) {}
+
+  /** The message's original, or null when its page showed no raw text (LayerStopped after too many in a row). */
+  async read(account: number, id: string, ik: string | null): Promise<Original | null> {
+    try {
+      const original = await readOriginal(this.env.gmail, account, id, ik);
+      await this.settle();
+      return original;
+    } catch (error) {
+      if (!(error instanceof NoRawText)) {
+        throw error instanceof FormatError ? new LayerStopped(3) : error;
+      }
+      this.streak.push(id);
+      if (this.streak.length >= UNSHOWN_IN_A_ROW) {
+        throw new LayerStopped(3, error.traits);
+      }
+      await this.env.sleep(UNSHOWN_WAIT_MS);
+      return null;
+    }
+  }
+
+  /** The run is over, or a message was shown: the messages not shown before are judged to be their own trouble. */
+  async settle(): Promise<void> {
+    for (const id of this.streak) {
+      await skip(this.store, id);
+    }
+    this.count += this.streak.length;
+    this.streak = [];
+  }
+}
+
+/** What a run or a scan says of the messages Gmail did not show; "" for none. */
+export function unshownSentence(count: number): string {
+  if (count === 0) {
+    return "";
+  }
+  return (
+    ` Gmail ${count} iletinin aslını göstermedi (büyük ekli olabilir): eklerini Gmail'den indirip İplikçi Nedim'e ` +
+    "yükleyebilirsiniz."
+  );
 }
 
 /** The account key for Gmail's links: kept, else read once from the Gmail page; null when the page has none. */

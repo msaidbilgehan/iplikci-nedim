@@ -206,6 +206,27 @@ describe("deliverNew", () => {
     expect(store.current.historyDue).toBe(false);
   });
 
+  it("delivers the rest when Gmail does not show one message's original, and says so", async () => {
+    const gmail = fakeGmail([NEW, NEWER]);
+    const unshown: GmailFetcher = async (address, init) => {
+      const answer = await gmail.fetcher(address, init);
+      return address.includes(`msg-f%3A${NEW.id}`)
+        ? new Response((await answer.text()).replace(/<pre[\s\S]*<\/pre>/, ""))
+        : answer;
+    };
+    const service = fakeService();
+    const store = memoryStore({ paired: PAIRED });
+    const summary = await deliverNew(environment(unshown, service.fetcher).env, store);
+    expect(service.deliveries.map((d) => d.id)).toEqual(["1002"]);
+    expect([summary.outcome, service.alarms]).toEqual(["unshown", []]);
+    expect(summary.detail).toBe(
+      "1 yeni ileti İplikçi Nedim'e teslim edildi. Gmail 1 iletinin aslını göstermedi (büyük ekli olabilir): " +
+        "eklerini Gmail'den indirip İplikçi Nedim'e yükleyebilirsiniz.",
+    );
+    await deliverNew(environment(unshown, service.fetcher).env, store);
+    expect(gmail.requests.filter((r) => r.includes(`msg-f%3A${NEW.id}`))).toHaveLength(1); // skipped since
+  });
+
   it("asks nothing of Gmail when the feed has nothing new", async () => {
     const gmail = fakeGmail([OTHER]);
     const { env } = environment(gmail.fetcher, fakeService().fetcher);

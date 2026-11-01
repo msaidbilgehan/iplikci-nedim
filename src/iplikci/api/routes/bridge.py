@@ -80,9 +80,19 @@ class ScannedOut(BaseModel):
     history_due: bool  # the settings changed while the scan ran: the history needs another one
 
 
+class AlarmPageIn(BaseModel):
+    """What a "Show original" page without the message showed: never its text, only its masked title."""
+
+    length: int = Field(ge=0)
+    title: str = Field(default="", max_length=80)
+    download: bool  # the page has the "Download original" link
+    raw_id: bool  # the page names the raw text's element
+
+
 class AlarmIn(BaseModel):
     layer: int = Field(ge=1, le=3)  # 1: inbox feed, 2: full search, 3: raw message
     version: str = Field(default="", max_length=20)  # the extension's version: the fix comes with a newer one
+    page: AlarmPageIn | None = None
 
 
 class AlarmOut(BaseModel):
@@ -170,7 +180,8 @@ def scan_finished(request: Request, body: ScannedIn) -> ScannedOut:
 @router.post("/api/ingest/mail/alarm")
 def layer_alarm(request: Request, body: AlarmIn) -> AlarmOut:
     """A layer of the extension stopped on a Gmail page it does not know (ADR-0016's format alarm)."""
-    return AlarmOut(news=bridge.alarm(context_of(request).ws, body.layer, body.version))
+    page = None if body.page is None else body.page.model_dump()
+    return AlarmOut(news=bridge.alarm(context_of(request).ws, body.layer, body.version, page))
 
 
 @router.post("/api/ingest/mail")

@@ -99,15 +99,16 @@ function fakeService(held: ReadonlySet<string> = new Set(), down = false, older 
   return { fetcher, delivered, alarms, asked, scans };
 }
 
-/** Gmail: its page with the account key, and every message's "Show original". */
-function fakeGmail() {
+/** Gmail: its page with the account key, and every message's "Show original", without the text for `unshown`. */
+function fakeGmail(unshown: ReadonlySet<string> = new Set()) {
   const requests: string[] = [];
   const fetcher: GmailFetcher = async (address) => {
     requests.push(address);
     const url = new URL(address);
     if (url.searchParams.get("view") === "om") {
       const id = (url.searchParams.get("permmsgid") ?? "").replace("msg-f:", "");
-      return new Response(originalPage(rawMessage({ from: "ekstre@teb.com.tr" }), BigInt(id)));
+      const page = originalPage(rawMessage({ from: "ekstre@teb.com.tr" }), BigInt(id));
+      return new Response(unshown.has(id) ? page.replace(/<pre[\s\S]*<\/pre>/, "<p>Çok büyük</p>") : page);
     }
     return new Response(gmailPage(IK));
   };
@@ -196,6 +197,34 @@ describe("scanGmail", () => {
       address.endsWith("/scanned") ? new Response(null, { status: 500 }) : service.fetcher(address, init);
     const summary = await scan(fakeTabs([page(["10", "10", 0])]).tabs, { service: forgetful, store });
     expect([summary.phase, store.current.historyDue]).toEqual(["done", true]); // the messages came all the same
+  });
+
+  it("skips a message whose original Gmail does not show among shown ones, says so, and goes on", async () => {
+    // 0x10 = 16 is not shown; 0x30 = 48 and 0x40 = 64 are
+    const tabs = fakeTabs([page(["10", "10", 0], ["30", "30", 0], ["40", "40", 0])]).tabs;
+    const service = fakeService();
+    const store = memoryStore({ paired: PAIRED });
+    const summary = await scan(tabs, { service: service.fetcher, gmail: fakeGmail(new Set(["16"])).fetcher, store });
+    expect(service.delivered.map((d) => d.id)).toEqual(["48", "64"]);
+    expect([summary.phase, summary.unshown, service.alarms]).toEqual(["done", 1, []]);
+    expect(summary.detail).toBe(
+      "Gmail'de listedeki bankalardan 3 ileti bulundu; eksik 3 iletiden 2 tanesi teslim edildi. Gmail 1 iletinin " +
+        "aslını göstermedi (büyük ekli olabilir): eklerini Gmail'den indirip İplikçi Nedim'e yükleyebilirsiniz.",
+    );
+    expect(store.current.skipped).toEqual(["16"]); // not downloaded again
+  });
+
+  it("stops when Gmail shows no original three times in a row, telling what the page showed", async () => {
+    const tabs = fakeTabs([page(["10", "10", 0], ["20", "20", 0], ["30", "30", 0], ["40", "40", 0])]).tabs;
+    const service = fakeService();
+    const store = memoryStore({ paired: PAIRED });
+    const gmail = fakeGmail(new Set(["16", "32", "48"]));
+    const summary = await scan(tabs, { service: service.fetcher, gmail: gmail.fetcher, store });
+    expect([summary.phase, service.delivered]).toEqual(["stopped", []]);
+    const shown = { length: expect.any(Number), title: "Original Message", download: true, raw_id: false };
+    expect(service.alarms).toEqual([{ layer: 3, version: "0.3.0", page: shown }]);
+    expect(store.current.skipped).toEqual([]); // the version that knows the page tries them again
+    expect(gmail.requests.filter((r) => r.includes("msg-f:64"))).toEqual([]);
   });
 
   it("downloads nothing when the service holds every message", async () => {

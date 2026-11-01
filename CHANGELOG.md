@@ -39,6 +39,9 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
   - Geçmiş taraması eşleşince kendiliğinden başlar. Servis son bitmiş taramanın başlangıç gününü ve gönderici
     listesini hatırlar. İkisinden biri değişince eklentinin penceresi, Sistem ve eklenti sayfaları yeniden taramayı
     ister; "Şimdi denetle" de önce onu yapar.
+  - "Orijinali göster"in metnini göstermediği tek bir ileti katmanı durdurmaz. İleti atlanır ve kullanıcıya Gmail'den
+    indirmesi söylenir; ancak art arda üç ileti gösterilmezse katman durur. Biçim alarmı sayfanın metnini değil,
+    özelliklerini taşır.
 - Gelen klasörü izleyicisi: değişmeden 20 saniye bekleyen dosyalar plansız alınır (F02).
 - Yükleme (F02): dosyalar bir partiye yüklenir ve plan her dosyaya ne olacağını gösterir. Yalnızca onaylanan plan
   uygulanır; plandan sonra değişen bir dosya planı yeniler. Uygulanmayan parti bir gün sonra çöp kutusuna gider.

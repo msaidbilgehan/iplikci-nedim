@@ -180,6 +180,21 @@ def test_a_layer_that_meets_an_unknown_gmail_page_is_told_once_per_version(clien
     assert "ham ileti katmanı durdu" in client.get("/api/system", headers=bearer(TOKEN)).json()["mail"]["last_error"]
 
 
+def test_an_alarm_keeps_what_the_page_without_the_message_showed(client, ws):
+    token = paired(client)["token"]
+    other = TestClient(client.app, base_url=BASE)
+    page = {"length": 5120, "title": "Original Message", "download": True, "raw_id": False}
+    told = other.post(
+        "/api/ingest/mail/alarm", json={"layer": 3, "version": "0.3.1", "page": page}, headers=bearer(token)
+    )
+    assert told.json() == {"news": True}
+    with ws.db() as db:
+        [event] = events.entries(db, "mail.bridge_alarm")
+    assert event.detail == {"version": "0.3.1", "page": page}
+    long_title = {"layer": 3, "page": page | {"title": "x" * 81}}
+    assert other.post("/api/ingest/mail/alarm", json=long_title, headers=bearer(token)).status_code == 422
+
+
 def test_an_extension_not_seen_for_a_day_is_told_once(client, ws):
     found = paired(client)
     now = datetime.now(UTC)

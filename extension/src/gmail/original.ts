@@ -15,7 +15,30 @@ export interface Original {
   readonly pageBytes: number;
 }
 
+/**
+ * What a "Show original" page without the raw text showed, for the format alarm: no text of it but its title, with
+ * digits masked and anything that looks like an address left out.
+ */
+export interface PageTraits {
+  readonly length: number;
+  readonly title: string;
+  /** Whether the page has the "Download original" link. */
+  readonly download: boolean;
+  /** Whether the page names the raw text's element at all. */
+  readonly rawId: boolean;
+}
+
+/** The page shows no raw text: Gmail does not show this message (one too large, it may be), or its page changed. */
+export class NoRawText extends FormatError {
+  override name = "NoRawText";
+
+  constructor(readonly traits: PageTraits) {
+    super('"Orijinali göster" sayfasında iletinin metni bulunamadı');
+  }
+}
+
 const RAW = /<pre\b[^>]*\bid\s*=\s*["']?raw_message_text\b["']?[^>]*>([\s\S]*?)<\/pre>/i;
+const TITLE = /<title\b[^>]*>([\s\S]*?)<\/title>/i;
 
 export function originalUrl(account: number, id: string, ik: string | null): string {
   const query = new URLSearchParams();
@@ -36,11 +59,23 @@ export async function readOriginal(fetcher: Fetcher, account: number, id: string
 export function parseOriginal(html: string, pageUrl: string): Original {
   const match = RAW.exec(html);
   if (match === null) {
-    throw new FormatError('"Orijinali göster" sayfasında iletinin metni bulunamadı');
+    throw new NoRawText(traits(html, pageUrl));
   }
   // HTML drops a newline that directly follows <pre>.
   const raw = decodeEntities(match[1] ?? "").replace(/^\r?\n/, "");
   return { raw, download: downloadLink(html, pageUrl), pageBytes: html.length };
+}
+
+function traits(html: string, pageUrl: string): PageTraits {
+  const words = decodeEntities(TITLE.exec(html)?.[1] ?? "")
+    .split(/\s+/)
+    .filter((word) => word !== "" && !word.includes("@"));
+  return {
+    length: html.length,
+    title: words.join(" ").replace(/\d/g, "#").slice(0, 60),
+    download: downloadLink(html, pageUrl) !== null,
+    rawId: html.includes("raw_message_text"),
+  };
 }
 
 function downloadLink(html: string, pageUrl: string): string | null {

@@ -10,7 +10,6 @@
 
 import { type FeedEntry, readFeed } from "../gmail/feed";
 import { HttpError, Redirected } from "../gmail/http";
-import { readOriginal } from "../gmail/original";
 import { listed } from "../mail/headers";
 import { type Cursor, MAX_MESSAGE_BYTES, type Paired, Refused, cursor, prove } from "./service";
 import type { BridgeState, Outcome, RunSummary, Store } from "./state";
@@ -18,6 +17,7 @@ import {
   type Environment,
   LayerStopped,
   PACE_MS,
+  Unshown,
   accountKey,
   deliverOne,
   layer,
@@ -27,6 +27,7 @@ import {
   stopLayer,
   stoppedNow,
   trouble,
+  unshownSentence,
 } from "./steps";
 
 export type RunEnvironment = Environment;
@@ -74,11 +75,13 @@ async function attempt(env: RunEnvironment, store: Store, state: BridgeState): P
   }
   await store.update({ historyDue: where.historyDue, startDay: where.startDay });
   try {
-    const delivered = await deliverFresh(env, store, state, paired, where);
+    const { delivered, unshown } = await deliverFresh(env, store, state, paired, where);
     await store.update({ calmUntil: 0, failures: 0 });
-    return delivered === 0
-      ? done("nothing-new", "Yeni banka iletisi yok.")
-      : done("delivered", `${delivered} yeni ileti İplikçi Nedim'e teslim edildi.`, delivered);
+    const taken = delivered === 0 ? "" : `${delivered} yeni ileti İplikçi Nedim'e teslim edildi.`;
+    if (unshown > 0) {
+      return done("unshown", `${taken}${unshownSentence(unshown)}`.trim(), delivered);
+    }
+    return delivered === 0 ? done("nothing-new", "Yeni banka iletisi yok.") : done("delivered", taken, delivered);
   } catch (error) {
     return gmailTrouble(env, store, state, paired, error, done);
   }
@@ -90,16 +93,20 @@ async function deliverFresh(
   state: BridgeState,
   paired: Paired,
   where: Cursor,
-): Promise<number> {
+): Promise<{ delivered: number; unshown: number }> {
   const feed = await layer(1, () => readFeed(env.gmail, state.account));
   const fresh = feed.entries
     .filter((entry) => listed(entry.senderDomain, where.senders) && isNew(entry, where, state.skipped))
     .sort((a, b) => a.issued.localeCompare(b.issued)); // oldest first: the service's position only moves forward
+  const unshown = new Unshown(env, store);
   let delivered = 0;
   for (const entry of fresh) {
     await env.sleep(PACE_MS);
     const ik = await accountKey(env, store, state.account);
-    const original = await layer(3, () => readOriginal(env.gmail, state.account, entry.id, ik));
+    const original = await unshown.read(state.account, entry.id, ik);
+    if (original === null) {
+      continue;
+    }
     const raw = new TextEncoder().encode(original.raw);
     if (raw.byteLength > MAX_MESSAGE_BYTES) {
       await skip(store, entry.id);
@@ -109,7 +116,8 @@ async function deliverFresh(
       delivered += 1;
     }
   }
-  return delivered;
+  await unshown.settle();
+  return { delivered, unshown: unshown.count };
 }
 
 function unexpected(error: unknown): string {
@@ -133,7 +141,7 @@ async function gmailTrouble(
   done: (o: Outcome, d: string) => RunSummary,
 ): Promise<RunSummary> {
   if (error instanceof LayerStopped) {
-    await stopLayer(env, store, paired, error.layer);
+    await stopLayer(env, store, paired, error);
     return done("stopped", STOPPED);
   }
   if (error instanceof Redirected) {

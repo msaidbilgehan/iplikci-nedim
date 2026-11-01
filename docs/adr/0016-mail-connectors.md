@@ -138,7 +138,7 @@ Sonuca göre:
 - **1. ve 3. katman uygulandı.** Eklenti dakikada bir ve tarayıcı açılınca çalışır.
   - Teslim en eski iletiden başlar. Servis konumu (Gmail'in ileti kimliği ve tarihi) her teslimde ilerletir; eklenti
     konum tutmaz.
-  - Servisin hiç alamayacağı ileti (boş ya da 40 MB'tan büyük) atlanır ve son 50'si hatırlanır. Böylece aynı ileti her
+  - Servisin hiç alamayacağı ileti (boş ya da 40 MB'tan büyük) atlanır ve son 500'ü hatırlanır. Böylece aynı ileti her
     dakika yeniden indirilmez.
 - **Seyrek istek:** Gmail istekleri arasında bir saniye vardır. 429'da ve başka bir sorunda bekleme bir dakikadan
   başlar, her seferinde ikiye katlanır ve en çok bir saat olur. Kullanıcının elle istediği denetim beklemeyi bir kez
@@ -146,6 +146,15 @@ Sonuca göre:
 - **Biçim alarmı:** tanınmayan bir sayfa o katmanı, eklentinin o sürümü için durdurur. Eklenti bunu
   `POST /api/ingest/mail/alarm` ile bildirir ve `mail.bridge_alarm` her katman ve sürüm için bir kez kaydedilir. Yeni
   bir sürüm katmanı yeniden dener.
+  - "Orijinali göster" sayfası iletinin metnini göstermeyebilir. İlk gerçek taramada (2026-11-01) yüzlerce iletiden
+    sonra bu oldu ve 3. katman durdu.
+  - Bu yüzden 3. katman böyle bir sayfayı önce o iletinin sorunu sayar: ileti atlanır, raporda sayılır ve kullanıcıya
+    Gmail'den indirip yüklemesi söylenir. Gmail büyük bir iletiyi göstermiyor olabilir.
+  - Art arda üç ileti gösterilmezse sayfa değişmiş sayılır ve katman durur. Bu iletiler atlanmaz; düzelten sürüm onları
+    yeniden dener. Gösterilmeyen her sayfadan sonra Gmail'e 10 saniye ara verilir.
+  - Alarm, sayfanın metnini değil özelliklerini taşır: uzunluğu, başlığı (rakamlar maskeli, adres gibi sözcükler
+    çıkarılmış), "Orijinali indir" bağlantısının ve ham metin öğesinin olup olmadığı. Servis bunları olayın ayrıntısında
+    saklar.
 - **Sağlık:** servis saatte bir bakar. Etkin bir eklenti bir gündür görünmediyse `mail.bridge_silent` bir kez
   kaydedilir; eklenti dönüp yeniden susarsa yeniden kaydedilir.
 - **Doğrulamanın sonucu (2026-11-01, macOS'ta Chrome):**
