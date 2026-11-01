@@ -63,6 +63,25 @@ def test_the_status_reads_the_running_service(served, monkeypatch, capsys):
     assert "Kuyruk: 0 bekleyen, 0 başarısız iş" in out and "E-posta (IMAP): kurulu değil" in out
     assert "E-posta kapsamı: henüz banka iletisi yok" in out
     assert "Disk: arşiv 0 B" in out and "Dikkat" not in out  # the service of this very data folder
+    assert "Bildirimler: Masaüstü " in out and "Telegram açık, hazır değil" in out and "henüz bildirim yok" in out
+
+
+def test_the_status_names_the_notification_channels_and_how_the_notifications_went():
+    line = service_cli._notify_line(
+        {
+            "channels": [
+                {"channel": "in_app", "on": True, "ready": True},
+                {"channel": "desktop", "on": True, "ready": True},
+                {"channel": "telegram", "on": True, "ready": False},
+                {"channel": "email", "on": False, "ready": False},
+            ],
+            "counts": {"sent": 12, "failed": 1, "held": 0, "pending": 0, "digested": 2},
+        }
+    )
+    assert line == (
+        "Bildirimler: Masaüstü hazır, Telegram açık, hazır değil, E-posta kapalı · gönderildi 12, gönderilemedi 1, "
+        "özetle gönderildi 2"
+    )
 
 
 def test_the_status_says_how_much_of_the_bank_mail_was_read_or_classified():

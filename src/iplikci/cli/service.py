@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import Any
 
 from ..app.workspace import Workspace
-from ..domain.codes import DocumentStatus
-from ..domain.labels import DOCUMENT_STATUS
+from ..domain.codes import Channel, DeliveryStatus, DocumentStatus
+from ..domain.labels import CHANNEL, DELIVERY_STATUS, DOCUMENT_STATUS
 from ..insights import pct
 from ..service import instance, logs, manager
 from .common import human_size, local_time, open_workspace
@@ -156,6 +156,10 @@ def _service_status(ws: Workspace) -> int:
             return 1
         for line in _system_lines(found, ws):
             print(line)
+        try:  # a service of an older version has no notifications: the line is left out
+            print(_notify_line(client.call(ws, "GET", "/api/notify/settings")))
+        except client.ServiceError:
+            pass
     print(f"Günlük: {ws.logs / logs.LOG_NAME}")
     return 0 if holder is not None else 1
 
@@ -198,6 +202,30 @@ def _system_lines(found: dict[str, Any], ws: Workspace) -> list[str]:
             f"boş {human_size(disk.get('free', 0))}"
         )
     return lines
+
+
+def _notify_line(found: dict[str, Any]) -> str:
+    """The notification channels and how the notifications went: "Bildirimler: Masaüstü hazır, Telegram kapalı …"."""
+    channels: list[str] = []
+    for state in found.get("channels") or []:
+        try:
+            channel = Channel(state.get("channel"))
+        except ValueError:
+            continue
+        if channel is not Channel.IN_APP:
+            word = "hazır" if state.get("ready") else "açık, hazır değil" if state.get("on") else "kapalı"
+            channels.append(f"{CHANNEL[channel]} {word}")
+    counts: list[str] = []
+    for code, n in (found.get("counts") or {}).items():
+        if not n:
+            continue
+        try:
+            status = DeliveryStatus(code)
+        except ValueError:
+            continue
+        counts.append(f"{DELIVERY_STATUS[status].lower()} {n}")
+    tail = f" · {', '.join(counts)}" if counts else " · henüz bildirim yok"
+    return f"Bildirimler: {', '.join(channels) or 'kanal yok'}{tail}"
 
 
 def _status_label(code: str) -> str:
