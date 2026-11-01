@@ -13,7 +13,7 @@ from datetime import date
 from decimal import Decimal
 
 from ..parsers import Skipped, Unreadable, parse_document
-from ..sources import Document
+from ..parsers.contract import Document
 
 HOLDER = "ÖRNEK KULLANICI"
 

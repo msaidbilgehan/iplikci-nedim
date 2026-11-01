@@ -42,10 +42,10 @@ from .domain.text import fold
 from .insights import Insights, receipt_amount, tl
 from .parsers import tools as parser_tools
 from .parsers.common import set_business_names
+from .parsers.contract import Document
 from .settings import config
 from .settings.config import DEFAULT_PORT, SettingsError
 from .settings.paths import HOME_ENV, Layout
-from .sources import Document
 from .storage import annotations
 from .vault.store import sha256_of
 

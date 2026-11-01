@@ -14,8 +14,7 @@ from iplikci.fakes import HOLDER, Move, garanti, teb
 from iplikci.fakes.files import text_pdf
 from iplikci.parsers import registry
 from iplikci.parsers.common import set_business_names
-from iplikci.parsers.contract import Detection, Format, Parser, Probe, SourceDocument
-from iplikci.sources import Document
+from iplikci.parsers.contract import Detection, Document, Format, Parser, Probe, SourceDocument
 from iplikci.storage import documents, events
 
 from conftest import add

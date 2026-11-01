@@ -19,8 +19,8 @@ from iplikci.parsers.common import (
     set_business_names,
     split_interest,
 )
+from iplikci.parsers.contract import Document
 from iplikci.parsers.pdf import Line, Word, take_amount
-from iplikci.sources import Document
 
 
 def line(*words):

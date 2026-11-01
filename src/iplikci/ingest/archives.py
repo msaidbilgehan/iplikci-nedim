@@ -1,4 +1,4 @@
-"""Documents inside zip archives, mbox files and e-mails.
+"""Documents inside zip archives, mbox files and e-mails (ingest, architecture §6).
 
 Everything is read into memory; nothing from an archive or an e-mail is ever written to disk.
 """
@@ -9,12 +9,11 @@ import os
 import zipfile
 import zlib
 from collections.abc import Iterator
-from dataclasses import dataclass
 from email.header import decode_header, make_header
 from email.message import Message
 from pathlib import Path
 
-from .domain.text import nfc
+from ..domain.text import nfc
 
 DOCUMENT_EXTENSIONS = {".pdf", ".html", ".htm", ".xls", ".xlsx"}
 MAX_MEMBER_BYTES = 50 * 1024 * 1024  # skip suspiciously large archive members
@@ -27,19 +26,7 @@ class UnreadableArchive(Exception):
     document, instead of being set aside as an archive whose contents were taken out."""
 
 
-@dataclass
-class Document:
-    name: str  # file name only, NFC-normalized
-    origin: str  # where it came from, for the report
-    data: bytes
-    sha256: str
-
-    @property
-    def ext(self) -> str:
-        return os.path.splitext(self.name)[1].lower()
-
-
-def _decode_header(value: str | None) -> str:
+def decode_header_text(value: str | None) -> str:
     try:
         return str(make_header(decode_header(value or "")))
     except Exception:  # a malformed header of an untrusted message is kept as it is  # noqa: BLE001
@@ -62,7 +49,7 @@ def from_zip(data: bytes, origin: str) -> list[tuple[str, str, bytes]]:
         zf = zipfile.ZipFile(io.BytesIO(data))
     except zipfile.BadZipFile as exc:
         raise UnreadableArchive(ZIP_DAMAGED) from exc
-    members = []
+    members: list[tuple[str, str, bytes]] = []
     with zf:
         for info in zf.infolist():
             name = _zip_member_name(info)
@@ -91,14 +78,15 @@ def attachments(msg: Message) -> Iterator[tuple[str, bytes]]:
         if not filename:
             continue
         data = part.get_payload(decode=True)
-        if data:
-            yield nfc(_decode_header(filename)), data
+        if isinstance(data, bytes) and data:  # decode=True gives bytes for a leaf part
+            yield nfc(decode_header_text(filename)), data
 
 
-def from_mbox(path: Path):
+def from_mbox(path: Path) -> Iterator[tuple[str, str, bytes]]:
+    """(name, origin, bytes) of the attachments of every e-mail in an mbox file."""
     box = mailbox.mbox(str(path), create=False)
     for msg in box:
-        subject = _decode_header(msg["Subject"])
+        subject = decode_header_text(msg["Subject"])
         for name, data in attachments(msg):
             yield name, f"{path.name} › {subject} › {name}", data
 

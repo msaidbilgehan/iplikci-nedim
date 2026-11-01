@@ -24,9 +24,9 @@ from typing import IO, Any, cast
 
 from .. import parsers
 from ..domain.models import ParseResult
-from ..sources import Document
 from . import wire
 from .common import Skipped, Unreadable, business_names, caused_by, set_business_names
+from .contract import Document
 
 TIME_LIMIT = 60.0  # seconds a document may take
 MEMORY_LIMIT = 1 << 30  # bytes of address space for the reading process

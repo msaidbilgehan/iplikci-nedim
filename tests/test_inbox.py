@@ -14,8 +14,8 @@ from iplikci.app.uploads import inbox_files, safe_upload_path, save_upload
 from iplikci.app.workspace import Busy, file_lock
 from iplikci.domain.codes import AccountType, DocumentStatus
 from iplikci.domain.models import Account, Statement
+from iplikci.ingest.archives import ZIP_DAMAGED, ZIP_ENCRYPTED
 from iplikci.parsers import ENCRYPTED_REASON, Unreadable
-from iplikci.sources import ZIP_DAMAGED, ZIP_ENCRYPTED
 
 from conftest import put
 

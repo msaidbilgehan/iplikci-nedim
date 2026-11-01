@@ -9,9 +9,9 @@ reason says what it is when that shows.
 from pdfminer.pdfdocument import PDFEncryptionError
 
 from ..domain.models import ParseResult
-from ..sources import Document, UnreadableArchive, from_zip
+from ..ingest.archives import UnreadableArchive, from_zip
 from .common import BUSINESS_REASON, Skipped, Unreadable, caused_by, is_business, not_a_statement
-from .contract import THRESHOLD, Format, Parser, Probe, SourceDocument
+from .contract import THRESHOLD, Document, Format, Parser, Probe, SourceDocument
 from .pdf import ocr_available, page_text
 from .registry import readers
 from .teb.account_html import holder_info

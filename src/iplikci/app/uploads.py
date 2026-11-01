@@ -16,7 +16,7 @@ from pathlib import Path, PurePosixPath
 from typing import BinaryIO
 
 from ..domain.text import nfc
-from ..sources import DOCUMENT_EXTENSIONS
+from ..ingest.archives import DOCUMENT_EXTENSIONS
 from .workspace import Workspace
 
 UPLOAD_EXTENSIONS = frozenset(DOCUMENT_EXTENSIONS | {".zip", ".mbox"})

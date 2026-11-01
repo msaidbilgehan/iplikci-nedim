@@ -15,7 +15,7 @@ from iplikci.domain.models import Account, ParseResult, SourceRef, Statement
 from iplikci.fakes import HOLDER, garanti, isbank, qnb, teb, vakifbank
 from iplikci.fakes.files import text_pdf
 from iplikci.parsers.common import not_a_statement, set_business_names
-from iplikci.sources import Document
+from iplikci.parsers.contract import Document
 from iplikci.vault.names import account_names, display_path
 
 from conftest import put

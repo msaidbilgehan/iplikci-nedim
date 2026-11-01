@@ -12,9 +12,8 @@ from iplikci.domain.models import ParseResult
 from iplikci.fakes import garanti
 from iplikci.fakes.files import text_pdf
 from iplikci.parsers import tools
-from iplikci.parsers.contract import Detection, Format, Probe, SourceDocument
+from iplikci.parsers.contract import Detection, Document, Format, Probe, SourceDocument
 from iplikci.settings.paths import HOME_ENV
-from iplikci.sources import Document
 
 SPECIMENS = fakes.specimens()
 

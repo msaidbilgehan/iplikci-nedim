@@ -19,7 +19,7 @@ from iplikci.fakes import HOLDER, garanti
 from iplikci.fakes.files import pdf_file, text_pdf
 from iplikci.parsers import Skipped, Unreadable, registry, wire, worker
 from iplikci.parsers.common import caused_by, set_business_names
-from iplikci.sources import Document
+from iplikci.parsers.contract import Document
 from iplikci.storage import documents
 
 from conftest import add

@@ -5,6 +5,7 @@ accepts, a cheap detect() and a parse(). The selector shows each reader the same
 a reader that recognised it read the SourceDocument.
 """
 
+import os
 from dataclasses import dataclass, field
 from enum import StrEnum
 from functools import cached_property
@@ -12,12 +13,25 @@ from typing import Any, Protocol, runtime_checkable
 
 from ..domain.codes import DocumentKind
 from ..domain.models import ParseResult, SourceRef
-from ..sources import Document
 from .pdf import Line, ocr_page_lines, open_pdf
 from .sheet import decode_html, html_rows, html_text, read_xls, read_xlsx, sniff
 
 # A detection at least this sure lets a reader read the document; two such readers are an error.
 THRESHOLD = 0.5
+
+
+@dataclass
+class Document:
+    """A document as it reaches the readers: its bytes, its file name and where it came from."""
+
+    name: str  # file name only, NFC-normalized
+    origin: str  # where it came from, for the report
+    data: bytes
+    sha256: str
+
+    @property
+    def ext(self) -> str:
+        return os.path.splitext(self.name)[1].lower()
 
 
 class Format(StrEnum):

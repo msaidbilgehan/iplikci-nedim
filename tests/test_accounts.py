@@ -11,8 +11,8 @@ from iplikci.fakes import HOLDER, garanti, isbank, qnb, vakifbank
 from iplikci.parsers import Skipped, parse_document
 from iplikci.parsers.accounts import bank_from_iban
 from iplikci.parsers.common import set_business_names
+from iplikci.parsers.contract import Document
 from iplikci.parsers.movements import Movement, check_balances, classify, receiver_after_bank, sender_after_bank
-from iplikci.sources import Document
 
 
 def move(desc, amount, balance=None, label=""):

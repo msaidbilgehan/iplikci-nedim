@@ -9,10 +9,9 @@ import traceback
 from .. import parsers
 from ..domain.labels import currency_label, format_amount, label
 from ..domain.models import ParseResult, SourceRef, Statement, Transaction
-from ..sources import Document
 from . import Skipped, Unreadable, choose, parse_document, registry
 from .common import is_business
-from .contract import Format, Probe, SourceDocument
+from .contract import Document, Format, Probe, SourceDocument
 from .pdf import ocr_available, page_text
 
 

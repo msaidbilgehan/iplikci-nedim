@@ -21,7 +21,7 @@ from pathlib import Path
 from ..domain.codes import Actor, DocumentKind, DocumentStatus, SourceKind
 from ..domain.models import ParseResult
 from ..domain.text import nfc
-from ..sources import DOCUMENT_EXTENSIONS, UnreadableArchive, from_mbox, from_zip, is_mbox
+from ..ingest.archives import DOCUMENT_EXTENSIONS, UnreadableArchive, from_mbox, from_zip, is_mbox
 from ..storage import audit, documents, events, jobs, readings
 from ..storage.db import Database
 from ..storage.documents import Source

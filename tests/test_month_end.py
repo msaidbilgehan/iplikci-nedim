@@ -12,7 +12,7 @@ from iplikci.domain.codes import AccountType, TransactionKind
 from iplikci.domain.models import Account, ParseResult, Security, Statement, Transaction
 from iplikci.fakes import teb
 from iplikci.insights import interpret
-from iplikci.sources import Document
+from iplikci.parsers.contract import Document
 
 from conftest import JANUARY, RULES, add
 

@@ -12,8 +12,8 @@ from iplikci.fakes import HOLDER, garanti, isbank, qnb, teb
 from iplikci.fakes.files import scan_pdf
 from iplikci.parsers import contract
 from iplikci.parsers.common import BUSINESS_REASON, is_business
+from iplikci.parsers.contract import Document
 from iplikci.parsers.pdf import open_pdf, page_text
-from iplikci.sources import Document
 
 K = TransactionKind
 

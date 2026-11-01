@@ -41,9 +41,9 @@ from pathlib import Path
 from .app import intake
 from .app.workspace import Workspace, file_lock
 from .domain.codes import Actor, DocumentKind, DocumentStatus, SourceKind
+from .ingest.archives import attachments
 from .settings import secrets
 from .settings.config import BANK_SENDERS
-from .sources import attachments
 from .storage.documents import Source
 
 PASSWORD_ENV = "IPLIKCI_MAIL_PASSWORD"

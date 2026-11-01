@@ -17,8 +17,8 @@ from ..domain.codes import Actor, DocumentKind, DocumentStatus
 from ..domain.models import ParseResult
 from ..parsers import Skipped, Unreadable, registry
 from ..parsers.common import business_names_signature
+from ..parsers.contract import Document
 from ..parsers.worker import parse_document
-from ..sources import Document
 from ..storage import audit, documents, events, readings
 from ..storage.db import Database
 from ..vault.names import display_name
