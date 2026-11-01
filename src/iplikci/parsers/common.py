@@ -97,6 +97,8 @@ def business_names_signature() -> str:
 
 
 BUSINESS_REASON = "şirket belgesi — kapsam dışı"
+# An e-mail is kept whole; the readers of bank e-mails' bodies come in Phase 4.
+MESSAGE_REASON = "e-posta iletisi; gövdesindeki bilgiler henüz okunmuyor"
 
 # Bank documents without money movements, named so a summary says what they are (matched on the
 # squashed text of the first page, only once no reader took the document).

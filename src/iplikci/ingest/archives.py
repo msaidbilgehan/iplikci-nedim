@@ -9,8 +9,10 @@ import os
 import zipfile
 import zlib
 from collections.abc import Iterator
+from datetime import datetime
 from email.header import decode_header, make_header
 from email.message import Message
+from email.utils import parseaddr, parsedate_to_datetime
 from pathlib import Path
 
 from ..domain.text import nfc
@@ -80,6 +82,29 @@ def attachments(msg: Message) -> Iterator[tuple[str, bytes]]:
         data = part.get_payload(decode=True)
         if isinstance(data, bytes) and data:  # decode=True gives bytes for a leaf part
             yield nfc(decode_header_text(filename)), data
+
+
+def sender_domain(msg: Message) -> str:
+    """The domain of the From address, lower case; "" when there is none."""
+    return parseaddr(str(msg.get("From", "")))[1].rpartition("@")[2].strip().lower()
+
+
+def sent_at(msg: Message) -> datetime | None:
+    try:
+        return parsedate_to_datetime(str(msg["Date"]))
+    except (TypeError, ValueError, IndexError):
+        return None
+
+
+def message_fields(msg: Message) -> dict[str, str]:
+    """What an e-mail says of itself, as a document source records it: its id, sender's domain, subject and date."""
+    sent = sent_at(msg)
+    return {
+        "message_id": str(msg.get("Message-ID", "")).strip(),
+        "sender": sender_domain(msg),
+        "subject": decode_header_text(msg["Subject"])[:300],
+        "sent_at": sent.isoformat() if sent else "",
+    }
 
 
 def from_mbox(path: Path) -> Iterator[tuple[str, str, bytes]]:

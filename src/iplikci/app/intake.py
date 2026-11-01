@@ -8,12 +8,13 @@ known document moves into the vault; a company document, a file that is no docum
 to the system Trash. Paths outside the inbox are only read, never moved.
 """
 
+import email
 import os
 import secrets
 import shutil
 from collections import Counter
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
@@ -21,6 +22,7 @@ from pathlib import Path
 from ..domain.codes import Actor, DocumentKind, DocumentStatus, SourceKind
 from ..domain.models import ParseResult
 from ..domain.text import nfc
+from ..ingest import archives
 from ..ingest.archives import DOCUMENT_EXTENSIONS, UnreadableArchive, from_mbox, from_zip, is_mbox
 from ..storage import audit, documents, events, jobs, readings
 from ..storage.db import Database
@@ -72,6 +74,7 @@ class Candidate:
     outcome: reading.Outcome | None = None
     new_source: bool = True  # KNOWN: whether this arrival is not recorded yet
     copy_of: str | None = None  # STORE: the kept document holding the same statement or receipt
+    parent: str = ""  # the e-mail it was attached to (its sha256)
 
     @property
     def status(self) -> DocumentStatus | None:
@@ -138,9 +141,12 @@ class Incoming:
 
 
 def _expand(name: str, data: bytes, source: Source, path: Path | None) -> Iterable[Candidate]:
-    """The documents in one file: itself, or the members of a zip (nested ones too). A zip that cannot be opened
-    is itself a document, kept as unreadable for a manual look."""
-    if name.lower().endswith(".zip"):
+    """The documents in one file: itself, or the members of a zip (nested ones too); an e-mail is a document and so
+    is each of its attachments, with the e-mail as their parent. A zip that cannot be opened is itself a document,
+    kept as unreadable for a manual look."""
+    if name.lower().endswith(".eml"):
+        yield from _message(name, data, source, path)
+    elif name.lower().endswith(".zip"):
         try:
             members = from_zip(data, source.origin or name)
         except UnreadableArchive:
@@ -157,6 +163,20 @@ def _expand(name: str, data: bytes, source: Source, path: Path | None) -> Iterab
             yield Candidate(name, sha256_of(data), source, b"", path, verdict=Verdict.ARCHIVE)
     elif os.path.splitext(name)[1].lower() in DOCUMENT_EXTENSIONS:
         yield Candidate(name, sha256_of(data), source, data, path)
+
+
+def _message(name: str, data: bytes, source: Source, path: Path | None) -> Iterable[Candidate]:
+    msg = email.message_from_bytes(data)
+    if not source.message_id:  # a file the user brought: what the e-mail says of itself
+        source = replace(source, **archives.message_fields(msg))
+    message = Candidate(name, sha256_of(data), source, data, path)
+    yield message
+    for attachment, blob in archives.attachments(msg):
+        inner = replace(source, original=attachment, origin=f"{source.origin or name} › {attachment}")
+        for c in _expand(attachment, blob, inner, None):
+            c.parent = c.parent or message.sha256
+            c.container = path
+            yield c
 
 
 def _walk(path: Path, kind: SourceKind, root: Path | None, in_inbox: bool) -> Iterable[Candidate]:
@@ -181,7 +201,7 @@ def _walk(path: Path, kind: SourceKind, root: Path | None, in_inbox: bool) -> It
             )
         return
     ext = path.suffix.lower()
-    if ext in DOCUMENT_EXTENSIONS or ext == ".zip":
+    if ext in DOCUMENT_EXTENSIONS or ext in (".zip", ".eml"):
         yield from _expand(nfc(path.name), path.read_bytes(), Source(kind, nfc(path.name), nfc(shown)), loose)
     elif loose is not None:
         yield Candidate(
@@ -313,7 +333,7 @@ def _store(ws: Workspace, db: Database, c: Candidate, actor: Actor) -> None:
         return
     ws.vault.put(c.data)
     with db.transaction():
-        documents.add(db, c.sha256, c.name, len(c.data))
+        documents.add(db, c.sha256, c.name, len(c.data), parent=c.parent)
         documents.add_source(db, c.sha256, c.source)
         events.record(db, "document.received", c.sha256, source=str(c.source.kind))
         reading.record(db, c.sha256, c.name, c.outcome)

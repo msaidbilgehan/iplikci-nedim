@@ -10,7 +10,7 @@ from pdfminer.pdfdocument import PDFEncryptionError
 
 from ..domain.models import ParseResult
 from ..ingest.archives import UnreadableArchive, from_zip
-from .common import BUSINESS_REASON, Skipped, Unreadable, caused_by, is_business, not_a_statement
+from .common import BUSINESS_REASON, MESSAGE_REASON, Skipped, Unreadable, caused_by, is_business, not_a_statement
 from .contract import THRESHOLD, Document, Format, Parser, Probe, SourceDocument
 from .pdf import ocr_available, page_text
 from .registry import readers
@@ -56,6 +56,8 @@ def _parse(reader: Parser, source: SourceDocument) -> ParseResult:
 def parse_document(doc: Document) -> ParseResult:
     if is_business(doc.name):
         raise Skipped(BUSINESS_REASON, business=True)
+    if doc.ext == ".eml":  # kept whole (ADR-0015); its attachments are documents of their own
+        raise Skipped(MESSAGE_REASON)
     if doc.ext == ".zip":  # only a zip the collector could not open is handed over as a document
         try:
             from_zip(doc.data, doc.name)
