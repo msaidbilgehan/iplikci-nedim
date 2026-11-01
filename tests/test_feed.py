@@ -10,8 +10,8 @@ from iplikci.storage import events, jobs
 from conftest import add
 
 
-def snap(month="2026-11", rows=None, receipts=None, months=None) -> Snapshot:
-    return Snapshot(month, rows or {}, receipts or {}, months or {})
+def snap(month="2026-11", rows=None, receipts=None, months=None, invoices=None) -> Snapshot:
+    return Snapshot(month, rows or {}, receipts or {}, months or {}, invoices or {})
 
 
 def test_the_first_snapshot_only_takes_note():
@@ -66,9 +66,23 @@ def test_months_speak_as_the_month_end_news_did():
     ]
 
 
+def test_a_bill_that_arrives_or_whose_status_changes_is_news():
+    before = snap(invoices={"a:0": "pending", "b:0": "pending", "c:0": "matched"})
+    after = snap(invoices={"a:0": "matched", "b:0": "pending", "c:0": "matched", "d:0": "pending", "e:0": "unmatched"})
+    assert diff(before, after) == [
+        Change("invoice.matched", "a:0"),
+        Change("invoice.pending", "d:0"),
+        Change("invoice.unmatched", "e:0"),
+    ]
+    many = {f"x{i:03d}:0": "pending" for i in range(BULK + 1)}
+    assert diff(snap(), snap(invoices=many)) == [Change("invoice.pending", "", {"count": BULK + 1})]
+
+
 def test_a_snapshot_survives_its_dump_and_a_damaged_one_is_none():
     s = snap(rows={"a": ("teb-1", "2026-10-01")}, receipts={"a": "matched"}, months={"2026-10": "closed"})
     assert Snapshot.load(s.dump()) == s
+    older = {k: v for k, v in s.dump().items() if k != "invoices"}  # saved before bills were kept
+    assert Snapshot.load(older) == s
     assert Snapshot.load(None) is None
     assert Snapshot.load({"month": "2026-11"}) is None
     assert Snapshot.load([1, 2]) is None
