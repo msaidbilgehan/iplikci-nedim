@@ -72,7 +72,18 @@ Aşama 4 (E-postanın tamamı, v0.5.0) bankaların bütün e-postalarını işe 
   eşleştirilir; eşleşmeyenler yalnızca bilgi olarak görünür, toplamları değiştirmez. Banka dışı göndericiler Sistem
   ekranından eklenir; faturalar Faturalar ekranında listelenir.
 
-Sırada Aşama 5 (Bildirimler) var.
+Aşama 5 (Bildirimler, v0.6.0) önemli olayları kullanıcıya ulaştırır:
+
+- Yaklaşan bir son ödeme, öngörüde eksiye düşecek bir hesap, gelmeyen bir ödeme ya da gecikmiş bir maaş, bir abonelik
+  zammı, büyük bir harcama, ekstrede görünmeyen bir dekont, ayın kapanması ve sistem uyarıları birer olaydır.
+- Bildirim kuralları hangi olayın hangi kanala ne ayrıntıyla gideceğini söyler. 16 hazır kural baştan açıktır; kurallar
+  Bildirimler ekranından değiştirilir ve bir kuralın son 30 günde kaç kez konuşacağı önceden görülür.
+- Kanallar: uygulamadaki bildirim kutusu, masaüstü, Telegram (kendi botunuzla) ve kendinize e-posta (uygulama şifresine
+  izin veren hesaplarda).
+- Bir olay için her kanala tek bildirim gider. Gönderilemeyen bildirim yeniden denenir; sessiz saatte gelenler sabah
+  tek bir özetle gider. Gönderilen her bildirim teslim kaydında görünür.
+
+Sırada Aşama 6 (Arayüz) var.
 
 MVP 2026-10-31'de emekliye ayrıldı. İplikçi Nedim onun kodundan başlar ama verisini devralmaz; belgeleri kendisi toplar.
 Uygulama henüz son kullanıcıya hazır değil: kurulum paketi, kurulum sihirbazı ve arayüzün tamamı sonraki aşamalarda
