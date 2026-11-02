@@ -348,13 +348,19 @@ def _balance(
     return None, None, None, None, known.unknown.get(account, "bakiyesi hiçbir belgede yazmıyor")
 
 
-def _month_flow(account_type: AccountType, rows: list[transactions.RowView], today: date) -> MonthFlow:
+def _month_flow(
+    account_type: AccountType, rows: list[transactions.RowView], today: date, last: date | None
+) -> MonthFlow:
     month = month_of(today)
     of_month = [r for r in rows if month_of(r.day) == month and r.day <= today]
     t = transactions.totals(of_month)
+    notes: list[str] = []
+    if last is None or month_of(last) < month:  # nothing moved is not known: no document reaches the month yet
+        notes.append("bu ayın hareketleri henüz hiçbir belgede yok")
     # The ledger leaves a foreign account's transfers between own accounts out: they have no TL value of their own.
-    note = "kendi hesaplarınızla aranızdaki döviz transferleri sayılmaz" if account_type == AccountType.FX else ""
-    return MonthFlow(month, t.money_in, t.money_out, t.counted, t.provisional, note)
+    if account_type == AccountType.FX:
+        notes.append("kendi hesaplarınızla aranızdaki döviz transferleri sayılmaz")
+    return MonthFlow(month, t.money_in, t.money_out, t.counted, t.provisional, "; ".join(notes))
 
 
 def _views(ws: Workspace, a: Analysis, today: date, known: _Known, wanted: Collection[str]) -> list[AccountView]:
@@ -387,7 +393,7 @@ def _views(ws: Workspace, a: Analysis, today: date, known: _Known, wanted: Colle
                 certainty=certainty,
                 note=note,
                 freshness=_freshness(ds, account.id, last, today, holes, docs) if last is not None else None,
-                month=_month_flow(account.type, by_account.get(account.id, []), today),
+                month=_month_flow(account.type, by_account.get(account.id, []), today, last),
                 closed=is_gone,
                 link=Link(Screen.ACCOUNT, account.id),
             )

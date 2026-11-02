@@ -139,6 +139,19 @@ def test_an_account_shows_its_balance_its_newest_document_and_this_months_money(
     }
 
 
+def test_this_months_money_is_not_told_as_none_before_a_document_reaches_the_month(garanti_ws):
+    account = by_id(get(client_for(garanti_ws), "/api/accounts"))[CURRENT]
+    assert account["freshness"]["last"] == "2026-10-31"  # the list ends with October
+    assert account["month"] == {
+        "month": "2026-11",
+        "money_in": tl(0),
+        "money_out": tl(0),
+        "rows": 0,
+        "provisional": 0,
+        "note": "bu ayın hareketleri henüz hiçbir belgede yok",
+    }
+
+
 def test_an_account_whose_documents_stopped_long_before_the_others_is_closed_and_in_no_total(ws):
     old = [Move(date(2026, 1, 1), "ÖRNEK İŞVEREN A.Ş. den gelen havale", Decimal(1000))]
     add(ws, "eski.xls", teb.account_export(teb.running_rows(old), number="111111111", period="01/01/2026 - 31/03/2026"))
