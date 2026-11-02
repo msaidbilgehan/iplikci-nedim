@@ -216,19 +216,23 @@ def _pairs(before: Dataset, after: Dataset) -> Iterator[tuple[Transaction, Trans
 
 
 def _effect(before: Dataset, after: Dataset) -> tuple[int, list[Move], list[Example]]:
-    """The rows the change moves."""
+    """How many rows the change changes, the category moves among them, and examples. A row whose category stays (its
+    necessity, kind or merchant name alone changes) is changed but moves nowhere: its examples tell what changed."""
+    changed = 0
     moves: Counter[tuple[str, str]] = Counter()
     totals: defaultdict[tuple[str, str], Decimal] = defaultdict(Decimal)
     examples: list[Example] = []
     for x, y, amount in _pairs(before, after):
         if _labels(x) == _labels(y):
             continue
-        moves[(x.category, y.category)] += 1
-        totals[(x.category, y.category)] += amount
+        changed += 1
+        if x.category != y.category:
+            moves[(x.category, y.category)] += 1
+            totals[(x.category, y.category)] += amount
         if len(examples) < EXAMPLES:
             examples.append(Example(y.fingerprint, y.date, y.description, amount, _labels(x), _labels(y)))
     listed = [Move(f, t, n, round_half_up(totals[(f, t)])) for (f, t), n in moves.most_common(MOVES)]
-    return sum(moves.values()), listed, examples
+    return changed, listed, examples
 
 
 def _checked(ws: Workspace, text: str) -> Categorizer:

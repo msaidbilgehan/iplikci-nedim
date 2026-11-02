@@ -64,6 +64,16 @@ def test_a_preview_says_which_rows_a_change_moves_and_writes_nothing(client, dem
     assert demo_ws.rules.read_text(encoding="utf-8") == before
 
 
+def test_a_change_that_leaves_the_rows_category_moves_none_and_its_examples_say_what_changes(client):
+    level = {"action": "necessity", "merchant": "Ornek Kahve", "necessity": "unnecessary"}
+    found = client.post("/api/rules/categories/preview", json=level, headers=bearer()).json()
+    # Kafe & Kahve → Kafe & Kahve is no move: the rows stay where they are, only their necessity changes.
+    assert (found["changed"], found["moves"]) == (10, [])
+    example = found["examples"][0]
+    assert (example["before"]["category"], example["after"]["category"]) == ("Kafe & Kahve", "Kafe & Kahve")
+    assert (example["before"]["necessity"], example["after"]["necessity"]) == ("optional", "unnecessary")
+
+
 def test_a_change_is_written_only_from_the_services_own_pages_and_keeps_the_file_before_it(client, demo_ws):
     assert client.put("/api/rules/categories", json=COFFEE, headers=bearer()).status_code == 403
     saved = signed_in(client).put("/api/rules/categories", json=COFFEE, headers=OWN_PAGE).json()
