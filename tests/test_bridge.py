@@ -6,7 +6,9 @@ import email
 import email.policy
 import hashlib
 import hmac
+import re
 from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -28,6 +30,7 @@ TOKEN = "deneme-belirteci"
 BASE = "http://127.0.0.1:8643"
 OWN_PAGE = {"Origin": BASE, "X-Iplikci": "1"}
 EXTENSION = {"Origin": "chrome-extension://abcdefghijklmnop"}
+PANEL = Path(__file__).parents[1] / "extension" / "src" / "bridge" / "panel.ts"  # the extension's "İplikçi Nedim'i aç"
 
 
 @pytest.fixture
@@ -163,6 +166,15 @@ def test_only_an_active_extensions_token_gets_a_login_link_from_the_bridges_endp
     assert client.delete(f"/api/bridge/{found['id']}", headers=OWN_PAGE).status_code == 204
     revoked = other.post("/api/bridge/login-link", headers=bearer(found["token"]))
     assert (revoked.status_code, revoked.json()["code"]) == (401, "unauthenticated")
+
+
+def test_the_sign_in_pages_carry_the_title_the_extension_tells_them_by(client):
+    declared = re.search(r'export const SIGN_IN_TITLE = "([^"]+)";', PANEL.read_text(encoding="utf-8"))
+    assert declared is not None and declared[1] == pages.SIGN_IN_TITLE
+    outsider = TestClient(client.app, base_url=BASE)
+    for page in (outsider.get("/"), outsider.get("/akis"), outsider.get("/giris?anahtar=kullanilmis")):
+        assert page.status_code in (401, 403) and f"<title>{pages.SIGN_IN_TITLE}</title>" in page.text
+    assert pages.SIGN_IN_TITLE not in pages.NOT_BUILT  # a development copy's page is not a sign-in page
 
 
 def test_delivered_messages_go_through_the_trust_rule_and_move_the_cursor(client, ws):

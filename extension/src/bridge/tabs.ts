@@ -1,13 +1,19 @@
 /**
- * The scan's tab in Chrome: opened on Gmail's search, read with the collector (chrome.scripting), moved from page to
- * page and closed when the scan has what it needs, the tab the scan was started from shown again. Only
- * mail.google.com is touched, as the manifest's host permission allows; on any other address the tab is not read.
+ * The tabs of Chrome the bridge drives.
+ *
+ * - The scan's tab: opened on Gmail's search, read with the collector (chrome.scripting), moved from page to page and
+ *   closed when the scan has what it needs, the tab the scan was started from shown again. Only mail.google.com is
+ *   touched, as the manifest's host permission allows; on any other address the tab is not read.
+ * - The interface's tabs, for "İplikçi Nedim'i aç": the host permission for the service's address lets their address
+ *   and title be read, and no others'; the extension has no "tabs" permission.
  */
 
 import { FormatError } from "../gmail/errors";
 import { ORIGIN } from "../gmail/http";
 import { collectList, isListPage } from "../gmail/list";
+import type { PanelTabs, ServiceTab } from "./panel";
 import { NotGmail, type TabDriver, TabGone, TabUnreadable } from "./scan";
+import { SERVICE } from "./service";
 
 const LOAD_MS = 60_000;
 
@@ -57,6 +63,43 @@ const driver: TabDriver = {
   },
   async close(tabId) {
     await chrome.tabs.remove(tabId);
+  },
+};
+
+/** The tabs on the service's address, as "İplikçi Nedim'i aç" finds, shows and opens them. */
+export const chromePanelTabs: PanelTabs = {
+  async find() {
+    const [tabs, focused] = await Promise.all([
+      chrome.tabs.query({ url: `${SERVICE}/*` }),
+      chrome.windows.getLastFocused().catch(() => undefined),
+    ]);
+    const found: ServiceTab[] = [];
+    for (const tab of tabs) {
+      const url = tab.url ?? "";
+      if (tab.id !== undefined && url.startsWith(`${SERVICE}/`)) {
+        found.push({
+          id: tab.id,
+          windowId: tab.windowId,
+          url,
+          title: tab.title ?? "",
+          front: tab.active && tab.windowId === focused?.id,
+          lastAccessed: tab.lastAccessed ?? 0, // Chrome 121 on
+        });
+      }
+    }
+    return found;
+  },
+  async show(tab, url) {
+    try {
+      await chrome.tabs.update(tab.id, url === undefined ? { active: true } : { url, active: true });
+    } catch {
+      await chrome.tabs.create({ url: url ?? tab.url, active: true }); // the tab was closed meanwhile
+      return;
+    }
+    await chrome.windows.update(tab.windowId, { focused: true });
+  },
+  async open(url) {
+    await chrome.tabs.create({ url, active: true });
   },
 };
 

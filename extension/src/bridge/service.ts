@@ -1,7 +1,7 @@
 /**
  * The paired İplikçi Nedim service, on this computer only (ADR-0016): pairing with a code, the proof that the
- * service is the one paired with, where delivery stands, and the delivery of raw messages. The token goes in the
- * Authorization header only; no cookie is sent.
+ * service is the one paired with, where delivery stands, the delivery of raw messages, and a login link for the
+ * interface (ADR-0019). The token goes in the Authorization header only; no cookie is sent.
  */
 
 import type { PageTraits } from "../gmail/original";
@@ -114,6 +114,19 @@ export async function prove(fetcher: Fetcher, paired: Paired, nonce: string = ne
   if (typeof proof !== "string" || proof !== (await expectedProof(paired.token, nonce))) {
     throw new NotTheService("bu bilgisayardaki servis eşleşilen servis değil");
   }
+}
+
+/**
+ * A one-time login link for the interface, as the command line gets one (ADR-0019): it opens a browser session
+ * within two minutes, once. What it leads to is the caller's to check.
+ */
+export async function loginLink(fetcher: Fetcher, paired: Paired): Promise<string> {
+  const response = await call(fetcher, "/api/bridge/login-link", { method: "POST", headers: bearer(paired) });
+  const found = (await response.json()) as { url?: unknown };
+  if (typeof found.url !== "string") {
+    throw new Refused(response.status, "login_link_answer", "servisin giriş bağlantısı yanıtı anlaşılamadı");
+  }
+  return found.url;
 }
 
 export async function cursor(fetcher: Fetcher, paired: Paired): Promise<Cursor> {

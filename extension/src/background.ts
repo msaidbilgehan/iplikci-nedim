@@ -1,20 +1,24 @@
 /**
  * The bridge's service worker (ADR-0016): every minute (and when the browser starts) it delivers the inbox's new
- * bank messages to the paired service; it pairs with a code typed into the extension's window and then scans Gmail
- * for the history the service lacks; and it runs the ADR-0016 verification for its own page. All network work
- * happens here, never in a page or a content script.
+ * bank messages to the paired service; it pairs with a code typed into the extension's settings page and then scans
+ * Gmail for the history the service lacks; it opens the service's interface for "İplikçi Nedim'i aç" (ADR-0019); and
+ * it runs the ADR-0016 verification for its own page. All network work happens here, never in a page or a content
+ * script.
  */
 
 import { type Request, type Status, asRequest } from "./bridge/messages";
+import { openPanel } from "./bridge/panel";
 import { type RunEnvironment, deliverNew } from "./bridge/run";
 import { scanGmail } from "./bridge/scan";
 import { NotTheService, Refused, ServiceDown, cursor, pair, prove } from "./bridge/service";
 import { type RunSummary, type ScanSummary, chromeStore } from "./bridge/state";
 import { scansFirst } from "./bridge/steps";
-import { chromeTabs } from "./bridge/tabs";
+import { chromePanelTabs, chromeTabs } from "./bridge/tabs";
 import { type Environment, verify } from "./verify/run";
 
 const ALARM = "yeni-iletiler";
+/** How long "İplikçi Nedim'i aç" waits for the service: a service that does not answer counts as not running. */
+const PANEL_WAIT_MS = 5000;
 let running: Promise<RunSummary> | null = null;
 let scanning: Promise<ScanSummary> | null = null;
 
@@ -132,7 +136,14 @@ async function answer(request: Request, from: number | undefined): Promise<unkno
     case "forget":
       await chromeStore.update({ paired: null, lastRun: null });
       return status("");
+    case "open-panel":
+      return openPanel({ service: answeringSoon, tabs: chromePanelTabs }, (await chromeStore.get()).paired);
   }
+}
+
+/** The service, for "İplikçi Nedim'i aç": the window waits for it, so a service that hangs does not hold it. */
+function answeringSoon(url: string, init: RequestInit): Promise<Response> {
+  return fetch(url, { ...init, signal: AbortSignal.timeout(PANEL_WAIT_MS) });
 }
 
 async function status(problem: string): Promise<Status> {
