@@ -1,5 +1,6 @@
 // Every screen opens on the demo data folder, finishes loading without an error, and passes axe's WCAG 2.1 A and
-// AA checks (features.md, shared rules) — in the light and the dark theme, one project each.
+// AA checks (features.md, shared rules) — in the light and the dark theme, one project each — and fits a phone's
+// width in both views.
 
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
@@ -42,6 +43,22 @@ for (const screen of SCREENS) {
         .map((n) => `${n.target.join(" ")} — ${n.html.slice(0, 160)} — ${(n.failureSummary ?? "").slice(0, 300)}`),
     }));
     expect(violations).toEqual([]);
+  });
+}
+
+// On a phone no screen scrolls sideways, in either view: a table wider than the screen scrolls inside its card.
+for (const screen of SCREENS) {
+  test(`${screen.heading} ekranı telefonda iki görünümde de yana taşmaz`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(screen.path);
+    for (const view of ["simple", "detailed"] as const) {
+      await page.evaluate((chosen) => window.localStorage.setItem("iplikci.view", chosen), view);
+      await page.reload();
+      await expect(page.getByRole("heading", { level: 1, name: screen.heading })).toBeVisible();
+      await expect(page.getByRole("status", { name: "Yükleniyor…" })).toHaveCount(0, { timeout: 15_000 });
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow, `${view}: ${overflow} px fazla`).toBeLessThanOrEqual(0);
+    }
   });
 }
 

@@ -45,8 +45,10 @@ export function Table({ className, ...rest }: ComponentPropsWithoutRef<"table">)
       tabIndex={region ? 0 : undefined}
       role={region?.label ? "region" : undefined}
       aria-label={region?.label ?? undefined}
+      // Positioned, so that the screen readers' hidden words in its cells (absolutely placed) scroll with the table:
+      // placed against the page instead, they would widen it on a phone.
       className={cn(
-        "overflow-x-auto",
+        "relative overflow-x-auto",
         region && "rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600",
       )}
     >

@@ -10,7 +10,11 @@ interface CardProps {
   children: ReactNode;
 }
 
-/** A titled section of a screen; its title is the section's heading for screen readers too. */
+/**
+ * A titled section of a screen; its title is the section's heading for screen readers too. It never widens the screen:
+ * in a grid or a row of cards it may be narrower than its widest table, which scrolls inside it, and its action goes
+ * under the title when they do not fit side by side.
+ */
 export function Card({ title, action, className, level = 2, children }: CardProps) {
   const heading = useId();
   const Heading = level === 2 ? "h2" : "h3";
@@ -18,12 +22,12 @@ export function Card({ title, action, className, level = 2, children }: CardProp
     <section
       aria-labelledby={heading}
       className={cn(
-        "rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900",
+        "min-w-0 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900",
         className,
       )}
     >
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <Heading id={heading} className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <Heading id={heading} className="min-w-0 text-base font-semibold text-zinc-900 dark:text-zinc-100">
           {title}
         </Heading>
         {action}
