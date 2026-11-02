@@ -4,10 +4,13 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
-## [Yayımlanmadı] — Aşama 6: Arayüz
+## [0.7.0] — 2026-11-02 — Aşama 6: Arayüz
 
-Arayüz tamamlanıyor: ekranlar sırayla, açık ve koyu tema, sade ve ayrıntılı görünüm, çeviri altyapısı ve kurulabilir
-uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiyle uçtan uca sınanır.
+Arayüz tamamlandı: on beş ekran sırayla, açık ve koyu tema, sade ve ayrıntılı görünüm, çeviri altyapısı ve kurulabilir
+uygulama (PWA). MVP raporunun bölümleri Değerlendirme'de ve yanındaki ekranlarda. macOS, Windows ve Linux için kurulum
+paketleri var (imzasız, K22): uygulama ilk açılışta servisi kaydeder ve kurulum sihirbazını açar; servis Ayarlar'dan
+durdurulur, yeniden başlatılır, geri yüklenir ve kaldırılır. Her ekran demo çalışma alanında, iki temada, telefon
+genişliğinde ve axe denetimiyle uçtan uca sınanır.
 
 ### Eklenenler
 

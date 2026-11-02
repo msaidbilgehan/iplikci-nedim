@@ -6,10 +6,20 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 | Revizyon | Konu | Durum | Belge |
 |---|---|---|---|
 | V0 | MVP `gider-analizi`: banka belgelerini okuyan, doğrulayan, yorumlayan yerel komut satırı programı, web paneli ve MCP sunucusu | 2026-10-31'de emekliye ayrıldı (K17) | Depo dışında, veri klasöründeki arşivde: `archive/mvp/CLAUDE.md` ve `README.md` |
-| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–5 (v0.1.0–v0.6.0) uygulandı; sırada Aşama 6 var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
+| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–6 (v0.1.0–v0.7.0) uygulandı; sırada Aşama 7 var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
 | V2 | Finansal strateji uzmanları ve yapay zekâ asistanı | Gelecek (V1'den sonra) | [`v2/requirements.md`](v2/requirements.md) |
 
 ## Değişiklik kaydı
+
+- 2026-11-02 (20) — Aşama 6 uygulandı (`asama-6` dalı); belgeler kodla uyumlu hâle getirildi:
+  - README'nin durum bölümü ve `web/README.md` güncellendi; `CHANGELOG.md`'ye 0.7.0 eklendi.
+  - [Yol haritası](v1/roadmap.md#aşama-6--arayüz): Aşama 6'nın durumu ve açık kalanlar (Windows'ta temiz kurulum,
+    yedi günlük çalışma).
+  - [Özellikler](v1/features.md#mvp-eşitlik-listesi): MVP eşitlik listesinde rapor bölümleri, ay sonu ve çıktılar
+    işaretlendi; bilerek farklı olanlar yazıldı.
+  - [Mimari](v1/architecture.md): API tablosunda hesapların ay ay kapsamı.
+  - [ADR-0016](adr/0016-mail-connectors.md) ve [ADR-0017](adr/0017-no-terminal-install.md)'ye uygulama notları:
+    eklentinin veri klasöründeki klasörden yüklenmesi (K20), paketlerin yapısı, güncelleme ve kaldırma.
 
 - 2026-11-02 (19) — [ADR-0017](adr/0017-no-terminal-install.md) kabul edildi (kullanıcının sözü: "Kabul edildi, amaca
   uygun özellik."): kurulum paketleri Aşama 6'da, imzasız (K22), taşınabilir CPython ve içine kurulmuş programla.
