@@ -8,6 +8,9 @@ import { expect, type Page, test } from "@playwright/test";
 
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 const LIST = "Saklanan belgeler, en yenisi önce";
+// A page image is drawn in a process of its own, started for it (viewer): a second on a quiet machine, many more while
+// the other tests load it, and an image shows only once it has loaded.
+const DRAWN = { timeout: 30_000 };
 
 async function loaded(page: Page): Promise<void> {
   await expect(page.getByRole("status", { name: "Yükleniyor…" })).toHaveCount(0, { timeout: 15_000 });
@@ -42,12 +45,12 @@ test("bir hesap dökümünün satırı tabloda işaretlenir ve görüntüleyici 
 
 test("bir dekontun sayfası gösterilir ve seçilen satırın yeri işaretlenir", async ({ page }) => {
   await openFirst(page, "kind=receipt");
-  await expect(page.getByRole("img", { name: /, sayfa 1$/ })).toBeVisible();
+  await expect(page.getByRole("img", { name: /, sayfa 1$/ })).toBeVisible(DRAWN);
   await page.getByRole("region", { name: "Okunan işlemler" }).getByRole("listitem").first().getByRole("button").click();
   const marked = page
     .getByRole("img", { name: /seçili işlemin satırı işaretli/ })
     .or(page.getByRole("list", { name: /seçili işlemin satırı işaretli/ }));
-  await expect(marked.first()).toBeVisible();
+  await expect(marked.first()).toBeVisible(DRAWN);
   expect(await violations(page)).toEqual([]);
 });
 
