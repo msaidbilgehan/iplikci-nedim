@@ -261,8 +261,16 @@ Durum: 2026-11-02'de `asama-6` dalında uygulandı, `v0.7.0` ([değişiklik gün
   yapılır.
 - Uçtan uca testler demo çalışma alanında, her ekran açık ve koyu temada, telefon genişliğinde ve axe ile; ilk açılış
   boş bir veri klasöründe ayrıca sınanır.
-- Açık kalanlar: Windows'ta temiz kurulum (kullanıcı yapacak) ve Aşama 3'ten kalan yedi günlük çalışma (K19). Uzak
-  erişim (Tailscale, ADR-0012) sihirbazda "sonra gelecek" diye yazılıdır.
+- Açık kalanlar:
+  - Windows'ta temiz kurulum (kullanıcı yapacak). O denemede bakılacaklar:
+    - Ayarlar'dan "Yeniden başlat": servis yaklaşık 20 saniyede geri gelmeli. Servisi yeniden çalıştıran yardımcı,
+      görevin işi bittikten sonra da yaşamalı; Windows buna izin vermezse yeniden başlatma sessizce kalır.
+    - Görev Zamanlayıcı'nın "çalışıyor" bilgisi (`schtasks /Query /V /FO CSV /NH`'nin yedinci alanı, çalışırken
+      267009) okunuyor mu; okunmazsa yeniden başlatma 15 saniye bekleyip yine sürer.
+    - `schtasks` pencere açmadan da OEM kod sayfasında yanıt veriyor mu; buna yalnızca görev kaydının XML yedeği
+      dayanır.
+  - Aşama 3'ten kalan yedi günlük çalışma (K19).
+  - Uzak erişim (Tailscale, ADR-0012) sihirbazda "sonra gelecek" diye yazılıdır.
 
 **Teslimler**
 
