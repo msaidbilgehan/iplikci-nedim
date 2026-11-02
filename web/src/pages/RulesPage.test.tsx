@@ -36,7 +36,7 @@ function serve(rules: CategoryRules = OWN_RULES, preview: RuleChange = RULE_CHAN
 describe("RulesPage: what the rules hold", () => {
   it("waits for the rules, then lists the categories under their groups with their level and commitments", async () => {
     serve();
-    renderScreen(<RulesPage />, { path: "/kurallar" });
+    renderScreen(<RulesPage />, { path: "/kurallar?bolum=kategoriler" });
     expect(screen.getByRole("status", { name: "Yükleniyor…" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { level: 1, name: "Kurallar" })).toBeInTheDocument();
     const categories = await region("Kategoriler");
@@ -53,7 +53,7 @@ describe("RulesPage: what the rules hold", () => {
 
   it("lists the ended payments, the merchants weighed apart and the file's earlier versions", async () => {
     serve();
-    renderScreen(<RulesPage />, { path: "/kurallar" });
+    renderScreen(<RulesPage />, { path: "/kurallar?bolum=biten" });
     const ended = await region("Biten ödemeler");
     expect(within(ended).getByText(/^Bittiğini yazdığınız 2 ödeme var;/)).toBeInTheDocument();
     const magazine = within(ended).getByText("Örnek Dergi").closest("li")!;
@@ -62,9 +62,11 @@ describe("RulesPage: what the rules hold", () => {
     const shipped = within(ended).getByText("Eski Spor Salonu").closest("li")!;
     expect(within(shipped).getByText(/Uygulamayla gelir; buradan kaldırılamaz\./)).toBeInTheDocument();
     expect(within(shipped).queryByRole("button")).not.toBeInTheDocument(); // only the user's own is taken back
+    await userEvent.click(screen.getByRole("tab", { name: "Gereklilik" }));
     const necessity = await region("İşyerlerinin gerekliliği");
     expect(within(necessity).getByText("1 işyerini kategorisinden farklı değerlendiriyorsunuz.")).toBeInTheDocument();
     expect(within(within(necessity).getByText("Örnek Kafe").closest("li")!).getByText("Gereksiz")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("tab", { name: "Dosya ve geçmiş" }));
     const history = await region("Geçmiş");
     const versions = within(history).getByRole("list", { name: "Kural dosyasının önceki sürümleri" });
     const earlier = within(versions).getAllByRole("listitem");
@@ -76,14 +78,16 @@ describe("RulesPage: what the rules hold", () => {
 
   it("says what is empty before the user has rules of their own", async () => {
     serve({ ...CATEGORY_RULES, ended: [] }); // the shipped rules alone
-    renderScreen(<RulesPage />, { path: "/kurallar" });
+    renderScreen(<RulesPage />, { path: "/kurallar?bolum=biten" });
     const ended = await region("Biten ödemeler");
     expect(within(ended).getByText(/^Bittiğini yazdığınız bir ödeme yok\./)).toBeInTheDocument();
-    const necessity = screen.getByRole("region", { name: "İşyerlerinin gerekliliği" });
+    await userEvent.click(screen.getByRole("tab", { name: "Gereklilik" }));
+    const necessity = await region("İşyerlerinin gerekliliği");
     expect(
       within(necessity).getByText("Bütün işyerleri kategorilerinin gerekliliğiyle değerlendiriliyor."),
     ).toBeInTheDocument();
-    const history = screen.getByRole("region", { name: "Geçmiş" });
+    await userEvent.click(screen.getByRole("tab", { name: "Dosya ve geçmiş" }));
+    const history = await region("Geçmiş");
     expect(within(history).getByText(/^Kişisel kural dosyanız henüz yok;/)).toBeInTheDocument();
   });
 
@@ -101,21 +105,23 @@ describe("RulesPage: what the rules hold", () => {
     renderScreen(<RulesPage />, { path: "/kurallar" });
     expect(await screen.findByText("kişisel kurallar okunamadı")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Yeniden dene" }));
-    expect(await region("Kategoriler")).toBeInTheDocument();
+    expect(await region("İşyeri kuralı ekle")).toBeInTheDocument();
   });
 
   it("lists the categories in one table in the detailed view, with whose rule names each", async () => {
     localStorage.setItem("iplikci.view", "detailed");
     serve();
-    renderScreen(<RulesPage />, { path: "/kurallar" });
+    renderScreen(<RulesPage />, { path: "/kurallar?bolum=kategoriler" });
     const table = await screen.findByRole("table", { name: "Kategoriler, grupları ve gereklilik düzeyleri" });
     const market = within(table).getByText("Market").closest("tr")!;
     expect(within(market).getByText("Sizin kurallarınız")).toBeInTheDocument();
     const cafe = within(table).getByText("Kafe").closest("tr")!;
     expect(within(cafe).getByText("Hazır kurallar")).toBeInTheDocument();
     expect(within(cafe).getByText("Hayır")).toBeInTheDocument();
-    const ended = screen.getByRole("table", { name: "Biten ödemeler ve son ödeme ayları" });
+    await userEvent.click(screen.getByRole("tab", { name: /^Biten ödemeler/ }));
+    const ended = await screen.findByRole("table", { name: "Biten ödemeler ve son ödeme ayları" });
     expect(within(within(ended).getByText("Örnek Dergi").closest("tr")!).getByText("Eylül 2026")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("tab", { name: "Dosya ve geçmiş" }));
     expect(within(await region("Geçmiş")).getByText("personal 2026-11-02 10.00.00.yaml")).toBeInTheDocument();
   });
 });
@@ -211,7 +217,7 @@ describe("RulesPage: changes from the lists", () => {
   it("makes a category a commitment one after the panel shows what changes", async () => {
     const { previewed, saved } = serve();
     const user = userEvent.setup();
-    renderScreen(<RulesPage />, { path: "/kurallar" });
+    renderScreen(<RulesPage />, { path: "/kurallar?bolum=kategoriler" });
     const categories = await region("Kategoriler");
     await user.click(within(categories).getByRole("button", { name: "Taahhüt say: Market" }));
     const panel = await screen.findByRole("dialog", { name: "Market taahhüt kategorisi olsun" });
@@ -229,7 +235,7 @@ describe("RulesPage: changes from the lists", () => {
   it("takes a commitment category back, and closes the panel without writing", async () => {
     const { previewed, saved } = serve();
     const user = userEvent.setup();
-    renderScreen(<RulesPage />, { path: "/kurallar" });
+    renderScreen(<RulesPage />, { path: "/kurallar?bolum=kategoriler" });
     const categories = await region("Kategoriler");
     const toggle = within(categories).getByRole("button", { name: "Taahhütten çıkar: Kira" });
     await user.click(toggle);
@@ -245,7 +251,7 @@ describe("RulesPage: changes from the lists", () => {
   it("expects an ended payment again from the panel", async () => {
     const { previewed, saved } = serve();
     const user = userEvent.setup();
-    renderScreen(<RulesPage />, { path: "/kurallar" });
+    renderScreen(<RulesPage />, { path: "/kurallar?bolum=biten" });
     const ended = await region("Biten ödemeler");
     await user.click(within(ended).getByRole("button", { name: "Yeniden bekle: Örnek Dergi" }));
     const panel = await screen.findByRole("dialog", { name: "Örnek Dergi yeniden beklensin" });
@@ -258,7 +264,7 @@ describe("RulesPage: changes from the lists", () => {
   it("writes a count with its thousands", async () => {
     serve(OWN_RULES, { ...RULE_CHANGE, changed: 1234 });
     const user = userEvent.setup();
-    renderScreen(<RulesPage />, { path: "/kurallar" });
+    renderScreen(<RulesPage />, { path: "/kurallar?bolum=kategoriler" });
     await user.click(within(await region("Kategoriler")).getByRole("button", { name: "Taahhüt say: Market" }));
     const panel = await screen.findByRole("dialog");
     expect(await within(panel).findByText(/^Bu değişiklik 1\.234 işlemin kategorisini/)).toBeInTheDocument();
@@ -267,7 +273,7 @@ describe("RulesPage: changes from the lists", () => {
   it("offers nothing to save when the rules would stay as they are", async () => {
     serve(OWN_RULES, { ...RULE_CHANGE, diff: "", changed: 0, moves: [], examples: [] });
     const user = userEvent.setup();
-    renderScreen(<RulesPage />, { path: "/kurallar" });
+    renderScreen(<RulesPage />, { path: "/kurallar?bolum=kategoriler" });
     const categories = await region("Kategoriler");
     await user.click(within(categories).getByRole("button", { name: "Taahhüt say: Market" }));
     const panel = await screen.findByRole("dialog");
@@ -290,7 +296,7 @@ describe("RulesPage: changes from the lists", () => {
       }),
     );
     const user = userEvent.setup();
-    renderScreen(<RulesPage />, { path: "/kurallar" });
+    renderScreen(<RulesPage />, { path: "/kurallar?bolum=biten" });
     const ended = await region("Biten ödemeler");
     const form = within(ended).getByRole("form", { name: "Biten ödeme ekle" });
     await user.click(within(form).getByRole("button", { name: "Önizle" }));
@@ -316,7 +322,7 @@ describe("RulesPage: changes from the lists", () => {
   it("gives a merchant back to its category's level, and changes its level in the form", async () => {
     const { previewed, saved } = serve();
     const user = userEvent.setup();
-    renderScreen(<RulesPage />, { path: "/kurallar" });
+    renderScreen(<RulesPage />, { path: "/kurallar?bolum=gereklilik" });
     const card = await region("İşyerlerinin gerekliliği");
     await user.click(within(card).getByRole("button", { name: "Kategorisine bırak: Örnek Kafe" }));
     const panel = await screen.findByRole("dialog", { name: "Örnek Kafe kategorisinin düzeyine dönsün" });
@@ -342,7 +348,7 @@ describe("RulesPage: the rule file", () => {
     localStorage.setItem("iplikci.view", "detailed");
     const { previewed, saved } = serve();
     const user = userEvent.setup();
-    renderScreen(<RulesPage />, { path: "/kurallar" });
+    renderScreen(<RulesPage />, { path: "/kurallar?bolum=dosya" });
     const card = await region("Kural dosyası");
     const file = within(card).getByLabelText("Kişisel kurallar");
     expect(file).toHaveValue(OWN_RULES.content);
@@ -364,7 +370,7 @@ describe("RulesPage: the rule file", () => {
       ),
     );
     const user = userEvent.setup();
-    renderScreen(<RulesPage />, { path: "/kurallar" });
+    renderScreen(<RulesPage />, { path: "/kurallar?bolum=dosya" });
     const card = await region("Kural dosyası");
     const file = within(card).getByLabelText("Kişisel kurallar");
     await user.type(file, "[["); // user-event's escape for one "["
@@ -377,16 +383,16 @@ describe("RulesPage: the rule file", () => {
 
   it("offers the file's shape as an example while it is empty", async () => {
     localStorage.setItem("iplikci.view", "detailed");
-    renderScreen(<RulesPage />, { path: "/kurallar" }); // the shipped rules alone: no file of the user's yet
+    renderScreen(<RulesPage />, { path: "/kurallar?bolum=dosya" }); // the shipped rules alone: no file of the user's yet
     const file = within(await region("Kural dosyası")).getByLabelText("Kişisel kurallar");
     expect(file).toHaveValue("");
     expect(file).toHaveAttribute("placeholder", "Yeme & İçme:\n  Kafe & Kahve:\n    Örnek Kafe: [ORNEK KAFE]\n");
   });
 
-  it("is not in the simple view", async () => {
+  it("is not in the simple view, which keeps the file's earlier versions", async () => {
     serve();
-    renderScreen(<RulesPage />, { path: "/kurallar" });
-    await region("Kategoriler");
+    renderScreen(<RulesPage />, { path: "/kurallar?bolum=dosya" });
+    await region("Geçmiş");
     expect(screen.queryByRole("region", { name: "Kural dosyası" })).not.toBeInTheDocument();
   });
 });

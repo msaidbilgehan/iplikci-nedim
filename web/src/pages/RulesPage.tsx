@@ -1,6 +1,6 @@
-// The Rules screen (F15): the categories under their groups with their necessity and the commitment categories, the
-// payments that ended, the merchants weighed apart from their category, a merchant rule to add, and in the detailed
-// view the user's rule file itself; its earlier versions are listed. Every change shows the rows it moves before it is
+// The Rules screen (F15), one tab each (?bolum=…): a merchant rule to add, the categories under their groups with their
+// necessity and the commitment categories, the payments that ended, the merchants weighed apart from their category,
+// and the rule file's earlier versions, with the file itself in the detailed view. Every change shows the rows it moves before it is
 // written, and nothing is written that the program cannot build the rules from.
 
 import { useTranslation } from "react-i18next";
@@ -8,7 +8,7 @@ import { useSearchParams } from "react-router";
 
 import { useCategoryRules, useLabels } from "../api/queries";
 import type { CategoryRules, Labels } from "../api/types";
-import { useView } from "../components/Preferences";
+import { Detailed } from "../components/Preferences";
 import { Failure, Loading } from "../components/QueryState";
 import { CategoriesCard } from "../components/rules/CategoriesCard";
 import { EndedCard } from "../components/rules/EndedCard";
@@ -16,6 +16,7 @@ import { FileCard, HistoryCard } from "../components/rules/FileCard";
 import { MerchantRuleCard } from "../components/rules/MerchantRuleCard";
 import { NecessityCard } from "../components/rules/NecessityCard";
 import { PageHeader } from "../components/ui/PageHeader";
+import { SectionCount, SectionTabs } from "../components/ui/SectionTabs";
 
 export default function RulesPage() {
   const { t } = useTranslation("rules");
@@ -32,40 +33,51 @@ export default function RulesPage() {
 }
 
 function Cards({ rules, labels }: { rules: CategoryRules; labels: Labels }) {
-  const { view } = useView();
+  const { t } = useTranslation("rules");
   const [params] = useSearchParams();
   // Opened for a merchant (the Yapılacaklar screen's "Kural ekle"): the form starts again with each one.
   const asked = params.get("isyeri")?.trim() ?? "";
-  const merchant = <MerchantRuleCard key={asked} categories={rules.categories} labels={labels} asked={asked} />;
-  const categories = <CategoriesCard categories={rules.categories} labels={labels} />;
-  const ended = <EndedCard ended={rules.ended} labels={labels} />;
-  const necessity = <NecessityCard merchants={rules.merchant_necessity} labels={labels} />;
-  const history = <HistoryCard history={rules.history} hasFile={rules.content !== ""} />;
-  if (view === "simple") {
-    // Two columns that do not move as a card grows: the forms on one side, what the rules hold on the other.
-    return (
-      <div className="grid items-start gap-4 lg:grid-cols-2">
-        <div className="flex min-w-0 flex-col gap-4">
-          {merchant}
-          {ended}
-          {necessity}
-        </div>
-        <div className="flex min-w-0 flex-col gap-4">
-          {categories}
-          {history}
-        </div>
-      </div>
-    );
-  }
-  // The detailed view's tables and the file need the screen's width: one card under the other.
   return (
-    <div className="grid items-start gap-4">
-      {merchant}
-      {categories}
-      {ended}
-      {necessity}
-      <FileCard content={rules.content} labels={labels} />
-      {history}
-    </div>
+    <SectionTabs
+      label={t("sections.label")}
+      sections={[
+        {
+          id: "isyeri",
+          label: t("sections.merchant"),
+          content: () => (
+            <MerchantRuleCard key={asked} categories={rules.categories} labels={labels} asked={asked} />
+          ),
+        },
+        {
+          id: "kategoriler",
+          label: t("sections.categories"),
+          content: () => <CategoriesCard categories={rules.categories} labels={labels} />,
+        },
+        {
+          id: "biten",
+          label: t("sections.ended"),
+          badge: <SectionCount count={rules.ended.length} />,
+          content: () => <EndedCard ended={rules.ended} labels={labels} />,
+        },
+        {
+          id: "gereklilik",
+          label: t("sections.necessity"),
+          content: () => <NecessityCard merchants={rules.merchant_necessity} labels={labels} />,
+        },
+        {
+          id: "dosya",
+          label: t("sections.file"),
+          // The file itself is the detailed view's: the simple view keeps its earlier versions alone.
+          content: () => (
+            <>
+              <Detailed>
+                <FileCard content={rules.content} labels={labels} />
+              </Detailed>
+              <HistoryCard history={rules.history} hasFile={rules.content !== ""} />
+            </>
+          ),
+        },
+      ]}
+    />
   );
 }

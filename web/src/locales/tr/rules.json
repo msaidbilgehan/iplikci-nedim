@@ -129,5 +129,13 @@
     "preview": "Önizle",
     "changedMeanwhile": "Kural dosyası siz düzenlerken değişti; kaydederseniz o değişiklik kaybolur.",
     "reload": "Yeni halini yükle"
+  },
+  "sections": {
+    "label": "Kuralların bölümleri",
+    "merchant": "İşyeri kuralı",
+    "categories": "Kategoriler",
+    "ended": "Biten ödemeler",
+    "necessity": "Gereklilik",
+    "file": "Dosya ve geçmiş"
   }
 }

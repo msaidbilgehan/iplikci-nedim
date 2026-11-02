@@ -146,7 +146,7 @@ describe("NotificationsPage", () => {
 
   describe("the history", () => {
     it("lists each delivery with its channel and status in the simple view, and says how many went", async () => {
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=gecmis" });
       const log = await screen.findByRole("region", { name: "Teslim kaydı" });
       const list = await within(log).findByRole("list", { name: "Gönderilen bildirimler, en yenisi önce" });
       const [failed, held] = within(list).getAllByRole("listitem");
@@ -166,7 +166,7 @@ describe("NotificationsPage", () => {
 
     it("shows in the detailed view each delivery's level, rule, attempts and the page of what it concerns", async () => {
       detailed();
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=gecmis" });
       const log = await screen.findByRole("region", { name: "Teslim kaydı" });
       const failed = (await within(log).findByText("Telegram'a ulaşılamadı: zaman aşımı.")).closest("tr")!;
       expect(within(failed).getByText("Telegram")).toBeInTheDocument();
@@ -210,7 +210,7 @@ describe("NotificationsPage", () => {
           return HttpResponse.json({ items: first, unread: 2, next: 151 });
         }),
       );
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=gecmis" });
       const log = await screen.findByRole("region", { name: "Teslim kaydı" });
       expect(await within(log).findByText("Bildirim 200")).toBeInTheDocument();
       await userEvent.click(within(log).getByRole("button", { name: "Daha eski kayıtlar" }));
@@ -222,7 +222,7 @@ describe("NotificationsPage", () => {
 
   describe("the channels", () => {
     it("shows each channel's state and what it still needs in the service's words", async () => {
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kanallar" });
       const card = await screen.findByRole("region", { name: "Kanallar" });
       const channels = await within(card).findByRole("list", { name: "Kanallar" });
       const [inApp, desktop, telegram, email] = within(channels).getAllByRole("listitem");
@@ -237,7 +237,7 @@ describe("NotificationsPage", () => {
     });
 
     it("says in the simple view where notifications go now and when the quiet hours are", async () => {
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kanallar" });
       const card = await screen.findByRole("region", { name: "Kanallar" });
       // Telegram is on but has no bot yet, so it carries nothing; e-mail is off.
       expect(
@@ -252,7 +252,7 @@ describe("NotificationsPage", () => {
       const settings = notifySettings();
       const channels = settings.channels.map((state) => ({ ...state, on: state.channel === "in_app" }));
       server.use(http.get("/api/notify/settings", () => HttpResponse.json({ ...settings, quiet_hours: "", channels })));
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kanallar" });
       const card = await screen.findByRole("region", { name: "Kanallar" });
       expect(await within(card).findByText(/^Bildirimler yalnızca uygulamadaki kutuya düşüyor;/)).toHaveTextContent(
         "başka bir kanal açık değil ya da hazır değil. Sessiz saat yok.",
@@ -261,7 +261,7 @@ describe("NotificationsPage", () => {
 
     it("adds every channel's state as the service gives it in the detailed view", async () => {
       detailed();
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kanallar" });
       const card = await screen.findByRole("region", { name: "Kanallar" });
       const name = "Kanalların ayarları ve durumu, servisin verdiği gibi";
       const table = await within(card).findByRole("table", { name });
@@ -288,7 +288,7 @@ describe("NotificationsPage", () => {
           return HttpResponse.json({ ...notifySettings(), quiet_hours: "22:30-07:00" });
         }),
       );
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kanallar" });
       const card = await screen.findByRole("region", { name: "Kanallar" });
       const start = await within(card).findByLabelText("Başlangıç");
       await userEvent.clear(start);
@@ -316,7 +316,7 @@ describe("NotificationsPage", () => {
           return HttpResponse.json({ ...notifySettings(), quiet_hours: "" });
         }),
       );
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kanallar" });
       const card = await screen.findByRole("region", { name: "Kanallar" });
       const end = await within(card).findByLabelText("Bitiş");
       await userEvent.clear(end);
@@ -338,7 +338,7 @@ describe("NotificationsPage", () => {
           return new HttpResponse(null, { status: 204 });
         }),
       );
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kanallar" });
       const card = await screen.findByRole("region", { name: "Kanallar" });
       await userEvent.click(await within(card).findByRole("button", { name: "Masaüstü: Deneme bildirimi gönder" }));
       expect(await within(card).findByText("Deneme bildirimi gönderildi")).toBeInTheDocument();
@@ -350,7 +350,7 @@ describe("NotificationsPage", () => {
       server.use(
         http.post("/api/notify/test", () => HttpResponse.json({ code: "notify_refused", title: why }, { status: 400 })),
       );
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kanallar" });
       const card = await screen.findByRole("region", { name: "Kanallar" });
       await userEvent.click(await within(card).findByRole("button", { name: "E-posta: Deneme bildirimi gönder" }));
       const refusal = await within(card).findByRole("alert");
@@ -391,7 +391,7 @@ describe("NotificationsPage", () => {
           return HttpResponse.json({ paired: true });
         }),
       );
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kanallar" });
       const card = await screen.findByRole("region", { name: "Telegram" });
       const botFather = await within(card).findByRole("link", { name: "@BotFather" });
       expect(within(card).getByText("Kurulmadı")).toBeInTheDocument();
@@ -435,7 +435,7 @@ describe("NotificationsPage", () => {
           HttpResponse.json({ code: "notify_refused", title: why }, { status: 400 }),
         ),
       );
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kanallar" });
       const card = await screen.findByRole("region", { name: "Telegram" });
       const field = await within(card).findByLabelText("Bot belirteci");
       await userEvent.type(field, "parola");
@@ -465,7 +465,7 @@ describe("NotificationsPage", () => {
           return HttpResponse.json({ paired: false });
         }),
       );
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kanallar" });
       const card = await screen.findByRole("region", { name: "Telegram" });
       await user.click(await within(card).findByRole("button", { name: "Eşleştirme kodu al" }));
       expect(await within(card).findByText("/start e5f6a7b8")).toBeInTheDocument();
@@ -484,7 +484,7 @@ describe("NotificationsPage", () => {
     it("asks for the token again when Telegram refused it and the channel stopped", async () => {
       const note = "Durdu: Telegram reddetti: Unauthorized";
       server.use(settingsWith(() => telegramState({ stage: "stopped", note })));
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kanallar" });
       const card = await screen.findByRole("region", { name: "Telegram" });
       expect(await within(card).findByText(note)).toBeInTheDocument();
       expect(within(card).getByText("Durdu")).toBeInTheDocument();
@@ -497,7 +497,7 @@ describe("NotificationsPage", () => {
 
     it("says when a paired bot's channel is turned off", async () => {
       server.use(settingsWith(() => ({ ...TELEGRAM_PAIRED, on: false, ready: false })));
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kanallar" });
       const card = await screen.findByRole("region", { name: "Telegram" });
       expect(await within(card).findByText("Telegram kanalı kapalı")).toBeInTheDocument();
       expect(within(card).queryByLabelText("Bot belirteci")).toBeNull();
@@ -514,7 +514,7 @@ describe("NotificationsPage", () => {
           return new HttpResponse(null, { status: 204 });
         }),
       );
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kanallar" });
       const card = await screen.findByRole("region", { name: "Telegram" });
       const remove = await within(card).findByRole("button", { name: "Telegram'ı kaldır" });
       await userEvent.click(remove);
@@ -538,7 +538,7 @@ describe("NotificationsPage", () => {
     it("says in the simple view what the bot's stage asks of the user", async () => {
       let telegram = telegramState();
       server.use(settingsWith(() => telegram));
-      const { client } = renderScreen(<NotificationsPage />);
+      const { client } = renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kanallar" });
       const card = await screen.findByRole("region", { name: "Telegram" });
       const say = "Bildirimleri Telegram'dan da almak için kendi botunuzu kurun.";
       expect(await within(card).findByText(say)).toBeInTheDocument();
@@ -555,7 +555,7 @@ describe("NotificationsPage", () => {
 
   describe("the rules", () => {
     it("lists the rules in words with a switch each", async () => {
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kurallar" });
       const list = await screen.findByRole("list", { name: "Bildirim kuralları" });
       const [due, large, month] = within(list).getAllByRole("listitem");
       expect(due).toHaveTextContent("Olay: Son ödeme yaklaşıyor · Koşul: en çok 3 gün kala");
@@ -572,7 +572,7 @@ describe("NotificationsPage", () => {
     it("turns a rule off with its switch, saving the whole list", async () => {
       const sent: AlertRule[][] = [];
       server.use(savingRules(sent));
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kurallar" });
       const list = await screen.findByRole("list", { name: "Bildirim kuralları" });
       const due = within(list).getByRole("switch", { name: "Son ödemeye 3 gün: Açık" });
       await userEvent.click(due);
@@ -593,7 +593,7 @@ describe("NotificationsPage", () => {
           return HttpResponse.json({ count: 2, days: 30, examples });
         }),
       );
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kurallar" });
       const { editor } = await openNewRule();
       expect(within(editor).getByLabelText("Ad")).toHaveFocus();
       const event = within(editor).getByLabelText("Olay");
@@ -627,7 +627,7 @@ describe("NotificationsPage", () => {
     it("saves a new rule at the end of the whole list and closes the editor", async () => {
       const sent: AlertRule[][] = [];
       server.use(savingRules(sent));
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kurallar" });
       const { rules, editor } = await openNewRule();
       await userEvent.type(within(editor).getByLabelText("Ad"), "Kira yaklaşıyor");
       await userEvent.selectOptions(within(editor).getByLabelText("Olay"), "Son ödeme yaklaşıyor");
@@ -660,7 +660,7 @@ describe("NotificationsPage", () => {
     it("edits a rule in place, starting from what it says", async () => {
       const sent: AlertRule[][] = [];
       server.use(savingRules(sent));
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kurallar" });
       const list = await screen.findByRole("list", { name: "Bildirim kuralları" });
       const edit = within(list).getByRole("button", { name: "Büyük harcama: Düzenle" });
       await userEvent.click(edit);
@@ -682,7 +682,7 @@ describe("NotificationsPage", () => {
       server.use(
         http.put("/api/rules/alerts", () => HttpResponse.json({ code: "rules_invalid", title: why }, { status: 400 })),
       );
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kurallar" });
       const { editor } = await openNewRule();
       await userEvent.click(within(editor).getByRole("button", { name: "Kaydet" }));
       const name = within(editor).getByLabelText("Ad");
@@ -707,7 +707,7 @@ describe("NotificationsPage", () => {
     it("deletes a rule after asking, then moves the focus to the button that adds one", async () => {
       const sent: AlertRule[][] = [];
       server.use(savingRules(sent));
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kurallar" });
       const list = await screen.findByRole("list", { name: "Bildirim kuralları" });
       const remove = within(list).getByRole("button", { name: "Ay kapandı: Sil" });
       await userEvent.click(remove);
@@ -726,7 +726,7 @@ describe("NotificationsPage", () => {
     });
 
     it("says in the simple view how many rules are on", async () => {
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kurallar" });
       const rules = await screen.findByRole("region", { name: "Kurallar" });
       expect(await within(rules).findByText("2 kural açık, 1 kural kapalı.")).toBeInTheDocument();
       expect(within(rules).queryByText(/^Olayın kodu:/)).toBeNull(); // the codes are the detailed view's
@@ -738,14 +738,14 @@ describe("NotificationsPage", () => {
     ])("says so when every rule is on or every one off (on: %s)", async (enabled, said) => {
       const rules = ALERT_RULES.rules.map((rule) => ({ ...rule, enabled }));
       server.use(http.get("/api/rules/alerts", () => HttpResponse.json({ ...ALERT_RULES, rules })));
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kurallar" });
       const card = await screen.findByRole("region", { name: "Kurallar" });
       expect(await within(card).findByText(said)).toBeInTheDocument();
     });
 
     it("adds each rule's event code in the detailed view", async () => {
       detailed();
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kurallar" });
       const list = await screen.findByRole("list", { name: "Bildirim kuralları" });
       const [due, large] = within(list).getAllByRole("listitem");
       expect(within(due!).getByText("payment.due_soon")).toBeInTheDocument();
@@ -755,7 +755,7 @@ describe("NotificationsPage", () => {
 
     it("says the shipped rules apply until the user changes one", async () => {
       server.use(http.get("/api/rules/alerts", () => HttpResponse.json({ ...ALERT_RULES, own: false })));
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kurallar" });
       const rules = await screen.findByRole("region", { name: "Kurallar" });
       expect(await within(rules).findByText(/^Bunlar uygulamayla gelen hazır kurallar\./)).toBeInTheDocument();
       expect(within(rules).getByText("Uygulamayla gelen 3 hazır kural geçerli.")).toBeInTheDocument();
@@ -764,7 +764,7 @@ describe("NotificationsPage", () => {
     it("warns when the user's rule file could not be read and the shipped rules stand in", async () => {
       const problem = "alerts.yaml, 2. kural: bilinmeyen anahtar 'renk'";
       server.use(http.get("/api/rules/alerts", () => HttpResponse.json({ ...ALERT_RULES, problem })));
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kurallar" });
       const rules = await screen.findByRole("region", { name: "Kurallar" });
       const warning = (await within(rules).findByText("Kural dosyanız okunamadı")).closest("[role=status]");
       expect(warning).toHaveTextContent(problem);
@@ -774,7 +774,7 @@ describe("NotificationsPage", () => {
 
     it("says when there is no rule at all", async () => {
       server.use(http.get("/api/rules/alerts", () => HttpResponse.json({ ...ALERT_RULES, rules: [] })));
-      renderScreen(<NotificationsPage />);
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kurallar" });
       const rules = await screen.findByRole("region", { name: "Kurallar" });
       expect(await within(rules).findByText("Hiç kural yok")).toBeInTheDocument();
     });

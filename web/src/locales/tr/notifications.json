@@ -1,7 +1,12 @@
 {
   "page": {
     "title": "Bildirimler",
-    "description": "Kurallara uyan her olay buradaki bildirim kutusuna düşer; açtığınız kanallara da gönderilir. Aynı olay için her kanala tek bildirim gider."
+    "description": "Kurallara uyan her olay buradaki bildirim kutusuna düşer; açtığınız kanallara da gönderilir. Aynı olay için her kanala tek bildirim gider.",
+    "sections": "Bildirimlerin bölümleri",
+    "box": "Kutu",
+    "channels": "Kanallar",
+    "rules": "Kurallar",
+    "log": "Teslim kaydı"
   },
   "test": "Deneme",
   "box": {
