@@ -86,6 +86,22 @@ export interface ApplyIn {
   plan_id: string;
 }
 
+export interface ArrivalOut {
+  kind: string;
+  name: string;
+  origin: string;
+  sender: string;
+  subject: string;
+  sent_at: string;
+  received_at: string;
+  gmail: string;
+}
+
+export interface AttachmentOut {
+  sha256: string;
+  name: string;
+}
+
 export interface BackupHealthOut {
   last: string;
   next: string;
@@ -193,6 +209,18 @@ export interface DiskOut {
   free: number;
 }
 
+export interface DocumentDetailOut {
+  document: DocumentOut;
+  parser_version: string;
+  view: ViewKind;
+  arrivals: ArrivalOut[];
+  checks: StatementCheckOut[];
+  rows: DocumentRowOut[];
+  more_rows: boolean;
+  parent: string;
+  attachments: AttachmentOut[];
+}
+
 export interface DocumentOut {
   sha256: string;
   name: string;
@@ -215,6 +243,29 @@ export interface DocumentPageOut {
   next: string;
 }
 
+export interface DocumentRowOut {
+  fingerprint: string;
+  day: string;
+  description: string;
+  amount: MoneyOut;
+  kind: TransactionKind;
+  account: string;
+  category: string;
+  provisional: boolean;
+  counted: boolean;
+  evidence: EvidenceStatus | null;
+  ref: SourceRefOut | null;
+}
+
+export interface DocumentViewOut {
+  kind: ViewKind;
+  pages: PageSizeOut[];
+  table: TableOut | null;
+  mail: iplikci__api__routes__documents__MailOut | null;
+  text: string;
+  has_html: boolean;
+}
+
 /** An event a rule may watch, and the conditions it allows. */
 export interface EventInfoOut {
   kind: EventKind;
@@ -234,6 +285,9 @@ export interface EventOut {
   target: string;
   detail: Record<string, unknown>;
 }
+
+/** What the statements say about a receipt's or a bank notice's row (docs/domain/ledger.md). */
+export type EvidenceStatus = "matched" | "provisional" | "unmatched" | "no_statement";
 
 export type ExportKind = "report" | "csv" | "xlsx" | "month_end";
 
@@ -359,18 +413,6 @@ export interface MailCoverageOut {
   left: UnknownMailOut[];
 }
 
-export interface MailOut {
-  connector: "imap" | "browser_bridge";
-  configured: boolean;
-  last_run: string;
-  last_error: string;
-  stopped: boolean;
-  start_day: string;
-  history_due: boolean;
-  refused: RefusedMailOut[];
-  coverage: MailCoverageOut;
-}
-
 /**
  * An amount in its currency's smallest unit: {"minor": 123456, "currency": "TRY"} is 1.234,56 TL. The interface formats
  * it (architecture §16).
@@ -444,6 +486,15 @@ export interface OtherSendersIn {
 /** The domains whose bills and receipts are taken in beside the banks' messages (settings: mail.other_senders). */
 export interface OtherSendersOut {
   domains: string[];
+}
+
+export interface PageLinesOut {
+  lines: string[];
+}
+
+export interface PageSizeOut {
+  width: number;
+  height: number;
 }
 
 export interface PairIn {
@@ -550,6 +601,14 @@ export interface RefusedMailOut {
   label: string;
 }
 
+export interface RemovedOut {
+  trash: string;
+}
+
+export interface ReparsedOut {
+  status: string;
+}
+
 /** What a finished scan of Gmail searched, as the cursor said when it began. */
 export interface ScannedIn {
   start_day: string;
@@ -597,6 +656,19 @@ export interface SkippedOut {
   reason: string;
 }
 
+/**
+ * Where a row is printed: a PDF page with the line's box (points from the page's top left) or its line in the page's
+ * text, a spreadsheet's sheet and row, or a span of an e-mail's or HTML document's collapsed text.
+ */
+export interface SourceRefOut {
+  page: number | null;
+  box: number[] | null;
+  line: number | null;
+  sheet: string | null;
+  row: number | null;
+  span: number[] | null;
+}
+
 /** Money out tied to no day: the median month of the complete months named, spread over each month's days. */
 export interface SpreadOut {
   monthly: MoneyOut;
@@ -614,6 +686,17 @@ export interface StartOut {
   through: string;
 }
 
+export interface StatementCheckOut {
+  account: string;
+  start: string | null;
+  cut: string;
+  printed: MoneyOut | null;
+  counted: MoneyOut;
+  verified: boolean;
+  balance_checks: number[] | null;
+  rows: number;
+}
+
 export interface SubscriptionsOut {
   window: string[];
   as_of: string;
@@ -628,8 +711,14 @@ export interface SystemOut {
   readers: ReaderHealthOut[];
   disk: DiskOut;
   queue: QueueOut;
-  mail: MailOut;
+  mail: iplikci__api__models__MailOut;
   backup: BackupHealthOut;
+}
+
+export interface TableOut {
+  name: string;
+  rows: string[][];
+  more: boolean;
 }
 
 export interface TelegramCheckOut {
@@ -679,8 +768,30 @@ export interface ValidationError {
   ctx?: Record<string, unknown>;
 }
 
+export type ViewKind = "pdf" | "table" | "mail" | "html" | "text" | "none";
+
 /** The days a document's bank row is looked for in. */
 export interface WindowOut {
   start: string;
   end: string;
+}
+
+export interface iplikci__api__models__MailOut {
+  connector: "imap" | "browser_bridge";
+  configured: boolean;
+  last_run: string;
+  last_error: string;
+  stopped: boolean;
+  start_day: string;
+  history_due: boolean;
+  refused: RefusedMailOut[];
+  coverage: MailCoverageOut;
+}
+
+export interface iplikci__api__routes__documents__MailOut {
+  subject: string;
+  sender: string;
+  sent: string;
+  lines: string[];
+  text: string;
 }

@@ -597,6 +597,7 @@ def build(
         if result.holder:
             holders.add(result.holder)
         for s in result.statements:
+            s.document = doc.sha256
             for t in s.transactions:
                 t.document = doc.sha256
             key = (s.account, s.cut_date, s.currency, s.start)

@@ -12,8 +12,10 @@ dependencies = [
     "keyring==25.7.0",
     "openpyxl==3.1.5",
     "pdfplumber==0.11.10",
+    "pillow==13.0.0",
     "pydantic==2.14.2",
     "pyobjc-framework-vision==13.0 ; sys_platform == 'darwin'",
+    "pypdfium2==5.14.0",
     "pyyaml==6.0.3",
     "tomlkit==0.15.2",
     "uvicorn==0.54.0",
@@ -87,6 +89,7 @@ include = [
     "src/iplikci/storage",
     "src/iplikci/upcoming.py",
     "src/iplikci/vault",
+    "src/iplikci/viewer",
 ]
 strict = [
     "src/iplikci/api",
@@ -118,6 +121,7 @@ strict = [
     "src/iplikci/storage",
     "src/iplikci/upcoming.py",
     "src/iplikci/vault",
+    "src/iplikci/viewer",
 ]
 # An ignore comment that hides nothing is noise, like an unused import.
 reportUnnecessaryTypeIgnoreComment = "error"

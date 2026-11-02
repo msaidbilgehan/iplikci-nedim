@@ -109,6 +109,9 @@ class Statement:
     due_date: date | None = None  # this statement's "Son Ödeme Tarihi", never the next statement's
     minimum_payment: Decimal | None = None  # the minimum due by due_date
     credit_limit: Decimal | None = None  # the card's total limit
+    # Set by analysis.py: the sha256 of the document the statement was read from (another file of the same statement
+    # is a copy of it, and the statement keeps the file it was taken from).
+    document: str = ""
 
     @property
     def is_account(self) -> bool:

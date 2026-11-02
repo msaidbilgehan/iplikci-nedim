@@ -41,7 +41,7 @@ class Mail:
 
 def read_mail(data: bytes) -> Mail:
     msg = email.message_from_bytes(data)
-    text, lines = _body(msg)
+    text, lines = body(msg)
     return Mail(
         sender=sender_domain(msg),
         subject=collapse(decode_header_text(msg["Subject"])),
@@ -102,11 +102,15 @@ def collapse(text: str) -> str:
     return " ".join(text.translate(_INVISIBLE).split())
 
 
-def _body(msg: Message) -> tuple[str, list[str]]:
+def _body_parts(msg: Message) -> list[Message]:
+    """The parts the body may be: a part that names a file is an attachment, not the body."""
+    return [p for p in msg.walk() if not p.is_multipart() and not p.get_filename()]
+
+
+def body(msg: Message) -> tuple[str, list[str]]:
     """The visible text of the body, and its lines as a browser breaks them: its first HTML part, else its first plain
-    one. A part that names a file is an attachment, not the body. Styles and scripts are no text (BeautifulSoup leaves
-    them out)."""
-    parts = [p for p in msg.walk() if not p.is_multipart() and not p.get_filename()]
+    one. Styles and scripts are no text (BeautifulSoup leaves them out)."""
+    parts = _body_parts(msg)
     html = next((p for p in parts if p.get_content_type() == "text/html"), None)
     if html is not None:
         soup = _soup(_decoded(html))
@@ -114,6 +118,13 @@ def _body(msg: Message) -> tuple[str, list[str]]:
     plain = next((p for p in parts if p.get_content_type() == "text/plain"), None)
     text = _decoded(plain) if plain is not None else ""
     return collapse(text), text.splitlines()
+
+
+def html_part(msg: Message) -> str:
+    """The body's first HTML part as it is, its characters decoded; "" for a message without one. The viewer shows it
+    in a sandbox (F03): it is the sender's markup, never to be trusted."""
+    html = next((p for p in _body_parts(msg) if p.get_content_type() == "text/html"), None)
+    return _decoded(html) if html is not None else ""
 
 
 def _soup(html: str) -> BeautifulSoup:
