@@ -43,14 +43,14 @@ class FakeStream {
   onopen: (() => void) | null = null;
   onmessage: ((message: MessageEvent<string>) => void) | null = null;
   onerror: (() => void) | null = null;
-  private readonly named = new Map<string, () => void>();
+  private readonly named = new Map<string, (message: MessageEvent<string>) => void>();
 
   constructor(url: string) {
     this.url = url;
     FakeStream.opened.push(this);
   }
 
-  addEventListener(type: string, listener: () => void): void {
+  addEventListener(type: string, listener: (message: MessageEvent<string>) => void): void {
     this.named.set(type, listener);
   }
 
@@ -68,8 +68,13 @@ class FakeStream {
     this.onmessage?.(new MessageEvent("message", { data, lastEventId: String(id) }));
   }
 
+  /** The named `start` event a stream opened afresh begins with. */
+  start(id: number): void {
+    this.named.get("start")?.(new MessageEvent("start", { data: String(id), lastEventId: String(id) }));
+  }
+
   notify(): void {
-    this.named.get("notifications")?.();
+    this.named.get("notifications")?.(new MessageEvent("notifications", { data: "1" }));
   }
 
   /** The connection broke; closed: the browser gave up instead of retrying. */
@@ -113,12 +118,15 @@ describe("useEventStream", () => {
     expect(refreshed()).toEqual(staleBy("document.received"));
   });
 
-  it("leaves the events from before the page opened to what the page loads", () => {
-    const { refreshed, stream } = streamed();
+  it("opens the stream afresh, and a stream given up on before any event came again after the one the service named", () => {
+    const { stream } = streamed();
+    expect(stream().url).toBe("/api/events/stream");
     stream().open();
-    stream().deliver(1, "document.received", "2026-10-30T12:00:00Z"); // the log replayed from its start
-    act(() => vi.advanceTimersByTime(250));
-    expect(refreshed()).toEqual([]);
+    stream().start(0); // the log is empty: the stream starts at its beginning
+    stream().fail(true);
+    act(() => vi.advanceTimersByTime(5_000));
+    expect(FakeStream.opened).toHaveLength(2);
+    expect(stream().url).toBe("/api/events/stream?after=0");
   });
 
   it("opens a stream the browser gave up on again after the last event seen, and catches up the notifications", () => {

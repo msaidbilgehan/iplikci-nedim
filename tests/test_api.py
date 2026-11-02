@@ -217,7 +217,7 @@ def test_the_system_status_names_every_reader_and_what_it_read(client, ws):
     }
 
 
-def test_events_come_as_a_page_and_as_a_stream_that_resumes(client, ws):
+def test_events_come_as_a_page_and_as_a_stream_that_starts_now_and_resumes(client, ws):
     with ws.db() as db:
         events.record(db, "parser.format_alarm", "a" * 64, parser="teb.bonus_card", version="1.3", reason="x")
         events.record(db, "document.processed", "b" * 64)
@@ -226,10 +226,14 @@ def test_events_come_as_a_page_and_as_a_stream_that_resumes(client, ws):
     assert page[0]["detail"] == {"parser": "teb.bonus_card", "reason": "x", "version": "1.3"}
     assert client.get("/api/events?after=1", headers=bearer()).json()[0]["id"] == 2
 
-    stream = client.get("/api/events/stream", headers=bearer())
-    assert stream.headers["content-type"].startswith("text/event-stream")
-    assert stream.text.startswith("retry: 3000\n\n")
-    assert "id: 1\ndata: {" in stream.text and "id: 2\ndata: {" in stream.text
+    # Opened afresh, the stream starts after the newest event and says which one, so the browser resumes after it.
+    fresh = client.get("/api/events/stream", headers=bearer())
+    assert fresh.headers["content-type"].startswith("text/event-stream")
+    assert fresh.text.startswith("retry: 3000\n\nevent: start\nid: 2\ndata: 2\n\n")
+    assert "data: {" not in fresh.text
+    replayed = client.get("/api/events/stream", params={"after": 0}, headers=bearer())
+    assert "id: 1\ndata: {" in replayed.text and "id: 2\ndata: {" in replayed.text
+    assert "event: start" not in replayed.text
     resumed = client.get("/api/events/stream", headers={**bearer(), "Last-Event-ID": "1"})
     assert "id: 1\n" not in resumed.text and "id: 2\n" in resumed.text
 

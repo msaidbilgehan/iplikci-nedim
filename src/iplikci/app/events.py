@@ -21,3 +21,9 @@ def since(ws: Workspace, after: int = 0, limit: int = 100) -> list[LoggedEvent]:
     with ws.db() as db:
         found = events.since(db, after, limit)
     return [LoggedEvent(id, e.at, e.kind, e.target, e.detail) for id, e in found]
+
+
+def newest(ws: Workspace) -> int:
+    """The id of the newest event; 0 while the log is empty."""
+    with ws.db() as db:
+        return events.newest(db)
