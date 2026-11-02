@@ -161,6 +161,10 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
 - Windows'ta uygulama açılırken ve Ayarlar servisi denetlerken her seferinde bir konsol penceresi açılıp kapanıyordu.
 - Türkçe kod sayfası olmayan bir Windows'ta uygulama her açılışta servisi yeniden kaydedip yeniden başlatıyordu;
   kullanıcı klasörünün adında ş, ğ, ı ya da İ varsa Ayarlar servisi bu veri klasörü için kayıtlı saymıyordu.
+- Windows'ta arayüzden yeniden başlatılan ya da yedeği geri yüklenen servis bir sonraki oturum açılışına dek geri
+  gelmiyordu: Görev Zamanlayıcı yalnızca başlayamayan görevi yeniden başlatır. Servis artık biterken görevi yeniden
+  çalıştıracak bir yardımcı bırakır; yardımcı ve uygulamanın yeniden başlatması, biten sürecin işi bitmeden görevi
+  çalıştırmaz.
 
 ## [0.6.0] — 2026-11-02 — Aşama 5: Bildirimler
 

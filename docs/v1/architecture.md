@@ -677,8 +677,10 @@ Teknoloji ADR-0008'dedir. Ekranlar ve davranışları [features.md](features.md)
   - Sorunlar sistemin kendi penceresinde söylenir (`service/dialog`); geliştirme kopyası kaydedilmez.
 - **Servisin kendi hayatı** (`app/lifecycle`): servis kendi sürecini bitirir.
   - Temiz çıkış (0) durmadır: servis bir sonraki oturum açılışında ya da uygulama açılınca başlar.
-  - 75 çıkış kodu yeniden başlatmadır. launchd (`KeepAlive`, `SuccessfulExit: false`), systemd
-    (`Restart=on-failure`) ve Windows görevi başarısız çıkışı servisi yeniden başlatarak karşılar.
+  - 75 çıkış kodu yeniden başlatmadır. launchd (`KeepAlive`, `SuccessfulExit: false`) ve systemd
+    (`Restart=on-failure`) başarısız çıkışı servisi yeniden başlatarak karşılar. Görev Zamanlayıcı görevi yalnızca
+    başlayamadığında yeniden başlatır; bu yüzden Windows'ta servis biterken görevin dışında bir yardımcı bırakır
+    (`service/respawn`): yardımcı süreç bitince görevi yeniden çalıştırır.
   - Veritabanı kapalıyken yapılacak işler `run/`'da bekler. Geri yüklenecek yedek (`geri-yukle.json`) bir sonraki
     açılışta, veritabanı açılmadan yerine konur. Kaldırma veri klasörünü de istediyse klasör (`kaldir.json`)
     çalışmanın sonunda çöp kutusuna taşınır.

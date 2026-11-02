@@ -3,6 +3,7 @@ manager, its status as the running service reports it (/api/system), a login lin
 installed app does (ADR-0017)."""
 
 import argparse
+import os
 import sys
 import webbrowser
 from decimal import Decimal
@@ -94,15 +95,28 @@ def _service_remove(ws: Workspace) -> int:
 
 
 def _service_run(ws: Workspace) -> int:
+    from ..app import lifecycle
     from ..service import runner  # the web stack loads only for the service
 
     try:
-        return runner.run(ws)  # a restart asked from the interface exits with lifecycle.RESTART
+        code = runner.run(ws)  # a restart asked from the interface exits with lifecycle.RESTART
     except instance.AlreadyRunning as exc:
         print(f"{str(exc)[:1].upper()}{str(exc)[1:]}.", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
         return 0
+    if code == lifecycle.RESTART:
+        _come_back()
+    return code
+
+
+def _come_back() -> None:
+    """What the system's service manager needs, beyond the RESTART exit, to start the service again: nothing for
+    launchd and systemd; on Windows a helper that waits for this process to end and runs the task."""
+    try:
+        manager.for_platform().restart_after(os.getpid())
+    except (manager.ManagerError, OSError) as exc:
+        print(f"Servis kendiliğinden yeniden başlamayabilir: {exc}", file=sys.stderr)
 
 
 def _service_install(ws: Workspace) -> int:

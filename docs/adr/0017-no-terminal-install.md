@@ -137,8 +137,9 @@ parçasıdır.
   - Linux: yeni sürümün kopyası eskisinin yanına kurulur; yeni servis yanıt verince eski kopyalar kaldırılır.
 - **Her iş arayüzde:** servis arayüzden durdurulur, yeniden başlatılır ve bilgisayardan kaldırılır; bir yedek
   arayüzden geri yüklenir.
-  - Servis kendi sürecini bitirir: temiz çıkış (0) durmadır. 75 çıkış kodunu servis yöneticisi servisi yeniden
-    başlatarak karşılar.
+  - Servis kendi sürecini bitirir: temiz çıkış (0) durmadır. 75 çıkış kodunu launchd ve systemd servisi yeniden
+    başlatarak karşılar. Görev Zamanlayıcı yalnızca başlayamayan görevi yeniden başlatır: Windows'ta servis biterken
+    görevin dışında bir yardımcı bırakır, yardımcı süreç bitince görevi yeniden çalıştırır.
   - Veritabanı kapalıyken yapılacak işler `run/`'da bekler: geri yüklenecek yedek bir sonraki açılışta, veritabanı
     açılmadan yerine konur. Kaldırma istediyse veri klasörü çalışmanın sonunda çöp kutusuna taşınır.
 - **Eklenti** (K20): program derlenmiş eklentiyi taşır. Servis istenince onu veri klasörünün `extension/`

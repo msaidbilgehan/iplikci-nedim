@@ -109,6 +109,7 @@ def no_keyring_or_network(monkeypatch, tmp_path_factory):
     monkeypatch.setattr(egress, "https_post", refuse)
     monkeypatch.setattr(channels, "_run", refuse)  # a desktop notification on the screen
     monkeypatch.setattr(manager, "run_tool", refuse)  # launchctl, systemctl, schtasks
+    monkeypatch.setattr(manager, "spawn_detached", refuse)  # the Windows helper that runs the task again
     monkeypatch.setattr(dialog, "show_folder", refuse)  # a folder opened in the file manager
     monkeypatch.delenv("IPLIKCI_MAIL_PASSWORD", raising=False)
     monkeypatch.delenv("IPLIKCI_TELEGRAM_TOKEN", raising=False)

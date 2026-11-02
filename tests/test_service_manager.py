@@ -5,6 +5,7 @@ stand-ins here; nothing reaches the real service manager."""
 import json
 import logging
 import logging.handlers
+import os
 import plistlib
 import subprocess
 import sys
@@ -16,11 +17,14 @@ from pathlib import Path
 import pytest
 
 from iplikci import cli
+from iplikci.app import lifecycle
 from iplikci.cli import service as service_cli
-from iplikci.service import instance, logs, manager
+from iplikci.service import instance, logs, manager, respawn, runner
 
 TASK = "{http://schemas.microsoft.com/windows/2004/02/mit/task}"
-RUN_TOOL = manager.run_tool  # the real one: every test gets a stand-in that refuses (conftest)
+# The real ones: every test gets stand-ins that refuse (conftest).
+RUN_TOOL = manager.run_tool
+SPAWN = manager.spawn_detached
 
 
 class Tools:
@@ -179,6 +183,94 @@ def test_a_windows_restart_waits_a_bounded_time_for_an_instance_that_does_not_en
     scheduler.restart()
     # The clock moves a second a look: STOP_WAIT looks, then the start is asked for anyway.
     assert calls[-1] == "/Run" and calls.count("/Query") == manager.STOP_WAIT
+
+
+def test_a_restart_exit_on_windows_leaves_a_helper_behind_to_run_the_task_again(tmp_path):
+    spawned: list[list[str]] = []
+    scheduler = manager.TaskScheduler(
+        run=Tools(), env={"LOCALAPPDATA": str(tmp_path)}, spawn=lambda args: spawned.append(list(args))
+    )
+    scheduler.restart_after(4242)
+    assert spawned == [[sys.executable, "-I", "-X", "utf8", "-m", "iplikci.service.respawn", "4242"]]
+
+
+def test_the_helper_runs_the_task_once_the_service_that_asked_has_ended(tmp_path):
+    tools = Tools()
+    waited: list[tuple[int, float]] = []
+
+    def ended(pid: int, seconds: float) -> bool:
+        waited.append((pid, seconds))
+        tools.calls.append(["bitti"])
+        return True
+
+    manager.TaskScheduler(run=tools, env={"LOCALAPPDATA": str(tmp_path)}, ended=ended).start_after(4242)
+    assert waited == [(4242, manager.PID_WAIT)]
+    assert [call[1] if len(call) > 1 else call[0] for call in tools.calls] == ["bitti", "/Query", "/Run"]
+
+
+def test_launchd_and_systemd_start_a_restart_exit_again_by_themselves(tmp_path):
+    tools = Tools()
+    manager.Launchd(tmp_path, run=tools, uid=501).restart_after(4242)
+    manager.Systemd(tmp_path, run=tools, env={}).restart_after(4242)
+    assert tools.calls == []  # and no helper: conftest refuses one
+
+
+def test_the_helper_starts_without_a_console_and_out_of_the_tasks_job_where_the_job_allows(monkeypatch):
+    seen: list[object] = []
+
+    def popen(args: Sequence[str], **options: object) -> None:
+        seen.append(options["creationflags"])
+        if isinstance(flags := options["creationflags"], int) and flags & manager.BREAKAWAY:
+            raise PermissionError("the job allows no breakaway")
+
+    monkeypatch.setattr(manager.subprocess, "Popen", popen)  # nothing starts
+    monkeypatch.setattr(manager, "WINDOWS", True)
+    SPAWN(["pythonw.exe", "-I", "-X", "utf8", "-m", "iplikci.service.respawn", "4242"])
+    assert seen == [manager.NO_WINDOW | manager.DETACHED | manager.BREAKAWAY, manager.NO_WINDOW | manager.DETACHED]
+    seen.clear()
+    monkeypatch.setattr(manager, "WINDOWS", False)
+    SPAWN(["python3", "-I", "-m", "iplikci.service.respawn", "4242"])
+    assert seen == [0]
+
+
+def test_a_process_that_ended_is_seen_to_have_ended():
+    child = subprocess.Popen([sys.executable, "-I", "-c", "pass"])
+    child.wait(timeout=30)
+    assert manager.process_ended(child.pid, 5.0)
+    assert not manager.process_ended(os.getpid(), 0.2)  # this one goes on
+
+
+def test_the_helper_takes_one_process_id_and_says_how_it_went(monkeypatch):
+    started: list[int] = []
+
+    class Scheduler:
+        def start_after(self, pid: int) -> None:
+            started.append(pid)
+
+    class Refusing:
+        def start_after(self, pid: int) -> None:
+            raise manager.ManagerError("schtasks /Run başarısız: erişim engellendi")
+
+    monkeypatch.setattr(respawn, "TaskScheduler", Scheduler)
+    assert respawn.main(["4242"]) == 0 and started == [4242]
+    assert respawn.main([]) == respawn.main(["4242", "1"]) == respawn.main(["süreç"]) == 2 and started == [4242]
+    monkeypatch.setattr(respawn, "TaskScheduler", Refusing)
+    assert respawn.main(["4242"]) == 1
+
+
+def test_a_restart_from_the_interface_asks_the_service_manager_to_start_the_service_again(ws, monkeypatch):
+    asked: list[int] = []
+
+    class Manager:
+        def restart_after(self, pid: int) -> None:
+            asked.append(pid)
+
+    monkeypatch.setenv("IPLIKCI_HOME", str(ws.home))
+    monkeypatch.setattr(manager, "for_platform", Manager)
+    monkeypatch.setattr(runner, "run", lambda ws: lifecycle.RESTART)
+    assert cli.main(["servis", "calistir"]) == lifecycle.RESTART and asked == [os.getpid()]
+    monkeypatch.setattr(runner, "run", lambda ws: lifecycle.STOP)
+    assert cli.main(["servis", "calistir"]) == lifecycle.STOP and asked == [os.getpid()]  # a stop stays a stop
 
 
 def windows_program(tmp_path: Path) -> manager.Program:

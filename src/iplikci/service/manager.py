@@ -32,12 +32,15 @@ RESTART_SECONDS = 30
 # Windows: a console program (schtasks) started from pythonw, as the Start menu's app and the service's task run,
 # opens a console window of its own for every call unless it is created without one.
 WINDOWS = os.name == "nt"
-NO_WINDOW = 0x08000000  # CREATE_NO_WINDOW; subprocess names it on Windows only
+NO_WINDOW = 0x08000000  # CREATE_NO_WINDOW; subprocess names these flags on Windows only
+DETACHED = 0x00000008  # DETACHED_PROCESS: no console at all, nothing tied to the one that started it
+BREAKAWAY = 0x01000000  # CREATE_BREAKAWAY_FROM_JOB: out of the task's job object, where the job allows it
 # A task's status is a word in the system's language; its last result is a number, SCHED_S_TASK_RUNNING while an
 # instance runs: the 7th field of `schtasks /Query /V /FO CSV`.
 TASK_RUNNING = 0x41301
 _LAST_RESULT = 6
 STOP_WAIT = 15.0  # seconds a start of the task waits for its ended instance to be done with
+PID_WAIT = 120.0  # seconds the Windows helper waits for the service that asked to come back to end
 
 
 class ManagerError(Exception):
@@ -60,12 +63,64 @@ class Completed:
 
 
 type Run = Callable[[Sequence[str]], Completed]
+type Spawn = Callable[[Sequence[str]], None]
+type Ended = Callable[[int, float], bool]
 
 
-def creation_flags() -> int:
-    """How a process this program starts is created: without a console window on Windows; elsewhere plainly, as
-    subprocess takes no flags there."""
-    return NO_WINDOW if WINDOWS else 0
+def creation_flags(*, detached: bool = False) -> int:
+    """How a process this program starts is created: without a console window on Windows, detached from this one
+    when asked; elsewhere plainly, as subprocess takes no flags there."""
+    if not WINDOWS:
+        return 0
+    return (NO_WINDOW | DETACHED) if detached else NO_WINDOW
+
+
+def spawn_detached(args: Sequence[str]) -> None:
+    """Start a process that outlives this one, its output nowhere. On Windows it has no console and no window and,
+    where the task's job object allows it, leaves the job, so the task is done once the service has ended."""
+    flags = creation_flags(detached=True)
+    try:
+        _popen(args, flags | (BREAKAWAY if WINDOWS else 0))
+    except PermissionError:
+        if not WINDOWS:
+            raise
+        _popen(args, flags)  # the job allows no breakaway: the helper stays in it
+
+
+def _popen(args: Sequence[str], flags: int) -> None:
+    devnull = subprocess.DEVNULL
+    subprocess.Popen(list(args), stdin=devnull, stdout=devnull, stderr=devnull, creationflags=flags)
+
+
+def process_ended(pid: int, seconds: float) -> bool:
+    """Wait up to seconds for the process pid to end; whether it has."""
+    if sys.platform == "win32":
+        return _wait_windows(pid, seconds)
+    deadline = time.monotonic() + seconds
+    while True:
+        try:
+            os.kill(pid, 0)  # signal 0 only asks whether the process is there (on POSIX; Windows would end it)
+        except ProcessLookupError:
+            return True
+        except PermissionError:
+            pass  # there, and another user's
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.1)
+
+
+if sys.platform == "win32":
+    import ctypes
+
+    def _wait_windows(pid: int, seconds: float) -> bool:
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        handle = kernel32.OpenProcess(0x00100000, False, pid)  # SYNCHRONIZE: enough to wait for it
+        if not handle:
+            return True  # no such process: it has ended
+        try:
+            return kernel32.WaitForSingleObject(handle, int(seconds * 1000)) == 0  # WAIT_OBJECT_0: it ended
+        finally:
+            kernel32.CloseHandle(handle)
 
 
 def run_tool(args: Sequence[str]) -> Completed:
@@ -156,6 +211,11 @@ class ServiceManager(Protocol):
 
     def restart(self) -> None: ...
 
+    def restart_after(self, pid: int) -> None:
+        """The service `pid` is ending with the exit code that asks to start it again (app.lifecycle.RESTART): what
+        this manager needs for that beyond the exit itself."""
+        ...
+
 
 def _program_in(arguments: Sequence[str]) -> Program | None:
     """The Python and the data folder of a registered command line: its first word and the value after --ev."""
@@ -236,6 +296,9 @@ class Launchd:
         done = self._run(["launchctl", "kickstart", "-k", self._target])
         if done.code != 0:
             raise ManagerError(f"launchctl kickstart başarısız: {done.reason}")
+
+    def restart_after(self, pid: int) -> None:
+        """launchd starts an unsuccessful exit again by itself (KeepAlive)."""
 
     @property
     def _target(self) -> str:
@@ -333,6 +396,9 @@ class Systemd:
     def restart(self) -> None:
         self._systemctl("restart", f"{UNIT}.service")
 
+    def restart_after(self, pid: int) -> None:
+        """systemd starts an unsuccessful exit again by itself (Restart=on-failure)."""
+
     def _systemctl(self, *args: str) -> None:
         done = self._run(["systemctl", "--user", *args])
         if done.code != 0:
@@ -340,8 +406,9 @@ class Systemd:
 
 
 class TaskScheduler:
-    """Windows: a Task Scheduler task of the signed-in user, started at logon and again a minute after an error. It
-    runs pythonw, so no console window opens; the service writes its own log.
+    """Windows: a Task Scheduler task of the signed-in user, started at logon. It runs pythonw, so no console window
+    opens; the service writes its own log. Task Scheduler starts a task again only when it could not start, never
+    when it ended with an error code: a restart asked from the interface comes back through a helper (restart_after).
 
     schtasks writes the task back in the console's code page, where a letter the code page lacks (the İ of "İplikçi
     Nedim" on an English Windows, the ş of a user's folder) comes back as another one. What the task was registered
@@ -353,6 +420,8 @@ class TaskScheduler:
         env: Mapping[str, str] | None = None,
         record: Path | None = None,
         *,
+        spawn: Spawn | None = None,
+        ended: Ended | None = None,
         sleep: Callable[[float], None] = time.sleep,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
@@ -360,6 +429,8 @@ class TaskScheduler:
         self._env = os.environ if env is None else env
         local = Path(self._env.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
         self.record = record or local / "iplikci-servis" / "gorev.json"
+        self._spawn = spawn or spawn_detached
+        self._ended = ended or process_ended
         self._sleep = sleep
         self._clock = clock
 
@@ -482,6 +553,16 @@ class TaskScheduler:
 
     def restart(self) -> None:
         self._run(["schtasks", "/End", "/TN", UNIT])  # fails harmlessly when it is not running
+        self.start()
+
+    def restart_after(self, pid: int) -> None:
+        """A helper outside the task waits for the service `pid` to end, then runs the task again (service/respawn):
+        the RESTART exit alone would leave the service stopped until the next logon."""
+        self._spawn([sys.executable, "-I", "-X", "utf8", "-m", "iplikci.service.respawn", str(pid)])
+
+    def start_after(self, pid: int) -> None:
+        """The helper's own part: the task again once the process pid has ended, or after PID_WAIT seconds."""
+        self._ended(pid, PID_WAIT)
         self.start()
 
     def start(self) -> None:
