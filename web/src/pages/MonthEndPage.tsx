@@ -99,6 +99,10 @@ function MonthList({ months, labels }: { months: readonly MonthEnd[]; labels: La
               left: money(m.totals.left, t("unknown")),
             })}
           </p>
+          {/* A past month not closed counts what its documents show: a missing list may hold its income. */}
+          {m.status !== "closed" && m.status !== "running" ? (
+            <p className="text-xs text-amber-900 dark:text-amber-200">{t("list.partial")}</p>
+          ) : null}
         </li>
       ))}
     </ol>

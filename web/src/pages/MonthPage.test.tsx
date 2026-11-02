@@ -123,14 +123,18 @@ describe("MonthPage: the totals", () => {
     expect(income).toHaveTextContent("40.000,00 TLhesap dökümlerindeki gelen para");
   });
 
-  it("draws the months since the first with spending, naming the highest and the lowest", async () => {
+  it("draws the months since the first with spending, naming the highest and the lowest of the closed ones", async () => {
     open("2026-10");
     const trend = await card("Son 12 ayın gideri");
+    // June has a statement to check, July misses a list's days and October waits for a statement: none is ranked.
     expect(
-      within(trend).getByText(
-        "Ocak 2026 – Ekim 2026: en yüksek 28.727,99 TL (Nisan 2026), en düşük 9.039,99 TL (Temmuz 2026). " +
-          "Tipik ay, önceki 6 tam ayın ortancası: 20.302,99 TL.",
+      await within(trend).findByText(
+        "Ocak 2026 – Ekim 2026: kapanmış aylardan en yüksek 28.727,99 TL (Nisan 2026), en düşük 19.847,99 TL " +
+          "(Ağustos 2026). Tipik ay, önceki 6 tam ayın ortancası: 20.302,99 TL.",
       ),
+    ).toBeInTheDocument();
+    expect(
+      within(trend).getByText("Kapanmamış ayların gideri eksik olabilir: Haziran 2026, Temmuz 2026, Ekim 2026."),
     ).toBeInTheDocument();
   });
 });

@@ -27,6 +27,7 @@
     "unmatched": "Ekstrede yok",
     "incomeNote": "Gelir: {{note}}",
     "figures": "Gider {{expense}} · Gelir {{income}} · Kalan {{left}}",
+    "partial": "Ay kapanmadı: rakamlar eksik ya da kontrol bekleyen belgelerle hesaplandı; belgeler tamamlanınca değişebilir.",
     "empty": "Henüz kapanacak bir ay yok",
     "emptyText": "Ekstreler ve hesap dökümleri geldikçe her ayın kapanışı burada görünür."
   },
@@ -112,9 +113,11 @@
     "title": "Son 12 ayın gideri",
     "chart": "Aylık gider, son 12 ay",
     "series": "Gider",
-    "say": "{{from}} – {{to}}: en yüksek {{high}} ({{highMonth}}), en düşük {{low}} ({{lowMonth}}).",
+    "say": "{{from}} – {{to}}: kapanmış aylardan en yüksek {{high}} ({{highMonth}}), en düşük {{low}} ({{lowMonth}}).",
+    "sayNoneClosed": "{{from}} – {{to}}: henüz kapanmış ay yok; rakamlar gelen belgelerden.",
     "typicalSay": "Tipik ay, önceki {{count, number}} tam ayın ortancası: {{amount}}.",
-    "running": "{{month}} sürdüğü için eksik.",
+    "open_one": "{{months}} kapanmadığı için gideri eksik olabilir.",
+    "open_other": "Kapanmamış ayların gideri eksik olabilir: {{months}}.",
     "none": "Bu aya kadar gider yok."
   },
   "spending": {

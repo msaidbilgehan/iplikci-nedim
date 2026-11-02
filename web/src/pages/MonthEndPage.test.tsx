@@ -31,6 +31,15 @@ describe("MonthEndPage", () => {
     expect(within(items[0]!).getByText("Gider 840,50 TL · Gelir bilinmiyor · Kalan bilinmiyor")).toBeInTheDocument();
   });
 
+  it("says a past month not closed is reckoned from the documents it has, and may change", async () => {
+    open();
+    const items = within(within(await card("Aylar")).getByRole("list")).getAllByRole("listitem");
+    const partial = /^Ay kapanmadı: rakamlar eksik ya da kontrol bekleyen belgelerle hesaplandı/;
+    expect(within(items[4]!).getByText(partial)).toBeInTheDocument(); // July misses a list's first days
+    expect(within(items[2]!).queryByText(partial)).not.toBeInTheDocument(); // September closed
+    expect(within(items[0]!).queryByText(partial)).not.toBeInTheDocument(); // November runs: its own words say so
+  });
+
   it("says how many months are closed and leads to the newest one that is not", async () => {
     open();
     const months = await card("Aylar");
