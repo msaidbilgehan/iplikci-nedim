@@ -76,6 +76,12 @@
   },
   "page": {
     "title": "Hesap",
+    "sections": {
+      "label": "Hesap sayfasının bölümleri",
+      "summary": "Özet",
+      "regular": "Düzenli ödemeler ve ücretler",
+      "rows": "İşlemler"
+    },
     "back": "Hesaplar",
     "bankName": "bankadaki adı {{label}}",
     "closed": "kapanmış hesap"

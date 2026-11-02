@@ -1,7 +1,8 @@
 // An account's page (F07) at /hesaplar/:id: where it stands and how far its documents reach, what its type adds (a
 // card's statements and installments, an overdraft's cost, a deposit's return, a holding's value, a portfolio, a
 // loan), its balance by day, its months, its fees, the regular payments and income through it, and its rows a page at
-// a time with the row's detail at the side (?satir=). The user may give it a name of their own.
+// a time with the row's detail at the side (?satir=), in three parts shown one at a time (?bolum=). The user may give
+// it a name of their own.
 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -29,6 +30,7 @@ import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { ArrowLeftIcon } from "../components/ui/Icons";
 import { PageHeader } from "../components/ui/PageHeader";
+import { SectionCount, SectionTabs } from "../components/ui/SectionTabs";
 import { NextStep } from "../components/ui/Say";
 import { cn } from "../lib/cn";
 import { labelOf } from "../lib/labels";
@@ -102,6 +104,8 @@ export default function AccountPage() {
   );
 }
 
+// The page in three parts, one shown at a time (?bolum=): where the account stands and its months, what is paid
+// through it regularly with its fees, and its rows.
 function Sections({ found, labels }: { found: Page; labels: Labels }) {
   const { t } = useTranslation("accounts");
   const { view } = useView();
@@ -109,27 +113,50 @@ function Sections({ found, labels }: { found: Page; labels: Labels }) {
   // Side by side the cards read at a glance; the detailed view's tables need the screen's width.
   const grid = cn("grid items-start gap-4", view === "simple" && "lg:grid-cols-2");
   return (
-    <>
-      <div className={grid}>
-        <StatusCard item={item} labels={labels} />
-        {found.overdraft ? <OverdraftDetails overdraft={found.overdraft} /> : null}
-        {found.deposit ? <DepositDetails deposit={found.deposit} /> : null}
-        {found.holding ? (
-          <HoldingDetails holding={found.holding} title={labelOf(labels, "AccountType", item.type)} />
-        ) : null}
-        {found.brokerage ? <BrokerageDetails brokerage={found.brokerage} /> : null}
-        {found.loan ? <LoanDetails loan={found.loan} labels={labels} /> : null}
-      </div>
-      {found.card ? <CardDetails card={found.card} labels={labels} /> : null}
-      <CurveCard curve={found.curve} note={found.curve_note} label={item.account.label} />
-      <MonthsCard months={found.months} />
-      <div className={grid}>
-        <FeesCard fees={found.fees} />
-        <SeriesCard title={t("payments.title")} series={found.payments} labels={labels} />
-        <SeriesCard title={t("income.title")} series={found.income} labels={labels} />
-      </div>
-      <Rows found={found} labels={labels} />
-    </>
+    <SectionTabs
+      label={t("page.sections.label")}
+      sections={[
+        {
+          id: "ozet",
+          label: t("page.sections.summary"),
+          content: () => (
+            <>
+              <div className={grid}>
+                <StatusCard item={item} labels={labels} />
+                {found.overdraft ? <OverdraftDetails overdraft={found.overdraft} /> : null}
+                {found.deposit ? <DepositDetails deposit={found.deposit} /> : null}
+                {found.holding ? (
+                  <HoldingDetails holding={found.holding} title={labelOf(labels, "AccountType", item.type)} />
+                ) : null}
+                {found.brokerage ? <BrokerageDetails brokerage={found.brokerage} /> : null}
+                {found.loan ? <LoanDetails loan={found.loan} labels={labels} /> : null}
+              </div>
+              {found.card ? <CardDetails card={found.card} labels={labels} /> : null}
+              <CurveCard curve={found.curve} note={found.curve_note} label={item.account.label} />
+              <MonthsCard months={found.months} />
+            </>
+          ),
+        },
+        {
+          id: "duzenli",
+          label: t("page.sections.regular"),
+          badge: <SectionCount count={found.payments.length + found.income.length} />,
+          content: () => (
+            <div className={grid}>
+              <SeriesCard title={t("payments.title")} series={found.payments} labels={labels} />
+              <SeriesCard title={t("income.title")} series={found.income} labels={labels} />
+              <FeesCard fees={found.fees} />
+            </div>
+          ),
+        },
+        {
+          id: "islemler",
+          label: t("page.sections.rows"),
+          badge: <SectionCount count={found.totals.count} />,
+          content: () => <Rows found={found} labels={labels} />,
+        },
+      ]}
+    />
   );
 }
 

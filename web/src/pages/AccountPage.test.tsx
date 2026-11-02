@@ -39,10 +39,12 @@ describe("AccountPage: a TL account", () => {
   });
 
   it("shows the last 12 months by the newest complete one, the interest and fees, and the regular payments", async () => {
+    const user = userEvent.setup();
     open("teb-123456789");
     expect(
       within(await card("Son 12 ay")).getByText("Son tam ay Ekim 2026: giren 40.000,00 TL, çıkan 35.000,00 TL."),
     ).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Düzenli ödemeler ve ücretler 2" }));
     expect(
       within(await card("Faiz ve ücretler")).getByText("Aralık 2025 – Ekim 2026: faiz ve ücretler toplam 112,50 TL."),
     ).toBeInTheDocument();
@@ -65,13 +67,14 @@ describe("AccountPage: a TL account", () => {
   it("lists its rows with what they add up to, a row's detail at the side", async () => {
     const user = userEvent.setup();
     const { location } = open("teb-123456789");
+    await user.click(await screen.findByRole("tab", { name: /^İşlemler/ }));
     const rows = await card("İşlemler");
     expect(within(rows).getByRole("link", { name: "İşlemler ekranında aç" })).toHaveAttribute(
       "href",
       "/islemler?account=teb-123456789",
     );
     await user.click(within(rows).getByRole("link", { name: INCOME.title }));
-    expect(location()).toBe(`/hesaplar/teb-123456789?satir=${INCOME.fingerprint}`);
+    expect(location()).toBe(`/hesaplar/teb-123456789?bolum=islemler&satir=${INCOME.fingerprint}`);
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
   });
 
