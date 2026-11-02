@@ -445,6 +445,41 @@ describe("RowPanel: splitting", () => {
     expect(sent).toEqual([]);
   });
 
+  it("follows the row once it is split, and once it is joined again offers the category and a new split", async () => {
+    const user = userEvent.setup();
+    const whole = transactionDetail();
+    const fp = whole.row.fingerprint;
+    const halves = [59050, 25000].map((minor, i) => ({
+      ...whole.row,
+      fingerprint: `${fp}-${i + 1}`,
+      amount: tl(minor),
+      split_of: fp,
+      split_parts: 2,
+    }));
+    let current: TransactionDetail = whole;
+    server.use(
+      http.get("/api/transactions/:fingerprint", () => HttpResponse.json(current)),
+      http.put("/api/transactions/:fingerprint/annotation", async ({ request }) => {
+        const body = (await request.json()) as { parts?: unknown[] };
+        current = body.parts?.length ? { ...whole, parts: halves } : whole; // as the new analysis settles
+        return HttpResponse.json(null);
+      }),
+    );
+    renderScreen(<TransactionsPage />, { path: `/islemler?satir=${fp}` });
+    const fix = await region("Düzeltmeler");
+    await user.click(within(fix).getByRole("button", { name: "Parçalara böl…" }));
+    const split = within(fix).getByRole("region", { name: "Bölme" });
+    const second = within(split).getByRole("group", { name: "Parça 2" });
+    await user.type(within(second).getByLabelText("Tutar (TL)"), "250");
+    await user.selectOptions(within(second).getByLabelText("Kategori"), "Temizlik");
+    await user.click(within(split).getByRole("button", { name: "Böl" }));
+    await user.click(await within(fix).findByRole("button", { name: "Bölmeyi kaldır" }));
+    const ask = await screen.findByRole("alertdialog", { name: "Bölme kaldırılsın mı?" });
+    await user.click(within(ask).getByRole("button", { name: "Bölmeyi kaldır" }));
+    expect(await within(fix).findByRole("button", { name: "Parçalara böl…" })).toBeInTheDocument();
+    expect(within(fix).queryByRole("region", { name: "Bölme" })).not.toBeInTheDocument();
+  });
+
   it("says when the row no longer takes the user's split, and takes the split off", async () => {
     const user = userEvent.setup();
     const { sent } = serve(transactionDetail({ split_dropped: true }));

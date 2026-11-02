@@ -51,6 +51,13 @@ export function Corrections({ found, fingerprint, labels }: CorrectionsProps) {
   const rules = useCategoryRules();
   const [splitting, setSplitting] = useState(false);
   const isSplit = found.parts.length > 0;
+  // A new split is being made until the row turns out split; once it is, or is joined again, the editor follows the
+  // row: the parts' editor for a split row, the category correction for a whole one.
+  const [wasSplit, setWasSplit] = useState(isSplit);
+  if (wasSplit !== isSplit) {
+    setWasSplit(isSplit);
+    setSplitting(false);
+  }
   const own = ownOf(found);
   if (rules.isPending) {
     return <Loading label={t("correct.loadingRules")} />;
