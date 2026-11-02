@@ -54,14 +54,17 @@ import type {
   BulkOut,
   CalendarItemOut,
   CalendarOut,
+  CategoryMoveOut,
   CategoryOut,
   CategoryRulesOut,
   CurrencyShareOut,
   Certainty,
+  ChangedRowOut,
   Channel,
   ChannelStage,
   ChannelStateOut,
   ClosingOut,
+  CommitmentIn,
   CorrectionIn,
   DashboardOut,
   DeliveryStatus,
@@ -98,6 +101,8 @@ import type {
   CoverageOut,
   CoverOut,
   MailCoverageOut,
+  MerchantNecessityIn,
+  MerchantNecessityOut,
   MerchantRuleIn,
   MoneyOut,
   MonthEndAccountOut,
@@ -154,6 +159,7 @@ import type {
   UploadOut,
   ViewKind,
   ViewModel,
+  WriteRulesIn,
 } from "./schema";
 
 export type SystemStatus = SystemOut;
@@ -263,7 +269,9 @@ export type { Necessity };
 export type EndedPayment = EndedOut;
 export type EndedRule = EndedIn;
 export type NotEndedRule = NotEndedIn;
-export type RuleEdit = MerchantRule | EndedRule | NotEndedRule; // the narrow edits the screens preview, then write
+// The edits the screens preview, then write: a merchant rule, an ended payment and its undoing, and the Rules
+// screen's commitment category, merchant's own necessity and whole file.
+export type RuleEdit = MerchantRule | EndedRule | NotEndedRule | CommitmentIn | MerchantNecessityIn | WriteRulesIn;
 
 // A document as the viewer shows it, and where its rows are printed (F03).
 export type DocumentDetail = DocumentDetailOut;
@@ -326,3 +334,9 @@ export type MonthEndAccount = MonthEndAccountOut;
 export type MonthEndTotals = MonthEndTotalsOut;
 export type MonthEndShare = MonthEndShareOut;
 export type MonthEndRegular = MonthEndRegularOut;
+
+// The Rules screen (F15): a merchant weighed apart from its category, and what a change would move — the rows, from
+// which category to which.
+export type MerchantNecessity = MerchantNecessityOut;
+export type CategoryMove = CategoryMoveOut;
+export type ChangedRow = ChangedRowOut;

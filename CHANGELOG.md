@@ -64,6 +64,12 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
   bildirimlerin gittiği yerler ve sessiz saat, Telegram'ın beklediği adım, açık kurallar, gidenler ve bekleyenler);
   ayrıntılı görünüm teslim kaydının tablosunu, her bildirimin olayını ve ilgili sayfasını, kanalların durumunu ve
   kuralların olay kodunu ekler. Telegram'ı kaldırmak ve kural silmek uygulamanın kendi onay penceresiyle sorulur.
+- Kurallar ekranı (`/kurallar`): kategoriler gruplarının altında renkleri, gereklilik düzeyleri ve taahhüt kategorisi
+  olup olmadıklarıyla; bitti denen ödemeler son ödeme aylarıyla, kullanıcının yazdığı yeniden beklenebilir;
+  kategorisinden ayrı tartılan işyerleri kendi düzeyleriyle; kalıpları, kategorisi ve gerekirse kendi gerekliliğiyle
+  yeni işyeri kuralı. Her değişiklik yazılmadan önce kaç satırı hangi kategoriden hangisine taşıyacağını, örnek
+  satırları ve kural dosyasının farkını gösterir. Ayrıntılı görünüm kural dosyasının tamamını düzenletir ve önceki
+  sürümlerini listeler.
 - API: akışın sayfaları ve "Şu an" (`GET /api/feed`, `GET /api/feed/now`), pano kartları (`GET /api/dashboard`),
   hesap grupları, hesap sayfası, hesaplar arası akış ve hesaba verilen ad (`GET /api/accounts…`,
   `PUT /api/accounts/{id}/alias`).

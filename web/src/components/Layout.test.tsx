@@ -49,7 +49,7 @@ describe("Layout", () => {
       Para: ["/hesaplar", "/islemler", "/abonelikler", "/takvim", "/doviz"],
       Analiz: ["/degerlendirme", "/ay-sonu"],
       Arşiv: ["/belgeler", "/faturalar"],
-      Uygulama: ["/bildirimler", "/sistem"],
+      Uygulama: ["/bildirimler", "/kurallar", "/sistem"],
       Kurulum: ["/kurulum/eklenti"],
     };
     const lists = within(menu()).getAllByRole("list");
@@ -59,7 +59,7 @@ describe("Layout", () => {
       expect(links.map((link) => link.getAttribute("href"))).toEqual(addresses);
     }
     // A screen that is not built yet has no way in.
-    expect(within(menu()).queryByRole("link", { name: "Kurallar" })).not.toBeInTheDocument();
+    expect(within(menu()).queryByRole("link", { name: "Ayarlar" })).not.toBeInTheDocument();
   });
 
   it("shows every screen of a group once it is built", () => {

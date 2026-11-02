@@ -56,7 +56,7 @@ export const MENU: readonly ScreenGroup[] = [
     key: "app", // how the app behaves and how it is doing
     screens: [
       { to: "/bildirimler", key: "notifications", ready: true },
-      { to: "/kurallar", key: "rules", ready: false },
+      { to: "/kurallar", key: "rules", ready: true },
       { to: "/ayarlar", key: "settings", ready: false },
       { to: "/sistem", key: "system", ready: true },
     ],

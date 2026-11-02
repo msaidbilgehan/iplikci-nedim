@@ -390,7 +390,7 @@ export function usePreviewRule() {
 
 /**
  * Save a rule edit: the service writes it and makes its analysis again before it answers, then says what moved. The
- * rows, the regular payments and what they expect are asked again.
+ * rows, the bills' matches, the regular payments and what they expect are asked again.
  */
 export function useSaveRule() {
   const client = useQueryClient();
@@ -398,6 +398,7 @@ export function useSaveRule() {
     mutationFn: (rule: RuleEdit) => api.put<RuleChange>(CATEGORY_RULES, rule),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: keys.categoryRules });
+      void client.invalidateQueries({ queryKey: keys.invoices }); // the new analysis matches the bills again
       refreshTransactions(client);
       refreshOutlook(client);
     },

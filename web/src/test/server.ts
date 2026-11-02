@@ -47,6 +47,7 @@ import type {
   Now,
   OtherSenders,
   Row,
+  RuleChange,
   Series,
   Spending,
   Subscriptions,
@@ -2715,6 +2716,45 @@ export function monthEndDetail(month = "2026-10", overrides: Partial<MonthEndDet
     ...overrides,
   };
 }
+// --- the Rules screen (F15) -----------------------------------------------------------------------------------------
+
+/** Rules with a file of the user's own: their categories, two payments ended (one shipped), a merchant on its own. */
+export const OWN_RULES: CategoryRules = {
+  content: "Gıda:\n  Market:\n    Örnek Market: [ORNEK MARKET]\n\n_biten:\n  Örnek Dergi: 2026-09\n",
+  categories: [
+    category("Market", "Gıda", 1, { necessity: "required", own: true }),
+    category("Kafe", "Yeme içme", 2),
+    category("Kira", "Ev", 3, { necessity: "required", regular: true, own: true }),
+    category("Dijital Abonelikler", "Abonelikler", 4, { regular: true }),
+    category("Maaş", "Gelir", 5, { necessity: null }),
+  ],
+  ended: [
+    { merchant: "Örnek Dergi", month: "2026-09", own: true },
+    { merchant: "Eski Spor Salonu", month: "2025-12", own: false },
+  ],
+  merchant_necessity: [{ merchant: "Örnek Kafe", necessity: "unnecessary" }],
+  history: ["personal 2026-11-02 10.00.00.yaml", "personal 2026-10-20 08.30.00.yaml"],
+};
+
+/** A change's preview: three market rows become café rows, and the file gains the merchant. */
+export const RULE_CHANGE: RuleChange = {
+  content: `${OWN_RULES.content}Yeme içme:\n  Kafe:\n    Örnek Kafe: [ORNEK KAFE]\n`,
+  diff: "--- personal.yaml\n+++ personal.yaml\n@@ -5,0 +6,3 @@\n+Yeme içme:\n+  Kafe:\n+    Örnek Kafe: [ORNEK KAFE]\n",
+  changed: 3,
+  moves: [{ before: "Market", after: "Kafe", count: 3, total: tl(252150) }],
+  examples: [
+    {
+      fingerprint: "a7a7a7a7a7a7a7a7a7a7",
+      day: "2026-11-12",
+      description: "ORNEK KAFE KADIKOY",
+      amount: tl(84050),
+      before: { merchant: "Örnek Kafe", category: "Market", necessity: "required", kind: "purchase" },
+      after: { merchant: "Örnek Kafe", category: "Kafe", necessity: "optional", kind: "purchase" },
+    },
+  ],
+  saved: false,
+  backup: "",
+};
 
 export const handlers = [
   http.get("/api/labels", () => HttpResponse.json(LABELS)),
@@ -2778,6 +2818,11 @@ export const handlers = [
   // the month-end closing (F11)
   http.get("/api/month-end", () => HttpResponse.json(MONTH_ENDS)),
   http.get("/api/month-end/:month", ({ params }) => HttpResponse.json(monthEndDetail(String(params["month"])))),
+  // the Rules screen (F15)
+  http.post("/api/rules/categories/preview", () => HttpResponse.json(RULE_CHANGE)),
+  http.put("/api/rules/categories", () =>
+    HttpResponse.json({ ...RULE_CHANGE, saved: true, backup: "personal 2026-11-15 09.00.00.yaml" }),
+  ),
 ];
 
 export const server = setupServer(...handlers);
