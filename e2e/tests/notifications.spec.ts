@@ -1,6 +1,7 @@
-// The Bildirimler screen on the service itself (F13): a test notification of the interface's own box lands in the box
-// and the delivery history and is marked seen; a rule's switch saves the whole list; the editor previews a new rule's
-// last 30 days, passes axe and gives the focus back when it closes; the detailed view passes axe too. No notification
+// The Bildirimler screen on the service itself (F13), its parts one tab at a time: a test notification of the
+// interface's own box lands in the box and the delivery history and is marked seen; a rule's switch saves the whole
+// list; the editor previews a new rule's last 30 days, passes axe and gives the focus back when it closes; the detailed
+// view passes axe too. No notification
 // leaves the computer: the demo's settings turn every channel off ([notify] channels = []), and only the box is tried.
 // The box and the rule file are shared by both themes' projects, so only the light one changes them.
 
@@ -15,6 +16,9 @@ async function loaded(page: Page): Promise<void> {
   await expect(page.getByText("Yüklenemedi")).toHaveCount(0);
 }
 
+/** The screen's tabs: the box, the channels, the rules and the delivery history. */
+const parts = (page: Page) => page.getByRole("tablist", { name: "Bildirimlerin bölümleri" });
+
 async function violations(page: Page, selector = "body"): Promise<string[]> {
   const found = await new AxeBuilder({ page }).include(selector).withTags(WCAG).analyze();
   return found.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
@@ -24,6 +28,7 @@ test("uygulama içi deneme bildirimi kutuya ve teslim kaydına düşer, okundu s
   test.skip(testInfo.project.name !== "acik", "the box is shared: only the light theme's project adds to it");
   await page.goto("/bildirimler");
   await loaded(page);
+  await parts(page).getByRole("tab", { name: "Kanallar" }).click();
   const channels = page.getByRole("region", { name: "Kanallar" });
   // Every channel that leaves the computer is off in the demo: only the box gets notifications.
   await expect(channels.getByText(/^Bildirimler yalnızca uygulamadaki kutuya düşüyor;/)).toBeVisible();
@@ -32,6 +37,7 @@ test("uygulama içi deneme bildirimi kutuya ve teslim kaydına düşer, okundu s
 
   // Another test's rule change may add a notification of its own meanwhile (a payment after a cancellation): this
   // test looks only at its own, and the box is marked seen up to the newest one shown, never past it.
+  await parts(page).getByRole("tab", { name: /^Kutu/ }).click();
   const box = page.getByRole("region", { name: "Bildirim kutusu" });
   const item = box.getByRole("listitem").filter({ hasText: "Deneme bildirimi" });
   await expect(item).toContainText("İplikçi Nedim bildirimleri bu kanala ulaşıyor.");
@@ -40,6 +46,7 @@ test("uygulama içi deneme bildirimi kutuya ve teslim kaydına düşer, okundu s
   await box.getByRole("button", { name: "Tümünü okundu say" }).click();
   await expect(item.getByText("Yeni", { exact: true })).toHaveCount(0);
 
+  await parts(page).getByRole("tab", { name: "Teslim kaydı" }).click();
   const log = page.getByRole("region", { name: "Teslim kaydı" });
   const delivered = log.getByRole("listitem").filter({ hasText: "Deneme bildirimi" });
   await expect(delivered).toContainText("Gönderildi");
@@ -48,7 +55,7 @@ test("uygulama içi deneme bildirimi kutuya ve teslim kaydına düşer, okundu s
 
 test("bir kuralın anahtarı bütün listeyi kaydeder: kural kapanır ve yeniden açılır", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "acik", "the rule file is shared: only the light theme's project changes it");
-  await page.goto("/bildirimler");
+  await page.goto("/bildirimler?bolum=kurallar");
   await loaded(page);
   const rules = page.getByRole("region", { name: "Kurallar" });
   const backup = rules.getByRole("switch", { name: "Yedek alınamadı: Açık" });
@@ -68,7 +75,7 @@ test("bir kuralın anahtarı bütün listeyi kaydeder: kural kapanır ve yeniden
 test("yeni bir kural son 30 günle önizlenir, düzenleyici denetimden geçer ve kapanınca odak geri döner", async ({
   page,
 }) => {
-  await page.goto("/bildirimler");
+  await page.goto("/bildirimler?bolum=kurallar");
   await loaded(page);
   const rules = page.getByRole("region", { name: "Kurallar" });
   const add = rules.getByRole("button", { name: "Yeni kural" });
@@ -91,12 +98,18 @@ test("ayrıntılı görünüm kanalların durumunu ve olay kodlarını gösterir
 }) => {
   await page.goto("/bildirimler");
   await loaded(page);
-  // The view's switch is a group of radio buttons drawn as words: its label is what one presses.
+  // The view's switch is in the header's display menu: a group of radio buttons drawn as words, whose label is what
+  // one presses.
+  await page.getByRole("button", { name: /^Görünüm: / }).click();
   await page.getByRole("group", { name: "Görünüm" }).getByText("Ayrıntılı").click();
   await expect(page.getByRole("radio", { name: "Ayrıntılı" })).toBeChecked();
+  await page.keyboard.press("Escape");
+  await parts(page).getByRole("tab", { name: "Kanallar" }).click();
   const channels = page.getByRole("region", { name: "Kanallar" });
   const states = channels.getByRole("table", { name: "Kanalların ayarları ve durumu, servisin verdiği gibi" });
   await expect(states.getByRole("row", { name: /^Telegram/ })).toContainText("Kurulmadı");
+  expect(await violations(page)).toEqual([]);
+  await parts(page).getByRole("tab", { name: "Kurallar" }).click();
   const list = page.getByRole("list", { name: "Bildirim kuralları" });
   await expect(list.getByText("payment.due_soon")).toBeVisible();
   expect(await violations(page)).toEqual([]);

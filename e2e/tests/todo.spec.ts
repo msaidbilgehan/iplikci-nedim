@@ -42,8 +42,10 @@ test("bir iş listeden çıkarılır ve bildirimdeki düğmeyle geri alınır", 
 // It touches nothing; the other project may be taking its own item off meanwhile, never this project's.
 test("ayrıntılı görünümün tabloları erişilebilirlik denetiminden geçer", async ({ page }) => {
   await open(page);
+  await page.getByRole("button", { name: /^Görünüm: / }).click(); // the header's display menu
   await page.getByRole("group", { name: "Görünüm" }).getByText("Ayrıntılı").click();
   await expect(page.getByRole("radio", { name: "Ayrıntılı" })).toBeChecked();
+  await page.keyboard.press("Escape");
   await expect(page.getByRole("table").first()).toBeVisible();
   expect(await violations(page)).toEqual([]);
 });

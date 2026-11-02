@@ -54,7 +54,9 @@ test("servisin adımları kaydı ister, durdurmak önce sorar ve soru denetimden
 
 test("ayrıntılı görünüm erişilebilirlik denetiminden geçer", async ({ page }) => {
   await open(page);
+  await page.getByRole("button", { name: /^Görünüm: / }).click(); // the header's display menu
   await page.getByRole("group", { name: "Görünüm" }).getByText("Ayrıntılı").click();
+  await page.keyboard.press("Escape");
   await expect(page.getByRole("region", { name: "Ayarların değerleri" })).toBeVisible();
   expect(await violations(page)).toEqual([]);
 });

@@ -1,6 +1,7 @@
-// The Kurallar screen on the service itself (F15): a merchant rule is previewed against the demo's ledger — the rows it
-// moves, from which category to which — and written; a change from a list is asked in a side panel; both views pass
-// axe. Each theme's project names a merchant of its own, so the two run side by side on the one demo data folder.
+// The Kurallar screen on the service itself (F15), its parts one tab at a time: a merchant rule is previewed against
+// the demo's ledger — the rows it moves, from which category to which — and written; a change from a list is asked in
+// a side panel; both views pass axe. Each theme's project names a merchant of its own, so the two run side by side on
+// the one demo data folder.
 
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
@@ -18,6 +19,9 @@ async function violations(page: Page, within?: string): Promise<string[]> {
   const found = await (within ? axe.include(within) : axe).analyze();
   return found.violations.map((v) => `${v.id}: ${v.nodes[0]?.target.join(" ")} — ${v.nodes[0]?.failureSummary ?? ""}`);
 }
+
+/** The screen's tabs: the merchant rule, the categories, the ended payments, the necessity, the file. */
+const parts = (page: Page) => page.getByRole("tablist", { name: "Kuralların bölümleri" });
 
 async function open(page: Page): Promise<void> {
   await page.goto("/kurallar");
@@ -45,6 +49,7 @@ test("bir işyeri kuralı önizlenir ve kaydedilir", async ({ page }, testInfo) 
 
 test("listeden bir değişiklik yan panelde önizlenir; vazgeçilince bir şey yazılmaz", async ({ page }) => {
   await open(page);
+  await parts(page).getByRole("tab", { name: "Kategoriler" }).click();
   const categories = page.getByRole("region", { name: "Kategoriler" });
   const toggle = categories.getByRole("button", { name: "Taahhüt say: Eczane" });
   await toggle.click();
@@ -59,9 +64,14 @@ test("listeden bir değişiklik yan panelde önizlenir; vazgeçilince bir şey y
 test("ayrıntılı görünümün tabloları ve kural dosyası erişilebilirlik denetiminden geçer", async ({ page }) => {
   await open(page);
   // The choice's label: the radio button itself is hidden under it.
+  await page.getByRole("button", { name: /^Görünüm: / }).click(); // the header's display menu
   await page.getByRole("group", { name: "Görünüm" }).getByText("Ayrıntılı").click();
   await expect(page.getByRole("radio", { name: "Ayrıntılı" })).toBeChecked();
+  await page.keyboard.press("Escape");
+  await parts(page).getByRole("tab", { name: "Kategoriler" }).click();
   await expect(page.getByRole("table", { name: "Kategoriler, grupları ve gereklilik düzeyleri" })).toBeVisible();
+  expect(await violations(page)).toEqual([]);
+  await parts(page).getByRole("tab", { name: "Dosya ve geçmiş" }).click();
   await expect(page.getByLabel("Kişisel kurallar")).toBeVisible();
   expect(await violations(page)).toEqual([]);
 });

@@ -48,8 +48,10 @@ test("büyük bir harcama yan panelde açılır ve ayrıntılı görünüm eriş
   await expect(page).not.toHaveURL(/[?&]satir=/);
 
   // The view's switch is a group of radio buttons drawn as words: its label is what one presses.
+  await page.getByRole("button", { name: /^Görünüm: / }).click(); // the header's display menu
   await page.getByRole("group", { name: "Görünüm" }).getByText("Ayrıntılı").click();
   await expect(page.getByRole("radio", { name: "Ayrıntılı" })).toBeChecked();
+  await page.keyboard.press("Escape");
   await expect(page.getByRole("region", { name: "Toplamlar" }).getByRole("table")).toBeVisible();
   expect(await violations(page)).toEqual([]);
 });

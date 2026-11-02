@@ -14,7 +14,7 @@ const SCREENS = [
   { path: "/hesaplar/teb-123456789", heading: "TEB Vadesiz TL 123456789" }, // the demo's TL account
   { path: "/sistem", heading: "Sistem" },
   { path: "/belgeler", heading: "Belgeler" },
-  { path: "/abonelikler", heading: "Abonelikler" },
+  { path: "/abonelikler", heading: "Düzenli ödemeler" },
   { path: "/takvim", heading: "Takvim" },
   { path: "/degerlendirme", heading: "Değerlendirme" },
   { path: "/doviz", heading: "Döviz" },

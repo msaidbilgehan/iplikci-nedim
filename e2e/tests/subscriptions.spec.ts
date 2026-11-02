@@ -1,4 +1,4 @@
-// The Abonelikler screen on the service itself (F08): a monthly payment is ended through "İptal ettim" — the month of
+// The Düzenli ödemeler screen on the service itself (F08): a monthly payment is ended through "İptal ettim" — the month of
 // its last payment chosen, the rule file's change previewed, then saved — and expected again through "Yeniden bekle".
 // The light theme's project ends one at its last payment's month, so it reads as cancelled among what ended; the dark
 // one names the month before, so the payment after it reads as a warning. Each ends a payment of its own, so the two
