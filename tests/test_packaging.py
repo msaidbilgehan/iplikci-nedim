@@ -184,6 +184,40 @@ def test_the_portable_python_is_the_install_itself_never_the_link_uv_makes_to_it
     assert root.name == install and not (root / "Lib" / "EXTERNALLY-MANAGED").exists()
 
 
+def test_the_extension_the_program_carries_is_checked_file_by_file_from_its_manifest(tmp_path):
+    build = build_script()
+    static = BUILD.parents[1] / "extension" / "static"
+    assert build.extension_files(static) == [  # what `npm run build` makes and every package must carry
+        "background.js", "icons/icon-128.png", "icons/icon-16.png", "icons/icon-32.png", "icons/icon-48.png",
+        "manifest.json", "options.html", "options.js", "verify.css", "verify.html", "verify.js",
+    ]  # fmt: skip
+    built = tmp_path / "eklenti"
+    shutil.copytree(static, built)
+    for name in ("background.js", "options.js", "verify.js"):
+        (built / name).write_text("// derlenmiş\n", encoding="utf-8")
+    assert build.missing_extension_files(built) == []
+    (built / "verify.js").unlink()  # a build cut short
+    assert build.missing_extension_files(built) == ["verify.js"]
+    assert build.missing_extension_files(tmp_path / "yok") == ["manifest.json"]
+
+
+def test_a_package_is_never_made_with_a_half_built_extension(tmp_path, monkeypatch):
+    build = build_script()
+    ui = tmp_path / "arayuz" / "index.html"
+    ui.parent.mkdir()
+    ui.write_text("<!doctype html>", encoding="utf-8")
+    extension = tmp_path / "eklenti"
+    extension.mkdir()
+    (extension / "manifest.json").write_text('{"background": {"service_worker": "background.js"}}', encoding="utf-8")
+    ran: list[tuple[object, ...]] = []
+    monkeypatch.setattr(build, "UI", ui)
+    monkeypatch.setattr(build, "EXTENSION", extension)
+    monkeypatch.setattr(build, "run", lambda *args, **options: ran.append(args))
+    with pytest.raises(SystemExit, match="background.js yok"):
+        build.install_program(tmp_path / "python", tmp_path / "is")
+    assert ran == []  # stopped before anything was built
+
+
 def test_leaving_out_what_the_program_never_uses_keeps_the_standard_library_on_every_system(tmp_path):
     build = build_script()
     windows = tmp_path / "windows"  # python-build-standalone's Windows layout

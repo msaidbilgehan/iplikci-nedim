@@ -109,7 +109,10 @@ parçasıdır.
   - Yorumlayıcı `.python-version`'ın sabitlediği CPython'dur; uv onu indirir ve doğrular. Yorumlayıcı yalnızca bu
     programın olduğundan, paket kurucularını dışarıda tutan `EXTERNALLY-MANAGED` işareti kaldırılır.
   - Bağımlılıklar kilit dosyasından hash'leriyle kurulur, sonra programın tekerleği. Derlenmiş arayüz ve tarayıcı
-    eklentisi tekerleğin içindedir; ikisinden biri yoksa paket üretilmez.
+    eklentisi tekerleğin içindedir; ikisinden biri yoksa paket üretilmez. Eklenti dosya dosya denetlenir: bildirgenin
+    adını verdiği ve sayfalarının yüklediği her dosya, derlemeden önce de kurulan kopyada da olmalıdır. Eklentinin
+    derlemesi (`extension/build.mjs`) kendi klasöründe yapılır ve `dist/` ile programın kopyasının yerine bütün olarak
+    geçer; yarıda kalan bir derleme ikisini de yarım bırakmaz.
   - Programın kullanmadığı parçalar çıkarılır: paket kurucusu, test takımları, Tk, IDLE, C başlıkları.
   - macOS: `İplikçi Nedim.app` (`com.iplikci.app`), ad-hoc imzalı ve Apple onaysız (K22); `.dmg` içinde Uygulamalar
     bağlantısıyla.

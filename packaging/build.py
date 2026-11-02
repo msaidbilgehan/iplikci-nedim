@@ -13,33 +13,46 @@ The web interface must be built first (`npm run build` in web/). This is a devel
 system's packaging tools and, for the interpreter, uv's download; it never touches the data folder."""
 
 import argparse
+import json
 import os
 import platform
 import plistlib
+import posixpath
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 import tomllib
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "packaging" / "assets"
 UI = ROOT / "src" / "iplikci" / "api" / "ui" / "index.html"
-EXTENSION = ROOT / "src" / "iplikci" / "browser_extension" / "manifest.json"
+EXTENSION = ROOT / "src" / "iplikci" / "browser_extension"  # written by `npm run build` in extension/
 NAME = "İplikçi Nedim"
 SLUG = "iplikci-nedim"
 BUNDLE_ID = "com.iplikci.app"
 LAUNCH = ("-I", "-X", "utf8", "-m", "iplikci", "uygulama")
-INSTALLED = (  # what the installed program must import and carry
+INSTALLED = (  # what the installed program must import; its last line is where it carries the extension
     "import iplikci.api.app, iplikci.parsers.registry; from iplikci.app import extension; "
-    "assert (extension.BUILT / extension.MANIFEST).is_file(), 'eklenti yok'; print('iplikci', iplikci.__version__)"
+    "print('iplikci', iplikci.__version__); print(extension.BUILT)"
 )
+_PAGE_REFERENCE = re.compile(r'(?:src|href)="([^"]+)"')
 
 
 def run(*args: str | Path, cwd: Path = ROOT) -> None:
     print("+", " ".join(str(a) for a in args), flush=True)
     subprocess.run([str(a) for a in args], cwd=cwd, check=True)
+
+
+def output(*args: str | Path) -> str:
+    """What a command prints, shown as it is kept."""
+    print("+", " ".join(str(a) for a in args), flush=True)
+    done = subprocess.run([str(a) for a in args], cwd=ROOT, check=True, capture_output=True, text=True)
+    print(done.stdout, end="", flush=True)
+    return done.stdout
 
 
 def version() -> str:
@@ -118,11 +131,16 @@ def prune(root: Path) -> None:
 
 def install_program(python: Path, work: Path) -> None:
     """The locked dependencies with their hashes, then the program's wheel, the built interface and the built browser
-    extension inside it (K20: the service hands the extension to the browser)."""
+    extension inside it (K20: the service hands the extension to the browser), checked file by file before the
+    build and again in the installed copy: the service copies the extension into the data folder as it finds it."""
     if not UI.is_file():
         sys.exit(f"Arayüz derlenmemiş ({UI} yok): önce web/ klasöründe npm ci && npm run build")
-    if not EXTENSION.is_file():
-        sys.exit(f"Eklenti derlenmemiş ({EXTENSION} yok): önce extension/ klasöründe npm ci && npm run build")
+    missing = missing_extension_files(EXTENSION)
+    if missing:
+        sys.exit(
+            f"Eklenti derlenmemiş ya da yarım ({EXTENSION}: {', '.join(missing)} yok): önce extension/ klasöründe "
+            "npm ci && npm run build"
+        )
     wheels = work / "wheel"
     run("uv", "build", "--wheel", "--out-dir", wheels)
     requirements = work / "requirements.txt"
@@ -131,7 +149,61 @@ def install_program(python: Path, work: Path) -> None:
     run("uv", "pip", "install", "--python", python, "--require-hashes", "--compile-bytecode", "-r", requirements)
     [wheel] = wheels.glob("*.whl")
     run("uv", "pip", "install", "--python", python, "--no-deps", "--compile-bytecode", wheel)
-    run(python, "-I", "-c", INSTALLED)
+    carried = Path(output(python, "-I", "-c", INSTALLED).splitlines()[-1])
+    missing = missing_extension_files(carried)
+    if missing:
+        sys.exit(f"Kurulan program eklentiyi eksik taşıyor ({carried}: {', '.join(missing)} yok)")
+
+
+def missing_extension_files(root: Path) -> list[str]:
+    """What the built extension at root lacks of extension_files(); all of it when it has no manifest."""
+    if not (root / "manifest.json").is_file():
+        return ["manifest.json"]
+    return [name for name in extension_files(root) if not (root / name).is_file()]
+
+
+def extension_files(root: Path) -> list[str]:
+    """What a built extension must hold: its manifest, every file the manifest names, and every file its pages load
+    or link to, each page's own references followed in turn."""
+    wanted = {"manifest.json", *_named_in(json.loads((root / "manifest.json").read_text(encoding="utf-8")))}
+    pages = sorted(name for name in wanted if name.endswith(".html"))
+    while pages:
+        page = pages.pop()
+        if not (root / page).is_file():
+            continue
+        for reference in _PAGE_REFERENCE.findall((root / page).read_text(encoding="utf-8")):
+            target = reference.split("#")[0].split("?")[0]
+            if not target or ":" in target:  # a part of the page, another site
+                continue
+            beside = posixpath.dirname(page)
+            name = posixpath.normpath(target.lstrip("/") if target.startswith("/") else posixpath.join(beside, target))
+            if name not in wanted:
+                wanted.add(name)
+                if name.endswith(".html"):
+                    pages.append(name)
+    return sorted(wanted)
+
+
+def _named_in(manifest: dict[str, Any]) -> set[str]:
+    """The files a Manifest V3 manifest names: the service worker, the pages, the icons, the content scripts and the
+    resources the pages may load (patterns left out)."""
+    found: list[Any] = []
+
+    def section(key: str) -> dict[str, Any]:
+        value = manifest.get(key)
+        return value if isinstance(value, dict) else {}
+
+    found += [section("background").get("service_worker"), section("options_ui").get("page")]
+    found += [manifest.get("options_page"), manifest.get("devtools_page"), section("action").get("default_popup")]
+    for icons in (section("icons"), section("action").get("default_icon")):
+        found += list(icons.values()) if isinstance(icons, dict) else [icons]
+    for script in manifest.get("content_scripts") or []:
+        found += [*(script.get("js") or []), *(script.get("css") or [])] if isinstance(script, dict) else []
+    for entry in manifest.get("web_accessible_resources") or []:
+        found += list(entry.get("resources") or []) if isinstance(entry, dict) else []
+    return {
+        posixpath.normpath(name.lstrip("/")) for name in found if isinstance(name, str) and name and "*" not in name
+    }
 
 
 MISPLACED = (  # as service/launcher.misplaced says it, for an app that cannot run its Python from where it is

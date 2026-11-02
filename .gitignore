@@ -46,6 +46,7 @@ web/test-results/
 src/iplikci/api/ui/
 extension/node_modules/
 extension/dist/
+extension/.yapim-*/
 src/iplikci/browser_extension/
 # the end-to-end tests: their packages and what a run leaves (screenshots and traces of the demo workspace only)
 e2e/node_modules/

@@ -182,6 +182,9 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
   `~/.local/lib/iplikci/<sürüm>` klasöründedir; eski yerdekiler yeni sürüm ilk açıldığında kaldırılır.
 - Windows güncellemesi, arka plan servisi durmasa da sürüyor ve çalışan programın dosyalarını değiştirmeye
   kalkışıyordu; artık durur ve nedenini söyler.
+- Yarıda kalan bir eklenti derlemesi programın taşıdığı eklentiyi yarım bırakabiliyor, paket yalnızca bildirgeye
+  bakıp yine de üretiliyordu. Derleme artık kendi klasöründe yapılıp bütün olarak yerine konur; paket eklentinin her
+  dosyasını derlemeden önce ve kurulan kopyada denetler.
 
 ## [0.6.0] — 2026-11-02 — Aşama 5: Bildirimler
 
