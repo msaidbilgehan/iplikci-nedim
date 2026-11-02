@@ -168,13 +168,20 @@ inventory and F01's coverage), `app/outlook.py` and `app/invoices.py` (the views
 series and the bills), `app/senders.py` (the non-bank senders) and their routes. Phase 5 added `notify` (the alert
 rules of `rules/alerts.yaml`, the texts at each level of detail, the quiet hours and the desktop, Telegram and e-mail
 channels; no storage, the network only through egress), `app/notify.py` (events into notifications, sending, retries,
-the digest, the Telegram pairing), `storage/notifications.py` and their routes, CLI group and MCP tool. The rest keeps
-the MVP's flat layout
+the digest, the Telegram pairing), `storage/notifications.py` and their routes, CLI group and MCP tool. Phase 6 added
+a use case and a route per screen in `app` and `api/routes`: `feed` and `now` (Akış), `dashboard` (Pano), `accounts`,
+`account_pages`, `flows` and `reach` (Hesaplar), `rows` and `transactions` (İşlemler, with `annotate`'s split),
+`assessment` and `spending` (Değerlendirme), `closing` (Ay sonu), `holdings` (Döviz), `rules` (Kurallar), `todos`
+(Yapılacaklar), `setup` (the wizard and the settings) and `exports`; `links` names where an item leads, `events` the
+stream's start. `viewer` makes a document's page images, cells and e-mail view in a process of its own;
+`storage/aliases` keeps the names the user gives accounts and `settings/locks` the file locks between processes. The
+rest keeps the MVP's flat layout
 (`analysis`, `insights`, `month_end`, `report` with its `templates`, `mcp_server`, …) until the phases in the roadmap's
 MVP module table move it. Next to them: `fakes` (the fake document builders and every reader's specimens, shared with
 the tests and the demo), `demo` (the demo data folder), `baseline` (the verification baseline) and `mvp_codes` (the MVP
 codes the report's script and baseline v1 still speak). `web/` builds into `src/iplikci/api/ui`; `extension/` builds
-into `extension/dist`.
+into `extension/dist`; `e2e/` holds the Playwright tests, which run the service on a demo data folder with the built
+interface, every test in the light and the dark theme, with axe.
 
 The workspace is the data dir (architecture §9). The user's company names go in its `settings.toml` under
 `[identity] business_names`; the user's category rules live in `rules/personal.yaml` over the shipped defaults.
@@ -210,6 +217,7 @@ uv run iplikci eposta kur | durum | kaldir | al   # the IMAP account; al asks th
 uv run iplikci bildirim durum | kurallar | gecmis | dene <kanal>   # notification channels, rules, history, a test
 uv run iplikci telegram kur | eslestir | kaldir   # the bot's token in a hidden prompt (the user types it), pairing
 (cd web && npm ci && npm run typecheck && npm test && npm run build)         # the interface, built into the package
+(cd e2e && npm ci && npx playwright test)      # end-to-end on a demo data folder, both themes, axe; build web/ first
 uv run iplikci dev api-tipleri web/src/api/schema.ts   # the interface's API types from the OpenAPI document (ADR-0007)
 (cd extension && npm ci && npm run typecheck && npm test && npm run build)   # the extension; load extension/dist
 ```
