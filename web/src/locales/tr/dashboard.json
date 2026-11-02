@@ -96,5 +96,83 @@
     "todo": "Yapılacaklar",
     "todoNone": "Hepsi tamam",
     "todoText": "Bakılacak bir şey yok."
+  },
+  "overview": {
+    "label": "Paranızın durumu",
+    "story": {
+      "title": "{{month}}: paranız ne durumda?",
+      "titleNone": "Paranız ne durumda?",
+      "in": "Gelen",
+      "inHint": "maaş ve hesaplarınıza gelen diğer paralar",
+      "out": "Giden",
+      "outHint": "harcamalar, faturalar ve hesaplarınızdan çıkan paralar",
+      "left": "Kalan",
+      "overLabel": "Fazla harcanan",
+      "leftHint": "gelen paradan giden çıkınca",
+      "barSpent": "Harcanan: {{share, percent}}",
+      "barLeft": "Kalan: {{share, percent}}",
+      "barIncome": "Gelen: {{share, percent}}",
+      "barOver": "Gelenden fazla harcanan: {{share, percent}}",
+      "good": "Gelen paranın {{share, percentPossessive}} elinizde kaldı. İyi gidiyor.",
+      "thin": "Gelen paranın yalnızca {{share, percentPossessive}} elinizde kaldı. Biraz daha az harcarsanız birikiminiz büyür.",
+      "over": "Giden para gelenden {{amount}} fazla: bu ay gelirinizden çok harcadınız. Aşağıda paranın nereye gittiğine bakın.",
+      "quiet": "Bu ay hesaplarınıza para girmedi, hesaplarınızdan para çıkmadı.",
+      "partial": "Bu ayın belgeleri tamamlanmadı; rakamlar eksik olabilir.",
+      "running": "{{month}} sürüyor: şimdiye kadar {{amount}} harcandı.",
+      "runningNone": "{{month}} sürüyor: bu ayın belgeleri henüz gelmedi.",
+      "none": "Henüz kapanan bir ay yok. Bankalarınızın belgeleri geldikçe burada her ayın özeti görünür.",
+      "total": "Son belgelere göre hesaplarınızdaki para: {{amount}}.",
+      "totalAfterDebts": "Son belgelere göre hesaplarınızdaki para, kart borçları düşülünce: {{amount}}.",
+      "leftOut_one": "Bakiyesi bilinmeyen {{count}} hesap bu toplamda yok.",
+      "leftOut_other": "Bakiyesi bilinmeyen {{count}} hesap bu toplamda yok.",
+      "accounts": "Hesaplara bak"
+    },
+    "months": {
+      "title": "Aylara göre gelen ve giden",
+      "how": "Çizginin üstündeki yeşil çubuk gelen parayı, altındaki turuncu çubuk giden parayı gösterir. Yeşil turuncudan uzunsa o ay para artmıştır. Bazı sütunların üstündeki sayı, o ay elde kalan paradır.",
+      "chart": "Aylara göre gelen ve giden para",
+      "say": "Kapanan {{count}} ayın {{ahead, possessiveLocative}} gelen para gideni geçti.",
+      "sayAll_one": "Kapanan tek ayda gelen para gideni geçti.",
+      "sayAll_other": "Kapanan {{count}} ayın hepsinde gelen para gideni geçti.",
+      "sayNone": "Henüz kapanan bir ay yok; çubuklar belgelerin şimdiye kadar gösterdikleri.",
+      "in": "Gelen",
+      "out": "Giden",
+      "net": "Kalan"
+    },
+    "where": {
+      "title": "Paranız nereye gitti?",
+      "how": "Her çubuk bir harcama türü; uzun olan daha çok para demek. Bir türün adına basınca o harcamalar açılır.",
+      "chart": "{{month}} harcamaları, türlerine göre",
+      "say": "{{month, inMonth}} {{total}} harcandı; en çok {{name}}: {{amount}}.",
+      "none": "{{month, inMonth}} harcama yok.",
+      "item": "Harcama türü",
+      "rows": "Bu ayın harcamalarını göster"
+    },
+    "ahead": {
+      "title": "Önümüzdeki 30 gün",
+      "how": "Çizgi, her günün sonunda hesapta kalacak parayı tahmin eder: son bakiyeden başlar, beklenen ödemeleri düşer, beklenen gelirleri ekler.",
+      "scopeOne": "Çizgi, ödemelerinizin çıktığı {{name}} hesabını gösterir.",
+      "scopeMany": "Çizgi, ödemelerinizin çıktığı {{count}} hesabın toplamını gösterir.",
+      "start": "Son belgelerde {{known}} vardı; o günden bugüne beklenen gelir ve ödemeler eklenince bugün yaklaşık {{now}}.",
+      "chart": "Önümüzdeki 30 günde hesaplarınızdaki tahmini para",
+      "line": "Hesaptaki para (tahmin)",
+      "say": "{{start}} – {{end}}: {{out}} ödeme ({{outAmount}}) ve {{came}} gelir ({{inAmount}}) bekleniyor; bu bir tahmindir.",
+      "safe": "Paranız 30 gün boyunca yetiyor: en az {{day, onDay}} {{amount}} kalıyor.",
+      "negative": "Dikkat: {{day, onDay}} paranız eksiye düşüyor ({{amount}}). Bir ödemeyi erteleyin ya da hesaba para aktarın.",
+      "list": "Yaklaşan ödemeler ve gelirler",
+      "nothing": "Bu 30 günde beklenen bir ödeme ya da gelir yok.",
+      "more": "ve {{count}} tane daha",
+      "calendar": "Takvimde hepsini göster",
+      "none": "Tahmin için bakiyesi belgelerde yazan bir TL hesap yok."
+    },
+    "todo": {
+      "title": "Ne yapmalısınız?",
+      "none": "Şimdilik yapmanız gereken bir şey yok.",
+      "monthly": "Ayda yaklaşık {{amount}} etkisi var.",
+      "open": "Göster",
+      "more": "Ayrıntısı",
+      "data": "Bilgilerin tam olması için {{count}} iş bekliyor (eksik ya da okunamayan belgeler gibi).",
+      "dataNext": "Yapılacaklara bak"
+    }
   }
 }

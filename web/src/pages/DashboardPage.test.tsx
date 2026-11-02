@@ -11,8 +11,14 @@ afterEach(() => localStorage.clear());
 
 const card = (name: string) => screen.findByRole("region", { name });
 
+/** The detailed view, chosen before the screen opens as the display panel would have saved it. */
+function chooseDetailed() {
+  localStorage.setItem("iplikci.view", "detailed");
+}
+
 describe("DashboardPage", () => {
   it("opens with four figures, each leading to its screen", async () => {
+    chooseDetailed();
     renderScreen(<DashboardPage />);
     expect(await screen.findByText("Bugün 15.11.2026; en yeni ekstre 31.10.2026 tarihine kadar.")).toBeInTheDocument();
     const first = screen.getByRole("region", { name: "Özet" });
@@ -33,6 +39,7 @@ describe("DashboardPage", () => {
   });
 
   it("says no document has come for the month yet instead of a zero spent", async () => {
+    chooseDetailed();
     const pace = { ...DASHBOARD.month.pace, covered: 0, spent: { minor: 0, currency: "TRY" } };
     const month = { ...DASHBOARD.month, pace };
     server.use(http.get("/api/dashboard", () => HttpResponse.json({ ...DASHBOARD, month })));
@@ -44,24 +51,17 @@ describe("DashboardPage", () => {
     expect(tile).not.toHaveTextContent("0,00 TL");
   });
 
-  it("says what each card shows in the service's words, and leaves out what the first row already says", async () => {
+  it("tells the money in pictures in the simple view, without the detailed view's cards", async () => {
     renderScreen(<DashboardPage />);
-    const says: Array<[string, string]> = [
-      ["Açık uyarılar", DASHBOARD.alerts.say],
-      ["Son 7 ayın kapanışı", DASHBOARD.closing.say],
-      ["Veri tazeliği", DASHBOARD.freshness.say],
-    ];
-    for (const [name, say] of says) {
-      expect(within(await card(name)).getByText(say)).toBeInTheDocument();
-    }
-    expect(screen.queryByText(DASHBOARD.due.say)).not.toBeInTheDocument();
-    // The figures of the first row have no card of their own in the simple view.
-    expect(screen.queryByRole("region", { name: "Net varlık" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "Bu ay ve tipik ay" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "Yapılacaklar" })).not.toBeInTheDocument();
+    expect(await card("Ekim 2026: paranız ne durumda?")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Aylara göre gelen ve giden" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Ne yapmalısınız?" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Özet" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Veri tazeliği" })).not.toBeInTheDocument();
   });
 
   it("leads each card to its screen once that screen is built", async () => {
+    chooseDetailed();
     renderScreen(<DashboardPage />);
     expect(within(await card("Yaklaşan ödemeler")).getByRole("link", { name: "Takvimi aç" })).toHaveAttribute(
       "href",
@@ -81,7 +81,7 @@ describe("DashboardPage", () => {
   });
 
   it("shows the net worth in TL and in other units in the detailed view, a missing rate as not known", async () => {
-    localStorage.setItem("iplikci.view", "detailed");
+    chooseDetailed();
     renderScreen(<DashboardPage />);
     const worth = await card("Net varlık");
     expect(within(worth).getAllByText("12.500,00 TL").length).toBeGreaterThan(0);
@@ -98,7 +98,7 @@ describe("DashboardPage", () => {
   });
 
   it("puts the month so far beside the typical month in the detailed view", async () => {
-    localStorage.setItem("iplikci.view", "detailed");
+    chooseDetailed();
     renderScreen(<DashboardPage />);
     const month = await card("Bu ay ve tipik ay");
     expect(within(month).getByText("Kasım 2026'da bugüne kadar harcanan")).toBeInTheDocument();
@@ -107,15 +107,18 @@ describe("DashboardPage", () => {
   });
 
   it("lists the payments due within the week with their total", async () => {
+    chooseDetailed();
     renderScreen(<DashboardPage />);
     const due = await card("Yaklaşan ödemeler");
-    expect(within(due).getByRole("heading", { name: "Cuma, 20.11.2026" })).toBeInTheDocument();
-    expect(within(due).getByText("−9.000,00 TL")).toBeInTheDocument();
-    expect(within(due).getByText("asgari 1.800,00 TL")).toBeInTheDocument();
+    const row = within(within(due).getByRole("table")).getAllByText("Örnek Kart •1234")[0]!.closest("tr")!;
+    expect(row).toHaveTextContent("20.11.2026");
+    expect(row).toHaveTextContent("9.000,00 TL");
+    expect(row).toHaveTextContent("asgari 1.800,00 TL");
     expect(within(due).getByText("Toplam 9.000,00 TL")).toBeInTheDocument();
   });
 
   it("lists the open alerts, each with its level in words and the way to what it is about", async () => {
+    chooseDetailed();
     renderScreen(<DashboardPage />);
     const alerts = await card("Açık uyarılar");
     const items = within(alerts).getAllByRole("listitem");
@@ -133,29 +136,36 @@ describe("DashboardPage", () => {
   });
 
   it("shows the last seven months' closing, each status in words", async () => {
+    chooseDetailed();
     renderScreen(<DashboardPage />);
-    const months = within(await card("Son 7 ayın kapanışı")).getAllByRole("listitem");
-    expect(months.map((month) => month.textContent)).toEqual([
-      "Mayıs 2026: Kapandı",
-      "Haziran 2026: Kapandı",
-      "Temmuz 2026: Belge eksik",
-      "Ağustos 2026: Kapandı",
-      "Eylül 2026: Kapandı",
-      "Ekim 2026: Kapandı",
-      "Kasım 2026: Ay sürüyor",
+    const table = within(await card("Son 7 ayın kapanışı")).getByRole("table");
+    const months = within(table).getAllByRole("row").slice(1);
+    expect(months.map((month) => within(month).getAllByRole("cell")[0]?.textContent ?? "")).toEqual([
+      "Mayıs 2026",
+      "Haziran 2026",
+      "Temmuz 2026",
+      "Ağustos 2026",
+      "Eylül 2026",
+      "Ekim 2026",
+      "Kasım 2026",
     ]);
+    expect(within(table).getAllByText("Kapandı")).toHaveLength(5);
+    expect(within(table).getByText("Belge eksik")).toBeInTheDocument();
+    expect(within(table).getByText("Ay sürüyor")).toBeInTheDocument();
   });
 
   it("shows how far each account's documents reach and the months they skip", async () => {
+    chooseDetailed();
     renderScreen(<DashboardPage />);
     const fresh = await card("Veri tazeliği");
-    const cash = within(fresh).getByText("Örnek Vadesiz TL").closest("li")!;
-    expect(within(cash).getByText("son döküm 31.10.2026 · 15 gün önce")).toBeInTheDocument();
-    expect(within(cash).getByText("Eksik aylar: Temmuz 2026")).toBeInTheDocument();
+    const cash = within(within(fresh).getByRole("table")).getByText("Örnek Vadesiz TL").closest("tr")!;
+    expect(cash).toHaveTextContent("31.10.2026");
+    expect(cash).toHaveTextContent("15 gün önce");
+    expect(cash).toHaveTextContent("Temmuz 2026");
   });
 
   it("counts what there is to see to, by kind, in the detailed view", async () => {
-    localStorage.setItem("iplikci.view", "detailed");
+    chooseDetailed();
     renderScreen(<DashboardPage />);
     const todo = await card("Yapılacaklar");
     expect(within(todo).getByText("3 iş bekliyor")).toBeInTheDocument();
@@ -163,7 +173,7 @@ describe("DashboardPage", () => {
   });
 
   it("gives the cards' tables in the detailed view, and the link beside each title", async () => {
-    localStorage.setItem("iplikci.view", "detailed");
+    chooseDetailed();
     renderScreen(<DashboardPage />);
     const closing = await card("Son 7 ayın kapanışı");
     const july = within(within(closing).getByRole("table")).getByText("Temmuz 2026").closest("tr")!;
@@ -214,6 +224,6 @@ describe("DashboardPage", () => {
     expect(await screen.findByText("Belgeler şu an okunuyor.")).toBeInTheDocument();
     failing = false;
     await user.click(screen.getByRole("button", { name: "Yeniden dene" }));
-    expect(await screen.findByRole("region", { name: "Özet" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Ekim 2026: paranız ne durumda?" })).toBeInTheDocument();
   });
 });

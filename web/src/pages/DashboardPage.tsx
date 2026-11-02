@@ -1,7 +1,9 @@
-// The Pano screen (F06), the home page: the net worth, this month against the typical month, the payments due within a
-// week, the open alerts, the last seven months' closing, how fresh each account's documents are and how much there is
-// to see to. The first row gives four of them as figures; every card says in one sentence what it shows (the service's
-// `say`) and leads to its screen (`link`).
+// The Pano screen (F06), the home page. The simple view tells the money in pictures, for anyone: the last closed month's
+// money in, out and left, the months as bars, where the money went, the next 30 days and what to do now
+// (dashboard/Overview). The detailed view gives the net worth, this month against the typical month, the payments due
+// within a week, the open alerts, the last seven months' closing, how fresh each account's documents are and how much
+// there is to see to: four of them as figures first, then every card with its table, each saying in one sentence what
+// it shows (the service's `say`) and leading to its screen (`link`).
 
 import { useTranslation } from "react-i18next";
 
@@ -12,6 +14,7 @@ import { ClosingCard } from "../components/dashboard/ClosingCard";
 import { FreshnessCard } from "../components/dashboard/FreshnessCard";
 import { Highlights } from "../components/dashboard/Highlights";
 import { NetWorthCard } from "../components/dashboard/NetWorthCard";
+import { Overview } from "../components/dashboard/Overview";
 import { useView } from "../components/Preferences";
 import { Empty, Failure, Loading } from "../components/QueryState";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -56,37 +59,8 @@ function Cards({ found, labels }: { found: Dashboard; labels: Labels }) {
       </>
     );
   }
-  const due = <DueCard due={found.due} today={found.today} labels={labels} />;
-  const alerts = <AlertsCard alerts={found.alerts} />;
-  const closing = (
-    <ClosingCard months={found.closing.months} say={found.closing.say} next={found.closing.link} labels={labels} />
-  );
-  const freshness = (
-    <FreshnessCard
-      accounts={found.freshness.accounts}
-      say={found.freshness.say}
-      next={found.freshness.link}
-      labels={labels}
-    />
-  );
   if (view === "simple") {
-    // The first row says the net worth, the month and the to-do count; the cards beside each other read at a glance:
-    // what comes next and what asks for attention, then how the months closed and how fresh the documents are.
-    return (
-      <>
-        <Highlights found={found} labels={labels} />
-        <div className="grid items-start gap-4 lg:grid-cols-2">
-          <div className="flex min-w-0 flex-col gap-4">
-            {due}
-            {alerts}
-          </div>
-          <div className="flex min-w-0 flex-col gap-4">
-            {closing}
-            {freshness}
-          </div>
-        </div>
-      </>
-    );
+    return <Overview found={found} />;
   }
   // The detailed view's tables need the screen's width: one card under the other, every card with its table.
   return (
@@ -95,10 +69,15 @@ function Cards({ found, labels }: { found: Dashboard; labels: Labels }) {
       <div className="grid items-start gap-4">
         <NetWorthCard worth={found.net_worth} />
         <MonthCard month={found.month} />
-        {due}
-        {alerts}
-        {closing}
-        {freshness}
+        <DueCard due={found.due} labels={labels} />
+        <AlertsCard alerts={found.alerts} />
+        <ClosingCard months={found.closing.months} say={found.closing.say} next={found.closing.link} labels={labels} />
+        <FreshnessCard
+          accounts={found.freshness.accounts}
+          say={found.freshness.say}
+          next={found.freshness.link}
+          labels={labels}
+        />
         <TodoCard todo={found.todo} labels={labels} />
       </div>
     </>

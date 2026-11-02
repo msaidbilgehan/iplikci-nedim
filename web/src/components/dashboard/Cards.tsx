@@ -1,14 +1,15 @@
 // The dashboard's smaller cards (F06): this month against the typical month, the payments due within a week, the open
-// alerts and how much there is to see to. Each says in the service's words what it shows and leads to its screen.
+// alerts and how much there is to see to. Each leads to its screen. The detailed view shows them; the simple view's
+// home tells the same in pictures (Overview).
 
 import { useTranslation } from "react-i18next";
 
 import type { Dashboard, Labels } from "../../api/types";
 import { formatDay, formatMoney } from "../../lib/format";
 import { labelOf } from "../../lib/labels";
-import { DueList, DueTable } from "../DueList";
+import { DueTable } from "../DueList";
 import { PaceFigures } from "../Pace";
-import { Detailed, Simple } from "../Preferences";
+import { Detailed } from "../Preferences";
 import { NextStep, ScreenLink } from "../ui/Say";
 import { Status } from "../ui/Status";
 import { DashboardCard } from "./DashboardCard";
@@ -24,19 +25,14 @@ export function MonthCard({ month }: { month: Dashboard["month"] }) {
   );
 }
 
-export function DueCard({ due, today, labels }: { due: Dashboard["due"]; today: string; labels: Labels }) {
+export function DueCard({ due, labels }: { due: Dashboard["due"]; labels: Labels }) {
   const { t } = useTranslation("dashboard");
   return (
     <DashboardCard title={t("due.title")} say={due.say} next={{ link: due.link, label: t("due.next") }} quiet>
       {due.items.length > 0 ? (
         <>
           <p className={`mb-2 ${SMALL}`}>{t("due.until", { end: formatDay(due.end) })}</p>
-          <Simple>
-            <DueList items={due.items} today={today} labels={labels} />
-          </Simple>
-          <Detailed>
-            <DueTable items={due.items} caption={t("due.caption", { end: formatDay(due.end) })} labels={labels} />
-          </Detailed>
+          <DueTable items={due.items} caption={t("due.caption", { end: formatDay(due.end) })} labels={labels} />
           <p className="mt-2 text-sm font-medium">{t("due.total", { amount: formatMoney(due.total) })}</p>
         </>
       ) : (

@@ -50,11 +50,11 @@ export function HBars({ title, summary, itemName, items, currency = "TRY", table
             <span className="flex min-w-0 items-center gap-2">
               <span aria-hidden="true" className={cn("size-2.5 shrink-0 rounded-sm", SLOT_BG[item.slot])} />
               {item.link ? (
-                <ScreenLink link={item.link} className="truncate">
+                <ScreenLink link={item.link} className="min-w-0 [overflow-wrap:anywhere]">
                   {item.label}
                 </ScreenLink>
               ) : (
-                <span className="truncate" title={item.label}>
+                <span className="min-w-0 [overflow-wrap:anywhere]">
                   {item.label}
                 </span>
               )}
