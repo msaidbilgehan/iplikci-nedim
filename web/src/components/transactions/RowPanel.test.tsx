@@ -387,11 +387,14 @@ describe("RowPanel: splitting", () => {
     await user.click(within(fix).getByRole("button", { name: "Parçalara böl…" }));
     const split = within(fix).getByRole("region", { name: "Bölme" });
     expect(within(split).getByText(/^Satırın tutarı 840,50 TL\./)).toBeInTheDocument();
+    const rest = within(within(split).getByRole("group", { name: "Parça 1" })).getByRole("status", {
+      name: "Kalan tutar",
+    });
+    expect(rest).toHaveTextContent("840,50 TL"); // the whole row, while no other part has an amount
     const second = within(split).getByRole("group", { name: "Parça 2" });
     await user.type(within(second).getByLabelText("Tutar (TL)"), "250");
     await user.selectOptions(within(second).getByLabelText("Kategori"), "Temizlik");
-    const first = within(split).getByRole("group", { name: "Parça 1" });
-    expect(within(first).getByRole("status", { name: "Kalan tutar" })).toHaveTextContent("590,50 TL");
+    expect(rest).toHaveTextContent("590,50 TL");
     await user.click(within(split).getByRole("button", { name: "Böl" }));
     expect(
       await within(split).findByText("Kaydedildi; işlem birkaç saniye içinde yeni hâliyle görünür."),
@@ -417,6 +420,7 @@ describe("RowPanel: splitting", () => {
     const third = within(split).getByRole("group", { name: "Parça 3" });
     await user.type(within(second).getByLabelText("Tutar (TL)"), "900");
     await user.type(within(third).getByLabelText("Tutar (TL)"), "12.50");
+    expect(within(split).getByRole("status", { name: "Kalan tutar" })).toHaveTextContent("Bir tutar okunamıyor");
     await user.click(within(split).getByRole("button", { name: "Böl" }));
     expect(within(second).getByText("Bir kategori seçin.")).toBeInTheDocument();
     expect(within(third).getByLabelText("Tutar (TL)")).toHaveAccessibleDescription(

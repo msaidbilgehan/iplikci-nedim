@@ -69,10 +69,16 @@ function draftsOf(row: Row, parts: readonly Row[], categories: readonly Category
   ];
 }
 
-/** What the parts after the first add up to, in kuruş; null while one of them is not an amount yet. */
+/**
+ * What the parts after the first add up to, in kuruş: a part with no amount typed yet adds nothing, so the first part
+ * starts with the whole row; null while one of them holds what is no amount.
+ */
 function othersOf(drafts: readonly Draft[]): number | null {
   let sum = 0;
   for (const draft of drafts.slice(1)) {
+    if (!draft.amount.trim()) {
+      continue;
+    }
     const minor = parseLira(draft.amount);
     if (minor === null) {
       return null;
@@ -263,9 +269,11 @@ function Part({ number, draft, rest, errors, categories, labels, onChange, onRem
               aria-describedby={rest.error ? restErrorId : undefined}
               className={cn("min-h-11 py-2 font-medium tabular-nums", rest.error && "text-red-800 dark:text-red-200")}
             >
-              {rest.minor === null || rest.minor <= 0
-                ? t("split.restNone")
-                : formatMoney({ minor: rest.minor, currency: "TRY" })}
+              {rest.minor === null
+                ? t("split.restUnknown")
+                : rest.minor <= 0
+                  ? t("split.restNone")
+                  : formatMoney({ minor: rest.minor, currency: "TRY" })}
             </output>
             {rest.error ? (
               <p id={restErrorId} className={ERROR}>

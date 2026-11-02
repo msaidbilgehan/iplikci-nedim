@@ -179,6 +179,7 @@
     "amount": "Tutar (TL)",
     "rest": "Kalan tutar",
     "restNone": "Kalmadı",
+    "restUnknown": "Bir tutar okunamıyor",
     "category": "Kategori",
     "necessity": "Gereklilik",
     "necessityRules": "Kategorisinin düzeyi",
