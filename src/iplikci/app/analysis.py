@@ -217,6 +217,7 @@ class Gap:
     last: date  # newest statement end of the account
     behind: int  # days from that to today
     months: tuple[str, ...]  # months inside the account's statements they cover only partly or not
+    id: str  # the account's id (account is its label)
 
 
 _CLOSED_DAYS = 180  # statements that stopped this long before the other accounts': probably closed
@@ -244,5 +245,5 @@ def document_gaps(ds: Dataset, today: date | None = None, horizon: int = 12) -> 
         holes = tuple(m for m in inner if m >= oldest and cov[m] < FULL)
         behind = (today - last).days
         if holes or behind > _BEHIND_DAYS:
-            gaps.append(Gap(ds.accounts[account].label, kind[account], last, behind, holes))
+            gaps.append(Gap(ds.accounts[account].label, kind[account], last, behind, holes, account))
     return sorted(gaps, key=lambda g: (-g.behind, g.account))

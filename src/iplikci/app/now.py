@@ -163,7 +163,7 @@ def _day(d: date) -> str:
     return f"{d:%d.%m.%Y}"
 
 
-def _newest_rate(ds: Dataset, currency: str) -> tuple[date, Decimal] | None:
+def newest_rate(ds: Dataset, currency: str) -> tuple[date, Decimal] | None:
     """The newest TL rate of currency the documents print (docs/domain/interpretation.md, "Varlıklar ve borçlar")."""
     found = ds.rates.get(currency)
     return max(found) if found else None
@@ -206,7 +206,7 @@ def _balance(ds: Dataset, account: str, newest: date | None) -> Balance | Unknow
     if newest is not None and (newest - start.on).days > STALE_DAYS:
         return Unknown(account, f"son bakiye {_day(start.on)} tarihli; bugünkü bakiyesi belgelerde yok")
     currency = found.currency
-    rate = _newest_rate(ds, currency) if currency not in (TRY, GOLD) else None
+    rate = newest_rate(ds, currency) if currency not in (TRY, GOLD) else None
     value = start.balance if currency == TRY else round_half_up(start.balance * rate[1]) if rate else None
     where = "banka bildiriminde" if start.notice else "dökümünde"
     note = f"{_day(start.on)} {where} {_amount(start.stated, currency)}"

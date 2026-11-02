@@ -230,7 +230,7 @@ def feed_page(
     return FeedOut(items=[_item(item, labels) for item in found.items], next=found.next)
 
 
-def _calendar_item(item: Due, labels: dict[str, str]) -> CalendarItemOut:
+def calendar_item(item: Due, labels: dict[str, str]) -> CalendarItemOut:
     return CalendarItemOut(
         day=item.day,
         kind=item.kind,
@@ -299,6 +299,6 @@ def feed_now(request: Request) -> NowOut:
         unknown=[UnknownOut(account=account_ref(u.account, labels), reason=u.reason) for u in found.unknown],
         cards=[_card(c, labels) for c in found.cards],
         pace=pace_out(found.pace),
-        upcoming=[_calendar_item(item, labels) for item in found.upcoming],
+        upcoming=[calendar_item(item, labels) for item in found.upcoming],
         end=found.end,
     )

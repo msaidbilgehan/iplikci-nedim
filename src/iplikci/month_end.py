@@ -76,7 +76,7 @@ CLOSED, WAITING, MISSING, CHECK, RUNNING = (
 )
 ACCOUNT_STATUS = ACCOUNT_MONTH_STATUS
 MONTH_STATUS = _MONTH_LABELS
-_LATE_DAYS = 5  # a card statement this long past its expected cut date is late (the e-mail did not come)
+LATE_DAYS = 5  # a card statement this long past its expected cut date is late (the e-mail did not come)
 INCOME_NOTE = "hesap dökümlerindeki gelen para"  # the income note when there is nothing to add
 ZERO = Decimal(0)
 
@@ -434,10 +434,10 @@ class _Shared:
                 ac.next_cut = _next_cut(max(cuts))
                 while ac.next_cut < waiting[-1]:
                     ac.next_cut = _next_cut(ac.next_cut)
-                ac.late = (self.today - ac.next_cut).days > _LATE_DAYS
+                ac.late = (self.today - ac.next_cut).days > LATE_DAYS
             if acc.type == AccountType.BROKERAGE and status == WAITING:
                 # The brokerage statement covers a calendar month and comes in the first days of the next.
-                ac.late = (self.today - last_day(month_of(waiting[-1]))).days > 2 * _LATE_DAYS
+                ac.late = (self.today - last_day(month_of(waiting[-1]))).days > 2 * LATE_DAYS
             out.append(ac)
         order = {CHECK: 0, MISSING: 1, WAITING: 2, CLOSED: 3}
         return sorted(out, key=lambda a: (not a.blocking, order[a.status], a.account.bank, a.account.label))

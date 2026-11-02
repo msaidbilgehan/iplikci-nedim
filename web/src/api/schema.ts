@@ -46,6 +46,22 @@ export interface AlertConditionModel {
   text?: string;
 }
 
+/** What an open alert is about. */
+export type AlertKind = "finding" | "negative" | "unreadable" | "format_alarm" | "mail_stopped" | "bridge_silent" | "backup_failed";
+
+export type AlertLevel = "warning" | "critical";
+
+/** Something that asks for attention now. */
+export interface AlertOut {
+  kind: AlertKind;
+  level: AlertLevel;
+  title: string;
+  text: string;
+  count: number;
+  account: AccountRefOut | null;
+  link: LinkOut;
+}
+
 export interface AlertPreviewIn {
   rule: AlertRuleModel;
 }
@@ -263,6 +279,20 @@ export interface ChannelStateOut {
   note: string;
 }
 
+/** A month's closing (F11). */
+export interface ClosingOut {
+  month: string;
+  status: MonthStatus;
+  summary: string;
+  expense: MoneyOut;
+  income: MoneyOut | null;
+  left: MoneyOut | null;
+  provisional: number;
+  unmatched: number;
+  waiting: WaitingOut[];
+  link: LinkOut;
+}
+
 /** A category of commitments (its payments are regular even when the amount changes), or no longer. */
 export interface CommitmentIn {
   action: "commitment";
@@ -284,6 +314,24 @@ export interface CursorOut {
   start_day: string;
   senders: string[];
   history_due: boolean;
+}
+
+export interface DashboardOut {
+  today: string;
+  as_of: string;
+  net_worth: NetWorthOut;
+  month: ThisMonthOut;
+  due: DueSoonOut;
+  alerts: OpenAlertsOut;
+  closing: LastMonthsOut;
+  freshness: DataFreshnessOut;
+  todo: TodoSummaryOut;
+}
+
+export interface DataFreshnessOut {
+  accounts: FreshnessOut[];
+  say: string;
+  link: LinkOut;
 }
 
 export interface DeliveredOut {
@@ -366,6 +414,18 @@ export interface DocumentViewOut {
   mail: iplikci__api__routes__documents__MailOut | null;
   text: string;
   has_html: boolean;
+}
+
+/**
+ * The calendar's payments within a week that the user sees to: a card's due date, a bill, a loan's installment, a
+ * regular or periodic payment made from an account (one a card pays comes with its statement).
+ */
+export interface DueSoonOut {
+  items: CalendarItemOut[];
+  total: MoneyOut;
+  end: string;
+  say: string;
+  link: LinkOut;
 }
 
 /** A payment the user ended ("İptal ettim"): none is expected after month. */
@@ -497,6 +557,19 @@ export interface ForecastOut {
   notes: string[];
 }
 
+/** How far an account's documents reach. */
+export interface FreshnessOut {
+  account: AccountRefOut;
+  kind: DocumentKind;
+  last: string;
+  behind: number;
+  expected: string | null;
+  late: boolean;
+  missing: string[];
+  note: string;
+  link: LinkOut;
+}
+
 export interface HTTPValidationError {
   detail?: ValidationError[];
 }
@@ -516,6 +589,15 @@ export interface ImapIn {
 export interface ImapOut {
   folder: string;
   in_keyring: boolean;
+}
+
+/** The net worth in another unit, at the newest rate the documents print. */
+export interface InCurrencyOut {
+  currency: string;
+  amount: MoneyOut | null;
+  rate: string | null;
+  rate_day: string | null;
+  note: string;
 }
 
 /** A card purchase in installments with some still to come: the card's newest statement billed `number`. */
@@ -586,6 +668,12 @@ export interface KnownOut {
 
 /** The Turkish label of every code, by code type (DocumentStatus, JobKind, …). */
 export type LabelsOut = Record<string, Record<string, string>>;
+
+export interface LastMonthsOut {
+  months: ClosingOut[];
+  say: string;
+  link: LinkOut;
+}
 
 /** Where an item leads in the interface: a screen and what to open there (Screen names what id holds for each). */
 export interface LinkOut {
@@ -662,6 +750,20 @@ export type Necessity = "required" | "optional" | "unnecessary" | "unknown";
 
 /** Where a spending row's necessity comes from (docs/domain/categorization.md, "Gereklilik"). */
 export type NecessityReason = "user" | "merchant" | "category" | "default";
+
+/** The balances of "Şu an" and the cards' debts, added up: the assets less the debts, of what has a TL value. */
+export interface NetWorthOut {
+  total: MoneyOut;
+  assets: MoneyOut;
+  debts: MoneyOut;
+  certainty: Certainty;
+  parts: PartOut[];
+  left_out: UnknownOut[];
+  currencies: InCurrencyOut[];
+  note: string;
+  say: string;
+  link: LinkOut;
+}
 
 /** A payment expected again. */
 export interface NotEndedIn {
@@ -772,6 +874,12 @@ export interface NowOut {
   end: string;
 }
 
+export interface OpenAlertsOut {
+  items: AlertOut[];
+  say: string;
+  link: LinkOut;
+}
+
 export interface OtherSendersIn {
   domains: string[];
 }
@@ -821,6 +929,13 @@ export interface PairedOut {
 export interface PairingOut {
   code: string;
   expires_in: number;
+}
+
+/** An account's share of the net worth. */
+export interface PartOut {
+  account: AccountRefOut;
+  value: MoneyOut;
+  certainty: Certainty;
 }
 
 /** What an item of the calendar is (F09). */
@@ -1132,8 +1247,21 @@ export interface TelegramTokenOut {
   in_keyring: boolean;
 }
 
+/** The month's spending so far against the typical month (complete months only). */
+export interface ThisMonthOut {
+  pace: PaceOut;
+  say: string;
+  link: LinkOut;
+}
+
 /** The steps a to-do offers (F19). */
 export type TodoAction = "add_rule" | "upload" | "reparse" | "open" | "ask_claude" | "ignore";
+
+export interface TodoCountOut {
+  kind: TodoKind;
+  count: number;
+  link: LinkOut;
+}
 
 export interface TodoIgnoredIn {
   key: string;
@@ -1155,6 +1283,13 @@ export interface TodoOut {
   actions: TodoAction[];
   prompt: string;
   ignored: boolean;
+}
+
+export interface TodoSummaryOut {
+  kinds: TodoCountOut[];
+  total: number;
+  say: string;
+  link: LinkOut;
 }
 
 export interface TodosOut {
@@ -1242,6 +1377,11 @@ export type ViewKind = "pdf" | "table" | "mail" | "html" | "text" | "none";
 export interface ViewModel {
   name: string;
   query: Record<string, string[]>;
+}
+
+export interface WaitingOut {
+  account: AccountRefOut;
+  waiting_for: string;
 }
 
 export interface WhyOut {

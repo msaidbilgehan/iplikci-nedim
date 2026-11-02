@@ -992,7 +992,7 @@ class Finding:
     title: str
     text: str
     # What the report shows on click: merchant / category / kind / provisional.
-    filter: dict = field(default_factory=dict)
+    filter: dict[str, object] = field(default_factory=dict[str, object])
 
 
 @dataclass
