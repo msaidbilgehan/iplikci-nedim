@@ -124,6 +124,10 @@ export interface BackupOut {
   damaged: number;
 }
 
+export interface BackupSettingsIn {
+  keep_days: number;
+}
+
 export interface BalanceOut {
   day: string;
   balance: MoneyOut;
@@ -460,6 +464,23 @@ export interface HTTPValidationError {
   detail?: ValidationError[];
 }
 
+export interface IdentityIn {
+  names: string[];
+  business_names: string[];
+}
+
+/** An account that allows app passwords: its address and app password, tried once. */
+export interface ImapIn {
+  address: string;
+  password: string;
+  start?: string | null;
+}
+
+export interface ImapOut {
+  folder: string;
+  in_keyring: boolean;
+}
+
 /** A card purchase in installments with some still to come: the card's newest statement billed `number`. */
 export interface InstallmentOut {
   card: AccountRefOut;
@@ -550,6 +571,21 @@ export interface MailCoverageOut {
   unknown: number;
   share: number;
   left: UnknownMailOut[];
+}
+
+export interface MailSettingsIn {
+  connector?: "imap" | "browser_bridge" | null;
+  start?: string | null;
+}
+
+export interface MailSettingsOut {
+  connector: "imap" | "browser_bridge";
+  configured: boolean;
+  address: string;
+  start: string;
+  server: string;
+  stopped: boolean;
+  last_error: string;
 }
 
 /** A merchant's own level of necessity; null takes it back to its category's. */
@@ -936,6 +972,15 @@ export interface ServiceOut {
   started_at: string;
   pid: number;
   home: string;
+}
+
+export interface SettingsOut {
+  home: string;
+  port: number;
+  names: string[];
+  business_names: string[];
+  mail: MailSettingsOut;
+  backup_days: number;
 }
 
 export interface SkippedOut {

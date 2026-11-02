@@ -95,6 +95,13 @@ class Workspace:
         set_business_names(settings.identity.business_names)
         return cls(layout, settings)
 
+    def fresh_settings(self) -> config.Settings:
+        """The settings as the file says now: the Settings screen may have changed them while the service runs, and
+        the command line and the MCP server keep their own Workspace. The company names reach the readers again."""
+        settings = config.load(self.layout.settings)
+        set_business_names(settings.identity.business_names)
+        return settings
+
     @property
     def home(self) -> Path:
         return self.layout.home

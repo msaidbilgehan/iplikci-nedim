@@ -183,7 +183,7 @@ def _ledger(ws: Workspace, rules: Categorizer) -> Dataset:
     with ws.db() as db:
         found, _ = ledger_input(db)
         notes = annotations.every(db)
-    names = list(ws.settings.identity.names)
+    names = list(ws.fresh_settings().identity.names)
     ds = build(found, rules, {"ad_soyad": names} if names else {})
     annotate.apply(ds, notes, rules)
     return ds

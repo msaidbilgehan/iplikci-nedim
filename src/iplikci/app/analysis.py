@@ -122,12 +122,13 @@ def analyze(
     Excel exports and the month-end pages (today decides which month is the current one). reread=True reads every
     document again, whatever its reading says."""
     with ws.lock():
+        settings = ws.fresh_settings()  # the company names the documents are read with, as the file says now
         with ws.db() as db:
             reading.read_pending(ws, db, progress, every=reread)
             found, stats = ledger_input(db)
             notes = annotations.every(db)
         signature = ws.signature()
-    names = list(ws.settings.identity.names)
+    names = list(settings.identity.names)
     categorizer = Categorizer.layered(ws.rules)
     ds = build(found, categorizer, {"ad_soyad": names} if names else {})
     orphans = annotate.apply(ds, notes, categorizer)
