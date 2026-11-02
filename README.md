@@ -79,7 +79,8 @@ Aşama 5 (Bildirimler, v0.6.0) önemli olayları kullanıcıya ulaştırır:
 - Bildirim kuralları hangi olayın hangi kanala ne ayrıntıyla gideceğini söyler. 16 hazır kural baştan açıktır; kurallar
   Bildirimler ekranından değiştirilir ve bir kuralın son 30 günde kaç kez konuşacağı önceden görülür.
 - Kanallar: uygulamadaki bildirim kutusu, masaüstü, Telegram (kendi botunuzla) ve kendinize e-posta (uygulama şifresine
-  izin veren hesaplarda).
+  izin veren hesaplarda). Telegram botu Bildirimler ekranından bağlanır: BotFather'ın verdiği belirteç bir kez girilir,
+  bota gönderilen kodla sohbet eşleşir.
 - Bir olay için her kanala tek bildirim gider. Gönderilemeyen bildirim yeniden denenir; sessiz saatte gelenler sabah
   tek bir özetle gider. Gönderilen her bildirim teslim kaydında görünür.
 

@@ -48,6 +48,18 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
   - Her olay bir kez söylenir. Bu olayları tanımayan eski anlık görüntüden sonraki ilk analiz onları yalnızca not
     eder.
 - `iplikci servis durum` bildirim kanallarını ve bildirimlerin nasıl gittiğini de yazar.
+- Bildirimler ekranı (`/bildirimler`):
+  - Bildirim kutusu en yenisi önce gelir, okunmamışlar işaretlidir. "Tümünü okundu say" o ana dek görüneni okundu
+    sayar; menüde okunmamışların sayısı görünür.
+  - Kanallar kartı: sessiz saat, kanalları açıp kapama, her kanalın ayrıntı düzeyi, kanalın durumu ve her kanala
+    deneme bildirimi.
+  - Telegram kartı: BotFather adımları, bir daha gösterilmeyen bot belirteci, eşleştirme kodu ve sohbet bağlantısı.
+    Eşleşme kendiliğinden görünür; Telegram buradan kaldırılır.
+  - Kurallar kartı: her kural sözle ve açma kapama düğmesiyle listelenir. Düzenleyici yalnızca olayın izin verdiği
+    koşulları sunar (gün, TL tutarı, metin); "Sessiz saatlere uy" seçeneği ve son 30 güne göre önizleme vardır.
+  - Teslim kaydı: her kanaldaki bildirimin durumu, başarısız deneme sayısı, son hatası ve ilgili belge, işlem, ay ya
+    da ekran.
+- Olay akışı bir bildirim oluşunca ya da gidince bunu ayrı bir olayla söyler; bildirim kutusu beklemeden güncellenir.
 
 ### Değişenler
 

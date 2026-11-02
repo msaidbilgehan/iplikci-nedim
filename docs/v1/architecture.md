@@ -542,7 +542,7 @@ Ayrıntılar [ADR-0010](../adr/0010-notification-channels.md)'un uygulama notund
 | Yol | Amaç |
 |---|---|
 | `GET /api/status` | servis, e-posta, kuyruk, son analiz |
-| `GET /api/events/stream`, `GET /api/events` | SSE olay akışı (`Last-Event-ID` ile kaldığı yerden); olay kaydı, sayfalı |
+| `GET /api/events/stream`, `GET /api/events` | SSE olay akışı (`Last-Event-ID` ile kaldığı yerden); bir bildirim oluşunca ya da gidince kimliksiz `notifications` olayı; olay kaydı, sayfalı |
 | `GET /healthz` | servis ayakta mı; kimlik istemez |
 | `GET /giris`, `POST /api/login-links`, `POST /api/logout` | tek kullanımlık giriş bağlantısı, oturum çerezine döner; çıkış (ADR-0007) |
 | `GET /api/labels` | kodların Türkçe adları, tek eşleme modülünden |
@@ -560,7 +560,7 @@ Ayrıntılar [ADR-0010](../adr/0010-notification-channels.md)'un uygulama notund
 | `GET /api/month-end`, `GET /api/month-end/{YYYY-MM}` | ay kapanışı |
 | `GET/PUT /api/rules/categories`, `POST /api/rules/categories/preview` | kategori kuralları ve önizleme |
 | `GET/PUT /api/rules/alerts`, `POST /api/rules/alerts/preview` | bildirim kuralları, izlenebilecek olaylar ve izin verdikleri koşullar; bir kuralın son 30 günde kaç kez konuşacağı |
-| `GET /api/notifications`, `POST /api/notifications/read` | gönderilen bildirimler (kanal kanal ya da hepsi), uygulama içi kutunun okunmamış sayısı; kutuyu okundu sayma |
+| `GET /api/notifications`, `POST /api/notifications/read` | gönderilen bildirimler (kanal kanal ya da hepsi; sonraki sayfanın başladığı yerle), uygulama içi kutunun okunmamış sayısı; kutuyu okundu sayma |
 | `GET/PUT /api/notify/settings`, `POST /api/notify/test` | sessiz saat, kanal başına ayrıntı düzeyi, açık kanallar ve her kanalın neye ihtiyacı olduğu; bir kanala deneme bildirimi |
 | `POST /api/notify/telegram/token`, `POST /api/notify/telegram/pairing`, `POST /api/notify/telegram/check`, `DELETE /api/notify/telegram` | Telegram botunun belirteci (anahtar zincirine; geri dönmez), eşleştirme kodu, kodun gelip gelmediği, botu unutma (ADR-0010) |
 | `GET /api/mail`, `POST /api/mail/fetch` | e-posta durumu; şimdi al |
