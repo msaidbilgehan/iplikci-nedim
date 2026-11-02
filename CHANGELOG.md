@@ -4,6 +4,58 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [Yayımlanmadı] — Aşama 6: Arayüz
+
+Arayüz tamamlanıyor: ekranlar sırayla, açık ve koyu tema, sade ve ayrıntılı görünüm, çeviri altyapısı ve kurulabilir
+uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiyle uçtan uca sınanır.
+
+### Eklenenler
+
+- Arayüzün temeli: react-i18next ile Türkçe metinler, sayılardan ve yıllardan sonra gelen ekler için yardımcılar,
+  açık, koyu ya da sistemin teması, sade ya da ayrıntılı görünüm (ikisi de hatırlanır), gruplu menüyle uygulama
+  kabuğu, terimler sözlüğü, tutar, durum ve süzgeç bileşenleri, sabit renk yuvalı grafikler ve her grafiğin tablo
+  görünümü.
+- PWA: uygulama bildirgesi, simgeler ve yalnızca uygulamanın kabuğunu saklayan servis çalışanı; API yanıtları hiç
+  saklanmaz, bildirge ve simgeler oturum istemez.
+- Akış ekranı (`/akis`): "Şu an" (hesap başına tahmini bakiye, kart dönemleri, ay içi tempo), "Yaklaşanlar" (14 gün)
+  ve olaylar, hesap, olay türü ve kesinlik süzgeciyle; yeni gelen olaylar işaretlenir.
+- Pano ekranı (`/`): net varlık, nakit akışı, yaklaşanlar, tempo, uyarılar, yapılacaklar ve belgelerin tazeliği; her
+  kart bir cümle ve ilgili ekranın bağlantısıyla.
+- API: akışın sayfaları ve "Şu an" (`GET /api/feed`, `GET /api/feed/now`), pano kartları (`GET /api/dashboard`),
+  hesap grupları, hesap sayfası, hesaplar arası akış ve hesaba verilen ad (`GET /api/accounts…`,
+  `PUT /api/accounts/{id}/alias`).
+- İşlemler API'si: süzgeçli, sıralı, sayfalı liste ve süzülenlerin toplamları; CSV; satırın ayrıntısı ve "Neden?"
+  (kategori kuralı ve katmanı, transfer çözümünün adımı ve eşi, ilgili dekont ve bildirimler, fatura, kur ve günü);
+  tek satıra ya da seçili satırlara düzeltme; kayıtlı görünümler.
+- Satır bölme (F04): bir satır iki ile yirmi parçaya bölünür, her parça kendi kategorisinde sayılır, parçalar satırı
+  kuruşu kuruşuna tutar (göç 0017). Seriler, büyük alışverişler, olağan dışı hareketler, belgenin satırları ve akışın
+  haberleri satırın bütününe bakar; bölme bir aboneliği bozmaz, haber de olmaz. Birincil veri dökümünün 5. sürümü
+  parçaları taşır.
+- Her satır neden o kategoride olduğunu, transferinin nasıl çözüldüğünü ve hangi kurla değerlendiğini söyler.
+- Belgeler: tam metin arama; tür, geliş yolu, hesap ve banka süzgeci; görüntüleyici için sayfa resmi, sayfadaki
+  satırların kutuları ve e-postanın betiksiz özgün görünümü.
+- Değerlendirme API'si: bulgular ve adımlar penceresiyle, alışkanlıklar, olağan dışı hareketler (`GET /api/insights`)
+  ve İşlemler süzgeçleriyle harcama kartları ve üç aylık tahmin (`GET /api/spending`).
+- Ay sonu kapanışı ay ay ve bir ayın tamamı; döviz: belgelerin kendi kurları ve her birimde net varlık.
+- Yapılacaklar listesi, her maddeyi kapatacak adımlarla; kategori kuralları okunur, önizlenir, değiştirilir.
+- Kurulum sihirbazı ve Ayarlar API'si: adlar ve şirket adları, yedeklerin saklanma süresi, e-posta bağlayıcısı, IMAP
+  hesabını tek girişle kurma ve unutma; sihirbazın adımları ve ilk açılış.
+- Servisin günlüğü indirilebilir: kişisel olabilecek yollar, adlar, adresler, IBAN'lar ve uzun numaralar çıkarılmış.
+- Dışa aktarımlar listelenir ve indirilir.
+- CI: uçtan uca testler her push'ta, her ekran iki temada axe ile.
+
+### Düzeltilenler
+
+- Aynı anda yapılan iki ayar değişikliği birbirini silebiliyor, ayar dosyasını okunamaz bırakabiliyordu; değişiklikler
+  artık kilitle sırayla yapılır.
+- Bir belge, okunmaya başladığı andaki şirket adlarıyla okunup kaydedildiği andakilerle damgalanıyordu; arada eklenen
+  şirket adı belgeyi hiç yeniden okutmuyordu. Analiz de okuma sürerken kaydedilen adları görmeden güncel sayılıyordu.
+- Harcama kartları ortalamalara kısmen kapsanan ayları da katıyordu; artık yalnızca tam aylar sayılır, gün aralığı
+  İşlemler ekranındaki gibi sayılır, tahminin düzenli ödemeleri dönem dışındaki bütün süzgeçlere uyar.
+- CSV ve Excel dışa aktarımında formül gibi başlayan metin artık metin olarak yazılır.
+- Olağan dışı hareketler `docs/domain/interpretation.md`'deki eşiklere uyar; kart aidatı için iade adımı önerilir.
+- Olay akışı baştan açılınca bütün kaydı yeniden göndermez; son dakikanın olaylarını yeniden söyler.
+
 ## [0.6.0] — 2026-11-02 — Aşama 5: Bildirimler
 
 Akışın olayları kurallara göre bildirime dönüşür ve uygulama içi kutuya, masaüstüne, Telegram'a ya da kişinin kendi
