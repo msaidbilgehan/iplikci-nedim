@@ -19,8 +19,9 @@ Bugünkü tasarımda kurulum ve bazı işler terminal ister (mimari §19): `uv t
   - Windows: kurulum programı,
   - Linux: AppImage.
 - Python yorumlayıcısı ve bağımlılıklar pakettedir; kullanıcıda Python ya da uv gerekmez.
-- Paketleme aracı Aşama 6'da kısa bir denemeyle seçilir: Briefcase ya da PyInstaller. Ölçütler: üç platform, macOS
-  Vision (OCR) bağı, paket boyutu ve imzalama desteği.
+- Paket donmuş (frozen) bir program değildir: uv'nin de kurduğu taşınabilir CPython (python-build-standalone),
+  içine kurulmuş `iplikci` paketi ve bağımlılıkları pakete girer. Program, `uv tool install` ile kurulu hâliyle aynı çalışır. Gerekçe, ölçüler ve kalıcı yer aşağıda, "Paketleme biçimi"
+  bölümündedir.
 
 **İlk açılış ve günlük kullanım**
 
@@ -62,6 +63,37 @@ Bugünkü tasarımda kurulum ve bazı işler terminal ister (mimari §19): `uv t
 - O zamana dek geliştirme `uv run` ile sürer. MVP 2026-10-31'de emekliye ayrıldı
   ([ADR-0018](0018-retire-mvp-clean-start.md)).
 
+## Paketleme biçimi
+
+Aşama 6'nın ön incelemesi (2026-11-02). Bu bölüm ADR kabul edilmeden önce eklendi ve kararın parçasıdır.
+
+- Program gerçek bir Python yorumlayıcısına dayanır:
+  - Okuma ve görüntüleme süreçleri `python -I -m iplikci.parsers.worker` ve `python -I -m iplikci.viewer.worker`
+    olarak başlar ([ADR-0005](0005-parser-plugins.md)). `-I`, belgenin yanındaki hiçbir dosyanın içe
+    aktarılamamasını sağlar.
+  - Servis kaydı `python -I -X utf8 -m iplikci servis calistir --ev <veri klasörü>` komutunu çalıştırır.
+- PyInstaller ve Briefcase programı dondurur: `sys.executable` uygulamanın kendi ikili dosyası olur ve `-I -m`
+  çalışmaz. Okuma süreçleri ve servis kaydı yeniden tasarlanmak zorunda kalır, yalıtım da zayıflar.
+- Bu yüzden paket şunlardan oluşur:
+  - taşınabilir CPython 3.13 (python-build-standalone),
+  - içine kurulmuş `iplikci` ve bağımlılıkları, derlenmiş arayüz dahil,
+  - arayüzü açan küçük bir başlatıcı.
+
+  macOS'ta Vision (OCR) bağı pyobjc tekerlekleriyle aynen gelir.
+- Ölçü: bir Mac'te (Apple Silicon), sıkıştırılmadan, CPython 3.13.18 72 MB, kurulu program ve
+  bağımlılıkları 102 MB tutuyor.
+- **Kalıcı yer:** servis kaydı yeri değişmeyen bir yolu göstermelidir.
+  - macOS: uygulama Uygulamalar klasöründen çalışır. Disk görüntüsünden açılırsa önce taşınmasını ister.
+  - Windows: kurulum programı kullanıcının kendi klasörüne kurar (`%LOCALAPPDATA%\Programs`); yönetici izni
+    gerekmez.
+  - Linux: AppImage her açılışta başka bir yere bağlanır. İlk açılışta çalışma ortamını
+    `~/.local/share/iplikci/app/<sürüm>` klasörüne kurar ve servisi oradan kaydeder.
+- **Güncelleme:** yeni sürüm eskisinin yanına kurulur, servis yeni yoldan yeniden kaydedilip başlatılır, sonra eski
+  sürümün klasörü kaldırılır. Veri klasörüne dokunulmaz.
+- **İmzasız paket:** macOS indirilen uygulamayı karantinaya alır. "Yine de aç"tan sonra paketteki yorumlayıcının da
+  çalıştığı temiz kurulum denemesinde doğrulanır.
+- **Üretim:** paketler CI'da her işletim sisteminin kendi makinesinde üretilir.
+
 ## Sonuçlar
 
 - Olumlu:
@@ -75,6 +107,8 @@ Bugünkü tasarımda kurulum ve bazı işler terminal ister (mimari §19): `uv t
 ## Değerlendirilen seçenekler
 
 - **`uv tool install` ya da pipx:** terminal ister.
+- **PyInstaller ya da Briefcase ile donmuş paket:** okuma süreçleri ve servis kaydı `python -I -m` ile çalıştığından
+  yeniden tasarım ister ve yalıtım zayıflar (yukarıda, "Paketleme biçimi").
 - **Electron ya da Tauri kabuğu:** Electron ağırdır, Tauri yeni bir araç zinciri (Rust) ister. Arayüz zaten tarayıcıda
   çalıştığı için gereksizdir.
 - **Docker:** terminal ister; anahtar zincirine ve OCR'ye erişim zordur.

@@ -11,6 +11,10 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 
 ## Değişiklik kaydı
 
+- 2026-11-02 (17) — Aşama 6'nın ön incelemesi: [ADR-0017](adr/0017-no-terminal-install.md)'ye "Paketleme biçimi"
+  bölümü eklendi (ADR hâlâ önerildi). Okuma süreçleri ve servis kaydı `python -I -m` ile çalıştığı için paket donmuş
+  değil, taşınabilir CPython ve içine kurulmuş programdır; kalıcı yer, güncelleme ve imzasız paket notları da orada.
+
 - 2026-11-02 (16) — Aşama 5 uygulandı (`asama-5` dalı); belgeler kodla uyumlu hâle getirildi:
   - README'nin durum bölümü güncellendi; `CHANGELOG.md`'ye 0.6.0 eklendi.
   - [ADR-0010](adr/0010-notification-channels.md)'a uygulama notu: kurallar, kanallar, tekrar engeli, sessiz saat ve
