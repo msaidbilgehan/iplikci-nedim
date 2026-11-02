@@ -1621,11 +1621,20 @@ def _write_budget(c: _Context) -> None:
     fixed = [s for s in ins.series if s.running and s.last.kind == TransactionKind.PURCHASE]
     needed = c.level(NEEDED)
     unsure = c.level(Necessity.UNKNOWN, work=True)
-    fees = c.typical(lambda t: t.necessity == AVOIDABLE)
+
+    # The unnecessary level as the other levels' lines count theirs: a regular payment the user counts as unnecessary
+    # is among the fixed payments while it runs and nowhere once it ended, a work cost on its own line; the fees' own
+    # series (an account's monthly fee) stay here, as no other line has them.
+    def avoidable(t: Transaction) -> bool:
+        return (
+            t.necessity == AVOIDABLE
+            and (id(t) not in c.in_series or t.kind == TransactionKind.INTEREST_FEE)
+            and t.category not in WORK_CATEGORIES
+        )
+
+    fees = c.typical(avoidable)
     base = set(c.base)
-    ways = {
-        _AVOID_NOTE.get(t.category, "") for t in c.expenses if t.necessity == AVOIDABLE and month_of(t.date) in base
-    }
+    ways = {_AVOID_NOTE.get(t.category, "") for t in c.expenses if avoidable(t) and month_of(t.date) in base}
     avoid = ", ".join(sorted(w for w in ways if w))
     work = c.typical(lambda t: t.category in WORK_CATEGORIES and id(t) not in c.in_series)
     optional, cut = _optional_cut(c)
@@ -1647,7 +1656,10 @@ def _write_budget(c: _Context) -> None:
         BudgetLine("Yazılım, bulut ve muhasebe (abonelik dışı)", work, work, "işinizse şirkete taşınabilir"),
         BudgetLine("Sınıflanmamış harcamalar", unsure, unsure, "kişisel kurallarla netleşir"),
         BudgetLine(
-            "Faiz ve banka ücretleri", fees, ZERO, f"öneri: {avoid} sıfırlayın" if avoid else "öneri: sıfırlayın"
+            "Gereksiz harcamalar (faiz, banka ücretleri…)",
+            fees,
+            ZERO,
+            f"öneri: {avoid} sıfırlayın" if avoid else "öneri: sıfırlayın",
         ),
         BudgetLine("BES ve düzenli birikim", saving, saving, "düzenli ödemelerden"),
     ]

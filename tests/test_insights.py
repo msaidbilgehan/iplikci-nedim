@@ -633,7 +633,7 @@ def test_fees_are_advised_on_by_their_kind_and_a_purchase_from_an_account_is_no_
         "Ocak 2026 – Haziran 2026 arasındaki 6 tam ayda 48 TL, ayda 8 TL: Transfer & İşlem Ücretleri 48 TL. Transfer "
         "ücretleri, ücretsiz transfer hakkı olan bir hesap ya da kanalla önlenir."
     )
-    fee_line = next(line for line in ins.budget if line.label == "Faiz ve banka ücretleri")
+    fee_line = next(line for line in ins.budget if line.label == "Gereksiz harcamalar (faiz, banka ücretleri…)")
     assert (fee_line.now, fee_line.note) == (Decimal(8), "öneri: ücretsiz transfer kanalıyla sıfırlayın")
     step = next(s for s in ins.steps if s.title == "Büyük alışverişler için önceden biriktirin")
     assert step.text == (
@@ -657,6 +657,27 @@ def test_fees_are_advised_on_by_their_kind_and_a_purchase_from_an_account_is_no_
     )
     step = next(s for s in ins.steps if s.title == "Büyük alışverişler için önceden biriktirin")
     assert "tek seferde karttan ödendi" in step.text and step.text.endswith("kart borcunu ve faizi önler.")
+
+
+def test_a_regular_payment_the_user_counts_as_unnecessary_is_budgeted_once_among_the_fixed_payments():
+    avoidable, fee = Necessity.UNNECESSARY, TransactionKind.INTEREST_FEE
+    fees = [
+        tx(d, "TEB faiz & ücretleri", Decimal(8), "Transfer & İşlem Ücretleri", avoidable, fee, "cash")
+        for d in monthly(date(2026, 1, 3), 6)
+    ]
+    music = [
+        tx(d, "Örnek Müzik", Decimal("99.99"), "Dijital Abonelikler", avoidable, account="cash")
+        for d in monthly(date(2026, 1, 9), 6)
+    ]
+    flight = tx(date(2026, 3, 20), "Örnek Havayolu", Decimal(4200), "Uçak, Tren & Otobüs", avoidable, account="cash")
+    ins = interpret(_account_months([*fees, *music, flight]))
+    lines = {line.label: line for line in ins.budget}
+    assert lines["Sabit ödemeler (kira, aidat, faturalar, abonelikler)"].now == Decimal("99.99")
+    # The level's line holds what the user counts as unnecessary besides the fees, and the fees' median month is 8 TL:
+    # the subscription is not counted a second time, the flight is one month's.
+    unnecessary = lines["Gereksiz harcamalar (faiz, banka ücretleri…)"]
+    assert (unnecessary.now, unnecessary.plan) == (Decimal(8), Decimal(0))
+    assert lines["Ay sonunda kalan"].now == Decimal("39892.01")
 
 
 # --- Turkish ----------------------------------------------------------------------------------

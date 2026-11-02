@@ -106,6 +106,9 @@ nedenleri arasında sayılmaz.
 - Her bulgu penceresini ve rakamlarını verir.
 - Bir adım aylık TL etkisini yalnızca veri onu fiyatlıyorsa taşır.
 - Bütçenin son satırı, gelirden diğer satırların düşülmesine eşittir.
+- Bütçede her harcama tek satırda sayılır. Gereksiz saydığınız bir düzenli ödeme sürdükçe sabit ödemelerdedir, bitince
+  hiçbir satıra girmez; "Gereksiz harcamalar" satırında faiz ve ücretler (kendi serileri de) ile gereksiz saydığınız
+  öteki harcamalar vardır.
 - Sayılardan ve yıllardan sonraki Türkçe ekler `pct`, `since`, `months_in` ve `year_suffix` ile kurulur; `'i` ya da
   `'da` elle yazılmaz.
 - Yeni bir bulgu `_Context` ile beslenen bir yazar olarak eklenir. Rakamları tam aylardan gelir, testi yazılır;
