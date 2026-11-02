@@ -371,6 +371,9 @@ def test_the_subscriptions_are_the_series_with_their_status_next_payment_and_row
     first = rent["payments"][0]
     assert (first["day"], first["amount"], first["certainty"]) == ("2026-01-03", tl(1500000), "confirmed")
     assert len(first["fingerprint"]) == 20 and first["document"].endswith("Hesap Hareketleri.xls")
+    assert len(first["sha256"]) == 64  # the very document, for the viewer
+    kept = demo_client.get(f"/api/documents/{first['sha256']}", headers=bearer())
+    assert kept.status_code == 200 and first["fingerprint"] in {r["fingerprint"] for r in kept.json()["rows"]}
     gas = next(s for s in found["series"] if s["payee"] == "Doğalgaz (İGDAŞ)")
     assert gas["amount"] == tl(20000) and gas["last_amount"] == tl(60000)  # a moving bill: the last three's median
     (salary,) = found["income"]

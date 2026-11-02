@@ -16,7 +16,7 @@ Content-Security-Policy without scripts.
 import calendar
 import html
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from importlib import resources
@@ -285,6 +285,7 @@ class MonthEnd:
     trend: list[tuple[str, Decimal]]  # expense of the twelve months up to this one
     income_note: str
     debt_end: Decimal | None  # card statement balances and overdraft use at the month's end
+    level_codes: list[Necessity] = field(default_factory=list)  # the levels' codes, in their order (İşlemler's filter)
 
     @property
     def label(self) -> str:
@@ -512,6 +513,7 @@ class _Shared:
             typical_months=len(prior),
             groups=groups,
             levels=levels,
+            level_codes=[code for code in Necessity if code in by_level],
             categories=categories,
             merchants=merchants,
             regular=regular,

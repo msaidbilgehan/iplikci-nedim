@@ -118,6 +118,14 @@ def test_a_months_page_tells_each_accounts_closing_and_what_it_waits_for(demo_cl
     assert (found["typical"], found["typical_months"]) == (tl(2092799), 6)
     assert (found["previous_month"], found["next_month"]) == ("2026-06", "2026-08")
     assert {r["payee"] for r in found["regular"]} >= {"Spotify", "Turkcell"}
+    # A level names its code, the filter of İşlemler; the other shares have none.
+    assert {(s["name"], s["code"]) for s in found["levels"]} <= {
+        ("Gerekli", "required"),
+        ("İsteğe bağlı", "optional"),
+        ("Gereksiz", "unnecessary"),
+        ("Belirsiz", "unknown"),
+    }
+    assert found["levels"] and all(s["code"] == "" for s in found["groups"] + found["categories"] + found["merchants"])
 
 
 def test_a_card_waiting_for_its_statement_says_its_cut(garanti_ws):

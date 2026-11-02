@@ -1214,6 +1214,7 @@ export interface MonthEndShareOut {
   slot: number;
   amount: MoneyOut;
   count: number | null;
+  code: string;
 }
 
 /** A statement or a list overlapping the month, with the days of the month it covers. */
@@ -1504,6 +1505,7 @@ export interface PaymentOut {
   day: string;
   amount: MoneyOut;
   document: string;
+  sha256: string;
   certainty: Certainty;
 }
 

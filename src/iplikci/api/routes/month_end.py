@@ -105,6 +105,7 @@ class MonthEndShareOut(BaseModel):
     slot: int  # its colour slot (the charts' fixed slots)
     amount: MoneyOut
     count: int | None  # rows: a category's or a merchant's
+    code: str  # a level's necessity code, İşlemler's filter (required, optional, unnecessary, unknown); "" otherwise
 
 
 class MonthEndRegularOut(BaseModel):
@@ -254,10 +255,17 @@ def month_detail(request: Request, month: Month) -> MonthEndDetailOut:
         typical=_optional(me.typical),
         typical_months=me.typical_months,
         accounts=[_account(ac, labels) for ac in me.accounts],
-        groups=[MonthEndShareOut(name=g, slot=slot, amount=money(v), count=None) for g, slot, v in me.groups],
-        levels=[MonthEndShareOut(name=level, slot=slot, amount=money(v), count=None) for level, slot, v in me.levels],
-        categories=[MonthEndShareOut(name=c, slot=slot, amount=money(v), count=n) for c, slot, v, n in me.categories],
-        merchants=[MonthEndShareOut(name=m, slot=slot, amount=money(v), count=n) for m, slot, v, n in me.merchants],
+        groups=[MonthEndShareOut(name=g, slot=slot, amount=money(v), count=None, code="") for g, slot, v in me.groups],
+        levels=[
+            MonthEndShareOut(name=level, slot=slot, amount=money(v), count=None, code=str(code))
+            for (level, slot, v), code in zip(me.levels, me.level_codes, strict=True)
+        ],
+        categories=[
+            MonthEndShareOut(name=c, slot=slot, amount=money(v), count=n, code="") for c, slot, v, n in me.categories
+        ],
+        merchants=[
+            MonthEndShareOut(name=m, slot=slot, amount=money(v), count=n, code="") for m, slot, v, n in me.merchants
+        ],
         regular=regular,
         big=[row_out(r, labels) for r in found.big],
         provisional=[row_out(r, labels) for r in found.provisional],

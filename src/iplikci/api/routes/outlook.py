@@ -40,7 +40,8 @@ class PaymentOut(BaseModel):
     fingerprint: str
     day: date
     amount: MoneyOut
-    document: str
+    document: str  # the file's name, as its reader saw it
+    sha256: str  # the document's: /belgeler/<sha256>?satir=<fingerprint> opens it at the row
     certainty: Certainty
 
 
@@ -208,6 +209,7 @@ def series_out(view: SeriesView, labels: dict[str, str]) -> SeriesOut:
                 day=r.day,
                 amount=_money(abs(r.amount)),
                 document=r.document,
+                sha256=r.sha256,
                 certainty=r.certainty,
             )
             for r in view.rows

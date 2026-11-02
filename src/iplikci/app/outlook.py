@@ -63,7 +63,8 @@ class Row:
     fingerprint: str
     day: date
     amount: Decimal  # in TL as the ledger counts it: money out above zero, money in below
-    document: str
+    document: str  # the file's name, as its reader saw it
+    sha256: str  # the very document it is printed in, for the viewer
     certainty: Certainty
 
 
@@ -131,7 +132,7 @@ def _labels(ds: Dataset) -> dict[str, str]:
 
 def _row(t: Transaction) -> Row:
     certainty = Certainty.PROVISIONAL if t.provisional else Certainty.CONFIRMED
-    return Row(t.fingerprint, t.date, t.amount, t.source, certainty)
+    return Row(t.fingerprint, t.date, t.amount, t.source, t.document, certainty)
 
 
 def _note(s: Series, ds: Dataset) -> str:
