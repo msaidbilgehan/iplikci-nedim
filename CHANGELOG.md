@@ -55,6 +55,15 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
 - CSV ve Excel dışa aktarımında formül gibi başlayan metin artık metin olarak yazılır.
 - Olağan dışı hareketler `docs/domain/interpretation.md`'deki eşiklere uyar; kart aidatı için iade adımı önerilir.
 - Olay akışı baştan açılınca bütün kaydı yeniden göndermez; son dakikanın olaylarını yeniden söyler.
+- Bölünmüş bir satır her sayımda tek ödemedir: ay sonu, alışkanlıklar, en çok harcanan yerler, kart dönemi ve
+  dekont bulgusu onu bir kez sayar; büyük alışveriş satırın bütününe bakar. Üç aylık tahmin, son ödemesi bölünmüş
+  düzenli ödemeyi parçalarının paylarıyla gösterir; kategori, grup ya da gereklilik süzgeci yalnızca tuttuğu
+  parçaları sayar.
+- Bir kural satırın türünü bölünmeyen bir türe çevirince ya da tutar bir parçayı sıfıra indirecek kadar değişince
+  bölme sessizce kayboluyordu; artık Yapılacaklar'da "Uygulanamayan bölme" çıkar, satır paneli uyarır ve bölmeyi
+  kaldırma yolu sunar. Kural önizlemesi böyle satırların değişikliğini de gösterir.
+- Bölünmüş satırın kendisine verilen kategori ya da gereklilik görünmüyordu; artık reddedilir. Bir dekontun bölünmüş
+  satırının parçalarına giden bağlantılar, dekontu ekstre gösterince ekstrenin aynı parçalarını açar.
 
 ## [0.6.0] — 2026-11-02 — Aşama 5: Bildirimler
 
