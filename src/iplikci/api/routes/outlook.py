@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 
 from ...app import outlook
-from ...app.analysis import Analysis
+from ...app.analysis import Analysis, account_labels
 from ...app.outlook import (
     AccountForecast,
     Certainty,
@@ -180,7 +180,7 @@ def _account(account: str, labels: dict[str, str]) -> AccountRefOut:
     return AccountRefOut(id=account, label=labels.get(account, account))
 
 
-def _series(view: SeriesView, labels: dict[str, str]) -> SeriesOut:
+def series_out(view: SeriesView, labels: dict[str, str]) -> SeriesOut:
     change = view.price_change
     return SeriesOut(
         id=view.id,
@@ -215,7 +215,7 @@ def _series(view: SeriesView, labels: dict[str, str]) -> SeriesOut:
     )
 
 
-def _installment(i: Installment, labels: dict[str, str]) -> InstallmentOut:
+def installment_out(i: Installment, labels: dict[str, str]) -> InstallmentOut:
     return InstallmentOut(
         card=_account(i.account, labels),
         title=i.title,
@@ -229,7 +229,7 @@ def _installment(i: Installment, labels: dict[str, str]) -> InstallmentOut:
     )
 
 
-def _item(item: Due, labels: dict[str, str]) -> CalendarItemOut:
+def calendar_item(item: Due, labels: dict[str, str]) -> CalendarItemOut:
     return CalendarItemOut(
         day=item.day,
         kind=item.kind,
@@ -272,7 +272,7 @@ def _forecast(found: AccountForecast, labels: dict[str, str]) -> AccountForecast
         spend=_spread(found.spend),
         cards=_spread(found.cards),
         interest=_money(found.interest) if found.interest is not None else None,
-        items=[_item(item, labels) for item in found.items],
+        items=[calendar_item(item, labels) for item in found.items],
         days=[_balance(point) for point in found.days],
         notes=found.notes,
     )
@@ -282,14 +282,14 @@ def _forecast(found: AccountForecast, labels: dict[str, str]) -> AccountForecast
 def subscriptions(request: Request) -> SubscriptionsOut:
     """The monthly and periodic payments with their statuses and next payments, the regular income and the card
     purchases with installments still to come (F08)."""
-    found = outlook.subscriptions(_analysis(context_of(request)))
-    labels = found.labels
+    a = _analysis(context_of(request))
+    found, labels = outlook.subscriptions(a), account_labels(a)
     return SubscriptionsOut(
         window=found.window,
         as_of=found.as_of,
-        series=[_series(view, labels) for view in found.series],
-        income=[_series(view, labels) for view in found.income],
-        installments=[_installment(i, labels) for i in found.installments],
+        series=[series_out(view, labels) for view in found.series],
+        income=[series_out(view, labels) for view in found.income],
+        installments=[installment_out(i, labels) for i in found.installments],
     )
 
 
@@ -297,22 +297,23 @@ def subscriptions(request: Request) -> SubscriptionsOut:
 def calendar(request: Request) -> CalendarOut:
     """What is expected from today on, for the next 60 days, by day (F09)."""
     context = context_of(request)
-    found = outlook.calendar(_analysis(context), context.today())
-    return CalendarOut(today=found.today, end=found.end, items=[_item(item, found.labels) for item in found.items])
+    a = _analysis(context)
+    found, labels = outlook.calendar(a, context.today()), account_labels(a)
+    return CalendarOut(today=found.today, end=found.end, items=[calendar_item(item, labels) for item in found.items])
 
 
 @router.get("/api/forecast")
 def forecast(request: Request) -> ForecastOut:
     """Each bank account's balance day by day from today on, for the next 60 days: an estimate (F09)."""
     context = context_of(request)
-    found = outlook.cash_flow(_analysis(context), context.today())
-    result, labels = found.forecast, found.labels
+    a = _analysis(context)
+    result, labels = outlook.cash_flow(a, context.today()).forecast, account_labels(a)
     return ForecastOut(
         label=result.label,
         today=result.today,
         end=result.end,
         accounts=[_forecast(account, labels) for account in result.accounts],
-        elsewhere=[_item(item, labels) for item in result.elsewhere],
+        elsewhere=[calendar_item(item, labels) for item in result.elsewhere],
         skipped=[SkippedOut(account=_account(account, labels), reason=why) for account, why in result.skipped],
         notes=result.notes,
     )

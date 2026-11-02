@@ -9,6 +9,7 @@ from . import pages, problems
 from .context import Context
 from .guard import Guard
 from .routes import (
+    accounts,
     auth,
     backups,
     bridge,
@@ -45,6 +46,7 @@ ROUTERS = (
     documents,
     feed,
     dashboard,
+    accounts,
     outlook,
     insights,
     spending,

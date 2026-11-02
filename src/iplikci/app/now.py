@@ -23,7 +23,7 @@ from ..domain.money import round_half_up
 from ..forecast import STALE_DAYS, start_of
 from ..insights import complete_months, month_name, month_of, payments_after, pct
 from ..upcoming import Due, add_months
-from . import accounts, outlook
+from . import outlook, reach
 from .analysis import Analysis
 
 # What the API names from here: the use cases, their records and the codes they carry.
@@ -243,8 +243,8 @@ def balances(a: Analysis) -> tuple[list[Balance], list[Unknown]]:
     document prints, moved by the receipt and notice rows after it), and the accounts without one with why. Cards
     have their statements instead (cards); a closed account is listed on the Accounts screen only."""
     ds = a.dataset
-    seen = accounts.last_seen(ds)
-    gone = accounts.closed(seen)
+    seen = reach.last_seen(ds)
+    gone = reach.closed(seen)
     newest = max(seen.values(), default=None)
     found: list[Balance] = []
     unknown: list[Unknown] = []
@@ -310,7 +310,7 @@ def cards(a: Analysis) -> tuple[list[Card], list[Unknown]]:
     """Every open card's newest TL statement and the period it is in now; a card known from no statement, with
     why."""
     ds = a.dataset
-    gone = accounts.closed(accounts.last_seen(ds))
+    gone = reach.closed(reach.last_seen(ds))
     found: list[Card] = []
     unknown: list[Unknown] = []
     for account in sorted(ds.accounts.values(), key=lambda x: x.label):

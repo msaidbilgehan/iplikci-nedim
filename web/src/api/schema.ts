@@ -1,6 +1,27 @@
 // The service's API types, generated from its OpenAPI document by `iplikci dev api-tipleri` (ADR-0007).
 // Do not edit by hand: change the API's models and generate again; a test keeps this file current.
 
+/** An account's page (F07). */
+export interface AccountDetailOut {
+  account: AccountOut;
+  rows: RowOut[];
+  totals: TotalsOut;
+  offset: number;
+  next: number | null;
+  curve: CurvePointOut[];
+  curve_note: string;
+  months: MonthTotalsOut[];
+  fees: FeesOut;
+  payments: SeriesOut[];
+  income: SeriesOut[];
+  card: CardPageOut | null;
+  overdraft: OverdraftOut | null;
+  deposit: DepositOut | null;
+  holding: HoldingOut | null;
+  brokerage: BrokerageOut | null;
+  loan: LoanOut | null;
+}
+
 export interface AccountForecastOut {
   account: AccountRefOut;
   start: StartOut;
@@ -15,12 +36,46 @@ export interface AccountForecastOut {
   notes: string[];
 }
 
+/**
+ * The Accounts screen's groups (F07), in its order: a card of either kind is a card, every other account is grouped by
+ * its type.
+ */
+export type AccountGroup = "cards" | "current" | "deposit" | "overdraft" | "fx" | "gold" | "brokerage" | "loan";
+
+export interface AccountOut {
+  account: AccountRefOut;
+  label: string;
+  alias: string;
+  bank: string;
+  type: AccountType;
+  group: AccountGroup;
+  balance: MoneyOut | null;
+  value: MoneyOut | null;
+  day: string | null;
+  certainty: Certainty | null;
+  note: string;
+  freshness: FreshnessOut | null;
+  month: MonthFlowOut;
+  closed: boolean;
+  link: LinkOut;
+}
+
 export interface AccountRefOut {
   id: string;
   label: string;
 }
 
 export type AccountType = "credit_card" | "debit_card" | "current" | "deposit" | "overdraft" | "fx" | "gold" | "brokerage" | "loan";
+
+export interface AccountsOut {
+  today: string;
+  groups: GroupOut[];
+  closed: AccountOut[];
+  assets: MoneyOut;
+  debts: MoneyOut;
+  total: MoneyOut;
+  note: string;
+}
 
 export interface AlarmIn {
   layer: number;
@@ -92,6 +147,15 @@ export interface AlertRulesOut {
   own: boolean;
   problem: string;
   events: EventInfoOut[];
+}
+
+export interface AliasIn {
+  alias: string;
+}
+
+export interface AliasOut {
+  account: AccountRefOut;
+  alias: string;
 }
 
 export interface AnnotationOut {
@@ -184,6 +248,16 @@ export interface BridgeOut {
   active: boolean;
 }
 
+export interface BrokerageOut {
+  as_of: string | null;
+  securities: SecurityOut[];
+  cash: MoneyOut | null;
+  worth: MoneyOut | null;
+  dividends: MoneyOut;
+  dividend_rows: number;
+  note: string;
+}
+
 export interface BudgetLineOut {
   label: string;
   now: MoneyOut;
@@ -220,6 +294,14 @@ export interface CalendarOut {
   today: string;
   end: string;
   items: CalendarItemOut[];
+}
+
+export interface CardPageOut {
+  statement: NowCardOut | null;
+  statements: StatementOut[];
+  installments: InstallmentOut[];
+  schedule: ScheduleMonthOut[];
+  left: MoneyOut;
 }
 
 /** A card's statement period and its spending (purchases, refunds, interest and fees). */
@@ -340,6 +422,12 @@ export interface CursorOut {
   history_due: boolean;
 }
 
+export interface CurvePointOut {
+  day: string;
+  balance: MoneyOut;
+  certainty: Certainty;
+}
+
 export interface DashboardOut {
   today: string;
   as_of: string;
@@ -365,6 +453,14 @@ export interface DeliveredOut {
 
 /** Where a notification stands on its channel (ADR-0010). */
 export type DeliveryStatus = "pending" | "sent" | "held" | "digested" | "failed";
+
+export interface DepositOut {
+  principal: MoneyOut | null;
+  rate: string | null;
+  maturity: string | null;
+  interest: MoneyOut | null;
+  note: string;
+}
 
 /** How much a notification says (ADR-0010). */
 export type DetailLevel = "full" | "summary" | "minimal";
@@ -518,6 +614,11 @@ export interface FailedJobOut {
   error: string;
 }
 
+export interface FeeOut {
+  category: string;
+  amount: MoneyOut;
+}
+
 /** What an event's detail says (architecture §13); a field the event does not carry is null or empty. */
 export interface FeedDetailOut {
   title: string;
@@ -575,6 +676,12 @@ export interface FeedOut {
   next: number | null;
 }
 
+export interface FeesOut {
+  months: string[];
+  total: MoneyOut;
+  categories: FeeOut[];
+}
+
 export interface FetchQueuedOut {
   queued: boolean;
 }
@@ -586,6 +693,21 @@ export interface FindingOut {
   link: LinkOut;
 }
 
+export interface FlowEdgeOut {
+  source: string;
+  target: string;
+  amount: MoneyOut;
+  rows: number;
+  kinds: TransactionKind[];
+  link: LinkOut;
+}
+
+/**
+ * What a node of the flow between accounts is (F07's Sankey): one of the user's accounts, or where money came from or
+ * went.
+ */
+export type FlowKind = "account" | "income" | "spending" | "people" | "saving" | "loan" | "cash" | "elsewhere";
+
 export interface FlowMonthOut {
   month: string;
   income: MoneyOut;
@@ -595,6 +717,13 @@ export interface FlowMonthOut {
   debt: MoneyOut;
   saving: MoneyOut;
   left: MoneyOut;
+}
+
+export interface FlowNodeOut {
+  id: string;
+  kind: FlowKind;
+  name: string;
+  account: AccountRefOut | null;
 }
 
 /** Each a monthly average over the window's months. */
@@ -611,6 +740,14 @@ export interface FlowOut {
   debt_start: MoneyOut;
   debt_end: MoneyOut;
   other_typical: MoneyOut;
+}
+
+export interface FlowsOut {
+  start: string;
+  end: string;
+  nodes: FlowNodeOut[];
+  edges: FlowEdgeOut[];
+  note: string;
 }
 
 export interface ForecastOut {
@@ -630,6 +767,8 @@ export type ForecastPart = "regular" | "installments" | "variable";
 export interface FreshnessOut {
   account: AccountRefOut;
   kind: DocumentKind;
+  document: string;
+  name: string;
   last: string;
   behind: number;
   expected: string | null;
@@ -637,6 +776,15 @@ export interface FreshnessOut {
   missing: string[];
   note: string;
   link: LinkOut;
+}
+
+export interface GroupOut {
+  group: AccountGroup;
+  assets: MoneyOut;
+  debts: MoneyOut;
+  total: MoneyOut;
+  unvalued: number;
+  accounts: AccountOut[];
 }
 
 export interface HTTPValidationError {
@@ -662,6 +810,17 @@ export interface HabitOut {
 
 /** How a discretionary merchant or an avoidable cost goes over the window (docs/domain/interpretation.md). */
 export type HabitStatus = "monthly" | "new" | "occasional" | "stopped" | "one_off";
+
+/** A foreign currency or gold account. */
+export interface HoldingOut {
+  amount: MoneyOut | null;
+  value: MoneyOut | null;
+  rate: string | null;
+  rate_day: string | null;
+  cost: MoneyOut | null;
+  gain: MoneyOut | null;
+  note: string;
+}
 
 export interface IdentityIn {
   names: string[];
@@ -796,6 +955,23 @@ export interface LinkOut {
   query: Record<string, string>;
 }
 
+export interface LoanInstallmentOut {
+  day: string;
+  principal: MoneyOut;
+  cost: MoneyOut;
+  document: string;
+  certainty: Certainty;
+}
+
+export interface LoanOut {
+  installments: LoanInstallmentOut[];
+  principal_paid: MoneyOut;
+  interest_paid: MoneyOut;
+  next: CalendarItemOut[];
+  remaining: MoneyOut | null;
+  note: string;
+}
+
 export interface LoginLink {
   url: string;
 }
@@ -881,6 +1057,16 @@ export interface MoneyOut {
   currency: string;
 }
 
+/** The money in and out of an account in the current month so far, counted rows only, in TL. */
+export interface MonthFlowOut {
+  month: string;
+  money_in: MoneyOut;
+  money_out: MoneyOut;
+  rows: number;
+  provisional: number;
+  note: string;
+}
+
 export interface MonthRowOut {
   month: string;
   values: MoneyOut[];
@@ -893,6 +1079,14 @@ export type MonthStatus = "closed" | "waiting" | "missing" | "check" | "running"
 export interface MonthTableOut {
   slices: SliceOut[];
   months: MonthRowOut[];
+}
+
+export interface MonthTotalsOut {
+  month: string;
+  money_in: MoneyOut;
+  money_out: MoneyOut;
+  rows: number;
+  complete: boolean;
 }
 
 export type Necessity = "required" | "optional" | "unnecessary" | "unknown";
@@ -1038,6 +1232,16 @@ export interface OtherSendersOut {
   domains: string[];
 }
 
+export interface OverdraftOut {
+  limit: MoneyOut | null;
+  used: MoneyOut;
+  days_below: number;
+  window_start: string | null;
+  window_end: string | null;
+  interest: MoneyOut;
+  note: string;
+}
+
 /**
  * The month's spending so far (purchases, refunds, interest and fees) against the typical month. The month is partial:
  * card spending comes with the statements after their cut dates; the typical month comes from complete months only.
@@ -1064,6 +1268,12 @@ export interface PageSizeOut {
   width: number;
   height: number;
 }
+
+/**
+ * How a credit card statement was paid (F07's payment history): by the next statement's cut, or for the newest one, by
+ * today.
+ */
+export type PaidStatus = "full" | "minimum" | "partial" | "unpaid" | "open" | "nothing_due";
 
 export interface PairIn {
   code: string;
@@ -1258,6 +1468,12 @@ export interface ScannedOut {
   history_due: boolean;
 }
 
+export interface ScheduleMonthOut {
+  month: string;
+  amount: MoneyOut;
+  count: number;
+}
+
 /**
  * A screen of the interface, as a link names it, and what the link's id holds there: document (a document's sha256, its
  * query's "satir" a row's fingerprint to open it at), documents, transaction (a row's fingerprint), transactions,
@@ -1266,6 +1482,14 @@ export interface ScannedOut {
  * fx, todo (a kind of item to see to), system, notifications. A list screen opens with the link's query as its filters.
  */
 export type Screen = "document" | "documents" | "transaction" | "transactions" | "account" | "accounts" | "month" | "invoice" | "invoices" | "subscription" | "calendar" | "forecast" | "insights" | "fx" | "todo" | "system" | "notifications";
+
+export interface SecurityOut {
+  code: string;
+  name: string;
+  quantity: string;
+  value: MoneyOut;
+  as_of: string;
+}
 
 export interface SeriesOut {
   id: string;
@@ -1399,6 +1623,23 @@ export interface StatementCheckOut {
   verified: boolean;
   balance_checks: number[] | null;
   rows: number;
+}
+
+/** A card statement on the card's timeline. */
+export interface StatementOut {
+  cut: string;
+  start: string;
+  end: string;
+  total: MoneyOut | null;
+  due: string | null;
+  minimum: MoneyOut | null;
+  limit: MoneyOut | null;
+  rows: number;
+  spent: MoneyOut;
+  verified: boolean;
+  document: string;
+  paid: MoneyOut | null;
+  status: PaidStatus | null;
 }
 
 export interface StepOut {

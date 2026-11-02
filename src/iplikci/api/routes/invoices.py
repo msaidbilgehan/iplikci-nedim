@@ -7,7 +7,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, Request
 
 from ...app import invoices
-from ...app.analysis import Analysis
+from ...app.analysis import Analysis, account_labels
 from ...app.invoices import InvoiceStatus, InvoiceView
 from ...app.workspace import Busy
 from ..context import Context, context_of
@@ -81,10 +81,11 @@ def invoice_list(request: Request) -> InvoicesOut:
     """Every bill and receipt non-bank senders mailed: the pending ones first by due date, then the unmatched
     (information only, with what may explain them), then the matched with the bank row that paid each, newest first;
     and how many have each status (F14)."""
-    found = invoices.overview(_analysis(context_of(request)))
+    a = _analysis(context_of(request))
+    found, labels = invoices.overview(a), account_labels(a)
     counts = found.counts
     return InvoicesOut(
-        items=[_item(view, found.labels) for view in found.items],
+        items=[_item(view, labels) for view in found.items],
         counts=InvoiceCountsOut(
             pending=counts[InvoiceStatus.PENDING],
             unmatched=counts[InvoiceStatus.UNMATCHED],

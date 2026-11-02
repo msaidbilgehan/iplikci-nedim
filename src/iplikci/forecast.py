@@ -37,7 +37,7 @@ CARD_PAYMENTS = (TransactionKind.CARD_PAYMENT, TransactionKind.CARD_PAYMENT_NO_S
 STALE_DAYS = 180
 _BASE_MONTHS = 6  # the complete months the money spread over the days is the median month of
 _STATEMENTS = 6  # the card statements whose payments tell how the user pays the card
-_IN_FULL = Decimal("0.99")  # a statement paid this much of before the next cut was paid in full
+IN_FULL = Decimal("0.99")  # a statement paid this much of before the next cut was paid in full
 
 
 @dataclass(frozen=True)
@@ -131,7 +131,7 @@ def _window(months: Sequence[str]) -> str:
 # --- the start ---------------------------------------------------------------------------------------------------
 
 
-def _last_of_day(found: list[tuple[ReceiptLine, Decimal]]) -> tuple[ReceiptLine, Decimal]:
+def last_of_day(found: list[tuple[ReceiptLine, Decimal]]) -> tuple[ReceiptLine, Decimal]:
     """Of the notices one day brought (row, balance after it), the one printed last: the one no other row goes on
     from (its balance less the other row's amount gives the other's balance). When the order cannot be told, the one
     with the largest receipt key (a Vakıfbank notice's key ends in its query number)."""
@@ -156,7 +156,7 @@ def start_of(ds: Dataset, account: str) -> Start | None:
     if closing is not None and closing.total is not None and (newest is None or closing.cut_date >= newest):
         on, stated, notice = closing.cut_date, closing.total, False
     elif newest is not None:
-        _, stated = _last_of_day([(line, balance) for line, balance in printed if line.txn.date == newest])
+        _, stated = last_of_day([(line, balance) for line, balance in printed if line.txn.date == newest])
         on, notice = newest, True
     else:
         return None
@@ -238,7 +238,7 @@ def paid_share(ds: Dataset, card: str) -> PaidShare | None:
     shares = shares[-_STATEMENTS:]
     if not shares:
         return None
-    return PaidShare(median(shares), sum(1 for s in shares if s >= _IN_FULL), len(shares))
+    return PaidShare(median(shares), sum(1 for s in shares if s >= IN_FULL), len(shares))
 
 
 def _card_due(ds: Dataset, item: Due, payer: str) -> Due:
@@ -246,7 +246,7 @@ def _card_due(ds: Dataset, item: Due, payer: str) -> Due:
     share = paid_share(ds, item.account)
     if share is None:
         return replace(item, account=payer, basis=f"{item.basis}; geçmiş ödemesi belgelerde yok, tamamı sayıldı")
-    if share.share >= _IN_FULL:
+    if share.share >= IN_FULL:
         basis = f"{item.basis}; son {share.of} ekstreden {share.full} tanesinin tamamı ödendi, tamamı sayıldı"
         return replace(item, account=payer, basis=basis)
     amount = max(item.minimum or ZERO, round_half_up(item.amount * share.share))

@@ -8,6 +8,7 @@ from decimal import Decimal
 from enum import StrEnum
 
 from .codes import (
+    AccountGroup,
     AccountType,
     Actor,
     BackupReason,
@@ -21,6 +22,7 @@ from .codes import (
     DocumentStatus,
     EventKind,
     EvidenceStatus,
+    FlowKind,
     ForecastPart,
     HabitStatus,
     InvoiceKind,
@@ -28,6 +30,7 @@ from .codes import (
     MonthStatus,
     Necessity,
     NecessityReason,
+    PaidStatus,
     PaymentKind,
     RuleLayer,
     SeriesPeriod,
@@ -331,6 +334,37 @@ UNUSUAL_KIND: dict[UnusualKind, str] = {
     UnusualKind.UNEXPECTED_FEE: "Beklenmedik ücret",
 }
 
+ACCOUNT_GROUP: dict[AccountGroup, str] = {
+    AccountGroup.CARDS: "Kredi kartları",
+    AccountGroup.CURRENT: "Vadesiz",
+    AccountGroup.DEPOSIT: "Vadeli",
+    AccountGroup.OVERDRAFT: "KMH",
+    AccountGroup.FX: "Döviz",
+    AccountGroup.GOLD: "Altın",
+    AccountGroup.BROKERAGE: "Yatırım",
+    AccountGroup.LOAN: "Krediler",
+}
+
+PAID_STATUS: dict[PaidStatus, str] = {
+    PaidStatus.FULL: "Tamamı ödendi",
+    PaidStatus.MINIMUM: "Asgari ödendi",
+    PaidStatus.PARTIAL: "Kısmen ödendi",
+    PaidStatus.UNPAID: "Ödenmedi",
+    PaidStatus.OPEN: "Son ödeme tarihi gelmedi",
+    PaidStatus.NOTHING_DUE: "Borç yoktu",
+}
+
+FLOW_KIND: dict[FlowKind, str] = {
+    FlowKind.ACCOUNT: "Hesap",
+    FlowKind.INCOME: "Gelir",
+    FlowKind.SPENDING: "Harcama",
+    FlowKind.PEOPLE: "Kişiler",
+    FlowKind.SAVING: "Birikim ve yatırım",
+    FlowKind.LOAN: "Kredi",
+    FlowKind.CASH: "Nakit",
+    FlowKind.ELSEWHERE: "Belgesi olmayan hesap",
+}
+
 
 def _table[K: StrEnum](labels: Mapping[K, str]) -> dict[StrEnum, str]:
     return {code: text for code, text in labels.items()}
@@ -363,6 +397,9 @@ TABLES: dict[type[StrEnum], dict[StrEnum, str]] = {
     ChannelStage: _table(CHANNEL_STAGE),
     TodoKind: _table(TODO_KIND),
     TodoAction: _table(TODO_ACTION),
+    AccountGroup: _table(ACCOUNT_GROUP),
+    PaidStatus: _table(PAID_STATUS),
+    FlowKind: _table(FLOW_KIND),
     CategoryReason: _table(CATEGORY_REASON),
     TransferStep: _table(TRANSFER_STEP),
     RuleLayer: _table(RULE_LAYER),

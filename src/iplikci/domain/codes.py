@@ -351,3 +351,43 @@ class ForecastPart(StrEnum):
     REGULAR = "regular"  # regular payments still running, at their monthly amount
     INSTALLMENTS = "installments"  # installments still due
     VARIABLE = "variable"  # everything else, a necessity level at a time: the median of the base months
+
+
+class AccountGroup(StrEnum):
+    """The Accounts screen's groups (F07), in its order: a card of either kind is a card, every other account is
+    grouped by its type."""
+
+    CARDS = "cards"
+    CURRENT = "current"
+    DEPOSIT = "deposit"
+    OVERDRAFT = "overdraft"
+    FX = "fx"
+    GOLD = "gold"
+    BROKERAGE = "brokerage"
+    LOAN = "loan"
+
+
+class PaidStatus(StrEnum):
+    """How a credit card statement was paid (F07's payment history): by the next statement's cut, or for the newest
+    one, by today."""
+
+    FULL = "full"  # its balance in full (99% or more)
+    MINIMUM = "minimum"  # its minimum payment, or a little more
+    PARTIAL = "partial"  # more than nothing, less than in full: above or below the minimum
+    UNPAID = "unpaid"  # nothing paid
+    OPEN = "open"  # the newest statement: its due date has not passed and it is not paid in full yet
+    NOTHING_DUE = "nothing_due"  # no balance to pay
+
+
+class FlowKind(StrEnum):
+    """What a node of the flow between accounts is (F07's Sankey): one of the user's accounts, or where money came from
+    or went."""
+
+    ACCOUNT = "account"
+    INCOME = "income"  # an income's payer
+    SPENDING = "spending"  # a spending group: purchases less refunds, interest and fees
+    PEOPLE = "people"  # money sent to or received from people
+    SAVING = "saving"  # savings and investments: a pension fund, shares
+    LOAN = "loan"  # a loan's principal paid, or a loan received
+    CASH = "cash"  # cash taken with a card
+    ELSEWHERE = "elsewhere"  # an own account or a card no document shows the other side of

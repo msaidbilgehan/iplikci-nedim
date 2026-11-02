@@ -14,14 +14,13 @@ from ...app import feed, now
 from ...app.analysis import Analysis, account_labels
 from ...app.feed import Certainty, DocumentKind, DocumentStatus, MonthStatus, PaymentKind, SeriesPeriod, SourceKind
 from ...app.now import AccountType, BalanceSource
-from ...app.outlook import Due
 from ...app.workspace import Busy
 from ..context import Context, context_of
 from ..guard import Principal
 from ..models import AccountRefOut, LinkOut, MoneyOut, PaceOut, RowOut, account_ref, link_out, money, pace_out, row_out
 from ..problems import Problem
 from .deps import only
-from .outlook import CalendarItemOut
+from .outlook import CalendarItemOut, calendar_item
 
 router = APIRouter(dependencies=[Depends(only(Principal.BROWSER, Principal.CLIENT))])
 
@@ -230,21 +229,6 @@ def feed_page(
     return FeedOut(items=[_item(item, labels) for item in found.items], next=found.next)
 
 
-def calendar_item(item: Due, labels: dict[str, str]) -> CalendarItemOut:
-    return CalendarItemOut(
-        day=item.day,
-        kind=item.kind,
-        title=item.title,
-        account=account_ref(item.account, labels),
-        direction="in" if item.amount < 0 else "out",
-        amount=money(abs(item.amount)),
-        minimum=None if item.minimum is None else money(item.minimum),
-        basis=item.basis,
-        series=item.series,
-        fingerprints=list(item.rows),
-    )
-
-
 def _balance(b: now.Balance, labels: dict[str, str]) -> NowBalanceOut:
     return NowBalanceOut(
         account=account_ref(b.account, labels),
@@ -267,7 +251,7 @@ def _period(p: now.Period) -> CardPeriodOut:
     return CardPeriodOut(start=p.start, end=p.end, spent=money(p.spent), rows=p.rows)
 
 
-def _card(c: now.Card, labels: dict[str, str]) -> NowCardOut:
+def card_out(c: now.Card, labels: dict[str, str]) -> NowCardOut:
     return NowCardOut(
         account=account_ref(c.account, labels),
         type=c.type,
@@ -297,7 +281,7 @@ def feed_now(request: Request) -> NowOut:
         today=found.today,
         balances=[_balance(b, labels) for b in found.balances],
         unknown=[UnknownOut(account=account_ref(u.account, labels), reason=u.reason) for u in found.unknown],
-        cards=[_card(c, labels) for c in found.cards],
+        cards=[card_out(c, labels) for c in found.cards],
         pace=pace_out(found.pace),
         upcoming=[calendar_item(item, labels) for item in found.upcoming],
         end=found.end,

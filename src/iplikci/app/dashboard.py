@@ -16,18 +16,19 @@ from enum import StrEnum
 
 from .. import month_end
 from ..analysis import Dataset
-from ..domain.codes import CARD_TYPES, AccountType, Certainty, DocumentKind, DocumentStatus, MonthStatus, PaymentKind
+from ..domain.codes import CARD_TYPES, Certainty, DocumentKind, DocumentStatus, MonthStatus, PaymentKind
 from ..domain.labels import TODO_KIND, format_amount
 from ..domain.models import TRY
 from ..domain.money import round_half_up
 from ..feed.news import TO_PAY
-from ..insights import month_of, months_in, pct, shift
+from ..insights import month_of, months_in, pct
 from ..report import CLOSING_MONTHS
 from ..storage import bridges, documents, events
 from ..storage.db import Database
-from ..upcoming import Due, add_months
+from ..upcoming import Due
 from . import accounts, backup, now, outlook, system, todos
-from .analysis import Analysis, account_labels, document_gaps
+from .accounts import Freshness
+from .analysis import Analysis, account_labels
 from .bridge import SILENCE
 from .links import Link, Screen, finding_link
 from .mail import BRIDGE, IMAP
@@ -171,21 +172,6 @@ class LastMonths:
     months: list[Closing]  # the oldest first, the current month last
     say: str
     link: Link  # the oldest ended month still open, else the newest ended one
-
-
-@dataclass(frozen=True, slots=True)
-class Freshness:
-    """How far an account's documents reach."""
-
-    account: str
-    kind: DocumentKind  # what its newest document is
-    last: date  # the newest day its documents reach
-    behind: int  # days from that to today
-    expected: date | None  # when its next statement is due: a card's next cut, a brokerage statement's month end
-    late: bool  # that day passed days ago and the statement did not come (five days for a card, ten otherwise)
-    missing: tuple[str, ...]  # months inside its statements they cover only partly or not
-    note: str
-    link: Link
 
 
 @dataclass(frozen=True, slots=True)
@@ -496,17 +482,6 @@ def closing(a: Analysis, today: date) -> LastMonths:
     return LastMonths(found, _say_closing(found), first.link if first else Link(Screen.MONTH, month_of(today)))
 
 
-def _expected(account: AccountType, cut: date) -> tuple[date, int] | None:
-    """When the statement after one cut on a day is due, and how many days later it is late (month_end.LATE_DAYS):
-    a card's comes a month after its cut, a brokerage account's after the next month ends. A list is downloaded or
-    mailed when it is (K21): nothing is due."""
-    if account in CARD_TYPES:
-        return add_months(cut, 1), month_end.LATE_DAYS
-    if account == AccountType.BROKERAGE:
-        return month_end.last_day(shift(month_of(cut), 1)), 2 * month_end.LATE_DAYS
-    return None
-
-
 def _say_freshness(found: list[Freshness], labels: dict[str, str]) -> str:
     if not found:
         return "Henüz belgesi gelen bir hesap yok."
@@ -519,48 +494,8 @@ def _say_freshness(found: list[Freshness], labels: dict[str, str]) -> str:
 
 
 def freshness(ws: Workspace, a: Analysis, today: date) -> DataFreshness:
-    """How far each open account's documents reach, the most behind first: its newest document, the next statement
-    due and whether it is late, and the months its statements skip."""
-    ds = a.dataset
-    seen = accounts.last_seen(ds)
-    gone = accounts.closed(seen)
-    holes = {gap.id: gap.months for gap in document_gaps(ds, today)}
-    found: list[Freshness] = []
-    with ws.db() as db:
-        for account, last in seen.items():
-            if account in gone or account not in ds.accounts:
-                continue
-            statements = [s for s in ds.statements if s.account == account]
-            newest = max(statements, key=lambda s: s.cut_date) if statements else None
-            evidence = [line.txn for line in ds.receipts if line.txn.account == account]
-            if newest is not None and newest.cut_date >= max((t.date for t in evidence), default=date.min):
-                kind = DocumentKind.ACCOUNT_STATEMENT if newest.is_account else DocumentKind.CARD_STATEMENT
-            else:
-                told = max(evidence, key=lambda t: t.date)
-                doc = documents.get(db, told.document) if told.document else None
-                kind = doc.kind if doc is not None and doc.kind is not None else DocumentKind.RECEIPT
-            due = _expected(ds.accounts[account].type, newest.cut_date) if newest is not None else None
-            late = due is not None and (today - due[0]).days > due[1]
-            if newest is None:
-                note = "yalnızca dekont ve banka bildirimlerinden biliniyor"
-            elif due is None:
-                note = f"son döküm {_day(newest.cut_date)}"
-            else:
-                note = f"son ekstre {_day(newest.cut_date)}; sonraki ~{_day(due[0])}" + (" (gecikti)" if late else "")
-            found.append(
-                Freshness(
-                    account=account,
-                    kind=kind,
-                    last=last,
-                    behind=(today - last).days,
-                    expected=due[0] if due else None,
-                    late=late,
-                    missing=holes.get(account, ()),
-                    note=note,
-                    link=Link(Screen.ACCOUNT, account),
-                )
-            )
-    found.sort(key=lambda f: (-f.behind, f.account))
+    """How far each open account's documents reach (app.accounts.freshness), the most behind first."""
+    found = accounts.freshness(ws, a, today)
     return DataFreshness(found, _say_freshness(found, account_labels(a)), Link(Screen.ACCOUNTS))
 
 

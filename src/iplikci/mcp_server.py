@@ -26,7 +26,7 @@ from typing import Any
 
 from . import __version__, month_end, rulefile
 from .analysis import Dataset
-from .app import intake, invoices, notify, outlook
+from .app import accounts, intake, invoices, notify, outlook
 from .app import mail as email
 from .app.analysis import Current, document_gaps, summary
 from .app.uploads import inbox_files
@@ -705,8 +705,7 @@ def _accounts(s: Server, args: dict) -> dict:
     held = {h.label: h for h in a.insights.holdings}
     rows = []
     for acc in sorted(ds.accounts.values(), key=lambda x: (x.bank, x.type, x.label)):
-        stmts = [st for st in ds.statements if st.account == acc.id]
-        cov = ds.coverage.get(acc.id, {})
+        covered = accounts.statements_of(ds, acc.id)
         h = held.get(acc.label)
         rows.append(
             {
@@ -715,12 +714,12 @@ def _accounts(s: Server, args: dict) -> dict:
                 "type": acc.type,
                 "currency": acc.currency,
                 "note": acc.note or None,
-                "statements": len(stmts),
-                "verified": sum(st.verified for st in stmts),
-                "first": min((st.start or st.cut_date for st in stmts), default=None),
-                "last": max((st.cut_date for st in stmts), default=None),
-                "fullMonths": sum(v >= 0.97 for v in cov.values()),
-                "partialMonths": sorted(m for m, v in cov.items() if v < 0.97),
+                "statements": covered.count,
+                "verified": covered.verified,
+                "first": covered.first,
+                "last": covered.last,
+                "fullMonths": covered.full_months,
+                "partialMonths": covered.partial_months,
                 "balance": h and {"amount": h.amount, "valueTL": h.value, "asOf": h.as_of, "note": h.note},
             }
         )

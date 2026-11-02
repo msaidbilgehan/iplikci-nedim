@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from ...app import dashboard
 from ...app.analysis import Analysis, account_labels
-from ...app.dashboard import AlertKind, AlertLevel, DocumentKind, MonthStatus, TodoKind
+from ...app.dashboard import AlertKind, AlertLevel, MonthStatus, TodoKind
 from ...app.links import Link
 from ...app.now import Certainty
 from ...app.workspace import Busy
@@ -18,9 +18,10 @@ from ..context import Context, context_of
 from ..guard import Principal
 from ..models import AccountRefOut, LinkOut, MoneyOut, PaceOut, account_ref, link_out, money, pace_out
 from ..problems import Problem
+from .accounts import FreshnessOut, freshness_out
 from .deps import only
-from .feed import UnknownOut, calendar_item
-from .outlook import CalendarItemOut
+from .feed import UnknownOut
+from .outlook import CalendarItemOut, calendar_item
 
 router = APIRouter(dependencies=[Depends(only(Principal.BROWSER, Principal.CLIENT))])
 
@@ -119,20 +120,6 @@ class LastMonthsOut(BaseModel):
     months: list[ClosingOut]  # the current month and the six before it with documents, the oldest first
     say: str
     link: LinkOut  # the oldest ended month still open, else the newest ended one
-
-
-class FreshnessOut(BaseModel):
-    """How far an account's documents reach."""
-
-    account: AccountRefOut
-    kind: DocumentKind  # what its newest document is
-    last: date  # the newest day its documents reach
-    behind: int  # days from that to today
-    expected: date | None  # when its next statement is due: a card's next cut, a brokerage statement's month end
-    late: bool  # that day passed days ago without it: five days for a card, ten for a brokerage statement
-    missing: list[str]  # months inside its statements they cover only partly or not
-    note: str
-    link: LinkOut
 
 
 class DataFreshnessOut(BaseModel):
@@ -240,20 +227,6 @@ def _closing(c: dashboard.Closing, labels: dict[str, str]) -> ClosingOut:
     )
 
 
-def _freshness(f: dashboard.Freshness, labels: dict[str, str]) -> FreshnessOut:
-    return FreshnessOut(
-        account=account_ref(f.account, labels),
-        kind=f.kind,
-        last=f.last,
-        behind=f.behind,
-        expected=f.expected,
-        late=f.late,
-        missing=list(f.missing),
-        note=f.note,
-        link=_link(f.link),
-    )
-
-
 @router.get("/api/dashboard")
 def dashboard_now(request: Request) -> DashboardOut:
     """The dashboard's cards as of today."""
@@ -279,7 +252,7 @@ def dashboard_now(request: Request) -> DashboardOut:
             months=[_closing(c, labels) for c in closing.months], say=closing.say, link=_link(closing.link)
         ),
         freshness=DataFreshnessOut(
-            accounts=[_freshness(f, labels) for f in fresh.accounts], say=fresh.say, link=_link(fresh.link)
+            accounts=[freshness_out(f, labels) for f in fresh.accounts], say=fresh.say, link=_link(fresh.link)
         ),
         todo=TodoSummaryOut(
             kinds=[TodoCountOut(kind=t.kind, count=t.count, link=_link(t.link)) for t in todo.kinds],

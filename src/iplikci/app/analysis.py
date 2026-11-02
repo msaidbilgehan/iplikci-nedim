@@ -18,7 +18,7 @@ from ..domain.models import ParseResult
 from ..insights import FULL, Insights, interpret, month_of, shift
 from ..parsers.common import BUSINESS_REASON
 from ..report import build_payload, write_csv, write_html, write_xlsx
-from ..storage import annotations, audit, documents, readings
+from ..storage import aliases, annotations, audit, documents, readings
 from ..storage.annotations import Annotation
 from ..storage.db import Database
 from . import annotate, reading
@@ -104,11 +104,14 @@ class Analysis:
     # The month-end closing, oldest first, and the annotations no row carries any more.
     months: list[month_end.MonthEnd] = field(default_factory=list[month_end.MonthEnd])
     orphans: list[Annotation] = field(default_factory=list[Annotation])
+    # The names the user gave accounts (F07), by id: the screens show them; the bank's label stays the account's own.
+    aliases: dict[str, str] = field(default_factory=dict[str, str])
 
 
 def account_labels(a: Analysis) -> dict[str, str]:
-    """Every account's name as the screens show it, by id."""
-    return {account.id: account.label for account in a.dataset.accounts.values()}
+    """Every account's name as the screens show it, by id: the name the user gave it, else the bank's label. The
+    baseline, the report, the exports and the MCP tools keep the bank's label."""
+    return {account.id: a.aliases.get(account.id) or account.label for account in a.dataset.accounts.values()}
 
 
 def analyze(
@@ -127,6 +130,7 @@ def analyze(
             reading.read_pending(ws, db, progress, every=reread)
             found, stats = ledger_input(db)
             notes = annotations.every(db)
+            names_given = {account: given.alias for account, given in aliases.every(db).items()}
         signature = ws.signature()
     names = list(settings.identity.names)
     categorizer = Categorizer.layered(ws.rules)
@@ -136,7 +140,7 @@ def analyze(
     months = month_end.build(ds, ins, today)
     payload = build_payload(ds, stats, ins, months)
     outputs = write_outputs(ws.exports, ds, ins, payload, months) if write else None
-    return Analysis(ds, stats, ins, payload, signature, datetime.now(), outputs, months, orphans)
+    return Analysis(ds, stats, ins, payload, signature, datetime.now(), outputs, months, orphans, names_given)
 
 
 class Current:
