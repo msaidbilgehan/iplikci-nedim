@@ -24,7 +24,8 @@ from .problems import problem
 
 # The health check and the login link need no session; an extension pairs with a code and checks the service it
 # paired with before it holds or sends anything (ADR-0016). The PWA's manifest and icons carry nothing personal, and a
-# browser reads the manifest without its cookies as it installs the app (ADR-0008).
+# browser reads the manifest without its cookies as it installs the app (ADR-0008); the logo shows on the pages a
+# browser without a session sees.
 OPEN_PATHS = frozenset(
     {
         "/healthz",
@@ -32,7 +33,9 @@ OPEN_PATHS = frozenset(
         "/api/bridge/pair",
         "/api/bridge/hello",
         "/manifest.webmanifest",
-        "/favicon.svg",
+        "/favicon-16.png",
+        "/favicon-32.png",
+        "/logo.png",
         "/apple-touch-icon.png",
         "/pwa-192x192.png",
         "/pwa-512x512.png",

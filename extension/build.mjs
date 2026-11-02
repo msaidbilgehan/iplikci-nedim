@@ -36,7 +36,7 @@ try {
   for (const file of ["verify.html", "verify.css", "options.html"]) {
     await cp(join("static", file), join(fresh, file));
   }
-  await cp(join("static", "icons"), join(fresh, "icons"), { recursive: true }); // drawn by tools/icons.py
+  await cp(join("static", "icons"), join(fresh, "icons"), { recursive: true }); // from the logo: packaging/icons.py
   const carried = join(work, "carried");
   await cp(fresh, carried, { recursive: true });
   await replace("dist", fresh, join(work, "old-dist"));

@@ -10,7 +10,7 @@ npm run package     # dist/'i derler ve iplikci-kopru.zip'i yapar (macOS ve Linu
 ```
 
 Paket yalnızca `dist/`'in içeriğidir: derlenmiş betikler küçültülmeden durur, mağaza incelemesi ne yaptığını okuyabilir.
-Simgeler `tools/icons.py` ile çizilir: `uv run python -I extension/tools/icons.py`.
+Simgeler ürünün logosundan `packaging/icons.py` ile çizilir: `uv run python -I packaging/icons.py`.
 
 ## Mağaza sayfası
 

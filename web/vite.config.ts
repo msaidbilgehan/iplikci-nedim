@@ -14,7 +14,7 @@ const SERVICE = "http://127.0.0.1:8643";
 const pwa = VitePWA({
   registerType: "autoUpdate",
   injectRegister: "script-defer",
-  includeAssets: ["favicon.svg", "apple-touch-icon.png"],
+  includeAssets: ["favicon-16.png", "favicon-32.png", "logo.png", "apple-touch-icon.png"],
   manifest: {
     name: "İplikçi Nedim",
     short_name: "İplikçi Nedim",
