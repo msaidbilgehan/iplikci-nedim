@@ -188,7 +188,19 @@ G10 · Çekirdek
 
 G7 · Çekirdek
 
-- **Kartlar**
+- **Sade görünüm:** finans bilgisi olmayan biri için resimlerle, yukarıdan aşağı okunan bir hikâye.
+  - Son kapanan ayın gelen, giden ve kalan parası; gelenin harcanan ve kalan payını gösteren bir çubuk ve bir cümlelik
+    hüküm: iyi gidiyor, az kaldı (kalan gelenin %10'undan az) ya da gelirden fazla harcandı. Süren ay ayrıca söylenir.
+  - Son belgelere göre hesaplardaki para, neye dayandığıyla: kart borçları düşülünce, bakiyesi bilinmeyen hesaplar.
+  - Aylara göre gelen (yeşil, çizginin üstünde) ve giden (turuncu, altında) çubuklar; kapanmamış aylar soluk.
+  - O ay paranın nereye gittiği: harcama türleri tek renkte yatay çubuklarla, her tür işlemlerine götürür.
+  - Önümüzdeki 30 gün: hesaptaki paranın günlük tahmini, eksiye düştüğü ilk gün ya da en düşük gün, yaklaşan ödemeler ve
+    gelirler. Çizginin son belgelerdeki bakiyeden bugüne nasıl geldiği söylenir.
+  - "Ne yapmalısınız?": açık uyarılar düzeyi sözle yazılarak, ardından Değerlendirme'nin önerilen adımları (en çok
+    dört); bekleyen işlerin sayısı Yapılacaklar'a götürür.
+  - Her grafiğin üstünde nasıl okunacağını anlatan bir cümle vardır; her grafiğin tablo görünümü de vardır.
+- **Ayrıntılı görünüm:** ilk satırda dört rakam (net varlık, bu ay harcanan, 7 gün içinde ödenecek, bekleyen işler),
+  ardından tablolarıyla kartlar:
   - net varlık (TL ve seçilen para birimleri),
   - bu ay ile tipik ay (tipik ay yalnızca tam aylardan),
   - 7 gün içinde yaklaşan ödemeler,
@@ -196,7 +208,10 @@ G7 · Çekirdek
   - son 7 ayın kapanış durumu,
   - veri tazeliği (hesap başına son belge ve gecikenler),
   - yapılacakların sayısı.
-- Her kart ilgili ekrana gider. Sade görünümde her kartta bir cümlelik yorum vardır.
+- Her kart ve her grafik ilgili ekrana gider.
+- **Menü:** sade görünümde sık kullanılan ekranlar (Pano, Hesaplar, İşlemler, Düzenli ödemeler, Takvim, Değerlendirme,
+  Yapılacaklar) tek listede, diğerleri "Diğer ekranlar" altında; açık ekran oradaysa bölüm açık gelir. Ayrıntılı
+  görünümde bütün ekranlar gruplarıyla.
 
 ## F07 — Hesaplar
 

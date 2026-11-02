@@ -106,8 +106,12 @@ Aşama 6 (Arayüz, v0.7.0) uygulamayı terminal açmadan kurulan ve kullanılan 
 
 Aşama 6'nın ardından arayüz sadeleşti ve hesap kitabı daha açık anlatır oldu:
 
-- Menü simgeli ve gruplu, logo her yerde; görünüm ve tema üst çubuktaki tek menüde. Pano'nun ilk satırı dört rakamı
-  bir bakışta gösterir: net varlık, bu ay harcanan, yedi gün içinde ödenecek ve bekleyen işler.
+- Pano'nun sade görünümü paranızı resimlerle anlatır: son kapanan ayda gelen, giden ve kalan para; aylara göre gelen
+  ve giden; paranın nereye gittiği; önümüzdeki 30 günde hesabınızda ne kalacağı ve ne yapmanız gerektiği. Her
+  grafiğin üstünde nasıl okunacağı yazar. Ayrıntılı görünümde ilk satır dört rakamı gösterir, kartlar tablolarıyla.
+- Menü simgeli, logo her yerde; görünüm ve tema üst çubuktaki tek menüde. Sade görünümde menü sık kullanılan yedi
+  ekranı gösterir, diğerleri "Diğer ekranlar" altında; ayrıntılı görünümde bütün ekranlar gruplarıyla.
+- Bir güncellemeden sonra arayüz yeni sürümü hemen gösterir.
 - Uzun ekranlar bölümlere ayrıldı: Akış, Değerlendirme, Bildirimler, Kurallar ve hesap sayfası. İşlemler'in süzgeçleri
   bir düğmenin altında; toplamlar giren, çıkan, fark ve harcama olarak ayrı ayrı yazar.
 - Bir rakamın nasıl hesaplandığı "Nasıl hesaplandı?" altında. Kapanmamış bir ayın rakamları eksik olabileceğini

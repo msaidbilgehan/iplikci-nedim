@@ -64,6 +64,12 @@ simplification (v0.7.1); Phase 7 (MCP) is next.
   toolbar button opens a window whose "İplikçi Nedim'i aç" asks the service for a login link with its token
   (ADR-0019). An audit of the demo's numbers fixed the forecast's days before today, a waiting bill counted twice, the
   fee advice and the budget's double count.
+- Then (unreleased) the user still found the panel cluttered and wanted to read the money in charts. The simple view's
+  Pano is now a story in pictures (`components/dashboard/Overview`): the last closed month's money in, out and left
+  with a verdict, the months as bars, where the money went, the next 30 days and what to do. The detailed view keeps
+  the cards. The simple view's menu lists seven everyday screens with the rest under "Diğer ekranlar"
+  (`navigation.ts`), and the page reloads once when an update's service worker takes over (`lib/appUpdate`): before
+  that, the first visit after an update showed the old interface.
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 

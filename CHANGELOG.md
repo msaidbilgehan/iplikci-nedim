@@ -6,10 +6,33 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 
 ## [Yayımlanmamış]
 
+### Eklenenler
+
+- Pano'nun sade görünümü baştan yazıldı: paranızı finans bilgisi gerektirmeden, resimlerle ve yukarıdan aşağı bir
+  hikâye gibi anlatır.
+  - Son kapanan ayda gelen, giden ve kalan para, gelenin ne kadarının harcandığını gösteren bir çubuk ve bir cümlelik
+    hüküm ("Gelen paranın %49'u elinizde kaldı. İyi gidiyor."; az kaldıysa ya da gelirden fazla harcandıysa o söylenir).
+  - Hesaplardaki para, neye dayandığıyla: son belgeler, düşülen kart borçları, bakiyesi bilinmeyen hesaplar.
+  - Aylara göre gelen (yeşil, çizginin üstünde) ve giden (turuncu, altında) çubuklar; eksik aylar soluk.
+  - O ay paranın nereye gittiği; her harcama türü işlemlerine götürür.
+  - Önümüzdeki 30 günde hesaptaki paranın tahmini çizgisi: eksiye düşecekse uyarır, yetiyorsa en düşük günü söyler;
+    yanında yaklaşan ödemeler ve gelirler.
+  - "Ne yapmalısınız?": açık uyarılar düzeyiyle ve Değerlendirme'nin önerdiği adımlar.
+  - Her grafiğin üstünde nasıl okunacağı yazar; her grafiğin tablosu da var. Ayrıntılı görünüm kartlarıyla kaldı.
+
 ### Değişenler
 
+- Sade görünümde menü sık kullanılan yedi ekranı gösterir: Pano, Hesaplar, İşlemler, Düzenli ödemeler, Takvim,
+  Değerlendirme ve Yapılacaklar. Diğerleri "Diğer ekranlar" altındadır; açık olan ekran oradaysa bölüm kendiliğinden
+  açılır. Ayrıntılı görünümde menü gruplarıyla eskisi gibi.
+- Pano'nun yaklaşan ödemeler ve veri tazeliği kartları yalnızca ayrıntılı görünümde, tablolarıyla.
 - Logo, depo kökündeki `iplikci_nedim_logo_transparent/` klasöründen simgeleri çizen betiğin yanına,
   `packaging/logo/`'ya taşındı; `packaging/icons.py` simgeleri oradan çizer, simgeler değişmedi.
+
+### Düzeltilenler
+
+- Bir güncellemeden sonraki ilk açılışta arayüz eski sürümü gösteriyordu. Artık yeni sürüm gelince sayfa bir kez
+  kendiliğinden yenilenir.
 
 ## [0.7.1] — 2026-11-02 — Arayüzün sadeleşmesi
 
