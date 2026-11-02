@@ -25,7 +25,7 @@ kullanıcı aksini söylemedikçe geçerlidir.
 | [0014](0014-event-log-and-jobs.md) | Olay kaydı ve SQLite tabanlı iş kuyruğu | tasarım |
 | [0015](0015-email-ingestion.md) | E-posta alımı: IDLE, güven kuralı, gövde okuma, `.eml` saklama | G1, G13, K12 |
 | [0016](0016-mail-connectors.md) | E-posta bağlayıcıları; uygulama şifresi olmayan Gmail için Gmail'in web arayüzünü okuyan tarayıcı eklentisi | G1, G12, K5, K10, K14, K15, K16 |
-| [0017](0017-no-terminal-install.md) | Terminalsiz kurulum ve kullanım: işletim sistemi başına kurulum paketi (**önerildi**) | K14, G4 |
+| [0017](0017-no-terminal-install.md) | Terminalsiz kurulum ve kullanım: işletim sistemi başına kurulum paketi (kabul edildi 2026-11-02; imzasız, K22) | K14, K22, G4 |
 | [0018](0018-retire-mvp-clean-start.md) | MVP'yi V1'den önce emekliye ayırmak ve veri taşımadan başlamak | K17 |
 
 Yeni kayıt: sıradaki numarayla `NNNN-kisa-ad.md`; başlık karar cümlesi olur; bu tabloya eklenir.

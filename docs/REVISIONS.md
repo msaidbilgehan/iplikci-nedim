@@ -11,6 +11,9 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 
 ## Değişiklik kaydı
 
+- 2026-11-02 (19) — [ADR-0017](adr/0017-no-terminal-install.md) kabul edildi (kullanıcının sözü: "Kabul edildi, amaca
+  uygun özellik."): kurulum paketleri Aşama 6'da, imzasız (K22), taşınabilir CPython ve içine kurulmuş programla.
+
 - 2026-11-02 (18) — Kullanıcı kararı [K22](v1/requirements.md#kararlar): kurulum paketleri şimdilik imzalanmaz;
   Windows denemesini kullanıcı istediğinde yapar; macOS'ta temiz kurulum bir Mac'te, eski kurulum kaldırılarak denenir.
 

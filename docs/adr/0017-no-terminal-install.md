@@ -1,6 +1,8 @@
 # ADR-0017: Terminalsiz kurulum ve kullanım
 
-Durum: **Önerildi** · Tarih: 2026-10-31 · Dayanak: K14, G4, ürün ilkeleri
+Durum: **Kabul edildi** (2026-11-02) · Tarih: 2026-10-31 · Dayanak: K14, K22, G4, ürün ilkeleri
+
+Kullanıcı 2026-11-02'de kabul etti: "Kabul edildi, amaca uygun özellik." Paketler şimdilik imzasızdır (K22).
 
 ## Bağlam
 
@@ -66,7 +68,8 @@ Bugünkü tasarımda kurulum ve bazı işler terminal ister (mimari §19): `uv t
 
 ## Paketleme biçimi
 
-Aşama 6'nın ön incelemesi (2026-11-02). Bu bölüm ADR kabul edilmeden önce eklendi ve kararın parçasıdır.
+Aşama 6'nın ön incelemesi (2026-11-02). Bu bölüm ADR kabul edilmeden önce eklendi ve kabul edilen kararın
+parçasıdır.
 
 - Program gerçek bir Python yorumlayıcısına dayanır:
   - Okuma ve görüntüleme süreçleri `python -I -m iplikci.parsers.worker` ve `python -I -m iplikci.viewer.worker`
