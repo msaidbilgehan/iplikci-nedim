@@ -317,6 +317,22 @@ def test_the_interface_is_served_from_its_build(ws, tmp_path):
     assert outsider.get("/belgeler").status_code == 401  # the interface itself is behind the session
 
 
+def test_the_pwas_manifest_and_icons_open_without_a_session_and_its_worker_is_asked_again_each_time(ws, tmp_path):
+    ui = tmp_path / "ui"
+    ui.mkdir()
+    (ui / "index.html").write_text("<!doctype html><title>arayüz</title>", encoding="utf-8")
+    (ui / "manifest.webmanifest").write_text('{"name": "İplikçi Nedim"}', encoding="utf-8")
+    (ui / "pwa-192x192.png").write_bytes(b"\x89PNG")
+    (ui / "sw.js").write_text("self.addEventListener('fetch', () => {});", encoding="utf-8")
+    outsider = TestClient(create_app(Context(ws=ws, token=TOKEN, ui=ui)), base_url=BASE)
+    manifest = outsider.get("/manifest.webmanifest")  # a browser reads it without its cookies as it installs
+    assert manifest.status_code == 200 and manifest.headers["content-type"].startswith("application/manifest+json")
+    assert outsider.get("/pwa-192x192.png").status_code == 200
+    assert outsider.get("/sw.js").status_code == 401  # the worker comes with the session, as every page does
+    worker = signed_in(outsider).get("/sw.js")
+    assert worker.status_code == 200 and worker.headers["cache-control"] == "no-store"
+
+
 # --- the Subscriptions and Calendar screens (F08, F09) -------------------------------------------------------
 
 

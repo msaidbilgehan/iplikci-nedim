@@ -23,8 +23,22 @@ from .context import Context
 from .problems import problem
 
 # The health check and the login link need no session; an extension pairs with a code and checks the service it
-# paired with before it holds or sends anything (ADR-0016).
-OPEN_PATHS = frozenset({"/healthz", "/giris", "/api/bridge/pair", "/api/bridge/hello"})
+# paired with before it holds or sends anything (ADR-0016). The PWA's manifest and icons carry nothing personal, and a
+# browser reads the manifest without its cookies as it installs the app (ADR-0008).
+OPEN_PATHS = frozenset(
+    {
+        "/healthz",
+        "/giris",
+        "/api/bridge/pair",
+        "/api/bridge/hello",
+        "/manifest.webmanifest",
+        "/favicon.svg",
+        "/apple-touch-icon.png",
+        "/pwa-192x192.png",
+        "/pwa-512x512.png",
+        "/pwa-maskable-512x512.png",
+    }
+)
 # A bridge's token opens the mail intake and nothing else.
 BRIDGE_PATHS = frozenset(
     {

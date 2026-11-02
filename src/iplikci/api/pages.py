@@ -2,10 +2,12 @@
 
 The interface is built into the package's ui/ folder (`npm run build` in web/): its files are served as they are,
 and every other page address gets index.html, so the single-page app opens on any of its addresses. Its hashed
-files never change and may be kept by the browser. A development copy that was never built says so on its home
+files never change and may be kept by the browser; its service worker (sw.js) keeps the app shell, never the API's
+answers, and is asked again on every visit (no-store). A development copy that was never built says so on its home
 page. The pages here carry no script, no style and no external resource (the CSP allows none inline); the user
 never needs a terminal (K14)."""
 
+import mimetypes
 from pathlib import Path
 
 from fastapi import APIRouter, Request
@@ -17,6 +19,7 @@ from .context import context_of
 router = APIRouter(include_in_schema=False)
 
 _IMMUTABLE = {"cache-control": "private, max-age=31536000, immutable"}
+mimetypes.add_type("application/manifest+json", ".webmanifest")  # the PWA's manifest; Python's table lacks it
 _NOT_PAGES = ("api/", "giris", "healthz")
 
 _PAGE = """<!doctype html>
