@@ -194,7 +194,7 @@ kez söylenir; ilk analiz yalnızca not eder.
   - Serinin son iki ödemesinin görüldüğü hesapların belgeleri, beklenen günü ve serinin payını ödemesiz geçmiştir:
     payın son gününde ya da sonra biten bir döküm ya da ekstre, ya da daha sonraki bir günün dekontu ya da bildirimi
     vardır.
-  - Beklenen gün, takvimin ve Abonelikler ekranının gösterdiği gündür; pay, serinin durum kuralındaki paydır
+  - Beklenen gün, takvimin ve Düzenli ödemeler ekranının gösterdiği gündür; pay, serinin durum kuralındaki paydır
     (`Series.grace`).
   - Belgeler o günleri geçmedikçe söylenmez. Kartla ya da aylık dökümü olan bir hesaptan yapılan ödeme yapılmış
     olabilir: ekstresi ya da dökümü henüz gelmemiştir. Belgeler payı geçince seri `bitti` olur; olay yine söylenir.

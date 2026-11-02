@@ -67,7 +67,7 @@ Aşama 4 (E-postanın tamamı, v0.5.0) bankaların bütün e-postalarını işe 
 - Selamlaması bir şirketi anan ileti ve işveren olarak ödenen primler şirket belgesi sayılır.
 - Kart ekstrelerinde son ödeme tarihi, asgari ödeme ve kart limiti okunur.
 - Altı ayda ya da yılda bir yapılan ödemeler, önümüzdeki 60 günün takvimi ve her TL hesabın gün gün bakiye tahmini
-  gelir: Abonelikler ve Takvim ekranları.
+  gelir: Düzenli ödemeler (o zamanki adıyla Abonelikler) ve Takvim ekranları.
 - Banka dışı faturalar ve makbuzlar alınır. e-Fatura ve e-Arşiv faturaları (UBL-TR XML) okunur ve banka satırlarıyla
   eşleştirilir; eşleşmeyenler yalnızca bilgi olarak görünür, toplamları değiştirmez. Banka dışı göndericiler Sistem
   ekranından eklenir; faturalar Faturalar ekranında listelenir.
@@ -86,8 +86,9 @@ Aşama 5 (Bildirimler, v0.6.0) önemli olayları kullanıcıya ulaştırır:
 
 Aşama 6 (Arayüz, v0.7.0) uygulamayı terminal açmadan kurulan ve kullanılan bir programa çevirdi:
 
-- Arayüzün bütün ekranları geldi: Pano, Akış, Hesaplar, İşlemler, Abonelikler, Takvim, Döviz, Değerlendirme, Ay sonu,
-  Belgeler, Faturalar, Bildirimler, Kurallar, Yapılacaklar, Sistem, Kurulum sihirbazı, Ayarlar ve Tarayıcı eklentisi.
+- Arayüzün bütün ekranları geldi: Pano, Akış, Hesaplar, İşlemler, Düzenli ödemeler, Takvim, Döviz, Değerlendirme, Ay
+  sonu, Belgeler, Faturalar, Bildirimler, Kurallar, Yapılacaklar, Sistem, Kurulum sihirbazı, Ayarlar ve Tarayıcı
+  eklentisi.
   MVP raporunun bütün bölümleri Değerlendirme'de ve ilgili ekranlarda; her ayın sayfası uygulamanın içinde.
 - Her ekranın sade (bir cümle ve sonraki adım) ve ayrıntılı (tablolar) görünümü, açık ve koyu teması vardır. Her
   grafiğin bir tablo görünümü vardır. Arayüz telefonda da yana taşmadan açılır ve uygulama gibi kurulabilir (PWA).
@@ -102,6 +103,17 @@ Aşama 6 (Arayüz, v0.7.0) uygulamayı terminal açmadan kurulan ve kullanılan 
 - macOS'ta temiz kurulum 2026-11-02'de denendi. Paketten kurulan uygulama servisi kaydetti ve
   sihirbazı açtı; sihirbaz eklentinin klasörünü hazırladı, eklenti eşleşti ve Gmail'deki geçmişi getirdi; Pano ve
   Değerlendirme ilk raporu gösterdi. Ayarlar'dan yeniden başlatma ve veri klasörüyle birlikte kaldırma da çalıştı.
+
+Aşama 6'nın ardından arayüz sadeleşti ve hesap kitabı daha açık anlatır oldu:
+
+- Menü simgeli ve gruplu, logo her yerde; görünüm ve tema üst çubuktaki tek menüde. Pano'nun ilk satırı dört rakamı
+  bir bakışta gösterir: net varlık, bu ay harcanan, yedi gün içinde ödenecek ve bekleyen işler.
+- Uzun ekranlar bölümlere ayrıldı: Akış, Değerlendirme, Bildirimler, Kurallar ve hesap sayfası. İşlemler'in süzgeçleri
+  bir düğmenin altında; toplamlar giren, çıkan, fark ve harcama olarak ayrı ayrı yazar.
+- Bir rakamın nasıl hesaplandığı "Nasıl hesaplandı?" altında. Kapanmamış bir ayın rakamları eksik olabileceğini
+  söyler; bir hesap toplama girmiyorsa nedeni yazar. Abonelikler ekranının adı artık "Düzenli ödemeler".
+- Tarayıcı eklentisinin araç çubuğundaki düğmesi küçük bir pencere açar. Penceredeki "İplikçi Nedim'i aç" arayüzü tek
+  tıkla, oturum açılmış olarak açar.
 
 Açık kalanlar: Windows'ta temiz kurulum denemesi (kullanıcı yapacak) ve servisin yedi gün kendi başına çalışması
 (K19).
@@ -123,7 +135,8 @@ iş akışı üretir.
    - **Linux:** AppImage dosyasının özelliklerinden program olarak çalıştırılmasına izin verin ve dosyaya çift
      tıklayın.
 2. Uygulama arka plan servisini bilgisayarınıza kaydeder ve tarayıcıda kurulum sihirbazını açar. Servis her oturum
-   açılışında kendiliğinden başlar; uygulamayı sonra açtığınızda arayüz doğrudan açılır.
+   açılışında kendiliğinden başlar; uygulamayı sonra açtığınızda arayüz doğrudan açılır. Tarayıcı eklentisi
+   eşleştikten sonra arayüzü eklentinin penceresindeki "İplikçi Nedim'i aç" düğmesiyle de açabilirsiniz.
 3. Sihirbaz adlarınızı, e-postanın nasıl geleceğini, bankaları ve bildirimleri sorar. Gmail hesabınız uygulama
    şifresine izin vermiyorsa (örneğin Gelişmiş Koruma'daysa) e-postalar tarayıcı eklentisiyle gelir. Eklenti
    programla gelir: sihirbaz eklentinin klasörünü açar ve tarayıcıya nasıl yükleneceğini adım adım gösterir.

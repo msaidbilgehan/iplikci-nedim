@@ -20,7 +20,9 @@ Bütün ekranlar için geçerlidir:
   - Sayılardan ve yıllardan sonraki ekler yardımcı işlevlerle kurulur; `'i`, `'da` gibi ekler elle yazılmaz.
 - **Kesinlik**
   - Her işlemde ve toplamda kesinlik görünür: geçici, ekstrede yok, yalnızca bilgi.
-  - Kesin olmayan bir rakam kesin gibi sunulmaz.
+  - Kesin olmayan bir rakam kesin gibi sunulmaz. Kapanmamış bir geçmiş ayın rakamları eksik olabileceğini söyler;
+    ayların en yükseği ve en düşüğü yalnızca kapanmış aylardan seçilir. Bir hesap toplama girmiyorsa neden girmediği
+    (bakiyesi belgelerde yok ya da TL karşılığı bilinmiyor) yazılır.
 - **Ortalamalar ve tahmin**
   - Ortalama, eğilim ve tahmin yalnızca tam aylardan hesaplanır; içinde bulunulan ay eksik sayılır.
   - Düzensiz harcama yıllığa çevrilmez, 12 ile çarpılmaz.
@@ -41,6 +43,10 @@ Bütün ekranlar için geçerlidir:
     veriyi gösterir.
   - Terimler sözlüğü vardır: KMH, asgari ödeme, kesim tarihi, kur makası gibi terimlerin üzerine gelince kısa açıklama
     çıkar.
+  - Uzun ekranlar bölümlere ayrılır: bir seferde bir bölüm görünür ve yalnızca o yüklenir; seçilen bölüm adreste durur
+    (`?bolum=`), geri düğmesi ona döner. Akış, Değerlendirme, Bildirimler, Kurallar ve hesap sayfası böyledir.
+  - Bir toplamın nasıl hesaplandığı "Nasıl hesaplandı?" altında katlanır; ayrıntılı görünümde açık gelir. Bir
+    ortalamanın ya da tahminin hangi aylardan hesaplandığını söyleyen cümle katlanmaz.
 - **Durumlar ve erişilebilirlik**
   - Her veri ekranının boş, yükleniyor ve hata durumu vardır. Hata durumunda yeniden deneme düğmesi bulunur.
   - Klavyeyle kullanılabilir; WCAG AA kontrastı; görünür odak.
@@ -51,8 +57,8 @@ G1, G10, G13 · Çekirdek
 
 - **Kurulum:** bağlayıcı kurulum sihirbazında seçilir ([ADR-0016](../adr/0016-mail-connectors.md)); terminal
   gerekmez. Başlangıç günü her bağlayıcıda girilir.
-  - `browser_bridge`: sihirbaz eklentinin mağaza sayfasını açar. Kullanıcı eklentiyi kurar ve eklentinin penceresinde
-    eşleştirmeyi onaylar; şifre istenmez. Gelişmiş Koruma'daki Gmail hesapları için yol budur: uygulama şifresi
+  - `browser_bridge`: sihirbaz eklentinin mağaza sayfasını açar. Kullanıcı eklentiyi kurar ve eklentinin ayarlar
+    sayfasında eşleştirir; şifre istenmez. Gelişmiş Koruma'daki Gmail hesapları için yol budur: uygulama şifresi
     sayfası "kullanılamıyor" diyorsa sihirbaz bu yolu önerir.
     - Eklenti mağazada olmadığı sürece ([K20](requirements.md#kararlar)) sihirbaz ve Tarayıcı eklentisi ekranı
       eklentinin klasörünü hazırlatır ve dosya yöneticisinde açtırır.
@@ -65,7 +71,10 @@ G1, G10, G13 · Çekirdek
   - Chrome, Edge ve Brave'de; Windows, macOS ve Linux'ta aynı biçimde çalışır.
   - Kurulum sayfası eklentiyi bulur ve eşleştirmeyi başlatır; kullanıcı eklentide bir kez onaylar. Kod yazmak yalnızca
     sayfa eklentiye ulaşamazsa gerekir.
-  - İzinleri yalnızca `mail.google.com` ve 127.0.0.1'dir; mağaza sayfası ve eklentinin penceresi bunu söyler.
+  - İzinleri yalnızca `mail.google.com` ve 127.0.0.1'dir; mağaza sayfası ve eklentinin ayarlar sayfası bunu söyler.
+  - Araç çubuğundaki düğme eklentinin penceresini açar: durum, "İplikçi Nedim'i aç", "Şimdi denetle" ve "Eşleştirme ve
+    ayarlar". "İplikçi Nedim'i aç" açık bir arayüz sekmesini öne getirir; yoksa eşleşmiş eklentinin servisten aldığı
+    tek kullanımlık giriş bağlantısını açar ([ADR-0019](../adr/0019-bridge-login-link.md)).
   - Gmail'i üç katmanla okur. Yeni iletiler gelen kutusu akışından, okunmuş ve arşivlenmiş iletilerle geçmiş tam
     taramadan, iletinin kendisi "Orijinali göster"den alınır. İndirilen ileti okunmamış kalır (test edilir).
   - Tam tarama bozulursa yeni okunmamış iletiler alınmaya devam eder ve kullanıcıya bir kez bildirilir (test edilir).
@@ -216,6 +225,9 @@ G11 · Çekirdek
 ## F08 — Abonelikler, düzenli ve dönemsel ödemeler
 
 G7, G10 · Çekirdek
+
+Ekranın adı "Düzenli ödemeler"dir (`/abonelikler`; 2026-11-02'ye dek "Abonelikler"): kira ve fatura gibi her ay
+ödenenler de buradadır.
 
 - **Aylık seriler** ve durumları MVP kurallarıyla tespit edilir
   ([domain/interpretation.md](../domain/interpretation.md)).
@@ -492,8 +504,9 @@ yaptığı her şeyin V1'de de olmasını güvenceye alır.
   (Aşama 6: Değerlendirme ekranı raporun kartlarını İşlemler süzgeçleriyle taşır; varlık tablosu Döviz'de, hesap
   türlerinin toplamları Hesaplar'da, işlemler aynı süzgeçlerle İşlemler'de ve CSV olarak. Bilerek farklı olanlar:
   bir kategori ya da işyeri adı ekranı süzmez, satırlarını İşlemler'de açar (ekranı süzgeç çubuğu süzer); düzenli
-  ödemeler kartı süzgeçlerden bağımsızdır, tamamı Abonelikler ekranındadır; ortalama kutusunda 24 aylık küçük çizgi
-  yoktur, aylar aylık giderler kartındadır.)
+  ödemeler kartı süzgeçlerden bağımsızdır, tamamı Düzenli ödemeler ekranındadır; ortalama kutusunda 24 aylık küçük
+  çizgi yoktur, aylar aylık giderler kartındadır. Ekran raporun tek uzun sayfası yerine beş bölümdür: Özet,
+  Harcamalar, Gelir, varlık ve borç, Önümüzdeki aylar, İşlemler ve veriler.)
 - [x] **Ay sonu:** durumlar, sayfalar, bildirimler; tek bir ayın ayrıntısı. (Aşama 6: `/ay-sonu` ve `/ay-sonu/:ay`,
   ayların betiksiz sayfaları dışa aktarılır; "Ay bitti", "Ay kapandı" ve "Ay kontrol gerektiriyor" bildirimleri
   Aşama 5'te geldi.)

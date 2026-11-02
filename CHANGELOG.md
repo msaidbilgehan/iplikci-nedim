@@ -4,6 +4,50 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [Yayımlanmadı]
+
+Aşama 6'nın ardından arayüz sadeleşti, hesap kitabı daha açık anlatır oldu ve bütün ekranlar demo çalışma alanında
+elle yeniden denendi. Tarayıcı eklentisinin araç çubuğundaki düğmesi arayüzü tek tıkla açıyor.
+
+### Eklenenler
+
+- Logo her yerde: arayüzün simgeleri, eklentinin simgeleri ve kurulum paketlerinin simgeleri
+  `iplikci_nedim_logo_transparent/`'tan çizilir (`packaging/icons.py`); servisin giriş sayfaları da logoyu gösterir.
+- Tarayıcı eklentisinin penceresi: araç çubuğundaki düğme durumu, "İplikçi Nedim'i aç", "Şimdi denetle" ve
+  "Eşleştirme ve ayarlar"ı gösterir. "İplikçi Nedim'i aç" açık bir arayüz sekmesini öne getirir; yoksa eşleşmiş
+  eklenti servisten tek kullanımlık bir giriş bağlantısı alır ve arayüzü oturum açılmış olarak açar
+  (`POST /api/bridge/login-link`, ADR-0019). Eklentinin ayarlar ve doğrulama sayfaları yenilendi (eklenti 0.5.0).
+- Pano'nun ilk satırı dört rakamı bir bakışta gösterir: net varlık, bu ay harcanan (tipik ayla), yedi gün içinde
+  ödenecek ve bekleyen işler; her biri ilgili ekrana götürür.
+- Uzun ekranlar bölümlere ayrıldı, seçilen bölüm adreste (`?bolum=`): Akış (olaylar, şu an, yaklaşanlar),
+  Değerlendirme (özet, harcamalar, gelir, varlık ve borç, önümüzdeki aylar, işlemler ve veriler), Bildirimler (kutu,
+  kanallar, kurallar, teslim kaydı), Kurallar (işyeri kuralı, kategoriler, biten ödemeler, gereklilik, dosya) ve hesap
+  sayfası (özet, düzenli ödemeler ve ücretler, işlemler).
+- "Nasıl hesaplandı?": toplamların ve akışların nasıl hesaplandığı katlanır, ayrıntılı görünümde açık gelir.
+
+### Değişenler
+
+- Uygulama kabuğu: üst çubukta logo, bildirim zili ve görünümle temayı birlikte seçen tek menü; menü simgeli ve
+  gruplu, telefonda açılır kapanır.
+- Abonelikler ekranının adı "Düzenli ödemeler": kira ve faturalar da orada. Kartlarda aylık tutar en büyük rakam,
+  "İptal ettim…" kartın altında sade bir düğme.
+- İşlemler: süzgeçler "Süzgeçler" düğmesinin altında, arama ve hızlı seçimler hep açık; toplamlar giren, çıkan, fark
+  ve harcama olarak ayrı kutularda, geçici ve ekstrede görünmeyen satırlar adıyla.
+- Akış'ın sade görünümünde bir belgenin "geldi" olayı, okunmasının sonucu da listedeyse ayrıca gösterilmez; olaylar
+  daha sıkı satırlarda.
+- Hesaplar: bir hesap toplama girmiyorsa nedeni yazar (bakiyesi belgelerde yok ya da TL karşılığı bilinmiyor);
+  "Birlikte göster" kutusu adıyla görünür; eksik aylar uyarı olarak işaretlenir.
+- Belgeler: yükleme alanı geniş ekranda tek satır, belgeler tek çerçeveli bir liste.
+- Çok küçük oranlar "%1'den az" diye yazılır; değerlendirmenin bütçe cümlesi önce bugünkü ayı, sonra öneriyi söyler.
+
+### Düzeltilenler
+
+- Kapanmamış bir geçmiş ayın (belgesi eksik, ekstresi beklenen ya da kontrol isteyen) rakamları Ay sonu listesinde
+  eksik olabileceğini söyler; ay sayfasının "Son 12 ayın gideri" en yüksek ve en düşük ayı yalnızca kapanmış aylardan
+  seçer, diğerlerini adıyla anar. Demo'da Temmuz, dökümünün ilk günleri eksik olduğu için "en düşük ay" görünüyordu.
+- Sistem ekranı hiç kurulmamış bir e-posta hesabını "IMAP" diye göstermez, "Henüz kurulmadı" der ve Ayarlar'a
+  götürür; Ayarlar hangi yolun seçileceğini söyler.
+
 ## [0.7.0] — 2026-11-02 — Aşama 6: Arayüz
 
 Arayüz tamamlandı: on beş ekran sırayla, açık ve koyu tema, sade ve ayrıntılı görünüm, çeviri altyapısı ve kurulabilir

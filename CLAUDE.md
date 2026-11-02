@@ -57,6 +57,10 @@ Status (2026-11-02): Phases 0–6 of `docs/v1/roadmap.md` are done (v0.1.0 … v
     user's; the roadmap lists what it has to confirm.
   - While the mailbox's history is read from the start (the extension's first scan, an IMAP account's first read),
     notifications go only to the in-app box.
+- After Phase 6 (2026-11-02, branch `arayuz`) the interface was simplified at the user's request: icons drawn from the
+  logo, a grouped menu with icons, the long screens split into parts (`?bolum=`), "Nasıl hesaplandı?" folds, partial
+  months and left-out accounts said in words, and Abonelikler renamed "Düzenli ödemeler". The extension's toolbar
+  button opens a window whose "İplikçi Nedim'i aç" asks the service for a login link with its token (ADR-0019).
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 
@@ -192,7 +196,9 @@ stream's start. `viewer` makes a document's page images, cells and e-mail view i
 `service/launcher` is what the installed app runs when opened (registers this copy, restarts an older one, opens the
 interface; refuses a development copy) and `service/dialog` the system's own windows; `app/lifecycle` stops, restarts,
 restores and removes the service from the interface, and `app/extension` keeps the browser extension's folder in the
-data dir (K20: loaded unpacked). `packaging/build.py` builds the installers (ADR-0017). The rest keeps the MVP's flat
+data dir (K20: loaded unpacked). `packaging/build.py` builds the installers (ADR-0017) and `packaging/icons.py` draws
+every icon (the interface's, the extension's, the installers') from `iplikci_nedim_logo_transparent/`; in `web/`,
+`components/ui/SectionTabs` splits a long screen into parts. The rest keeps the MVP's flat
 layout (`analysis`, `insights`, `month_end`, `report` with its `templates`, `mcp_server`, …) until the phases in the
 roadmap's MVP module table move it. Next to them: `fakes` (the fake document builders and every reader's specimens,
 shared with the tests and the demo), `demo` (the demo data folder), `baseline` (the verification baseline) and
