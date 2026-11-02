@@ -15,6 +15,15 @@ function menu() {
   return screen.getByRole("navigation", { name: "Ana menü" });
 }
 
+function addressesIn(list: HTMLElement): Array<string | null> {
+  return within(list).getAllByRole("link").map((link) => link.getAttribute("href"));
+}
+
+/** The detailed view, chosen before the screen opens as the display panel would have saved it. */
+function chooseDetailed() {
+  localStorage.setItem("iplikci.view", "detailed");
+}
+
 describe("Layout", () => {
   afterEach(() => {
     localStorage.clear();
@@ -42,7 +51,53 @@ describe("Layout", () => {
     expect(screen.getByRole("link", { name: "Bildirimler" })).toBeInTheDocument();
   });
 
-  it("lists the screens built so far in their groups, setting up apart", () => {
+  it("lists the everyday screens first in the simple view and folds the others under Diğer ekranlar", async () => {
+    renderScreen(<Layout />);
+    const everyday = within(menu()).getByRole("list", { name: "Sık kullanılan ekranlar" });
+    expect(addressesIn(everyday)).toEqual([
+      "/",
+      "/hesaplar",
+      "/islemler",
+      "/abonelikler",
+      "/takvim",
+      "/degerlendirme",
+      "/yapilacaklar",
+    ]);
+    const rules = within(menu()).getByRole("link", { name: "Kurallar" });
+    expect(rules).not.toBeVisible();
+
+    await userEvent.click(within(menu()).getByText("Diğer ekranlar"));
+    expect(rules).toBeVisible();
+    const groups = within(menu())
+      .getAllByRole("list")
+      .filter((list) => list !== everyday);
+    expect(groups.map(accessibleNameOf)).toEqual(["Bugün", "Para", "Analiz", "Arşiv", "Uygulama", "Kurulum"]);
+    expect(groups.map(addressesIn)).toEqual([
+      ["/akis"],
+      ["/doviz"],
+      ["/ay-sonu"],
+      ["/belgeler", "/faturalar"],
+      ["/bildirimler", "/kurallar", "/ayarlar", "/sistem"],
+      ["/kurulum", "/kurulum/eklenti"],
+    ]);
+  });
+
+  it("opens Diğer ekranlar by itself while one of its screens is shown, so the current screen stays in sight", () => {
+    renderScreen(<Layout />, { path: "/kurallar" });
+    const current = within(menu()).getByRole("link", { name: "Kurallar" });
+    expect(current).toBeVisible();
+    expect(current).toHaveAttribute("aria-current", "page");
+  });
+
+  it("says on Diğer ekranlar how many notifications are not seen yet while Bildirimler is folded inside", async () => {
+    renderScreen(<Layout />);
+    const more = within(menu()).getByText("Diğer ekranlar");
+    expect(await within(more).findByText("(2 okunmamış)")).toBeInTheDocument();
+    expect(within(more).getByText("2")).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("lists every screen built so far in its group in the detailed view, setting up apart", () => {
+    chooseDetailed();
     renderScreen(<Layout />);
     const expected: Record<string, string[]> = {
       Bugün: ["/", "/akis", "/yapilacaklar"],
@@ -55,9 +110,9 @@ describe("Layout", () => {
     const lists = within(menu()).getAllByRole("list");
     expect(lists.map(accessibleNameOf)).toEqual(Object.keys(expected));
     for (const [name, addresses] of Object.entries(expected)) {
-      const links = within(within(menu()).getByRole("list", { name })).getAllByRole("link");
-      expect(links.map((link) => link.getAttribute("href"))).toEqual(addresses);
+      expect(addressesIn(within(menu()).getByRole("list", { name }))).toEqual(addresses);
     }
+    expect(within(menu()).queryByText("Diğer ekranlar")).not.toBeInTheDocument();
   });
 
   it("leaves out a screen that is not built yet, and a group with none built", () => {
@@ -109,7 +164,7 @@ describe("Layout", () => {
     await userEvent.click(within(menu()).getByRole("link", { name: "Takvim" }));
     expect(button).toHaveAttribute("aria-expanded", "false");
     await userEvent.click(button);
-    within(menu()).getByRole("link", { name: "Sistem" }).focus();
+    within(menu()).getByRole("link", { name: "Hesaplar" }).focus();
     await userEvent.keyboard("{Escape}");
     expect(button).toHaveAttribute("aria-expanded", "false");
     expect(button).toHaveFocus();

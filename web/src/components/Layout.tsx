@@ -6,13 +6,13 @@
 import * as Popover from "@radix-ui/react-popover";
 import { type KeyboardEvent, type ReactNode, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, NavLink, Outlet } from "react-router";
+import { Link, NavLink, Outlet, useLocation } from "react-router";
 
 import { useUnreadNotifications } from "../api/queries";
 import { useEventStream } from "../hooks/useEventStream";
 import { cn } from "../lib/cn";
 import type { Theme, View } from "../lib/preferences";
-import { builtGroups, MENU, type ScreenGroup, SETUP } from "./navigation";
+import { builtGroups, everydayScreens, MENU, otherGroups, type Screen, type ScreenGroup, SETUP } from "./navigation";
 import { useTheme, useView } from "./Preferences";
 import { useFirstRun } from "./setup/useFirstRun";
 import { BellIcon, ChevronDownIcon, CloseIcon, MenuIcon, MonitorIcon, MoonIcon, SunIcon } from "./ui/Icons";
@@ -29,6 +29,7 @@ export function Layout() {
   useEventStream();
   useFirstRun();
   const { t } = useTranslation("shell");
+  const { view } = useView();
   const unread = useUnreadNotifications();
   const [open, setOpen] = useState(false);
   const menuId = useId();
@@ -85,14 +86,20 @@ export function Layout() {
           )}
         >
           <div className="flex flex-col gap-5 px-3 py-4">
-            {builtGroups(MENU).map((group) => (
-              <MenuGroup key={group.key} group={group} unread={unread} onChoose={() => setOpen(false)} />
-            ))}
-            {builtGroups([SETUP]).map((group) => (
-              <div key={group.key} className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
-                <MenuGroup group={group} unread={unread} onChoose={() => setOpen(false)} />
-              </div>
-            ))}
+            {view === "simple" ? (
+              <SimpleMenu unread={unread} onChoose={() => setOpen(false)} />
+            ) : (
+              <>
+                {builtGroups(MENU).map((group) => (
+                  <MenuGroup key={group.key} group={group} unread={unread} onChoose={() => setOpen(false)} />
+                ))}
+                {builtGroups([SETUP]).map((group) => (
+                  <div key={group.key} className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                    <MenuGroup group={group} unread={unread} onChoose={() => setOpen(false)} />
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         </nav>
         <main id="icerik" tabIndex={-1} className="min-w-0 flex-1 px-4 py-6 focus:outline-none lg:px-8">
@@ -100,6 +107,51 @@ export function Layout() {
         </main>
       </div>
     </div>
+  );
+}
+
+/** Whether the address is the screen's own, or one under it unless the screen is marked only on its own. */
+function isAt(screen: Screen, pathname: string): boolean {
+  return screen.end ? pathname === screen.to : pathname === screen.to || pathname.startsWith(`${screen.to}/`);
+}
+
+/**
+ * The simple view's menu: the everyday screens in one list, the rest grouped under "Diğer ekranlar", which opens by
+ * itself while one of them is shown, so the current screen is never hidden.
+ */
+function SimpleMenu({ unread, onChoose }: { unread: number; onChoose: () => void }) {
+  const { t } = useTranslation("shell");
+  const { pathname } = useLocation();
+  const others = otherGroups([...MENU, SETUP]);
+  const here = others.some((group) => group.screens.some((screen) => isAt(screen, pathname)));
+  const [chosen, setChosen] = useState(false);
+  return (
+    <>
+      <ScreenList screens={everydayScreens(MENU)} label={t("menu.everyday")} unread={unread} onChoose={onChoose} />
+      <details
+        open={chosen || here}
+        onToggle={(event) => setChosen(event.currentTarget.open)}
+        className="group border-t border-zinc-200 pt-3 dark:border-zinc-800"
+      >
+        <summary
+          className={cn(
+            "flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-lg px-3 text-sm font-medium lg:min-h-9",
+            "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800",
+            "[&::-webkit-details-marker]:hidden",
+            FOCUS,
+          )}
+        >
+          <ChevronDownIcon className="size-[1.125rem] shrink-0 opacity-80 transition-transform group-open:rotate-180 motion-reduce:transition-none" />
+          {t("menu.more")}
+          <UnreadCount count={unread} />
+        </summary>
+        <div className="mt-3 flex flex-col gap-5">
+          {others.map((group) => (
+            <MenuGroup key={group.key} group={group} unread={unread} onChoose={onChoose} />
+          ))}
+        </div>
+      </details>
+    </>
   );
 }
 
@@ -117,39 +169,54 @@ function MenuGroup({ group, unread, onChoose }: MenuGroupProps) {
       <p id={heading} className="px-3 pb-1.5 text-xs font-semibold text-zinc-600 dark:text-zinc-400">
         {t(`groups.${group.key}`)}
       </p>
-      <ul aria-labelledby={heading} className="flex flex-col gap-0.5">
-        {group.screens.map((screen) => {
-          const ScreenIcon = screen.icon;
-          return (
-            <li key={screen.to}>
-              <NavLink
-                to={screen.to}
-                end={screen.end ?? false}
-                onClick={onChoose}
-                className={({ isActive }) =>
-                  cn(
-                    "relative flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium lg:min-h-9",
-                    FOCUS,
-                    // The current screen: a bar beside it as well as the colour.
-                    isActive
-                      ? cn(
-                          "bg-teal-50 text-teal-900 dark:bg-teal-950 dark:text-teal-50",
-                          "before:absolute before:inset-y-1.5 before:left-0 before:w-[3px] before:rounded-full",
-                          "before:bg-teal-700 dark:before:bg-teal-400",
-                        )
-                      : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50",
-                  )
-                }
-              >
-                <ScreenIcon className="size-[1.125rem] shrink-0 opacity-80" />
-                {t(`screens.${screen.key}`)}
-                {screen.key === "notifications" ? <UnreadCount count={unread} /> : null}
-              </NavLink>
-            </li>
-          );
-        })}
-      </ul>
+      <ScreenList screens={group.screens} labelledBy={heading} unread={unread} onChoose={onChoose} />
     </div>
+  );
+}
+
+interface ScreenListProps {
+  screens: readonly Screen[];
+  label?: string; // the list's name, or the heading naming it
+  labelledBy?: string;
+  unread: number;
+  onChoose: () => void;
+}
+
+function ScreenList({ screens, label, labelledBy, unread, onChoose }: ScreenListProps) {
+  const { t } = useTranslation("shell");
+  return (
+    <ul aria-label={label} aria-labelledby={labelledBy} className="flex flex-col gap-0.5">
+      {screens.map((screen) => {
+        const ScreenIcon = screen.icon;
+        return (
+          <li key={screen.to}>
+            <NavLink
+              to={screen.to}
+              end={screen.end ?? false}
+              onClick={onChoose}
+              className={({ isActive }) =>
+                cn(
+                  "relative flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium lg:min-h-9",
+                  FOCUS,
+                  // The current screen: a bar beside it as well as the colour.
+                  isActive
+                    ? cn(
+                        "bg-teal-50 text-teal-900 dark:bg-teal-950 dark:text-teal-50",
+                        "before:absolute before:inset-y-1.5 before:left-0 before:w-[3px] before:rounded-full",
+                        "before:bg-teal-700 dark:before:bg-teal-400",
+                      )
+                    : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50",
+                )
+              }
+            >
+              <ScreenIcon className="size-[1.125rem] shrink-0 opacity-80" />
+              {t(`screens.${screen.key}`)}
+              {screen.key === "notifications" ? <UnreadCount count={unread} /> : null}
+            </NavLink>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

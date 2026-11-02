@@ -36,6 +36,9 @@ export interface Screen {
   icon: (props: { className?: string }) => ReactNode;
   ready: boolean;
   end?: boolean; // marked current only on its own address, not on the addresses under it
+  // One of the few screens the simple view's menu lists first, for looking after one's money day to day; the others
+  // are a click away under "Diğer ekranlar".
+  everyday?: boolean;
 }
 
 export interface ScreenGroup {
@@ -47,25 +50,25 @@ export const MENU: readonly ScreenGroup[] = [
   {
     key: "today", // what to look at first: where things stand, what happened, what needs the user
     screens: [
-      { to: "/", key: "dashboard", icon: HomeIcon, ready: true, end: true },
+      { to: "/", key: "dashboard", icon: HomeIcon, ready: true, end: true, everyday: true },
       { to: "/akis", key: "feed", icon: PulseIcon, ready: true },
-      { to: "/yapilacaklar", key: "todo", icon: ChecklistIcon, ready: true },
+      { to: "/yapilacaklar", key: "todo", icon: ChecklistIcon, ready: true, everyday: true },
     ],
   },
   {
     key: "money", // the accounts, their rows, what is paid regularly and what comes next
     screens: [
-      { to: "/hesaplar", key: "accounts", icon: BankIcon, ready: true },
-      { to: "/islemler", key: "transactions", icon: SwapIcon, ready: true },
-      { to: "/abonelikler", key: "subscriptions", icon: RepeatIcon, ready: true },
-      { to: "/takvim", key: "calendar", icon: CalendarIcon, ready: true },
+      { to: "/hesaplar", key: "accounts", icon: BankIcon, ready: true, everyday: true },
+      { to: "/islemler", key: "transactions", icon: SwapIcon, ready: true, everyday: true },
+      { to: "/abonelikler", key: "subscriptions", icon: RepeatIcon, ready: true, everyday: true },
+      { to: "/takvim", key: "calendar", icon: CalendarIcon, ready: true, everyday: true },
       { to: "/doviz", key: "fx", icon: CoinsIcon, ready: true },
     ],
   },
   {
     key: "analysis", // what the numbers mean: the assessment and each month's closing
     screens: [
-      { to: "/degerlendirme", key: "insights", icon: ChartIcon, ready: true },
+      { to: "/degerlendirme", key: "insights", icon: ChartIcon, ready: true, everyday: true },
       { to: "/ay-sonu", key: "monthEnd", icon: CalendarCheckIcon, ready: true },
     ],
   },
@@ -101,6 +104,34 @@ export function builtGroups(groups: readonly ScreenGroup[]): ScreenGroup[] {
   return groups
     .map((group) => ({ ...group, screens: group.screens.filter((screen) => screen.ready) }))
     .filter((group) => group.screens.length > 0);
+}
+
+// The simple view's first menu in the order one looks after money: where it stands, the accounts and their rows, what
+// is paid regularly and when, what it means, and last what is left to do (the home page tells that too).
+const EVERYDAY_ORDER: readonly ScreenKey[] = [
+  "dashboard",
+  "accounts",
+  "transactions",
+  "subscriptions",
+  "calendar",
+  "insights",
+  "todo",
+];
+
+/** The simple view's first menu: the everyday screens built so far. */
+export function everydayScreens(groups: readonly ScreenGroup[]): Screen[] {
+  const rank = (screen: Screen) => {
+    const found = EVERYDAY_ORDER.indexOf(screen.key);
+    return found === -1 ? EVERYDAY_ORDER.length : found;
+  };
+  return builtGroups(groups)
+    .flatMap((group) => group.screens.filter((screen) => screen.everyday === true))
+    .sort((a, b) => rank(a) - rank(b));
+}
+
+/** The groups without their everyday screens: what the simple view's menu keeps under "Diğer ekranlar". */
+export function otherGroups(groups: readonly ScreenGroup[]): ScreenGroup[] {
+  return builtGroups(groups.map((group) => ({ ...group, screens: group.screens.filter((s) => s.everyday !== true) })));
 }
 
 /** Whether a screen of the menu is built, so a link may lead to it (lib/links.ts). */

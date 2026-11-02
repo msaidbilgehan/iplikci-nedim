@@ -3,7 +3,9 @@
   "skipToContent": "İçeriğe geç",
   "menu": {
     "button": "Menü",
-    "label": "Ana menü"
+    "label": "Ana menü",
+    "everyday": "Sık kullanılan ekranlar",
+    "more": "Diğer ekranlar"
   },
   "groups": {
     "today": "Bugün",
@@ -45,8 +47,8 @@
     "simple": "Sade",
     "detailed": "Ayrıntılı",
     "hint": {
-      "simple": "Her kartta bir cümlelik yorum ve bir sonraki adım; ayrıntılar gizli.",
-      "detailed": "Tablolar, ham rakamlar ve hesapların nasıl yapıldığı."
+      "simple": "Grafikler ve kısa cümleler, her yerde bir sonraki adım; menüde sık kullanılan ekranlar öne çıkar.",
+      "detailed": "Tablolar, ham rakamlar, hesapların nasıl yapıldığı ve menüde bütün ekranlar gruplarıyla."
     }
   },
   "notFound": {
