@@ -9,7 +9,7 @@ import { useTranslation } from "react-i18next";
 import type { BudgetLine, Insights, Labels, Tone as FindingTone } from "../../api/types";
 import { formatDay, formatFlow, formatMoney, formatMonth } from "../../lib/format";
 import { labelOf } from "../../lib/labels";
-import { percent } from "../../lib/turkish";
+import { percentOrLess } from "../../lib/turkish";
 import { Detailed, Simple } from "../Preferences";
 import { Badge, type Tone } from "../ui/Badge";
 import { Card } from "../ui/Card";
@@ -119,7 +119,7 @@ function Budget({ lines }: { lines: readonly BudgetLine[] }) {
     return <p className="text-sm">{t("interpretation.budgetNone")}</p>;
   }
   const share = (line: BudgetLine, index: number) =>
-    index > 0 && income.now.minor > 0 ? percent(line.now.minor / income.now.minor) : "–";
+    index > 0 && income.now.minor > 0 ? percentOrLess(line.now.minor / income.now.minor) : "–";
   const diff = (line: BudgetLine) => {
     const moved = line.plan.minor - line.now.minor;
     return Math.abs(moved) >= 100

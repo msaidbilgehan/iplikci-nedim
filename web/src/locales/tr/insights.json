@@ -38,7 +38,7 @@
     "incomeShare": "giderler gelirin {{share, percent}} kadarı",
     "incomeNone": "Bu dönemde hesap hareketi dökümü yok",
     "unnecessary": "Gereksiz harcamalar",
-    "unnecessaryMeta": "faiz, gecikme ve banka ücretleri",
+    "unnecessaryMeta": "faiz, banka ücretleri ve gereksiz saydığınız harcamalar",
     "unnecessaryShare": "giderlerin {{share, percent}} kadarı",
     "last": "Son ay",
     "lastPartial": "eksik ay: belgeleri ayın tamamını kapsamıyor ya da dönem kesiyor",
@@ -104,8 +104,8 @@
     "past": "Durmuş ya da tek seferlik: bundan sonraya yansıtılmaz",
     "footer": "Bundan sonra aylık toplam",
     "none": "Bu aylarda isteğe bağlı ya da gereksiz harcama yok.",
-    "say": "İsteğe bağlı ve gereksiz alışkanlıklarınız bundan sonra ayda {{amount}} tutuyor; en büyüğü {{name}}, ayda {{each}}.",
-    "sayNone": "Bundan sonraki aylara yansıyan isteğe bağlı ya da gereksiz bir alışkanlık yok.",
+    "say": "Düzenli ödemeler dışındaki isteğe bağlı ve gereksiz alışkanlıklarınız bundan sonra ayda {{amount}} tutuyor; en büyüğü {{name}}, ayda {{each}}.",
+    "sayNone": "Düzenli ödemeler dışında bundan sonraki aylara yansıyan isteğe bağlı ya da gereksiz bir alışkanlık yok.",
     "byCategory": "kategori"
   },
   "flow": {
@@ -205,6 +205,7 @@
     "total": "Toplam",
     "share": "Pay",
     "average": "Tam aylarda aylık",
+    "onlyPartial": "yalnızca eksik ayda",
     "count": "İşlem"
   },
   "merchants": {

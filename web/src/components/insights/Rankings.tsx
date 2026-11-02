@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import type { CategoryLine, MerchantLine, Spending } from "../../api/types";
 import { cn } from "../../lib/cn";
 import { formatDay, formatMoney, formatMonth } from "../../lib/format";
-import { percent } from "../../lib/turkish";
+import { percentOrLess } from "../../lib/turkish";
 import { type BarItem, HBars } from "../charts/HBars";
 import { SLOT_BG, slotOf } from "../charts/palette";
 import { Card } from "../ui/Card";
@@ -65,6 +65,9 @@ export function CategoriesCard({ found }: { found: Spending }) {
 
 function CategoryTable({ lines }: { lines: readonly CategoryLine[] }) {
   const { t } = useTranslation("insights");
+  // The average counts the complete months alone: spent only in a partial month, it is no zero but no average.
+  const average = (line: CategoryLine) =>
+    !line.average ? "–" : line.average.minor > 0 ? formatMoney(line.average) : t("categories.onlyPartial");
   const currency = lines[0]?.total.currency ?? "TRY";
   const total = lines.reduce((sum, line) => sum + line.total.minor, 0);
   return (
@@ -91,8 +94,8 @@ function CategoryTable({ lines }: { lines: readonly CategoryLine[] }) {
             </Td>
             <Td className="min-w-32">{line.group}</Td>
             <Td className={NUMBER}>{formatMoney(line.total)}</Td>
-            <Td className={NUMBER}>{line.share === null ? "–" : percent(Number(line.share))}</Td>
-            <Td className={NUMBER}>{line.average ? formatMoney(line.average) : "–"}</Td>
+            <Td className={NUMBER}>{line.share === null ? "–" : percentOrLess(Number(line.share))}</Td>
+            <Td className={NUMBER}>{average(line)}</Td>
             <Td className={NUMBER}>{line.count}</Td>
           </tr>
         ))}

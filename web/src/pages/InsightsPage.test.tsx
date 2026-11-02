@@ -166,10 +166,10 @@ describe("InsightsPage", () => {
     detailed();
     renderScreen(<InsightsPage />, { path: "/degerlendirme" });
     const table = await screen.findByRole("table", { name: "Aylık bütçe: bugünkü tipik ay ve önerilen ay" });
-    const fees = within(table).getByRole("row", { name: /^Faiz ve banka ücretleri/ });
+    const fees = within(table).getByRole("row", { name: /^Gereksiz harcamalar \(faiz, banka ücretleri…\)/ });
     expect(within(fees).getAllByRole("cell").map((cell) => cell.textContent)).toEqual([
       "16,00 TL",
-      "%0",
+      "%1'den az", // 16 TL of 40.000 TL: never "%0" for what is not nothing
       "0,00 TL",
       "−16,00 TL", // the plan spends that much less
       "öneri: borcu tam ödeyerek sıfırlayın",
@@ -209,8 +209,8 @@ describe("InsightsPage", () => {
     renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=harcamalar" });
     expect(
       await screen.findByText(
-        "İsteğe bağlı ve gereksiz alışkanlıklarınız bundan sonra ayda 136,00 TL tutuyor; en büyüğü Örnek Kahve, " +
-          "ayda 120,00 TL.",
+        "Düzenli ödemeler dışındaki isteğe bağlı ve gereksiz alışkanlıklarınız bundan sonra ayda 136,00 TL tutuyor; " +
+          "en büyüğü Örnek Kahve, ayda 120,00 TL.",
       ),
     ).toBeInTheDocument();
   });
@@ -308,6 +308,23 @@ describe("InsightsPage", () => {
       "href",
       "/islemler?merchant=%C3%96rnek+Market",
     );
+  });
+
+  it("says a category spent only in a partial month has no average of the complete months", async () => {
+    const flight = {
+      ...SPENDING.categories[2]!,
+      category: "Uçak, Tren & Otobüs",
+      total: tl(420000),
+      share: "0.0003",
+      average: tl(0),
+    };
+    serveSpending({ ...SPENDING, categories: [...SPENDING.categories, flight] });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=harcamalar" });
+    const categories = await card("Kategoriler");
+    await userEvent.click(within(categories).getByRole("tab", { name: "Tablo" }));
+    const row = within(categories).getByRole("link", { name: "Uçak, Tren & Otobüs" }).closest("tr")!;
+    expect(within(row).getByText("yalnızca eksik ayda")).toBeInTheDocument();
+    expect(within(row).getByText("%1'den az")).toBeInTheDocument();
   });
 
   it("folds the categories after the twelfth into one bar, and lists them all in the table", async () => {
