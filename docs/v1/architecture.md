@@ -549,7 +549,7 @@ Ayrıntılar [ADR-0010](../adr/0010-notification-channels.md)'un uygulama notund
 | `GET /api/labels` | kodların Türkçe adları, tek eşleme modülünden |
 | `GET /api/feed`, `GET /api/feed/now` | akış (sayfalı; hesap, olay türü ve kesinlik süzgeçli); "Şu an" (hesap başına tahmini bakiye, kart dönemleri, ay içi tempo) ve "Yaklaşanlar" (14 gün) |
 | `GET /api/dashboard` | pano kartları: net varlık, nakit akışı, yaklaşanlar, tempo, uyarılar, yapılacaklar, belgelerin tazeliği |
-| `GET /api/accounts`, `GET /api/accounts/{id}`, `GET /api/accounts/flows`, `PUT /api/accounts/{id}/alias` | hesap haritası; hesap ayrıntısı (bakiye eğrisi, ekstreler, türe özel alanlar); hesaplar arası para akışı; kullanıcının verdiği hesap adı |
+| `GET /api/accounts`, `GET /api/accounts/{id}`, `GET /api/accounts/flows`, `GET /api/accounts/coverage`, `PUT /api/accounts/{id}/alias` | hesap haritası; hesap ayrıntısı (bakiye eğrisi, ekstreler, türe özel alanlar); hesaplar arası para akışı; her hesabın ekstrelerinin ay ay kapsadığı günler; kullanıcının verdiği hesap adı |
 | `GET /api/transactions`, `GET /api/transactions.csv`, `GET /api/transactions/{fp}` | süzgeçli, sıralı ve sayfalı liste, süzülenlerin toplamlarıyla; CSV; ayrıntı ve "neden?" (bölünmüş satırın parçası satırının ayrıntısını verir) |
 | `PUT /api/transactions/{fp}/annotation`, `POST /api/transactions/bulk` | not, etiket, kategori ve gereklilik düzeltmesi, bölme; seçili satırlara kategori ya da etiket |
 | `GET/PUT /api/transactions/views`, `DELETE /api/transactions/views/{ad}` | kayıtlı görünümler |
