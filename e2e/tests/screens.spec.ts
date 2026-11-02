@@ -26,6 +26,7 @@ const SCREENS = [
   { path: "/kurallar", heading: "Kurallar" },
   { path: "/yapilacaklar", heading: "Yapılacaklar" },
   { path: "/kurulum", heading: "Kurulum sihirbazı" },
+  { path: "/ayarlar", heading: "Ayarlar" },
 ] as const;
 
 for (const screen of SCREENS) {

@@ -27,6 +27,7 @@ const MonthPage = lazy(() => import("./pages/MonthPage"));
 const RulesPage = lazy(() => import("./pages/RulesPage"));
 const TodoPage = lazy(() => import("./pages/TodoPage"));
 const SetupPage = lazy(() => import("./pages/SetupPage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
 
 function screen(page: ReactNode): ReactNode {
@@ -57,6 +58,7 @@ export const routes: RouteObject[] = [
       { path: "kurallar", element: screen(<RulesPage />) },
       { path: "yapilacaklar", element: screen(<TodoPage />) },
       { path: "kurulum", element: screen(<SetupPage />) },
+      { path: "ayarlar", element: screen(<SettingsPage />) },
       { path: "*", element: screen(<NotFoundPage />) },
     ],
   },

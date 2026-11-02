@@ -81,6 +81,12 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
   yalnızca girilir, adres maskeli görünür); bankalar ve banka dışı göndericiler, eski belgeler, bildirim kanalları,
   servis ve uzaktan erişim. Hiçbir şey kurulmamışken (ilk açılış) arayüz Pano yerine sihirbazla açılır, oturumda bir
   kez.
+- Ayarlar ekranı (`/ayarlar`): sihirbazın alanları her zaman değiştirilebilir (adlar ve şirket adları, e-postanın yolu
+  ve okunmaya başlandığı gün, günlük yedeklerin kaç gün saklandığı). Şimdi yedek alınır ya da bir yedek geri yüklenir:
+  önce ne olacağı söylenir, şu anki veri ayrı bir yedeğe alınır, bitince uygulama yeniden açılır. Servisin sürümü ve
+  kaydı; durdurma, yeniden başlatma ve bilgisayardan kaldırma. Kaldırırken veri klasörü yalnızca istenirse çöp
+  kutusuna taşınır ve uygulamanın kendisinin nasıl kaldırılacağı sisteme göre söylenir. Yeniden başlatma, geri yükleme
+  ve kaldırma yalnızca bu veri klasörü için kayıtlı bir serviste açıktır.
 - API: akışın sayfaları ve "Şu an" (`GET /api/feed`, `GET /api/feed/now`), pano kartları (`GET /api/dashboard`),
   hesap grupları, hesap sayfası, hesaplar arası akış ve hesaba verilen ad (`GET /api/accounts…`,
   `PUT /api/accounts/{id}/alias`).

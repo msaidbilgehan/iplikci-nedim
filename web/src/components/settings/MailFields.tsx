@@ -7,6 +7,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router";
 
 import { setUpImap, useBridges, useRemoveImap, useSetMail } from "../../api/queries";
 import type { ImapSetUp, Settings } from "../../api/types";
@@ -29,6 +30,11 @@ const FIELD = cn(
 );
 const INVALID = "border-red-700 dark:border-red-400";
 const ERROR = "text-sm text-red-800 dark:text-red-200";
+export const LINK = cn(
+  "rounded font-medium text-teal-800 underline underline-offset-2 hover:text-teal-950",
+  "dark:text-teal-300 dark:hover:text-teal-100",
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600",
+);
 const EARLIEST = "2000-01-01"; // the service's earliest start day
 
 /** "2026-01-15" → "15.01.2026'dan": the day e-mail is read from. */
@@ -36,7 +42,13 @@ function fromDay(day: string): string {
   return `${formatDay(day)}${yearSuffix(day.slice(0, 4), true)}`;
 }
 
-export function MailEditor({ settings }: { settings: Settings }) {
+interface MailEditorProps {
+  settings: Settings;
+  // The extension installed and paired here (the wizard), or a link to the Tarayıcı eklentisi screen that does it.
+  pairing?: "here" | "link";
+}
+
+export function MailEditor({ settings, pairing = "here" }: MailEditorProps) {
   const { t } = useTranslation("settings");
   const mail = settings.mail;
   const bridges = useBridges();
@@ -78,7 +90,7 @@ export function MailEditor({ settings }: { settings: Settings }) {
         ))}
       </fieldset>
       {choice === "browser_bridge" ? (
-        <BridgeWay settings={settings} paired={paired} />
+        <BridgeWay settings={settings} paired={paired} pairing={pairing} />
       ) : (
         <ImapWay settings={settings} />
       )}
@@ -113,7 +125,13 @@ function Current({ settings, paired }: { settings: Settings; paired: number }) {
   return <Alert tone="good" title={t("mail.now.imap", { address: mail.address, server: mail.server })} />;
 }
 
-function BridgeWay({ settings, paired }: { settings: Settings; paired: number }) {
+interface BridgeWayProps {
+  settings: Settings;
+  paired: number;
+  pairing: "here" | "link";
+}
+
+function BridgeWay({ settings, paired, pairing }: BridgeWayProps) {
   const { t } = useTranslation("settings");
   const set = useSetMail();
   return (
@@ -132,9 +150,20 @@ function BridgeWay({ settings, paired }: { settings: Settings; paired: number })
           {set.isError ? <Alert tone="critical" title={set.error.message} /> : null}
         </div>
       ) : null}
-      <InstallCard />
-      <PairingCard />
-      <PairedCard />
+      {pairing === "here" ? (
+        <>
+          <InstallCard />
+          <PairingCard />
+          <PairedCard />
+        </>
+      ) : (
+        <p className="text-sm">
+          {t("mail.pairingThere")}{" "}
+          <Link to="/kurulum/eklenti" className={LINK}>
+            {t("mail.openExtension")}
+          </Link>
+        </p>
+      )}
     </div>
   );
 }

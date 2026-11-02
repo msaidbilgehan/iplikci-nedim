@@ -49,7 +49,7 @@ describe("Layout", () => {
       Para: ["/hesaplar", "/islemler", "/abonelikler", "/takvim", "/doviz"],
       Analiz: ["/degerlendirme", "/ay-sonu"],
       Arşiv: ["/belgeler", "/faturalar"],
-      Uygulama: ["/bildirimler", "/kurallar", "/sistem"],
+      Uygulama: ["/bildirimler", "/kurallar", "/ayarlar", "/sistem"],
       Kurulum: ["/kurulum", "/kurulum/eklenti"],
     };
     const lists = within(menu()).getAllByRole("list");
@@ -58,8 +58,17 @@ describe("Layout", () => {
       const links = within(within(menu()).getByRole("list", { name })).getAllByRole("link");
       expect(links.map((link) => link.getAttribute("href"))).toEqual(addresses);
     }
-    // A screen that is not built yet has no way in.
-    expect(within(menu()).queryByRole("link", { name: "Ayarlar" })).not.toBeInTheDocument();
+  });
+
+  it("leaves out a screen that is not built yet, and a group with none built", () => {
+    const groups = builtGroups(
+      MENU.map((group) => ({
+        ...group,
+        screens: group.screens.map((s) => ({ ...s, ready: s.key !== "settings" && group.key !== "analysis" })),
+      })),
+    );
+    expect(groups.flatMap((group) => group.screens).map((s) => s.key)).not.toContain("settings");
+    expect(groups.map((group) => group.key)).toEqual(["today", "money", "archive", "app"]);
   });
 
   it("shows every screen of a group once it is built", () => {

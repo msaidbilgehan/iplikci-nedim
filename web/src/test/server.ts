@@ -10,6 +10,7 @@ import type {
   AlertEvent,
   AlertRule,
   AlertRules,
+  BackupItem,
   Bridge,
   Calendar,
   CalendarItem,
@@ -49,6 +50,7 @@ import type {
   Row,
   RuleChange,
   Series,
+  ServiceState,
   Settings,
   Setup,
   Spending,
@@ -236,6 +238,7 @@ export const LABELS: Labels = {
     provisional: "Geçici — ekstre bekleniyor",
     unmatched: "Ekstrede görünmüyor",
   },
+  BackupReason: { daily: "Günlük", manual: "Elle", before_restore: "Geri yükleme öncesi" },
 };
 
 /** An amount in TL from its kuruş. */
@@ -2910,6 +2913,41 @@ export function settings(overrides: Partial<Settings> = {}): Settings {
   };
 }
 
+// --- the service's own life (ADR-0017) -------------------------------------------------------------------------------
+
+/** The service as GET /api/service gives it: registered for this data folder with launchd, able to end itself. */
+export function serviceState(overrides: Partial<ServiceState> = {}): ServiceState {
+  return {
+    version: "0.7.0",
+    started_at: "2026-11-15T08:00:00+00:00",
+    registered: true,
+    manager: "launchd",
+    can_end: true,
+    ...overrides,
+  };
+}
+
+function backupItem(name: string, created_at: string, reason: string, overrides: Partial<BackupItem> = {}): BackupItem {
+  return {
+    name,
+    created_at,
+    reason,
+    app: "0.7.0",
+    documents: 42,
+    annotations: 3,
+    size: 4_718_592,
+    damaged: 0,
+    ...overrides,
+  };
+}
+
+// The backups, newest first: a daily one, one asked for, and an older daily one with a file that no longer matches.
+export const BACKUPS: BackupItem[] = [
+  backupItem("2026-11-15 03.00.00", "2026-11-15T00:00:00+00:00", "daily"),
+  backupItem("2026-11-14 18.30.00", "2026-11-14T15:30:00+00:00", "manual", { documents: 41 }),
+  backupItem("2026-11-01 03.00.00", "2026-11-01T00:00:00+00:00", "daily", { documents: 30, damaged: 1 }),
+];
+
 export const handlers = [
   http.get("/api/labels", () => HttpResponse.json(LABELS)),
   http.get("/api/dashboard", () => HttpResponse.json(DASHBOARD)),
@@ -3003,6 +3041,9 @@ export const handlers = [
   ),
   http.post("/api/settings/mail/imap", () => HttpResponse.json({ folder: "INBOX", in_keyring: true })),
   http.delete("/api/settings/mail/imap", () => new HttpResponse(null, { status: 204 })),
+  // the service's own life (ADR-0017)
+  http.get("/api/service", () => HttpResponse.json(serviceState())),
+  http.get("/api/backups", () => HttpResponse.json(BACKUPS)),
 ];
 
 export const server = setupServer(...handlers);

@@ -11,7 +11,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 
-import { api } from "./client";
+import { api, ApiError } from "./client";
 import type {
   AccountPage,
   Accounts,
@@ -20,6 +20,7 @@ import type {
   AlertRule,
   AlertRules,
   Annotation,
+  BackupItem,
   Bridge,
   BulkResult,
   Calendar,
@@ -59,9 +60,12 @@ import type {
   Queued,
   Removed,
   Reparsed,
+  Restoring,
   RuleChange,
   RuleEdit,
   SavedView,
+  ServiceEnding,
+  ServiceState,
   Settings,
   Setup,
   Spending,
@@ -875,4 +879,59 @@ export function useRemoveImap() {
     mutationFn: () => api.delete<void>(`${SETTINGS}/mail/imap`),
     onSettled: () => client.invalidateQueries({ queryKey: keys.system }),
   });
+}
+
+// --- the service's own life (ADR-0017) -------------------------------------------------------------------------------
+
+// Under the System screen's key: every event of the stream refreshes them, a backup just taken among them.
+const serviceKey = [...keys.system, "service"] as const;
+const backupsKey = [...keys.system, "backups"] as const;
+const SERVICE = "/api/service";
+
+/** The running service: its version, since when, and whether the computer's service manager starts it here. */
+export function useServiceState() {
+  return useQuery({ queryKey: serviceKey, queryFn: () => api.get<ServiceState>(SERVICE) });
+}
+
+/** The whole backups, newest first: one can be put back. */
+export function useBackups() {
+  return useQuery({ queryKey: backupsKey, queryFn: () => api.get<BackupItem[]>("/api/backups") });
+}
+
+/** Stop the service until the next login or until the app is opened again; it ends moments after it answers. */
+export function useStopService() {
+  return useMutation({ mutationFn: () => api.post<ServiceEnding>(`${SERVICE}/stop`) });
+}
+
+/** End the service for the computer's service manager to start it again; only a registered service can. */
+export function useRestartService() {
+  return useMutation({ mutationFn: () => api.post<ServiceEnding>(`${SERVICE}/restart`) });
+}
+
+/** Take the service off the computer and end it; the data folder goes to the Trash only when asked, never deleted. */
+export function useRemoveService() {
+  return useMutation({
+    mutationFn: (dataToTrash: boolean) => api.post<ServiceEnding>(`${SERVICE}/remove`, { data_to_trash: dataToTrash }),
+  });
+}
+
+/** Put a backup back: checked now, put back as the service starts again, after a backup of what there is now. */
+export function useRestoreBackup() {
+  return useMutation({
+    mutationFn: (name: string) => api.post<Restoring>(`/api/backups/${encodeURIComponent(name)}/restore`),
+  });
+}
+
+/**
+ * Who answers after the service ended to start again: "new" once a service started after `before` does, "signedOut"
+ * when one answers but does not know this session (a backup put back brings its own), "old" while the one that ended
+ * still does, "down" while none does. The health check could not tell the old service from the new one.
+ */
+export async function serviceAnswer(before: string): Promise<"new" | "signedOut" | "old" | "down"> {
+  try {
+    const state = await api.get<ServiceState>(SERVICE);
+    return state.started_at === before ? "old" : "new";
+  } catch (error) {
+    return error instanceof ApiError && error.signedOut ? "signedOut" : "down";
+  }
 }

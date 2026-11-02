@@ -50,6 +50,7 @@ import type {
   AppliedOut,
   AssetOut,
   ArrivalOut,
+  BackupOut,
   BridgeOut,
   BulkOut,
   CalendarItemOut,
@@ -138,10 +139,13 @@ import type {
   RefusedMailOut,
   RemovedOut,
   ReparsedOut,
+  RestoringOut,
   RowOut,
   RuleChangeOut,
   SeriesOut,
   SeriesStatus,
+  ServiceEndingOut,
+  ServiceStateOut,
   SettingsOut,
   SetupOut,
   SetupStep,
@@ -367,3 +371,9 @@ export type Settings = SettingsOut;
 export type MailSettings = MailSettingsOut;
 export type MailChange = MailSettingsIn;
 export type ImapSetUp = ImapOut;
+
+// The service's own life (ADR-0017): its state, the answer of a step that ends it, the backups and one being put back.
+export type ServiceState = ServiceStateOut;
+export type ServiceEnding = ServiceEndingOut;
+export type BackupItem = BackupOut;
+export type Restoring = RestoringOut;

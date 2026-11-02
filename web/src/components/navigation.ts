@@ -57,7 +57,7 @@ export const MENU: readonly ScreenGroup[] = [
     screens: [
       { to: "/bildirimler", key: "notifications", ready: true },
       { to: "/kurallar", key: "rules", ready: true },
-      { to: "/ayarlar", key: "settings", ready: false },
+      { to: "/ayarlar", key: "settings", ready: true },
       { to: "/sistem", key: "system", ready: true },
     ],
   },
