@@ -6,10 +6,16 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 | Revizyon | Konu | Durum | Belge |
 |---|---|---|---|
 | V0 | MVP `gider-analizi`: banka belgelerini okuyan, doğrulayan, yorumlayan yerel komut satırı programı, web paneli ve MCP sunucusu | 2026-10-31'de emekliye ayrıldı (K17) | Depo dışında, veri klasöründeki arşivde: `archive/mvp/CLAUDE.md` ve `README.md` |
-| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–6 (v0.1.0–v0.7.0), arayüzün sadeleşmesi (v0.7.1), resimlerle anlatan Pano (v0.7.2) ve açık sekmeye ulaşan güncellemeler (v0.7.3) uygulandı; sırada Aşama 7 var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
+| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–6 (v0.1.0–v0.7.0), arayüzün sadeleşmesi (v0.7.1), resimlerle anlatan Pano (v0.7.2), açık sekmeye ulaşan güncellemeler (v0.7.3) ve içeriğinden tanınan belgeler (v0.7.4) uygulandı; sırada Aşama 7 var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
 | V2 | Finansal strateji uzmanları ve yapay zekâ asistanı | Gelecek (V1'den sonra) | [`v2/requirements.md`](v2/requirements.md) |
 
 ## Değişiklik kaydı
+
+- 2026-11-03 (25) — Belgeler içeriğinden tanınır (v0.7.4):
+  - [Gereksinimler](v1/requirements.md): K24, elle indirilen belgeler her yükleme gibi alınır.
+  - [Özellikler](v1/features.md#f02--elle-ekleme-ve-gelen-klasörü): türü içerikten anlaşılan dosyalar; adlar
+    önemli değil.
+  - [Defter](domain/ledger.md#kopyalar): aynı hesabın çakışan listelerinde her gün tek listeden sayılır.
 
 - 2026-11-03 (24) — Arayüzün güncellemeleri açık sekmeye ulaşır (v0.7.3):
   [ADR-0008](adr/0008-frontend-pwa.md)'e not: yeni service worker beklemeden devreye girer, sayfa kendini yeniler ve

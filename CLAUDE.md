@@ -7,8 +7,8 @@ the user's own computer. It is a hobby project for the user's own needs, yet it 
 or not; it is not an enterprise product.
 
 Status (2026-11-03): Phases 0–6 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.7.0), then the interface's
-simplification (v0.7.1), the Pano's story in pictures (v0.7.2) and updates that reach an open tab (v0.7.3); Phase 7
-(MCP) is next.
+simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab (v0.7.3) and documents
+known by their content (v0.7.4); Phase 7 (MCP) is next.
 - Phase 0 brought the MVP's code in as the `iplikci` package, cleaned of personal traces, with the shipped default
   rules, the verification baseline and the demo workspace.
 - Phase 1 (data core) moved everything into the data dir: `settings.toml`, the content-addressed vault, SQLite with the
@@ -75,6 +75,8 @@ simplification (v0.7.1), the Pano's story in pictures (v0.7.2) and updates that 
   to its own register module, which `injectRegister: "script-defer"` does not use). `web/vite.config.ts` sets
   `skipWaiting` and `clientsClaim`; the page reloads once when a new worker takes over and asks for a new build each
   time it is shown again (`lib/appUpdate`). Check a PWA change by updating a tab kept open, not with a fresh browser.
+- v0.7.4 (K24): a file's format comes from its bytes (`ingest/archives.sniffed_extension`), and a day two movement
+  lists of one account cover is counted from one list (`analysis.one_list_per_day`, fingerprints given after).
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 
@@ -161,6 +163,7 @@ The MVP was retired on 2026-10-31 (K17, ADR-0018): İplikçi Nedim starts with n
 
 - **The user's decision (K17, ADR-0018):** İplikçi Nedim collects its own data. It never works with the MVP's document folders (`Bankalar/`), its other folders or its move logs.
   - Nothing is migrated: no documents, logs, settings, outputs or personal rules.
+  - Documents the user gives now, such as a folder of downloads, come in like any upload (K24, 2026-11-03).
   - History comes from reading the mailbox from the start (Phase 3) and from the user's uploads.
 - **The archive:** the MVP's code, tests, README, CLAUDE.md, `kategoriler.yaml` and `ayarlar.toml` are in the data dir,
   at `~/Library/Application Support/iplikci/archive/mvp/` (0700).

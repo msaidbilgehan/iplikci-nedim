@@ -116,6 +116,13 @@ Taban sonuçlara bakar; arşivin kendisini iki komut daha denetler:
 - Bir ekstrenin içindeki satırlar asla tekilleştirilmez. Aynı gün aynı tutarlı satırlar gerçek alışverişlerdir.
 - Kopya yalnızca aynı ekstrenin birden çok dosya olarak gelmesinden doğar. Böyle kopyalar (hesap, kesim tarihi, para
   birimi, başlangıç) üzerinden birleştirilir; satırı çok olan kopya kalır.
+- Aynı hesabın iki hareket listesi aynı günleri kapsayabilir: kullanıcı listeleri istediği tarihlerle indirir (K24).
+  Böyle bir günün satırları tek listeden sayılır (`analysis.one_list_per_day`):
+  - o gün daha çok satırı olan liste (gün içinde alınmış bir liste günün sonraki hareketlerini göstermez),
+  - eşitse daha ileri tarihe uzanan liste,
+  - o da eşitse belge kimliği önce gelen.
+- Listeler kendi satırlarını ve denetimlerini korur. Bir satırın parmak izi hangi listeden sayılırsa sayılsın aynıdır;
+  kullanıcının notları ona bağlı kalır.
 
 ## Kanıtlar: dekontlar ve banka bildirimleri
 

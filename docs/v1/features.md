@@ -113,7 +113,10 @@ G1 · Çekirdek
 
 - **Yollar:** arayüzde sürükle-bırak, dosya seç ve klasör seç; MCP'de `import_documents`; komut satırında
   `iplikci ekle`.
-- **Türler:** PDF, XLS, XLSX, HTML, ZIP, MBOX ve EML kabul edilir. Diğerleri reddedilir ve nedeni söylenir.
+- **Türler:** PDF, XLS, XLSX, HTML, XML, ZIP, MBOX ve EML. Bir dosyanın türü içeriğinden anlaşılır: uzantısı olmayan
+  ya da yanlış olan bir indirme de alınır. Belge olmayanlar reddedilir ve nedeni söylenir.
+- **Adlar önemli değil (K24):** bir belgenin hangi bankanın hangi belgesi olduğu, hesabı ve dönemi içeriğinden okunur.
+  Dosya ve klasör adları yalnızca gösterilir.
 - **Sınır:** bir içe aktarım en çok 2.000 dosya ve 2 GB olabilir.
 - **Plan:** her dosya için ne olacağı gösterilir: belge türü, hesap, dönem, doğrulama sonucu ya da kopya, şirket
   belgesi, işlenmedi, okunamadı.
@@ -122,7 +125,7 @@ G1 · Çekirdek
 - **Gelen klasörü:** klasör 20 sn sessiz kalınca içindeki dosyalar onaysız alınır. Dosyalar arşive taşınır; sonuç
   bildirimle söylenir.
 - **Kopya:** aynı içerik ikinci kez gelirse yalnızca yeni kaynak eklenir; aynı ekstrenin başka bir dosyası defterde
-  birleştirilir.
+  birleştirilir. Aynı hesabın tarihleri çakışan listelerinde her gün bir kez sayılır.
 
 ## F03 — Belge arşivi ve görüntüleyici
 

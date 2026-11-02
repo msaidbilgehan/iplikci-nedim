@@ -4,6 +4,26 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.7.4] — 2026-11-03 — Belgeler içeriğinden tanınır
+
+Bankadan elle indirilen belgeler bir klasör olarak verilebilir: dosya ve klasör adlarına bakılmadan her belge
+içeriğinden tanınır, yeni olanlar arşive girer, arşivdekilerle aynı olanlar eşleşir (K24).
+
+### Eklenenler
+
+- Bir dosyanın türü adından ya da uzantısından değil, içeriğinden anlaşılır (PDF, Excel, HTML, XML, ZIP, e-posta).
+  Uzantısı olmayan ya da yanlış olan bir indirme de alınır. Belgeler'de dosya seçerken her dosya seçilebilir.
+
+### Düzeltilenler
+
+- Aynı hesabın tarihleri çakışan iki hareket listesi, çakışan günlerin hareketlerini iki kez sayıyordu. Elle indirilen
+  listelerde bu sık olur. Artık her gün tek listeden sayılır: o gün daha çok hareketi olandan, eşitse daha ileri tarihe
+  uzanandan. Bir hareketin notları hangi listeden sayılırsa sayılsın ona bağlı kalır.
+
+### Değişenler
+
+- Belgeler'deki yükleme kartı, dosya ve klasör adlarının önemli olmadığını söyler.
+
 ## [0.7.3] — 2026-11-03 — Güncellemeler açık sekmeye ulaşır
 
 ### Düzeltilenler
