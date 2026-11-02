@@ -325,6 +325,8 @@ Durumların kuralları [domain/ledger.md](../domain/ledger.md)'dedir.
 ├── backups/               # günlük tutarlı yedekler (yer ayarlanabilir)
 ├── logs/                  # JSON günlükler, dönerek
 ├── baseline.json          # doğrulama tabanı (iplikci dogrula --taban)
+├── extension/             # tarayıcı eklentisinin dosyaları, tarayıcı buradan yükler (K20); istenince yapılır,
+│                          #   program güncellenince servis açılırken yenilenir
 ├── archive/mvp/           # MVP'nin kodu, testleri, kuralları ve ayarları (2026-10-31); salt başvuru, V1 okumaz
 └── run/                   # kilit, servis durumu
 ```

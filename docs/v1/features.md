@@ -54,6 +54,10 @@ G1, G10, G13 · Çekirdek
   - `browser_bridge`: sihirbaz eklentinin mağaza sayfasını açar. Kullanıcı eklentiyi kurar ve eklentinin penceresinde
     eşleştirmeyi onaylar; şifre istenmez. Gelişmiş Koruma'daki Gmail hesapları için yol budur: uygulama şifresi
     sayfası "kullanılamıyor" diyorsa sihirbaz bu yolu önerir.
+    - Eklenti mağazada olmadığı sürece ([K20](requirements.md#kararlar)) sihirbaz ve Tarayıcı eklentisi ekranı
+      eklentinin klasörünü hazırlatır ve dosya yöneticisinde açtırır.
+    - Klasörün yeri ve eklentiler sayfasının adresi kopyalanabilir; paketlenmemiş yükleme adım adım anlatılır.
+    - Program güncellenince servis klasördeki eklentiyi yeniler (test edilir).
   - `imap`: adres ve uygulama şifresi girilir; şifre anahtar zincirine yazılır.
   - Bağlantı denenir ve sonucu gösterilir. Giriş reddedilirse yeniden denemeden durur.
   - Uygulama hesabın kendi şifresini hiçbir zaman istemez.

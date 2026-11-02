@@ -1,10 +1,12 @@
-// Pairing the browser extension (ADR-0016, F01): this page asks the service for a one-time code, the user types it
-// into the extension's window, and the extension becomes the e-mail connector. Paired extensions can be revoked.
+// The browser extension (ADR-0016, F01): installing it from the folder the service keeps (K20), then pairing. This
+// page asks the service for a one-time code, the user types it into the extension's window, and the extension becomes
+// the e-mail connector. Paired extensions can be revoked.
 
 import { useEffect, useState } from "react";
 
 import { useBridges, useRevokeBridge, useStartPairing, useSystem } from "../api/queries";
 import type { Bridge } from "../api/types";
+import { InstallCard } from "../components/extension/InstallCard";
 import { HistoryDue } from "../components/HistoryDue";
 import { Empty, Failure, Loading } from "../components/QueryState";
 import { Alert } from "../components/ui/Alert";
@@ -23,6 +25,7 @@ export default function ExtensionPage() {
         Gmail'de hiçbir şeyi değiştirmez: iletiler okunmamış kalır, taşınmaz, silinmez. Yalnızca mail.google.com'a ve
         bu bilgisayara bağlanır; şifre istemez.
       </p>
+      <InstallCard />
       <PairingCard />
       <PairedCard />
     </div>
@@ -37,7 +40,7 @@ function PairingCard() {
     <Card title="Eşleştir">
       <div className="flex flex-col gap-3">
         <ol className="list-decimal pl-5 text-sm">
-          <li>Eklentiyi Chrome, Edge ya da Brave'e kurun.</li>
+          <li>Eklentiyi “Kur” kartındaki adımlarla Chrome, Edge ya da Brave'e kurun.</li>
           <li>Aşağıdan bir eşleştirme kodu alın.</li>
           <li>Eklentinin penceresinde kodu girin; eşleşme bu sayfadan da görünür.</li>
         </ol>

@@ -31,6 +31,8 @@ import type {
   DocumentView,
   ExportItem,
   ExportsQueued,
+  ExtensionFolder,
+  ExtensionInfo,
   FeedPage,
   Flows,
   Forecast,
@@ -81,6 +83,7 @@ export const keys = {
   documents: (query: string) => ["documents", "list", query] as const,
   allDocuments: ["documents"] as const, // the lists and every document's detail: a reading or an analysis moves them
   bridges: ["bridges"] as const,
+  extension: ["extension"] as const,
   subscriptions: ["subscriptions"] as const,
   calendar: ["calendar"] as const,
   forecast: ["forecast"] as const,
@@ -467,6 +470,20 @@ export function useSetOtherSenders() {
       client.setQueryData(keys.otherSenders, saved);
       void client.invalidateQueries({ queryKey: keys.system });
     },
+  });
+}
+
+/** The extension the program carries, and its folder in the data folder that the browser loads it from (K20). */
+export function useExtension() {
+  return useQuery({ queryKey: keys.extension, queryFn: () => api.get<ExtensionInfo>("/api/extension") });
+}
+
+/** Make the extension's folder, or bring it up to date, and show it in the system's file manager. */
+export function useShowExtensionFolder() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<ExtensionFolder>("/api/extension/folder"),
+    onSuccess: () => client.invalidateQueries({ queryKey: keys.extension }),
   });
 }
 

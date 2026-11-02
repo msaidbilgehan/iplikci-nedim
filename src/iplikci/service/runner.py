@@ -13,7 +13,7 @@ import uvicorn
 from .. import __version__
 from ..api.app import create_app
 from ..api.context import Context
-from ..app import access, background, lifecycle, mail
+from ..app import access, background, extension, lifecycle, mail
 from ..app.workspace import Workspace
 from ..ingest.inbox import InboxWatcher
 from ..ingest.mail.idle import IdleWatcher
@@ -77,8 +77,8 @@ def run(ws: Workspace, announce: Callable[[str], None] = _say) -> int:
     launchd and systemd send) ends the service as Ctrl+C does: the worker finishes its job first. Uvicorn would
     otherwise raise the signal again after its own shutdown and end the process before that. What the service
     creates is the user's alone, and its log goes to logs/ (architecture §22). A backup a restore asked for is put
-    back first, before anything opens the database; a removal that asked for it moves the data folder to the Trash
-    last."""
+    back first, before anything opens the database, and the browser extension's folder, once made, is brought up to
+    date with the program; a removal that asked for it moves the data folder to the Trash last."""
     _console_to_file(ws)
     holder = instance.Holder(os.getpid(), ws.port, datetime.now(UTC).isoformat(timespec="seconds"), __version__)
     umask = os.umask(0o077)
@@ -87,6 +87,7 @@ def run(ws: Workspace, announce: Callable[[str], None] = _say) -> int:
         with instance.held(ws.run, holder), logs.kept(ws.logs):
             log.info("service %s starting on port %d", __version__, ws.port)
             lifecycle.apply_pending_restore(ws)
+            extension.refresh(ws)
             try:
                 code = _serve(ws, announce)
             except Exception:

@@ -48,7 +48,11 @@ Bugünkü tasarımda kurulum ve bazı işler terminal ister (mimari §19): `uv t
 
 - **Güncelleme:** yeni paket indirilip açılır; servis yeni sürümle yeniden başlar ve veri klasörü yerinde kalır.
   Uygulama kendi kendine güncelleme denetimi yapmaz (ADR-0009); istenirse yeni bir ADR ile eklenir.
-- **Eklenti:** Chrome Web Store'dan kurulur ve tarayıcı tarafından güncellenir (ADR-0016).
+- **Eklenti:** Chrome Web Store'dan kurulur ve tarayıcı tarafından güncellenir (ADR-0016). Mağaza yayını şimdilik
+  yok (K20). O güne dek eklenti programla gelir ve paketlenmemiş yüklenir:
+  - Servis eklentiyi veri klasörüne kopyalar ve klasörü dosya yöneticisinde gösterir.
+  - Arayüz tarayıcıdaki adımları anlatır.
+  - Program güncellenince klasördeki eklenti de yenilenir.
 - **Kaldırma:** Ayarlar'daki "Kaldır" servisi siler. Veri klasörü, kullanıcı ayrıca isterse çöp kutusuna taşınır.
 
 **İmzalama**

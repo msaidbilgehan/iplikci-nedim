@@ -59,6 +59,8 @@ import type {
   ExportKind,
   ExportOut,
   ExportsQueuedOut,
+  ExtensionFolderOut,
+  ExtensionOut,
   FeedDetailOut,
   FeedItemOut,
   FeedOut,
@@ -119,6 +121,8 @@ export type DocumentItem = DocumentOut;
 export type DocumentPage = DocumentPageOut;
 export type Labels = LabelsOut;
 export type Pairing = PairingOut;
+export type ExtensionInfo = ExtensionOut; // the extension the program carries and its folder (K20)
+export type ExtensionFolder = ExtensionFolderOut;
 export type Bridge = BridgeOut;
 export type Uploaded = UploadOut;
 export type Plan = PlanOut;

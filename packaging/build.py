@@ -26,10 +26,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "packaging" / "assets"
 UI = ROOT / "src" / "iplikci" / "api" / "ui" / "index.html"
+EXTENSION = ROOT / "src" / "iplikci" / "browser_extension" / "manifest.json"
 NAME = "İplikçi Nedim"
 SLUG = "iplikci-nedim"
 BUNDLE_ID = "com.iplikci.app"
 LAUNCH = ("-I", "-X", "utf8", "-m", "iplikci", "uygulama")
+INSTALLED = (  # what the installed program must import and carry
+    "import iplikci.api.app, iplikci.parsers.registry; from iplikci.app import extension; "
+    "assert (extension.BUILT / extension.MANIFEST).is_file(), 'eklenti yok'; print('iplikci', iplikci.__version__)"
+)
 
 
 def run(*args: str | Path, cwd: Path = ROOT) -> None:
@@ -105,9 +110,12 @@ def prune(root: Path) -> None:
 
 
 def install_program(python: Path, work: Path) -> None:
-    """The locked dependencies with their hashes, then the program's wheel, the built interface inside it."""
+    """The locked dependencies with their hashes, then the program's wheel, the built interface and the built browser
+    extension inside it (K20: the service hands the extension to the browser)."""
     if not UI.is_file():
         sys.exit(f"Arayüz derlenmemiş ({UI} yok): önce web/ klasöründe npm ci && npm run build")
+    if not EXTENSION.is_file():
+        sys.exit(f"Eklenti derlenmemiş ({EXTENSION} yok): önce extension/ klasöründe npm ci && npm run build")
     wheels = work / "wheel"
     run("uv", "build", "--wheel", "--out-dir", wheels)
     requirements = work / "requirements.txt"
@@ -116,7 +124,7 @@ def install_program(python: Path, work: Path) -> None:
     run("uv", "pip", "install", "--python", python, "--require-hashes", "--compile-bytecode", "-r", requirements)
     [wheel] = wheels.glob("*.whl")
     run("uv", "pip", "install", "--python", python, "--no-deps", "--compile-bytecode", wheel)
-    run(python, "-I", "-c", "import iplikci.api.app, iplikci.parsers.registry; print('iplikci', iplikci.__version__)")
+    run(python, "-I", "-c", INSTALLED)
 
 
 def macos(python_root: Path, out: Path, work: Path) -> Path:

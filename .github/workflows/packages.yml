@@ -29,9 +29,16 @@ jobs:
         with:
           node-version: "24"
           cache: npm
-          cache-dependency-path: web/package-lock.json
+          cache-dependency-path: |
+            web/package-lock.json
+            extension/package-lock.json
       - name: Build the interface
         working-directory: web
+        run: |
+          npm ci
+          npm run build
+      - name: Build the browser extension
+        working-directory: extension
         run: |
           npm ci
           npm run build

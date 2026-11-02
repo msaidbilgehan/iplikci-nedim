@@ -1,0 +1,27 @@
+{
+  "install": {
+    "title": "Kur",
+    "intro": "Eklenti henüz tarayıcıların mağazasında değil. Bu yüzden tarayıcıya bilgisayarınızdaki bir klasörden yüklenir. Bu bir kez yapılır ve birkaç dakika sürer.",
+    "unavailableTitle": "Bu kurulumda eklenti yok",
+    "unavailableText": "Eklenti, uygulamanın kurulum paketiyle gelir. İplikçi Nedim'i kurulum paketinden kurun.",
+    "stepFolder": "Eklentinin klasörünü açın. İplikçi Nedim klasörü hazırlar ve bilgisayarınızın dosya yöneticisinde gösterir.",
+    "show": "Eklenti klasörünü aç",
+    "showAgain": "Klasörü yeniden aç",
+    "opened": "Klasör açıldı.",
+    "notOpened": "Klasör hazır ama açılamadı. Yerini aşağıdan kopyalayın.",
+    "folderLabel": "Klasörün yeri",
+    "stepPage": "Tarayıcınızın adres çubuğuna eklentiler sayfasının adresini yazın ya da yapıştırın:",
+    "pageLabel": "Eklentiler sayfası",
+    "otherBrowsers": "Edge'de edge://extensions, Brave'de brave://extensions yazın.",
+    "stepDeveloper": "Sayfanın sağ üst köşesindeki “Geliştirici modu” anahtarını açın.",
+    "stepLoad": "“Paketlenmemiş öğe yükle” (İngilizcesi “Load unpacked”) düğmesine basın ve açılan pencerede bu klasörü seçin. Klasörü dosya yöneticisinden eklentiler sayfasının üstüne sürükleyip bırakmak da olur.",
+    "stepLoadHint": "Pencerede klasörü bulamazsanız klasörün yerini yapıştırın; macOS'ta önce ⇧⌘G tuşlarına basın.",
+    "stepDone": "Eklenti “İplikçi Nedim Köprüsü” adıyla listede görünür. Ardından aşağıdan eşleştirin.",
+    "keep": "Klasörü silmeyin ve taşımayın: tarayıcı eklentiyi oradan çalıştırır. İplikçi Nedim güncellenince klasördeki eklenti de yenilenir; yeni sürüm, tarayıcı yeniden açılınca çalışır.",
+    "stale": "Klasördeki eklenti uygulamanın taşıdığından eski. “Klasörü yeniden aç” yenisini yazar; ardından eklentiler sayfasında eklentinin yenileme düğmesine basın.",
+    "copy": "Kopyala",
+    "copyNamed": "Kopyala: {{name}}",
+    "copied": "Kopyalandı.",
+    "copyFailed": "Kopyalanamadı; metni seçip kopyalayın."
+  }
+}

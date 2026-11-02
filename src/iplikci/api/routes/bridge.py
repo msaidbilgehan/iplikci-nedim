@@ -1,5 +1,5 @@
-"""The browser extension's endpoints (ADR-0016): pairing, the proof that this is the paired service, the list of
-paired extensions, and the mail intake that only a bridge's token opens."""
+"""The browser extension's endpoints (ADR-0016): its folder for the browser to load (K20), pairing, the proof that
+this is the paired service, the list of paired extensions, and the mail intake that only a bridge's token opens."""
 
 from typing import Annotated
 
@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, StringConstraints
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import Response
 
-from ...app import bridge
+from ...app import bridge, extension
 from ...app.bridge import MAX_MESSAGE_BYTES
 from ..context import context_of
 from ..guard import Principal
@@ -102,6 +102,41 @@ class AlarmOut(BaseModel):
 class DeliveredOut(BaseModel):
     taken: str  # stored, known, unlisted, unverified, business, too_large
     documents: int
+
+
+class ExtensionOut(BaseModel):
+    available: bool  # this installation carries the extension
+    version: str  # "" when it carries none
+    folder: str  # where the browser loads it from, once made; "" before
+    current: bool  # the folder holds the files of this version
+
+
+class ExtensionFolderOut(BaseModel):
+    folder: str
+    version: str
+    opened: bool  # the system's file manager shows the folder; otherwise the page gives its path
+
+
+@router.get("/api/extension", dependencies=[Depends(only(Principal.BROWSER, Principal.CLIENT))])
+def extension_state(request: Request) -> ExtensionOut:
+    """The extension the program carries, and its folder in the data folder (K20: loaded unpacked)."""
+    found = extension.state(context_of(request).ws)
+    return ExtensionOut(
+        available=found.available,
+        version=found.version,
+        folder=str(found.folder) if found.folder else "",
+        current=found.current,
+    )
+
+
+@router.post("/api/extension/folder", dependencies=[Depends(only(Principal.BROWSER))])
+def extension_folder(request: Request) -> ExtensionFolderOut:
+    """Make the extension's folder, or bring it up to date, and show it in the system's file manager."""
+    try:
+        shown = extension.show(context_of(request).ws)
+    except extension.ExtensionError as exc:
+        raise Problem(409, "extension_unavailable", str(exc)) from exc
+    return ExtensionFolderOut(folder=str(shown.folder), version=shown.version, opened=shown.opened)
 
 
 @router.post("/api/bridge/pairings", dependencies=[Depends(only(Principal.BROWSER))])

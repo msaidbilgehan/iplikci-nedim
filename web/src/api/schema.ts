@@ -636,6 +636,19 @@ export interface ExportsQueuedOut {
   queued: boolean;
 }
 
+export interface ExtensionFolderOut {
+  folder: string;
+  version: string;
+  opened: boolean;
+}
+
+export interface ExtensionOut {
+  available: boolean;
+  version: string;
+  folder: string;
+  current: boolean;
+}
+
 export interface FailedJobOut {
   id: number;
   kind: string;

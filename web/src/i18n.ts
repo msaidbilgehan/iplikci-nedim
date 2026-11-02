@@ -28,6 +28,7 @@ import charts from "./locales/tr/charts.json";
 import common from "./locales/tr/common.json";
 import dashboard from "./locales/tr/dashboard.json";
 import documents from "./locales/tr/documents.json";
+import extension from "./locales/tr/extension.json";
 import feed from "./locales/tr/feed.json";
 import glossary from "./locales/tr/glossary.json";
 import shell from "./locales/tr/shell.json";
@@ -35,7 +36,7 @@ import transactions from "./locales/tr/transactions.json";
 
 export const defaultNS = "common";
 export const resources = {
-  tr: { common, shell, glossary, charts, feed, dashboard, transactions, accounts, documents },
+  tr: { common, shell, glossary, charts, feed, dashboard, transactions, accounts, documents, extension },
 } as const;
 
 const WHOLE = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0, useGrouping: "always" });

@@ -56,6 +56,15 @@ Hesabın kendi şifresi hiçbir bağlayıcıda istenmez. Uygulama korumayı aşm
     ilk aylarda kurulurken "dikkatli ilerleyin" uyarısı çıkar. Kurulum rehberi bunu söyler; uyarı "kuruluma devam et"
     ile geçilir.
   - "Paketlenmemiş yükle" yalnızca geliştirme içindir.
+  - **K20 (2026-11-01):** mağaza yayını şimdilik yok. Eklenti mağazaya çıkana dek kullanıcılar da onu paketlenmemiş
+    yükler (Aşama 6):
+    - Program derlenmiş eklentiyi taşır.
+    - Servis, istendiğinde onu veri klasörünün `extension/` klasörüne kopyalar ve klasörü dosya yöneticisinde
+      gösterir.
+    - Tarayıcı eklentisi ekranı ve sihirbaz tarayıcıdaki adımları anlatır: eklentiler sayfası, "Geliştirici modu",
+      "Paketlenmemiş öğe yükle".
+    - Program güncellenince servis bir sonraki açılışında klasörü yeniler; tarayıcı yeniden açılınca yeni sürüm
+      çalışır.
 - **Eşleştirme**
   - Kullanıcı kurulum sayfasını açtığında sayfa eklentiyi bulur ve eşleştirmeyi başlatır. Eklenti kendi penceresinde
     bir kez onay ister; kod yazmak gerekmez. Sayfa eklentiye ulaşamazsa kurulum sayfası kısa bir kod gösterir.

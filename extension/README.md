@@ -60,11 +60,16 @@ açık Gmail oturumuyla okuyup bu bilgisayardaki İplikçi Nedim servisine taş�
 npm ci              # sabitlenmiş bağımlılıklar (package-lock.json)
 npm run typecheck   # TypeScript, katı denetim
 npm test            # vitest
-npm run build       # dist/: tarayıcıya yüklenecek klasör
+npm run build       # dist/: tarayıcıya yüklenecek klasör; programın taşıdığı kopya da (src/iplikci/browser_extension)
 npm run package     # dist/ ve mağazaya yüklenecek iplikci-kopru.zip (macOS ve Linux)
 ```
 
 Geliştirme sırasında `dist/` klasörü tarayıcıda "Paketlenmemiş öğe yükle" ile yüklenir. `dist/` yeniden derlenince
-tarayıcının eklentiler sayfasında eklentiyi yeniden yükleyin; bunu bir tarama sürerken yapmayın. Kullanıcılar eklentiyi
-Chrome Web Store'dan kuracak; bu yol yalnızca geliştirme ve doğrulama içindir. Mağaza metni, gizlilik politikası ve
-yayın adımları [store/](store/README.md) klasöründedir.
+tarayıcının eklentiler sayfasında eklentiyi yeniden yükleyin; bunu bir tarama sürerken yapmayın.
+
+Eklenti mağazada yayımlanana dek ([K20](../docs/v1/requirements.md#kararlar)) kullanıcılar da onu paketlenmemiş
+yükler. Kurulum paketi derlenmiş eklentiyi taşır (`src/iplikci/browser_extension`, `npm run build` yazar). Tarayıcı
+eklentisi ekranındaki "Eklenti klasörünü aç" servisten onu veri klasörünün `extension/` klasörüne kopyalamasını ve
+klasörü dosya yöneticisinde göstermesini ister; ekran tarayıcıya yüklemeyi adım adım anlatır. Program güncellenince
+servis bir sonraki açılışında klasörü yeniler; tarayıcı yeniden açılınca yeni sürüm çalışır. Mağaza metni, gizlilik
+politikası ve yayın adımları [store/](store/README.md) klasöründedir.

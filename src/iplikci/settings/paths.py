@@ -113,6 +113,11 @@ class Layout:
         """The verification baseline of the documents in this folder (docs/domain/ledger.md)."""
         return self.home / "baseline.json"
 
+    @property
+    def extension(self) -> Path:
+        """The browser extension's files, loaded unpacked by the browser from here (K20); made when the user asks."""
+        return self.home / "extension"
+
     def ensure(self) -> None:
         """Create the folder and its subfolders, private to the user. The MVP's archive (archive/mvp) is
         never created or touched here."""

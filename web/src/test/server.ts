@@ -21,6 +21,7 @@ import type {
   DocumentPage,
   DocumentView,
   ExportItem,
+  ExtensionInfo,
   FeedDetail,
   FeedItem,
   FeedPage,
@@ -940,6 +941,9 @@ export const SECOND_PAGE: DocumentPage = {
 export const BRIDGES: Bridge[] = [
   { id: "k1", name: "Chrome 140, macOS", created_at: "2026-11-01T08:00:00+00:00", last_seen: "", active: true },
 ];
+
+export const EXTENSION_FOLDER = "/Users/deneme/Library/Application Support/iplikci/extension";
+export const EXTENSION: ExtensionInfo = { available: true, version: "0.4.0", folder: "", current: false };
 
 export function notification(overrides: Partial<NotificationItem> = {}): NotificationItem {
   return {
@@ -1972,6 +1976,7 @@ export const handlers = [
   http.get("/api/system", () => HttpResponse.json(systemStatus())),
   http.get("/api/exports", () => HttpResponse.json(EXPORTS)),
   http.get("/api/bridge", () => HttpResponse.json(BRIDGES)),
+  http.get("/api/extension", () => HttpResponse.json(EXTENSION)),
   http.get("/api/notifications", ({ request }) =>
     HttpResponse.json(new URL(request.url).searchParams.get("channel") === "in_app" ? BOX : LOG),
   ),
