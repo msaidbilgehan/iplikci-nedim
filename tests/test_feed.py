@@ -2,10 +2,12 @@
 
 from datetime import date
 
-from iplikci.app import background
+from iplikci.app import annotate, background
+from iplikci.app.analysis import analyze
+from iplikci.domain.codes import SPLITTABLE_KINDS, Actor
 from iplikci.fakes import teb
 from iplikci.feed.snapshot import BULK, Change, Snapshot, diff
-from iplikci.storage import events, jobs
+from iplikci.storage import annotations, events, jobs
 
 from conftest import add
 
@@ -115,6 +117,18 @@ def test_a_refresh_records_what_changed_since_the_last_one(ws):
     assert all(e.target and e.detail["account"].startswith("teb-") for e in created)
     assert ended.target == "2026-10"
     assert (negative.target, negative.detail["days"]) == ("teb-123456789|2026-12-25", 40)
+
+
+def test_splitting_a_row_tells_nothing_new(ws):
+    add(ws, "teb.xls", teb.account_export(teb.running_rows(teb.ACCOUNT_MOVES)))
+    background.refresh(ws, today=date(2026, 11, 15))
+    t = next(t for t in analyze(ws).dataset.transactions if t.kind in SPLITTABLE_KINDS and abs(t.amount) >= 1)
+    minor, category = round(abs(t.amount) * 100), t.category
+    with ws.db() as db:
+        parts = (annotations.Part(minor - 50, category), annotations.Part(50, category))
+        annotations.change(db, t.fingerprint, annotate.subject(t, "TEB"), Actor.USER, parts=parts)
+    assert analyze(ws).dataset.split  # the parts are new rows, but the row they make up is not
+    assert background.refresh(ws, today=date(2026, 11, 15)) == []
 
 
 def test_the_worker_does_a_queued_refresh(ws):

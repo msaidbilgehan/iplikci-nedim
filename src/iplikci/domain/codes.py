@@ -37,6 +37,14 @@ DEFAULT_EXPENSE_KINDS: tuple[TransactionKind, ...] = (
     TransactionKind.INTEREST_FEE,
 )
 
+# Kinds a row can be split into categories of (F04): spending, money sent to people and income. The others move
+# money between the user's own pockets, where the kind alone says what the row is.
+SPLITTABLE_KINDS: tuple[TransactionKind, ...] = (
+    *DEFAULT_EXPENSE_KINDS,
+    TransactionKind.P2P_TRANSFER,
+    TransactionKind.INCOME,
+)
+
 
 class Necessity(StrEnum):
     REQUIRED = "required"
@@ -294,6 +302,7 @@ class CategoryReason(StrEnum):
     INCOME = "income"  # money that came in, no rule naming it
     UNCATEGORIZED = "uncategorized"  # nothing named it
     USER = "user"  # the user's correction on this very row
+    SPLIT = "split"  # a part of a row the user split, under the category they gave the part
 
 
 class TransferStep(StrEnum):

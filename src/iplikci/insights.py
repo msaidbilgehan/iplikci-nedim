@@ -24,7 +24,7 @@ from decimal import Decimal
 from itertools import pairwise
 from statistics import median
 
-from .analysis import NOT_ON_STATEMENT, PROVISIONAL, Dataset, ReceiptLine
+from .analysis import NOT_ON_STATEMENT, PROVISIONAL, Dataset, ReceiptLine, payments, whole
 from .categorize import FX_CATEGORY
 from .domain.codes import (
     CARD_TYPES,
@@ -418,10 +418,11 @@ def paid_after_cancel(s: Series, ended: dict[str, str]) -> list[Transaction]:
 
 
 def _outgoing(ds: Dataset) -> list[Transaction]:
-    """The payments a series can be made of: purchases, savings and loan principal, an installment's never."""
+    """The payments a series can be made of: purchases, savings and loan principal, an installment's never; a split
+    row whole."""
     return [
         t
-        for t in ds.transactions
+        for t in payments(ds)
         if t.kind in (TransactionKind.PURCHASE, TransactionKind.INVESTMENT, TransactionKind.LOAN_PRINCIPAL)
         and t.amount > 0
         and not t.installment
@@ -430,7 +431,7 @@ def _outgoing(ds: Dataset) -> list[Transaction]:
 
 def regular_payments(ds: Dataset, tl_: Timeline) -> tuple[list[Series], list[Series]]:
     """(outgoing series, income series), running ones and larger amounts first."""
-    inc = [t for t in ds.transactions if t.kind == TransactionKind.INCOME and t.amount < 0]
+    inc = [t for t in payments(ds) if t.kind == TransactionKind.INCOME and t.amount < 0]
     result = []
     for group in (find_series(_outgoing(ds), ds.regular), find_series(inc, set())):
         for s in group:
@@ -706,8 +707,10 @@ def trend(ds: Dataset, tl_: Timeline, in_series: set[int]) -> Trend | None:
     recent, before = tl_.window[-k:], tl_.window[:-k][-6:]
     spent = _expenses(ds, set(tl_.window))
     threshold = large_purchase_threshold(ds, tl_.window)
+    # A large purchase is a whole payment: a split one is large as a whole, and all its parts leave the averages.
+    wholes = list({id(w): w for w in (whole(ds, t) for t in spent)}.values())
     big = sorted(
-        (t for t in spent if t.kind == TransactionKind.PURCHASE and id(t) not in in_series and t.amount >= threshold),
+        (t for t in wholes if t.kind == TransactionKind.PURCHASE and id(t) not in in_series and t.amount >= threshold),
         key=lambda t: -t.amount,
     )
 
@@ -715,7 +718,8 @@ def trend(ds: Dataset, tl_: Timeline, in_series: set[int]) -> Trend | None:
         inside = set(months)
         return sum((t.amount for t in spent if month_of(t.date) in inside and id(t) not in skip), ZERO) / len(months)
 
-    skip = {id(t) for t in big}
+    large = {id(t) for t in big}
+    skip = {id(t) for t in spent if id(whole(ds, t)) in large}
     by_cat: dict[str, list[Decimal]] = defaultdict(lambda: [ZERO, ZERO])
     for t in spent:
         if id(t) in skip:
@@ -1097,6 +1101,7 @@ def interpret(ds: Dataset) -> Insights:
     tl_ = timeline(ds)
     series, income = regular_payments(ds, tl_)
     in_series = {id(t) for s in series for t in s.payments}
+    in_series |= {id(t) for t in ds.transactions if t.split_of and id(whole(ds, t)) in in_series}  # their parts
     held = holdings(ds)
     ins = Insights(tl_, series, income, habits(ds, tl_, series), trend(ds, tl_, in_series), flow(ds, tl_), held)
     ins.periodic = periodic_payments(ds, tl_, series)

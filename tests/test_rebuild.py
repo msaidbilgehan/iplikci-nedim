@@ -1,6 +1,7 @@
 """The archive check and the rebuild check (ADR-0003, ADR-0004): the vault is sound, and the database made again
 from the vault and the primary data gives the same result."""
 
+import json
 import os
 from decimal import Decimal
 from pathlib import Path
@@ -51,6 +52,22 @@ def test_the_demo_database_comes_out_the_same_when_made_again(demo_home):
 def test_notes_and_corrections_come_back_with_the_rebuilt_database(noted):
     report = rebuild.check(noted)
     assert report.ok and report.annotations == 1, report.differences
+
+
+def test_a_split_row_comes_back_split_and_an_older_dump_without_parts_still_loads(noted):
+    [t] = [t for t in analyze(noted).dataset.transactions if t.merchant == "Kahveci Dukkan"]
+    parts = (annotations.Part(8000, "Kafe & Kahve"), annotations.Part(4000, "Market & Gıda", Necessity.OPTIONAL))
+    with noted.db() as db:
+        annotations.change(db, t.fingerprint, annotate.subject(t, "TEB"), Actor.USER, parts=parts)
+        primary = rebuild.export(db)
+    assert rebuild.load(rebuild.dump(primary)).annotations == primary.annotations
+    report = rebuild.check(noted)
+    assert report.ok, report.differences
+    older = json.loads(rebuild.dump(primary))
+    older["version"] = 4
+    for a in older["annotations"]:
+        del a["parts"]
+    assert [a.parts for a in rebuild.load(json.dumps(older)).annotations] == [()]
 
 
 def test_the_dump_carries_names_arrivals_annotations_and_the_logs(noted):

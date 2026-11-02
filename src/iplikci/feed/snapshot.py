@@ -107,7 +107,8 @@ class Snapshot:
 
 def take(ds: Dataset, ins: Insights, months: list[MonthEnd], today: date, dues: Sequence[CardDue] = ()) -> Snapshot:
     """The snapshot of an analysis made on today; dues are the cards' due dates the outlook reads (app.outlook)."""
-    rows = {t.fingerprint: (t.account, t.date.isoformat()) for t in ds.transactions if t.fingerprint}
+    # A split row's parts are the one row the documents brought: its fingerprint is what news compares (F04).
+    rows = {t.split_of or t.fingerprint: (t.account, t.date.isoformat()) for t in ds.transactions if t.fingerprint}
     receipts = {line.txn.fingerprint: str(line.status) for line in ds.receipts if line.txn.fingerprint}
     invoices = {found.key: str(found.status) for found in ds.invoices}
     found = find(ds, ins, today, dues)

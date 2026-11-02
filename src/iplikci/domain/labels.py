@@ -294,6 +294,7 @@ CATEGORY_REASON: dict[CategoryReason, str] = {
     CategoryReason.INCOME: "Gelen para",
     CategoryReason.UNCATEGORIZED: "Hiçbir kural bulamadı",
     CategoryReason.USER: "Sizin düzeltmeniz",
+    CategoryReason.SPLIT: "Sizin bölmeniz",
 }
 
 TRANSFER_STEP: dict[TransferStep, str] = {

@@ -165,6 +165,58 @@ def test_the_selected_rows_get_one_category_or_more_tags(own):
     assert own.post("/api/transactions/bulk", json={"fingerprints": [first]}, headers=OWN_PAGE).status_code == 400
 
 
+def test_a_row_is_split_into_parts_listed_on_their_own_and_joined_again(own):
+    row = coffee(own)[0]
+    fp, minor = row["fingerprint"], row["amount"]["minor"]
+    parts = [{"minor": minor - 1000, "category": "Kafe & Kahve"}, {"minor": 1000, "category": "market & gıda"}]
+    kept = own.put(f"/api/transactions/{fp}/annotation", json={"parts": parts}, headers=OWN_PAGE)
+    assert kept.status_code == 200
+    listed = [r for r in own.get("/api/transactions", headers=bearer()).json()["rows"] if r["split_of"] == fp]
+    assert [(r["fingerprint"], r["amount"]["minor"], r["category"]) for r in listed] == [
+        (f"{fp}-1", minor - 1000, "Kafe & Kahve"),
+        (f"{fp}-2", 1000, "Market & Gıda"),
+    ]
+    market = own.get("/api/transactions", params={"category": "Market & Gıda"}, headers=bearer()).json()
+    assert f"{fp}-2" in {r["fingerprint"] for r in market["rows"]}
+    # A part's detail is its row's, whole, with every part.
+    found = own.get(f"/api/transactions/{fp}-2", headers=bearer()).json()
+    assert (found["row"]["fingerprint"], found["row"]["amount"]["minor"], found["splittable"]) == (fp, minor, True)
+    assert [p["fingerprint"] for p in found["parts"]] == [f"{fp}-1", f"{fp}-2"] and found["why"]["category"] != "split"
+    # A category for many rows leaves a split one alone; its tags go on the row.
+    bulk = own.post(
+        "/api/transactions/bulk", json={"fingerprints": [f"{fp}-1"], "category": "Market & Gıda"}, headers=OWN_PAGE
+    )
+    assert bulk.json() == {"changed": 0, "skipped": [f"{fp}-1"]}
+    tags = {"fingerprints": [f"{fp}-1", f"{fp}-2"], "tags": ["bölünmüş"]}
+    assert own.post("/api/transactions/bulk", json=tags, headers=OWN_PAGE).json() == {"changed": 1, "skipped": []}
+    assert own.get(f"/api/transactions/{fp}", headers=bearer()).json()["annotation"]["tags"] == ["bölünmüş"]
+    joined = own.put(f"/api/transactions/{fp}-1/annotation", json={"parts": []}, headers=OWN_PAGE).json()
+    assert joined["tags"] == ["bölünmüş"]
+    assert not [r for r in own.get("/api/transactions", headers=bearer()).json()["rows"] if r["split_of"]]
+
+
+def test_a_split_that_does_not_add_up_or_a_row_that_cannot_be_split_is_refused(own):
+    row = coffee(own)[0]
+    fp, minor = row["fingerprint"], row["amount"]["minor"]
+    short = [{"minor": minor - 1000, "category": "Kafe & Kahve"}, {"minor": 999, "category": "Market & Gıda"}]
+    refused = own.put(f"/api/transactions/{fp}/annotation", json={"parts": short}, headers=OWN_PAGE)
+    assert (refused.status_code, refused.json()["code"]) == (400, "correction_refused")
+    assert "toplamı" in refused.json()["title"]
+    zero = [{"minor": 0, "category": "Kafe & Kahve"}, {"minor": minor, "category": "Market & Gıda"}]
+    assert own.put(f"/api/transactions/{fp}/annotation", json={"parts": zero}, headers=OWN_PAGE).status_code == 422
+
+
+def test_money_moved_between_own_accounts_cannot_be_split(ws):
+    add(ws, "giden.xls", teb.account_export([("20/10/2026", "FAST GIDEN", "-500,00", "1.250,00")], number="111111111"))
+    add(ws, "gelen.xls", teb.account_export([("20/10/2026", "FAST GELEN", "500,00", "500,00")], number="222222222"))
+    client = signed_in(client_for(ws))
+    [out, _] = client.get("/api/transactions", headers=bearer()).json()["rows"]
+    assert client.get(f"/api/transactions/{out['fingerprint']}", headers=bearer()).json()["splittable"] is False
+    halves = [{"minor": 25000, "category": "Giyim"}, {"minor": 25000, "category": "Giyim"}]
+    moved = client.put(f"/api/transactions/{out['fingerprint']}/annotation", json={"parts": halves}, headers=OWN_PAGE)
+    assert moved.status_code == 400 and "bölünür" in moved.json()["title"]
+
+
 def test_views_are_kept_by_name_and_a_name_kept_again_replaces_its_view(own):
     assert own.get("/api/transactions/views", headers=bearer()).json() == []
     view = {"name": "Kahveler", "query": {"category": ["Kafe & Kahve"], "from": ["2026-01-01"]}}

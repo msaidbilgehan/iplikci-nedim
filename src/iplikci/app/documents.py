@@ -15,7 +15,7 @@ from enum import StrEnum
 from pathlib import Path
 from urllib.parse import quote
 
-from ..analysis import Dataset
+from ..analysis import Dataset, payments
 from ..domain.codes import Actor, DocumentKind, DocumentStatus, EvidenceStatus, SourceKind, TransactionKind
 from ..domain.models import SourceRef, Transaction
 from ..parsers import registry
@@ -335,7 +335,7 @@ def _rows(ds: Dataset, sha256: str) -> list[Row]:
 
     # A receipt's row the ledger counts is the same row (by its fingerprint: a foreign-currency one was turned into TL).
     evidence = {line.txn.fingerprint: line.status for line in ds.receipts}
-    counted = [t for t in ds.transactions if t.document == sha256]
+    counted = [t for t in payments(ds) if t.document == sha256]  # a split row is one printed line
     seen = {t.fingerprint for t in counted}
     rows = [row(t, True, evidence.get(t.fingerprint)) for t in counted]
     rows += [

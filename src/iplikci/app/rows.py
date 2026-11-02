@@ -3,7 +3,8 @@ document it is printed in.
 
 A receipt's or a bank notice's row that a statement showed left the ledger for the statement's row, which is the one
 counted; one that no statement covering its days shows never counted (excluded). Both are still found by their
-fingerprints: the first leads to the statement's row, the second is shown for what it is, never in a total."""
+fingerprints: the first leads to the statement's row, the second is shown for what it is, never in a total. A row the
+user split (F04) is counted as its parts, each a row of its own; its own fingerprint still finds it whole."""
 
 from dataclasses import dataclass
 from datetime import date
@@ -73,6 +74,7 @@ class RowView:
     tags: tuple[str, ...]
     invoice: str  # the non-bank bill or receipt it paid, "<sha256>:<position>"; "" for none
     document: str  # the sha256 of the document it is printed in
+    split_of: str  # a part of a split row: the row's fingerprint; "" for any other row
 
 
 def view(t: Transaction, certainty: Certainty, currency: str = TRY, counted: bool = True) -> RowView:
@@ -100,6 +102,7 @@ def view(t: Transaction, certainty: Certainty, currency: str = TRY, counted: boo
         tags=t.tags,
         invoice=t.invoice,
         document=t.document,
+        split_of=t.split_of,
     )
 
 
@@ -134,14 +137,15 @@ class Rows:
         """The row a fingerprint names: a counted row; for a receipt's row a statement showed, the statement's row
         that counts in its place; a receipt's row no covering statement shows, excluded. None when no row has it (a
         reading changed the row, or it never was one)."""
-        counted = self.counted.get(fingerprint)
+        counted = self.counted.get(fingerprint) or self.ds.split.get(fingerprint)
         if counted is not None:
             return Found(counted, certainty_of(counted), TRY, None)
         line = self.evidence.get(fingerprint)
         if line is None:
             return None
-        if line.status == CONFIRMED and line.match is not None and line.match.fingerprint in self.counted:
-            return Found(line.match, certainty_of(line.match), TRY, line)
+        match = line.match
+        if line.status == CONFIRMED and match is not None and self._kept(match.fingerprint):
+            return Found(match, certainty_of(match), TRY, line)
         currency = self.currency(line.txn.account)
         if line.status == NOT_ON_STATEMENT:
             return Found(line.txn, Certainty.EXCLUDED, currency, line, counted=False)
@@ -149,6 +153,23 @@ class Rows:
         # with the transfer, or on another day), or foreign currency moved between own accounts changes nothing in TL.
         certainty = Certainty.PROVISIONAL if line.status == PROVISIONAL else Certainty.CONFIRMED
         return Found(line.txn, certainty, currency, line, counted=False)
+
+    def _kept(self, fingerprint: str) -> bool:
+        """Whether the ledger counts the row: as it is, or split into parts."""
+        return fingerprint in self.counted or fingerprint in self.ds.split
+
+    def find_whole(self, fingerprint: str) -> Found | None:
+        """As find, but a part of a split row stands for the row it makes up."""
+        found = self.find(fingerprint)
+        if found is not None and found.row.split_of:
+            return self.find(found.row.split_of)
+        return found
+
+    def parts(self, fingerprint: str) -> list[Transaction]:
+        """The parts of a split row, in order; none for any other row."""
+        if fingerprint not in self.ds.split:
+            return []
+        return [t for t in self.ds.transactions if t.split_of == fingerprint]
 
     def excluded(self) -> list[ReceiptLine]:
         """The receipt and notice rows no statement covering their days shows: never in a total."""

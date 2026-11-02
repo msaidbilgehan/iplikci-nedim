@@ -20,7 +20,7 @@ from .. import baseline
 from ..domain.codes import Actor, DocumentStatus, Necessity, SourceKind
 from ..storage import aliases, annotations, audit, documents, events, notifications
 from ..storage.aliases import Alias
-from ..storage.annotations import Annotation, Subject
+from ..storage.annotations import Annotation, Subject, parts_of
 from ..storage.audit import Entry
 from ..storage.db import Database
 from ..storage.documents import DocumentRow, Source
@@ -31,8 +31,9 @@ from .analysis import Analysis, analyze
 from .workspace import Workspace
 
 FORMAT = "iplikci-birincil-veri"
-VERSION = 4  # 2: the event log; 3: the notifications; 4: the accounts' names
-_READS = (2, 3, 4)  # a version 2 dump has no notifications, a version 3 one no account names
+VERSION = 5  # 2: the event log; 3: the notifications; 4: the accounts' names; 5: the split rows' parts
+# A version 2 dump has no notifications, a version 3 one no account names, a version 4 one no parts.
+_READS = (2, 3, 4, 5)
 
 
 @dataclass(frozen=True)
@@ -83,7 +84,13 @@ def dump(primary: Primary) -> str:
             for k in primary.documents
         ],
         "annotations": [
-            asdict(a) | {"tags": list(a.tags), "necessity": a.necessity or ""} for a in primary.annotations
+            asdict(a)
+            | {
+                "tags": list(a.tags),
+                "necessity": a.necessity or "",
+                "parts": [asdict(p) | {"necessity": p.necessity or ""} for p in a.parts],
+            }
+            for a in primary.annotations
         ],
         "audit": [asdict(e) for e in primary.audit],
         "events": [asdict(e) for e in primary.events],
@@ -123,6 +130,7 @@ def load(text: str) -> Primary:
             created_at=a["created_at"],
             updated_at=a["updated_at"],
             actor=Actor(a["actor"]),
+            parts=parts_of(a.get("parts", [])),
         )
         for a in value["annotations"]
     ]

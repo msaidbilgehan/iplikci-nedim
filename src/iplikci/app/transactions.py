@@ -4,7 +4,8 @@ filters the user keeps as views.
 
 The list holds the rows the ledger counts and the receipts' and notices' rows a statement covering their days leaves
 out (excluded: shown, never in a total). A receipt's row a statement shows is not listed apart: the statement's row
-stands for it, and its detail names the receipt."""
+stands for it, and its detail names the receipt. A row the user split is listed as its parts; a part's detail and
+corrections are its row's."""
 
 import csv
 import io
@@ -19,6 +20,7 @@ from ..analysis import ReceiptLine
 from ..categorize import DEFAULT_RULES, Categorizer, RuleSet
 from ..domain.codes import (
     DEFAULT_EXPENSE_KINDS,
+    SPLITTABLE_KINDS,
     Actor,
     CategoryReason,
     Certainty,
@@ -180,9 +182,16 @@ def _sort_key(r: RowView, sort: Sort, names: Mapping[str, str]) -> Any:
             return fold(names.get(r.account, r.account))
 
 
+def _place(r: RowView) -> tuple[date, str, int]:
+    """Where a row stands among alike ones: a split row's parts stand together, in their order."""
+    if r.split_of:
+        return r.day, r.split_of, -int(r.fingerprint.rsplit("-", 1)[1])
+    return r.day, r.fingerprint, 0
+
+
 def ordered(rows: Sequence[RowView], sort: Sort, descending: bool, names: Mapping[str, str]) -> list[RowView]:
     """The rows by sort; alike rows newest first, then in the ledger's order."""
-    stable = sorted(rows, key=lambda r: (r.day, r.fingerprint), reverse=True)
+    stable = sorted(rows, key=_place, reverse=True)
     return sorted(stable, key=lambda r: _sort_key(r, sort, names), reverse=descending)
 
 
@@ -343,6 +352,8 @@ class Detail:
     bill: Bill | None
     annotation: Annotation | None  # the user's note, tags and corrections on it
     correctable: bool  # a counted row: an excluded one carries no correction
+    parts: list[RowView] = field(default_factory=list[RowView])  # a split row's parts, in order
+    splittable: bool = False  # a counted row of a kind that can be split (spending, money to people, income)
 
 
 def _layer(name: str) -> RuleLayer | None:
@@ -400,8 +411,10 @@ def _told(lines: Iterable[ReceiptLine], docs: Mapping[str, documents.DocumentRow
 
 
 def detail(ws: Workspace, a: Analysis, fingerprint: str) -> Detail:
-    """A row and why it is what it is. NotFound when no row has the fingerprint."""
-    found = Rows(a.dataset).find(fingerprint)
+    """A row and why it is what it is; a part of a split row gives its row's. NotFound when no row has the
+    fingerprint."""
+    rows = Rows(a.dataset)
+    found = rows.find_whole(fingerprint)
     if found is None:
         raise NotFound(fingerprint)
     t = found.row
@@ -425,6 +438,11 @@ def detail(ws: Workspace, a: Analysis, fingerprint: str) -> Detail:
         bill=_bill(a, t.invoice),
         annotation=note,
         correctable=found.counted,
+        parts=[
+            view(part, Certainty.PROVISIONAL if part.provisional else Certainty.CONFIRMED)
+            for part in rows.parts(t.fingerprint)
+        ],
+        splittable=found.counted and t.kind in SPLITTABLE_KINDS,
     )
 
 
@@ -466,10 +484,12 @@ class Correction:
     category: str | None = None
     necessity: Necessity | None = None
     clear_necessity: bool = False
+    parts: tuple[annotate.Share, ...] | None = None  # the row split; () joins it again
 
 
 def _counted(a: Analysis, fingerprint: str) -> Found:
-    found = Rows(a.dataset).find(fingerprint)
+    """The row a correction goes on: a part of a split row stands for its row."""
+    found = Rows(a.dataset).find_whole(fingerprint)
     if found is None:
         raise NotFound(fingerprint)
     if not found.counted:
@@ -477,7 +497,8 @@ def _counted(a: Analysis, fingerprint: str) -> Found:
     return found
 
 
-def _changes(ws: Workspace, change: Correction) -> dict[str, Any]:
+def _changes(ws: Workspace, change: Correction, t: Transaction | None = None) -> dict[str, Any]:
+    """The annotation's fields a correction sets, checked; t is the row, which a split must add up to."""
     values: dict[str, Any] = {}
     if change.note is not None:
         values["note"] = change.note.strip()
@@ -494,8 +515,13 @@ def _changes(ws: Workspace, change: Correction) -> dict[str, Any]:
         values["necessity"] = None
     elif change.necessity is not None:
         values["necessity"] = change.necessity
+    if change.parts is not None and t is not None:
+        try:
+            values["parts"] = annotate.split(Categorizer.layered(ws.rules), t, change.parts)
+        except ValueError as exc:
+            raise Refused(str(exc)) from exc
     if not values:
-        raise Refused("Neyin değişeceğini seçin: not, etiket, kategori ya da gereklilik.")
+        raise Refused("Neyin değişeceğini seçin: not, etiket, kategori, gereklilik ya da bölme.")
     return values
 
 
@@ -504,7 +530,7 @@ def correct(ws: Workspace, a: Analysis, fingerprint: str, change: Correction, ac
     Returns what is kept; None when nothing is (the rules decide again)."""
     found = _counted(a, fingerprint)
     t = found.row
-    values = _changes(ws, change)
+    values = _changes(ws, change, t)
     label = a.dataset.accounts[t.account].label if t.account in a.dataset.accounts else t.account
     with ws.db() as db:
         kept = annotations.change(db, t.fingerprint, annotate.subject(t, label), actor, **values)
@@ -515,26 +541,35 @@ def correct(ws: Workspace, a: Analysis, fingerprint: str, change: Correction, ac
 @dataclass(frozen=True, slots=True)
 class Bulk:
     changed: int
-    skipped: list[str] = field(default_factory=list[str])  # fingerprints no counted row has
+    # Fingerprints no counted row has, and, for a category, the split rows': their parts keep theirs.
+    skipped: list[str] = field(default_factory=list[str])
 
 
 def correct_many(
     ws: Workspace, a: Analysis, fingerprints: Sequence[str], category: str | None, tags: Sequence[str], actor: Actor
 ) -> Bulk:
-    """Give the rows one category, or add tags to theirs (F04's bulk action), all in one transaction."""
+    """Give the rows one category, or add tags to theirs (F04's bulk action), all in one transaction. A part of a
+    split row stands for its row."""
     if category is None and not tags:
         raise Refused("Seçili işlemlere verilecek kategoriyi ya da etiketi seçin.")
     values: dict[str, Any] = {}
     if category is not None:
         values = _changes(ws, Correction(category=category))
     rows = Rows(a.dataset)
-    changed, skipped = 0, list[str]()
+    changed, skipped, done = 0, list[str](), set[str]()
     with ws.db() as db, db.transaction():
         for fp in dict.fromkeys(fingerprints):
-            found = rows.find(fp)
-            if found is None or not found.counted:
+            found = rows.find_whole(fp)
+            if (
+                found is None
+                or not found.counted
+                or (category is not None and found.row.fingerprint in a.dataset.split)
+            ):
                 skipped.append(fp)
                 continue
+            if found.row.fingerprint in done:  # two parts of one row
+                continue
+            done.add(found.row.fingerprint)
             t = found.row
             label = a.dataset.accounts[t.account].label if t.account in a.dataset.accounts else t.account
             extra: dict[str, Any] = {"tags": annotations.clean_tags((*t.tags, *tags))} if tags else {}

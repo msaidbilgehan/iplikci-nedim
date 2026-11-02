@@ -82,6 +82,9 @@ class RowOut(BaseModel):
     tags: list[str]
     invoice: str  # the non-bank bill or receipt it paid, "<sha256>:<position>"; "" for none
     document: str  # the sha256 of the document it is printed in (the viewer: /belgeler/<sha256>?satir=<fingerprint>)
+    # A part of a row the user split (F04): the row's fingerprint, which its detail, its corrections and the viewer
+    # go by; the part's own is the row's with its number after it. "" for any other row.
+    split_of: str
 
 
 def row_out(row: RowView, labels: dict[str, str]) -> RowOut:
@@ -108,6 +111,7 @@ def row_out(row: RowView, labels: dict[str, str]) -> RowOut:
         tags=list(row.tags),
         invoice=row.invoice,
         document=row.document,
+        split_of=row.split_of,
     )
 
 

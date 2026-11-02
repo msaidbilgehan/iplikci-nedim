@@ -82,6 +82,29 @@ class Dataset:
     regular: set[str] = field(default_factory=set)  # commitment categories (the rules' `_düzenli`)
     receipts: list[ReceiptLine] = field(default_factory=list)  # every receipt row, counted or not
     invoices: list[InvoiceMatch] = field(default_factory=list)  # non-bank bills and receipts, never counted (F14)
+    # The rows the user split (F04), whole, by fingerprint: `transactions` holds their parts in their place.
+    split: dict[str, Transaction] = field(default_factory=dict)
+
+
+def whole(ds: Dataset, t: Transaction) -> Transaction:
+    """The row a part of a split row makes up; any other row is whole already."""
+    return ds.split.get(t.split_of, t) if t.split_of else t
+
+
+def payments(ds: Dataset) -> list[Transaction]:
+    """The ledger's rows as payments: a split row whole, where its first part stands. The parts count the money by
+    category; a payment's series, size and place in its document are the whole row's."""
+    if not ds.split:
+        return ds.transactions
+    out: list[Transaction] = []
+    seen: set[str] = set()
+    for t in ds.transactions:
+        if not t.split_of:
+            out.append(t)
+        elif t.split_of not in seen:
+            seen.add(t.split_of)
+            out.append(whole(ds, t))
+    return out
 
 
 def _one_month_before(d: date) -> date:

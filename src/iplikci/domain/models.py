@@ -84,6 +84,8 @@ class Transaction:
     document: str = ""
     # Set by categorize.py and analysis.py as they decide: why the row is what it is.
     reason: Reason = Reason()
+    # Set by app/annotate.py on the parts of a row the user split (F04): the fingerprint of the row they make up.
+    split_of: str = ""
 
 
 @dataclass

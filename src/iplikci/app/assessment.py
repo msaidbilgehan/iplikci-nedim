@@ -9,7 +9,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from statistics import median
 
-from ..analysis import Dataset
+from ..analysis import Dataset, payments
 from ..domain.codes import Certainty, HabitStatus, Necessity, SeriesStatus, Tone, TransactionKind, UnusualKind
 from ..domain.labels import format_amount
 from ..domain.models import Transaction
@@ -254,7 +254,8 @@ def unusual(ds: Dataset, ins: Insights, today: date) -> list[Unusual]:
     same amount at the same merchant on the same day again, a large amount at a merchant never seen before, a fee or
     a due the account did not charge in the months before. Only flagged: every row still counts as it is."""
     since = today - timedelta(days=UNUSUAL_DAYS)
-    rows = sorted((t for t in ds.transactions if t.fingerprint), key=lambda t: (t.date, t.account, t.fingerprint))
+    # Payments as made: a split row's parts would look like the same merchant charging twice on one day.
+    rows = sorted((t for t in payments(ds) if t.fingerprint), key=lambda t: (t.date, t.account, t.fingerprint))
     found = [
         *_amounts(rows, since),
         *_twice(rows, since),

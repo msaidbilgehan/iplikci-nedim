@@ -27,7 +27,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
-from ..analysis import CONFIRMED, NOT_ON_STATEMENT, Dataset, nearest_rate
+from ..analysis import CONFIRMED, NOT_ON_STATEMENT, Dataset, nearest_rate, payments
 from ..domain.codes import CARD_TYPES, PaymentKind, SeriesPeriod, TransactionKind
 from ..domain.models import TRY
 from ..domain.money import round_half_up
@@ -277,7 +277,7 @@ def large(ds: Dataset, ins: Insights, today: date, confirmed: Mapping[str, tuple
     in_series = {id(t) for s in [*ins.series, *ins.periodic] for t in s.payments}
     since = today - timedelta(days=NEWS_DAYS)
     found: list[Found] = []
-    for t in ds.transactions:
+    for t in payments(ds):  # a split purchase is large or not as a whole
         if t.kind != TransactionKind.PURCHASE or t.amount < threshold or id(t) in in_series or not t.fingerprint:
             continue
         if since <= t.date <= today:

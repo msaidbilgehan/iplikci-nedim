@@ -355,7 +355,7 @@ export interface CategoryOut {
 }
 
 /** How a row got its category (docs/domain/categorization.md): the Transactions screen's "Neden?" (F04). */
-export type CategoryReason = "rule" | "bank_category" | "weak_rule" | "invoice" | "transfer_rule" | "kind" | "fee" | "own_transfer" | "person" | "income" | "uncategorized" | "user";
+export type CategoryReason = "rule" | "bank_category" | "weak_rule" | "invoice" | "transfer_rule" | "kind" | "fee" | "own_transfer" | "person" | "income" | "uncategorized" | "user" | "split";
 
 export interface CategoryRulesOut {
   content: string;
@@ -421,12 +421,16 @@ export interface CommitmentIn {
   on: boolean;
 }
 
-/** What changes; a field left out stays. "" gives the category or the necessity back to the rules. */
+/**
+ * What changes; a field left out stays. "" gives the category or the necessity back to the rules; [] joins a split row
+ * again.
+ */
 export interface CorrectionIn {
   note?: string | null;
   tags?: string[] | null;
   category?: string | null;
   necessity?: Necessity | "" | null;
+  parts?: PartIn[] | null;
 }
 
 /** The assets held in one currency. */
@@ -1462,6 +1466,13 @@ export interface PairingOut {
   expires_in: number;
 }
 
+/** A part of a split row: what of it counts under which category. */
+export interface PartIn {
+  minor: number;
+  category: string;
+  necessity?: Necessity | null;
+}
+
 /** An account's share of the net worth. */
 export interface PartOut {
   account: AccountRefOut;
@@ -1621,6 +1632,7 @@ export interface RowOut {
   tags: string[];
   invoice: string;
   document: string;
+  split_of: string;
 }
 
 export interface RuleChangeOut {
@@ -1985,6 +1997,8 @@ export interface TransactionDetailOut {
   bill: BillOut | null;
   annotation: AnnotationOut | null;
   correctable: boolean;
+  parts: RowOut[];
+  splittable: boolean;
 }
 
 /**

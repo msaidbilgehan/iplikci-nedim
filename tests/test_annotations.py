@@ -1,21 +1,23 @@
 """The user's notes and corrections: bound to fingerprints, kept across readings, never lost when their row goes."""
 
-from datetime import date
+from datetime import date, timedelta
+from decimal import Decimal
 
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from iplikci.analysis import CONFIRMED, Dataset, ReceiptLine
+from iplikci.analysis import CONFIRMED, Dataset, ReceiptLine, payments
 from iplikci.app import annotate
 from iplikci.app.analysis import analyze
 from iplikci.app.workspace import Workspace
 from iplikci.categorize import Categorizer
 from iplikci.cli import main
-from iplikci.domain.codes import Actor, CategoryReason, Necessity, TransactionKind
+from iplikci.domain.codes import AccountType, Actor, CategoryReason, Necessity, TransactionKind
 from iplikci.domain.fingerprint import Fingerprints, fingerprint
-from iplikci.domain.models import Transaction
+from iplikci.domain.models import Account, Statement, Transaction
 from iplikci.fakes import teb
+from iplikci.insights import regular_payments, timeline
 from iplikci.parsers import registry
 from iplikci.settings.paths import HOME_ENV
 from iplikci.storage import annotations, audit
@@ -153,6 +155,119 @@ def test_a_receipts_note_moves_to_the_statement_row_that_confirmed_it():
     own = annotations.Annotation("ekstre", subject, note="ekim kirası")
     assert annotate.apply(ds, found | {"ekstre": own}, Categorizer()) == [found["dekont"]]
     assert statement_row.note == "ekim kirası"
+
+
+# --- split rows (F04) ----------------------------------------------------------------------------------
+
+
+def split(ws: Workspace, t: Transaction, *shares: tuple[str, str]) -> None:
+    given = [annotate.Share(Decimal(amount), category) for amount, category in shares]
+    note(ws, t, parts=annotate.split(Categorizer.layered(ws.rules), t, given))
+
+
+def test_a_split_row_counts_each_part_under_its_category_adding_up_to_the_kurus(ws):
+    add(ws, "ocak.xls", teb.account_export(JANUARY))
+    before = analyze(ws).dataset
+    t = coffee(ws)
+    split(ws, t, ("80.00", "Kafe & Kahve"), ("40.00", "market & gıda"))
+    ds = analyze(ws).dataset
+    parts = [p for p in ds.transactions if p.split_of == t.fingerprint]
+    assert [(p.fingerprint, p.amount, p.category, p.necessity) for p in parts] == [
+        (f"{t.fingerprint}-1", Decimal("80.00"), "Kafe & Kahve", Necessity.OPTIONAL),
+        (f"{t.fingerprint}-2", Decimal("40.00"), "Market & Gıda", Necessity.REQUIRED),
+    ]
+    assert parts[1].group == "Yeme & İçme" and {p.reason.category for p in parts} == {CategoryReason.SPLIT}
+    assert {(p.date, p.account, p.kind, p.document) for p in parts} == {(t.date, t.account, t.kind, t.document)}
+    assert t.fingerprint not in {p.fingerprint for p in ds.transactions}
+    # The payments are as they were: the split row whole, in its place.
+    assert [w.fingerprint for w in payments(ds)] == [w.fingerprint for w in before.transactions]
+    assert ds.split[t.fingerprint].amount == Decimal("120.00")
+    assert sum(p.amount for p in ds.transactions) == sum(p.amount for p in before.transactions)
+
+
+def test_a_split_survives_reading_the_documents_again_and_no_parts_join_the_row(ws):
+    add(ws, "ocak.xls", teb.account_export(JANUARY))
+    t = coffee(ws)
+    split(ws, t, ("100.00", "Kafe & Kahve"), ("20.00", "Market & Gıda"))
+    again = analyze(ws, reread=True).dataset
+    assert [p.amount for p in again.transactions if p.split_of] == [Decimal("100.00"), Decimal("20.00")]
+    assert note(ws, t, parts=()) is None  # nothing else was kept: the annotation goes
+    assert coffee(ws).fingerprint == t.fingerprint and not analyze(ws).dataset.split
+    with ws.db() as db:
+        logged = [(e.action, e.detail) for e in audit.entries(db) if e.action.startswith("annotation.")]
+    assert logged == [("annotation.set", {"fields": ["parts"]}), ("annotation.removed", {})]
+
+
+def _purchase(amount: str, day: date = date(2026, 1, 20), fp: str = "f" * 20) -> Transaction:
+    t = Transaction(day, "ORNEK MAGAZA", Decimal(amount), TransactionKind.PURCHASE, "card", merchant="Ornek Magaza")
+    t.fingerprint = fp
+    return t
+
+
+def _split_alone(t: Transaction, *parts: annotations.Part) -> Dataset:
+    ds = Dataset({}, [], [t], [], [], {})
+    found = {t.fingerprint: annotations.Annotation(t.fingerprint, annotate.subject(t, "Kart"), parts=parts)}
+    assert annotate.apply(ds, found, Categorizer()) == []
+    return ds
+
+
+def test_a_row_valued_at_another_rate_since_its_split_is_shared_out_as_its_parts_were():
+    t = _purchase("1000.01")  # a foreign row, split when the rate made it 950,00 TL
+    ds = _split_alone(t, annotations.Part(60000, "Giyim"), annotations.Part(35000, "Hediye"))
+    assert [p.amount for p in ds.transactions] == [Decimal("631.59"), Decimal("368.42")]
+
+
+@given(st.integers(1, 10**9), st.lists(st.integers(1, 10**6), min_size=2, max_size=6))
+def test_the_parts_always_add_up_to_their_row_or_it_stays_whole(minor, weights):
+    t = _purchase(str(Decimal(minor) / 100))
+    ds = _split_alone(t, *(annotations.Part(w, "Giyim") for w in weights))
+    if ds.split:
+        assert sum(p.amount for p in ds.transactions) == t.amount and all(p.amount > 0 for p in ds.transactions)
+    else:  # too small to share out among so many
+        assert ds.transactions == [t]
+
+
+@pytest.mark.parametrize(
+    ("shares", "error"),
+    [
+        ([("120.00", "Kafe & Kahve")], "en az 2"),
+        ([("100.00", "Kafe & Kahve"), ("10.00", "Market & Gıda")], "120,00 TL"),
+        ([("100.00", "Kafe & Kahve"), ("20.00", "Kahve Yok")], "diye bir kategori yok"),
+        ([("119.995", "Kafe & Kahve"), ("0.005", "Market & Gıda")], "iki ondalıklı"),
+        ([("130.00", "Kafe & Kahve"), ("-10.00", "Market & Gıda")], "sıfırdan büyük"),
+    ],
+)
+def test_a_split_must_add_up_to_its_row_in_categories_the_rules_know(ws, shares, error):
+    add(ws, "ocak.xls", teb.account_export(JANUARY))
+    rules = Categorizer.layered(ws.rules)
+    with pytest.raises(ValueError, match=error):
+        annotate.split(rules, coffee(ws), [annotate.Share(Decimal(a), c) for a, c in shares])
+
+
+def test_a_row_moving_money_between_own_accounts_is_not_split():
+    own = Transaction(date(2026, 1, 20), "HESAPLAR ARASI", Decimal(100), TransactionKind.OWN_TRANSFER, "a")
+    with pytest.raises(ValueError, match="bölünür"):
+        annotate.split(Categorizer(), own, [annotate.Share(Decimal(50), "Giyim"), annotate.Share(Decimal(50), "Giyim")])
+    assert _split_alone(own, annotations.Part(5000, "Giyim"), annotations.Part(5000, "Giyim")).transactions == [own]
+
+
+def test_a_split_payment_stays_one_payment_of_its_series():
+    card = Account("card", "Test Kart •1234", "TEB", AccountType.CREDIT_CARD, number="1234")
+    days = [date(2026, month, 10) for month in range(1, 7)]
+    rows = [_purchase("200.00", day, f"{n:020d}") for n, day in enumerate(days)]
+    for t in rows:
+        t.category = "İnternet & Telefon"
+    cuts = [Statement("card", day + timedelta(days=5), "TRY", "e.pdf", Decimal(0), Decimal(0)) for day in days]
+    ds = Dataset({"card": card}, cuts, rows, [], [], {}, regular={"İnternet & Telefon"})
+    last = rows[-1]
+    parts = (annotations.Part(15000, "İnternet & Telefon"), annotations.Part(5000, "Elektronik"))
+    annotate.apply(
+        ds,
+        {last.fingerprint: annotations.Annotation(last.fingerprint, annotate.subject(last, "Kart"), parts=parts)},
+        Categorizer(),
+    )
+    [series], _ = regular_payments(ds, timeline(ds))
+    assert len(series.payments) == 6 and series.payments[-1] is last and series.price_change() is None
 
 
 # --- the command line ----------------------------------------------------------------------------------

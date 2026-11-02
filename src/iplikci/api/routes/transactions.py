@@ -4,6 +4,7 @@ Reading needs a session or the token; changing, the service's own pages. The fil
 address query: from, to, account, kind, category, group, necessity, certainty, tag, merchant, q."""
 
 from datetime import date
+from decimal import Decimal
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -11,7 +12,7 @@ from fastapi import Path as FastPath
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
-from ...app import transactions
+from ...app import annotate, transactions
 from ...app.analysis import Analysis, account_labels
 from ...app.transactions import (
     Actor,
@@ -40,7 +41,8 @@ router = APIRouter()
 
 READ = [Depends(only(Principal.BROWSER, Principal.CLIENT))]
 WRITE = [Depends(only(Principal.BROWSER))]
-Fingerprint = Annotated[str, FastPath(pattern=r"^[0-9a-f]{20}$")]
+# A row's fingerprint; a part of a split row has its number after it (F04).
+Fingerprint = Annotated[str, FastPath(pattern=r"^[0-9a-f]{20}(-[1-9][0-9]?)?$")]
 Many = Query(max_length=200)
 
 
@@ -240,6 +242,8 @@ class TransactionDetailOut(BaseModel):
     bill: BillOut | None
     annotation: AnnotationOut | None
     correctable: bool  # false for an excluded row: it carries no correction
+    parts: list[RowOut]  # a split row's parts in order, each counted under its own category; [] for a whole row
+    splittable: bool  # a counted row of a kind that can be split: spending, money sent to people, income
 
 
 def _printed(p: Printed | None) -> PrintedOut | None:
@@ -263,7 +267,8 @@ def _annotation(found: transactions.Annotation | None) -> AnnotationOut | None:
 @router.get("/api/transactions/{fingerprint}", dependencies=READ)
 def transaction_detail(request: Request, fingerprint: Fingerprint) -> TransactionDetailOut:
     """A row, where it is printed and why it is what it is: the rule and its file, how a transfer was resolved and
-    its pair, the receipts and notices about it, the bill it paid, the rate, the user's corrections."""
+    its pair, the receipts and notices about it, the bill it paid, the rate, the user's corrections. A part of a split
+    row gives its row, with every part."""
     context = context_of(request)
     a = _analysis(context)
     try:
@@ -302,24 +307,37 @@ def transaction_detail(request: Request, fingerprint: Fingerprint) -> Transactio
         else None,
         annotation=_annotation(found.annotation),
         correctable=found.correctable,
+        parts=[row_out(part, labels) for part in found.parts],
+        splittable=found.splittable,
     )
 
 
 Tag = Annotated[str, Field(min_length=1, max_length=40, pattern=r"^[^\x00-\x1f\x7f,]+$")]
 
 
+class PartIn(BaseModel):
+    """A part of a split row: what of it counts under which category."""
+
+    minor: Annotated[int, Field(gt=0, le=10**15)]  # kuruş, above zero whichever way the row's money goes
+    category: Annotated[str, Field(min_length=1, max_length=100)]
+    necessity: Necessity | None = None  # null: the one the category's rules give
+
+
 class CorrectionIn(BaseModel):
-    """What changes; a field left out stays. "" gives the category or the necessity back to the rules."""
+    """What changes; a field left out stays. "" gives the category or the necessity back to the rules; [] joins a
+    split row again."""
 
     note: Annotated[str, Field(max_length=500)] | None = None
     tags: Annotated[list[Tag], Field(max_length=20)] | None = None
     category: Annotated[str, Field(max_length=100)] | None = None
     necessity: Necessity | Literal[""] | None = None
+    parts: Annotated[list[PartIn], Field(max_length=annotate.MAX_PARTS)] | None = None
 
 
 @router.put("/api/transactions/{fingerprint}/annotation", dependencies=WRITE)
 def transaction_correct(request: Request, fingerprint: Fingerprint, body: CorrectionIn) -> AnnotationOut | None:
-    """Correct this row only: its note, tags, category or necessity. A new reading of the documents keeps it (the
+    """Correct this row only: its note, tags, category or necessity, or split it into parts that add up to it, each
+    under its own category (a part's fingerprint means its row). A new reading of the documents keeps it (the
     fingerprint); null when nothing is kept and the rules decide again. A rule for the merchant goes through
     /api/rules/categories."""
     context = context_of(request)
@@ -329,6 +347,9 @@ def transaction_correct(request: Request, fingerprint: Fingerprint, body: Correc
         category=body.category,
         necessity=body.necessity or None,
         clear_necessity=body.necessity == "",
+        parts=tuple(annotate.Share(Decimal(p.minor) / 100, p.category, p.necessity) for p in body.parts)
+        if body.parts is not None
+        else None,
     )
     try:
         kept = transactions.correct(context.ws, _analysis(context), fingerprint, change, Actor.USER)
@@ -347,7 +368,7 @@ class BulkIn(BaseModel):
 
 class BulkOut(BaseModel):
     changed: int
-    skipped: list[str]  # fingerprints no counted row has
+    skipped: list[str]  # fingerprints no counted row has; for a category, a split row's: its parts keep theirs
 
 
 @router.post("/api/transactions/bulk", dependencies=WRITE)

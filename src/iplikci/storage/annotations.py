@@ -25,6 +25,15 @@ class Subject:
 
 
 @dataclass(frozen=True, slots=True)
+class Part:
+    """One part of a split row (F04): what of the row counts under which category."""
+
+    amount: int  # in the smallest unit of TL, above zero, in the row's direction
+    category: str
+    necessity: Necessity | None = None  # replaces the necessity the category's rules give
+
+
+@dataclass(frozen=True, slots=True)
 class Annotation:
     fingerprint: str
     subject: Subject
@@ -35,10 +44,11 @@ class Annotation:
     created_at: str = ""
     updated_at: str = ""
     actor: Actor = Actor.USER
+    parts: tuple[Part, ...] = ()  # the row split: none, or two and more adding up to it as it was split
 
     @property
     def empty(self) -> bool:
-        return not (self.note or self.tags or self.category or self.necessity)
+        return not (self.note or self.tags or self.category or self.necessity or self.parts)
 
 
 class _Keep:
@@ -60,6 +70,21 @@ def _subject(text: str) -> Subject:
     )
 
 
+def parts_of(value: list[dict[str, Any]]) -> tuple[Part, ...]:
+    """The parts as their JSON keeps them."""
+    return tuple(
+        Part(int(p["amount"]), str(p["category"]), Necessity(p["necessity"]) if p.get("necessity") else None)
+        for p in value
+    )
+
+
+def parts_json(parts: tuple[Part, ...]) -> str:
+    return json.dumps(
+        [{"amount": p.amount, "category": p.category, "necessity": p.necessity or ""} for p in parts],
+        ensure_ascii=False,
+    )
+
+
 def _row(r: sqlite3.Row) -> Annotation:
     tags: list[str] = json.loads(r["tags"])
     return Annotation(
@@ -72,6 +97,7 @@ def _row(r: sqlite3.Row) -> Annotation:
         created_at=r["created_at"],
         updated_at=r["updated_at"],
         actor=Actor(r["actor"]),
+        parts=parts_of(json.loads(r["parts"])),
     )
 
 
@@ -99,6 +125,7 @@ def change(
     tags: tuple[str, ...] = KEEP,
     category: str = KEEP,
     necessity: Necessity | None = KEEP,
+    parts: tuple[Part, ...] = KEEP,
 ) -> Annotation | None:
     """Set the given fields of the row's annotation and leave the others; an annotation left with nothing in it is
     removed (None). The subject is updated to the row as it is now."""
@@ -112,6 +139,7 @@ def change(
             tags=base.tags if tags is KEEP else clean_tags(tags),
             category=base.category if category is KEEP else category.strip(),
             necessity=base.necessity if necessity is KEEP else necessity,
+            parts=base.parts if parts is KEEP else tuple(parts),
             actor=actor,
         )
         if new.empty:
@@ -122,9 +150,10 @@ def change(
         stamp = now()
         db.execute(
             "INSERT INTO annotations (fingerprint, note, tags, category, necessity, subject, created_at, updated_at, "
-            "actor) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (fingerprint) DO UPDATE SET note = excluded.note, "
-            "tags = excluded.tags, category = excluded.category, necessity = excluded.necessity, "
-            "subject = excluded.subject, updated_at = excluded.updated_at, actor = excluded.actor",
+            "actor, parts) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (fingerprint) DO UPDATE SET "
+            "note = excluded.note, tags = excluded.tags, category = excluded.category, "
+            "necessity = excluded.necessity, subject = excluded.subject, updated_at = excluded.updated_at, "
+            "actor = excluded.actor, parts = excluded.parts",
             (
                 fingerprint,
                 new.note,
@@ -135,10 +164,11 @@ def change(
                 old.created_at if old else stamp,
                 stamp,
                 actor,
+                parts_json(new.parts),
             ),
         )
         # The log names the fields that changed, never their contents.
-        fields = [f for f in ("note", "tags", "category", "necessity") if getattr(new, f) != getattr(base, f)]
+        fields = [f for f in ("note", "tags", "category", "necessity", "parts") if getattr(new, f) != getattr(base, f)]
         audit.record(db, actor, "annotation.set", fingerprint, fields=fields)
     return get(db, fingerprint)
 
@@ -148,7 +178,7 @@ def restore(db: Database, annotation: Annotation) -> None:
     with db.transaction():
         db.execute(
             "INSERT INTO annotations (fingerprint, note, tags, category, necessity, subject, created_at, updated_at, "
-            "actor) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "actor, parts) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 annotation.fingerprint,
                 annotation.note,
@@ -159,6 +189,7 @@ def restore(db: Database, annotation: Annotation) -> None:
                 annotation.created_at,
                 annotation.updated_at,
                 annotation.actor,
+                parts_json(annotation.parts),
             ),
         )
 
