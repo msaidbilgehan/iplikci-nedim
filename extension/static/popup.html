@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>İplikçi Nedim Köprüsü</title>
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="popup.js"></script>
+  </head>
+  <body class="popup">
+    <header class="brand">
+      <img class="brand-logo" src="icons/icon-128.png" alt="" width="40" height="40" />
+      <div>
+        <h1 class="brand-name">İplikçi Nedim</h1>
+        <p class="brand-sub">Köprü · sürüm <span id="version"></span></p>
+      </div>
+    </header>
+    <main class="popup-body">
+      <section class="status" id="status" data-tone="neutral" aria-label="Durum">
+        <div class="status-line">
+          <span class="status-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false"><path id="status-icon" d="M6 12h.01M12 12h.01M18 12h.01" /></svg>
+          </span>
+          <div role="status" aria-live="polite" aria-atomic="true">
+            <p class="status-word" id="status-word">Yükleniyor…</p>
+            <p class="status-detail" id="status-detail"></p>
+          </div>
+          <p class="status-when" id="status-when"></p>
+          <p class="status-note" id="status-note" hidden></p>
+        </div>
+      </section>
+      <button id="open" type="button" class="button primary wide" autofocus>
+        İplikçi Nedim'i aç
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
+        </svg>
+      </button>
+      <button id="now" type="button" class="button secondary wide">Şimdi denetle</button>
+      <p id="open-answer" class="answer" role="status" aria-live="polite"></p>
+      <button id="settings" type="button" class="button link">Eşleştirme ve ayarlar</button>
+    </main>
+  </body>
+</html>

@@ -1,19 +1,18 @@
-/** The extension's window: where it stands, pairing with a code, and which Gmail account to read. */
+/**
+ * The extension's settings page: where the bridge stands, "İplikçi Nedim'i aç", pairing with a code, the scan of
+ * Gmail and which Gmail account to read. The extension's window (popup.html) leads here for all but the first two.
+ */
 
 import type { Status } from "../bridge/messages";
-import type { Outcome, ScanSummary } from "../bridge/state";
+import type { ScanSummary } from "../bridge/state";
+import { ask, draw, element, openInterface, say, statusCard, version } from "../ui/dom";
+import { CHECKING, describe, scanning } from "../ui/status";
 
-function element<T extends HTMLElement>(id: string, type: new () => T): T {
-  const found = document.getElementById(id);
-  if (!(found instanceof type)) {
-    throw new Error(`the page has no #${id}`);
-  }
-  return found;
-}
-
-const state = element("state", HTMLParagraphElement);
-const last = element("last", HTMLParagraphElement);
+const card = statusCard();
 const now = element("now", HTMLButtonElement);
+const open = element("open", HTMLButtonElement);
+const openAnswer = element("open-answer", HTMLParagraphElement);
+const pairSummary = element("pair-summary", HTMLParagraphElement);
 const pairForm = element("pair-form", HTMLFormElement);
 const code = element("code", HTMLInputElement);
 const pairButton = element("pair", HTMLButtonElement);
@@ -22,60 +21,43 @@ const forget = element("forget", HTMLButtonElement);
 const account = element("account", HTMLSelectElement);
 const scan = element("scan", HTMLButtonElement);
 const scanState = element("scan-state", HTMLParagraphElement);
+element("version", HTMLSpanElement).textContent = version();
 
-const CALM: ReadonlySet<Outcome> = new Set(["delivered", "nothing-new"]);
+const UNPAIRED = "İplikçi Nedim'den aldığınız kodu aşağıdaki Eşleştirme bölümüne girin.";
 const TIME = new Intl.DateTimeFormat("tr-TR", { dateStyle: "short", timeStyle: "short" });
 const DAY = new Intl.DateTimeFormat("tr-TR", { dateStyle: "long" });
 
-async function ask(request: object): Promise<Status | null> {
-  try {
-    const answer: unknown = await chrome.runtime.sendMessage(request);
-    return isStatus(answer) ? answer : null;
-  } catch {
-    return null;
-  }
-}
-
 function show(status: Status | null): void {
+  draw(card, describe(status, UNPAIRED));
   if (status === null) {
-    state.textContent =
-      "Eklentinin arka planı yanıt vermedi; eklentiyi tarayıcının eklentiler sayfasında yeniden yükleyin.";
     return;
   }
   const busy = scanning(status.scan);
   account.value = String(status.account);
   forget.hidden = !status.paired;
   now.disabled = !status.paired || busy; // a scan delivers the new messages too
-  if (!status.paired) {
-    state.textContent = "Henüz eşleşmedi: aşağıya İplikçi Nedim'den aldığınız kodu girin.";
-  } else if (status.lastRun === null) {
-    state.textContent = busy
-      ? "Eşleşti; önce geçmiş iletiler taranıyor (aşağıda), sonra yeni iletiler her dakika denetlenir."
-      : "Eşleşti; ilk denetim birazdan yapılır.";
-  } else {
-    state.textContent = `${CALM.has(status.lastRun.outcome) ? "Çalışıyor" : "Dikkat"}: ${status.lastRun.detail}`;
-  }
-  last.textContent =
-    status.lastRun === null ? "" : `Son denetim: ${TIME.format(new Date(status.lastRun.at))} (her dakika denetlenir)`;
+  say(
+    pairSummary,
+    status.paired
+      ? "Bu tarayıcı İplikçi Nedim ile eşleşti. Yeni bir kodla yeniden eşleşebilir ya da eşleşmeyi unutabilirsiniz."
+      : "Eklenti İplikçi Nedim ile tek kullanımlık bir kodla eşleşir; sonra yeni banka iletileri her dakika taşınır.",
+  );
+  say(pairButton, status.paired ? "Yeniden eşleştir" : "Eşleştir");
   showScan(status, busy);
-}
-
-function scanning(summary: ScanSummary | null): boolean {
-  return summary !== null && (summary.phase === "searching" || summary.phase === "downloading");
 }
 
 function showScan(status: Status, busy: boolean): void {
   const summary = status.scan;
   scan.disabled = !status.paired || busy;
-  scan.textContent = busy ? "Taranıyor…" : "Gmail'de eksikleri tara";
+  say(scan, busy ? "Taranıyor…" : "Gmail'de eksikleri tara");
   if (!status.paired) {
-    scanState.textContent = "Tarama için önce eşleştirin.";
+    say(scanState, "Tarama için önce eşleştirin.");
   } else if (busy && summary !== null) {
-    scanState.textContent = summary.detail;
+    say(scanState, summary.detail);
   } else if (status.historyDue) {
-    scanState.textContent = historyDue(status.startDay, summary);
+    say(scanState, historyDue(status.startDay, summary));
   } else {
-    scanState.textContent = summary === null ? "" : `${TIME.format(new Date(summary.at))} taraması: ${summary.detail}`;
+    say(scanState, summary === null ? "" : `${TIME.format(new Date(summary.at))} taraması: ${summary.detail}`);
   }
 }
 
@@ -101,7 +83,8 @@ pairForm.addEventListener("submit", (event) => {
 async function pairNow(): Promise<void> {
   const typed = code.value.trim();
   if (typed === "") {
-    pairStatus.textContent = "Önce kodu girin.";
+    say(pairStatus, "Önce kodu girin.");
+    code.focus();
     return;
   }
   const current = await ask({ kind: "status" });
@@ -109,14 +92,14 @@ async function pairNow(): Promise<void> {
     return;
   }
   pairButton.disabled = true;
-  pairStatus.textContent = "Eşleştiriliyor…";
+  say(pairStatus, "Eşleştiriliyor…");
   const status = await ask({ kind: "pair", code: typed });
   pairButton.disabled = false;
   if (status === null) {
-    pairStatus.textContent = "Eşleştirilemedi; yeniden deneyin.";
+    say(pairStatus, "Eşleştirilemedi; yeniden deneyin.");
     return;
   }
-  pairStatus.textContent = status.problem === "" ? paired(status) : status.problem;
+  say(pairStatus, status.problem === "" ? paired(status) : status.problem);
   if (status.problem === "") {
     code.value = "";
   }
@@ -129,11 +112,19 @@ function paired(status: Status): string {
     : "Eşleşti. Yeni banka iletileri her dakika taşınır.";
 }
 
+open.addEventListener("click", () => {
+  void openInterface(open, openAnswer); // the interface opens in another tab; this page says what happened
+});
+
 now.addEventListener("click", () => {
   void (async () => {
+    const focused = document.activeElement === now;
     now.disabled = true;
-    state.textContent = "Denetleniyor…";
+    draw(card, CHECKING);
     show(await ask({ kind: "run" }));
+    if (focused && !now.disabled) {
+      now.focus();
+    }
   })();
 });
 
@@ -150,7 +141,8 @@ forget.addEventListener("click", () => {
       return;
     }
     show(await ask({ kind: "forget" }));
-    pairStatus.textContent = "Eşleşme unutuldu.";
+    say(pairStatus, "Eşleşme unutuldu.");
+    code.focus(); // the button is hidden now: the focus goes where pairing starts again
   })();
 });
 
@@ -158,19 +150,11 @@ account.addEventListener("change", () => {
   void (async () => show(await ask({ kind: "account", account: Number(account.value) })))();
 });
 
-function isStatus(value: unknown): value is Status {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-  const { paired, account: index, problem } = value as Record<string, unknown>;
-  return typeof paired === "boolean" && typeof index === "number" && typeof problem === "string";
-}
-
 async function refresh(): Promise<void> {
   show(await ask({ kind: "status" }));
 }
 
-// A run in the background changes what the window shows: it follows without being reloaded.
+// A run in the background changes what the page shows: it follows without being reloaded.
 chrome.storage.onChanged.addListener((_changes, area) => {
   if (area === "local") {
     void refresh();

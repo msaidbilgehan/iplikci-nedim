@@ -3,7 +3,7 @@
  * bank messages to the paired service; it pairs with a code typed into the extension's settings page and then scans
  * Gmail for the history the service lacks; it opens the service's interface for "İplikçi Nedim'i aç" (ADR-0019); and
  * it runs the ADR-0016 verification for its own page. All network work happens here, never in a page or a content
- * script.
+ * script. The toolbar button opens the extension's window (popup.html); its settings page is options.html.
  */
 
 import { type Request, type Status, asRequest } from "./bridge/messages";
@@ -34,10 +34,6 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 void schedule(); // an alarm may be gone after a browser restart
 void forgetUnfinishedScan();
-
-chrome.action.onClicked.addListener(() => {
-  void chrome.runtime.openOptionsPage();
-});
 
 chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
   const fromOwnPage = sender.id === chrome.runtime.id && sender.url?.startsWith(chrome.runtime.getURL("")) === true;

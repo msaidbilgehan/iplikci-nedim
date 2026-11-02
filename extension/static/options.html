@@ -4,65 +4,103 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>İplikçi Nedim Köprüsü</title>
-    <link rel="stylesheet" href="verify.css" />
+    <link rel="stylesheet" href="style.css" />
     <script type="module" src="options.js"></script>
   </head>
   <body>
-    <main>
-      <h1>İplikçi Nedim Köprüsü</h1>
-      <p class="lead">
-        Gmail'deki banka iletilerini, bu tarayıcıdaki açık oturumunuzla okuyup bu bilgisayardaki İplikçi Nedim'e taşır.
-      </p>
-      <ul class="facts">
-        <li>Gmail'de hiçbir şeyi değiştirmez: iletiler okunmamış kalır, taşınmaz, silinmez.</li>
-        <li>Yalnızca İplikçi Nedim'deki listede olan bankaların iletilerini alır.</li>
-        <li>Yalnızca mail.google.com'a ve bu bilgisayardaki İplikçi Nedim'e bağlanır; şifre istemez.</li>
-      </ul>
+    <main class="page">
+      <header class="masthead">
+        <div class="brand">
+          <img class="brand-logo" src="icons/icon-128.png" alt="" width="56" height="56" />
+          <div>
+            <h1 class="brand-name">İplikçi Nedim</h1>
+            <p class="brand-sub">Köprü · sürüm <span id="version"></span></p>
+          </div>
+        </div>
+        <button id="open" type="button" class="button primary">
+          İplikçi Nedim'i aç
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
+          </svg>
+        </button>
+      </header>
+      <p id="open-answer" class="answer" role="status" aria-live="polite"></p>
 
-      <section aria-labelledby="durum-baslik">
+      <div class="stack">
+        <p class="lead">
+          Gmail'deki banka iletilerini, bu tarayıcıdaki açık oturumunuzla okuyup bu bilgisayardaki İplikçi Nedim'e
+          taşır.
+        </p>
+        <ul class="facts">
+          <li>Gmail'de hiçbir şeyi değiştirmez: iletiler okunmamış kalır, taşınmaz, silinmez.</li>
+          <li>Yalnızca İplikçi Nedim'deki listede olan bankaların iletilerini alır.</li>
+          <li>Yalnızca mail.google.com'a ve bu bilgisayardaki İplikçi Nedim'e bağlanır; şifre istemez.</li>
+        </ul>
+      </div>
+
+      <section class="card status stack" id="status" data-tone="neutral" aria-labelledby="durum-baslik">
         <h2 id="durum-baslik">Durum</h2>
-        <p id="state" role="status" aria-live="polite">Yükleniyor…</p>
-        <p id="last" class="hint"></p>
-        <p><button id="now" type="button">Şimdi denetle</button></p>
+        <div class="status-line">
+          <span class="status-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false"><path id="status-icon" d="M6 12h.01M12 12h.01M18 12h.01" /></svg>
+          </span>
+          <div role="status" aria-live="polite" aria-atomic="true">
+            <p class="status-word" id="status-word">Yükleniyor…</p>
+            <p class="status-detail" id="status-detail"></p>
+          </div>
+          <p class="status-when" id="status-when"></p>
+        </div>
+        <div class="actions">
+          <button id="now" type="button" class="button secondary">Şimdi denetle</button>
+        </div>
       </section>
 
-      <section aria-labelledby="gecmis-baslik">
+      <section class="card stack" aria-labelledby="eslestir-baslik">
+        <h2 id="eslestir-baslik">Eşleştirme</h2>
+        <p class="hint" id="pair-summary">
+          Eklenti İplikçi Nedim ile tek kullanımlık bir kodla eşleşir; sonra yeni banka iletileri her dakika taşınır.
+        </p>
+        <form id="pair-form" class="field-row">
+          <div class="field">
+            <label for="code">Eşleştirme kodu</label>
+            <input
+              id="code"
+              name="code"
+              autocomplete="off"
+              spellcheck="false"
+              maxlength="9"
+              aria-describedby="code-hint"
+            />
+          </div>
+          <button id="pair" type="submit" class="button primary">Eşleştir</button>
+        </form>
+        <p class="hint" id="code-hint">
+          Kodu İplikçi Nedim'in "Tarayıcı eklentisi" sayfasından alın; tek kullanımlıktır ve 10 dakika geçerlidir.
+        </p>
+        <p id="pair-status" role="status" aria-live="polite"></p>
+        <button id="forget" type="button" class="button danger" hidden>Bu tarayıcıdaki eşleşmeyi unut</button>
+      </section>
+
+      <section class="card stack" aria-labelledby="gecmis-baslik">
         <h2 id="gecmis-baslik">Geçmiş ve kaçan iletiler</h2>
         <p class="hint">
           Gelen kutusu akışı yalnızca en yeni okunmamış iletileri gösterir. Bu tarama Gmail'i yeni bir sekmede açar,
           listedeki bankaların başlangıç gününden beri gelen iletilerini arar ve İplikçi Nedim'de olmayanları taşır.
           Eşleşince kendiliğinden başlar; başlangıç günü ya da banka listesi değişince "Şimdi denetle" yeniden tarar.
-          Hiçbir konuşma açılmaz, Gmail'de hiçbir şey değişmez; sekme arama bitince kendiliğinden kapanır. Uzun
-          sürebilir: iletiler saniyede bir indirilir.
         </p>
-        <p><button id="scan" type="button">Gmail'de eksikleri tara</button></p>
+        <p class="hint">
+          Hiçbir konuşma açılmaz, Gmail'de hiçbir şey değişmez; sekme iş bitince kendiliğinden kapanır. İletiler
+          saniyede bir indirildiği için uzun sürebilir.
+        </p>
+        <div class="actions">
+          <button id="scan" type="button" class="button secondary">Gmail'de eksikleri tara</button>
+        </div>
         <p id="scan-state" role="status" aria-live="polite"></p>
       </section>
 
-      <section aria-labelledby="eslestir-baslik">
-        <h2 id="eslestir-baslik">Eşleştir</h2>
-        <form id="pair-form">
-          <label for="code">Eşleştirme kodu</label>
-          <input
-            id="code"
-            name="code"
-            autocomplete="off"
-            spellcheck="false"
-            maxlength="9"
-            aria-describedby="code-hint"
-          />
-          <p class="hint" id="code-hint">
-            Kodu İplikçi Nedim'in "Tarayıcı eklentisi" sayfasından alın; tek kullanımlıktır ve 10 dakika geçerlidir.
-          </p>
-          <button id="pair" type="submit">Eşleştir</button>
-        </form>
-        <p id="pair-status" role="status" aria-live="polite"></p>
-        <p><button id="forget" type="button" hidden>Bu tarayıcıdaki eşleşmeyi unut</button></p>
-      </section>
-
-      <section aria-labelledby="hesap-baslik">
+      <section class="card stack" aria-labelledby="hesap-baslik">
         <h2 id="hesap-baslik">Gmail hesabı</h2>
-        <form id="account-form">
+        <form id="account-form" class="field">
           <label for="account">Hangi hesap okunsun?</label>
           <select id="account" aria-describedby="account-hint">
             <option value="0">1. hesap</option>
@@ -78,7 +116,9 @@
         </form>
       </section>
 
-      <p><a href="verify.html">Doğrulama sayfası</a>: eklentinin Gmail'i okuyabildiğini adım adım denetler.</p>
+      <p class="footnote">
+        <a href="verify.html">Doğrulama sayfası</a>: eklentinin Gmail'i okuyabildiğini adım adım denetler.
+      </p>
     </main>
   </body>
 </html>

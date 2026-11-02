@@ -1,0 +1,524 @@
+/* The extension's pages: its window from the toolbar button (popup.html), its settings page (options.html) and the
+   verification page (verify.html). İplikçi Nedim's teal and the interface's greys, light or dark as the system is.
+   Text keeps WCAG AA's 4.5:1 against what it stands on, and the edges of the controls, the focus ring and the status
+   marks 3:1. Nothing is inline: the scripts change only text, attributes and `hidden`. */
+
+:root {
+  color-scheme: light dark;
+  --page: #f4f4f5;
+  --surface: #ffffff;
+  --text: #18181b;
+  --muted: #3f3f46;
+  --line: #e4e4e7;
+  --control: #71717a;
+  --hover: #f4f4f5;
+  --primary: #0f766e;
+  --primary-hover: #115e59;
+  --on-primary: #ffffff;
+  --link: #0f766e;
+  --focus: #0d9488;
+  --danger: #b91c1c;
+  --pass: #15803d;
+  /* The status marks' fills are the interface's (web/src/index.css); their icons keep 3:1 against them. */
+  --good: #0ca30c;
+  --on-good: #ffffff;
+  --warning: #fab219;
+  --on-warning: #18181b;
+  --critical: #d03b3b;
+  --on-critical: #ffffff;
+  --busy: #0f766e;
+  --on-busy: #ffffff;
+  --neutral: #d4d4d8;
+  --on-neutral: #27272a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page: #09090b;
+    --surface: #18181b;
+    --text: #f4f4f5;
+    --muted: #d4d4d8;
+    --line: #3f3f46;
+    --control: #71717a;
+    --hover: #27272a;
+    --primary: #2dd4bf;
+    --primary-hover: #5eead4;
+    --on-primary: #09090b;
+    --link: #5eead4;
+    --focus: #2dd4bf;
+    --danger: #f87171;
+    --pass: #4ade80;
+    --busy: #2dd4bf;
+    --on-busy: #09090b;
+    --neutral: #52525b;
+    --on-neutral: #f4f4f5;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* On the body, not the root: Chrome gives an extension's pages a body font of its own, at 75 % of the browser's. */
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+h1,
+h2,
+p,
+ul,
+ol,
+form {
+  margin: 0;
+}
+
+h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+ol {
+  padding-left: 1.25rem;
+}
+
+a {
+  color: var(--link);
+  text-underline-offset: 0.15em;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Each child below the one before. An empty live region takes no room, but stays there to be announced. */
+.stack > * + * {
+  margin-top: 0.75rem;
+}
+
+.stack > [role="status"]:empty {
+  margin-top: 0;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* The logo, the name and what the page is. */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.brand-logo {
+  flex: none;
+}
+
+.brand-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.brand-sub {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* A section of a page. */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
+}
+
+/* What the extension does and does not do, in a few short lines. */
+.facts {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.facts li {
+  display: grid;
+  grid-template-columns: 1.25rem 1fr;
+}
+
+.facts li::before {
+  content: "✓" / "";
+  color: var(--pass);
+  font-weight: 700;
+}
+
+/* Where the bridge stands: a filled disc with the state's icon, its word and what the last run said. The tone colours
+   the disc and the card's edge; the word and the icon say the same without them. */
+.status {
+  --tone: var(--neutral);
+  --on-tone: var(--on-neutral);
+  border-left: 0.25rem solid var(--tone);
+}
+
+.status[data-tone="good"] {
+  --tone: var(--good);
+  --on-tone: var(--on-good);
+}
+
+.status[data-tone="warning"] {
+  --tone: var(--warning);
+  --on-tone: var(--on-warning);
+}
+
+.status[data-tone="critical"] {
+  --tone: var(--critical);
+  --on-tone: var(--on-critical);
+}
+
+.status[data-tone="busy"] {
+  --tone: var(--busy);
+  --on-tone: var(--on-busy);
+}
+
+.status-line {
+  display: grid;
+  grid-template-columns: 1.75rem 1fr;
+  gap: 0 0.75rem;
+  align-items: start;
+}
+
+.status-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--tone);
+  color: var(--on-tone);
+}
+
+.status-mark svg {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.status-word {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.75rem;
+}
+
+.status-detail {
+  overflow-wrap: anywhere;
+}
+
+.status-when,
+.status-note {
+  grid-column: 2;
+  font-size: 0.875rem;
+}
+
+.status-when {
+  color: var(--muted);
+}
+
+.status-note {
+  margin-top: 0.5rem;
+}
+
+.status-detail:empty,
+.status-when:empty {
+  display: none;
+}
+
+/* Buttons: the filled one for the page's main act, the outlined ones beside it, the link-like one to another page. */
+input,
+select,
+textarea,
+button {
+  font: inherit;
+  color: inherit;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 1.125rem;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.button svg {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.primary {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.secondary {
+  border-color: var(--control);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.danger {
+  border-color: var(--danger);
+  background: var(--surface);
+  color: var(--danger);
+}
+
+.secondary:hover:not(:disabled),
+.danger:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.link {
+  padding-inline: 0.5rem;
+  background: none;
+  color: var(--link);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.wide {
+  display: flex;
+  width: 100%;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button {
+    transition: none;
+  }
+}
+
+/* Fields. */
+label {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+input,
+select,
+textarea {
+  border: 1px solid var(--control);
+  border-radius: 0.375rem;
+  background: var(--surface);
+  padding: 0.5rem 0.625rem;
+}
+
+input,
+select {
+  min-height: 2.75rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.375rem;
+  justify-items: start;
+}
+
+.field > .button {
+  margin-top: 0.375rem;
+}
+
+.field-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+textarea {
+  width: 100%;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.875rem;
+}
+
+#code {
+  width: 12rem;
+  max-width: 100%;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 1.25rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* The settings page and the verification page. */
+.page {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.page > * + * {
+  margin-top: 1rem;
+}
+
+.page > [role="status"]:empty {
+  margin-top: 0;
+}
+
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.lead {
+  font-size: 1.0625rem;
+}
+
+.footnote {
+  font-size: 0.875rem;
+}
+
+/* The window from the toolbar button: narrow, the main act first. */
+body.popup {
+  width: 22rem;
+  background: var(--surface);
+}
+
+.popup .brand {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.popup .brand-name {
+  font-size: 1.125rem;
+}
+
+.popup-body {
+  padding: 1rem;
+}
+
+.popup-body > * + * {
+  margin-top: 0.625rem;
+}
+
+.popup-body > [role="status"]:empty {
+  margin-top: 0;
+}
+
+.popup .status {
+  border-radius: 0.5rem;
+  background: var(--page);
+  padding: 0.75rem;
+}
+
+.popup .status-detail {
+  font-size: 0.9375rem;
+}
+
+.popup .status + .button {
+  margin-top: 1rem;
+}
+
+.answer {
+  font-size: 0.875rem;
+}
+
+.popup .link {
+  display: flex;
+  margin-inline: auto;
+}
+
+/* The verification page's results. */
+.results {
+  padding: 0;
+  list-style: none;
+}
+
+.check {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr;
+  gap: 0 0.5rem;
+}
+
+.check + .check {
+  margin-top: 1rem;
+}
+
+.check ul {
+  grid-column: 2;
+  margin: 0.25rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.mark {
+  font-weight: 700;
+}
+
+.check-geçti .mark {
+  color: var(--pass);
+}
+
+.check-geçmedi .mark {
+  color: var(--danger);
+}
+
+#copied {
+  color: var(--muted);
+}
