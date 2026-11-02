@@ -46,6 +46,7 @@ class TilesOut(BaseModel):
     last_total: MoneyOut
     last_partial: bool
     last_change: str | None  # against the up to three whole months before it, a decimal ("-0.12")
+    last_base_months: int  # how many whole months that took: 0 to 3
 
 
 class SliceOut(BaseModel):
@@ -168,6 +169,7 @@ def _tiles(t: spending.Tiles) -> TilesOut:
         last_total=money(t.last_total),
         last_partial=t.last_partial,
         last_change=_share(round(t.last_change, 4) if t.last_change is not None else None),
+        last_base_months=t.last_base_months,
     )
 
 

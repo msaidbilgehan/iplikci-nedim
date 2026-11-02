@@ -87,7 +87,7 @@ def rent_receipt() -> bytes:
 def test_the_accounts_need_a_session_or_the_token_and_naming_one_the_services_own_pages(ws, monkeypatch):
     context = Context(ws=ws, token=TOKEN)
     client = TestClient(create_app(context), base_url=BASE)
-    for path in ("/api/accounts", "/api/accounts/flows", f"/api/accounts/{TEB}"):
+    for path in ("/api/accounts", "/api/accounts/flows", "/api/accounts/coverage", f"/api/accounts/{TEB}"):
         assert client.get(path).status_code == 401
     assert client.put(f"/api/accounts/{TEB}/alias", json={"alias": "Maaş"}, headers=bearer()).status_code == 403
 
@@ -149,6 +149,25 @@ def test_an_account_whose_documents_stopped_long_before_the_others_is_closed_and
     assert (gone["balance"], gone["day"]) == (tl(100000), "2026-03-31") and "toplamlara girmez" in gone["note"]
     assert "teb-111111111" not in {a["account"]["id"] for g in found["groups"] for a in g["accounts"]}
     assert found["assets"] == tl(2394670)  # the Garanti list's only
+
+
+def test_the_coverage_gives_each_accounts_months_as_its_statements_cover_them_the_open_accounts_first(ws):
+    old = [Move(date(2026, 1, 1), "ÖRNEK İŞVEREN A.Ş. den gelen havale", Decimal(1000))]
+    add(ws, "eski.xls", teb.account_export(teb.running_rows(old), number="111111111", period="01/01/2026 - 15/03/2026"))
+    add(ws, "ekim.xls", garanti.account_xls())  # 1–31 October
+    found = get(client_for(ws), "/api/accounts/coverage")
+    assert found["months"] == [f"2026-{m:02d}" for m in range(1, 11)]  # the first covered month to the last
+    current, gone = found["accounts"]
+    assert (current["account"]["id"], current["closed"]) == (CURRENT, False)
+    assert current["shares"] == ["0"] * 9 + ["1"]
+    assert current["link"] == {"screen": "account", "id": CURRENT, "query": {}}
+    assert (gone["account"]["id"], gone["closed"]) == ("teb-111111111", True)
+    assert gone["shares"] == ["1", "1", "0.484"] + ["0"] * 7  # 15 of March's 31 days
+
+
+def test_receipts_alone_cover_no_month(ws):
+    add(ws, "dekont.pdf", rent_receipt())
+    assert get(client_for(ws), "/api/accounts/coverage") == {"months": [], "accounts": []}
 
 
 # --- an account's page -----------------------------------------------------------------------------------------------

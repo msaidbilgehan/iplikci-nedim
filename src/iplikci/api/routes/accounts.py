@@ -11,12 +11,13 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Path, Query, Request
 from pydantic import BaseModel, Field
 
-from ...app import accounts, flows, transactions
+from ...app import accounts, flows, reach, transactions
 from ...app.accounts import AccountGroup, AccountType, Actor, Certainty, DocumentKind, PaidStatus
 from ...app.analysis import Analysis, account_labels
 from ...app.flows import FlowKind, TransactionKind
-from ...app.links import Link
+from ...app.links import Link, Screen
 from ...app.workspace import Busy
+from ...domain.text import fold
 from ..context import Context, context_of
 from ..guard import Principal
 from ..models import AccountRefOut, LinkOut, MoneyOut, RowOut, account_ref, link_out, money, row_out
@@ -47,6 +48,20 @@ class FreshnessOut(BaseModel):
     missing: list[str]  # months inside its statements they cover only partly or not
     note: str
     link: LinkOut
+
+
+class CoverOut(BaseModel):
+    account: AccountRefOut
+    closed: bool  # its documents stopped 180 days before the newest
+    shares: list[str]  # one per month: the share of its days its statements and lists cover, a decimal ("0.452")
+    link: LinkOut
+
+
+class CoverageOut(BaseModel):
+    """How much of each month each account's statements and account lists cover: the MVP report's coverage grid."""
+
+    months: list[str]  # YYYY-MM, from the first month any account's documents cover to the last
+    accounts: list[CoverOut]  # the open accounts first, then the closed, each by its name
 
 
 class MonthFlowOut(BaseModel):
@@ -532,6 +547,30 @@ def _detail(found: accounts.Detail, labels: dict[str, str]) -> AccountDetailOut:
             remaining=None if loan.remaining is None else money(loan.remaining),
             note=loan.note,
         ),
+    )
+
+
+def _share(value: float) -> str:
+    return f"{value:.3f}".rstrip("0").rstrip(".")
+
+
+@router.get("/api/accounts/coverage", dependencies=READ)
+def account_coverage(request: Request) -> CoverageOut:
+    """Each account's months as its statements and account lists cover them; receipts and notices cover none."""
+    a = _analysis(context_of(request))
+    found = reach.coverage(a.dataset)
+    labels = account_labels(a)
+    return CoverageOut(
+        months=list(found.months),
+        accounts=[
+            CoverOut(
+                account=account_ref(c.account, labels),
+                closed=c.closed,
+                shares=[_share(share) for share in c.shares],
+                link=_link(Link(Screen.ACCOUNT, c.account)),
+            )
+            for c in sorted(found.accounts, key=lambda c: (c.closed, fold(labels.get(c.account, c.account))))
+        ],
     )
 
 

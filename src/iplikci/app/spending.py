@@ -61,6 +61,7 @@ class Tiles:
     last_total: Decimal
     last_partial: bool  # not whole: a card statement of it still to come, a gap in the documents, or cut by the period
     last_change: Decimal | None  # against the average of the up to three whole months before it
+    last_base_months: int  # how many whole months that average took: 0 to 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -277,6 +278,7 @@ def _tiles(
         last_total=by_month[last] if last else ZERO,
         last_partial=bool(last and last not in whole),
         last_change=(by_month[last] - base) / base if last and base > 0 else None,
+        last_base_months=len(before),
     )
 
 

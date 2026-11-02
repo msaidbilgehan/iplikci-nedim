@@ -49,6 +49,15 @@ def test_the_monthly_average_leaves_out_a_month_the_documents_cover_only_partly(
     assert tiles["income_average"]["minor"] > 0 and float(tiles["income_share"]) < 1
 
 
+def test_the_last_month_is_compared_with_up_to_three_whole_months_before_it_and_says_how_many(client, found):
+    tiles = found["tiles"]
+    assert (tiles["last_month"], tiles["last_partial"], tiles["last_base_months"]) == ("2026-10", False, 3)
+    assert tiles["last_change"] is not None
+    # Over July to October only August and September come before October: July, not whole, never counts.
+    narrowed = cards(client, **{"from": "2026-07-01", "to": "2026-10-31"})["tiles"]
+    assert narrowed["last_base_months"] == 2
+
+
 def test_the_months_by_group_and_by_necessity_keep_their_fixed_colour_slots(found):
     groups = found["by_group"]
     assert groups["months"][0]["month"] == "2026-01" and len(groups["months"]) == 10

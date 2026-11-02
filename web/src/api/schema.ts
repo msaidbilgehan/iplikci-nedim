@@ -434,6 +434,19 @@ export interface CorrectionIn {
   parts?: PartIn[] | null;
 }
 
+export interface CoverOut {
+  account: AccountRefOut;
+  closed: boolean;
+  shares: string[];
+  link: LinkOut;
+}
+
+/** How much of each month each account's statements and account lists cover: the MVP report's coverage grid. */
+export interface CoverageOut {
+  months: string[];
+  accounts: CoverOut[];
+}
+
 /** The assets held in one currency. */
 export interface CurrencyShareOut {
   currency: string;
@@ -1969,6 +1982,7 @@ export interface TilesOut {
   last_total: MoneyOut;
   last_partial: boolean;
   last_change: string | null;
+  last_base_months: number;
 }
 
 /** The steps a to-do offers (F19). */
