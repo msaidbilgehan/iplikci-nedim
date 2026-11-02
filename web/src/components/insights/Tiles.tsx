@@ -3,6 +3,7 @@
 // month against the whole months before it. Under them, what the spending leaves out (money sent to people, debt
 // principal, cash advances, card payments without a statement), each with a button that adds it to the total.
 
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 
 import { useKindTotals } from "../../api/queries";
@@ -13,6 +14,13 @@ import { Stat } from "../ui/Stat";
 import { LEFT_OUT, spendingQuery } from "./query";
 
 const SMALL = "text-xs text-zinc-600 dark:text-zinc-300";
+// A share that rounds to 0 % is still something: "giderlerin %1'inden azı", never "%0 kadarı"; a change of less than
+// half a percent reads as no change at all.
+const HALF_PERCENT = 0.005;
+
+function shareOf(t: TFunction<"insights">, share: number): string {
+  return share > 0 && share < HALF_PERCENT ? t("tiles.unnecessaryShareSmall") : t("tiles.unnecessaryShare", { share });
+}
 
 interface TilesProps {
   found: Spending;
@@ -73,7 +81,7 @@ export function Tiles({ found, params }: TilesProps) {
         value={formatMoney(tiles.unnecessary)}
         meta={[
           t("tiles.unnecessaryMeta"),
-          total > 0 ? t("tiles.unnecessaryShare", { share: tiles.unnecessary.minor / total }) : "",
+          total > 0 ? shareOf(t, tiles.unnecessary.minor / total) : "",
         ]
           .filter(Boolean)
           .join(" · ")}
@@ -90,10 +98,16 @@ export function Tiles({ found, params }: TilesProps) {
               </span>
               {change !== null && base > 0 ? (
                 <span className="block">
-                  <span aria-hidden="true">{change >= 0 ? "▲ " : "▼ "}</span>
-                  {change >= 0
-                    ? t("tiles.lastUp", { count: base, share: Math.abs(change) })
-                    : t("tiles.lastDown", { count: base, share: Math.abs(change) })}
+                  {Math.abs(change) < HALF_PERCENT ? (
+                    t("tiles.lastSame", { count: base })
+                  ) : (
+                    <>
+                      <span aria-hidden="true">{change >= 0 ? "▲ " : "▼ "}</span>
+                      {change >= 0
+                        ? t("tiles.lastUp", { count: base, share: Math.abs(change) })
+                        : t("tiles.lastDown", { count: base, share: Math.abs(change) })}
+                    </>
+                  )}
                 </span>
               ) : null}
             </>

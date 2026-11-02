@@ -10,12 +10,26 @@ import {
   monthsIn,
   onDay,
   percent,
+  percentOrLess,
   percentPossessive,
   possessive,
   possessiveLocative,
   roundHalfEven,
   yearSuffix,
 } from "./turkish";
+
+describe("percentOrLess", () => {
+  it("says a share that is not nothing but rounds to 0 % is less than one percent", () => {
+    expect(percentOrLess(0.0004)).toBe("%1'den az");
+    expect(percentOrLess(0.004)).toBe("%1'den az");
+  });
+
+  it("writes nothing as 0 % and any other share as percent() does", () => {
+    expect(percentOrLess(0)).toBe("%0");
+    expect(percentOrLess(0.006)).toBe("%1");
+    expect(percentOrLess(0.92)).toBe("%92");
+  });
+});
 
 describe("percentPossessive", () => {
   // The cases of tests/test_insights.py::test_percent_takes_the_right_suffix.

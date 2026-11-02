@@ -1,11 +1,12 @@
 // The Değerlendirme screen (F10), the MVP report's cards in the interface: the period presets and the İşlemler screen's
-// filters, kept in the address in the API's names; the summary tiles and what the spending leaves out; the
-// interpretation (highlights, steps, budget); the net worth, the months' closing and how the debts moved; the months by
-// group and by necessity with the habits; income and spending; the next three months; the categories and merchants; how
-// the spending moved and what is worth a look; the regular payments; the rows as a list and as CSV; and where the data
-// comes from. The cards the filters narrow come from /api/spending, the interpretation from /api/insights, which no
-// filter changes, and the regular payments from /api/subscriptions, narrowed here by every filter but the period; each
-// card says which it is, with its window and numbers.
+// filters, kept in the address in the API's names, over five parts one tab each (?bolum=…). Özet: the summary tiles and
+// what the spending leaves out, the interpretation (highlights, steps, budget). Harcamalar: the months by group and by
+// necessity with the habits, the categories and merchants, how the spending moved and what is worth a look. Gelir,
+// varlık ve borç: income and spending, the net worth and the months' closing, how the debts moved. Önümüzdeki aylar:
+// the next three months and the regular payments. İşlemler ve veriler: the rows as a list and as CSV, and where the
+// data comes from. The cards the filters narrow come from /api/spending, the interpretation from /api/insights, which
+// no filter changes, and the regular payments from /api/subscriptions, narrowed here by every filter but the period;
+// each card says which it is, with its window and numbers.
 
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -50,6 +51,7 @@ import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { DownloadLink } from "../components/ui/LinkButton";
 import { PageHeader } from "../components/ui/PageHeader";
+import { SectionTabs } from "../components/ui/SectionTabs";
 import { NextStep } from "../components/ui/Say";
 import { cn } from "../lib/cn";
 
@@ -143,32 +145,83 @@ export default function InsightsPage() {
             aria-busy={spending.isPlaceholderData}
             className={cn("flex flex-col gap-6", spending.isPlaceholderData && "opacity-60")}
           >
-            {found ? (
-              <div className="flex flex-col gap-3">
-                <Tiles found={found} params={params} />
-                <LeftOut
-                  params={params}
-                  totals={leftOut}
-                  labels={labels}
-                  onAdd={(kind) => change(withKind(params, kind))}
-                />
-              </div>
-            ) : null}
-            <InsightsPart query={insights} title={t("interpretation.title")}>
-              {(ins) => <Interpretation found={ins} labels={labels} />}
-            </InsightsPart>
-            <DashboardPart query={dashboard} labels={labels} />
-            {insights.data ? <DebtCard insights={insights.data} /> : null}
-            {found ? <SpendingCards found={found} insights={insights.data} labels={labels} params={params} /> : null}
-            {insights.data ? (
-              <div className={pair}>
-                <TrendCard trend={insights.data.trend} />
-                <UnusualCard found={insights.data.unusual} labels={labels} />
-              </div>
-            ) : null}
-            <RegularPart subscriptions={subscriptions} rules={rules} params={params} />
-            {found ? <RowsCard found={found} params={params} /> : null}
-            <SourcesCard dashboard={dashboard} system={system} coverage={coverage} labels={labels} />
+            <SectionTabs
+              label={t("sections.label")}
+              sections={[
+                {
+                  id: "ozet",
+                  label: t("sections.summary"),
+                  content: () => (
+                    <>
+                      {found ? (
+                        <div className="flex flex-col gap-3">
+                          <Tiles found={found} params={params} />
+                          <LeftOut
+                            params={params}
+                            totals={leftOut}
+                            labels={labels}
+                            onAdd={(kind) => change(withKind(params, kind))}
+                          />
+                        </div>
+                      ) : null}
+                      <InsightsPart query={insights} title={t("interpretation.title")}>
+                        {(ins) => <Interpretation found={ins} labels={labels} />}
+                      </InsightsPart>
+                    </>
+                  ),
+                },
+                {
+                  id: "harcamalar",
+                  label: t("sections.spending"),
+                  content: () => (
+                    <>
+                      {found ? (
+                        <SpendingCards found={found} insights={insights.data} labels={labels} params={params} />
+                      ) : (
+                        <Empty title={t("empty")}>{resetButton}</Empty>
+                      )}
+                      {insights.data ? (
+                        <div className={pair}>
+                          <TrendCard trend={insights.data.trend} />
+                          <UnusualCard found={insights.data.unusual} labels={labels} />
+                        </div>
+                      ) : null}
+                    </>
+                  ),
+                },
+                {
+                  id: "gelir-gider",
+                  label: t("sections.income"),
+                  content: () => (
+                    <>
+                      {found ? <FlowCard found={found} insights={insights.data} labels={labels} /> : null}
+                      <DashboardPart query={dashboard} labels={labels} />
+                      {insights.data ? <DebtCard insights={insights.data} /> : null}
+                    </>
+                  ),
+                },
+                {
+                  id: "gelecek",
+                  label: t("sections.ahead"),
+                  content: () => (
+                    <>
+                      {found ? <ForecastCard found={found.forecast} labels={labels} /> : null}
+                      <RegularPart subscriptions={subscriptions} rules={rules} params={params} />
+                    </>
+                  ),
+                },
+                {
+                  id: "veriler",
+                  label: t("sections.data"),
+                  content: () => (
+                    <>
+                      {found ? <RowsCard found={found} params={params} /> : null}
+                      <SourcesCard dashboard={dashboard} system={system} coverage={coverage} labels={labels} />
+                    </>
+                  ),
+                },
+              ]}
+            />
           </div>
         </>
       )}
@@ -183,7 +236,7 @@ interface SpendingCardsProps {
   params: URLSearchParams;
 }
 
-/** The cards the filters narrow, in the MVP report's order. */
+/** The spending the filters narrow, in the MVP report's order: by month, by necessity, by category and merchant. */
 function SpendingCards({ found, insights, labels, params }: SpendingCardsProps) {
   const [, setParams] = useSearchParams();
   const pair = usePair("xl");
@@ -206,8 +259,6 @@ function SpendingCards({ found, insights, labels, params }: SpendingCardsProps) 
         chosen={params.getAll("necessity")}
         onChoose={chooseLevel}
       />
-      <FlowCard found={found} insights={insights} labels={labels} />
-      <ForecastCard found={found.forecast} labels={labels} />
       <div className={pair}>
         <CategoriesCard found={found} />
         <MerchantsCard found={found} />

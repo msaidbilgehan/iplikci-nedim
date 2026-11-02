@@ -1,6 +1,7 @@
 // The Transactions screen's filters (F04): the period, the account, the kind, the category (by group), the necessity,
 // the certainty, tags and a text search, each kept in the address in the API's names. A merchant or a group comes
-// with a link from another screen and shows as a chip; every filter that is set has a chip that takes it off.
+// with a link from another screen and shows as a chip; every filter that is set has a chip that takes it off. The
+// search is always in view, the rest behind one button, so the rows come first.
 
 import { type FormEvent, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -13,6 +14,7 @@ import { cn } from "../../lib/cn";
 import { SLOT_BG, slotOf } from "../charts/palette";
 import { certaintyOptions } from "../filters";
 import { Button } from "../ui/Button";
+import { ChevronDownIcon, FilterIcon } from "../ui/Icons";
 import {
   type FilterChip,
   FilterChips,
@@ -56,6 +58,8 @@ interface FiltersProps {
 
 export function Filters({ params, onChange, labels, accounts, rules }: FiltersProps) {
   const { t } = useTranslation("transactions");
+  const [open, setOpen] = useState(false);
+  const panel = useId();
   const summarize = useSelectionSummary();
   const set = (change: (next: URLSearchParams) => void, replace = false) => onChange(filtered(params, change), replace);
   const setOne = (name: (typeof ONE)[number], value: string, replace = false) =>
@@ -138,31 +142,63 @@ export function Filters({ params, onChange, labels, accounts, rules }: FiltersPr
       }
     });
 
+  // The search stays in view; the dates, the choices and the tags open under "Süzgeçler", whose button counts what is
+  // set. The chips below say it in words whether the panel is open or not, each with its button to take it off.
+  const set_ = chips.filter((chip) => chip.key !== "q").length;
   return (
     <div role="search" aria-label={t("filters.label")} className="flex flex-col gap-3">
       <div className="flex flex-wrap items-start gap-2">
-        <DateInput label={t("filters.from")} value={from} onChange={(day) => setOne("from", day)} />
-        <DateInput label={t("filters.to")} value={to} onChange={(day) => setOne("to", day)} />
         <SearchInput
           label={t("filters.q")}
           hint={t("filters.qHint")}
           value={params.get("q") ?? ""}
           onChange={(q) => setOne("q", q, true)}
         />
+        <Button
+          variant="secondary"
+          aria-expanded={open}
+          aria-controls={panel}
+          onClick={() => setOpen((was) => !was)}
+          className="sm:mt-6"
+        >
+          <FilterIcon className="size-4" />
+          {t("filters.more")}
+          {set_ > 0 ? (
+            <span className="rounded-full bg-teal-700 px-1.5 text-xs font-semibold text-white dark:bg-teal-400 dark:text-zinc-950">
+              <span className="sr-only">(</span>
+              {t("filters.setCount", { count: set_ })}
+              <span className="sr-only">)</span>
+            </span>
+          ) : null}
+          <ChevronDownIcon className={cn("size-4 transition-transform", open && "rotate-180")} />
+        </Button>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        {popovers
-          .filter((name) => options[name].length > 0)
-          .map((name) => (
-            <FilterPopover
-              key={name}
-              label={t(`filters.${name}`)}
-              options={options[name]}
-              selected={selectionOf(params, name)}
-              onChange={(selected) => choose(name, selected)}
-            />
-          ))}
-        <TagInput onAdd={addTag} />
+      <div
+        id={panel}
+        hidden={!open}
+        className={cn(
+          "flex-col gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60",
+          open && "flex",
+        )}
+      >
+        <div className="flex flex-wrap items-start gap-2">
+          <DateInput label={t("filters.from")} value={from} onChange={(day) => setOne("from", day)} />
+          <DateInput label={t("filters.to")} value={to} onChange={(day) => setOne("to", day)} />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {popovers
+            .filter((name) => options[name].length > 0)
+            .map((name) => (
+              <FilterPopover
+                key={name}
+                label={t(`filters.${name}`)}
+                options={options[name]}
+                selected={selectionOf(params, name)}
+                onChange={(selected) => choose(name, selected)}
+              />
+            ))}
+          <TagInput onAdd={addTag} />
+        </div>
       </div>
       <FilterChips chips={chips} {...(chips.length > 1 ? { onReset: reset } : {})} />
     </div>

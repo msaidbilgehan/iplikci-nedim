@@ -47,6 +47,23 @@ describe("InsightsPage", () => {
     expect(within(tiles).getByText("önceki 3 tam ayın ortalamasından %6 fazla")).toBeInTheDocument();
   });
 
+  it("opens on the summary and keeps each part one tab away, the tab in the address", async () => {
+    const { location } = renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    const parts = await screen.findByRole("tablist", { name: "Değerlendirmenin bölümleri" });
+    expect(within(parts).getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "Özet",
+      "Harcamalar",
+      "Gelir, varlık ve borç",
+      "Önümüzdeki aylar",
+      "İşlemler ve veriler",
+    ]);
+    await waitFor(() => expect(screen.getByRole("region", { name: "Değerlendirme ve strateji" })).toBeInTheDocument());
+    expect(screen.queryByRole("region", { name: "Aylık giderler" })).not.toBeInTheDocument();
+    await userEvent.click(within(parts).getByRole("tab", { name: "Harcamalar" }));
+    expect(location()).toBe("/degerlendirme?bolum=harcamalar");
+    expect(await screen.findByRole("region", { name: "Aylık giderler" })).toBeInTheDocument();
+  });
+
   it("asks the service with the address's filters, the İşlemler screen's own", async () => {
     const asked = serveSpending(SPENDING);
     renderScreen(<InsightsPage />, { path: "/degerlendirme?account=teb-1234&necessity=required&q=market" });
@@ -161,7 +178,7 @@ describe("InsightsPage", () => {
   });
 
   it("marks the partial month in the monthly heat table, whose average counts the whole months alone", async () => {
-    renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=harcamalar" });
     const monthly = await card("Aylık giderler");
     expect(within(monthly).getByText("Soluk sütunlar: eksik aylar, ortalamaya girmez")).toBeInTheDocument();
     await userEvent.click(within(monthly).getByRole("tab", { name: "Tablo" }));
@@ -172,22 +189,22 @@ describe("InsightsPage", () => {
   });
 
   it("narrows every card to a necessity level when its tile is pressed, and widens them again", async () => {
-    const { location } = renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    const { location } = renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=harcamalar" });
     const levels = await screen.findByRole("group", { name: "Gereklilik düzeyleri" });
     const avoidable = within(levels).getByRole("button", { name: /^Gereksiz/ });
     expect(avoidable).toHaveAttribute("aria-pressed", "false");
     expect(avoidable).toHaveAccessibleName(/\(yalnızca bu düzeyi göster\)$/);
     await userEvent.click(avoidable);
-    expect(location()).toBe("/degerlendirme?necessity=unnecessary");
+    expect(location()).toBe("/degerlendirme?bolum=harcamalar&necessity=unnecessary"); // the tab stays
     await waitFor(() =>
       expect(within(levels).getByRole("button", { name: /^Gereksiz/ })).toHaveAttribute("aria-pressed", "true"),
     );
     await userEvent.click(within(levels).getByRole("button", { name: /^Gereksiz/ }));
-    expect(location()).toBe("/degerlendirme");
+    expect(location()).toBe("/degerlendirme?bolum=harcamalar");
   });
 
   it("says what the habits cost a month from now on, the largest named", async () => {
-    renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=harcamalar" });
     expect(
       await screen.findByText(
         "İsteğe bağlı ve gereksiz alışkanlıklarınız bundan sonra ayda 136,00 TL tutuyor; en büyüğü Örnek Kahve, " +
@@ -198,7 +215,7 @@ describe("InsightsPage", () => {
 
   it("lists the habits with how often each comes, a one-off apart and never made monthly", async () => {
     detailed();
-    renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=harcamalar" });
     const table = await screen.findByRole("table", { name: "Alışkanlıklar ve bundan sonra aylık maliyetleri" });
     const fees = within(table).getByRole("row", { name: /^Kart ücretleri/ });
     expect(fees).toHaveTextContent("Her ay");
@@ -212,7 +229,7 @@ describe("InsightsPage", () => {
   });
 
   it("shows income and spending by month, the partial month marked, with the whole months' averages", async () => {
-    renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=gelir-gider" });
     const flow = await card("Gelir ve gider");
     expect(
       within(flow).getByText(
@@ -237,7 +254,7 @@ describe("InsightsPage", () => {
   });
 
   it("forecasts the next month and what the income leaves after it, as an estimate", async () => {
-    renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=gelecek" });
     const forecast = await card("Önümüzdeki aylar");
     const heading = within(forecast).getByRole("heading", { name: "Önümüzdeki aylar" });
     expect(heading.parentElement).toHaveTextContent("Önümüzdeki aylartahmin"); // the estimate's mark beside it
@@ -258,7 +275,7 @@ describe("InsightsPage", () => {
 
   it("lists the forecast's lines by part, two of one payee apart, and what is left after all of it", async () => {
     detailed();
-    renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=gelecek" });
     const table = await screen.findByRole("table", { name: "Önümüzdeki üç ayın tahmini, kalem kalem" });
     const regular = within(table).getByRole("row", { name: /^Düzenli ödemeler/ });
     expect(within(regular).getAllByRole("cell").map((cell) => cell.textContent)).toEqual([
@@ -275,7 +292,7 @@ describe("InsightsPage", () => {
   });
 
   it("ranks the categories and the merchants, each name leading to its rows", async () => {
-    renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=harcamalar" });
     const categories = await card("Kategoriler");
     expect(
       within(categories).getByText("Mayıs 2026 – Ekim 2026; en çok Kira, toplamın %68 kadarı."),
@@ -298,7 +315,7 @@ describe("InsightsPage", () => {
       total: tl(100000 - i * 1000),
     }));
     serveSpending({ ...SPENDING, categories: many });
-    renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=harcamalar" });
     const categories = await card("Kategoriler");
     const bars = within(categories).getByRole("list", { name: "Kategoriler" });
     expect(within(bars).getAllByRole("listitem")).toHaveLength(13);
@@ -308,7 +325,7 @@ describe("InsightsPage", () => {
   });
 
   it("compares the recent whole months with the ones before, with and without the large one-offs", async () => {
-    renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=harcamalar" });
     const trend = await card("Harcamalar nasıl değişti");
     expect(
       within(trend).getByText(
@@ -323,7 +340,7 @@ describe("InsightsPage", () => {
 
   it("lists the categories that moved most and the large one-offs, each leading to its rows", async () => {
     detailed();
-    renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=harcamalar" });
     const changes = await screen.findByRole("table", { name: "Kategorilerin aylık ortalaması: önceki ve son aylar" });
     const rows = within(changes).getAllByRole("row").slice(1);
     // The largest move first; a category that did not move is left out.
@@ -341,7 +358,7 @@ describe("InsightsPage", () => {
   });
 
   it("flags the movements worth a look, each leading to its row", async () => {
-    renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=harcamalar" });
     const unusual = await card("Olağan dışı hareketler");
     expect(within(unusual).getByText("Olası çift çekim")).toBeInTheDocument();
     expect(within(unusual).getByText(INSIGHTS.unusual[0]!.text)).toBeInTheDocument();
@@ -352,7 +369,7 @@ describe("InsightsPage", () => {
   });
 
   it("sums the monthly payments still running and leads to the regular payments screen", async () => {
-    renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=gelecek" });
     expect(await screen.findByText("Süren 4 aylık ödeme ayda 15.949,98 TL tutuyor.")).toBeInTheDocument();
     const regular = screen.getByRole("region", { name: "Düzenli ödemeler ve abonelikler" });
     expect(within(regular).getByRole("link", { name: "Düzenli ödemeleri aç" })).toHaveAttribute("href", "/abonelikler");
@@ -363,7 +380,7 @@ describe("InsightsPage", () => {
 
   it("lists the running monthly payments, each opening its panel, added up", async () => {
     detailed();
-    renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=gelecek" });
     const table = await screen.findByRole("table", { name: "Süren aylık ödemeler" });
     expect(within(table).getAllByRole("link").map((link) => link.textContent)).toEqual([
       "Ev kirası",
@@ -376,7 +393,7 @@ describe("InsightsPage", () => {
   });
 
   it("says the regular payments follow every filter but the period, the installments the account alone", async () => {
-    renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=gelecek" });
     expect(await screen.findByText(REGULAR_HINT)).toBeInTheDocument();
     const regular = screen.getByRole("region", { name: "Düzenli ödemeler ve abonelikler" });
     const installments = within(regular).getByRole("region", { name: "Taksitli alışverişler" });
@@ -385,7 +402,7 @@ describe("InsightsPage", () => {
 
   it("narrows the regular payments by every filter but the period, the installments by the account", async () => {
     detailed();
-    renderScreen(<InsightsPage />, { path: "/degerlendirme?account=teb-1234&from=2026-10-01&to=2026-10-31" });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?account=teb-1234&from=2026-10-01&to=2026-10-31&bolum=gelecek" });
     const table = await screen.findByRole("table", { name: "Süren aylık ödemeler" });
     expect(within(table).getAllByRole("link").map((link) => link.textContent)).toEqual(["Örnek Video", "Örnek Müzik"]);
     expect(within(table).getByRole("row", { name: /^Aylık toplam/ })).toHaveTextContent("249,98 TL");
@@ -394,14 +411,14 @@ describe("InsightsPage", () => {
   });
 
   it("drops the installments of the other accounts, whatever the other filters", async () => {
-    renderScreen(<InsightsPage />, { path: "/degerlendirme?account=teb-123456789&category=Kira" });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?account=teb-123456789&category=Kira&bolum=gelecek" });
     expect(await screen.findByText(RENT_ONLY)).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Taksitli alışverişler" })).not.toBeInTheDocument();
   });
 
   it.each(["simple", "detailed"])("says no regular payment runs under the filters in the %s view", async (view) => {
     localStorage.setItem("iplikci.view", view);
-    renderScreen(<InsightsPage />, { path: "/degerlendirme?merchant=ORNEK%20MARKET" });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?merchant=ORNEK%20MARKET&bolum=gelecek" });
     expect(await screen.findByText("Bu süzgeçlerle süren aylık ödeme yok.")).toBeInTheDocument();
   });
 
@@ -417,7 +434,7 @@ describe("InsightsPage", () => {
         "özelliğidir.",
     ],
   ])("keeps every regular payment with ?%s and says the card does not follow it", async (query, ignored) => {
-    renderScreen(<InsightsPage />, { path: `/degerlendirme?${query}` });
+    renderScreen(<InsightsPage />, { path: `/degerlendirme?${query}&bolum=gelecek` });
     expect(await screen.findByText(`${REGULAR_HINT} ${ignored}`)).toBeInTheDocument();
     expect(screen.getByText("Süren 4 aylık ödeme ayda 15.949,98 TL tutuyor.")).toBeInTheDocument();
   });
@@ -432,7 +449,7 @@ describe("InsightsPage", () => {
       ),
     );
     const user = userEvent.setup();
-    renderScreen(<InsightsPage />, { path: "/degerlendirme?group=Ev" });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?group=Ev&bolum=gelecek" });
     expect(await screen.findByText("Kurallar okunamadı.")).toBeInTheDocument();
     fail = false;
     const regular = screen.getByRole("region", { name: "Düzenli ödemeler ve abonelikler" });
@@ -446,13 +463,13 @@ describe("InsightsPage", () => {
         HttpResponse.json({ code: "internal", title: "Kurallar okunamadı." }, { status: 500 }),
       ),
     );
-    renderScreen(<InsightsPage />, { path: "/degerlendirme?necessity=optional" });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?necessity=optional&bolum=gelecek" });
     expect(await screen.findByText("Bu süzgeçlerle süren 2 aylık ödeme ayda 249,98 TL tutuyor.")).toBeInTheDocument();
     expect(screen.queryByText("Kurallar okunamadı.")).not.toBeInTheDocument();
   });
 
   it("leads to the rows the cards count, the spending's kinds written out, and downloads them as CSV", async () => {
-    renderScreen(<InsightsPage />, { path: "/degerlendirme?account=teb-1234" });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?account=teb-1234&bolum=veriler" });
     const rows = await card("İşlemler");
     expect(within(rows).getByText("Bu süzgeçlerle 60 işlem, toplam 110.700,00 TL.")).toBeInTheDocument();
     const query = "account=teb-1234&kind=purchase&kind=refund&kind=interest_fee";
@@ -467,7 +484,7 @@ describe("InsightsPage", () => {
   });
 
   it("says how many documents are kept, how many statements hold and how far the documents reach", async () => {
-    renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=veriler" });
     const sources = await card("Veri kaynakları ve kapsam");
     expect(await within(sources).findByText("4 belge kayıtlı: 3 işlendi, 1 okunamadı.")).toBeInTheDocument();
     expect(
@@ -481,7 +498,7 @@ describe("InsightsPage", () => {
   });
 
   it("draws the months each account's statements cover, and says them per account in its table", async () => {
-    renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=veriler" });
     const sources = await card("Veri kaynakları ve kapsam");
     const grid = await within(sources).findByRole("figure", { name: "Belgelerin kapsadığı aylar" });
     expect(
@@ -510,7 +527,7 @@ describe("InsightsPage", () => {
   it("says how the debts moved over the window's complete months", async () => {
     const flow = { ...INSIGHTS.flow!, debt_start: tl(1000000), debt_end: tl(1250000) };
     server.use(http.get("/api/insights", () => HttpResponse.json({ ...INSIGHTS, flow })));
-    renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=gelir-gider" });
     const debt = await card("Borç");
     expect(
       await within(debt).findByText(
@@ -524,7 +541,7 @@ describe("InsightsPage", () => {
   });
 
   it("says when the window has no card debt and no overdraft used", async () => {
-    renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=gelir-gider" });
     const debt = await card("Borç");
     expect(
       within(debt).getByText("Mayıs 2026 – Ekim 2026 arasında kart ekstre borcu ya da ek hesap kullanımı yok."),

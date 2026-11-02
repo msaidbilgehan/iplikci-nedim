@@ -32,7 +32,12 @@ describe("TransactionsPage: the list", () => {
       await screen.findByText("93 işlem; harcama 15.250,00 TL, giren 40.000,00 TL, çıkan 15.250,00 TL."),
     ).toBeInTheDocument();
     const totals = screen.getByRole("region", { name: "Toplamlar" });
-    expect(within(totals).getByText("92 tanesi toplamlarda")).toBeInTheDocument();
+    expect(totals).toHaveTextContent("Giren+40.000,00 TL");
+    expect(totals).toHaveTextContent("Çıkan−15.250,00 TL");
+    expect(totals).toHaveTextContent("Fark+24.750,00 TL"); // what is left between them, with its sign
+    expect(totals).toHaveTextContent("Harcama15.250,00 TL");
+    expect(totals).toHaveTextContent("93 işlem · 92 tanesi toplamlarda · 4 geçici (ekstre bekleniyor)");
+    expect(totals).toHaveTextContent("1 ekstrede yok (listede soluk, toplamlara girmez)");
     const rows = within(await table()).getAllByRole("row");
     expect(rows).toHaveLength(1 + TRANSACTIONS.rows.length);
     const income = within(await table()).getByRole("link", { name: INCOME.title }).closest("tr")!;

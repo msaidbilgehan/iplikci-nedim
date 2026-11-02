@@ -21,20 +21,28 @@
     "q": "Ara",
     "qHint": "Açıklama, işyeri, not ya da etiket",
     "period": "Dönem",
-    "closed": "kapalı"
+    "closed": "kapalı",
+    "more": "Süzgeçler",
+    "setCount": "{{count}} etkin"
   },
   "totals": {
     "label": "Toplamlar",
     "count": "İşlem",
     "counted": "{{count}} tanesi toplamlarda",
     "spent": "Harcama",
-    "spentNote": "alışveriş, iade, faiz ve ücretler",
+    "spentNote": "alışveriş, faiz ve ücretler; iadeler düşülür",
     "moneyOut": "Çıkan",
     "moneyIn": "Giren",
     "provisional": "Geçici",
     "provisionalNote": "ekstre bekleniyor",
     "excluded": "Ekstrede yok",
-    "excludedNote": "listede soluk, toplamlara girmez"
+    "excludedNote": "listede soluk, toplamlara girmez",
+    "moneyOutNote": "harcamalar, transferler ve kart ödemeleri",
+    "net": "Fark",
+    "netNote": "giren eksi çıkan",
+    "rows": "{{count}} işlem",
+    "provisionalWord": "geçici",
+    "excludedWord": "ekstrede yok"
   },
   "table": {
     "caption": "İşlemler, {{order}}",

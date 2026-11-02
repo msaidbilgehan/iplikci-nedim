@@ -43,7 +43,9 @@
     "last": "Son ay",
     "lastPartial": "eksik ay: belgeleri ayın tamamını kapsamıyor ya da dönem kesiyor",
     "lastUp": "önceki {{count}} tam ayın ortalamasından {{share, percent}} fazla",
-    "lastDown": "önceki {{count}} tam ayın ortalamasından {{share, percent}} az"
+    "lastDown": "önceki {{count}} tam ayın ortalamasından {{share, percent}} az",
+    "unnecessaryShareSmall": "giderlerin %1'inden azı",
+    "lastSame": "önceki {{count}} tam ayın ortalamasıyla aynı düzeyde"
   },
   "excluded": {
     "label": "Toplama dahil değil:",
@@ -84,8 +86,8 @@
     "chart": "Aylık giderler, gereklilik düzeyine göre",
     "summary": "{{from}} – {{to}}, gereklilik düzeyine göre.",
     "tiles": "Gereklilik düzeyleri",
-    "tileMeta": "{{share, percent}} · tam aylarda ayda {{amount}}",
-    "tileShare": "{{share, percent}}",
+    "tileMeta": "{{share, percentOrLess}} · tam aylarda ayda {{amount}}",
+    "tileShare": "{{share, percentOrLess}}",
     "only": "(yalnızca bu düzeyi göster)",
     "all": "(bütün düzeyleri göster)"
   },
@@ -295,5 +297,13 @@
     "next": "Hesapları göster",
     "at": "{{month}} sonunda",
     "change": "Değişim"
+  },
+  "sections": {
+    "label": "Değerlendirmenin bölümleri",
+    "summary": "Özet",
+    "spending": "Harcamalar",
+    "income": "Gelir, varlık ve borç",
+    "ahead": "Önümüzdeki aylar",
+    "data": "İşlemler ve veriler"
   }
 }

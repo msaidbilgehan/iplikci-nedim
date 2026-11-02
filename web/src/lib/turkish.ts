@@ -104,6 +104,11 @@ export function percent(share: number): string {
   return PERCENT.format(roundHalfEven(share * 100) / 100).replace("-", "−");
 }
 
+/** A share that rounds to 0 % but is not nothing says so: 0.0004 → "%1'den az"; any other share as percent() writes it. */
+export function percentOrLess(share: number): string {
+  return share > 0 && roundHalfEven(share * 100) === 0 ? "%1'den az" : percent(share);
+}
+
 /** A share with the possessive Turkish needs after it, as insights.pct: 0.64 → "%64'ü", 0.06 → "%6'sı". */
 export function percentPossessive(share: number): string {
   return `${percent(share)}${possessive(roundHalfEven(share * 100))}`;
