@@ -1,8 +1,9 @@
-// The months each account's statements and account lists cover (the MVP report's coverage grid): a row per account
-// and a cell per month, from the first month any document covers to the last, each month covered whole, in part or not
-// at all. The table view says the same in words: each account's first and last month, its whole months, the months
-// covered in part with their share, and the months between them no document covers. Receipts and bank notices cover
-// no month, so an account they alone tell is not here.
+// The months each account's statements and account lists cover (the MVP report's coverage grid): a row per account and
+// a cell per month, from the first month any document covers to the last, each cell filled as far as the month's days
+// are covered: a whole month in the ramp's blue, a month covered in part in the warning colour, which stands out in
+// either theme however little is missing. The table view says the same in words: each account's first and last month,
+// its whole months, the months covered in part with their share, and the months between them no document covers.
+// Receipts and bank notices cover no month, so an account they alone tell is not here.
 
 import { Fragment, useId } from "react";
 import { useTranslation } from "react-i18next";
@@ -17,16 +18,28 @@ import { Table, Td, Th } from "../ui/Table";
 
 const WHOLE = 0.97; // covered to within a day: whole, as the MVP report counted it
 const SMALL = "text-xs text-zinc-600 dark:text-zinc-300";
-const CELL = {
-  whole: "bg-seq-500 dark:bg-seq-400",
-  part: "bg-seq-200 dark:bg-seq-700",
-  none: "bg-chart-grid",
-} as const;
+const COVERS = ["whole", "part", "none"] as const;
 
-type Cover = keyof typeof CELL;
+type Cover = (typeof COVERS)[number];
+
+const FILL: Record<Cover, string> = { whole: "bg-seq-500 dark:bg-seq-300", part: "bg-status-warning", none: "" };
+const LEGEND: Record<Cover, number> = { whole: 1, part: 0.5, none: 0 }; // the share each legend cell shows
 
 function coverOf(share: number): Cover {
   return share >= WHOLE ? "whole" : share > 0 ? "part" : "none";
+}
+
+/** A month's cell: the grid's colour, filled from the bottom as far as its days are covered. */
+function Cell({ share, title }: { share: number; title?: string }) {
+  const cover = coverOf(share);
+  const height = cover === "whole" ? 100 : Math.round(share * 100);
+  return (
+    <span className="relative block h-4 overflow-hidden rounded-[2px] bg-chart-grid" title={title}>
+      {height > 0 ? (
+        <span className={cn("absolute inset-x-0 bottom-0", FILL[cover])} style={{ height: `${height}%` }} />
+      ) : null}
+    </span>
+  );
 }
 
 interface Span {
@@ -95,9 +108,11 @@ export function CoverageGrid({ coverage }: { coverage: Coverage }) {
   const chart = (
     <div className="flex flex-col gap-2">
       <ul aria-label={t("coverage.legend")} className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-        {(Object.keys(CELL) as Cover[]).map((cover) => (
+        {COVERS.map((cover) => (
           <li key={cover} className="flex items-center gap-1.5">
-            <span aria-hidden="true" className={cn("size-2.5 rounded-[2px]", CELL[cover])} />
+            <span aria-hidden="true" className="w-2.5">
+              <Cell share={LEGEND[cover]} />
+            </span>
             {status(cover)}
           </li>
         ))}
@@ -117,20 +132,17 @@ export function CoverageGrid({ coverage }: { coverage: Coverage }) {
         </div>
         {accounts.map((account) => (
           <Fragment key={account.account.id}>
-            <ScreenLink link={account.link} className="max-w-48 truncate">
+            <ScreenLink link={account.link} className="max-w-64 truncate">
               {name(account)}
             </ScreenLink>
             <div aria-hidden="true" className="grid gap-px" style={columns}>
               {account.shares.map((share, i) => {
                 const month = months[i] ?? "";
-                const cover = coverOf(Number(share));
-                return (
-                  <span
-                    key={month}
-                    className={cn("h-4 rounded-[2px]", CELL[cover])}
-                    title={`${account.account.label} · ${formatMonth(month)}: ${status(cover)}`}
-                  />
-                );
+                const value = Number(share);
+                const cover = coverOf(value);
+                const said = cover === "part" ? `${status(cover)} (${percent(value)})` : status(cover);
+                const title = `${account.account.label} · ${formatMonth(month)}: ${said}`;
+                return <Cell key={month} share={value} title={title} />;
               })}
             </div>
           </Fragment>
