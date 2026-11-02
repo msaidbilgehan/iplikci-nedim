@@ -5,16 +5,14 @@ line), so writes take the workspace's lock and the database serializes them agai
 """
 
 import os
-import sys
 import time
 from collections.abc import Generator
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO
 
 from ..parsers.common import set_business_names
-from ..settings import config
+from ..settings import config, locks
 from ..settings.paths import Layout
 from ..storage import db
 from ..vault.store import Vault
@@ -31,49 +29,20 @@ class StalePlan(Exception):
     """Something the plan covers changed after it was shown: show a fresh plan instead of applying."""
 
 
-if sys.platform == "win32":
-    import msvcrt
-
-    def _try_lock(f: IO[str]) -> bool:
-        f.seek(0)  # Windows locks bytes from the file position: always the first one
-        try:
-            msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
-        except OSError:  # held by another process
-            return False
-        return True
-
-    def _unlock(f: IO[str]) -> None:
-        f.seek(0)
-        msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
-
-else:
-    import fcntl
-
-    def _try_lock(f: IO[str]) -> bool:
-        try:
-            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            return False
-        return True
-
-    def _unlock(f: IO[str]) -> None:
-        fcntl.flock(f, fcntl.LOCK_UN)
-
-
 @contextmanager
 def file_lock(folder: Path, name: str = _LOCK_NAME, timeout: float = 120.0, busy: str = BUSY) -> Generator[None]:
     """One holder at a time across processes; another name is another lock (the e-mail fetch has its own)."""
     folder.mkdir(parents=True, exist_ok=True)
     with os.fdopen(os.open(folder / name, os.O_RDWR | os.O_CREAT, 0o600), "r+") as f:
         deadline = time.monotonic() + timeout
-        while not _try_lock(f):
+        while not locks.try_lock(f):
             if time.monotonic() > deadline:
                 raise Busy(busy)
             time.sleep(0.2)
         try:
             yield
         finally:
-            _unlock(f)
+            locks.unlock(f)
 
 
 @dataclass(frozen=True)

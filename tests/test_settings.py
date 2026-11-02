@@ -3,13 +3,15 @@ folder or the system keyring: the keyring is a fake module and every folder is a
 
 import stat
 import sys
+import threading
+import time
 import types
 from datetime import date
 from pathlib import Path
 
 import pytest
 
-from iplikci.settings import config, secrets
+from iplikci.settings import config, locks, secrets
 from iplikci.settings.paths import HOME_ENV, Layout, data_dir
 
 # --- the data folder ----------------------------------------------------------------------------------
@@ -131,6 +133,53 @@ def test_every_section_is_read(tmp_path):
 def test_a_wrong_setting_is_an_error_that_names_it(tmp_path, text, message):
     with pytest.raises(config.SettingsError, match=message):
         settings_from(text, tmp_path)
+
+
+CHANGES = [
+    ("identity", {"business_names": ("Örnek Teknoloji A.Ş.",)}),
+    ("backup", {"keep_days": 30}),
+    ("mail", {"start_day": date(2026, 1, 1)}),
+    ("privacy", {"mcp_masking": "accounts"}),
+]
+
+
+def _all_at_once(path: Path) -> list[Exception]:
+    """Every change of CHANGES made at the same moment, each from a thread of its own; the ones that failed."""
+    start = threading.Barrier(len(CHANGES))
+    failed: list[Exception] = []
+
+    def change(section: str, values: dict[str, object]) -> None:
+        start.wait()
+        try:
+            config.update(path, section, values)
+        except (OSError, config.SettingsError, locks.LockTimeout) as exc:
+            failed.append(exc)
+
+    threads = [threading.Thread(target=change, args=c) for c in CHANGES]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    return failed
+
+
+def test_changes_made_at_the_same_moment_are_all_kept_and_the_file_stays_whole(tmp_path, monkeypatch):
+    path = tmp_path / "settings.toml"
+    parse = config.tomlkit.parse
+
+    def slow(text: str):  # a wider window between reading the file and writing it back
+        time.sleep(0.005)
+        return parse(text)
+
+    monkeypatch.setattr(config.tomlkit, "parse", slow)
+    for _ in range(10):
+        path.write_text("# kendi notum\n", encoding="utf-8")
+        assert _all_at_once(path) == []
+        saved = config.load(path)
+        assert (saved.identity.business_names, saved.backup.keep_days) == (("Örnek Teknoloji A.Ş.",), 30)
+        assert (saved.mail.start_day, saved.privacy.mcp_masking) == (date(2026, 1, 1), "accounts")
+        assert path.read_text(encoding="utf-8").startswith("# kendi notum")
+    assert sorted(p.name for p in tmp_path.iterdir()) == [".settings.toml.kilit", "settings.toml"]
 
 
 # --- secrets ------------------------------------------------------------------------------------------

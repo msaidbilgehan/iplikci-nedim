@@ -7,6 +7,7 @@ the user (0700) and so are its files (0600).
 
 import os
 import sys
+import tempfile
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -141,6 +142,21 @@ def write_private(path: Path, text: str) -> None:
         os.fchmod(fd, FILE_MODE)
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         f.write(text)
+
+
+def replace_private(path: Path, text: str) -> None:
+    """Put text in place of the file at path at once (0600): written beside it under a name of its own, then moved
+    over it, so a reader sees the old file or the new one, never half of one."""
+    fd, name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".yeni")
+    try:
+        if hasattr(os, "fchmod"):
+            os.fchmod(fd, FILE_MODE)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(text)
+        os.replace(name, path)
+    except BaseException:
+        Path(name).unlink(missing_ok=True)
+        raise
 
 
 def _private(folder: Path) -> None:
