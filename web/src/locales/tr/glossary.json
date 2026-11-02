@@ -1,0 +1,54 @@
+{
+  "kmh": {
+    "term": "KMH",
+    "text": "Kredili mevduat hesabı, yani ek hesap: bankanın vadesiz hesabınıza tanıdığı borç limiti. Bakiye sıfırın altına inince bu limitten kullanılır ve kullanılan tutara gün gün faiz işler."
+  },
+  "minimumPayment": {
+    "term": "asgari ödeme",
+    "text": "Kredi kartı ekstresinde son ödeme tarihine kadar en az ödenmesi gereken tutar. Yalnızca asgariyi ödemek gecikmeyi önler, ama kalan borca faiz işler."
+  },
+  "statementDate": {
+    "term": "kesim tarihi",
+    "text": "Kredi kartı döneminin kapandığı gün. O güne kadarki harcamalar ekstreye girer; sonrakiler bir sonraki ekstreye kalır."
+  },
+  "dueDate": {
+    "term": "son ödeme tarihi",
+    "text": "Ekstre borcunun ya da en azından asgari ödemenin ödenmesi gereken son gün. Bu günden sonra gecikme faizi işler."
+  },
+  "statement": {
+    "term": "ekstre",
+    "text": "Bankanın bir dönem için gönderdiği hesap özeti: kartta dönemin harcamaları ve borcu, hesapta dönemin hareketleri ve bakiyesi. Kayıtların kesin kaynağıdır."
+  },
+  "receipt": {
+    "term": "dekont",
+    "text": "Bankanın tek bir işlem için verdiği belge: havale, EFT ya da fatura ödemesi gibi. Ekstre gelene dek işlemi geçici olarak gösterir."
+  },
+  "bankNotice": {
+    "term": "banka bildirimi",
+    "text": "Bankanın bir hareket için gönderdiği e-posta: kart harcaması, gelen ya da giden transfer gibi. Dekont gibi kanıttır; ekstre gelince onunla eşleştirilir."
+  },
+  "provisional": {
+    "term": "geçici",
+    "text": "Ekstre bekleniyor: bu işlem bir dekonttan ya da banka bildiriminden geldi ve hesabın ekstresi o günlere henüz ulaşmadı. Toplamlara girer; ekstre gelince onunla eşleşip kesinleşir."
+  },
+  "notOnStatement": {
+    "term": "ekstrede yok",
+    "text": "Ekstre bu günleri kapsıyor ama bu işlemi göstermiyor. Toplamlara girmez; bir göz atmaya değer."
+  },
+  "infoOnly": {
+    "term": "yalnızca bilgi",
+    "text": "Banka dışı bir faturanın ya da makbuzun, hiçbir banka satırıyla eşleşmeyen tutarı. Bilgi için görünür, hiçbir toplama girmez."
+  },
+  "fxSpread": {
+    "term": "kur makası",
+    "text": "Bankanın döviz alıp satarken uyguladığı kurla aynı günün resmî kuru (TCMB) arasındaki fark. Döviz alırken ya da bozdururken bu farkı siz ödersiniz."
+  },
+  "completeMonth": {
+    "term": "tam ay",
+    "text": "Bütün hesapların belgelerinin baştan sona kapsadığı ay. Kart ekstreleri kesim tarihinde bittiği için en yeni ay çoğunlukla eksiktir; ortalamalar, eğilimler ve tahminler yalnızca tam aylardan hesaplanır."
+  },
+  "typicalMonth": {
+    "term": "tipik ay",
+    "text": "Son tam ayların orta (medyan) değeri: tek seferlik büyük harcamalar onu şişirmez. Bu ay onunla karşılaştırılır."
+  }
+}
