@@ -2,7 +2,6 @@
 as needed, a login link for the browser, and every problem said in the system's own window. The service manager, the
 health check and the windows are stand-ins; nothing reaches launchd, the network or the screen."""
 
-from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -15,10 +14,11 @@ APP = Path("/Applications/İplikçi Nedim.app/Contents/Resources/python/bin/pyth
 
 
 class FakeService:
-    """A service manager that remembers what it was asked to do."""
+    """A service manager that remembers what it was asked to do, and the service that holds the data folder."""
 
-    def __init__(self, registered: manager.Program | None = None) -> None:
+    def __init__(self, registered: manager.Program | None = None, running: instance.Holder | None = None) -> None:
         self.program = registered
+        self.running = running
         self.calls: list[str] = []
 
     def registered(self) -> manager.Program | None:
@@ -27,9 +27,18 @@ class FakeService:
     def install(self, program: manager.Program) -> None:
         self.calls.append("install")
         self.program = program
+        self._start()
 
     def restart(self) -> None:
         self.calls.append("restart")
+        self._start()
+
+    def _start(self) -> None:
+        pid = (self.running.pid if self.running else 4000) + 1
+        self.running = instance.Holder(pid, 8643, "2026-11-02T09:00:00+00:00", __version__)
+
+    def serving(self, run: Path) -> instance.Holder | None:
+        return self.running
 
 
 @pytest.fixture
@@ -41,7 +50,14 @@ def installed(monkeypatch):
 
 def opened(ws, service, **options):
     return launcher.open_app(
-        ws, service, "darwin", APP, healthy=lambda port: True, login=lambda ws: "http://127.0.0.1/giris", **options
+        ws,
+        service,
+        "darwin",
+        APP,
+        healthy=lambda port: True,
+        serving=service.serving,
+        login=lambda ws: "http://127.0.0.1/giris",
+        **options,
     )
 
 
@@ -49,8 +65,8 @@ def this_copy(ws) -> manager.Program:
     return manager.Program(APP, ws.home.resolve())
 
 
-def holding(ws, version: str = __version__):
-    return instance.held(ws.run, instance.Holder(4321, ws.port, datetime.now(UTC).isoformat(), version))
+def running(version: str = __version__) -> instance.Holder:
+    return instance.Holder(4321, 8643, "2026-11-01T08:00:00+00:00", version)
 
 
 @pytest.mark.parametrize(
@@ -75,18 +91,54 @@ def test_the_first_opening_registers_the_service_for_this_copy_and_gives_a_login
 
 
 def test_a_running_service_of_this_copy_and_version_is_left_alone(ws, installed):
-    service = FakeService(this_copy(ws))
-    with holding(ws):
-        found = opened(ws, service)
+    service = FakeService(this_copy(ws), running())
+    found = opened(ws, service)
     assert (found.registered, found.restarted, service.calls) == (False, False, [])
 
 
 def test_a_stopped_service_is_started_and_an_older_version_restarted(ws, installed):
     service = FakeService(this_copy(ws))
     assert opened(ws, service).restarted and service.calls == ["restart"]  # not running
-    with holding(ws, version="0.0.1"):
-        assert opened(ws, service).restarted  # the update replaced the program under it
+    service.running = running(version="0.0.1")
+    assert opened(ws, service).restarted  # the update replaced the program under it
     assert service.calls == ["restart", "restart"]
+
+
+def test_a_restart_waits_for_the_new_service_before_it_asks_for_a_login_link(ws, installed):
+    older = running(version="0.0.1")
+    service = FakeService(this_copy(ws), older)
+    # The older service still holds the folder as it ends, then none does, then the new one before it says who it is.
+    seen: list[instance.Holder | None] = [older, older, None, instance.UNKNOWN]
+    links: list[int] = []
+
+    def login(ws) -> str:
+        links.append(len(seen))
+        return "http://127.0.0.1/giris"
+
+    found = launcher.open_app(
+        ws,
+        service,
+        "darwin",
+        APP,
+        healthy=lambda port: True,  # the older one answers too, for a moment
+        serving=lambda run: seen.pop(0) if seen else service.running,
+        login=login,
+        sleep=lambda seconds: None,
+    )
+    assert found.restarted and links == [0]  # asked of the new service only
+
+
+def test_the_pythons_of_older_versions_an_appimage_left_go_once_this_one_answers(ws, tmp_path, monkeypatch):
+    folder = tmp_path / "share" / "iplikci" / "app"
+    for version in ("0.6.0", "0.7.0", "0.6.0.yeni", "0.7.0.yeni"):
+        (folder / version / "bin").mkdir(parents=True)
+    python = folder / "0.7.0" / "bin" / "python3"
+    monkeypatch.setattr(manager, "development_folder", lambda module=None: None)
+    monkeypatch.setattr(manager.sys, "executable", str(python))
+    assert launcher.older_copies(python, "darwin") == [] and launcher.older_copies(APP, "linux") == []
+    service = FakeService()
+    launcher.open_app(ws, service, "linux", python, healthy=lambda port: True, serving=service.serving, login=str)
+    assert sorted(p.name for p in folder.iterdir()) == ["0.7.0", "0.7.0.yeni"]  # this one, and a copy AppRun makes
 
 
 def test_a_service_registered_from_another_copy_or_folder_is_registered_again_from_this_one(ws, installed, tmp_path):
@@ -97,12 +149,14 @@ def test_a_service_registered_from_another_copy_or_folder_is_registered_again_fr
 
 def test_a_service_that_never_answers_is_said_with_where_its_log_is(ws, installed):
     with pytest.raises(launcher.LaunchError, match="yanıt vermedi") as found:
+        service = FakeService()
         launcher.open_app(
             ws,
-            FakeService(),
+            service,
             "darwin",
             APP,
             healthy=lambda port: False,
+            serving=service.serving,
             login=lambda ws: "",
             wait=0.0,
             sleep=lambda s: None,
