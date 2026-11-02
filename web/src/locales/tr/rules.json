@@ -75,7 +75,7 @@
     "title": "Biten ödemeler",
     "say": "Bittiğini yazdığınız {{count, number}} ödeme var; bu işyerlerine sonrasında ödeme beklenmez.",
     "sayNone": "Bittiğini yazdığınız bir ödeme yok. İptal ettiğiniz bir abonelik varsa aşağıya yazın: sonrasında ondan ödeme beklenmez.",
-    "next": "Abonelikleri göster",
+    "next": "Düzenli ödemeleri göster",
     "empty": "Bittiğini yazdığınız bir ödeme yok.",
     "caption": "Biten ödemeler ve son ödeme ayları",
     "merchant": "İşyeri",

@@ -91,7 +91,7 @@
   },
   "habits": {
     "title": "Alışkanlıklar ve tasarruf fırsatları",
-    "hint": "{{count}} tam ay ({{from}} – {{to}}). Her ay ya da yeni başlayan alışkanlıklar son 3 ayın ortalamasıyla, ara sıra olanlar dönem boyunca yayılarak aylığa çevrilir; tek seferlik alışverişler ve durmuş alışkanlıklar bundan sonraki aylara yansıtılmaz. Faiz ve ücretler kategoriye, isteğe bağlı harcamalar işyerine göre toplanır; düzenli ödemeler Abonelikler ekranındadır. Süzgeçlerden bağımsızdır.",
+    "hint": "{{count}} tam ay ({{from}} – {{to}}). Her ay ya da yeni başlayan alışkanlıklar son 3 ayın ortalamasıyla, ara sıra olanlar dönem boyunca yayılarak aylığa çevrilir; tek seferlik alışverişler ve durmuş alışkanlıklar bundan sonraki aylara yansıtılmaz. Faiz ve ücretler kategoriye, isteğe bağlı harcamalar işyerine göre toplanır; düzenli ödemeler kendi ekranındadır. Süzgeçlerden bağımsızdır.",
     "caption": "Alışkanlıklar ve bundan sonra aylık maliyetleri",
     "item": "Kalem",
     "status": "Durum",
@@ -226,7 +226,7 @@
     "sayFiltered": "Bu süzgeçlerle süren {{count}} aylık ödeme ayda {{total}} tutuyor.",
     "sayNone": "Süren aylık ödeme yok.",
     "sayNoneFiltered": "Bu süzgeçlerle süren aylık ödeme yok.",
-    "next": "Abonelikleri aç",
+    "next": "Düzenli ödemeleri aç",
     "caption": "Süren aylık ödemeler",
     "payee": "Ödeme",
     "monthly": "Aylık",

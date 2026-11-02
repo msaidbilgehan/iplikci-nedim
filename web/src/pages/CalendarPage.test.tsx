@@ -42,7 +42,7 @@ describe("CalendarPage", () => {
           "40.000,00 TL. İlki 25.11.2026'da: Örnek Kart •1234.",
       ),
     ).toBeInTheDocument();
-    expect(within(agenda).getByRole("link", { name: /Abonelikleri aç/ })).toHaveAttribute("href", "/abonelikler");
+    expect(within(agenda).getByRole("link", { name: /Düzenli ödemeleri aç/ })).toHaveAttribute("href", "/abonelikler");
   });
 
   it("says what each item rests on in the detailed view", async () => {

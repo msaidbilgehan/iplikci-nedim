@@ -22,6 +22,11 @@
   color-scheme: dark;
 }
 
+/* The header stays at the top of the window: whatever the keyboard or a link brings into view stops below it. */
+html {
+  scroll-padding-top: 4.5rem;
+}
+
 /* The charts' palette, ported from the MVP report (rapor.css): a validated categorical palette whose light and dark
    values are each chosen, not flipped (features.md, the charts' rules). Slots 1-8 belong to the first eight groups in
    the rule file's order and keep them whatever the filters; slot 0 ("Diğer") is the neutral grey. The necessity levels

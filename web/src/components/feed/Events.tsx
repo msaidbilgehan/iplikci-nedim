@@ -8,9 +8,11 @@ import { useSearchParams } from "react-router";
 
 import { choosesNothing, type FeedFilter, useFeed } from "../../api/queries";
 import type { FeedItem, Labels } from "../../api/types";
+import { cn } from "../../lib/cn";
 import { formatWeekday, localDay } from "../../lib/format";
 import { selectionOf, sentOf, withSelection } from "../../lib/selection";
 import { certaintyOptions, kindOptions, sentKinds } from "../filters";
+import { useView } from "../Preferences";
 import { Empty, Failure, Loading } from "../QueryState";
 import { Button } from "../ui/Button";
 import {
@@ -95,7 +97,7 @@ export function EventsSection({ labels, accounts }: EventsProps) {
 
   return (
     <section aria-labelledby={heading} className="flex flex-col gap-3">
-      <h2 id={heading} className="text-lg font-semibold">
+      <h2 id={heading} className="sr-only">
         {t("events.title")}
       </h2>
       <Say next={{ link: NOTIFICATIONS, label: t("events.next") }}>{t("events.say")}</Say>
@@ -154,18 +156,38 @@ function useArrivals(filterKey: string, newest: number | null): number {
   return seen?.key === filterKey ? seen.upTo : Number.POSITIVE_INFINITY;
 }
 
+// What reading a document came to: once one of these is in the list, its "arrived" says nothing more.
+const READ_KINDS: ReadonlySet<string> = new Set(["document.processed", "document.unprocessed", "document.unreadable"]);
+
+/** The simple view's list: a document's arrival left out when the list also says how its reading went. */
+export function foldArrivals(items: readonly FeedItem[]): FeedItem[] {
+  const read = new Set(
+    items.filter((item) => READ_KINDS.has(item.kind) && item.document).map((item) => item.document?.sha256),
+  );
+  return items.filter(
+    (item) => !(item.kind === "document.received" && item.document && read.has(item.document.sha256)),
+  );
+}
+
 function EventDays({ items, labels, arrived }: { items: FeedItem[]; labels: Labels; arrived: number }) {
   const { t } = useTranslation("feed");
+  const { view } = useView();
   const today = localDay(new Date().toISOString());
   const yesterday = localDay(new Date(Date.now() - 86_400_000).toISOString());
   const heading = (day: string) =>
     day === today ? t("events.today") : day === yesterday ? t("events.yesterday") : formatWeekday(day);
+  const shown = view === "simple" ? foldArrivals(items) : items;
   return (
     <ol className="flex flex-col gap-5">
-      {byDay(items).map(([day, list]) => (
+      {byDay(shown).map(([day, list]) => (
         <li key={day}>
           <h3 className="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-200">{heading(day)}</h3>
-          <ol className="flex flex-col gap-2">
+          <ol
+            className={cn(
+              "divide-y divide-zinc-100 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm",
+              "dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900",
+            )}
+          >
             {list.map((item) => (
               <li key={item.id}>
                 <EventCard item={item} labels={labels} isNew={item.id > arrived} />

@@ -1,5 +1,5 @@
 {
-  "title": "Abonelikler",
+  "title": "Düzenli ödemeler",
   "description": "Her ay ya da her dönem ödedikleriniz, düzenli gelirleriniz ve kalan taksitleriniz.",
   "asOf": "Durumlar {{day}} tarihli en yeni ekstreye göre.",
   "window": "Liste {{from}} – {{to}} arasındaki {{count}}",

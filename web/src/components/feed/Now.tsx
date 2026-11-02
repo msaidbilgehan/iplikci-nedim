@@ -27,7 +27,7 @@ export function NowSection({ now, labels }: { now: UseQueryResult<Now>; labels: 
   const heading = useId();
   return (
     <section aria-labelledby={heading} className="flex flex-col gap-3">
-      <h2 id={heading} className="text-lg font-semibold">
+      <h2 id={heading} className="sr-only">
         {t("now.title")}
       </h2>
       {now.isPending ? <Loading /> : null}

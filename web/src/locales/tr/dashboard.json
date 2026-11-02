@@ -76,5 +76,22 @@
     "title": "Yapılacaklar",
     "next": "Yapılacakları göster",
     "total": "{{count}} iş bekliyor"
+  },
+  "highlights": {
+    "label": "Özet",
+    "worth": "Net varlık",
+    "worthParts": "Varlık {{assets}} · Borç {{debts}}",
+    "leftOut": "{{count}} hesap toplama girmedi",
+    "provisional": "Bir kısmı geçici kayıtlardan",
+    "month": "Bu ay harcanan",
+    "typical": "{{month}} · tipik ay {{amount}}",
+    "noTypical": "{{month}} · karşılaştırmak için en az 3 tam ay gerekiyor.",
+    "due": "7 gün içinde ödenecek",
+    "dueNone": "Ödeme yok",
+    "dueFirst": "{{count}} ödeme; ilki {{day}}: {{title}}",
+    "dueUntil": "{{end}} tarihine kadar beklenen ödeme yok.",
+    "todo": "Yapılacaklar",
+    "todoNone": "Hepsi tamam",
+    "todoText": "Bakılacak bir şey yok."
   }
 }

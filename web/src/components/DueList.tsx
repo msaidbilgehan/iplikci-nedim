@@ -5,8 +5,9 @@
 import { useTranslation } from "react-i18next";
 
 import type { CalendarItem, Labels } from "../api/types";
-import { addDays, formatDay, formatFlow, formatMoney, formatWeekday } from "../lib/format";
+import { addDays, formatDay, formatMoney, formatWeekday } from "../lib/format";
 import { labelOf } from "../lib/labels";
+import { Flow } from "./ui/Money";
 import { Table, Td, Th } from "./ui/Table";
 
 const SMALL = "text-xs text-zinc-600 dark:text-zinc-300";
@@ -54,9 +55,7 @@ export function DueList({ items, today, labels }: DueListProps) {
                   <p className={SMALL}>{item.basis}</p>
                 </div>
                 <div className="text-right">
-                  <span className="whitespace-nowrap font-medium tabular-nums">
-                    {formatFlow(item.amount, item.direction)}
-                  </span>
+                  <Flow value={item.amount} direction={item.direction} className="font-medium" />
                   {item.minimum ? (
                     <p className={SMALL}>{t("due.minimum", { amount: formatMoney(item.minimum) })}</p>
                   ) : null}
@@ -100,7 +99,7 @@ export function DueTable({ items, caption, labels }: DueTableProps) {
             <Td>{labelOf(labels, "PaymentKind", item.kind)}</Td>
             <Td>{item.account.label}</Td>
             <Td className="text-right tabular-nums">
-              <span className="whitespace-nowrap">{formatFlow(item.amount, item.direction)}</span>
+              <Flow value={item.amount} direction={item.direction} />
               {item.minimum ? (
                 <span className={`block ${SMALL}`}>{t("due.minimum", { amount: formatMoney(item.minimum) })}</span>
               ) : null}

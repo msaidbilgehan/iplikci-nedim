@@ -20,10 +20,12 @@ afterEach(() => {
 });
 
 const section = (name: string) => screen.findByRole("region", { name });
+const NOW_TAB = "/akis?bolum=su-an";
+const AHEAD_TAB = "/akis?bolum=yaklasanlar";
 
 describe("FeedPage: what stands now", () => {
   it("shows each account's balance with what it rests on, a foreign one in TL too, and those without one", async () => {
-    renderScreen(<FeedPage />);
+    renderScreen(<FeedPage />, { path: NOW_TAB });
     const balances = await section("Bakiyeler");
     expect(
       within(balances).getByText("2 hesabın bakiyesi belgelerden biliniyor; 1 hesabınki hiçbir belgede yazmıyor."),
@@ -44,7 +46,7 @@ describe("FeedPage: what stands now", () => {
   });
 
   it("shows each card's period and what its statement still asks, the next due date first", async () => {
-    renderScreen(<FeedPage />);
+    renderScreen(<FeedPage />, { path: NOW_TAB });
     const cards = await section("Kartlar");
     expect(
       within(cards).getByText(
@@ -60,7 +62,7 @@ describe("FeedPage: what stands now", () => {
   });
 
   it("puts the month so far beside the typical month's same days, with what they rest on", async () => {
-    renderScreen(<FeedPage />);
+    renderScreen(<FeedPage />, { path: NOW_TAB });
     const pace = await section("Ay içi tempo");
     expect(
       within(pace).getByText(
@@ -80,7 +82,7 @@ describe("FeedPage: what stands now", () => {
         HttpResponse.json({ ...NOW, pace: { ...NOW.pace, typical: null, by_day: null, months: [] } }),
       ),
     );
-    renderScreen(<FeedPage />);
+    renderScreen(<FeedPage />, { path: NOW_TAB });
     const pace = await section("Ay içi tempo");
     expect(
       within(pace).getByText(
@@ -91,7 +93,7 @@ describe("FeedPage: what stands now", () => {
 
   it("shows the balances as a table in the detailed view", async () => {
     localStorage.setItem("iplikci.view", "detailed");
-    renderScreen(<FeedPage />);
+    renderScreen(<FeedPage />, { path: NOW_TAB });
     const balances = await section("Bakiyeler");
     const table = within(balances).getByRole("table", { name: "Hesapların belgelerden bilinen bakiyeleri" });
     const euros = within(table).getByText("Örnek Döviz EUR").closest("tr")!;
@@ -104,8 +106,10 @@ describe("FeedPage: what stands now", () => {
     server.use(
       http.get("/api/feed/now", () => HttpResponse.json({ ...NOW, balances: [], unknown: [], cards: [], upcoming: [] })),
     );
-    renderScreen(<FeedPage />);
+    const user = userEvent.setup();
+    renderScreen(<FeedPage />, { path: NOW_TAB });
     expect(await screen.findByText("Henüz bakiyesi, kartı ya da harcaması bilinen bir hesap yok")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Yaklaşanlar" }));
     expect(await screen.findByText("Önümüzdeki 14 günde beklenen ödeme ya da gelir yok.")).toBeInTheDocument();
   });
 
@@ -115,7 +119,7 @@ describe("FeedPage: what stands now", () => {
         HttpResponse.json({ code: "busy", title: "Belgeler şu an okunuyor." }, { status: 503 }),
       ),
     );
-    renderScreen(<FeedPage />);
+    renderScreen(<FeedPage />, { path: NOW_TAB });
     const now = await section("Şu an");
     expect(await within(now).findByText("Belgeler şu an okunuyor.")).toBeInTheDocument();
     expect(within(now).getByRole("button", { name: "Yeniden dene" })).toBeInTheDocument();
@@ -124,7 +128,7 @@ describe("FeedPage: what stands now", () => {
 
 describe("FeedPage: the days ahead", () => {
   it("lists the next 14 days by day as estimates, and says how many payments and income come", async () => {
-    renderScreen(<FeedPage />);
+    renderScreen(<FeedPage />, { path: AHEAD_TAB });
     const ahead = await section("Yaklaşanlar");
     expect(
       await within(ahead).findByText("Önümüzdeki 14 günde 2 ödeme ve 1 gelir bekleniyor; ilki bugün: Örnek Müzik."),
@@ -138,6 +142,48 @@ describe("FeedPage: the days ahead", () => {
     expect(within(salary).getByText("Düzenli gelir · Örnek Vadesiz TL")).toBeInTheDocument();
     const card = within(ahead).getByText("Örnek Kart •1234").closest("li")!;
     expect(within(card).getByText("asgari 1.800,00 TL")).toBeInTheDocument();
+  });
+});
+
+describe("FeedPage: its parts", () => {
+  it("opens on the events, with what stands now and the days ahead one tab away", async () => {
+    const user = userEvent.setup();
+    const { location } = renderScreen(<FeedPage />, { path: "/akis" });
+    const parts = screen.getByRole("tablist", { name: "Akışın bölümleri" });
+    expect(within(parts).getByRole("tab", { name: "Olaylar" })).toHaveAttribute("aria-selected", "true");
+    expect(await within(parts).findByRole("tab", { name: "Yaklaşanlar 3" })).toBeInTheDocument();
+    expect(await section("Olaylar")).toBeInTheDocument();
+    await user.click(within(parts).getByRole("tab", { name: "Şu an" }));
+    expect(location()).toBe("/akis?bolum=su-an");
+    expect(await section("Bakiyeler")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Olaylar" })).not.toBeInTheDocument();
+  });
+
+  it("folds a document's arrival into how its reading went in the simple view, and shows both when detailed", async () => {
+    const doc = { sha256: "d".repeat(64), name: "Örnek Ekstre.pdf", kind: null, status: "processed" as const };
+    const items = [
+      feedItem({ id: 41, kind: "document.processed", label: "Belge okundu", text: "Bir belge okundu.", document: doc }),
+      feedItem({ id: 40, kind: "document.received", label: "Belge geldi", text: "Yeni bir belge geldi.", document: doc }),
+    ];
+    server.use(http.get("/api/feed", () => HttpResponse.json({ items, next: null })));
+    renderScreen(<FeedPage />);
+    const read = await screen.findByRole("article", { name: "Belge okundu" });
+    expect(within(read).getByText("Örnek Ekstre.pdf")).toBeInTheDocument();
+    expect(within(read).queryByText("Bir belge okundu.")).not.toBeInTheDocument(); // its name says it
+    expect(screen.queryByRole("article", { name: "Belge geldi" })).not.toBeInTheDocument();
+  });
+
+  it("keeps every event of a document in the detailed view", async () => {
+    localStorage.setItem("iplikci.view", "detailed");
+    const doc = { sha256: "d".repeat(64), name: "Örnek Ekstre.pdf", kind: null, status: "processed" as const };
+    const items = [
+      feedItem({ id: 41, kind: "document.processed", label: "Belge okundu", text: "Bir belge okundu.", document: doc }),
+      feedItem({ id: 40, kind: "document.received", label: "Belge geldi", text: "Yeni bir belge geldi.", document: doc }),
+    ];
+    server.use(http.get("/api/feed", () => HttpResponse.json({ items, next: null })));
+    renderScreen(<FeedPage />);
+    expect(await screen.findByRole("article", { name: "Belge geldi" })).toBeInTheDocument();
+    expect(within(screen.getByRole("article", { name: "Belge okundu" })).getByText("Bir belge okundu.")).toBeInTheDocument();
   });
 });
 

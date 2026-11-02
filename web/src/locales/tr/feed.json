@@ -1,6 +1,6 @@
 {
   "title": "Akış",
-  "description": "Belgeler ve e-postalar geldikçe olanlar, en yenisi üstte; şu an nerede durduğunuz ve önümüzdeki 14 gün.",
+  "description": "Belgeler ve e-postalar geldikçe olanlar, en yenisi üstte; şu an nerede durduğunuz ve önümüzdeki 14 gün kendi sekmelerinde.",
   "now": {
     "title": "Şu an",
     "balances": {
@@ -118,5 +118,6 @@
       "stage": "Aşama",
       "unverified": "Doğrulanmayan hesaplar"
     }
-  }
+  },
+  "sections": "Akışın bölümleri"
 }

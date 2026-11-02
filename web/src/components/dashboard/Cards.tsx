@@ -27,7 +27,7 @@ export function MonthCard({ month }: { month: Dashboard["month"] }) {
 export function DueCard({ due, today, labels }: { due: Dashboard["due"]; today: string; labels: Labels }) {
   const { t } = useTranslation("dashboard");
   return (
-    <DashboardCard title={t("due.title")} say={due.say} next={{ link: due.link, label: t("due.next") }}>
+    <DashboardCard title={t("due.title")} say={due.say} next={{ link: due.link, label: t("due.next") }} quiet>
       {due.items.length > 0 ? (
         <>
           <p className={`mb-2 ${SMALL}`}>{t("due.until", { end: formatDay(due.end) })}</p>
@@ -40,9 +40,7 @@ export function DueCard({ due, today, labels }: { due: Dashboard["due"]; today: 
           <p className="mt-2 text-sm font-medium">{t("due.total", { amount: formatMoney(due.total) })}</p>
         </>
       ) : (
-        <Detailed>
-          <p className="text-sm">{due.say}</p>
-        </Detailed>
+        <p className="text-sm">{due.say}</p>
       )}
     </DashboardCard>
   );

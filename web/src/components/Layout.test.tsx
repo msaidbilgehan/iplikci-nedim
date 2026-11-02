@@ -83,8 +83,8 @@ describe("Layout", () => {
     renderScreen(<Layout />, { path: "/takvim" });
     const current = within(menu()).getByRole("link", { name: "Takvim" });
     expect(current).toHaveAttribute("aria-current", "page");
-    expect(current.className).toContain("border-teal-700");
-    expect(within(menu()).getByRole("link", { name: "Abonelikler" })).not.toHaveAttribute("aria-current");
+    expect(current.className).toContain("before:bg-teal-700");
+    expect(within(menu()).getByRole("link", { name: "Düzenli ödemeler" })).not.toHaveAttribute("aria-current");
   });
 
   it("lets the keyboard skip the menu to the screen's content", () => {
@@ -115,9 +115,16 @@ describe("Layout", () => {
     expect(button).toHaveFocus();
   });
 
-  it("switches the theme from the header and remembers it", async () => {
+  it("leads from the header's bell to the notification box, saying how many are not seen yet", async () => {
+    renderScreen(<Layout />);
+    const bell = await screen.findByRole("link", { name: "Bildirim kutusu (2 okunmamış)" });
+    expect(bell).toHaveAttribute("href", "/bildirimler");
+  });
+
+  it("switches the theme from the header's display panel and remembers it", async () => {
     stubSystemScheme(false);
     renderScreen(<Layout />);
+    await userEvent.click(screen.getByRole("button", { name: "Görünüm: Sade" }));
     const theme = screen.getByRole("group", { name: "Tema" });
     expect(within(theme).getByRole("radio", { name: "Sistem" })).toBeChecked();
     expect(html).toHaveClass("light");
@@ -132,13 +139,15 @@ describe("Layout", () => {
     expect(html).toHaveClass("light");
   });
 
-  it("switches between the simple and the detailed view from the header", async () => {
+  it("switches between the simple and the detailed view from the header, naming the view on its button", async () => {
     renderScreen(<Layout />);
+    await userEvent.click(screen.getByRole("button", { name: "Görünüm: Sade" }));
     const view = screen.getByRole("group", { name: "Görünüm" });
     expect(within(view).getByRole("radio", { name: "Sade" })).toBeChecked();
     await userEvent.click(within(view).getByRole("radio", { name: "Ayrıntılı" }));
     expect(within(view).getByRole("radio", { name: "Ayrıntılı" })).toBeChecked();
     expect(localStorage.getItem("iplikci.view")).toBe("detailed");
+    expect(screen.getByRole("button", { name: "Görünüm: Ayrıntılı" })).toBeInTheDocument();
   });
 });
 

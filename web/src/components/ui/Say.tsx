@@ -24,8 +24,13 @@ interface SayProps {
 export function Say({ children, next }: SayProps) {
   return (
     <Simple>
-      <div className="mb-3 flex flex-col items-start gap-1 border-l-[3px] border-teal-700 pl-3 dark:border-teal-400">
-        <p className="text-sm text-zinc-800 dark:text-zinc-100">{children}</p>
+      <div
+        className={cn(
+          "mb-4 flex flex-col items-start gap-1 rounded-lg px-3.5 py-2.5",
+          "bg-teal-50 text-teal-950 dark:bg-teal-950/60 dark:text-teal-50",
+        )}
+      >
+        <p className="text-sm">{children}</p>
         {next ? <NextStep step={next} /> : null}
       </div>
     </Simple>

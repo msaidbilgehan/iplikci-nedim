@@ -351,11 +351,11 @@ describe("InsightsPage", () => {
     );
   });
 
-  it("sums the monthly payments still running and leads to the Abonelikler screen", async () => {
+  it("sums the monthly payments still running and leads to the regular payments screen", async () => {
     renderScreen(<InsightsPage />, { path: "/degerlendirme" });
     expect(await screen.findByText("Süren 4 aylık ödeme ayda 15.949,98 TL tutuyor.")).toBeInTheDocument();
     const regular = screen.getByRole("region", { name: "Düzenli ödemeler ve abonelikler" });
-    expect(within(regular).getByRole("link", { name: "Abonelikleri aç" })).toHaveAttribute("href", "/abonelikler");
+    expect(within(regular).getByRole("link", { name: "Düzenli ödemeleri aç" })).toHaveAttribute("href", "/abonelikler");
     expect(
       within(regular).getByText("Kalan taksitler toplam 2.000,00 TL; sonuncusu Şubat 2027'de bitiyor."),
     ).toBeInTheDocument();

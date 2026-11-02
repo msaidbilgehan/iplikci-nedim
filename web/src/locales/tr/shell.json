@@ -19,7 +19,7 @@
     "todo": "Yapılacaklar",
     "accounts": "Hesaplar",
     "transactions": "İşlemler",
-    "subscriptions": "Abonelikler",
+    "subscriptions": "Düzenli ödemeler",
     "calendar": "Takvim",
     "fx": "Döviz",
     "insights": "Değerlendirme",
@@ -43,10 +43,19 @@
   "view": {
     "label": "Görünüm",
     "simple": "Sade",
-    "detailed": "Ayrıntılı"
+    "detailed": "Ayrıntılı",
+    "hint": {
+      "simple": "Her kartta bir cümlelik yorum ve bir sonraki adım; ayrıntılar gizli.",
+      "detailed": "Tablolar, ham rakamlar ve hesapların nasıl yapıldığı."
+    }
   },
   "notFound": {
     "title": "Böyle bir sayfa yok",
     "back": "Panoya dönün"
+  },
+  "bell": "Bildirim kutusu",
+  "display": {
+    "button": "Görünüm: {{view}}",
+    "label": "Görünüm ve tema"
   }
 }

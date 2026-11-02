@@ -47,7 +47,7 @@
     "screens": {
       "invoices": "Faturalar",
       "calendar": "Takvim",
-      "subscriptions": "Abonelikler"
+      "subscriptions": "Düzenli ödemeler"
     }
   },
   "channels": {

@@ -8,7 +8,7 @@
     "sayOut": "{{start}} – {{end}} arasında {{count}} ödeme bekleniyor, toplam {{amount}}.",
     "sayIn": "{{count}} gelir bekleniyor, toplam {{amount}}.",
     "sayFirst": "İlki {{day, onDay}}: {{title}}.",
-    "next": "Abonelikleri aç",
+    "next": "Düzenli ödemeleri aç",
     "empty": "Bu günlerde beklenen ödeme ya da gelir yok",
     "emptyText": "{{start}} – {{end}}. Düzenli ödemeler ve maaş belgeler geldikçe buraya düşer.",
     "caption": "Önümüzdeki 60 günde beklenen ödemeler ve gelirler, güne göre",

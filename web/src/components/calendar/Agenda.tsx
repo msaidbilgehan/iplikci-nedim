@@ -11,6 +11,7 @@ import { formatDay, formatFlow, formatMoney } from "../../lib/format";
 import { labelOf } from "../../lib/labels";
 import { useView } from "../Preferences";
 import { Empty } from "../QueryState";
+import { Flow } from "../ui/Money";
 import { Say, ScreenLink } from "../ui/Say";
 import { Table, Td, Th } from "../ui/Table";
 
@@ -87,7 +88,7 @@ function Items({ calendar, labels }: { calendar: Calendar; labels: Labels }) {
               </Td>
               <Td>{item.account.label}</Td>
               <Td className="whitespace-nowrap text-right tabular-nums">
-                {formatFlow(item.amount, item.direction)}
+                <Flow value={item.amount} direction={item.direction} />
                 {item.minimum ? (
                   <span className={SMALL}>{t("agenda.minimum", { amount: formatMoney(item.minimum) })}</span>
                 ) : null}

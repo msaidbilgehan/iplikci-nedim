@@ -1,7 +1,9 @@
-// The app's frame: a header with the name and the display switches (view and theme), a grouped menu beside the screen
-// on wide windows and behind a menu button on narrow ones, and a skip link to the content for keyboard users. The
-// menu shows the screens built so far (navigation.ts) and how many notifications are not seen yet.
+// The app's frame: a header with the logo and the name, the notification box's bell and the display settings (view and
+// theme, in one small panel), a grouped menu with an icon beside each screen — beside the screen on wide windows,
+// behind a menu button on narrow ones — and a skip link to the content for keyboard users. The menu shows the screens
+// built so far (navigation.ts) and how many notifications are not seen yet.
 
+import * as Popover from "@radix-ui/react-popover";
 import { type KeyboardEvent, type ReactNode, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, NavLink, Outlet } from "react-router";
@@ -13,10 +15,15 @@ import type { Theme, View } from "../lib/preferences";
 import { builtGroups, MENU, type ScreenGroup, SETUP } from "./navigation";
 import { useTheme, useView } from "./Preferences";
 import { useFirstRun } from "./setup/useFirstRun";
-import { CloseIcon, MenuIcon, MonitorIcon, MoonIcon, SunIcon } from "./ui/Icons";
+import { BellIcon, ChevronDownIcon, CloseIcon, MenuIcon, MonitorIcon, MoonIcon, SunIcon } from "./ui/Icons";
 import { Segmented } from "./ui/Segmented";
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600";
+const HEADER_BUTTON = cn(
+  "inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg px-2.5 text-sm font-medium",
+  "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800",
+  FOCUS,
+);
 
 export function Layout() {
   useEventStream();
@@ -42,29 +49,26 @@ export function Layout() {
       >
         {t("skipToContent")}
       </a>
-      <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2">
+      <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-3 sm:px-4">
           <button
             ref={menuButton}
             type="button"
             aria-expanded={open}
             aria-controls={menuId}
             onClick={() => setOpen((was) => !was)}
-            className={cn(
-              "inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm font-medium lg:hidden",
-              "text-zinc-800 hover:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-zinc-800",
-              FOCUS,
-            )}
+            className={cn(HEADER_BUTTON, "lg:hidden")}
           >
             {open ? <CloseIcon className="size-5" /> : <MenuIcon className="size-5" />}
-            {t("menu.button")}
+            <span className="sr-only sm:not-sr-only">{t("menu.button")}</span>
           </button>
-          <Link to="/" className={cn("rounded-md px-1 text-lg font-semibold", FOCUS)}>
-            {t("appName")}
+          <Link to="/" className={cn("flex min-h-11 items-center gap-2.5 rounded-lg pr-2", FOCUS)}>
+            <img src="/logo.png" alt="" width={32} height={32} className="size-8 rounded-lg" />
+            <span className="text-base font-semibold tracking-tight">{t("appName")}</span>
           </Link>
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            <ViewSwitch />
-            <ThemeSwitch />
+          <div className="ml-auto flex items-center gap-1">
+            <Bell unread={unread} />
+            <DisplayMenu />
           </div>
         </div>
       </header>
@@ -76,11 +80,11 @@ export function Layout() {
           className={cn(
             open ? "block" : "hidden",
             "border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900",
-            "lg:sticky lg:top-0 lg:block lg:max-h-dvh lg:w-56 lg:shrink-0 lg:self-start lg:overflow-y-auto",
-            "lg:border-b-0 lg:border-r lg:bg-transparent lg:dark:bg-transparent",
+            "lg:sticky lg:top-14 lg:block lg:max-h-[calc(100dvh-3.5rem)] lg:w-60 lg:shrink-0 lg:self-start",
+            "lg:overflow-y-auto lg:border-b-0 lg:border-r lg:bg-transparent lg:dark:bg-transparent",
           )}
         >
-          <div className="flex flex-col gap-4 px-3 py-4">
+          <div className="flex flex-col gap-5 px-3 py-4">
             {builtGroups(MENU).map((group) => (
               <MenuGroup key={group.key} group={group} unread={unread} onChoose={() => setOpen(false)} />
             ))}
@@ -91,7 +95,7 @@ export function Layout() {
             ))}
           </div>
         </nav>
-        <main id="icerik" tabIndex={-1} className="min-w-0 flex-1 px-4 py-6 focus:outline-none">
+        <main id="icerik" tabIndex={-1} className="min-w-0 flex-1 px-4 py-6 focus:outline-none lg:px-8">
           <Outlet />
         </main>
       </div>
@@ -110,32 +114,40 @@ function MenuGroup({ group, unread, onChoose }: MenuGroupProps) {
   const heading = useId();
   return (
     <div>
-      <p id={heading} className="px-3 pb-1 text-xs font-semibold text-zinc-600 dark:text-zinc-400">
+      <p id={heading} className="px-3 pb-1.5 text-xs font-semibold text-zinc-600 dark:text-zinc-400">
         {t(`groups.${group.key}`)}
       </p>
       <ul aria-labelledby={heading} className="flex flex-col gap-0.5">
-        {group.screens.map((screen) => (
-          <li key={screen.to}>
-            <NavLink
-              to={screen.to}
-              end={screen.end ?? false}
-              onClick={onChoose}
-              className={({ isActive }) =>
-                cn(
-                  "flex min-h-11 items-center rounded-md border-l-[3px] px-3 text-sm font-medium",
-                  FOCUS,
-                  // The current screen: a bar beside it as well as the colour.
-                  isActive
-                    ? "border-teal-700 bg-teal-50 text-teal-900 dark:border-teal-400 dark:bg-teal-950 dark:text-teal-100"
-                    : "border-transparent text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800",
-                )
-              }
-            >
-              {t(`screens.${screen.key}`)}
-              {screen.key === "notifications" ? <UnreadCount count={unread} /> : null}
-            </NavLink>
-          </li>
-        ))}
+        {group.screens.map((screen) => {
+          const ScreenIcon = screen.icon;
+          return (
+            <li key={screen.to}>
+              <NavLink
+                to={screen.to}
+                end={screen.end ?? false}
+                onClick={onChoose}
+                className={({ isActive }) =>
+                  cn(
+                    "relative flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium lg:min-h-9",
+                    FOCUS,
+                    // The current screen: a bar beside it as well as the colour.
+                    isActive
+                      ? cn(
+                          "bg-teal-50 text-teal-900 dark:bg-teal-950 dark:text-teal-50",
+                          "before:absolute before:inset-y-1.5 before:left-0 before:w-[3px] before:rounded-full",
+                          "before:bg-teal-700 dark:before:bg-teal-400",
+                        )
+                      : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50",
+                  )
+                }
+              >
+                <ScreenIcon className="size-[1.125rem] shrink-0 opacity-80" />
+                {t(`screens.${screen.key}`)}
+                {screen.key === "notifications" ? <UnreadCount count={unread} /> : null}
+              </NavLink>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
@@ -165,23 +177,81 @@ function UnreadCount({ count }: { count: number }) {
   );
 }
 
-function ViewSwitch() {
+/** The header's way to the notification box, with how many are not seen yet. */
+function Bell({ unread }: { unread: number }) {
+  const { t } = useTranslation("shell");
+  return (
+    <Link
+      to="/bildirimler"
+      aria-label={unread > 0 ? `${t("bell")} ${t("unread", { count: unread })}` : t("bell")}
+      title={t("bell")}
+      className={cn(HEADER_BUTTON, "relative")}
+    >
+      <BellIcon className="size-5" />
+      {unread > 0 ? (
+        <span
+          aria-hidden="true"
+          className={cn(
+            "absolute right-1 top-1.5 inline-flex min-w-4 items-center justify-center rounded-full px-1",
+            "text-[0.6875rem] font-semibold leading-4 bg-teal-700 text-white dark:bg-teal-400 dark:text-zinc-950",
+          )}
+        >
+          {unread > 99 ? "99+" : unread}
+        </span>
+      ) : null}
+    </Link>
+  );
+}
+
+const THEME_ICONS: Record<Theme, ReactNode> = {
+  light: <SunIcon />,
+  dark: <MoonIcon />,
+  system: <MonitorIcon />,
+};
+
+/** The view and the theme in one small panel: the header keeps room, the chosen view stays named on the button. */
+function DisplayMenu() {
   const { t } = useTranslation("shell");
   const { view, setView } = useView();
-  const options: Array<{ value: View; label: string }> = [
+  const { theme, setTheme } = useTheme();
+  const views: Array<{ value: View; label: string }> = [
     { value: "simple", label: t("view.simple") },
     { value: "detailed", label: t("view.detailed") },
   ];
-  return <Segmented legend={t("view.label")} options={options} value={view} onChange={setView} />;
-}
-
-function ThemeSwitch() {
-  const { t } = useTranslation("shell");
-  const { theme, setTheme } = useTheme();
-  const options: Array<{ value: Theme; label: string; icon: ReactNode }> = [
+  const themes: Array<{ value: Theme; label: string; icon: ReactNode }> = [
     { value: "light", label: t("theme.light"), icon: <SunIcon /> },
     { value: "dark", label: t("theme.dark"), icon: <MoonIcon /> },
     { value: "system", label: t("theme.system"), icon: <MonitorIcon /> },
   ];
-  return <Segmented legend={t("theme.label")} options={options} value={theme} onChange={setTheme} compact />;
+  return (
+    <Popover.Root>
+      <Popover.Trigger className={HEADER_BUTTON}>
+        {THEME_ICONS[theme]}
+        <span className="sr-only sm:not-sr-only">{t("display.button", { view: t(`view.${view}`) })}</span>
+        <ChevronDownIcon className="hidden size-4 opacity-70 sm:block" />
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          aria-label={t("display.label")}
+          align="end"
+          sideOffset={6}
+          collisionPadding={8}
+          className={cn(
+            "z-50 flex w-72 flex-col gap-4 rounded-xl border p-4 text-sm shadow-lg",
+            "border-zinc-200 bg-white text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100",
+          )}
+        >
+          <div className="flex flex-col gap-2">
+            <p className="font-medium">{t("view.label")}</p>
+            <Segmented legend={t("view.label")} options={views} value={view} onChange={setView} />
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">{t(`view.hint.${view}`)}</p>
+          </div>
+          <div className="flex flex-col gap-2">
+            <p className="font-medium">{t("theme.label")}</p>
+            <Segmented legend={t("theme.label")} options={themes} value={theme} onChange={setTheme} />
+          </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  );
 }

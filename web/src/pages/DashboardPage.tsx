@@ -1,6 +1,7 @@
 // The Pano screen (F06), the home page: the net worth, this month against the typical month, the payments due within a
 // week, the open alerts, the last seven months' closing, how fresh each account's documents are and how much there is
-// to see to. Every card says in one sentence what it shows (the service's `say`) and leads to its screen (`link`).
+// to see to. The first row gives four of them as figures; every card says in one sentence what it shows (the service's
+// `say`) and leads to its screen (`link`).
 
 import { useTranslation } from "react-i18next";
 
@@ -9,6 +10,7 @@ import type { Dashboard, Labels } from "../api/types";
 import { AlertsCard, DueCard, MonthCard, TodoCard } from "../components/dashboard/Cards";
 import { ClosingCard } from "../components/dashboard/ClosingCard";
 import { FreshnessCard } from "../components/dashboard/FreshnessCard";
+import { Highlights } from "../components/dashboard/Highlights";
 import { NetWorthCard } from "../components/dashboard/NetWorthCard";
 import { useView } from "../components/Preferences";
 import { Empty, Failure, Loading } from "../components/QueryState";
@@ -39,13 +41,6 @@ export default function DashboardPage() {
 function Cards({ found, labels }: { found: Dashboard; labels: Labels }) {
   const { t } = useTranslation("dashboard");
   const { view } = useView();
-  // Side by side the cards read at a glance. They differ in height, so they stand in columns rather than a grid's
-  // rows: each card goes under the one before without a gap, and the eye reads each column down, in the order a screen
-  // reader reads them. The detailed view's tables need the screen's width: one card under the other.
-  const grid =
-    view === "simple"
-      ? "gap-4 *:mb-4 *:break-inside-avoid md:columns-2 xl:columns-3"
-      : "grid items-start gap-4";
   if (found.freshness.accounts.length === 0 && found.net_worth.parts.length === 0) {
     // No document yet: what could still ask for attention (the mail, a backup) and the first step.
     return (
@@ -54,32 +49,58 @@ function Cards({ found, labels }: { found: Dashboard; labels: Labels }) {
           <p>{t("emptyText")}</p>
           <NextStep step={{ link: DOCUMENTS, label: t("emptyNext") }} className="mt-2" />
         </Empty>
-        <div className={grid}>
+        <div className="grid items-start gap-4 lg:grid-cols-2">
           <AlertsCard alerts={found.alerts} />
           <TodoCard todo={found.todo} labels={labels} />
         </div>
       </>
     );
   }
+  const due = <DueCard due={found.due} today={found.today} labels={labels} />;
+  const alerts = <AlertsCard alerts={found.alerts} />;
+  const closing = (
+    <ClosingCard months={found.closing.months} say={found.closing.say} next={found.closing.link} labels={labels} />
+  );
+  const freshness = (
+    <FreshnessCard
+      accounts={found.freshness.accounts}
+      say={found.freshness.say}
+      next={found.freshness.link}
+      labels={labels}
+    />
+  );
+  if (view === "simple") {
+    // The first row says the net worth, the month and the to-do count; the cards beside each other read at a glance:
+    // what comes next and what asks for attention, then how the months closed and how fresh the documents are.
+    return (
+      <>
+        <Highlights found={found} labels={labels} />
+        <div className="grid items-start gap-4 lg:grid-cols-2">
+          <div className="flex min-w-0 flex-col gap-4">
+            {due}
+            {alerts}
+          </div>
+          <div className="flex min-w-0 flex-col gap-4">
+            {closing}
+            {freshness}
+          </div>
+        </div>
+      </>
+    );
+  }
+  // The detailed view's tables need the screen's width: one card under the other, every card with its table.
   return (
-    <div className={grid}>
-      <NetWorthCard worth={found.net_worth} />
-      <MonthCard month={found.month} />
-      <DueCard due={found.due} today={found.today} labels={labels} />
-      <AlertsCard alerts={found.alerts} />
-      <ClosingCard
-        months={found.closing.months}
-        say={found.closing.say}
-        next={found.closing.link}
-        labels={labels}
-      />
-      <FreshnessCard
-        accounts={found.freshness.accounts}
-        say={found.freshness.say}
-        next={found.freshness.link}
-        labels={labels}
-      />
-      <TodoCard todo={found.todo} labels={labels} />
-    </div>
+    <>
+      <Highlights found={found} labels={labels} />
+      <div className="grid items-start gap-4">
+        <NetWorthCard worth={found.net_worth} />
+        <MonthCard month={found.month} />
+        {due}
+        {alerts}
+        {closing}
+        {freshness}
+        <TodoCard todo={found.todo} labels={labels} />
+      </div>
+    </>
   );
 }

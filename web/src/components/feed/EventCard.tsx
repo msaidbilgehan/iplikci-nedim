@@ -1,7 +1,7 @@
-// An event of the feed as a card (F05): what happened, as the service says it in a sentence, when, and the row or the
-// document it concerns as the ledger and the archive keep them now (a receipt's row a statement confirmed since shows
-// confirmed). The card leads to its row, document, month or screen; the detailed view adds every value the event
-// carries.
+// An event of the feed as a row of its day's list (F05): what happened, as the service says it in a sentence, when, and
+// the row or the document it concerns as the ledger and the archive keep them now (a receipt's row a statement
+// confirmed since shows confirmed). It leads to its row, document, month or screen; the detailed view adds every value
+// the event carries.
 
 import type { TFunction } from "i18next";
 import { type ReactNode, useId } from "react";
@@ -11,7 +11,7 @@ import type { FeedItem, Labels } from "../../api/types";
 import { cn } from "../../lib/cn";
 import { formatClock, formatDay, formatMoney, formatMonth, formatPeriod, formatTime } from "../../lib/format";
 import { labelOf } from "../../lib/labels";
-import { Detailed, Simple } from "../Preferences";
+import { Detailed, Simple, useView } from "../Preferences";
 import type { Tone } from "../ui/Badge";
 import { Facts } from "../ui/Card";
 import { Money } from "../ui/Money";
@@ -47,6 +47,9 @@ const TONES: Readonly<Record<string, Tone>> = {
 
 const SMALL = "text-xs text-zinc-600 dark:text-zinc-300";
 
+// The document news whose sentence only restates its name ("Yeni bir belge geldi.", "Bir belge okundu.").
+const PLAIN_DOCUMENT_NEWS: ReadonlySet<string> = new Set(["document.received", "document.processed"]);
+
 /** What the event is about, in a few words: its row, its document, the name its detail gives, or its account. */
 export function subjectOf(item: FeedItem): string {
   return item.row?.title || item.document?.name || item.detail.title || item.account?.label || "";
@@ -61,17 +64,18 @@ interface EventCardProps {
 export function EventCard({ item, labels, isNew }: EventCardProps) {
   const { t } = useTranslation("feed");
   const { t: tc } = useTranslation();
+  const { view } = useView();
   const heading = useId();
+  // A document's arrival and its reading say no more than their name and the document's: the simple view leaves the
+  // sentence out when the document is named below it.
+  const said = view === "detailed" || !PLAIN_DOCUMENT_NEWS.has(item.kind) || item.document === null;
   return (
     <article
       aria-labelledby={heading}
-      className={cn(
-        "rounded-lg border bg-white p-3 shadow-sm dark:bg-zinc-900",
-        isNew ? "border-teal-600 dark:border-teal-400" : "border-zinc-200 dark:border-zinc-700",
-      )}
+      className={cn("px-4 py-3", isNew && "bg-teal-50 dark:bg-teal-950/50")}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 id={heading} className="font-medium">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <h4 id={heading} className="text-sm font-medium">
           <Status tone={TONES[item.kind] ?? "neutral"}>{item.label}</Status>
         </h4>
         <span className={cn("flex items-center gap-2", SMALL)}>
@@ -83,22 +87,26 @@ export function EventCard({ item, labels, isNew }: EventCardProps) {
           <time dateTime={item.at}>{formatClock(item.at)}</time>
         </span>
       </div>
-      <p className="mt-1 text-sm text-zinc-800 dark:text-zinc-200">{item.text}</p>
-      <Simple>
-        <Subject item={item} labels={labels} />
-      </Simple>
-      <Detailed>
-        <div className="mt-2">
-          <Facts items={factsOf(item, labels, t)} />
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 pl-6">
+        <div className="min-w-0">
+          {said ? <p className="text-sm text-zinc-800 dark:text-zinc-200">{item.text}</p> : null}
+          <Simple>
+            <Subject item={item} labels={labels} />
+          </Simple>
+          <Detailed>
+            <div className="mt-2">
+              <Facts items={factsOf(item, labels, t)} />
+            </div>
+          </Detailed>
         </div>
-      </Detailed>
-      {item.link ? (
-        <NextStep
-          step={{ link: item.link, label: tc(`open.${item.link.screen}`) }}
-          context={subjectOf(item)}
-          className="mt-2"
-        />
-      ) : null}
+        {item.link ? (
+          <NextStep
+            step={{ link: item.link, label: tc(`open.${item.link.screen}`) }}
+            context={subjectOf(item)}
+            className="shrink-0"
+          />
+        ) : null}
+      </div>
     </article>
   );
 }
@@ -107,7 +115,7 @@ function Subject({ item, labels }: { item: FeedItem; labels: Labels }) {
   const { row, document } = item;
   if (row) {
     return (
-      <p className="mt-1 flex flex-wrap items-baseline gap-x-2 text-sm">
+      <p className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-sm">
         <span className="font-medium">{row.title}</span>
         <Money value={row.amount} direction={row.direction} certainty={row.certainty} />
         <span className={SMALL}>
@@ -118,7 +126,7 @@ function Subject({ item, labels }: { item: FeedItem; labels: Labels }) {
   }
   if (document) {
     return (
-      <p className="mt-1 text-sm">
+      <p className="mt-0.5 text-sm">
         <span className="font-medium wrap-break-word">{document.name}</span>
         {document.status === "processed" ? null : (
           <span className={SMALL}> · {labelOf(labels, "DocumentStatus", document.status)}</span>
