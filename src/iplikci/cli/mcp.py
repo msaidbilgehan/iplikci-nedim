@@ -8,7 +8,7 @@ from .common import open_workspace
 
 
 def mcp_command(argv: list[str]) -> int:
-    from .. import mcp_server
+    from ..mcp import stdio
 
     parser = argparse.ArgumentParser(
         prog="iplikci mcp",
@@ -16,4 +16,4 @@ def mcp_command(argv: list[str]) -> int:
     )
     parser.add_argument("--klasor", help=f"veri klasörü (varsayılan: {HOME_ENV}, yoksa platformun veri klasörü)")
     args = parser.parse_args(argv)
-    return mcp_server.serve(open_workspace(parser, Path(args.klasor) if args.klasor else None))
+    return stdio.serve(open_workspace(parser, Path(args.klasor) if args.klasor else None))

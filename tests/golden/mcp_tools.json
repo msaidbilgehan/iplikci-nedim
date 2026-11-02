@@ -1,0 +1,656 @@
+[
+  {
+    "name": "status",
+    "title": "Durum",
+    "description": "Belgelerin ve hesapların durumu: kaç belge okundu ve bankanın toplamıyla/bakiyeyle tutarlı mı, okunamayanlar, gelen klasöründe bekleyenler, tam aylar, eksik ya da güncel olmayan belgeler (hangi hesabın hangi belgesi indirilmeli), rapor dosyası ve e-postadan belge almanın durumu.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Durum",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "import_documents",
+    "title": "Belge içe aktar",
+    "description": "Bu bilgisayardaki dosya, klasör, zip ya da mbox (e-posta arşivi) yollarındaki banka belgelerini okur ve arşive almanın planını plan_id ile döndürür; hiçbir dosyaya dokunmaz, asıllar hiçbir zaman taşınmaz. Plan her belge için ne olacağını söyler: yeni belge arşive (okunamayan ve para hareketi olmayan da), arşivde olan için yalnızca kaynak kaydı, şirket belgesi hiç alınmaz. Arşive almak için kullanıcı onaylayınca apply_inbox.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          },
+          "description": "mutlak yollar; ~ kullanılabilir"
+        }
+      },
+      "required": [
+        "paths"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Belge içe aktar",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "fetch_email",
+    "title": "E-postadan belge al",
+    "description": "Kullanıcının e-posta kutusunu (Gmail, IMAP) salt okunur açar ve bankaların gönderdiği kart ekstresi, hesap dökümü ve dekont eklerini doğrudan arşive alır (şirket belgeleri hariç); e-posta kutusunda hiçbir şeyi değiştirmez. Yalnızca ayarlardaki banka alan adlarından gelen ve sunucunun göndereni doğruladığı (DMARC) e-postalar sayılır. Son alımdan sonra gelenleri okur. Kurulu değilse bağlantıyı kullanıcı kendisi kurar; şifre sohbete girmez.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "E-postadan belge al",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "plan_inbox",
+    "title": "Gelen kutusu planı",
+    "description": "Gelen klasöründeki dosyalara ne olacağını gösterir, hiçbir dosyaya dokunmaz: hangi belge hangi adla arşive alınacak (belge türü, hesap, dönem, tutarlılık kontrolüyle), hangileri okunamadı ya da para hareketi taşımıyor (onlar da arşive), hangileri zaten arşivde, hangileri şirket belgesi ya da belge değil diye çöp kutusuna gidecek. Dönen plan_id apply_inbox içindir.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Gelen kutusu planı",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "apply_inbox",
+    "title": "Planı uygula",
+    "description": "plan_inbox ya da import_documents ile gösterilen planı aynen uygular: belgeleri arşive alır, gelen klasöründen ayrılanları çöp kutusuna (geri alınabilir) taşır, denetim kaydına yazar, raporu yeniden üretir. Yalnızca kullanıcı planı görüp onayladıktan sonra çağırın.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "plan_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "plan_id"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Planı uygula",
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "build_report",
+    "title": "Raporu üret",
+    "description": "HTML raporu, islemler.csv ve islemler.xlsx dosyalarını yeniden üretir; okunan belge sayılarını ve kontrol sonuçlarını döndürür.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Raporu üret",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "insights",
+    "title": "Değerlendirme",
+    "description": "Programın yorumu: tam aylar penceresi, öne çıkanlar, önerilen adımlar (aylık etkisiyle), aylık bütçe (bugün ve öneri), gelir-gider ortalamaları, varlıklar ve borçlar, harcama eğilimi, düzenli gelir.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Değerlendirme",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "transactions",
+    "title": "İşlemler",
+    "description": "İşlemleri süzer, sıralar ya da gruplar (group_by ile aylık, kategori, işyeri… toplamları). amount > 0 para çıkışı, < 0 para girişi. Gider toplamı için kinds = [purchase, refund, interest_fee] verin; varsayılan bütün türlerdir.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "type": "string",
+          "pattern": "\\d{4}-\\d{2}(-\\d{2})?",
+          "description": "YYYY-AA ya da YYYY-AA-GG"
+        },
+        "to": {
+          "type": "string",
+          "pattern": "\\d{4}-\\d{2}(-\\d{2})?",
+          "description": "YYYY-AA ya da YYYY-AA-GG"
+        },
+        "text": {
+          "type": "string",
+          "description": "işyeri, açıklama ya da karşı tarafta geçen metin (Türkçe karakter ve büyük/küçük harf duyarsız)"
+        },
+        "category": {
+          "type": "string"
+        },
+        "group": {
+          "type": "string",
+          "description": "ana grup"
+        },
+        "kinds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "purchase",
+              "refund",
+              "interest_fee",
+              "p2p_transfer",
+              "loan_principal",
+              "cash_advance",
+              "investment",
+              "income",
+              "card_payment_no_statement",
+              "card_payment",
+              "own_transfer"
+            ]
+          }
+        },
+        "account": {
+          "type": "string",
+          "description": "hesap adında geçen metin"
+        },
+        "necessity": {
+          "type": "string",
+          "enum": [
+            "required",
+            "optional",
+            "unnecessary",
+            "unknown"
+          ]
+        },
+        "min_amount": {
+          "type": "number"
+        },
+        "max_amount": {
+          "type": "number"
+        },
+        "group_by": {
+          "type": "string",
+          "enum": [
+            "month",
+            "category",
+            "group",
+            "merchant",
+            "kind",
+            "account",
+            "necessity"
+          ]
+        },
+        "sort": {
+          "type": "string",
+          "enum": [
+            "date_desc",
+            "date_asc",
+            "amount_desc",
+            "amount_asc"
+          ]
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "İşlemler",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "regular_payments",
+    "title": "Düzenli ödemeler",
+    "description": "Düzenli ödemeler ve abonelikler (kira, faturalar, üyelikler): durumu (devam, bitti, iptal, iptal_sonrasi), aylık tutarı, son ve beklenen sonraki ödeme, fiyat değişimi; ayrıca düzenli gelirler.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "devam",
+            "bitti",
+            "iptal",
+            "iptal_sonrasi"
+          ]
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Düzenli ödemeler",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "subscriptions",
+    "title": "Abonelikler",
+    "description": "Düzenli (aylık) ve dönemsel (altı ayda ya da yılda bir) ödemeler: durumu (active, ended, cancelled, paid_after_cancel), beklenen tutarı (aylıkta ayda, dönemselde dönem başına), son ve beklenen sonraki ödeme, fiyat değişimi, dayandığı belgeler ve satırlar; ayrıca düzenli gelirler ve kalan taksitli alışverişler.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "all": {
+          "type": "boolean",
+          "description": "biten ve listede görünmeyenler de"
+        },
+        "period": {
+          "type": "string",
+          "enum": [
+            "month",
+            "half_year",
+            "year"
+          ]
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Abonelikler",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "upcoming_payments",
+    "title": "Yaklaşan ödemeler",
+    "description": "Bugünden itibaren 60 günün takvimi: düzenli ve dönemsel ödemeler (en son hangi hesaptan ödendiyse), maaş ve düzenli gelirler, kalan kart taksitleri, kredi taksitleri ve kart son ödemeleri; her biri günü, tutarı, hesabı ve neye dayandığıyla. Tahmindir.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "days": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60,
+          "description": "kaç gün (varsayılan 60)"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Yaklaşan ödemeler",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "cash_flow_forecast",
+    "title": "Nakit akışı öngörüsü",
+    "description": "TL banka hesaplarının önümüzdeki 60 gün için gün gün bakiye tahmini: başlangıç bakiyesi (son belge ve sonraki dekont ve bildirimler), beklenen ödemeler ve gelirler, seri dışı çıkışların aylık medyanı, eksiye düştüğü gün ve tutar, en düşük gün, varsayımlar. Öngörüye girmeyen hesaplar nedeniyle listelenir.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "daily": {
+          "type": "boolean",
+          "description": "bakiyeleri haftalık değil gün gün ver"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Nakit akışı öngörüsü",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "invoices",
+    "title": "Faturalar ve makbuzlar",
+    "description": "Banka dışı göndericilerin e-postayla gelen faturaları ve makbuzları (telefon, internet, enerji, abonelik, alışveriş): satıcı, numara, tarih, son ödeme, tutar ve kalemler; her biri eşleşti (onu ödeyen banka satırıyla), bekliyor (penceresi geçmedi ya da banka belgeleri o günlere henüz ulaşmadı) ya da eşleşmedi (yalnızca bilgi, olası nedenleriyle). Hiçbiri toplamlara girmez.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "matched",
+            "pending",
+            "unmatched"
+          ]
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Faturalar ve makbuzlar",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "alerts",
+    "title": "Bildirim kuralları",
+    "description": "Bildirim kurallarını listeler (action=list; olaylar, koşulları ve kanalların durumu ile), yeni kural ekler (action=add: name, event, isteğe bağlı days, amount, text, channels, detail, quiet_hours) ya da bir kuralı kapatır (action=close) veya yeniden açar (action=open; name ile). Değişiklik rules/alerts.yaml'a yazılır, önceki dosya kural geçmişinde saklanır; okunamayacak bir kural yazılmaz.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "list",
+            "add",
+            "close",
+            "open"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "event": {
+          "type": "string",
+          "enum": [
+            "document.received",
+            "document.processed",
+            "document.unprocessed",
+            "document.unreadable",
+            "transaction.created",
+            "transaction.confirmed",
+            "transaction.large",
+            "evidence.unmatched",
+            "invoice.matched",
+            "invoice.pending",
+            "invoice.unmatched",
+            "payment.due_soon",
+            "expected_payment.missing",
+            "balance.forecast_negative",
+            "subscription.price_changed",
+            "subscription.paid_after_cancel",
+            "income.received",
+            "income.late",
+            "month.ended",
+            "month.closed",
+            "month.needs_check",
+            "parser.format_alarm",
+            "mail.auth_failed",
+            "mail.bridge_alarm",
+            "mail.bridge_silent",
+            "backup.failed",
+            "bridge.paired",
+            "bridge.revoked"
+          ]
+        },
+        "days": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60
+        },
+        "amount": {
+          "type": "number",
+          "minimum": 0
+        },
+        "text": {
+          "type": "string"
+        },
+        "channels": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "desktop",
+              "telegram",
+              "email"
+            ]
+          }
+        },
+        "detail": {
+          "type": "string",
+          "enum": [
+            "full",
+            "summary",
+            "minimal"
+          ]
+        },
+        "quiet_hours": {
+          "type": "boolean",
+          "description": "false: sessiz saatte de hemen gider"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Bildirim kuralları",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "habits",
+    "title": "Alışkanlıklar",
+    "description": "İsteğe bağlı harcamalar (işyerine göre) ve kaçınılabilir maliyetler (faiz, ücret; kategoriye göre): durumu (her ay, yeni, ara sıra, durdu, tek seferlik), sıklığı ve bundan sonraki aylık maliyeti.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Alışkanlıklar",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "accounts",
+    "title": "Hesaplar",
+    "description": "Hesaplar ve kartlar: banka, tür, para birimi, belge sayısı ve tutarlılığı, belgelerin kapsadığı dönem, eksik kalan aylar, son bakiye.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Hesaplar",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "month_end",
+    "title": "Ay sonu ve kapanış",
+    "description": "Ay sonu raporu ve ekstre ile kapanış. month verilmezse son aylar: her ayın durumu (closed: bütün hesapların ekstresi/dökümü ayın tamamını kapsıyor, tutarlı ve dekontlar eşleşti; waiting: ekstre bekleniyor; missing: belge eksik; check: kontrol gerekli; running: ay sürüyor), gider, gelir, kalan. month ile o ayın ayrıntısı: hesap hesap hangi ekstre ya da döküm bekleniyor (sonraki kesim tarihi), ay sonu bakiyeleri, gider dağılımı, düzenli ödemeler, ekstresi gelmeden dekontlardan işlenen geçici kayıtlar ve ekstrede görünmeyen dekontlar.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "month": {
+          "type": "string",
+          "pattern": "\\d{4}-\\d{2}",
+          "description": "YYYY-AA"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Ay sonu ve kapanış",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "read_rules",
+    "title": "Kategori kurallarını oku",
+    "description": "Kişisel kural dosyasının metni ve kuralların özeti (kişisel kurallar ve uygulamayla gelen genel kurallar birlikte): ana gruplar ve kategoriler, gereklilik seviyeleri, düzenli ödeme kategorileri, bitti olarak işaretlenen ödemeler.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Kategori kurallarını oku",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "add_rule",
+    "title": "Kategori kuralı ekle",
+    "description": "Bir işyerini bir kategoriye bağlayan isimli kural ekler (işyeri varsa desenlerini genişletir). İsimli kurallar bütün anahtar kelimelerden önce denenir. Desenler büyük/küçük harf ve Türkçe karakter duyarsızdır; 're:' ile başlayan desen ASCII büyük harfe çevrilmiş açıklamaya uygulanan düzenli ifadedir. Değişikliğin hangi işlemleri taşıdığını döndürür; dosyanın yedeği alınır.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "category": {
+          "type": "string",
+          "description": "var olan kategori (read_rules → categories)"
+        },
+        "merchant": {
+          "type": "string",
+          "description": "raporda görünecek işyeri adı"
+        },
+        "patterns": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "category",
+        "merchant",
+        "patterns"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Kategori kuralı ekle",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "mark_ended",
+    "title": "Bitti olarak işaretle",
+    "description": "Kullanıcının bittiğini ya da iptal ettiğini söylediği bir ödemeyi veya bıraktığı bir alışkanlığı `_biten` bölümüne yazar: işyeri adı raporda göründüğü gibi, son ödemenin ayı. Tahmine ve alışkanlıklara girmez; o aydan sonra ödeme görünürse rapor uyarır.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "merchant": {
+          "type": "string"
+        },
+        "month": {
+          "type": "string",
+          "pattern": "\\d{4}-\\d{2}",
+          "description": "YYYY-AA"
+        },
+        "note": {
+          "type": "string",
+          "description": "kısa not (ör. kullanıcının söylediği)"
+        }
+      },
+      "required": [
+        "merchant",
+        "month"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Bitti olarak işaretle",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "write_rules",
+    "title": "Kategori kurallarını yaz",
+    "description": "Kişisel kural dosyasının tamamını verilen metinle değiştirir (önce read_rules ile okuyun, yorumları koruyun). Metin programın okuyabileceği kurallar değilse hiçbir şey yazılmaz. Eski dosyanın kopyası kural geçmişine alınır; değişikliğin farkı ve etkilediği işlemler döner.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Kategori kurallarını yaz",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  }
+]
