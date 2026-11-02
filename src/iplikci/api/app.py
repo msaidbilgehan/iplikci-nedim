@@ -24,6 +24,7 @@ from .routes import (
     settings,
     system,
     todos,
+    transactions,
     uploads,
 )
 
@@ -45,6 +46,7 @@ ROUTERS = (
     notify,
     rules,
     todos,
+    transactions,
     pages,
 )
 

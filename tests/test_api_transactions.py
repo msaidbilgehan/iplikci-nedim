@@ -1,0 +1,192 @@
+"""The Transactions screen (F04): the rows filtered, sorted and paged with their totals, as CSV too; one row with
+where it is printed and why it is what it is; corrections on one row or many, kept by fingerprint; kept views."""
+
+from datetime import date
+from decimal import Decimal
+
+import pytest
+from fastapi.testclient import TestClient
+
+from iplikci import demo
+from iplikci.api.app import create_app
+from iplikci.api.context import Context
+from iplikci.app.workspace import Workspace
+from iplikci.fakes import teb
+
+from conftest import add
+
+TOKEN = "deneme-belirteci"
+BASE = "http://127.0.0.1:8643"
+OWN_PAGE = {"Origin": BASE, "X-Iplikci": "1"}
+COFFEE = {"category": "Kafe & Kahve"}
+
+
+def bearer() -> dict[str, str]:
+    return {"Authorization": f"Bearer {TOKEN}"}
+
+
+def client_for(ws: Workspace) -> TestClient:
+    return TestClient(create_app(Context(ws=ws, token=TOKEN, today=lambda: demo.AS_OF)), base_url=BASE)
+
+
+def signed_in(client: TestClient) -> TestClient:
+    url = client.post("/api/login-links", headers=bearer()).json()["url"]
+    assert client.get(url, follow_redirects=False).status_code == 303
+    return client
+
+
+@pytest.fixture(scope="module")
+def demo_home(tmp_path_factory):
+    return demo.build(tmp_path_factory.mktemp("demo") / "veri")
+
+
+@pytest.fixture
+def client(demo_home) -> TestClient:
+    return client_for(Workspace.load(demo_home))
+
+
+@pytest.fixture
+def own(tmp_path) -> TestClient:
+    """A demo of its own, for the tests that change it."""
+    return signed_in(client_for(Workspace.load(demo.build(tmp_path / "demo"))))
+
+
+def coffee(client: TestClient) -> list[dict]:
+    return client.get("/api/transactions", params=COFFEE, headers=bearer()).json()["rows"]
+
+
+def test_the_list_pages_the_rows_newest_first_with_the_totals_of_all_of_them(client):
+    found = client.get("/api/transactions", params={"limit": 10}, headers=bearer()).json()
+    days = [r["day"] for r in found["rows"]]
+    assert len(days) == 10 and days == sorted(days, reverse=True) and found["next"] == 10
+    total = found["totals"]
+    assert (total["count"], total["counted"], total["excluded"], total["provisional"]) == (93, 93, 0, 0)
+    last = client.get("/api/transactions", params={"offset": 90, "limit": 10}, headers=bearer()).json()
+    assert len(last["rows"]) == 3 and last["next"] is None
+
+
+def test_the_filters_keep_a_category_a_merchant_or_words_and_the_totals_follow(client):
+    rows = coffee(client)
+    assert len(rows) == 10 and {r["category"] for r in rows} == {"Kafe & Kahve"}
+    found = client.get("/api/transactions", params=COFFEE, headers=bearer()).json()["totals"]
+    assert found["spent"]["minor"] == sum(r["amount"]["minor"] for r in rows) > 0
+    by_merchant = client.get("/api/transactions", params={"merchant": "ornek kahve"}, headers=bearer()).json()
+    assert by_merchant["totals"]["count"] == 10
+    words = client.get("/api/transactions", params={"q": "kahve ornek"}, headers=bearer()).json()
+    assert words["totals"]["count"] == 10
+    cheapest = client.get(
+        "/api/transactions", params={**COFFEE, "sort": "amount", "order": "asc"}, headers=bearer()
+    ).json()["rows"]
+    assert [r["amount"]["minor"] for r in cheapest] == sorted(r["amount"]["minor"] for r in rows)
+
+
+def test_the_filters_take_the_names_the_other_screens_link_with(client):
+    march = client.get("/api/transactions", params={"from": "2026-03-01", "to": "2026-03-31"}, headers=bearer())
+    assert {r["day"][:7] for r in march.json()["rows"]} == {"2026-03"}
+    fees = client.get("/api/transactions", params={"kind": "interest_fee"}, headers=bearer()).json()
+    assert fees["totals"]["count"] == 11
+    both = client.get("/api/transactions", params={"kind": ["interest_fee", "income"]}, headers=bearer()).json()
+    assert both["totals"]["count"] == 20
+    assert client.get("/api/transactions", params={"certainty": "provisional"}, headers=bearer()).json()["rows"] == []
+    assert client.get("/api/transactions", params={"kind": "faks"}, headers=bearer()).status_code == 422
+
+
+def test_the_csv_holds_every_row_the_filters_keep_for_turkish_excel(client):
+    response = client.get("/api/transactions.csv", params=COFFEE, headers=bearer())
+    assert response.headers["content-type"].startswith("text/csv")
+    assert 'filename="iplikci-islemler-2026-11-15.csv"' in response.headers["content-disposition"]
+    text = response.content.decode("utf-8")
+    lines = text.lstrip("﻿").splitlines()
+    assert text.startswith("﻿") and lines[0].startswith("Tarih;Ay;Banka;Hesap") and len(lines) == 11
+    assert ";Kafe & Kahve;" in lines[1] and "," in lines[1].split(";")[10]
+
+
+def test_a_rows_detail_names_where_it_is_printed_and_why_it_is_what_it_is(client):
+    row = coffee(client)[0]
+    found = client.get(f"/api/transactions/{row['fingerprint']}", headers=bearer()).json()
+    assert found["printed"]["document"] == row["document"] and found["printed"]["row"] is not None
+    why = found["why"]
+    assert (why["category"], why["rule"], why["layer"]) == ("transfer_rule", "KAHVE", "shipped")
+    assert why["transfer"] == "rule"  # an account list's row, resolved by the rule that names its party
+    assert (why["necessity"], why["necessity_layer"]) == ("category", "shipped")
+    assert found["correctable"] and found["annotation"] is None and found["told"] == []
+
+
+def test_a_receipts_row_says_no_statement_covers_its_days(client):
+    rows = client.get("/api/transactions", params={"account": "garanti-1234567"}, headers=bearer()).json()["rows"]
+    found = client.get(f"/api/transactions/{rows[0]['fingerprint']}", headers=bearer()).json()
+    [told] = found["told"]
+    assert told["status"] == "no_statement" and told["printed"]["kind"] == "receipt"
+
+
+def test_an_unknown_fingerprint_is_not_found(client):
+    assert client.get(f"/api/transactions/{'0' * 20}", headers=bearer()).status_code == 404
+    assert client.get("/api/transactions/kahve", headers=bearer()).status_code == 422
+
+
+def test_a_correction_on_one_row_is_kept_shown_and_given_back_to_the_rules(own):
+    fp = coffee(own)[0]["fingerprint"]
+    body = {"category": "market & gıda", "note": "deneme", "tags": ["ev"]}
+    assert own.put(f"/api/transactions/{fp}/annotation", json=body, headers=bearer()).status_code == 403
+    kept = own.put(f"/api/transactions/{fp}/annotation", json=body, headers=OWN_PAGE).json()
+    assert (kept["category"], kept["note"], kept["tags"]) == ("Market & Gıda", "deneme", ["ev"])
+    found = own.get(f"/api/transactions/{fp}", headers=bearer()).json()
+    assert (found["row"]["category"], found["row"]["tags"]) == ("Market & Gıda", ["ev"])
+    assert found["why"]["category"] == "user"
+    back = own.put(f"/api/transactions/{fp}/annotation", json={"category": "", "necessity": ""}, headers=OWN_PAGE)
+    assert back.json()["category"] == "" and back.json()["note"] == "deneme"
+    assert own.get(f"/api/transactions/{fp}", headers=bearer()).json()["row"]["category"] == "Kafe & Kahve"
+    gone = own.put(f"/api/transactions/{fp}/annotation", json={"note": "", "tags": []}, headers=OWN_PAGE)
+    assert gone.status_code == 200 and gone.json() is None
+
+
+def test_a_correction_the_rules_cannot_name_is_refused(own):
+    fp = coffee(own)[0]["fingerprint"]
+    wrong = own.put(f"/api/transactions/{fp}/annotation", json={"category": "Kafe ve Kahve"}, headers=OWN_PAGE)
+    assert (wrong.status_code, wrong.json()["code"]) == (400, "correction_refused")
+    assert "Kafe & Kahve" in wrong.json()["title"]  # the near miss is suggested
+    nothing = own.put(f"/api/transactions/{fp}/annotation", json={}, headers=OWN_PAGE)
+    assert nothing.status_code == 400
+
+
+def test_the_selected_rows_get_one_category_or_more_tags(own):
+    first, second = (r["fingerprint"] for r in coffee(own)[:2])
+    body = {"fingerprints": [first, second, "f" * 20], "tags": ["iş", "toplantı"]}
+    found = own.post("/api/transactions/bulk", json=body, headers=OWN_PAGE).json()
+    assert found == {"changed": 2, "skipped": ["f" * 20]}
+    tagged = own.get("/api/transactions", params={"tag": "toplantı"}, headers=bearer()).json()["rows"]
+    assert {r["fingerprint"] for r in tagged} == {first, second}
+    moved = own.post(
+        "/api/transactions/bulk", json={"fingerprints": [first], "category": "Market & Gıda"}, headers=OWN_PAGE
+    ).json()
+    assert moved["changed"] == 1
+    row = own.get(f"/api/transactions/{first}", headers=bearer()).json()["row"]
+    assert (row["category"], row["tags"]) == ("Market & Gıda", ["iş", "toplantı"])
+    assert own.post("/api/transactions/bulk", json={"fingerprints": [first]}, headers=OWN_PAGE).status_code == 400
+
+
+def test_views_are_kept_by_name_and_a_name_kept_again_replaces_its_view(own):
+    assert own.get("/api/transactions/views", headers=bearer()).json() == []
+    view = {"name": "Kahveler", "query": {"category": ["Kafe & Kahve"], "from": ["2026-01-01"]}}
+    assert own.put("/api/transactions/views", json=view, headers=OWN_PAGE).json() == [view]
+    again = {"name": "kahveler", "query": {"merchant": ["Ornek Kahve"]}}
+    assert own.put("/api/transactions/views", json=again, headers=OWN_PAGE).json() == [again]
+    assert own.delete("/api/transactions/views/kahveler", headers=OWN_PAGE).json() == []
+    assert own.delete("/api/transactions/views/kahveler", headers=OWN_PAGE).status_code == 404
+
+
+def test_a_statement_row_names_the_receipt_it_stands_for_and_an_own_transfer_its_pair(ws):
+    day, paid = date(2026, 10, 15), Decimal("3250.00")
+    add(ws, "kart-odeme.pdf", teb.card_payment_receipt(paid, day))
+    add(ws, "teb.xls", teb.account_export([("15/10/2026", "KREDI KARTI ODEMESI", "-3.250,00", "1.750,00")]))
+    add(ws, "giden.xls", teb.account_export([("20/10/2026", "FAST GIDEN", "-500,00", "1.250,00")], number="111111111"))
+    add(ws, "gelen.xls", teb.account_export([("20/10/2026", "FAST GELEN", "500,00", "500,00")], number="222222222"))
+    client = client_for(ws)
+    rows = client.get("/api/transactions", headers=bearer()).json()["rows"]
+    payment = next(r for r in rows if r["account"]["id"] == "teb-123456789")
+    found = client.get(f"/api/transactions/{payment['fingerprint']}", headers=bearer()).json()
+    assert [(t["status"], t["printed"]["kind"]) for t in found["told"]] == [("matched", "receipt")]
+    out = next(r for r in rows if r["account"]["id"] == "teb-111111111")
+    inc = next(r for r in rows if r["account"]["id"] == "teb-222222222")
+    why = client.get(f"/api/transactions/{out['fingerprint']}", headers=bearer()).json()["why"]
+    assert (why["transfer"], why["pair"]["fingerprint"]) == ("paired", inc["fingerprint"])

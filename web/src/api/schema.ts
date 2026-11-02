@@ -78,6 +78,14 @@ export interface AlertRulesOut {
   events: EventInfoOut[];
 }
 
+export interface AnnotationOut {
+  note: string;
+  tags: string[];
+  category: string;
+  necessity: Necessity | null;
+  updated_at: string;
+}
+
 export interface AppliedOut {
   stored: number;
   counts: Record<string, number>;
@@ -145,12 +153,30 @@ export interface BankRowOut {
   description: string;
 }
 
+export interface BillOut {
+  key: string;
+  seller: string;
+  issued: string;
+  total: MoneyOut;
+}
+
 export interface BridgeOut {
   id: string;
   name: string;
   created_at: string;
   last_seen: string;
   active: boolean;
+}
+
+export interface BulkIn {
+  fingerprints: string[];
+  category?: string | null;
+  tags?: string[];
+}
+
+export interface BulkOut {
+  changed: number;
+  skipped: string[];
 }
 
 /** A payment or an income expected on a day, with what the day and the amount rest on. */
@@ -197,6 +223,9 @@ export interface CategoryOut {
   own: boolean;
 }
 
+/** How a row got its category (docs/domain/categorization.md): the Transactions screen's "Neden?" (F04). */
+export type CategoryReason = "rule" | "bank_category" | "weak_rule" | "invoice" | "transfer_rule" | "kind" | "fee" | "own_transfer" | "person" | "income" | "uncategorized" | "user";
+
 export interface CategoryRulesOut {
   content: string;
   categories: CategoryOut[];
@@ -239,6 +268,14 @@ export interface CommitmentIn {
   action: "commitment";
   category: string;
   on: boolean;
+}
+
+/** What changes; a field left out stays. "" gives the category or the necessity back to the rules. */
+export interface CorrectionIn {
+  note?: string | null;
+  tags?: string[] | null;
+  category?: string | null;
+  necessity?: Necessity | "" | null;
 }
 
 export interface CursorOut {
@@ -623,6 +660,9 @@ export type MonthStatus = "closed" | "waiting" | "missing" | "check" | "running"
 
 export type Necessity = "required" | "optional" | "unnecessary" | "unknown";
 
+/** Where a spending row's necessity comes from (docs/domain/categorization.md, "Gereklilik"). */
+export type NecessityReason = "user" | "merchant" | "category" | "default";
+
 /** A payment expected again. */
 export interface NotEndedIn {
   action: "not_ended";
@@ -839,6 +879,17 @@ export interface PriceChangeOut {
   since: string;
 }
 
+/** Where the row is printed; the viewer opens /belgeler/<document>?satir=<fingerprint> at it. */
+export interface PrintedOut {
+  document: string;
+  name: string;
+  kind: DocumentKind | null;
+  page: number | null;
+  line: number | null;
+  sheet: string | null;
+  row: number | null;
+}
+
 export interface ProofOut {
   proof: string;
 }
@@ -923,6 +974,9 @@ export interface RuleChangeOut {
   backup: string;
 }
 
+/** The rule file a category rule is in (docs/domain/categorization.md): the user's own goes above the shipped. */
+export type RuleLayer = "own" | "shipped";
+
 /** What a finished scan of Gmail searched, as the cursor said when it began. */
 export interface ScannedIn {
   start_day: string;
@@ -987,6 +1041,8 @@ export interface SkippedOut {
   account: AccountRefOut;
   reason: string;
 }
+
+export type Sort = "day" | "amount" | "title" | "category" | "account";
 
 /** How a document reached the archive. */
 export type SourceKind = "email" | "upload" | "inbox" | "import";
@@ -1107,11 +1163,52 @@ export interface TodosOut {
   ignored: number;
 }
 
+export interface ToldOut {
+  fingerprint: string;
+  status: EvidenceStatus;
+  day: string;
+  amount: MoneyOut;
+  printed: PrintedOut | null;
+}
+
+export interface TotalsOut {
+  count: number;
+  counted: number;
+  spent: MoneyOut;
+  money_out: MoneyOut;
+  money_in: MoneyOut;
+  provisional: number;
+  excluded: number;
+}
+
+export interface TransactionDetailOut {
+  row: RowOut;
+  printed: PrintedOut | null;
+  why: WhyOut;
+  told: ToldOut[];
+  bill: BillOut | null;
+  annotation: AnnotationOut | null;
+  correctable: boolean;
+}
+
 /**
  * What a row is. For every kind, an amount above zero is money leaving the user and below zero money coming in (a
  * refund, income, a transfer in).
  */
 export type TransactionKind = "purchase" | "refund" | "interest_fee" | "p2p_transfer" | "loan_principal" | "cash_advance" | "investment" | "income" | "card_payment_no_statement" | "card_payment" | "own_transfer" | "transfer_candidate";
+
+export interface TransactionsOut {
+  rows: RowOut[];
+  totals: TotalsOut;
+  offset: number;
+  next: number | null;
+}
+
+/**
+ * How the ledger resolved a row that moves money to or from someone its reader could not name (docs/domain/ledger.md,
+ * transfers), in the order the ledger tries them.
+ */
+export type TransferStep = "own_name" | "own_account" | "rule" | "like_named" | "paired" | "uncovered_bank" | "person" | "income";
 
 export interface UnknownMailOut {
   domain: string;
@@ -1141,6 +1238,23 @@ export interface ValidationError {
 }
 
 export type ViewKind = "pdf" | "table" | "mail" | "html" | "text" | "none";
+
+export interface ViewModel {
+  name: string;
+  query: Record<string, string[]>;
+}
+
+export interface WhyOut {
+  category: CategoryReason;
+  rule: string;
+  layer: RuleLayer | null;
+  necessity: NecessityReason | null;
+  necessity_layer: RuleLayer | null;
+  transfer: TransferStep | null;
+  pair: RowOut | null;
+  rate: string | null;
+  rate_day: string | null;
+}
 
 /** The days a document's bank row is looked for in. */
 export interface WindowOut {
