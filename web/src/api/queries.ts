@@ -1,21 +1,32 @@
 // The server state the screens read, through TanStack Query. The event stream invalidates these keys when the
 // service records something new (useEventStream), so the screens stay current without polling hard.
 
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "./client";
 import type {
+  AlertPreview,
+  AlertRule,
+  AlertRules,
   Bridge,
   Calendar,
+  Channel,
   DocumentPage,
   Forecast,
   Invoices,
   Labels,
+  Notifications,
+  NotificationsMarked,
+  NotifyPreferences,
+  NotifySettings,
   OtherSenders,
   Pairing,
   Queued,
   Subscriptions,
   SystemStatus,
+  TelegramBot,
+  TelegramCheck,
+  TelegramPairing,
 } from "./types";
 
 export const keys = {
@@ -29,6 +40,11 @@ export const keys = {
   forecast: ["forecast"] as const,
   invoices: ["invoices"] as const,
   otherSenders: ["settings", "mail", "other-senders"] as const,
+  notifications: ["notifications"] as const, // the box and the history both
+  notificationBox: ["notifications", "in_app"] as const,
+  notificationLog: ["notifications", "all"] as const,
+  notifySettings: ["notify", "settings"] as const,
+  alertRules: ["rules", "alerts"] as const,
 };
 
 const OTHER_SENDERS = "/api/settings/mail/other-senders";
@@ -130,4 +146,142 @@ export function useRevokeBridge() {
 
 export function useBackupNow() {
   return useMutation({ mutationFn: () => api.post<Queued>("/api/backups") });
+}
+
+// --- notifications (F13, ADR-0010) ---------------------------------------------------------------------------------
+
+const NOTIFICATIONS = "/api/notifications";
+const NOTIFY_SETTINGS = "/api/notify/settings";
+const TELEGRAM = "/api/notify/telegram";
+const ALERT_RULES = "/api/rules/alerts";
+const BOX_PAGE = 20;
+const LOG_PAGE = 50;
+
+function notificationPage(limit: number, before: number, channel?: Channel): Promise<Notifications> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (channel) {
+    params.set("channel", channel);
+  }
+  if (before) {
+    params.set("before", String(before));
+  }
+  return api.get<Notifications>(`${NOTIFICATIONS}?${params.toString()}`);
+}
+
+/** Where the next page starts: below the oldest notification of a full page. A page that was not full was the last. */
+function olderThan(page: Notifications, limit: number): number | undefined {
+  const oldest = page.items.at(-1);
+  return page.items.length >= limit && oldest ? oldest.id : undefined;
+}
+
+/** The interface's notification box, newest first, a page at a time; the menu shows its unread count. */
+export function useNotificationBox() {
+  return useInfiniteQuery({
+    queryKey: keys.notificationBox,
+    queryFn: ({ pageParam }) => notificationPage(BOX_PAGE, pageParam, "in_app"),
+    initialPageParam: 0,
+    getNextPageParam: (last) => olderThan(last, BOX_PAGE),
+    refetchInterval: 60_000, // a notification made by the background job without a new event behind it
+  });
+}
+
+/** How many notifications in the box are not seen yet. */
+export function useUnreadNotifications(): number {
+  return useNotificationBox().data?.pages[0]?.unread ?? 0;
+}
+
+/** Every channel's notifications as they were sent, failed or kept back: the history, newest first. */
+export function useNotificationLog() {
+  return useInfiniteQuery({
+    queryKey: keys.notificationLog,
+    queryFn: ({ pageParam }) => notificationPage(LOG_PAGE, pageParam),
+    initialPageParam: 0,
+    getNextPageParam: (last) => olderThan(last, LOG_PAGE),
+  });
+}
+
+function refreshNotifications(client: QueryClient): void {
+  void client.invalidateQueries({ queryKey: keys.notifications });
+  void client.invalidateQueries({ queryKey: keys.notifySettings }); // its unread count and the channels' state
+}
+
+/** The box seen up to the newest notification shown: one that arrives meanwhile stays unread. */
+export function useMarkNotificationsRead() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (upTo: number) => api.post<NotificationsMarked>(`${NOTIFICATIONS}/read`, { up_to: upTo }),
+    onSettled: () => refreshNotifications(client),
+  });
+}
+
+/** The quiet hours, each channel's level of detail and state, and what a channel still needs in the service's words. */
+export function useNotifySettings() {
+  return useQuery({ queryKey: keys.notifySettings, queryFn: () => api.get<NotifySettings>(NOTIFY_SETTINGS) });
+}
+
+export function useSetNotifySettings() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (preferences: NotifyPreferences) => api.put<NotifySettings>(NOTIFY_SETTINGS, preferences),
+    onSuccess: (saved) => client.setQueryData(keys.notifySettings, saved),
+  });
+}
+
+/** A test notification now on a channel; the in-app one lands in the box, and a stopped channel is tried again. */
+export function useTestNotification() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (channel: Channel) => api.post<void>("/api/notify/test", { channel }),
+    onSettled: () => refreshNotifications(client),
+  });
+}
+
+/**
+ * Check a bot's token with Telegram and keep it in the keyring. A plain call, not a mutation: a mutation keeps its
+ * variables in the client's cache, and the token must not stay in the page once it is sent.
+ */
+export async function sendTelegramToken(client: QueryClient, token: string): Promise<TelegramBot> {
+  const bot = await api.post<TelegramBot>(`${TELEGRAM}/token`, { token });
+  void client.invalidateQueries({ queryKey: keys.notifySettings });
+  return bot;
+}
+
+/** A code the user sends the bot as "/start <code>" within ten minutes. */
+export function useStartTelegramPairing() {
+  return useMutation({ mutationFn: () => api.post<TelegramPairing>(`${TELEGRAM}/pairing`) });
+}
+
+/** Whether the open code reached the bot; the service reads the bot's new messages once per call. */
+export function checkTelegramPairing(): Promise<TelegramCheck> {
+  return api.post<TelegramCheck>(`${TELEGRAM}/check`);
+}
+
+/** Forget the bot's token and the paired chat. */
+export function useRemoveTelegram() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.delete(TELEGRAM),
+    onSettled: () => client.invalidateQueries({ queryKey: keys.notifySettings }),
+  });
+}
+
+/** The alert rules (the user's or the shipped ones) and the events a rule may watch with the conditions each allows. */
+export function useAlertRules() {
+  return useQuery({ queryKey: keys.alertRules, queryFn: () => api.get<AlertRules>(ALERT_RULES) });
+}
+
+/** Save the whole list of rules; the service checks it first and refuses it whole, saying why. */
+export function useSetAlertRules() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (rules: AlertRule[]) => api.put<AlertRules>(ALERT_RULES, { rules }),
+    onSuccess: (saved) => client.setQueryData(keys.alertRules, saved),
+  });
+}
+
+/** How often a rule would have spoken in the last 30 days, with its newest texts; nothing is saved. */
+export function usePreviewAlertRule() {
+  return useMutation({
+    mutationFn: (rule: AlertRule) => api.post<AlertPreview>(`${ALERT_RULES}/preview`, { rule }),
+  });
 }

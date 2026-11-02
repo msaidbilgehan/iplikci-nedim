@@ -4,15 +4,22 @@ import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 
 import type {
+  AlertEvent,
+  AlertRule,
+  AlertRules,
   Bridge,
   Calendar,
   CalendarItem,
+  ChannelState,
   DocumentPage,
   Forecast,
   InvoiceItem,
   Invoices,
   Labels,
   Money,
+  NotificationItem,
+  Notifications,
+  NotifySettings,
   OtherSenders,
   Series,
   Subscriptions,
@@ -42,6 +49,31 @@ export const LABELS: Labels = {
   Certainty: { confirmed: "Kesin", provisional: "Geçici", excluded: "Toplama girmez", info: "Bilgi" },
   InvoiceKind: { bill: "Fatura", receipt: "Makbuz" },
   InvoiceStatus: { matched: "Eşleşti", pending: "Bekliyor", unmatched: "Eşleşmedi" },
+  Channel: { in_app: "Uygulama içi", desktop: "Masaüstü", email: "E-posta", telegram: "Telegram" },
+  DetailLevel: { full: "Tam", summary: "Özet", minimal: "Asgari" },
+  DeliveryStatus: {
+    pending: "Gönderilecek",
+    sent: "Gönderildi",
+    held: "Özete kaldı",
+    digested: "Özetle gönderildi",
+    failed: "Gönderilemedi",
+  },
+  ChannelStage: {
+    ready: "Hazır",
+    stopped: "Durdu",
+    unavailable: "Kullanılamıyor",
+    no_bot: "Kurulmadı",
+    token_lost: "Belirteç gerekli",
+    not_paired: "Eşleşmedi",
+  },
+  EventKind: {
+    "document.unreadable": "Belge okunamadı",
+    "transaction.large": "Büyük harcama",
+    "invoice.unmatched": "Fatura eşleşmedi",
+    "payment.due_soon": "Son ödeme yaklaşıyor",
+    "balance.forecast_negative": "Hesap eksiye düşecek",
+    "month.closed": "Ay kapandı",
+  },
 };
 
 /** An amount in TL from its kuruş. */
@@ -428,6 +460,193 @@ export const BRIDGES: Bridge[] = [
   { id: "k1", name: "Chrome 140, macOS", created_at: "2026-11-01T08:00:00+00:00", last_seen: "", active: true },
 ];
 
+export function notification(overrides: Partial<NotificationItem> = {}): NotificationItem {
+  return {
+    id: 4,
+    created_at: "2026-11-01T09:00:00+00:00",
+    rule: "Ay kapandı",
+    kind: "month.closed",
+    target: "2026-10",
+    channel: "in_app",
+    detail: "full",
+    title: "Ay kapandı",
+    body: "Ekim 2026 kapandı: bütün belgeleri geldi ve doğrulandı.",
+    status: "sent",
+    attempts: 0,
+    sent_at: "2026-11-01T09:00:00+00:00",
+    error: "",
+    read: true,
+    ...overrides,
+  };
+}
+
+const DUE = {
+  rule: "Son ödemeye 3 gün",
+  kind: "payment.due_soon",
+  target: "card_due|teb-1234|Örnek Kart •1234|2026-11-05",
+  title: "Son ödeme yaklaşıyor",
+};
+const LARGE = { rule: "Büyük harcama", kind: "transaction.large", target: "3f9a2c7d1e5b4a60", title: "Büyük harcama" };
+
+// The box as /api/notifications?channel=in_app gives it: newest first, two not seen yet.
+export const BOX: Notifications = {
+  items: [
+    notification({
+      ...DUE,
+      id: 12,
+      created_at: "2026-11-02T08:15:00+00:00",
+      sent_at: "2026-11-02T08:15:00+00:00",
+      body: "Örnek Kart •1234 · Kart son ödemesi: 3 gün sonra (05.11.2026), 9.000,00 TL.",
+      read: false,
+    }),
+    notification({
+      ...LARGE,
+      id: 9,
+      created_at: "2026-11-01T21:40:00+00:00",
+      sent_at: "2026-11-01T21:40:00+00:00",
+      body: "Örnek Elektronik: 12.500,00 TL (•1234, 01.11.2026).",
+      read: false,
+    }),
+    notification(),
+  ],
+  unread: 2,
+};
+
+// Every channel's notifications, newest first: one given up after its attempts with the last error, one kept back
+// for the digest, one sent within a digest, one sent by e-mail and one of the box.
+export const LOG: Notifications = {
+  items: [
+    notification({
+      ...DUE,
+      id: 13,
+      created_at: "2026-11-02T08:15:00+00:00",
+      channel: "telegram",
+      detail: "summary",
+      body: "Kart son ödemesi 3 gün sonra: 9.000,00 TL.",
+      status: "failed",
+      attempts: 8,
+      sent_at: "",
+      error: "Telegram'a ulaşılamadı: zaman aşımı.",
+      read: false,
+    }),
+    notification({
+      ...LARGE,
+      id: 10,
+      created_at: "2026-11-01T23:40:00+00:00",
+      channel: "desktop",
+      detail: "summary",
+      body: "Büyük harcama: 12.500,00 TL.",
+      status: "held",
+      sent_at: "",
+      read: false,
+    }),
+    notification({
+      id: 7,
+      rule: "Fatura eşleşmedi",
+      kind: "invoice.unmatched",
+      target: `${"b".repeat(64)}:0`,
+      channel: "desktop",
+      detail: "summary",
+      title: "Fatura eşleşmedi",
+      body: "Bir fatura hiçbir banka satırıyla eşleşmedi; yalnızca bilgi.",
+      status: "digested",
+      sent_at: "2026-11-01T08:00:00+00:00",
+      created_at: "2026-10-31T23:30:00+00:00",
+      read: false,
+    }),
+    notification({
+      id: 6,
+      rule: "Belge okunamadı",
+      kind: "document.unreadable",
+      target: "a".repeat(64),
+      channel: "email",
+      title: "Belge okunamadı",
+      body: "Bir belge okunamadı; Belgeler ekranına bakın.",
+      read: false,
+    }),
+    notification(),
+  ],
+  unread: 2,
+};
+
+// What the service says of the Telegram channel at each stage of its setup (app/notify.py).
+export const TELEGRAM_NOTES = {
+  none: "Bot belirteci girilmedi: BotFather'da bir bot oluşturup belirtecini girin.",
+  unpaired: "Botla sohbet eşleşmedi: eşleştirme kodunu bota gönderin.",
+  paired: "@ornek_bot botuyla eşleşti.",
+};
+
+export function telegramState(overrides: Partial<ChannelState> = {}): ChannelState {
+  return { channel: "telegram", on: true, ready: false, stage: "no_bot", note: TELEGRAM_NOTES.none, ...overrides };
+}
+
+export const TELEGRAM_UNPAIRED = telegramState({ stage: "not_paired", note: TELEGRAM_NOTES.unpaired });
+export const TELEGRAM_PAIRED = telegramState({ stage: "ready", ready: true, note: TELEGRAM_NOTES.paired });
+
+export const EMAIL_NOTE =
+  "E-posta kanalı, e-postası uygulama şifresiyle (IMAP) bağlı bir hesap ister. Bu hesap tarayıcı eklentisiyle bağlı " +
+  "(Gelişmiş Koruma'da uygulama şifresi yok); Telegram ve masaüstü kullanılabilir.";
+
+export function notifySettings(telegram: ChannelState = telegramState()): NotifySettings {
+  return {
+    quiet_hours: "23:00-08:00",
+    detail: { desktop: "summary", telegram: "summary", email: "full" },
+    channels: [
+      { channel: "in_app", on: true, ready: true, stage: "ready", note: "Arayüzdeki bildirim kutusu; her zaman açık." },
+      { channel: "desktop", on: true, ready: true, stage: "ready", note: "Bu bilgisayarın bildirim merkezi." },
+      telegram,
+      { channel: "email", on: false, ready: false, stage: "unavailable", note: EMAIL_NOTE },
+    ],
+    counts: { pending: 0, sent: 3, held: 1, digested: 1, failed: 1 },
+    unread: 2,
+  };
+}
+
+export const ALERT_EVENTS: AlertEvent[] = [
+  { kind: "payment.due_soon", label: "Son ödeme yaklaşıyor", days: true, amount: true, text: true },
+  { kind: "balance.forecast_negative", label: "Hesap eksiye düşecek", days: true, amount: true, text: true },
+  { kind: "transaction.large", label: "Büyük harcama", days: false, amount: true, text: true },
+  { kind: "month.closed", label: "Ay kapandı", days: false, amount: false, text: false },
+];
+
+export function alertRule(overrides: Partial<AlertRule> = {}): AlertRule {
+  return {
+    name: "Son ödemeye 3 gün",
+    event: "payment.due_soon",
+    condition: { days: 3, amount: null, text: "" },
+    channels: ["desktop", "telegram"],
+    detail: null,
+    enabled: true,
+    quiet: true,
+    ...overrides,
+  };
+}
+
+// The user's rules/alerts.yaml as the service reads it back.
+export const ALERT_RULES: AlertRules = {
+  rules: [
+    alertRule(),
+    alertRule({
+      name: "Büyük harcama",
+      event: "transaction.large",
+      condition: { days: null, amount: 750000, text: "" },
+      channels: ["telegram"],
+      detail: "minimal",
+      quiet: false,
+    }),
+    alertRule({
+      name: "Ay kapandı",
+      event: "month.closed",
+      condition: { days: null, amount: null, text: "" },
+      channels: [],
+      enabled: false,
+    }),
+  ],
+  own: true,
+  problem: "",
+  events: ALERT_EVENTS,
+};
+
 export const handlers = [
   http.get("/api/labels", () => HttpResponse.json(LABELS)),
   http.get("/api/subscriptions", () => HttpResponse.json(SUBSCRIPTIONS)),
@@ -437,6 +656,11 @@ export const handlers = [
   http.get("/api/settings/mail/other-senders", () => HttpResponse.json(OTHER_SENDERS)),
   http.get("/api/system", () => HttpResponse.json(systemStatus())),
   http.get("/api/bridge", () => HttpResponse.json(BRIDGES)),
+  http.get("/api/notifications", ({ request }) =>
+    HttpResponse.json(new URL(request.url).searchParams.get("channel") === "in_app" ? BOX : LOG),
+  ),
+  http.get("/api/notify/settings", () => HttpResponse.json(notifySettings())),
+  http.get("/api/rules/alerts", () => HttpResponse.json(ALERT_RULES)),
   http.get("/api/documents", ({ request }) => {
     const url = new URL(request.url);
     if (url.searchParams.get("cursor") === "imlec-2") {

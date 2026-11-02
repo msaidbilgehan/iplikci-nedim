@@ -9,6 +9,9 @@ import type { LoggedEvent } from "../api/types";
 
 // What a new analysis changes: the series, the calendar, the forecast and the non-bank bills' matches.
 const ANALYSIS = [keys.subscriptions, keys.calendar, keys.forecast, keys.invoices] as const;
+// The service turns the events into notifications right after them (ADR-0010): the box, the history and the
+// channels' counts follow every event.
+const NOTIFICATIONS = [keys.notifications, keys.notifySettings] as const;
 
 /** The query keys an event of this kind makes stale; the System screen follows everything. */
 export function staleBy(kind: string): ReadonlyArray<readonly unknown[]> {
@@ -28,6 +31,11 @@ export function staleBy(kind: string): ReadonlyArray<readonly unknown[]> {
   return [keys.system];
 }
 
+/** Everything an event refreshes: what it makes stale, and the notifications it may have brought. */
+export function refreshedBy(kind: string): ReadonlyArray<readonly unknown[]> {
+  return [...staleBy(kind), ...NOTIFICATIONS];
+}
+
 export function useEventStream(): void {
   const client = useQueryClient();
   useEffect(() => {
@@ -42,7 +50,7 @@ export function useEventStream(): void {
       } catch {
         return; // not an event of ours
       }
-      for (const queryKey of staleBy(event.kind)) {
+      for (const queryKey of refreshedBy(event.kind)) {
         void client.invalidateQueries({ queryKey });
       }
     };

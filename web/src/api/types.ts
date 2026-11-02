@@ -4,12 +4,22 @@
 
 import type {
   AccountForecastOut,
+  AlertPreviewOut,
+  AlertRuleModel,
+  AlertRulesOut,
   AppliedOut,
   BridgeOut,
   CalendarItemOut,
   CalendarOut,
+  Channel,
+  ChannelStage,
+  ChannelStateOut,
+  DeliveryStatus,
+  DetailLevel,
   DocumentOut,
   DocumentPageOut,
+  EventInfoOut,
+  EventKind,
   EventOut,
   ForecastOut,
   InstallmentOut,
@@ -18,6 +28,11 @@ import type {
   LabelsOut,
   MailCoverageOut,
   MoneyOut,
+  NotificationOut,
+  NotificationsOut,
+  NotificationsReadOut,
+  NotifySettingsIn,
+  NotifySettingsOut,
   OtherSendersOut,
   PairingOut,
   PlanOut,
@@ -26,6 +41,9 @@ import type {
   SeriesOut,
   SubscriptionsOut,
   SystemOut,
+  TelegramCheckOut,
+  TelegramPairingOut,
+  TelegramTokenOut,
   UploadOut,
 } from "./schema";
 
@@ -53,3 +71,19 @@ export type AccountForecast = AccountForecastOut;
 export type Invoices = InvoicesOut;
 export type InvoiceItem = InvoiceOut;
 export type OtherSenders = OtherSendersOut;
+
+// The notifications (F13, ADR-0010). The codes keep the API's names; Pairing above is the browser extension's.
+export type { Channel, ChannelStage, DeliveryStatus, DetailLevel, EventKind };
+export type NotificationItem = NotificationOut;
+export type Notifications = NotificationsOut;
+export type NotificationsMarked = NotificationsReadOut;
+export type NotifySettings = NotifySettingsOut;
+export type NotifyPreferences = NotifySettingsIn;
+export type ChannelState = ChannelStateOut;
+export type AlertRule = AlertRuleModel;
+export type AlertRules = AlertRulesOut;
+export type AlertEvent = EventInfoOut;
+export type AlertPreview = AlertPreviewOut;
+export type TelegramBot = TelegramTokenOut;
+export type TelegramPairing = TelegramPairingOut;
+export type TelegramCheck = TelegramCheckOut;

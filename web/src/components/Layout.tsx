@@ -1,19 +1,24 @@
 import { NavLink, Outlet } from "react-router";
 
+import { useUnreadNotifications } from "../api/queries";
 import { useEventStream } from "../hooks/useEventStream";
 import { cn } from "../lib/cn";
+
+const NOTIFICATIONS = "/bildirimler";
 
 const LINKS = [
   { to: "/belgeler", label: "Belgeler" },
   { to: "/abonelikler", label: "Abonelikler" },
   { to: "/takvim", label: "Takvim" },
   { to: "/faturalar", label: "Faturalar" },
+  { to: NOTIFICATIONS, label: "Bildirimler" },
   { to: "/sistem", label: "Sistem" },
   { to: "/kurulum/eklenti", label: "Tarayıcı eklentisi" },
 ] as const;
 
 export function Layout() {
   useEventStream();
+  const unread = useUnreadNotifications();
   return (
     <div className="min-h-dvh bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
       <a
@@ -42,6 +47,7 @@ export function Layout() {
                     }
                   >
                     {link.label}
+                    {link.to === NOTIFICATIONS ? <UnreadCount count={unread} /> : null}
                   </NavLink>
                 </li>
               ))}
@@ -53,5 +59,28 @@ export function Layout() {
         <Outlet />
       </main>
     </div>
+  );
+}
+
+/** The notifications not seen yet, beside their menu item: a number to see and words to hear. */
+function UnreadCount({ count }: { count: number }) {
+  if (count <= 0) {
+    return null;
+  }
+  // The space stands outside the spans: a screen reader joins the words, the menu item's flex box drops it.
+  return (
+    <>
+      {" "}
+      <span
+        aria-hidden="true"
+        className={cn(
+          "ml-2 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold",
+          "bg-teal-700 text-white dark:bg-teal-400 dark:text-zinc-950",
+        )}
+      >
+        {count > 99 ? "99+" : count}
+      </span>
+      <span className="sr-only">({count} okunmamış)</span>
+    </>
   );
 }
