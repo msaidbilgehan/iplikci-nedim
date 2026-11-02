@@ -476,7 +476,7 @@ yaptığı her şeyin V1'de de olmasını güvenceye alır.
   konum veritabanında; bir alım en çok 300 ileti. Tarayıcı eklentisi de aynı güven kuralından geçer.)
 - [x] **Otomatik çalışma:** e-posta, gelen klasörü ve bildirim (artık servisin içinde). (Aşama 3: e-posta ve gelen
   klasörü servisin içinde. Aşama 5: bildirimler de servisin işi; her yenilemeden sonra ve beş dakikada bir gider.)
-- [ ] **Rapor bölümleri**
+- [x] **Rapor bölümleri**
   - süzgeçler; özet kutuları;
   - değerlendirme ve strateji (öne çıkanlar, adımlar, bütçe);
   - varlıklar ve borçlar; ay sonu kartı;
@@ -485,8 +485,17 @@ yaptığı her şeyin V1'de de olmasını güvenceye alır.
   - düzenli ödemeler ve taksitler;
   - işlemler tablosu ve CSV; veri kaynakları ve kapsam;
   - açık ve koyu tema.
-- [ ] **Ay sonu:** durumlar, sayfalar, bildirimler; tek bir ayın ayrıntısı.
-- [ ] **Çıktılar:** CSV, XLSX sayfaları, tek dosyalık HTML.
+
+  (Aşama 6: Değerlendirme ekranı raporun kartlarını İşlemler süzgeçleriyle taşır; varlık tablosu Döviz'de, hesap
+  türlerinin toplamları Hesaplar'da, işlemler aynı süzgeçlerle İşlemler'de ve CSV olarak. Bilerek farklı olanlar:
+  bir kategori ya da işyeri adı ekranı süzmez, satırlarını İşlemler'de açar (ekranı süzgeç çubuğu süzer); düzenli
+  ödemeler kartı süzgeçlerden bağımsızdır, tamamı Abonelikler ekranındadır; ortalama kutusunda 24 aylık küçük çizgi
+  yoktur, aylar aylık giderler kartındadır.)
+- [x] **Ay sonu:** durumlar, sayfalar, bildirimler; tek bir ayın ayrıntısı. (Aşama 6: `/ay-sonu` ve `/ay-sonu/:ay`,
+  ayların betiksiz sayfaları dışa aktarılır; "Ay bitti", "Ay kapandı" ve "Ay kontrol gerektiriyor" bildirimleri
+  Aşama 5'te geldi.)
+- [x] **Çıktılar:** CSV, XLSX sayfaları, tek dosyalık HTML. (Aşama 3 ve 6: rapor, CSV, Excel ve ay sonu sayfaları
+  Sistem ekranında indirilir; İşlemler ve Değerlendirme süzdüklerini CSV olarak verir.)
 - [ ] **Kurallar:** `kategoriler.yaml` yapısı ve bölümleri; MCP ile düzenleme, yedek, fark ve etkilenen işlemler.
 - [ ] **MCP:** MVP'nin 16 aracı.
 - [x] **Güvenlik:** CSP; çerez akışı; Host ve Origin denetimleri; salt okunur e-posta; şifre yalnızca anahtar
