@@ -40,8 +40,10 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
 - Yapılacaklar listesi, her maddeyi kapatacak adımlarla; kategori kuralları okunur, önizlenir, değiştirilir.
 - Kurulum sihirbazı ve Ayarlar API'si: adlar ve şirket adları, yedeklerin saklanma süresi, e-posta bağlayıcısı, IMAP
   hesabını tek girişle kurma ve unutma; sihirbazın adımları ve ilk açılış.
-- Servisin günlüğü indirilebilir: kişisel olabilecek yollar, adlar, adresler, IBAN'lar ve uzun numaralar çıkarılmış.
-- Dışa aktarımlar listelenir ve indirilir.
+- Servisin günlüğü Sistem ekranından indirilir: kişisel olabilecek yollar, adlar, adresler, IBAN'lar ve uzun numaralar
+  çıkarılmış.
+- Dışa aktarımlar (rapor, CSV, Excel, ay sonu sayfaları) Sistem ekranında listelenir, indirilir ve istenince yeniden
+  yazılır.
 - CI: uçtan uca testler her push'ta, her ekran iki temada axe ile.
 
 ### Düzeltilenler
@@ -62,6 +64,8 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
 - Bir kural satırın türünü bölünmeyen bir türe çevirince ya da tutar bir parçayı sıfıra indirecek kadar değişince
   bölme sessizce kayboluyordu; artık Yapılacaklar'da "Uygulanamayan bölme" çıkar, satır paneli uyarır ve bölmeyi
   kaldırma yolu sunar. Kural önizlemesi böyle satırların değişikliğini de gösterir.
+- Bölünen ve sonra birleştirilen satırın panelinde kategori düzeltmesi yerine yeni bir bölmenin düzenleyicisi
+  kalıyordu.
 - Bölünmüş satırın kendisine verilen kategori ya da gereklilik görünmüyordu; artık reddedilir. Bir dekontun bölünmüş
   satırının parçalarına giden bağlantılar, dekontu ekstre gösterince ekstrenin aynı parçalarını açar.
 
