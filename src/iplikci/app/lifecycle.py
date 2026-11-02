@@ -29,7 +29,7 @@ REMOVAL_REQUEST = "kaldir.json"
 REMOVED = "service.removed"  # the audit log's action
 RESTORE_REQUESTED = "backup.restore_requested"
 
-__all__ = ["RESTART", "STOP", "Actor", "Lifecycle", "LifecycleError", "Registration"]
+__all__ = ["RESTART", "STOP", "Actor", "Lifecycle", "LifecycleError", "NotRegistered", "Registration"]
 
 log = logging.getLogger("iplikci.service")
 
@@ -42,6 +42,10 @@ class Lifecycle(Protocol):
 
 class LifecycleError(Exception):
     """The step cannot be taken here; the message says why (Turkish)."""
+
+
+class NotRegistered(LifecycleError):
+    """The computer's service manager does not start this data folder's service: it runs by hand."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,12 +63,11 @@ def registration(ws: Workspace) -> Registration:
     return Registration(home is not None and home.resolve() == ws.home.resolve(), name)
 
 
-def must_be_registered(ws: Workspace) -> None:
-    """A restart comes from the service manager: a service run by hand (in the foreground) would only end."""
+def must_be_registered(ws: Workspace, step: str = "ön planda çalışan servis yeniden başlatılamaz") -> None:
+    """Restarting and putting a backup back need the service manager, which starts the service again: a service run
+    by hand (in the foreground) would only end. Removing needs it too, as the manager knows one registration."""
     if not registration(ws).registered:
-        raise LifecycleError(
-            "Servis bu bilgisayara bu veri klasörü için kayıtlı değil; ön planda çalışan servis yeniden başlatılamaz."
-        )
+        raise NotRegistered(f"Servis bu bilgisayara bu veri klasörü için kayıtlı değil; {step}.")
 
 
 def request_restore(ws: Workspace, name: str, actor: Actor) -> backup.Backup:
@@ -116,7 +119,11 @@ def apply_pending_restore(ws: Workspace) -> backup.Restored | None:
 
 def remove(ws: Workspace, to_trash: bool, actor: Actor) -> bool:
     """Take the service off the computer's service manager (the running process ends after this response) and, when
-    asked, have the data folder moved to the Trash once it has ended. Whether a registration was removed."""
+    asked, have the data folder moved to the Trash once it has ended. Whether a registration was removed.
+
+    Only this data folder's registered service removes itself: the manager knows one registration, and a service run
+    by hand on another folder (a demo, a development copy) would take off the one the computer starts."""
+    must_be_registered(ws, "kaldırmak, bilgisayarın başlattığı başka bir servisin kaydını silerdi")
     try:
         removed = manager.for_platform().unregister()
     except manager.ManagerError as exc:

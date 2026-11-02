@@ -108,6 +108,19 @@ def test_removing_the_service_unregisters_it_and_leaves_the_data_folder_unless_a
     assert removed == [{"data_to_trash": False}, {"data_to_trash": True}]
 
 
+def test_a_service_run_by_hand_never_removes_the_one_the_computer_starts(client, ws, life, monkeypatch):
+    other = FakeManager()
+    monkeypatch.setattr(manager, "for_platform", lambda: other)
+    monkeypatch.setattr(setup, "registered_home", lambda: ws.home.parent / "baska-bir-klasor")  # another folder's
+    refused = client.post("/api/service/remove", json={"data_to_trash": True}, headers=OWN_PAGE)
+    assert (refused.status_code, refused.json()["code"]) == (409, "service_not_registered")
+    assert "kayıtlı değil" in refused.json()["title"]
+    assert (other.unregistered, life.codes) == (0, [])  # nothing taken off, nothing ended
+    assert not (ws.run / lifecycle.REMOVAL_REQUEST).exists()  # and its own folder stays where it is
+    with ws.db() as db:
+        assert [e for e in audit.entries(db) if e.action == lifecycle.REMOVED] == []
+
+
 def test_the_data_folder_goes_to_the_trash_only_at_the_end_and_only_when_asked(ws, monkeypatch):
     moved: list[Path] = []
     monkeypatch.setattr(lifecycle, "move_to_system_trash", lambda path: moved.append(path) or path)

@@ -84,6 +84,8 @@ def service_remove(request: Request, body: ServiceRemoveIn, later: BackgroundTas
     life = _life(context)
     try:
         lifecycle.remove(context.ws, body.data_to_trash, Actor.USER)
+    except lifecycle.NotRegistered as exc:
+        raise Problem(409, "service_not_registered", str(exc)) from exc
     except lifecycle.LifecycleError as exc:
         raise Problem(409, "service_remove_failed", str(exc)) from exc
     later.add_task(life.end, lifecycle.STOP)
