@@ -162,3 +162,34 @@ def test_a_made_up_document_is_refused_before_anything_is_looked_up(demo_ws):
     client = client_for(demo_ws)
     assert client.get("/api/documents/xyz", headers=bearer()).status_code == 422
     assert client.get(f"/api/documents/{'0' * 64}", headers=bearer()).json()["code"] == "document_missing"
+
+
+def test_the_list_finds_documents_by_their_words_kind_source_account_and_bank(demo_ws):
+    client = client_for(demo_ws)
+
+    def listed(**query: str | list[str]) -> list[dict]:
+        response = client.get("/api/documents", params=query, headers=bearer())
+        assert response.status_code == 200
+        return response.json()["items"]
+
+    every = listed(limit="200")
+    teb = sha_of(demo_ws, "teb.account_html")
+    by_words = listed(q="migros")  # a word of a row read from it, folded as the program compares Turkish
+    assert teb in {d["sha256"] for d in by_words} and len(by_words) < len(every)
+    statement = next(d for d in every if d["sha256"] == teb)
+    assert statement["accounts"] == [{"id": "teb-123456789", "label": "TEB Vadesiz TL 123456789", "bank": "TEB"}]
+    receipts = listed(kind="receipt", limit="200")
+    assert receipts and {d["kind"] for d in receipts} == {"receipt"}
+    one = listed(account="garanti-1234567", limit="200")
+    bank = listed(bank="Garanti BBVA", limit="200")
+    assert one and {d["sha256"] for d in one} < {d["sha256"] for d in bank}  # the bank has other accounts too
+    assert all("garanti-1234567" in {a["id"] for a in d["accounts"]} for d in one)
+    assert all("Garanti BBVA" in {a["bank"] for a in d["accounts"]} for d in bank)
+    unread = listed(kind="none", limit="200")
+    assert {d["kind"] for d in unread} <= {""} and {d["status"] for d in unread} <= {"unprocessed", "unreadable"}
+    for source in {k for d in every for k in d["sources"]}:  # each arrival kind the demo's documents came by
+        came = listed(source=source, limit="200")
+        assert came and all(source in d["sources"] for d in came)
+        assert len(came) == sum(source in d["sources"] for d in every)
+    wrong = client.get("/api/documents", params={"kind": "faks"}, headers=bearer())
+    assert (wrong.status_code, wrong.json()["code"]) == (400, "filter_invalid")

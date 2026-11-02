@@ -23,6 +23,12 @@ from .deps import only
 router = APIRouter(dependencies=[Depends(only(Principal.BROWSER, Principal.CLIENT))])
 
 
+class NamedAccountOut(BaseModel):
+    id: str
+    label: str  # as the screens show it: the user's name for it, else the bank's
+    bank: str
+
+
 class DocumentOut(BaseModel):
     sha256: str
     name: str
@@ -38,6 +44,7 @@ class DocumentOut(BaseModel):
     sources: list[str]
     added_at: str
     size: int
+    accounts: list[NamedAccountOut]  # the accounts its reading names
 
 
 class DocumentPageOut(BaseModel):
@@ -49,20 +56,38 @@ class LabelsOut(RootModel[dict[str, dict[str, str]]]):
     """The Turkish label of every code, by code type (DocumentStatus, JobKind, …)."""
 
 
+Many = Query(max_length=100)
+
+
 @router.get("/api/documents")
 def document_page(
     request: Request,
-    status: Annotated[list[str] | None, Query()] = None,
+    status: Annotated[list[str] | None, Many] = None,
+    kind: Annotated[list[str] | None, Many] = None,
+    source: Annotated[list[str] | None, Many] = None,
+    account: Annotated[list[str] | None, Many] = None,
+    bank: Annotated[list[str] | None, Many] = None,
+    q: Annotated[str, Query(max_length=200)] = "",
     cursor: Annotated[str, Query(max_length=200)] = "",
     limit: Annotated[int, Query(ge=1, le=documents.MAX_PAGE)] = 50,
 ) -> DocumentPageOut:
-    """The kept documents, newest first; status narrows them (processed, unprocessed, unreadable)."""
+    """The kept documents, newest first. status (processed, unprocessed, unreadable), kind (a DocumentKind, or "none"
+    for a document no reader took), source (a SourceKind), account and bank narrow them; q finds every word in a
+    document's name, its title or the rows read from it."""
+    wanted = documents.DocumentFilter(
+        statuses=tuple(status or ()),
+        kinds=tuple(kind or ()),
+        sources=tuple(source or ()),
+        accounts=tuple(account or ()),
+        banks=tuple(bank or ()),
+        words=q.strip(),
+    )
     try:
-        found = documents.page(context_of(request).ws, status or (), cursor, limit)
+        found = documents.page(context_of(request).ws, wanted, cursor, limit)
     except documents.BadCursor as exc:
         raise Problem(400, "cursor_invalid", str(exc)) from exc
-    except ValueError as exc:  # a status that is no DocumentStatus
-        raise Problem(400, "status_invalid", "Bilinmeyen belge durumu.") from exc
+    except ValueError as exc:  # a code that is no DocumentStatus, DocumentKind or SourceKind
+        raise Problem(400, "filter_invalid", "Bilinmeyen belge durumu, türü ya da kaynağı.") from exc
     return DocumentPageOut(
         items=[DocumentOut.model_validate(d, from_attributes=True) for d in found.items], next=found.next
     )

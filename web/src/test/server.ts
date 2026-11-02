@@ -430,6 +430,7 @@ export const FIRST_PAGE: DocumentPage = {
       sources: ["upload"],
       added_at: "2026-11-01T07:31:00+00:00",
       size: 2048,
+      accounts: [{ id: "teb-123456789", label: "TEB Vadesiz TL 123456789", bank: "TEB" }],
     },
     {
       sha256: "b".repeat(64),
@@ -446,6 +447,7 @@ export const FIRST_PAGE: DocumentPage = {
       sources: ["email"],
       added_at: "2026-10-30T09:00:00+00:00",
       size: 4096,
+      accounts: [],
     },
   ],
   next: "imlec-2",

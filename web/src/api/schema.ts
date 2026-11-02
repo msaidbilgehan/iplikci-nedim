@@ -511,6 +511,7 @@ export interface DocumentOut {
   sources: string[];
   added_at: string;
   size: number;
+  accounts: NamedAccountOut[];
 }
 
 export interface DocumentPageOut {
@@ -1202,6 +1203,12 @@ export interface MonthTotalsOut {
   money_out: MoneyOut;
   rows: number;
   complete: boolean;
+}
+
+export interface NamedAccountOut {
+  id: string;
+  label: string;
+  bank: string;
 }
 
 export type Necessity = "required" | "optional" | "unnecessary" | "unknown";

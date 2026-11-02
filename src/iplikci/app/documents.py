@@ -7,7 +7,7 @@ import binascii
 import json
 import os
 import threading
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import date
 from decimal import Decimal
@@ -16,11 +16,11 @@ from pathlib import Path
 from urllib.parse import quote
 
 from ..analysis import Dataset
-from ..domain.codes import Actor, DocumentStatus, EvidenceStatus, TransactionKind
+from ..domain.codes import Actor, DocumentKind, DocumentStatus, EvidenceStatus, SourceKind, TransactionKind
 from ..domain.models import SourceRef, Transaction
 from ..parsers import registry
 from ..settings.paths import FILE_MODE
-from ..storage import audit, documents, readings
+from ..storage import aliases, audit, documents, readings
 from ..storage.db import Database
 from ..viewer import process as viewer
 from . import background, reading
@@ -59,6 +59,15 @@ MAX_PAGE = 200
 
 
 @dataclass(frozen=True, slots=True)
+class Named:
+    """An account a document's reading names: its id, its name as the screens show it, its bank."""
+
+    id: str
+    label: str
+    bank: str
+
+
+@dataclass(frozen=True, slots=True)
 class Listed:
     sha256: str
     name: str  # the readable name reading gave it, else the file's own
@@ -74,6 +83,7 @@ class Listed:
     sources: list[str]  # SourceKind codes: how it arrived, first arrival first
     added_at: str
     size: int
+    accounts: list[Named]  # the accounts its reading names
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,16 +96,46 @@ class BadCursor(ValueError):
     """The cursor is not one this service gave out."""
 
 
-def page(ws: Workspace, statuses: Iterable[str] = (), cursor: str = "", limit: int = 50) -> Page:
-    """A page of the kept documents (only those with one of statuses, when given), newest first."""
-    wanted = [DocumentStatus(s) for s in statuses] or list(KEPT)
+@dataclass(frozen=True, slots=True)
+class DocumentFilter:
+    """What the Documents screen's filters keep (F03); an empty one keeps every kept document."""
+
+    statuses: tuple[str, ...] = ()  # DocumentStatus codes: processed, unprocessed, unreadable
+    kinds: tuple[str, ...] = ()  # DocumentKind codes, and "none" for a document no reader took
+    sources: tuple[str, ...] = ()  # SourceKind codes: how any of its arrivals came
+    accounts: tuple[str, ...] = ()  # account ids its reading names
+    banks: tuple[str, ...] = ()
+    words: str = ""  # full-text: its name, its title and the rows read from it
+
+
+UNREAD_KIND = "none"
+
+
+def _narrowing(f: DocumentFilter) -> documents.Narrowing:
+    return documents.Narrowing(
+        kinds=tuple(DocumentKind(k) for k in f.kinds if k != UNREAD_KIND),
+        unread=UNREAD_KIND in f.kinds,
+        sources=tuple(SourceKind(k) for k in f.sources),
+        accounts=f.accounts,
+        banks=f.banks,
+        words=f.words,
+    )
+
+
+def page(ws: Workspace, f: DocumentFilter | None = None, cursor: str = "", limit: int = 50) -> Page:
+    """A page of the kept documents the filter keeps, newest first. ValueError for a code no such kind has."""
+    f = f or DocumentFilter()
+    wanted = [DocumentStatus(s) for s in f.statuses] or list(KEPT)
     if not set(wanted) <= set(KEPT):
         raise ValueError("a removed document is in the Trash, not listed")
+    narrowing = _narrowing(f)
     size = max(1, min(limit, MAX_PAGE))
     with ws.db() as db:
-        rows = documents.newest_first(db, wanted, _decode(cursor) if cursor else None, size + 1)
+        rows = documents.newest_first(db, wanted, _decode(cursor) if cursor else None, size + 1, narrowing)
         shown = rows[:size]
         kinds = documents.source_kinds(db, [d.sha256 for d in shown])
+        named = documents.accounts_of(db, [d.sha256 for d in shown])
+        given = {key: alias.alias for key, alias in aliases.every(db).items()}
     items = [
         Listed(
             sha256=d.sha256,
@@ -112,6 +152,7 @@ def page(ws: Workspace, statuses: Iterable[str] = (), cursor: str = "", limit: i
             sources=[k.value for k in kinds[d.sha256]],
             added_at=d.added_at,
             size=d.size,
+            accounts=[Named(key, given.get(key) or label, bank) for key, label, bank in named[d.sha256]],
         )
         for d in shown
     ]
@@ -250,7 +291,15 @@ def _listed(db: Database, d: documents.DocumentRow) -> Listed:
         sources=[k.value for k in documents.source_kinds(db, [d.sha256])[d.sha256]],
         added_at=d.added_at,
         size=d.size,
+        accounts=_named(db, d.sha256),
     )
+
+
+def _named(db: Database, sha256: str) -> list[Named]:
+    given = {key: alias.alias for key, alias in aliases.every(db).items()}
+    return [
+        Named(key, given.get(key) or label, bank) for key, label, bank in documents.accounts_of(db, [sha256])[sha256]
+    ]
 
 
 def _arrival(s: documents.Source) -> Arrival:

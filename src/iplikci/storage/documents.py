@@ -1,7 +1,7 @@
 """The documents table and where each document came from (ADR-0003)."""
 
 import sqlite3
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date
 
@@ -141,8 +141,53 @@ def every(db: Database, statuses: Iterable[DocumentStatus] | None = None) -> lis
     return [doc for doc in map(_row, rows) if wanted is None or doc.status in wanted]
 
 
+@dataclass(frozen=True, slots=True)
+class Narrowing:
+    """What a list of documents keeps besides their statuses; an empty one keeps every document."""
+
+    kinds: tuple[DocumentKind, ...] = ()  # what a reader found it to be
+    unread: bool = False  # with kinds: also the documents no reader took
+    sources: tuple[SourceKind, ...] = ()  # how any of its arrivals came
+    accounts: tuple[str, ...] = ()  # account ids its reading names
+    banks: tuple[str, ...] = ()
+    words: str = ""  # every word, as a prefix, in its name, its title or a row read from it
+
+
+def _marks(values: Sequence[object]) -> str:
+    return ", ".join("?" * len(values))
+
+
+def _narrowed(n: Narrowing) -> tuple[str, list[object]]:
+    where: list[str] = []
+    params: list[object] = []
+    if n.kinds or n.unread:
+        kinds = [k.value for k in n.kinds]
+        parts = [f"kind IN ({_marks(kinds)})"] if kinds else []
+        parts += ["kind IS NULL"] if n.unread else []
+        where.append("(" + " OR ".join(parts) + ")")
+        params += kinds
+    if n.sources:
+        where.append(f"sha256 IN (SELECT sha256 FROM document_sources WHERE kind IN ({_marks(n.sources)}))")
+        params += [k.value for k in n.sources]
+    if n.accounts:
+        where.append(f"sha256 IN (SELECT sha256 FROM document_accounts WHERE id IN ({_marks(n.accounts)}))")
+        params += list(n.accounts)
+    if n.banks:
+        where.append(f"sha256 IN (SELECT sha256 FROM document_accounts WHERE bank IN ({_marks(n.banks)}))")
+        params += list(n.banks)
+    words = fold(n.words).split()
+    if words:
+        where.append("sha256 IN (SELECT sha256 FROM search WHERE search MATCH ?)")
+        params.append(" ".join('"' + w.replace('"', '""') + '"*' for w in words))
+    return " AND ".join(where), params
+
+
 def newest_first(
-    db: Database, statuses: Iterable[DocumentStatus], after: tuple[str, str] | None, limit: int
+    db: Database,
+    statuses: Iterable[DocumentStatus],
+    after: tuple[str, str] | None,
+    limit: int,
+    narrowing: Narrowing | None = None,
 ) -> list[DocumentRow]:
     """A page of the documents with one of statuses, newest arrival first; after is the (added_at, sha256) of the
     last one on the page before (keyset paging: a document arriving meanwhile shifts nothing)."""
@@ -150,6 +195,11 @@ def newest_first(
     marks = ", ".join("?" * len(wanted))
     where = f"status IN ({marks})"
     params: list[object] = [*wanted]
+    if narrowing is not None:
+        more, extra = _narrowed(narrowing)
+        if more:
+            where += f" AND {more}"
+            params += extra
     if after is not None:
         where += " AND (added_at, sha256) < (?, ?)"
         params += [after[0], after[1]]
@@ -157,6 +207,22 @@ def newest_first(
         f"SELECT * FROM documents WHERE {where} ORDER BY added_at DESC, sha256 DESC LIMIT ?", [*params, limit]
     )
     return [_row(row) for row in rows]
+
+
+def accounts_of(db: Database, shas: Iterable[str]) -> dict[str, list[tuple[str, str, str]]]:
+    """The accounts each document's reading names, as (id, label, bank), in the reading's order."""
+    wanted = list(shas)
+    found: dict[str, list[tuple[str, str, str]]] = {sha: [] for sha in wanted}
+    if not wanted:
+        return found
+    rows = db.rows(
+        f"SELECT sha256, id, label, bank FROM document_accounts WHERE sha256 IN ({_marks(wanted)}) "
+        "ORDER BY sha256, position",
+        wanted,
+    )
+    for row in rows:
+        found[row["sha256"]].append((row["id"], row["label"], row["bank"]))
+    return found
 
 
 def source_kinds(db: Database, shas: Iterable[str]) -> dict[str, list[SourceKind]]:
