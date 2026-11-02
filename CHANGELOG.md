@@ -47,6 +47,25 @@ elle yeniden denendi. Tarayıcı eklentisinin araç çubuğundaki düğmesi aray
   seçer, diğerlerini adıyla anar. Demo'da Temmuz, dökümünün ilk günleri eksik olduğu için "en düşük ay" görünüyordu.
 - Sistem ekranı hiç kurulmamış bir e-posta hesabını "IMAP" diye göstermez, "Henüz kurulmadı" der ve Ayarlar'a
   götürür; Ayarlar hangi yolun seçileceğini söyler.
+- Nakit akışı öngörüsü, bakiyeyi yazan belgenin gününden bugüne kadarki günlerde beklenenleri de sayar: dökümü 31
+  Ekim'de biten bir hesapta 1 Kasım'da beklenen maaş öngörüden düşüyordu (demo'da en düşük bakiye 164.452,38 TL yerine
+  204.452,11 TL). Öngörünün notu o günleri ve rakamları yazar; akışın olayları da aynı başlangıcı kullanır.
+- Bekleyen bir fatura, satıcısının düzenli ödemesiyle takvimde ikinci bir ödeme olarak görünmez: fatura o ödemenin
+  tutarını verir, ödeme kendi gününde kalır.
+- Hiçbir belgenin henüz ulaşmadığı bir ay "hiç harcanmadı" ya da "günlerin %0'ı kapsandı" diye anlatılmaz; Pano,
+  Akış ve Hesaplar belgenin henüz gelmediğini söyler.
+- Faiz ve ücret uyarısı türüne göre öğüt verir: transfer ücretine "borcu zamanında ödeyin" denmez. Hesaptan ödenen
+  büyük bir alışveriş kart borcu sayılmaz. Bulgular arayüzün ekranlarını adıyla anar ("Düzenli ödemeler ekranında
+  İptal ettim…", "Döviz ekranındaki Varlıklar ve borçlar tablosu"); harcama eğilimi iki pencerenin ortalamasını
+  adıyla yazar.
+- Gereksiz sayılan bir abonelik bütçede iki kez düşülmez; bütçenin satırı "Gereksiz harcamalar (faiz, banka
+  ücretleri…)" adını aldı.
+- Kısmen kapsanan bir ayda görünmeyen maaş, ödeme gününün kaymasına bağlanmaz: dökümün kapsamadığı günlerde yatmış
+  olabileceği yazılır. Pano'nun kapanış tablosu, kapanmamış bir ayın gelirinin neden eksik olabileceğini gösterir.
+- Kural önizlemesi yalnızca gerekliliği değişen satırları "X → X" diye kategori değişimi gibi göstermez.
+- Ay sonunda eksik bir döküm, MVP'nin "Gelen Belgeler" klasörüne değil, Belgeler ekranından yüklenir.
+- Küçük paylar bütçede ve kategorilerde "%1'den az" yazılır; yalnızca eksik bir ayda harcanan kategorinin aylık
+  ortalaması 0,00 TL değil "yalnızca eksik ayda" diye görünür.
 
 ## [0.7.0] — 2026-11-02 — Aşama 6: Arayüz
 
