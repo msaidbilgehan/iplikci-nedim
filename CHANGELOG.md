@@ -177,6 +177,9 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
   bozuyordu; aynı anda iki açılış birbirinin kopyasını silebiliyordu. Kopya artık her açılışın kendi klasörüne yapılıp
   bitince yerine konur, Python'u olmayan kopya yeniden yapılır, kopyalanamazsa sorun masaüstünün penceresinde
   söylenir.
+- Linux'ta programın kopyaları veri klasörünün içindeydi (`~/.local/share/iplikci/app`): veri klasörünü çöpe atan
+  kaldırma çalışan programı da götürüyor, veri klasörünü kenara almak servisi bozuyordu. Kopyalar artık
+  `~/.local/lib/iplikci/<sürüm>` klasöründedir; eski yerdekiler yeni sürüm ilk açıldığında kaldırılır.
 
 ## [0.6.0] — 2026-11-02 — Aşama 5: Bildirimler
 

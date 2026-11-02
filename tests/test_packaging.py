@@ -115,7 +115,7 @@ POSIX = pytest.mark.skipif(sys.platform == "win32", reason="AppRun is a shell sc
 @POSIX
 def test_the_appimage_copies_its_python_once_and_runs_the_program_from_the_copy(tmp_path):
     script, env = appimage(tmp_path)
-    target = tmp_path / "ev" / ".local" / "share" / "iplikci" / "app" / "9.9.9"
+    target = tmp_path / "ev" / ".local" / "lib" / "iplikci" / "9.9.9"
     for _ in range(2):  # the second start finds the copy whole
         done = start(script, env)
         assert done.returncode == 0, done.stderr
@@ -126,7 +126,7 @@ def test_the_appimage_copies_its_python_once_and_runs_the_program_from_the_copy(
 @POSIX
 def test_a_version_folder_left_without_its_python_is_made_again_whole(tmp_path):
     script, env = appimage(tmp_path)
-    target = tmp_path / "ev" / ".local" / "share" / "iplikci" / "app" / "9.9.9"
+    target = tmp_path / "ev" / ".local" / "lib" / "iplikci" / "9.9.9"
     (target / "lib").mkdir(parents=True)  # a copy cut short, or partly removed
     for _ in range(2):  # it used to fail at every start from then on
         done = start(script, env)
@@ -143,7 +143,7 @@ def test_an_appimage_that_cannot_copy_its_python_says_so_in_the_desktops_window(
     assert done.returncode == 1
     shown = (tmp_path / "masaustu" / "zenity.gosterdi").read_text(encoding="utf-8")
     assert "--error" in shown and "İplikçi Nedim açılamadı: çalışma ortamı" in shown
-    assert not list((tmp_path / "ev" / ".local" / "share" / "iplikci" / "app").iterdir())  # nothing half made stays
+    assert not list((tmp_path / "ev" / ".local" / "lib" / "iplikci").iterdir())  # nothing half made stays
 
 
 def test_a_windows_update_takes_the_service_off_and_replaces_the_whole_python():

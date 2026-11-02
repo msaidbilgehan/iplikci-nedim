@@ -206,7 +206,8 @@ def macos(python_root: Path, out: Path, work: Path) -> Path:
 APPRUN = """#!/bin/sh
 # İplikçi Nedim as an AppImage (ADR-0017). The AppImage is mounted somewhere new at every start, and the service
 # starts the Python it was registered with at every login: the Python is copied once per version to a place that
-# lasts, and the program runs from there. A problem is said in the desktop's own window, as service/dialog.py says it.
+# lasts, outside the data folder (ADR-0002), and the program runs from there. A problem is said in the desktop's own
+# window, as service/dialog.py says it.
 say() {
     if command -v zenity >/dev/null 2>&1; then
         zenity --error --title="İplikçi Nedim" --no-markup --text="$1"
@@ -224,7 +225,7 @@ if [ -z "$version" ]; then
     say "İplikçi Nedim açılamadı: indirilen paket bozuk. Paketi yeniden indirip açın."
     exit 1
 fi
-target="${XDG_DATA_HOME:-$HOME/.local/share}/iplikci/app/$version"
+target="$HOME/.local/lib/iplikci/$version"
 if [ ! -x "$target/bin/python3" ]; then
     rm -rf "$target"  # a copy without its Python (cut short, or partly removed) is made again whole
     temp="$target.yeni.$$"  # this start's own: a start beside it copies into a folder of its own

@@ -95,8 +95,8 @@ parçasıdır.
     görüntüsünden açılırsa önce taşınmasını ister.
   - Windows: kurulum programı kullanıcının kendi klasörüne kurar (`%LOCALAPPDATA%\Programs`); yönetici izni
     gerekmez.
-  - Linux: AppImage her açılışta başka bir yere bağlanır. İlk açılışta çalışma ortamını
-    `~/.local/share/iplikci/app/<sürüm>` klasörüne kurar ve servisi oradan kaydeder.
+  - Linux: AppImage her açılışta başka bir yere bağlanır. İlk açılışta çalışma ortamını veri klasörünün dışına,
+    `~/.local/lib/iplikci/<sürüm>` klasörüne kurar ve servisi oradan kaydeder.
 - **Güncelleme:** yeni sürüm eskisinin yanına kurulur, servis yeni yoldan yeniden kaydedilip başlatılır, sonra eski
   sürümün klasörü kaldırılır. Veri klasörüne dokunulmaz.
 - **İmzasız paket:** macOS indirilen uygulamayı karantinaya alır. "Yine de aç"tan sonra paketteki yorumlayıcının da
@@ -119,9 +119,12 @@ parçasıdır.
     - Disk görüntüsünden ya da indirildiği yerden açılan uygulama, Python çalışmadan önce taşınmasını ister.
   - Windows: Inno Setup kurulum programı, `%LOCALAPPDATA%\Programs\İplikçi Nedim` klasörüne, yönetici izni
     olmadan; Başlat menüsü uygulamayı `pythonw` ile açar.
-  - Linux: AppImage. AppRun, Python'u sürüm başına bir kez `~/.local/share/iplikci/app/<sürüm>` klasörüne kopyalar.
+  - Linux: AppImage. AppRun, Python'u sürüm başına bir kez `~/.local/lib/iplikci/<sürüm>` klasörüne kopyalar.
     Kopya önce o açılışın kendi geçici klasörüne yapılır ve bitince yerine konur; Python'u olmayan bir sürüm klasörü
     (yarım kalmış ya da kısmen silinmiş) yeniden yapılır. Kopya yapılamazsa sorun masaüstünün penceresinde söylenir.
+    - 2026-11-02'ye dek kopyalar veri klasörünün içindeydi (`~/.local/share/iplikci/app/<sürüm>`): veri klasörünü
+      çöpe atan kaldırma çalışan programı da götürüyor, veri klasörünü kenara almak servisi bozuyordu (kod ve veri
+      ayrı, ADR-0002). Yeni yerden açılan sürüm, servisi yanıt verince eski yerdeki kopyaları kaldırır.
 - **Açılış** (`iplikci uygulama`, `service/launcher`):
   - Kayıt bu kopyanın ve bu veri klasörünün değilse servis yeniden kaydedilir ve başlatılır.
   - Servis çalışmıyorsa ya da eski bir sürümse yeniden başlatılır.

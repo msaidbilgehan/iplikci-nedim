@@ -136,9 +136,14 @@ def test_a_restart_waits_for_the_new_service_before_it_asks_for_a_login_link(ws,
 
 
 def test_the_pythons_of_older_versions_an_appimage_left_go_once_this_one_answers(ws, tmp_path, monkeypatch):
-    folder = tmp_path / "share" / "iplikci" / "app"
+    folder = tmp_path / "ev" / ".local" / "lib" / "iplikci"
     for name in ("0.9.0", "0.9.0.yeni", "0.10.0", "0.10.0.yeni.4242", "0.11.0", "notlar"):
         (folder / name / "bin").mkdir(parents=True)
+    data = tmp_path / "share" / "iplikci"  # the default data folder, where an earlier AppRun kept its copies
+    for name in ("0.6.0", "0.6.0.yeni"):
+        (data / "app" / name / "bin").mkdir(parents=True)
+    (data / "iplikci.db").write_bytes(b"")
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "share"))
     python = folder / "0.10.0" / "bin" / "python3"
     monkeypatch.setattr(manager, "development_folder", lambda module=None: None)
     monkeypatch.setattr(manager.sys, "executable", str(python))
@@ -148,6 +153,16 @@ def test_the_pythons_of_older_versions_an_appimage_left_go_once_this_one_answers
     # 0.9 is older than 0.10 (a comparison of words would say otherwise); a newer copy, a copy of this version AppRun
     # is making and what is no version stay.
     assert sorted(p.name for p in folder.iterdir()) == ["0.10.0", "0.10.0.yeni.4242", "0.11.0", "notlar"]
+    assert sorted(p.name for p in data.iterdir()) == ["iplikci.db"]  # the copies went from the data folder, whole
+
+
+def test_the_data_folders_old_program_folder_stays_for_what_else_is_in_it(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "share"))
+    earlier = tmp_path / "share" / "iplikci" / "app"
+    (earlier / "0.6.0" / "bin").mkdir(parents=True)
+    (earlier / "notlar.txt").write_text("bir program kopyası değil", encoding="utf-8")
+    python = tmp_path / "ev" / ".local" / "lib" / "iplikci" / "0.7.0" / "bin" / "python3"
+    assert launcher.older_copies(python, "linux") == [earlier / "0.6.0"]
 
 
 def test_versions_are_compared_as_numbers():

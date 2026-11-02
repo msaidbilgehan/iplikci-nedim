@@ -3,6 +3,7 @@ for the data folder, starts it when it is not running, restarts it when it runs 
 one-time login link for the browser; on the first run the interface opens the setup wizard by itself. Nothing here
 needs a terminal: a problem is said in the system's own window (dialog.py)."""
 
+import os
 import re
 import shutil
 import time
@@ -153,21 +154,38 @@ def _replaced(now: instance.Holder | None, before: instance.Holder | None) -> bo
 
 
 def older_copies(executable: Path, platform: str) -> list[Path]:
-    """The Pythons of versions older than this one beside it (Linux: the AppImage's AppRun copies the Python once per
-    version to iplikci/app/<version>, as the AppImage is mounted somewhere new at every start); none elsewhere. A
-    newer version's copy stays, and so do the copies of this version AppRun may be making (<version>.yeni…)."""
+    """The Pythons of versions older than this one an AppImage left (Linux: AppRun copies the Python once per version
+    to ~/.local/lib/iplikci/<version>, as the AppImage is mounted somewhere new at every start); none elsewhere. A
+    newer version's copy stays, and so do the copies of this version AppRun may be making (<version>.yeni…).
+
+    An earlier AppRun kept the copies inside the data folder (iplikci/app/<version>), where removing the data took
+    the program along: those go too, and their folder with them when nothing else is in it."""
     if not platform.startswith("linux"):
         return []
-    root = executable.parent.parent  # iplikci/app/<version>/bin/python3
+    root = executable.parent.parent  # ~/.local/lib/iplikci/<version>/bin/python3
     folder = root.parent
     this = version_key(root.name)
-    if (folder.name, folder.parent.name) != ("app", "iplikci") or this is None or not folder.is_dir():
+    if (folder.name, folder.parent.name) != ("iplikci", "lib") or this is None:
         return []
-    return sorted(
-        path
-        for path in folder.iterdir()
-        if path.is_dir() and not path.is_symlink() and (key := version_key(path.name)) is not None and key < this
-    )
+    gone = [path for key, path in _copies(folder) if key < this]
+    earlier = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "iplikci" / "app"
+    there = [path for key, path in _copies(earlier) if key <= this]
+    if there and len(there) == len(list(earlier.iterdir())):
+        return [*gone, earlier]
+    return [*gone, *there]
+
+
+def _copies(folder: Path) -> list[tuple[tuple[int, ...], Path]]:
+    """The copies of the program in folder with their versions; one AppRun is making (<version>.yeni.<pid>) counts as
+    its version."""
+    if not folder.is_dir():
+        return []
+    found: list[tuple[tuple[int, ...], Path]] = []
+    for path in sorted(folder.iterdir()):
+        key = version_key(path.name)
+        if key is not None and path.is_dir() and not path.is_symlink():
+            found.append((key, path))
+    return found
 
 
 def _login_link(ws: Workspace) -> str:
