@@ -39,6 +39,13 @@ const pwa = VitePWA({
     navigateFallbackDenylist: [/^\/api\//, /^\/giris/, /^\/healthz/],
     runtimeCaching: [],
     cleanupOutdatedCaches: true,
+    // A new build takes over at once, open tabs too. Without these the new worker waited until every tab of the app
+    // was closed: vite-plugin-pwa 2 leaves the takeover to its own register module, which the file registering the
+    // worker here does not use. A tab kept open (the browser extension brings it to the front) then showed the old
+    // interface through every update, reloads included. The page reloads itself as the new worker takes over
+    // (src/lib/appUpdate.ts).
+    skipWaiting: true,
+    clientsClaim: true,
   },
 });
 
