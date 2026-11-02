@@ -63,8 +63,13 @@ def standalone_python(work: Path) -> Path:
     pinned = (ROOT / ".python-version").read_text(encoding="utf-8").strip()
     installs = work / "pythons"
     run("uv", "python", "install", pinned, "--install-dir", installs, "--no-bin")
-    # uv also links the minor version's name to the install: the folder itself is the one that is no link.
-    [root] = [p for p in installs.iterdir() if p.is_dir() and not p.is_symlink() and p.name.startswith("cpython-")]
+    # uv also links the minor version's name to the install, with a junction on Windows: the folder itself is the one
+    # that is no link.
+    [root] = [
+        p
+        for p in installs.iterdir()
+        if p.is_dir() and not p.is_symlink() and not p.is_junction() and p.name.startswith("cpython-")
+    ]
     for marker in root.rglob("EXTERNALLY-MANAGED"):
         marker.unlink()
     return root

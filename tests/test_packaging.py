@@ -164,6 +164,24 @@ def test_a_windows_update_takes_the_service_off_and_replaces_the_whole_python():
     assert "postinstall" not in run and "-m iplikci uygulama" in run  # the app always opens and registers the service
 
 
+def test_the_portable_python_is_the_install_itself_never_the_link_uv_makes_to_it(tmp_path, monkeypatch):
+    build = build_script()
+    install = "cpython-3.13.18-windows-x86_64-none"
+    link = "cpython-3.13-windows-x86_64-none"  # the minor version's name: a junction on Windows
+
+    def uv(*args: object, cwd: Path | None = None) -> None:  # what `uv python install` leaves, as stand-ins
+        installs = Path(str(args[list(args).index("--install-dir") + 1]))
+        (installs / install / "Lib").mkdir(parents=True)
+        (installs / install / "Lib" / "EXTERNALLY-MANAGED").write_text("", encoding="utf-8")
+        (installs / link).mkdir()
+
+    is_junction = Path.is_junction
+    monkeypatch.setattr(build, "run", uv)
+    monkeypatch.setattr(Path, "is_junction", lambda path: path.name == link or is_junction(path))
+    root = build.standalone_python(tmp_path)
+    assert root.name == install and not (root / "Lib" / "EXTERNALLY-MANAGED").exists()
+
+
 def test_leaving_out_what_the_program_never_uses_keeps_the_standard_library_on_every_system(tmp_path):
     build = build_script()
     windows = tmp_path / "windows"  # python-build-standalone's Windows layout
