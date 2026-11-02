@@ -8,6 +8,7 @@ import { expect, test } from "@playwright/test";
 const SCREENS = [
   { path: "/", heading: "Pano" },
   { path: "/akis", heading: "Akış" },
+  { path: "/islemler", heading: "İşlemler" },
   { path: "/sistem", heading: "Sistem" },
   { path: "/belgeler", heading: "Belgeler" },
   { path: "/abonelikler", heading: "Abonelikler" },

@@ -46,7 +46,7 @@ describe("Layout", () => {
     renderScreen(<Layout />);
     const expected: Record<string, string[]> = {
       Bugün: ["/", "/akis"],
-      Para: ["/abonelikler", "/takvim"],
+      Para: ["/islemler", "/abonelikler", "/takvim"],
       Arşiv: ["/belgeler", "/faturalar"],
       Uygulama: ["/bildirimler", "/sistem"],
       Kurulum: ["/kurulum/eklenti"],

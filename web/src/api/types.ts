@@ -8,23 +8,30 @@ import type {
   AccountRefOut,
   AccountsOut,
   AlertOut,
+  AnnotationOut,
   AlertPreviewOut,
   AlertRuleModel,
   AlertRulesOut,
   AppliedOut,
   BridgeOut,
+  BulkOut,
   CalendarItemOut,
   CalendarOut,
+  CategoryOut,
+  CategoryRulesOut,
   Certainty,
   Channel,
   ChannelStage,
   ChannelStateOut,
   ClosingOut,
+  CorrectionIn,
   DashboardOut,
   DeliveryStatus,
   DetailLevel,
+  DocumentDetailOut,
   DocumentOut,
   DocumentPageOut,
+  DocumentViewOut,
   EventInfoOut,
   EventKind,
   EventOut,
@@ -39,7 +46,9 @@ import type {
   LabelsOut,
   LinkOut,
   MailCoverageOut,
+  MerchantRuleIn,
   MoneyOut,
+  Necessity,
   NetWorthOut,
   NotificationOut,
   NotificationsOut,
@@ -51,11 +60,14 @@ import type {
   NowOut,
   OtherSendersOut,
   PaceOut,
+  PageLinesOut,
   PairingOut,
   PlanOut,
+  PrintedOut,
   QueuedOut,
   RefusedMailOut,
   RowOut,
+  RuleChangeOut,
   SeriesOut,
   SubscriptionsOut,
   SystemOut,
@@ -63,7 +75,11 @@ import type {
   TelegramPairingOut,
   TelegramTokenOut,
   TodoSummaryOut,
+  TotalsOut,
+  TransactionDetailOut,
+  TransactionsOut,
   UploadOut,
+  ViewModel,
 } from "./schema";
 
 export type SystemStatus = SystemOut;
@@ -125,6 +141,27 @@ export type NowCard = NowCardOut;
 // The accounts in their groups (F07).
 export type Accounts = AccountsOut;
 export type AccountItem = AccountOut;
+
+// The Transactions screen (F04): the rows a filter keeps with their totals, one row with why it is what it is, the
+// corrections, the kept views; and the category rules a correction may become.
+export type TransactionPage = TransactionsOut;
+export type Totals = TotalsOut;
+export type TransactionDetail = TransactionDetailOut;
+export type Annotation = AnnotationOut;
+export type Correction = CorrectionIn;
+export type SavedView = ViewModel;
+export type BulkResult = BulkOut;
+export type CategoryRules = CategoryRulesOut;
+export type Category = CategoryOut;
+export type MerchantRule = MerchantRuleIn;
+export type RuleChange = RuleChangeOut;
+export type { Necessity };
+
+// A document as the viewer shows it, and where its rows are printed (F03).
+export type DocumentDetail = DocumentDetailOut;
+export type DocumentView = DocumentViewOut;
+export type PageLines = PageLinesOut;
+export type Printed = PrintedOut;
 
 // The dashboard (F06): every card with its plain-view sentence (`say`) and the screen it leads to (`link`).
 export type Dashboard = DashboardOut;

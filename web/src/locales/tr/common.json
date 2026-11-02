@@ -8,6 +8,7 @@
     "text": "Arayüzü İplikçi Nedim'den yeniden açın; tek kullanımlık yeni bir giriş bağlantısı açılır."
   },
   "cancel": "Vazgeç",
+  "close": "Kapat",
   "filter": {
     "summary": "{{label}}: {{value}}",
     "all": "Tümü",

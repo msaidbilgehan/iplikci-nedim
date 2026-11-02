@@ -10,6 +10,11 @@ export const MAX_COLORED_GROUPS = 8;
 // The rule file's catch-all group (categorize.OTHER_GROUP): grey wherever it stands.
 export const OTHER_GROUP = "Diğer";
 
+/** A slot the service sends as a number (a category's, 0–8); anything else is the neutral grey. */
+export function slotOf(value: number): Slot {
+  return Number.isInteger(value) && value >= 0 && value <= MAX_COLORED_GROUPS ? (value as Slot) : 0;
+}
+
 /** A group's slot, as categorize.group_slot gives it: its place among the rule file's groups, from 1. */
 export function groupSlot(groups: readonly string[], group: string): Slot {
   const found = groups.indexOf(group);

@@ -1,7 +1,14 @@
 // The server state the screens read, through TanStack Query. The event stream invalidates these keys when the
 // service records something new (useEventStream), so the screens stay current without polling hard.
 
-import { type QueryClient, useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  type QueryClient,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import { api } from "./client";
 import type {
@@ -9,28 +16,40 @@ import type {
   AlertPreview,
   AlertRule,
   AlertRules,
+  Annotation,
   Bridge,
+  BulkResult,
   Calendar,
+  CategoryRules,
   Channel,
+  Correction,
   Dashboard,
+  DocumentDetail,
   DocumentPage,
+  DocumentView,
   FeedPage,
   Forecast,
   Invoices,
   Labels,
+  MerchantRule,
   Notifications,
   NotificationsMarked,
   NotifyPreferences,
   NotifySettings,
   Now,
   OtherSenders,
+  PageLines,
   Pairing,
   Queued,
+  RuleChange,
+  SavedView,
   Subscriptions,
   SystemStatus,
   TelegramBot,
   TelegramCheck,
   TelegramPairing,
+  TransactionDetail,
+  TransactionPage,
 } from "./types";
 
 export const keys = {
@@ -41,6 +60,14 @@ export const keys = {
   now: ["feed", "now"] as const,
   accounts: ["accounts"] as const,
   dashboard: ["dashboard"] as const,
+  allTransactions: ["transactions"] as const, // the lists and the rows' details: a new analysis moves them
+  transactions: (query: string) => ["transactions", "list", query] as const,
+  transaction: (fingerprint: string) => ["transactions", "row", fingerprint] as const,
+  views: ["views", "transactions"] as const, // the user's own, which no analysis moves
+  categoryRules: ["rules", "categories"] as const,
+  documentDetail: (sha256: string) => ["documents", sha256, "detail"] as const,
+  documentView: (sha256: string) => ["documents", sha256, "view"] as const,
+  pageLines: (sha256: string, page: number) => ["documents", sha256, "lines", page] as const,
   documents: (filter: DocumentFilter) => ["documents", filter] as const,
   allDocuments: ["documents"] as const,
   bridges: ["bridges"] as const,
@@ -159,6 +186,173 @@ export function useAccounts() {
 /** The dashboard's cards as of today, each with its sentence and the screen it leads to (F06). */
 export function useDashboard() {
   return useQuery({ queryKey: keys.dashboard, queryFn: () => api.get<Dashboard>("/api/dashboard") });
+}
+
+// --- the Transactions screen (F04) ----------------------------------------------------------------------------------
+
+const TRANSACTIONS = "/api/transactions";
+const VIEWS = `${TRANSACTIONS}/views`;
+const CATEGORY_RULES = "/api/rules/categories";
+// The service makes its analysis again in the background after a correction: the rows show it a moment later.
+const SETTLING_MS = [1_500, 4_000, 9_000] as const;
+
+/**
+ * The rows the filters keep, a page at a time, with what they all add up to; query is the API's query string (its
+ * filters, sort and page). Paging and sorting keep the rows shown until the next ones come. Not asked when a filter
+ * has nothing chosen: nothing could match.
+ */
+export function useTransactions(query: string, enabled = true) {
+  return useQuery({
+    queryKey: keys.transactions(query),
+    queryFn: () => api.get<TransactionPage>(`${TRANSACTIONS}?${query}`),
+    placeholderData: keepPreviousData,
+    enabled,
+  });
+}
+
+/** One row with where it is printed and why it is what it is; none asked without a fingerprint. */
+export function useTransaction(fingerprint: string) {
+  return useQuery({
+    queryKey: keys.transaction(fingerprint),
+    queryFn: () => api.get<TransactionDetail>(`${TRANSACTIONS}/${encodeURIComponent(fingerprint)}`),
+    enabled: fingerprint !== "",
+  });
+}
+
+/** The rows and their details asked again now and as the service's new analysis settles. */
+export function refreshTransactions(client: QueryClient): void {
+  void client.invalidateQueries({ queryKey: keys.allTransactions });
+  for (const after of SETTLING_MS) {
+    setTimeout(() => void client.invalidateQueries({ queryKey: keys.allTransactions }), after);
+  }
+}
+
+/** A detail with a correction's note and tags in it, as the row will have them. */
+function withNote(detail: TransactionDetail, change: Correction): TransactionDetail {
+  const note = change.note ?? detail.row.note;
+  const tags = change.tags ?? detail.row.tags;
+  const annotation = detail.annotation ?? { note: "", tags: [], category: "", necessity: null, updated_at: "" };
+  return { ...detail, row: { ...detail.row, note, tags }, annotation: { ...annotation, note, tags } };
+}
+
+/**
+ * Correct one row: its note, tags, category or necessity. A note or tags show at once and go back if the service
+ * refuses them (architecture §18: the only changes shown before the service has them); a category or a necessity
+ * shows as the service's new analysis settles.
+ */
+export function useCorrection(fingerprint: string) {
+  const client = useQueryClient();
+  const key = keys.transaction(fingerprint);
+  return useMutation({
+    mutationFn: (change: Correction) =>
+      api.put<Annotation | null>(`${TRANSACTIONS}/${encodeURIComponent(fingerprint)}/annotation`, change),
+    onMutate: async (change) => {
+      if (change.note == null && change.tags == null) {
+        return { before: undefined };
+      }
+      await client.cancelQueries({ queryKey: key });
+      const before = client.getQueryData<TransactionDetail>(key);
+      if (before) {
+        client.setQueryData(key, withNote(before, change));
+      }
+      return { before };
+    },
+    onError: (_error, _change, context) => {
+      if (context?.before) {
+        client.setQueryData(key, context.before);
+      }
+    },
+    onSuccess: (annotation) => {
+      client.setQueryData<TransactionDetail>(key, (was) => (was ? { ...was, annotation } : was));
+    },
+    onSettled: () => refreshTransactions(client),
+  });
+}
+
+/** Give the selected rows one category, or add tags to theirs. */
+export function useBulkCorrection() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (change: { fingerprints: string[]; category?: string; tags?: string[] }) =>
+      api.post<BulkResult>(`${TRANSACTIONS}/bulk`, change),
+    onSettled: () => refreshTransactions(client),
+  });
+}
+
+/** The filters the user kept under names. */
+export function useSavedViews() {
+  return useQuery({ queryKey: keys.views, queryFn: () => api.get<SavedView[]>(VIEWS) });
+}
+
+/** Keep the filters under a name; the same name replaces the view kept before. */
+export function useSaveView() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (view: SavedView) => api.put<SavedView[]>(VIEWS, view),
+    onSuccess: (views) => client.setQueryData(keys.views, views),
+  });
+}
+
+/** Forget a kept view; the service answers with the views left. */
+export function useRemoveView() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => api.delete<SavedView[]>(`${VIEWS}/${encodeURIComponent(name)}`),
+    onSuccess: (views) => client.setQueryData(keys.views, views),
+  });
+}
+
+/** The categories with their groups, colours and necessity, the user's rule file and its history (F15). */
+export function useCategoryRules() {
+  return useQuery({ queryKey: keys.categoryRules, queryFn: () => api.get<CategoryRules>(CATEGORY_RULES) });
+}
+
+/** What a merchant rule would do to the ledger: the rows it moves, and from which category to which. Nothing saved. */
+export function usePreviewRule() {
+  return useMutation({ mutationFn: (rule: MerchantRule) => api.post<RuleChange>(`${CATEGORY_RULES}/preview`, rule) });
+}
+
+/** Save a merchant rule: the service writes it and makes its analysis again, then says what moved. */
+export function useSaveRule() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (rule: MerchantRule) => api.put<RuleChange>(CATEGORY_RULES, rule),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: keys.categoryRules });
+      refreshTransactions(client);
+    },
+  });
+}
+
+// --- a document as the viewer shows it (F03) ------------------------------------------------------------------------
+
+const DOCUMENTS = "/api/documents";
+
+/** A kept document: what it is, how it arrived, and the rows read from it with where each is printed. */
+export function useDocumentDetail(sha256: string, enabled = true) {
+  return useQuery({
+    queryKey: keys.documentDetail(sha256),
+    queryFn: () => api.get<DocumentDetail>(`${DOCUMENTS}/${sha256}`),
+    enabled: enabled && sha256 !== "",
+  });
+}
+
+/** How the viewer shows a document: a PDF's page sizes, a sheet's cells, an e-mail's text. */
+export function useDocumentView(sha256: string) {
+  return useQuery({
+    queryKey: keys.documentView(sha256),
+    queryFn: () => api.get<DocumentView>(`${DOCUMENTS}/${sha256}/view`),
+    enabled: sha256 !== "",
+  });
+}
+
+/** A PDF page's text line by line, for a row placed by its line. */
+export function usePageLines(sha256: string, page: number, enabled = true) {
+  return useQuery({
+    queryKey: keys.pageLines(sha256, page),
+    queryFn: () => api.get<PageLines>(`${DOCUMENTS}/${sha256}/pages/${page}/lines`),
+    enabled: enabled && sha256 !== "" && page > 0,
+  });
 }
 
 /** The monthly and periodic payments, the regular income and the installments left (F08). */

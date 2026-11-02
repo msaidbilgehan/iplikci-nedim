@@ -8,7 +8,7 @@ import { NOTIFICATIONS, staleBy, useEventStream } from "./useEventStream";
 
 describe("staleBy", () => {
   it("refreshes the documents on a document's events, and the feed, the dashboard and the System screen on every event", () => {
-    const analysis = [keys.subscriptions, keys.calendar, keys.forecast, keys.invoices];
+    const analysis = [keys.subscriptions, keys.calendar, keys.forecast, keys.invoices, keys.allTransactions];
     const every = [keys.feedAll, keys.dashboard, keys.system];
     expect(staleBy("document.received")).toEqual([keys.allDocuments, ...analysis, ...every]);
     expect(staleBy("transaction.created")).toEqual([keys.allDocuments, ...analysis, ...every]);
@@ -23,6 +23,13 @@ describe("staleBy", () => {
 
   it("refreshes what stands now with the feed: both live under the feed's key", () => {
     expect(keys.now.slice(0, keys.feedAll.length)).toEqual([...keys.feedAll]);
+  });
+
+  it("refreshes every list of rows and every row's detail under the rows' key, but not the kept views", () => {
+    for (const key of [keys.transactions("q=kira"), keys.transaction("0123456789abcdef0123")]) {
+      expect(key.slice(0, keys.allTransactions.length)).toEqual([...keys.allTransactions]);
+    }
+    expect(keys.views.slice(0, keys.allTransactions.length)).not.toEqual([...keys.allTransactions]);
   });
 });
 

@@ -29,9 +29,10 @@ import dashboard from "./locales/tr/dashboard.json";
 import feed from "./locales/tr/feed.json";
 import glossary from "./locales/tr/glossary.json";
 import shell from "./locales/tr/shell.json";
+import transactions from "./locales/tr/transactions.json";
 
 export const defaultNS = "common";
-export const resources = { tr: { common, shell, glossary, charts, feed, dashboard } } as const;
+export const resources = { tr: { common, shell, glossary, charts, feed, dashboard, transactions } } as const;
 
 const WHOLE = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0, useGrouping: "always" });
 

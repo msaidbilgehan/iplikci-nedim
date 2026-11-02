@@ -95,7 +95,7 @@ export function ConfirmDialog({
  * screen readers with aria-hidden alone, which leaves its controls in the tab order (axe: aria-hidden-focus). A ref
  * callback, as the dialog's element mounts only after its portal has; Radix's focus guards stay as they are.
  */
-function inertBehind(dialog: HTMLDivElement | null): (() => void) | undefined {
+export function inertBehind(dialog: HTMLDivElement | null): (() => void) | undefined {
   if (!dialog) {
     return undefined;
   }
@@ -113,7 +113,7 @@ function inertBehind(dialog: HTMLDivElement | null): (() => void) | undefined {
 }
 
 /** While open, the page behind does not scroll: set on the root element's style, which the CSP allows. */
-function useScrollHeld(held: boolean): void {
+export function useScrollHeld(held: boolean): void {
   useEffect(() => {
     if (!held) {
       return undefined;

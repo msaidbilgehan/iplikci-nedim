@@ -32,7 +32,7 @@ export const MENU: readonly ScreenGroup[] = [
     key: "money", // the accounts, their rows, what is paid regularly and what comes next
     screens: [
       { to: "/hesaplar", key: "accounts", ready: false },
-      { to: "/islemler", key: "transactions", ready: false },
+      { to: "/islemler", key: "transactions", ready: true },
       { to: "/abonelikler", key: "subscriptions", ready: true },
       { to: "/takvim", key: "calendar", ready: true },
       { to: "/doviz", key: "fx", ready: false },

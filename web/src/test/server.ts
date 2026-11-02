@@ -12,9 +12,13 @@ import type {
   Bridge,
   Calendar,
   CalendarItem,
+  Category,
+  CategoryRules,
   ChannelState,
   Dashboard,
+  DocumentDetail,
   DocumentPage,
+  DocumentView,
   FeedDetail,
   FeedItem,
   FeedPage,
@@ -33,6 +37,8 @@ import type {
   Series,
   Subscriptions,
   SystemStatus,
+  TransactionDetail,
+  TransactionPage,
 } from "../api/types";
 
 export const LABELS: Labels = {
@@ -89,7 +95,28 @@ export const LABELS: Labels = {
   AccountType: { credit_card: "Kredi kartı", current: "Vadesiz hesap", fx: "Döviz hesabı" },
   TodoKind: { missing_documents: "Eksik belge", unprocessed_document: "İşlenmeyen belge" },
   MonthStatus: { closed: "Kapandı", waiting: "Ekstre bekleniyor", missing: "Belge eksik", running: "Ay sürüyor" },
-  TransactionKind: { purchase: "Harcama", income: "Gelir", interest_fee: "Faiz & banka ücreti" },
+  TransactionKind: {
+    purchase: "Harcama",
+    income: "Gelir",
+    interest_fee: "Faiz & banka ücreti",
+    own_transfer: "Kendi hesapları arası",
+  },
+  Necessity: { required: "Gerekli", optional: "İsteğe bağlı", unnecessary: "Gereksiz", unknown: "Belirsiz" },
+  CategoryReason: {
+    rule: "Kategori kuralı",
+    own_transfer: "Kendi hesaplarınız arası",
+    user: "Sizin düzeltmeniz",
+    split: "Sizin bölmeniz",
+  },
+  NecessityReason: {
+    user: "Sizin düzeltmeniz",
+    merchant: "İşyerinin kendi düzeyi",
+    category: "Kategorisinin düzeyi",
+    default: "Kural yok: belirsiz",
+  },
+  RuleLayer: { own: "Sizin kurallarınız", shipped: "Hazır kurallar" },
+  TransferStep: { paired: "Başka bir hesabınızda karşılığı var" },
+  EvidenceStatus: { matched: "Ekstreyle eşleşti", provisional: "Geçici — ekstre bekleniyor" },
 };
 
 /** An amount in TL from its kuruş. */
@@ -1154,6 +1181,254 @@ export const DASHBOARD: Dashboard = {
   },
 };
 
+// --- the Transactions screen (F04) ----------------------------------------------------------------------------------
+
+export const STATEMENT = "d".repeat(64); // a card statement, a PDF
+export const RECEIPT = "f".repeat(64); // a receipt, an e-mail
+
+// A purchase the statement shows, an income, a receipt's row the statements leave out, and a market receipt split in
+// two: 93 rows in all, 50 a page.
+export const PURCHASE = row({
+  fingerprint: "a1a1a1a1a1a1a1a1a1a1",
+  day: "2026-11-12",
+  title: "Örnek Market",
+  description: "ORNEK MARKET KADIKOY",
+  merchant: "Örnek Market",
+  amount: tl(84050),
+  category: "Market",
+  group: "Gıda",
+  necessity: "required",
+  certainty: "confirmed",
+  note: "haftalık alışveriş",
+  tags: ["ev"],
+  document: STATEMENT,
+});
+export const INCOME = row({
+  fingerprint: "b2b2b2b2b2b2b2b2b2b2",
+  day: "2026-11-05",
+  account: CASH,
+  title: "Örnek İşveren A.Ş.",
+  description: "MAAS ODEMESI ORNEK ISVEREN",
+  merchant: "",
+  counterparty: "Örnek İşveren A.Ş.",
+  amount: tl(4000000),
+  direction: "in",
+  kind: "income",
+  category: "Maaş",
+  group: "Gelir",
+  necessity: null,
+  expense: false,
+  certainty: "confirmed",
+  document: "a".repeat(64),
+});
+export const EXCLUDED = row({
+  fingerprint: "c3c3c3c3c3c3c3c3c3c3",
+  day: "2026-11-03",
+  title: "Örnek Kafe",
+  description: "ORNEK KAFE",
+  merchant: "Örnek Kafe",
+  amount: tl(9000),
+  category: "Kafe",
+  group: "Yeme içme",
+  counted: false,
+  expense: false,
+  certainty: "excluded",
+  document: RECEIPT,
+});
+const WHOLE = "e4e4e4e4e4e4e4e4e4e4"; // the split row's own fingerprint
+export const PARTS = [
+  row({
+    fingerprint: `${WHOLE}-1`,
+    day: "2026-11-01",
+    title: "Örnek Süpermarket",
+    description: "ORNEK SUPERMARKET",
+    merchant: "Örnek Süpermarket",
+    amount: tl(100000),
+    category: "Market",
+    group: "Gıda",
+    necessity: "required",
+    certainty: "confirmed",
+    split_of: WHOLE,
+    split_parts: 2,
+    document: STATEMENT,
+  }),
+  row({
+    fingerprint: `${WHOLE}-2`,
+    day: "2026-11-01",
+    title: "Örnek Süpermarket",
+    description: "ORNEK SUPERMARKET",
+    merchant: "Örnek Süpermarket",
+    amount: tl(25000),
+    category: "Temizlik",
+    group: "Ev",
+    necessity: "required",
+    certainty: "confirmed",
+    split_of: WHOLE,
+    split_parts: 2,
+    document: STATEMENT,
+  }),
+];
+
+export const TRANSACTIONS: TransactionPage = {
+  rows: [PURCHASE, INCOME, EXCLUDED, ...PARTS],
+  totals: {
+    count: 93,
+    counted: 92,
+    spent: tl(1525000),
+    money_out: tl(1525000),
+    money_in: tl(4000000),
+    provisional: 4,
+    excluded: 1,
+  },
+  offset: 0,
+  next: 50,
+};
+
+export const NEXT_TRANSACTIONS: TransactionPage = {
+  rows: [row({ fingerprint: "f5f5f5f5f5f5f5f5f5f5", day: "2026-09-02", title: "Örnek Kitapçı", certainty: "confirmed" })],
+  totals: TRANSACTIONS.totals,
+  offset: 50,
+  next: null,
+};
+
+export function category(name: string, group: string, slot: number, overrides: Partial<Category> = {}): Category {
+  return { name, group, slot, necessity: "optional", regular: false, own: false, ...overrides };
+}
+
+export const CATEGORY_RULES: CategoryRules = {
+  content: "",
+  categories: [
+    category("Market", "Gıda", 1, { necessity: "required" }),
+    category("Kafe", "Yeme içme", 2),
+    category("Elektronik", "Alışveriş", 3),
+    category("Temizlik", "Ev", 4, { necessity: "required" }),
+    category("Maaş", "Gelir", 5, { necessity: null }),
+  ],
+  ended: [],
+  merchant_necessity: [],
+  history: [],
+};
+
+/** A document's place with no page, line, sheet or row: a receipt or a notice found as a whole. */
+export const NOWHERE = { page: null, line: null, sheet: null, row: null } as const;
+
+export function transactionDetail(overrides: Partial<TransactionDetail> = {}): TransactionDetail {
+  return {
+    row: PURCHASE,
+    printed: {
+      document: STATEMENT,
+      name: "Örnek Kart Ekstresi Kasım 2026",
+      kind: "card_statement",
+      page: 2,
+      line: 14,
+      sheet: null,
+      row: null,
+    },
+    why: {
+      category: "rule",
+      rule: "ORNEK MARKET",
+      layer: "shipped",
+      necessity: "category",
+      necessity_layer: "shipped",
+      transfer: null,
+      pair: null,
+      rate: null,
+      rate_day: null,
+    },
+    told: [
+      {
+        fingerprint: "a9a9a9a9a9a9a9a9a9a9",
+        status: "matched",
+        day: "2026-11-12",
+        amount: tl(84050),
+        printed: { ...NOWHERE, document: RECEIPT, name: "Örnek Banka dekontu", kind: "receipt" },
+      },
+    ],
+    bill: null,
+    annotation: {
+      note: "haftalık alışveriş",
+      tags: ["ev"],
+      category: "",
+      necessity: null,
+      updated_at: "2026-11-13T09:00:00+00:00",
+    },
+    correctable: true,
+    parts: [],
+    splittable: true,
+    ...overrides,
+  };
+}
+
+/** The split row's detail: the whole row, with the category it had before, and its parts in order. */
+export const SPLIT_DETAIL = transactionDetail({
+  row: { ...PARTS[0]!, fingerprint: WHOLE, amount: tl(125000), category: "Market", split_of: "", split_parts: 2 },
+  why: { ...transactionDetail().why, rule: "ORNEK SUPERMARKET" },
+  told: [],
+  annotation: { note: "", tags: [], category: "", necessity: null, updated_at: "2026-11-02T09:00:00+00:00" },
+  parts: PARTS,
+});
+
+export const PAGE_SIZES = [
+  { width: 595, height: 842 },
+  { width: 595, height: 842 },
+];
+
+// The statement's second page as text, line by line: line 14 is the purchase's.
+export const STATEMENT_LINES = Array.from({ length: 20 }, (_, index) =>
+  index === 13 ? "12.11.2026 ORNEK MARKET KADIKOY 840,50" : `Satır ${index + 1}`,
+);
+
+export const STATEMENT_VIEW: DocumentView = {
+  kind: "pdf",
+  pages: PAGE_SIZES,
+  table: null,
+  mail: null,
+  text: "",
+  has_html: false,
+};
+
+export const STATEMENT_DETAIL: DocumentDetail = {
+  document: {
+    sha256: STATEMENT,
+    name: "Örnek Kart Ekstresi Kasım 2026",
+    file: "ekstre.pdf",
+    kind: "card_statement",
+    parser: "ornek.card_pdf",
+    reader: "Örnek kart ekstresi",
+    status: "processed",
+    reason: "",
+    verified: true,
+    period_start: "2026-10-16",
+    period_end: "2026-11-15",
+    sources: ["email"],
+    added_at: "2026-11-16T08:00:00+00:00",
+    size: 81920,
+    accounts: [{ id: CARD.id, label: CARD.label, bank: "TEB" }],
+  },
+  parser_version: "1.0",
+  view: "pdf",
+  arrivals: [],
+  checks: [],
+  rows: [
+    {
+      fingerprint: PURCHASE.fingerprint,
+      day: PURCHASE.day,
+      description: PURCHASE.description,
+      amount: PURCHASE.amount,
+      kind: "purchase",
+      account: CARD.id,
+      category: "Market",
+      provisional: false,
+      counted: true,
+      evidence: "matched",
+      ref: { page: 2, box: [40, 300, 555, 312], line: 14, sheet: null, row: null, span: null },
+    },
+  ],
+  more_rows: false,
+  parent: "",
+  attachments: [],
+};
+
 export const handlers = [
   http.get("/api/labels", () => HttpResponse.json(LABELS)),
   http.get("/api/dashboard", () => HttpResponse.json(DASHBOARD)),
@@ -1162,6 +1437,17 @@ export const handlers = [
   ),
   http.get("/api/feed/now", () => HttpResponse.json(NOW)),
   http.get("/api/accounts", () => HttpResponse.json(ACCOUNTS)),
+  http.get("/api/transactions", ({ request }) =>
+    HttpResponse.json(new URL(request.url).searchParams.get("offset") === "50" ? NEXT_TRANSACTIONS : TRANSACTIONS),
+  ),
+  http.get("/api/transactions/views", () => HttpResponse.json([])), // before the rows: "views" is no fingerprint
+  http.get("/api/transactions/:fingerprint", ({ params }) =>
+    HttpResponse.json(String(params["fingerprint"]).startsWith(WHOLE) ? SPLIT_DETAIL : transactionDetail()),
+  ),
+  http.get("/api/rules/categories", () => HttpResponse.json(CATEGORY_RULES)),
+  http.get("/api/documents/:sha256/view", () => HttpResponse.json(STATEMENT_VIEW)),
+  http.get("/api/documents/:sha256/pages/:page/lines", () => HttpResponse.json({ lines: STATEMENT_LINES })),
+  http.get("/api/documents/:sha256", () => HttpResponse.json(STATEMENT_DETAIL)),
   http.get("/api/subscriptions", () => HttpResponse.json(SUBSCRIPTIONS)),
   http.get("/api/calendar", () => HttpResponse.json(CALENDAR)),
   http.get("/api/forecast", () => HttpResponse.json(FORECAST)),

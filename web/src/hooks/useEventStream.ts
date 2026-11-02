@@ -14,8 +14,8 @@ import type { LoggedEvent } from "../api/types";
 
 type QueryKey = readonly unknown[];
 
-// What a new analysis changes: the series, the calendar, the forecast and the non-bank bills' matches.
-const ANALYSIS = [keys.subscriptions, keys.calendar, keys.forecast, keys.invoices] as const;
+// What a new analysis changes: the series, the calendar, the forecast, the non-bank bills' matches and the rows.
+const ANALYSIS = [keys.subscriptions, keys.calendar, keys.forecast, keys.invoices, keys.allTransactions] as const;
 // What every event changes: the feed shows it, what stands now and the dashboard's cards may move (its alerts follow
 // the mail, the backups and the extension too); the System screen follows everything.
 const EVERY = [keys.feedAll, keys.dashboard, keys.system] as const;
