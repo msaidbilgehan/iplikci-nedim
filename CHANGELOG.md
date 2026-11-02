@@ -27,6 +27,12 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
   mevduatın getirisi, döviz ve altının değeri, portföy, kredi), belgelerin kapsamadığı günleri boş bırakan günlük
   bakiye, son 12 ay, faiz ve ücretler, hesaptan geçen düzenli ödeme ve gelirler, satırlar; hesaba kendi adınızı
   verebilirsiniz.
+- Belgeler ekranı (`/belgeler`): saklanan her belge türü, hesabı, dönemi, durumu ve geliş yoluyla; tam metin arama,
+  tür, geliş yolu, hesap ve banka süzgeci adreste; okunamayanlar ayrı bir sekmede, nedenleri, asılları ve yeniden
+  okuma düğmesiyle. Görüntüleyici (`/belgeler/:id`): PDF sayfa sayfa, seçilen satırın kutusuyla; tablo, satırı
+  işaretli; e-postanın metni, satırın sözcükleri işaretli, özgün görünümü yalnızca kum havuzlu bir çerçevede; yanında
+  okunan satırlar, ekstrenin denetimleri, nasıl geldiği ve ekleri; aslını indirme, yeniden okuma ve sorulduktan sonra
+  çöp kutusuna taşıma. Satır panelindeki "Belgede aç" buraya gider.
 - API: akışın sayfaları ve "Şu an" (`GET /api/feed`, `GET /api/feed/now`), pano kartları (`GET /api/dashboard`),
   hesap grupları, hesap sayfası, hesaplar arası akış ve hesaba verilen ad (`GET /api/accounts…`,
   `PUT /api/accounts/{id}/alias`).
@@ -63,6 +69,7 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
 - CSV ve Excel dışa aktarımında formül gibi başlayan metin artık metin olarak yazılır.
 - Kategori kurallarında aynı anda yapılan iki değişiklikten biri ötekinin eklediğini siliyordu; değişiklikler artık
   sırayla, her biri bir öncekinin bıraktığı dosyadan yapılır.
+- Kurulum sihirbazının servis adımı, bilgisayarda başka bir veri klasörü için kayıtlı servisi de "tamam" sayıyordu.
 - Olağan dışı hareketler `docs/domain/interpretation.md`'deki eşiklere uyar; kart aidatı için iade adımı önerilir.
 - Olay akışı baştan açılınca bütün kaydı yeniden göndermez; son dakikanın olaylarını yeniden söyler.
 - Bölünmüş bir satır her sayımda tek ödemedir: ay sonu, alışkanlıklar, en çok harcanan yerler, kart dönemi ve
