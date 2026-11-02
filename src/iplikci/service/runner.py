@@ -13,7 +13,7 @@ import uvicorn
 from .. import __version__
 from ..api.app import create_app
 from ..api.context import Context
-from ..app import access, background, mail
+from ..app import access, background, lifecycle, mail
 from ..app.workspace import Workspace
 from ..ingest.inbox import InboxWatcher
 from ..ingest.mail.idle import IdleWatcher
@@ -21,6 +21,7 @@ from ..jobs.worker import Worker
 from . import instance, logs
 
 HOST = "127.0.0.1"
+GRACE_SECONDS = 5  # how long a stop waits for open requests: the event streams would hold it for minutes
 
 log = logging.getLogger("iplikci.service")
 
@@ -29,11 +30,25 @@ def _say(text: str) -> None:
     print(text, flush=True)  # at once, also when the output goes to a file
 
 
-def context(ws: Workspace) -> Context:
+class Life:
+    """The running service's own end (app.lifecycle): the server stops after the responses being written, and the
+    process exits with the code asked for."""
+
+    def __init__(self) -> None:
+        self.server: uvicorn.Server | None = None
+        self.code = lifecycle.STOP
+
+    def end(self, code: int) -> None:
+        self.code = code
+        if self.server is not None:
+            self.server.should_exit = True
+
+
+def context(ws: Workspace, life: Life | None = None) -> Context:
     """The service's context: the API token made or found, and the expired sessions forgotten."""
     with ws.db() as db:
         access.purge_sessions(db)
-    return Context(ws=ws, token=access.ensure_api_token())
+    return Context(ws=ws, token=access.ensure_api_token(), lifecycle=life)
 
 
 def worker(ws: Workspace) -> Worker:
@@ -56,12 +71,14 @@ def inbox_watcher(ws: Workspace, jobs: Worker) -> InboxWatcher:
     return InboxWatcher(ws.inbox, settled)
 
 
-def run(ws: Workspace, announce: Callable[[str], None] = _say) -> None:
-    """Serve until interrupted (KeyboardInterrupt); instance.AlreadyRunning when another process serves this data
-    folder. A stop the system asks for (SIGTERM, as launchd and systemd send) ends the service as Ctrl+C does: the
-    worker finishes its job first. Uvicorn would otherwise raise the signal again after its own shutdown and end the
-    process before that. What the service creates is the user's alone, and its log goes to logs/ (architecture
-    §22)."""
+def run(ws: Workspace, announce: Callable[[str], None] = _say) -> int:
+    """Serve until interrupted (KeyboardInterrupt) or ended from the interface; the exit code (app.lifecycle).
+    instance.AlreadyRunning when another process serves this data folder. A stop the system asks for (SIGTERM, as
+    launchd and systemd send) ends the service as Ctrl+C does: the worker finishes its job first. Uvicorn would
+    otherwise raise the signal again after its own shutdown and end the process before that. What the service
+    creates is the user's alone, and its log goes to logs/ (architecture §22). A backup a restore asked for is put
+    back first, before anything opens the database; a removal that asked for it moves the data folder to the Trash
+    last."""
     _console_to_file(ws)
     holder = instance.Holder(os.getpid(), ws.port, datetime.now(UTC).isoformat(timespec="seconds"), __version__)
     umask = os.umask(0o077)
@@ -69,26 +86,30 @@ def run(ws: Workspace, announce: Callable[[str], None] = _say) -> None:
     try:
         with instance.held(ws.run, holder), logs.kept(ws.logs):
             log.info("service %s starting on port %d", __version__, ws.port)
+            lifecycle.apply_pending_restore(ws)
             try:
-                _serve(ws, announce)
+                code = _serve(ws, announce)
             except Exception:
                 log.exception("the service stopped on an error")
                 raise
             except KeyboardInterrupt:
                 log.info("service stopped")
                 raise
-            log.info("service stopped")
+            log.info("service stopped%s", " to start again" if code == lifecycle.RESTART else "")
+            lifecycle.finish_removal(ws)
     finally:
         signal.signal(signal.SIGTERM, on_term)
         os.umask(umask)
+    return code
 
 
-def _serve(ws: Workspace, announce: Callable[[str], None]) -> None:
+def _serve(ws: Workspace, announce: Callable[[str], None]) -> int:
     """The login link printed at start opens the interface once, within two minutes; it is printed only to a
     terminal, never into a file. The worker starts first: the jobs a stop interrupted run again, and the analysis is
     made again in case the readers changed since the last run. The IMAP watcher waits for a set-up account and then
     for its new mail; the inbox watcher hands over what is dropped into the inbox folder."""
-    ctx = context(ws)
+    life = Life()
+    ctx = context(ws, life)
     app = create_app(ctx)
     jobs = worker(ws)
     background.request_refresh(ws)
@@ -103,14 +124,23 @@ def _serve(ws: Workspace, announce: Callable[[str], None]) -> None:
     # No access log: a login link's key would land in it. No logging set-up of uvicorn's own: its records join the
     # service's log.
     config = uvicorn.Config(
-        app, host=HOST, port=ws.port, access_log=False, log_level="warning", log_config=None, server_header=False
+        app,
+        host=HOST,
+        port=ws.port,
+        access_log=False,
+        log_level="warning",
+        log_config=None,
+        server_header=False,
+        timeout_graceful_shutdown=GRACE_SECONDS,
     )
+    life.server = uvicorn.Server(config)
     try:
-        uvicorn.Server(config).run()
+        life.server.run()
     finally:
         inbox.stop()
         ear.stop()
         jobs.stop()
+    return life.code
 
 
 def _console_to_file(ws: Workspace) -> None:

@@ -124,6 +124,11 @@ class ServiceManager(Protocol):
         """Stop and remove the service; whether there was one."""
         ...
 
+    def unregister(self) -> bool:
+        """Remove the registration and leave the running process alone: the service itself asks for it, and ends
+        after its answer with a clean exit, which no service manager restarts. Whether there was one."""
+        ...
+
     def installed(self) -> bool: ...
 
     def registered(self) -> Program | None:
@@ -185,6 +190,12 @@ class Launchd:
         if self._loaded():
             self._run(["launchctl", "bootout", self._target])
         self.path.unlink()  # the agent file this program wrote, not a document
+        return True
+
+    def unregister(self) -> bool:
+        if not self.path.exists():
+            return False
+        self.path.unlink()  # the agent file this program wrote; launchd forgets the job at logout
         return True
 
     def installed(self) -> bool:
@@ -273,6 +284,14 @@ class Systemd:
         if not self.path.exists():
             return False
         self._run(["systemctl", "--user", "disable", "--now", f"{UNIT}.service"])
+        self.path.unlink()  # the unit file this program wrote
+        self._run(["systemctl", "--user", "daemon-reload"])
+        return True
+
+    def unregister(self) -> bool:
+        if not self.path.exists():
+            return False
+        self._run(["systemctl", "--user", "disable", f"{UNIT}.service"])  # no --now: the service ends by itself
         self.path.unlink()  # the unit file this program wrote
         self._run(["systemctl", "--user", "daemon-reload"])
         return True
@@ -386,6 +405,12 @@ class TaskScheduler:
             return False
         self._run(["schtasks", "/End", "/TN", UNIT])
         self._schtasks("/Delete", "/TN", UNIT, "/F")
+        return True
+
+    def unregister(self) -> bool:
+        if not self.installed():
+            return False
+        self._schtasks("/Delete", "/TN", UNIT, "/F")  # a running task's process goes on until it ends
         return True
 
     def installed(self) -> bool:

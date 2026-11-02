@@ -15,6 +15,7 @@ from ..app.access import LoginKeys
 from ..app.analysis import Current
 from ..app.bridge import PairingCodes
 from ..app.intake import Plan
+from ..app.lifecycle import Lifecycle
 from ..app.workspace import Workspace
 
 PLANS_KEPT = 8  # plans shown and not yet applied
@@ -33,6 +34,7 @@ class Context:
     poll: float = 1.0  # how often an event stream looks for new events
     ui: Path = field(default_factory=lambda: UI)
     today: Callable[[], date] = date.today  # the day the calendar and the forecast start from
+    lifecycle: Lifecycle | None = None  # the running service's own end; None where the API runs without one (tests)
     _plans: OrderedDict[str, Plan] = field(default_factory=OrderedDict[str, Plan])
     _plans_lock: threading.Lock = field(default_factory=threading.Lock)
     # The analysis the screens read, as the MCP server keeps it: made again when the documents, the annotations, the

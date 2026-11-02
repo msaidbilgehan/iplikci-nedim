@@ -97,13 +97,12 @@ def _service_run(ws: Workspace) -> int:
     from ..service import runner  # the web stack loads only for the service
 
     try:
-        runner.run(ws)
+        return runner.run(ws)  # a restart asked from the interface exits with lifecycle.RESTART
     except instance.AlreadyRunning as exc:
         print(f"{str(exc)[:1].upper()}{str(exc)[1:]}.", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
-        pass
-    return 0
+        return 0
 
 
 def _service_install(ws: Workspace) -> int:

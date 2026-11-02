@@ -26,6 +26,7 @@ from .routes import (
     notify,
     outlook,
     rules,
+    service,
     settings,
     spending,
     system,
@@ -38,6 +39,7 @@ from .routes import (
 ROUTERS = (
     auth,
     system,
+    service,
     events,
     bridge,
     uploads,

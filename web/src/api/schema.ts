@@ -1603,6 +1603,11 @@ export interface ReparsedOut {
   status: string;
 }
 
+export interface RestoringOut {
+  backup: string;
+  restarts: boolean;
+}
+
 export interface RowLabelsOut {
   merchant: string;
   category: string;
@@ -1709,11 +1714,28 @@ export type SeriesPeriod = "month" | "half_year" | "year";
 /** Whether a regular or periodic payment still runs (docs/domain/interpretation.md, "Düzenli ödemeler"). */
 export type SeriesStatus = "active" | "ended" | "cancelled" | "paid_after_cancel";
 
+export interface ServiceEndingOut {
+  ending: boolean;
+  restarts: boolean;
+}
+
 export interface ServiceOut {
   version: string;
   started_at: string;
   pid: number;
   home: string;
+}
+
+export interface ServiceRemoveIn {
+  data_to_trash?: boolean;
+}
+
+export interface ServiceStateOut {
+  version: string;
+  started_at: string;
+  registered: boolean;
+  manager: string;
+  can_end: boolean;
 }
 
 export interface SettingsOut {
