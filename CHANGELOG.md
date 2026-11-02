@@ -41,6 +41,10 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
 - Takvim ekranı (`/takvim`): önümüzdeki 60 günde beklenen ödemeler ve gelirler, her biri serisine, faturalara ya da
   hesabına giden bağlantısıyla; her TL hesabın gün gün bakiye tahmini çizgi grafik ve tablo olarak, eksiye düştüğü gün
   işaretli; varsayımlar, hiçbir hesaba düşülmeyen kalemler ve öngörüye girmeyen hesaplar. İkisi de "Tahmin" etiketli.
+- Döviz ekranı (`/doviz`): net varlık TL, euro, dolar ve gram altın cinsinden, belgelerin kendi kurlarıyla; kuru
+  belgelerde olmayan birim sıfır gösterilmez, nedeni yazar. Varlıkların para birimlerine dağılımı grafik ve tablo
+  olarak; her varlık ve borç kendi biriminde ve TL karşılığıyla, ayrıntılı görünümde kuru, maliyeti ve kur farkıyla;
+  belgelerin yazdığı kurlar, her birimin en yenisi ve hepsi.
 - API: akışın sayfaları ve "Şu an" (`GET /api/feed`, `GET /api/feed/now`), pano kartları (`GET /api/dashboard`),
   hesap grupları, hesap sayfası, hesaplar arası akış ve hesaba verilen ad (`GET /api/accounts…`,
   `PUT /api/accounts/{id}/alias`).
