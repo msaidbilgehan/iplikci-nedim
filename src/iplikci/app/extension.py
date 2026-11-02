@@ -26,6 +26,10 @@ class ExtensionError(Exception):
     """The extension's folder cannot be made here; the message says why (Turkish)."""
 
 
+class FolderError(ExtensionError):
+    """The folder could not be written: a full disk, a file the system keeps busy, a file in the way."""
+
+
 @dataclass(frozen=True, slots=True)
 class ExtensionState:
     available: bool  # this installation carries the built extension
@@ -54,7 +58,7 @@ def state(ws: Workspace, built: Path | None = None) -> ExtensionState:
         available=available,
         version=_version(built) if available else "",
         folder=folder if made else None,
-        current=available and made and _digest(folder) == _digest(built),
+        current=available and made and _same(folder, built),
     )
 
 
@@ -67,8 +71,11 @@ def prepare(ws: Workspace, built: Path | None = None) -> Path:
             "kopyasında önce extension/ klasöründe eklentiyi derleyin."
         )
     folder = ws.layout.extension
-    if not ((folder / MANIFEST).is_file() and _digest(folder) == _digest(built)):
-        _copy(built, folder)
+    if not ((folder / MANIFEST).is_file() and _same(folder, built)):
+        try:
+            _copy(built, folder)
+        except OSError as exc:
+            raise FolderError(f"Eklentinin klasörü hazırlanamadı ({folder}): {exc.strerror or exc}") from exc
         log.info("the extension's folder holds version %s", _version(built))
     return folder
 
@@ -86,11 +93,11 @@ def refresh(ws: Workspace, built: Path | None = None) -> bool:
     folder = ws.layout.extension
     if not ((folder / MANIFEST).is_file() and (built / MANIFEST).is_file()):
         return False
-    if _digest(folder) == _digest(built):
-        return False
     try:
+        if _same(folder, built):
+            return False
         _copy(built, folder)
-    except OSError as exc:
+    except OSError as exc:  # a file it cannot read or write: the service starts all the same
         log.warning("the extension's folder could not be brought up to date: %s", exc)
         return False
     log.info("the extension's folder was brought up to date: version %s", _version(built))
@@ -122,6 +129,14 @@ def _digest(root: Path) -> str:
     return found.hexdigest()
 
 
+def _same(folder: Path, built: Path) -> bool:
+    """The copy holds the carried files; a file it cannot read makes it not the same, never an error."""
+    try:
+        return _digest(folder) == _digest(built)
+    except OSError:
+        return False
+
+
 def _copy(built: Path, folder: Path) -> None:
     """Every carried file into folder, each replaced whole, and an older version's other files removed: the folder
     stays where the browser loads it from. Only the user can read the copy, as everything in the data folder."""
@@ -130,6 +145,9 @@ def _copy(built: Path, folder: Path) -> None:
     for name, source in wanted.items():
         target = folder / name
         target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        for other in target.parent.iterdir():  # renamed only in case: a case-blind file system keeps the old name
+            if other.name != target.name and other.name.casefold() == target.name.casefold() and other.is_file():
+                other.unlink()
         fd, temp = tempfile.mkstemp(dir=target.parent, prefix=".yeni-")  # 0600
         try:
             with os.fdopen(fd, "wb") as f:

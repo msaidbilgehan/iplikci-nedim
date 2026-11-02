@@ -3,6 +3,7 @@ from the data folder's extension/, which the service makes when asked, shows in 
 the program. No test opens a window: the file manager is a stand-in."""
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -145,3 +146,37 @@ def test_the_page_makes_the_folder_and_learns_where_it_is(client, ws, carried, s
 def test_without_the_extension_the_page_is_told_why(client):
     found = client.post("/api/extension/folder", headers=OWN_PAGE)
     assert (found.status_code, found.json()["code"]) == (409, "extension_unavailable")
+
+
+def test_a_file_in_the_way_of_the_folder_is_said_and_nothing_breaks(client, ws, carried, shown):
+    ws.layout.extension.parent.mkdir(parents=True, exist_ok=True)
+    ws.layout.extension.write_text("bir dosya", encoding="utf-8")  # a file where the folder would go
+    found = client.post("/api/extension/folder", headers=OWN_PAGE)
+    assert (found.status_code, found.json()["code"]) == (409, "extension_folder_failed")
+    assert found.json()["title"].startswith("Eklentinin klasörü hazırlanamadı") and shown == []
+    assert client.get("/api/extension", headers={"Authorization": f"Bearer {TOKEN}"}).status_code == 200
+
+
+@pytest.mark.skipif(os.name == "nt" or os.geteuid() == 0, reason="a file only its owner may read")
+def test_a_file_the_service_cannot_read_never_stops_its_start(ws, carried, tmp_path, monkeypatch):
+    folder = extension.prepare(ws)
+    (folder / "background.js").chmod(0o000)  # in the copy: written over with the carried one
+    newer = built_extension(tmp_path / "yeni", "0.5.0", "// yeni")
+    monkeypatch.setattr(extension, "BUILT", newer)
+    assert extension.refresh(ws) is True
+    assert (folder / "background.js").read_text(encoding="utf-8") == "// yeni" and extension.state(ws).current
+    (newer / "background.js").chmod(0o000)  # in what the program carries: tried again at the next start
+    try:
+        assert extension.refresh(ws) is False and extension.state(ws).current is False
+    finally:
+        (newer / "background.js").chmod(0o600)
+
+
+def test_a_file_renamed_only_in_case_keeps_its_new_name(ws, carried, tmp_path, monkeypatch):
+    folder = extension.prepare(ws)
+    newer = built_extension(tmp_path / "yeni", "0.5.0")
+    (newer / "background.js").rename(newer / "Background.js")
+    monkeypatch.setattr(extension, "BUILT", newer)
+    assert extension.refresh(ws) is True
+    assert sorted(p.name for p in folder.iterdir() if p.is_file()) == ["Background.js", extension.MANIFEST]
+    assert extension.state(ws).current and extension.refresh(ws) is False  # and it is not rewritten at every start

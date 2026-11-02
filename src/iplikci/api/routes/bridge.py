@@ -134,6 +134,8 @@ def extension_folder(request: Request) -> ExtensionFolderOut:
     """Make the extension's folder, or bring it up to date, and show it in the system's file manager."""
     try:
         shown = extension.show(context_of(request).ws)
+    except extension.FolderError as exc:
+        raise Problem(409, "extension_folder_failed", str(exc)) from exc
     except extension.ExtensionError as exc:
         raise Problem(409, "extension_unavailable", str(exc)) from exc
     return ExtensionFolderOut(folder=str(shown.folder), version=shown.version, opened=shown.opened)
