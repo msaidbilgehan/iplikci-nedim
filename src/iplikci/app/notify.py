@@ -80,6 +80,8 @@ __all__ = [
     "start_pairing",
     "status",
     "take_events",
+    "unread",
+    "version",
 ]
 
 CURSOR = "notify.cursor"  # the last event the notifications looked at
@@ -578,6 +580,18 @@ def history(ws: Workspace, before: int = 0, limit: int = 50, channel: Channel | 
     """The notifications, newest first: of one channel, or of all."""
     with ws.db() as db:
         return stored.page(db, before, limit, channel.value if channel else "")
+
+
+def unread(ws: Workspace) -> int:
+    """The notifications in the interface's box not seen yet."""
+    with ws.db() as db:
+        return stored.unread(db, Channel.IN_APP)
+
+
+def version(ws: Workspace) -> str:
+    """Changes whenever a notification is made or settles; the event stream watches it."""
+    with ws.db() as db:
+        return stored.version(db)
 
 
 def mark_read(ws: Workspace, up_to: int | None = None) -> int:

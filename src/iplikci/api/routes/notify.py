@@ -125,8 +125,13 @@ def notifications(
 ) -> NotificationsOut:
     """The notifications, newest first: of one channel (the interface's box is in_app), or of all."""
     ws = context_of(request).ws
-    items = notify.history(ws, before, limit, channel)
-    return NotificationsOut(items=[_notification(n) for n in items], unread=notify.status(ws).unread)
+    found = notify.history(ws, before, limit + 1, channel)  # one more tells whether another page follows
+    items = found[:limit]
+    return NotificationsOut(
+        items=[_notification(n) for n in items],
+        unread=notify.unread(ws),
+        next=items[-1].id if len(found) > limit else None,
+    )
 
 
 @router.post("/api/notifications/read", dependencies=WRITE)

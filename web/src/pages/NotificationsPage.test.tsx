@@ -146,8 +146,11 @@ describe("NotificationsPage", () => {
           }
           const before = url.searchParams.get("before") ?? "";
           asked.push(before);
-          const items = before === "151" ? [notification({ id: 90, channel: "email", title: "En eski" })] : first;
-          return HttpResponse.json({ items, unread: 2 });
+          if (before === "151") {
+            const oldest = notification({ id: 90, channel: "email", title: "En eski" });
+            return HttpResponse.json({ items: [oldest], unread: 2 });
+          }
+          return HttpResponse.json({ items: first, unread: 2, next: 151 });
         }),
       );
       renderScreen(<NotificationsPage />);
@@ -155,7 +158,7 @@ describe("NotificationsPage", () => {
       expect(await within(log).findByText("Bildirim 200")).toBeInTheDocument();
       await userEvent.click(within(log).getByRole("button", { name: "Daha eski kayıtlar" }));
       expect(await within(log).findByText("En eski")).toBeInTheDocument();
-      expect(asked).toEqual(["", "151"]); // below the oldest of the full first page
+      expect(asked).toEqual(["", "151"]); // where the service said the next page starts
       expect(within(log).queryByRole("button", { name: "Daha eski kayıtlar" })).toBeNull();
     });
   });

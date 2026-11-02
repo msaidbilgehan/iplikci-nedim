@@ -1,5 +1,6 @@
 // The service's event stream (SSE, F05): each new event refreshes the server state it touches. The browser
-// reconnects on its own after a break and resumes from the last event it saw.
+// reconnects on its own after a break and resumes from the last event it saw. A named `notifications` event says
+// that a notification was made or settled: the notifications follow their event by a moment (ADR-0010).
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
@@ -9,9 +10,9 @@ import type { LoggedEvent } from "../api/types";
 
 // What a new analysis changes: the series, the calendar, the forecast and the non-bank bills' matches.
 const ANALYSIS = [keys.subscriptions, keys.calendar, keys.forecast, keys.invoices] as const;
-// The service turns the events into notifications right after them (ADR-0010): the box, the history and the
-// channels' counts follow every event.
-const NOTIFICATIONS = [keys.notifications, keys.notifySettings] as const;
+// What the stream's `notifications` event refreshes: the box, the history and the channels' counts.
+export const NOTIFICATIONS_EVENT = "notifications";
+export const NOTIFICATIONS: ReadonlyArray<readonly unknown[]> = [keys.notifications, keys.notifySettings];
 
 /** The query keys an event of this kind makes stale; the System screen follows everything. */
 export function staleBy(kind: string): ReadonlyArray<readonly unknown[]> {
@@ -31,11 +32,6 @@ export function staleBy(kind: string): ReadonlyArray<readonly unknown[]> {
   return [keys.system];
 }
 
-/** Everything an event refreshes: what it makes stale, and the notifications it may have brought. */
-export function refreshedBy(kind: string): ReadonlyArray<readonly unknown[]> {
-  return [...staleBy(kind), ...NOTIFICATIONS];
-}
-
 export function useEventStream(): void {
   const client = useQueryClient();
   useEffect(() => {
@@ -50,10 +46,15 @@ export function useEventStream(): void {
       } catch {
         return; // not an event of ours
       }
-      for (const queryKey of refreshedBy(event.kind)) {
+      for (const queryKey of staleBy(event.kind)) {
         void client.invalidateQueries({ queryKey });
       }
     };
+    stream.addEventListener(NOTIFICATIONS_EVENT, () => {
+      for (const queryKey of NOTIFICATIONS) {
+        void client.invalidateQueries({ queryKey });
+      }
+    });
     return () => stream.close();
   }, [client]);
 }

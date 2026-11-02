@@ -168,20 +168,21 @@ function notificationPage(limit: number, before: number, channel?: Channel): Pro
   return api.get<Notifications>(`${NOTIFICATIONS}?${params.toString()}`);
 }
 
-/** Where the next page starts: below the oldest notification of a full page. A page that was not full was the last. */
-function olderThan(page: Notifications, limit: number): number | undefined {
-  const oldest = page.items.at(-1);
-  return page.items.length >= limit && oldest ? oldest.id : undefined;
+/** Where the next page starts, as the service said; none after the last page. */
+function nextPage(page: Notifications): number | undefined {
+  return page.next ?? undefined;
 }
 
-/** The interface's notification box, newest first, a page at a time; the menu shows its unread count. */
+/**
+ * The interface's notification box, newest first, a page at a time; the menu shows its unread count. The event
+ * stream tells when a notification is made (useEventStream), so the box is not asked again on a timer.
+ */
 export function useNotificationBox() {
   return useInfiniteQuery({
     queryKey: keys.notificationBox,
     queryFn: ({ pageParam }) => notificationPage(BOX_PAGE, pageParam, "in_app"),
     initialPageParam: 0,
-    getNextPageParam: (last) => olderThan(last, BOX_PAGE),
-    refetchInterval: 60_000, // a notification made by the background job without a new event behind it
+    getNextPageParam: nextPage,
   });
 }
 
@@ -196,7 +197,7 @@ export function useNotificationLog() {
     queryKey: keys.notificationLog,
     queryFn: ({ pageParam }) => notificationPage(LOG_PAGE, pageParam),
     initialPageParam: 0,
-    getNextPageParam: (last) => olderThan(last, LOG_PAGE),
+    getNextPageParam: nextPage,
   });
 }
 

@@ -241,6 +241,7 @@ class NotificationOut(BaseModel):
 class NotificationsOut(BaseModel):
     items: list[NotificationOut]  # newest first
     unread: int  # in the interface's box
+    next: int | None = None  # the next page's `before`; null: this page was the last
 
 
 class NotificationsReadIn(BaseModel):

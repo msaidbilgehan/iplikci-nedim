@@ -390,6 +390,7 @@ export interface NotificationOut {
 export interface NotificationsOut {
   items: NotificationOut[];
   unread: number;
+  next?: number | null;
 }
 
 export interface NotificationsReadIn {

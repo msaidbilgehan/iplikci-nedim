@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { keys } from "../api/queries";
-import { refreshedBy, staleBy } from "./useEventStream";
+import { NOTIFICATIONS, staleBy } from "./useEventStream";
 
 describe("staleBy", () => {
   it("refreshes the documents on a document's events and the System screen on every event", () => {
@@ -18,11 +18,8 @@ describe("staleBy", () => {
   });
 });
 
-describe("refreshedBy", () => {
-  it("refreshes the notification box, the history and the channels after every event", () => {
-    const notifications = [keys.notifications, keys.notifySettings];
-    expect(refreshedBy("payment.due_soon")).toEqual([keys.system, ...notifications]);
-    expect(refreshedBy("document.received")).toEqual([...staleBy("document.received"), ...notifications]);
-    expect(refreshedBy("backup.failed")).toEqual([keys.system, ...notifications]);
+describe("the notifications event", () => {
+  it("refreshes the notification box, the history and the channels' counts", () => {
+    expect(NOTIFICATIONS).toEqual([keys.notifications, keys.notifySettings]);
   });
 });

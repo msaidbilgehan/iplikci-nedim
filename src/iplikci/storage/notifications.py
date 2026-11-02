@@ -202,6 +202,16 @@ def every(db: Database) -> list[Notification]:
     return [_notification(r) for r in db.rows("SELECT * FROM notifications ORDER BY id")]
 
 
+def version(db: Database) -> str:
+    """A word that changes whenever a notification is made or settles (sent, digested or given up): the event stream
+    tells the interface by it that the box and the history moved."""
+    row = db.one(
+        "SELECT COALESCE(MAX(id), 0) AS newest, "
+        "COALESCE(SUM(status IN ('sent', 'digested', 'failed')), 0) AS settled FROM notifications"
+    )
+    return f"{row['newest']}:{row['settled']}" if row else "0:0"
+
+
 def counts(db: Database) -> dict[str, int]:
     """How many notifications have each status."""
     return {

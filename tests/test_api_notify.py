@@ -2,6 +2,7 @@
 settings, the Telegram bot and a test notification. Reading needs a session or the token; changing, the service's
 own pages."""
 
+import asyncio
 import json
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -11,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from iplikci.api.app import create_app
 from iplikci.api.context import Context
+from iplikci.api.routes.events import _events as stream_of
 from iplikci.app import notify
 from iplikci.domain.codes import EventKind
 from iplikci.notify.content import Message
@@ -136,9 +138,13 @@ def test_the_box_lists_the_notifications_newest_first_and_marks_them_seen(client
     [item] = found["items"]
     assert (item["rule"], item["channel"], item["status"], item["read"]) == ("Ay kapandı", "in_app", "sent", False)
     assert item["target"] == "2026-10"  # what the event concerns: here a month
-    everything = client.get("/api/notifications", headers=bearer()).json()["items"]
-    assert [i["channel"] for i in everything] == ["desktop", "in_app"]
+    everything = client.get("/api/notifications", headers=bearer()).json()
+    assert [i["channel"] for i in everything["items"]] == ["desktop", "in_app"] and everything["next"] is None
     assert desk.got[0].title == "Ay kapandı"
+    first = client.get("/api/notifications?limit=1", headers=bearer()).json()
+    assert [i["channel"] for i in first["items"]] == ["desktop"] and first["next"] == first["items"][0]["id"]
+    rest = client.get(f"/api/notifications?limit=1&before={first['next']}", headers=bearer()).json()
+    assert [i["channel"] for i in rest["items"]] == ["in_app"] and rest["next"] is None  # no empty page after it
     signed_in(client)
     assert client.post("/api/notifications/read", json={}, headers=OWN_PAGE).json() == {"marked": 1}
     assert client.get("/api/notifications").json()["unread"] == 0
@@ -215,3 +221,22 @@ def test_a_test_notification_goes_out_or_says_why_not(client, desk):
     assert (test["kind"], test["target"]) == ("test", "")  # a test concerns nothing
     refused = client.post("/api/notify/test", json={"channel": "email"}, headers=OWN_PAGE)
     assert refused.status_code == 400 and refused.json()["code"] == "notify_refused"
+
+
+def test_the_stream_tells_when_a_notification_is_made_after_its_event(ws, desk):
+    notify.take_events(ws, NOON)  # the first run: nothing before it is news
+
+    async def read() -> list[str]:
+        stream = stream_of(Context(ws=ws, token=TOKEN, stream_limit=5, poll=0.01), 0)
+        assert await anext(stream) == "retry: 3000\n\n"
+        with ws.db() as db:
+            events.append(db, EventKind.MONTH_CLOSED, "2026-10")
+        told = [await asyncio.wait_for(anext(stream), 5)]  # the event, before any notification
+        notify.run(ws, NOON)  # the notification follows its event by a moment
+        told.append(await asyncio.wait_for(anext(stream), 5))
+        await stream.aclose()
+        return told
+
+    event, signal = asyncio.run(read())
+    assert event.startswith("id: 1\ndata: {") and '"kind":"month.closed"' in event
+    assert signal == "event: notifications\ndata: 2:2\n\n"  # no id: the event log's place stays where it was

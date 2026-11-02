@@ -1,5 +1,7 @@
 """The event log for the feed: a page of events, and the live stream (SSE, F05). A stream that breaks off resumes
-from the last event it delivered: the browser sends its id back in Last-Event-ID."""
+from the last event it delivered: the browser sends its id back in Last-Event-ID. Beside the events the stream tells,
+as a named `notifications` event without an id, that a notification was made or settled: the notifications follow
+the events by a moment (ADR-0010), so the event alone would leave the box behind."""
 
 import asyncio
 import json
@@ -11,7 +13,7 @@ from fastapi import APIRouter, Query, Request
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import StreamingResponse
 
-from ...app import events
+from ...app import events, notify
 from ..context import Context, context_of
 from ..models import EventOut
 
@@ -41,12 +43,18 @@ async def _events(context: Context, after: int) -> AsyncIterator[str]:
     yield f"retry: {_RETRY_MS}\n\n"
     deadline = time.monotonic() + context.stream_limit
     quiet_since = time.monotonic()
+    told = await run_in_threadpool(notify.version, context.ws)  # the page reads the notifications when it opens
     while True:
         found = await run_in_threadpool(events.since, context.ws, after, 100)
         for event in found:
             after = event.id
             data = json.dumps(asdict(event), ensure_ascii=False, separators=(",", ":"))
             yield f"id: {event.id}\ndata: {data}\n\n"
+            quiet_since = time.monotonic()
+        version = await run_in_threadpool(notify.version, context.ws)
+        if version != told:
+            told = version
+            yield f"event: notifications\ndata: {version}\n\n"
             quiet_since = time.monotonic()
         now = time.monotonic()
         if now >= deadline:
