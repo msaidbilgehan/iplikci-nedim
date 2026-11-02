@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router";
 
 import { ApiError } from "./api/client";
+import "./i18n";
 import { routes } from "./routes";
 import "./index.css";
 

@@ -1,0 +1,10 @@
+{
+  "loading": "Yükleniyor…",
+  "loadFailed": "Yüklenemedi",
+  "unexpected": "Beklenmeyen bir hata oldu.",
+  "retry": "Yeniden dene",
+  "signedOut": {
+    "title": "Oturum kapandı",
+    "text": "Arayüzü İplikçi Nedim'den yeniden açın; tek kullanımlık yeni bir giriş bağlantısı açılır."
+  }
+}
