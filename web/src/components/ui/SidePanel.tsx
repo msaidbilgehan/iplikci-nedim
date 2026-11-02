@@ -4,7 +4,7 @@
 // inline style Radix's overlay would bring. A press on the backdrop closes it too: nothing is lost by closing.
 
 import * as RadixDialog from "@radix-ui/react-dialog";
-import { type ReactNode, type RefObject, useRef } from "react";
+import { type ReactNode, type RefObject, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import { cn } from "../../lib/cn";
@@ -17,7 +17,7 @@ interface SidePanelProps {
   title: ReactNode;
   description?: ReactNode; // a line under the title: what the item is
   // What the focus goes to when the panel opens for one of its controls ("İptal ettim…" opens it at its form); the
-  // title otherwise, or when that control is not there.
+  // title otherwise. A control that comes with data still on its way takes the focus once it is there.
   initialFocus?: RefObject<HTMLElement | null> | undefined;
   children: ReactNode;
 }
@@ -26,7 +26,20 @@ export function SidePanel({ open, onClose, title, description, initialFocus, chi
   const { t } = useTranslation();
   const returnTo = useRef<HTMLElement | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
+  const waiting = useRef(false); // the panel opened for a control that was not there yet
   useScrollHeld(open);
+  // After every render: the control the panel waits for may have come with it. It takes the focus only from the title,
+  // where the panel put it, never from where the user has moved it since.
+  useEffect(() => {
+    const control = initialFocus?.current;
+    if (!waiting.current || !control) {
+      return;
+    }
+    waiting.current = false;
+    if (document.activeElement === heading.current) {
+      control.focus();
+    }
+  });
   return (
     <RadixDialog.Root open={open} onOpenChange={(next) => (next ? undefined : onClose())}>
       <RadixDialog.Portal>
@@ -37,10 +50,12 @@ export function SidePanel({ open, onClose, title, description, initialFocus, chi
           onOpenAutoFocus={(event) => {
             returnTo.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
             event.preventDefault();
+            waiting.current = initialFocus !== undefined && !initialFocus.current;
             (initialFocus?.current ?? heading.current)?.focus();
           }}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
+            waiting.current = false;
             returnTo.current?.focus();
           }}
           className={cn(

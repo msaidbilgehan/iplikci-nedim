@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { keys } from "../api/queries";
 import type { RuleChange } from "../api/types";
 import { CATEGORY_RULES, server, SUBSCRIPTIONS } from "../test/server";
 import { renderScreen } from "../test/render";
@@ -188,6 +189,47 @@ describe("SubscriptionsPage", () => {
     // The rules read again, the payment is now the user's own ended one: it may be expected again.
     expect(await within(panel).findByRole("region", { name: "Yeniden bekle" })).toBeInTheDocument();
     expect(within(panel).queryByRole("region", { name: "İptal ettim" })).not.toBeInTheDocument();
+  });
+
+  it("puts the focus on the month once the rules come, when the panel opened before them", async () => {
+    const user = userEvent.setup();
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.use(
+      http.get("/api/rules/categories", async () => {
+        await gate;
+        return HttpResponse.json(CATEGORY_RULES);
+      }),
+    );
+    renderScreen(<SubscriptionsPage />);
+    const music = await card("Aylık ödemeler", "Örnek Müzik");
+    await user.click(within(music).getByRole("button", { name: "İptal ettim: Örnek Müzik" }));
+    const panel = await screen.findByRole("dialog", { name: "Örnek Müzik" });
+    expect(within(panel).getByRole("heading", { name: "Örnek Müzik" })).toHaveFocus(); // its form is still to come
+    release();
+    const month = await within(panel).findByLabelText("Son ödeme ayı");
+    await waitFor(() => expect(month).toHaveFocus());
+  });
+
+  it("keeps the form, its choice and the focus when reading the rules again fails", async () => {
+    const user = userEvent.setup();
+    const { client } = renderScreen(<SubscriptionsPage />, { path: "/abonelikler?seri=fp-muzik" });
+    const panel = await screen.findByRole("dialog", { name: "Örnek Müzik" });
+    const month = await within(panel).findByLabelText("Son ödeme ayı");
+    await user.selectOptions(month, "2026-09");
+    expect(month).toHaveFocus();
+    server.use(
+      http.get("/api/rules/categories", () =>
+        HttpResponse.json({ code: "rules_invalid", title: "kişisel kurallar okunamadı" }, { status: 409 }),
+      ),
+    );
+    await client.refetchQueries({ queryKey: keys.categoryRules });
+    expect(client.getQueryState(keys.categoryRules)?.status).toBe("error");
+    expect(within(panel).getByLabelText("Son ödeme ayı")).toBe(month); // the same form, not one made again
+    expect(month).toHaveFocus();
+    expect(month).toHaveValue("2026-09");
   });
 
   it("says when payments came after the month chosen, and that a cancellation reaches all of a payee's", async () => {

@@ -268,11 +268,10 @@ interface ActionsProps {
 function Actions({ series, found, labels, rules, targets }: ActionsProps) {
   const { t } = useTranslation("subscriptions");
   const [said, setSaid] = useState("");
-  if (rules.isPending) {
-    return <Loading />;
-  }
-  if (rules.isError) {
-    return <Failure error={rules.error} onRetry={() => void rules.refetch()} />;
+  // Reading the rules again keeps the ones read before, and the forms with them: a refetch that fails takes away
+  // neither the user's choices nor the focus.
+  if (!rules.data) {
+    return rules.isError ? <Failure error={rules.error} onRetry={() => void rules.refetch()} /> : <Loading />;
   }
   const entry = endedOf(rules.data, series.payee);
   const offer = offerOf(series, rules.data);
