@@ -158,6 +158,7 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
   kalıyordu.
 - Bölünmüş satırın kendisine verilen kategori ya da gereklilik görünmüyordu; artık reddedilir. Bir dekontun bölünmüş
   satırının parçalarına giden bağlantılar, dekontu ekstre gösterince ekstrenin aynı parçalarını açar.
+- Windows'ta uygulama açılırken ve Ayarlar servisi denetlerken her seferinde bir konsol penceresi açılıp kapanıyordu.
 
 ## [0.6.0] — 2026-11-02 — Aşama 5: Bildirimler
 

@@ -20,6 +20,7 @@ from iplikci.cli import service as service_cli
 from iplikci.service import instance, logs, manager
 
 TASK = "{http://schemas.microsoft.com/windows/2004/02/mit/task}"
+RUN_TOOL = manager.run_tool  # the real one: every test gets a stand-in that refuses (conftest)
 
 
 class Tools:
@@ -164,6 +165,21 @@ def test_each_service_manager_says_what_its_registration_runs(tmp_path, program)
 
     assert manager.TaskScheduler(run=schtasks).registered() == manager.Program(program.python, tmp_path / "Ali & Ayşe")
     assert manager.TaskScheduler(run=Tools({("schtasks", "/Query"): 1})).registered() is None
+
+
+def test_the_systems_tools_open_no_console_window_on_windows(monkeypatch):
+    seen: list[object] = []
+
+    def run(args: Sequence[str], **options: object) -> subprocess.CompletedProcess[bytes]:
+        seen.append(options["creationflags"])
+        return subprocess.CompletedProcess(args, 0, b"", b"")
+
+    monkeypatch.setattr(manager.subprocess, "run", run)  # nothing runs
+    monkeypatch.setattr(manager, "WINDOWS", True)  # pythonw would open a console window for schtasks
+    RUN_TOOL(["schtasks", "/Query", "/TN", "iplikci"])
+    monkeypatch.setattr(manager, "WINDOWS", False)  # subprocess takes no flags elsewhere
+    RUN_TOOL(["launchctl", "print", "gui/501/com.iplikci.service"])
+    assert seen == [manager.NO_WINDOW, 0]
 
 
 def test_each_system_has_its_service_manager():

@@ -2,6 +2,8 @@
 as needed, a login link for the browser, and every problem said in the system's own window. The service manager, the
 health check and the windows are stand-ins; nothing reaches launchd, the network or the screen."""
 
+import subprocess
+from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
@@ -11,6 +13,7 @@ from iplikci.cli import main
 from iplikci.service import dialog, instance, launcher, manager
 
 APP = Path("/Applications/İplikçi Nedim.app/Contents/Resources/python/bin/python3")
+SHOW_FOLDER = dialog.show_folder  # the real one: every test gets a stand-in that refuses (conftest)
 
 
 class FakeService:
@@ -185,6 +188,20 @@ def test_the_window_gets_the_text_as_an_argument_never_inside_a_script():
 def test_a_window_that_cannot_be_shown_leaves_the_text_on_stderr(capsys):
     dialog.say("Bir sorun var.", "darwin", run=lambda args: 1)
     assert "Bir sorun var." in capsys.readouterr().err
+
+
+def test_the_systems_windows_open_no_console_window_on_windows(monkeypatch, tmp_path):
+    seen: list[tuple[str, object]] = []
+
+    def run(args: Sequence[str], **options: object) -> subprocess.CompletedProcess[bytes]:
+        seen.append((args[0], options["creationflags"]))
+        return subprocess.CompletedProcess(args, 0, b"", b"")
+
+    monkeypatch.setattr(dialog.subprocess, "run", run)  # nothing is shown
+    monkeypatch.setattr(manager, "WINDOWS", True)
+    dialog.say("Bir sorun var.", "darwin")
+    assert SHOW_FOLDER(tmp_path, "win32")
+    assert seen == [("osascript", manager.NO_WINDOW), ("explorer", manager.NO_WINDOW)]
 
 
 def test_the_app_command_opens_the_browser_or_says_why_it_could_not(ws, monkeypatch):

@@ -26,6 +26,10 @@ LABEL = "com.iplikci.service"
 UNIT = "iplikci"
 DESCRIPTION = "İplikçi Nedim: kişisel finans asistanının arka plan servisi"
 RESTART_SECONDS = 30
+# Windows: a console program (schtasks) started from pythonw, as the Start menu's app and the service's task run,
+# opens a console window of its own for every call unless it is created without one.
+WINDOWS = os.name == "nt"
+NO_WINDOW = 0x08000000  # CREATE_NO_WINDOW; subprocess names it on Windows only
 
 
 class ManagerError(Exception):
@@ -50,8 +54,14 @@ class Completed:
 type Run = Callable[[Sequence[str]], Completed]
 
 
+def creation_flags() -> int:
+    """How a process this program starts is created: without a console window on Windows; elsewhere plainly, as
+    subprocess takes no flags there."""
+    return NO_WINDOW if WINDOWS else 0
+
+
 def run_tool(args: Sequence[str]) -> Completed:
-    done = subprocess.run(list(args), capture_output=True, check=False)
+    done = subprocess.run(list(args), capture_output=True, check=False, creationflags=creation_flags())
     encoding = "oem" if os.name == "nt" else "utf-8"  # Windows tools answer in the console's code page
     return Completed(
         done.returncode, done.stdout.decode(encoding, errors="replace"), done.stderr.decode(encoding, errors="replace")

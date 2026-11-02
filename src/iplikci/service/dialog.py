@@ -9,6 +9,8 @@ import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
+from .manager import creation_flags
+
 TITLE = "İplikçi Nedim"
 _SCRIPT = (
     "on run argv",
@@ -20,7 +22,7 @@ type Run = Callable[[Sequence[str]], int]
 
 
 def _run(args: Sequence[str]) -> int:
-    return subprocess.run(list(args), capture_output=True, check=False).returncode
+    return subprocess.run(list(args), capture_output=True, check=False, creationflags=creation_flags()).returncode
 
 
 def command(text: str, platform: str, which: Callable[[str], str | None] = shutil.which) -> list[str] | None:
@@ -71,7 +73,8 @@ def folder_command(path: Path, platform: str, which: Callable[[str], str | None]
 def _start(args: Sequence[str]) -> int:
     """Start the file manager; some openers stay until its window closes, so a wait that runs out counts as shown."""
     try:
-        return subprocess.run(list(args), capture_output=True, check=False, timeout=10).returncode
+        done = subprocess.run(list(args), capture_output=True, check=False, timeout=10, creationflags=creation_flags())
+        return done.returncode
     except subprocess.TimeoutExpired:
         return 0
     except OSError:
