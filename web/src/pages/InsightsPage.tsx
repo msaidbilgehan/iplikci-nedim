@@ -40,7 +40,7 @@ import { CategoriesCard, MerchantsCard } from "../components/insights/Rankings";
 import { RegularCard } from "../components/insights/Regular";
 import { RowsCard } from "../components/insights/Rows";
 import { SourcesCard } from "../components/insights/Sources";
-import { LeftOut, Tiles } from "../components/insights/Tiles";
+import { LeftOut, Tiles, useLeftOut } from "../components/insights/Tiles";
 import { useView } from "../components/Preferences";
 import { Empty, Failure, Loading } from "../components/QueryState";
 import { Filters } from "../components/transactions/Filters";
@@ -81,6 +81,7 @@ export default function InsightsPage() {
   const rules = useCategoryRules();
   const none = choosesNone(params);
   const spending = useSpending(spendingQuery(params), !none);
+  const leftOut = useLeftOut(params, !none);
   const insights = useInsights();
   const dashboard = useDashboard();
   const subscriptions = useSubscriptions();
@@ -150,7 +151,12 @@ export default function InsightsPage() {
             {found ? (
               <div className="flex flex-col gap-3">
                 <Tiles found={found} params={params} />
-                <LeftOut params={params} labels={labels} onAdd={(kind) => change(withKind(params, kind))} />
+                <LeftOut
+                  params={params}
+                  totals={leftOut}
+                  labels={labels}
+                  onAdd={(kind) => change(withKind(params, kind))}
+                />
               </div>
             ) : null}
             <InsightsPart query={insights} title={t("interpretation.title")}>

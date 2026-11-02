@@ -104,18 +104,25 @@ export function Tiles({ found, params }: TilesProps) {
   );
 }
 
+/**
+ * The totals of the kinds the spending leaves out under the address's filters, in LEFT_OUT's order. The screen asks
+ * for them beside /api/spending, not once its answer is shown: the line under the tiles comes with them.
+ */
+export function useLeftOut(params: URLSearchParams, enabled: boolean) {
+  return useKindTotals(spendingQuery(params), LEFT_OUT, enabled && params.getAll("kind").length === 0);
+}
+
 interface LeftOutProps {
   params: URLSearchParams;
+  totals: ReturnType<typeof useLeftOut>;
   labels: Labels;
   onAdd: (kind: string) => void;
 }
 
 /** "Toplama dahil değil": the kinds the spending leaves out, with their totals under the same filters. */
-export function LeftOut({ params, labels, onAdd }: LeftOutProps) {
+export function LeftOut({ params, totals, labels, onAdd }: LeftOutProps) {
   const { t } = useTranslation("insights");
-  const chosen = params.getAll("kind").length > 0;
-  const totals = useKindTotals(spendingQuery(params), LEFT_OUT, !chosen);
-  if (chosen) {
+  if (params.getAll("kind").length > 0) {
     return null; // the user chose the kinds: nothing is left out behind their back
   }
   const found = LEFT_OUT.map((kind, index) => ({ kind, totals: totals[index]?.data?.totals }))

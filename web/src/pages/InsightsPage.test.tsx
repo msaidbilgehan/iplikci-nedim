@@ -86,6 +86,29 @@ describe("InsightsPage", () => {
     expect(screen.queryByText("Toplama dahil değil:")).not.toBeInTheDocument();
   });
 
+  it("asks what the spending leaves out beside the spending, so that its line comes with the tiles", async () => {
+    let answer: () => void = () => undefined;
+    const answered = new Promise<void>((resolve) => {
+      answer = resolve;
+    });
+    const kinds: string[] = [];
+    server.use(
+      http.get("/api/spending", async () => {
+        await answered;
+        return HttpResponse.json(SPENDING);
+      }),
+      http.get("/api/transactions", ({ request }) => {
+        kinds.push(new URL(request.url).searchParams.get("kind") ?? "");
+        return HttpResponse.json(TRANSACTIONS);
+      }),
+    );
+    renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    const leftOut = ["card_payment_no_statement", "cash_advance", "loan_principal", "p2p_transfer"];
+    await waitFor(() => expect([...kinds].sort()).toEqual(leftOut)); // the spending not answered yet
+    answer();
+    expect(await card("Özet")).toBeInTheDocument();
+  });
+
   it("states the interpretation's window and the months it left out", async () => {
     renderScreen(<InsightsPage />, { path: "/degerlendirme" });
     expect(
