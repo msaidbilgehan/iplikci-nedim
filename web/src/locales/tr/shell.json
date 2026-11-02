@@ -44,5 +44,9 @@
     "label": "Görünüm",
     "simple": "Sade",
     "detailed": "Ayrıntılı"
+  },
+  "notFound": {
+    "title": "Böyle bir sayfa yok",
+    "back": "Panoya dönün"
   }
 }

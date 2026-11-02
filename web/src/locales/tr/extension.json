@@ -1,4 +1,8 @@
 {
+  "page": {
+    "title": "Tarayıcı eklentisi",
+    "description": "İplikçi Nedim Köprüsü, açık Gmail oturumunuzdaki banka iletilerini bu bilgisayardaki İplikçi Nedim'e taşır. Gmail'de hiçbir şeyi değiştirmez: iletiler okunmamış kalır, taşınmaz, silinmez. Yalnızca mail.google.com'a ve bu bilgisayara bağlanır; şifre istemez."
+  },
   "install": {
     "title": "Kur",
     "intro": "Eklenti henüz tarayıcıların mağazasında değil. Bu yüzden tarayıcıya bilgisayarınızdaki bir klasörden yüklenir. Bu bir kez yapılır ve birkaç dakika sürer.",
@@ -23,5 +27,38 @@
     "copyNamed": "Kopyala: {{name}}",
     "copied": "Kopyalandı.",
     "copyFailed": "Kopyalanamadı; metni seçip kopyalayın."
+  },
+  "pairing": {
+    "title": "Eşleştir",
+    "stepInstall": "Eklentiyi “Kur” kartındaki adımlarla Chrome, Edge ya da Brave'e kurun.",
+    "stepCode": "Aşağıdan bir eşleştirme kodu alın.",
+    "stepEnter": "Eklentinin penceresinde kodu girin; eşleşme bu sayfadan da görünür.",
+    "code": "Eşleştirme kodu",
+    "left": "Tek kullanımlık; {{minutes}} dakika içinde girin.",
+    "expiredTitle": "Kodun süresi doldu",
+    "expiredText": "Yeni bir kod alın.",
+    "again": "Yeni kod al",
+    "get": "Eşleştirme kodu al"
+  },
+  "paired": {
+    "title": "Eşleşmiş eklentiler",
+    "emptyTitle": "Henüz eşleşmiş bir eklenti yok",
+    "emptyText": "Eşleşince e-postalar eklentiyle gelir.",
+    "browser": "Tarayıcı",
+    "created": "Eşleşme",
+    "seen": "Son görülme",
+    "state": "Durum",
+    "action": "İşlem",
+    "name": "Tarayıcı eklentisi",
+    "notSeen": "Henüz yok",
+    "active": "Etkin",
+    "revoked": "İptal edildi",
+    "confirm": "Bu eklentinin eşleşmesi iptal edilsin mi? E-postalar artık gelmez.",
+    "revoke": "İptal et",
+    "failed": "İptal edilemedi"
+  },
+  "history": {
+    "title": "Geçmiş iletilerin taraması tamamlanmadı",
+    "text": "Eklenti eşleşince Gmail'i bir sekmede açar ve listedeki bankaların iletilerini arar (başlangıç günü: {{day}}). Tarama sürmüyorsa eklentinin penceresinde “Gmail'de eksikleri tara” düğmesine basın."
   }
 }

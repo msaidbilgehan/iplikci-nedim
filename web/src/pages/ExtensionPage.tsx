@@ -3,6 +3,7 @@
 // the e-mail connector. Paired extensions can be revoked.
 
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useBridges, useRevokeBridge, useStartPairing, useSystem } from "../api/queries";
 import type { Bridge } from "../api/types";
@@ -13,18 +14,15 @@ import { Alert } from "../components/ui/Alert";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
+import { PageHeader } from "../components/ui/PageHeader";
 import { Table, Td, Th } from "../components/ui/Table";
 import { formatCode, formatTime } from "../lib/format";
 
 export default function ExtensionPage() {
+  const { t } = useTranslation("extension");
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold">Tarayıcı eklentisi</h1>
-      <p className="max-w-3xl text-sm text-zinc-700 dark:text-zinc-300">
-        İplikçi Nedim Köprüsü, açık Gmail oturumunuzdaki banka iletilerini bu bilgisayardaki İplikçi Nedim'e taşır.
-        Gmail'de hiçbir şeyi değiştirmez: iletiler okunmamış kalır, taşınmaz, silinmez. Yalnızca mail.google.com'a ve
-        bu bilgisayara bağlanır; şifre istemez.
-      </p>
+      <PageHeader title={t("page.title")} description={t("page.description")} />
       <InstallCard />
       <PairingCard />
       <PairedCard />
@@ -32,35 +30,37 @@ export default function ExtensionPage() {
   );
 }
 
-function PairingCard() {
+/** A one-time pairing code for the extension's window; the setup wizard shows it too. */
+export function PairingCard() {
+  const { t } = useTranslation("extension");
   const pairing = useStartPairing();
   const left = useCountdown(pairing.data?.expires_in, pairing.submittedAt);
   const live = pairing.data !== undefined && left > 0;
   return (
-    <Card title="Eşleştir">
+    <Card title={t("pairing.title")}>
       <div className="flex flex-col gap-3">
         <ol className="list-decimal pl-5 text-sm">
-          <li>Eklentiyi “Kur” kartındaki adımlarla Chrome, Edge ya da Brave'e kurun.</li>
-          <li>Aşağıdan bir eşleştirme kodu alın.</li>
-          <li>Eklentinin penceresinde kodu girin; eşleşme bu sayfadan da görünür.</li>
+          <li>{t("pairing.stepInstall")}</li>
+          <li>{t("pairing.stepCode")}</li>
+          <li>{t("pairing.stepEnter")}</li>
         </ol>
         {live ? (
           <div role="status" aria-live="polite" className="flex flex-col gap-1">
-            <span className="text-sm text-zinc-600 dark:text-zinc-300">Eşleştirme kodu</span>
+            <span className="text-sm text-zinc-600 dark:text-zinc-300">{t("pairing.code")}</span>
             <span className="font-mono text-3xl tracking-widest">{formatCode(pairing.data.code)}</span>
             <span className="text-sm text-zinc-600 dark:text-zinc-300">
-              Tek kullanımlık; {Math.ceil(left / 60)} dakika içinde girin.
+              {t("pairing.left", { minutes: Math.ceil(left / 60) })}
             </span>
           </div>
         ) : null}
         {pairing.data !== undefined && !live ? (
-          <Alert tone="warning" title="Kodun süresi doldu">
-            <p>Yeni bir kod alın.</p>
+          <Alert tone="warning" title={t("pairing.expiredTitle")}>
+            <p>{t("pairing.expiredText")}</p>
           </Alert>
         ) : null}
         {pairing.isError ? <Failure error={pairing.error} onRetry={() => pairing.mutate()} /> : null}
         <Button className="self-start" onClick={() => pairing.mutate()} disabled={pairing.isPending}>
-          {live ? "Yeni kod al" : "Eşleştirme kodu al"}
+          {live ? t("pairing.again") : t("pairing.get")}
         </Button>
       </div>
     </Card>
@@ -84,16 +84,16 @@ function useCountdown(seconds: number | undefined, since: number): number {
   return Math.max(0, seconds - Math.floor((now - since) / 1000));
 }
 
-function PairedCard() {
+/** The paired extensions, each revocable; the setup wizard shows it too. */
+export function PairedCard() {
+  const { t } = useTranslation("extension");
   const bridges = useBridges();
   const mail = useSystem().data?.mail;
   return (
-    <Card title="Eşleşmiş eklentiler">
+    <Card title={t("paired.title")}>
       {bridges.isPending ? <Loading /> : null}
       {bridges.isError ? <Failure error={bridges.error} onRetry={() => void bridges.refetch()} /> : null}
-      {bridges.data?.length === 0 ? (
-        <Empty title="Henüz eşleşmiş bir eklenti yok">Eşleşince e-postalar eklentiyle gelir.</Empty>
-      ) : null}
+      {bridges.data?.length === 0 ? <Empty title={t("paired.emptyTitle")}>{t("paired.emptyText")}</Empty> : null}
       {bridges.data && bridges.data.length > 0 ? (
         <div className="flex flex-col gap-3">
           {mail?.history_due ? <HistoryDue startDay={mail.start_day} /> : null}
@@ -105,40 +105,47 @@ function PairedCard() {
 }
 
 function BridgeTable({ bridges }: { bridges: Bridge[] }) {
+  const { t } = useTranslation("extension");
   const revoke = useRevokeBridge();
   return (
     <div className="flex flex-col gap-2">
       <Table>
         <thead>
           <tr>
-            <Th>Tarayıcı</Th>
-            <Th>Eşleşme</Th>
-            <Th>Son görülme</Th>
-            <Th>Durum</Th>
+            <Th>{t("paired.browser")}</Th>
+            <Th>{t("paired.created")}</Th>
+            <Th>{t("paired.seen")}</Th>
+            <Th>{t("paired.state")}</Th>
             <Th>
-              <span className="sr-only">İşlem</span>
+              <span className="sr-only">{t("paired.action")}</span>
             </Th>
           </tr>
         </thead>
         <tbody>
           {bridges.map((b) => (
             <tr key={b.id}>
-              <Td>{b.name || "Tarayıcı eklentisi"}</Td>
+              <Td>{b.name || t("paired.name")}</Td>
               <Td>{formatTime(b.created_at)}</Td>
-              <Td>{b.last_seen ? formatTime(b.last_seen) : "Henüz yok"}</Td>
-              <Td>{b.active ? <Badge tone="good">Etkin</Badge> : <Badge tone="neutral">İptal edildi</Badge>}</Td>
+              <Td>{b.last_seen ? formatTime(b.last_seen) : t("paired.notSeen")}</Td>
+              <Td>
+                {b.active ? (
+                  <Badge tone="good">{t("paired.active")}</Badge>
+                ) : (
+                  <Badge tone="neutral">{t("paired.revoked")}</Badge>
+                )}
+              </Td>
               <Td>
                 {b.active ? (
                   <Button
                     variant="danger"
                     onClick={() => {
-                      if (window.confirm("Bu eklentinin eşleşmesi iptal edilsin mi? E-postalar artık gelmez.")) {
+                      if (window.confirm(t("paired.confirm"))) {
                         revoke.mutate(b.id);
                       }
                     }}
                     disabled={revoke.isPending}
                   >
-                    İptal et
+                    {t("paired.revoke")}
                   </Button>
                 ) : null}
               </Td>
@@ -147,7 +154,7 @@ function BridgeTable({ bridges }: { bridges: Bridge[] }) {
         </tbody>
       </Table>
       {revoke.isError ? (
-        <Alert tone="critical" title="İptal edilemedi" live>
+        <Alert tone="critical" title={t("paired.failed")} live>
           <p>{revoke.error.message}</p>
         </Alert>
       ) : null}
