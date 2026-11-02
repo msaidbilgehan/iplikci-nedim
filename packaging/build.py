@@ -219,8 +219,9 @@ def linux(python_root: Path, out: Path, work: Path) -> Path:
 
 
 ISS = """; İplikçi Nedim's Windows installer (ADR-0017): into the user's own folder, no administrator rights; the Start
-; menu opens the app, which registers the background service and opens the interface. Removing it removes the
-; service first; the data folder stays.
+; menu opens the app, which registers the background service and opens the interface. An update takes the service
+; off first, as it holds the Python's files open, replaces the whole Python and opens the app, which registers the
+; service again. Removing it removes the service first; the data folder stays.
 [Setup]
 AppName=İplikçi Nedim
 AppVersion={version}
@@ -242,6 +243,10 @@ Name: "turkish"; MessagesFile: "compiler:Languages\\Turkish.isl"
 [Tasks]
 Name: "desktopicon"; Description: "Masaüstüne kısayol koy"; Flags: unchecked
 
+[InstallDelete]
+; No file of an older version stays importable.
+Type: filesandordirs; Name: "{{app}}\\python"
+
 [Files]
 Source: "{source}\\*"; DestDir: "{{app}}"; Flags: recursesubdirs createallsubdirs ignoreversion
 
@@ -252,12 +257,26 @@ Name: "{{userdesktop}}\\İplikçi Nedim"; Filename: "{{app}}\\python\\pythonw.ex
 IconFilename: "{{app}}\\iplikci.ico"; Tasks: desktopicon
 
 [Run]
-Filename: "{{app}}\\python\\pythonw.exe"; Parameters: "{launch}"; Description: "İplikçi Nedim'i aç"; \
-Flags: postinstall nowait skipifsilent
+; Always: after an update the app registers the service again.
+Filename: "{{app}}\\python\\pythonw.exe"; Parameters: "{launch}"; Flags: nowait skipifsilent
 
 [UninstallRun]
 Filename: "{{app}}\\python\\python.exe"; Parameters: "-I -X utf8 -m iplikci servis kaldir"; Flags: runhidden; \
 RunOnceId: "servis"
+
+[Code]
+// An update: the running service holds the older Python's files open. It is taken off the computer first and waits
+// until the process has ended; the app opened at the end registers and starts it again from the new files.
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  Code: Integer;
+  Python: String;
+begin
+  Result := '';
+  Python := ExpandConstant('{{app}}\\python\\python.exe');
+  if FileExists(Python) then
+    Exec(Python, '-I -X utf8 -m iplikci servis kaldir', '', SW_HIDE, ewWaitUntilTerminated, Code);
+end;
 """
 
 

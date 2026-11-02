@@ -102,6 +102,42 @@ parçasıdır.
   çalıştığı temiz kurulum denemesinde doğrulanır.
 - **Üretim:** paketler CI'da her işletim sisteminin kendi makinesinde üretilir.
 
+## Uygulama notu (Aşama 6, 2026-11-02)
+
+- **Paket** (`packaging/build.py`, CI'da "Paketler" iş akışı: bir sürüm etiketinde ya da istenince):
+  - Yorumlayıcı `.python-version`'ın sabitlediği CPython'dur; uv onu indirir ve doğrular. Yorumlayıcı yalnızca bu
+    programın olduğundan, paket kurucularını dışarıda tutan `EXTERNALLY-MANAGED` işareti kaldırılır.
+  - Bağımlılıklar kilit dosyasından hash'leriyle kurulur, sonra programın tekerleği. Derlenmiş arayüz ve tarayıcı
+    eklentisi tekerleğin içindedir; ikisinden biri yoksa paket üretilmez.
+  - Programın kullanmadığı parçalar çıkarılır: paket kurucusu, test takımları, Tk, IDLE, C başlıkları.
+  - macOS: `İplikçi Nedim.app` (`com.iplikci.app`), ad-hoc imzalı ve Apple onaysız (K22); `.dmg` içinde Uygulamalar
+    bağlantısıyla.
+  - Windows: Inno Setup kurulum programı, `%LOCALAPPDATA%\Programs\İplikçi Nedim` klasörüne, yönetici izni
+    olmadan; Başlat menüsü uygulamayı `pythonw` ile açar.
+  - Linux: AppImage. AppRun, Python'u sürüm başına bir kez `~/.local/share/iplikci/app/<sürüm>` klasörüne kopyalar.
+- **Açılış** (`iplikci uygulama`, `service/launcher`):
+  - Kayıt bu kopyanın ve bu veri klasörünün değilse servis yeniden kaydedilir ve başlatılır.
+  - Servis çalışmıyorsa ya da eski bir sürümse yeniden başlatılır.
+  - Giriş bağlantısı ancak yeni servis yanıt verince alınır: biten eski servisin verdiği bağlantı onunla ölürdü.
+  - Disk görüntüsünden ya da macOS'un geçici yerinden açılan uygulama önce taşınmasını ister.
+  - Geliştirme kopyası servisi hiçbir zaman kaydetmez. Sorunlar sistemin kendi penceresinde söylenir.
+- **Güncelleme** her sistemde şöyle yürür; veri klasörüne dokunulmaz:
+  - macOS: yeni uygulama eskisinin yerine sürüklenir. Çalışan servis eski dosyalarla sürer; uygulama açılınca yeni
+    sürümle yeniden başlar.
+  - Windows: kurulum programı önce servisi kaldırır ve sürecin bitmesini bekler, Python'u bütünüyle değiştirir,
+    sonra uygulamayı açar; uygulama servisi yeniden kaydeder.
+  - Linux: yeni sürümün kopyası eskisinin yanına kurulur; yeni servis yanıt verince eski kopyalar kaldırılır.
+- **Her iş arayüzde:** servis arayüzden durdurulur, yeniden başlatılır ve bilgisayardan kaldırılır; bir yedek
+  arayüzden geri yüklenir.
+  - Servis kendi sürecini bitirir: temiz çıkış (0) durmadır. 75 çıkış kodunu servis yöneticisi servisi yeniden
+    başlatarak karşılar.
+  - Veritabanı kapalıyken yapılacak işler `run/`'da bekler: geri yüklenecek yedek bir sonraki açılışta, veritabanı
+    açılmadan yerine konur. Kaldırma istediyse veri klasörü çalışmanın sonunda çöp kutusuna taşınır.
+- **Eklenti** (K20): program derlenmiş eklentiyi taşır. Servis istenince onu veri klasörünün `extension/`
+  klasörüne kopyalar ve klasörü dosya yöneticisinde gösterir; açılırken klasörü programla aynı tutar.
+- **Açık:** temiz kurulum denemeleri (macOS ve Windows), imzasız paketin
+  "Yine de aç" yolu ve Linux ile Windows paketlerinin CI'daki ilk üretimi.
+
 ## Sonuçlar
 
 - Olumlu:
