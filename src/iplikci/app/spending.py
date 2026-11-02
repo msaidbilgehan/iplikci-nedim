@@ -17,11 +17,13 @@ from statistics import median
 from ..categorize import NECESSITY_SLOTS, group_slot
 from ..domain.codes import DEFAULT_EXPENSE_KINDS, ForecastPart, Necessity, TransactionKind
 from ..domain.labels import NECESSITY, format_amount
+from ..domain.models import Transaction
+from ..domain.money import round_half_up
 from ..domain.text import fold
 from ..insights import NOT_BANK_ACCOUNTS, Series, complete_months, month_of, shift, span
 from .analysis import Analysis
 from .links import Link, Screen
-from .rows import Direction, RowView
+from .rows import Direction, RowView, view
 from .transactions import Filter, every_row, labels, select
 
 __all__ = ["ForecastPart", "Necessity", "Spending", "spending"]
@@ -343,15 +345,16 @@ def _merchants(a: Analysis, rows: list[RowView]) -> list[MerchantLine]:
     for name, items in by.items():
         newest = max(items, key=lambda r: r.day)
         total = sum((_signed(r) for r in items), ZERO)
+        paid = len({r.split_of or r.fingerprint for r in items})  # a split row's parts are one payment
         lines.append(
             MerchantLine(
                 merchant=name,
                 category=newest.category,
                 group=newest.group,
                 slot=group_slot(groups, newest.group),
-                count=len(items),
+                count=paid,
                 total=total,
-                per_row=total / len(items),
+                per_row=total / paid,
                 last=newest.day,
                 link=Link(Screen.TRANSACTIONS, query=(("merchant", name),)),
             )
@@ -397,10 +400,9 @@ def _forecast(a: Analysis, f: Filter, period: Period) -> Forecast | None:
     ahead = tuple(shift(hi, k) for k in range(1, AHEAD + 1))
     rows = _counted(a, replace(f, start=None, end=None))
     groups = ds.groups
-    kept = {r.split_of or r.fingerprint for r in rows}  # a regular payment is in when any of its rows is
     lines = [
-        *_regular(ins.series, kept, groups, ahead),
-        *_installments(rows, hi, ahead, labels(a), groups),
+        *_regular(a, rows, groups, ahead),
+        *_installments(a, rows, hi, ahead, groups),
         *_variable(a, rows, base, ahead),
     ]
     if not lines:
@@ -433,38 +435,68 @@ def _forecast(a: Analysis, f: Filter, period: Period) -> Forecast | None:
     )
 
 
-def _regular(series: Sequence[Series], kept: set[str], groups: list[str], ahead: tuple[str, ...]) -> list[ForecastLine]:
-    """The running regular purchases the filters keep a row of: every filter but the period, as the rows are kept."""
+def _shares(a: Analysis, s: Series, kept: set[str]) -> list[tuple[Transaction, Decimal]]:
+    """What of a regular payment the forecast counts, and under which row: the whole payment; when its last payment
+    was split, the parts of it the filters keep, each with its share."""
+    last = s.last
+    if last.fingerprint not in a.dataset.split:
+        return [(last, Decimal(1))]
+    parts = [t for t in a.dataset.transactions if t.split_of == last.fingerprint and t.fingerprint in kept]
+    return [(t, t.amount / last.amount) for t in parts]
+
+
+def _regular(a: Analysis, rows: list[RowView], groups: list[str], ahead: tuple[str, ...]) -> list[ForecastLine]:
+    """The running regular purchases the filters keep a row of: every filter but the period, as the rows are kept.
+    One whose last payment was split comes as its parts the filters keep, each its share under its own category."""
+    kept = {r.fingerprint for r in rows}
+    payments = kept | {r.split_of for r in rows if r.split_of}
     out: list[ForecastLine] = []
-    for s in series:
+    for s in a.insights.series:
         if s.status not in _RUNNING or s.last.kind is not TransactionKind.PURCHASE:
             continue
-        if not any(t.fingerprint in kept for t in s.payments):
+        if not any(t.fingerprint in payments for t in s.payments):
             continue
-        note = f"{s.last.category} · son ödeme {_day(s.last.date)}"
-        if s.status == "iptal_sonrasi":
-            note += " · iptalden sonra da çekildi"
-        out.append(
-            ForecastLine(
-                ForecastPart.REGULAR,
-                s.merchant,
-                note,
-                s.last.necessity or Necessity.UNKNOWN,
-                s.last.group,
-                group_slot(groups, s.last.group),
-                tuple(s.monthly for _ in ahead),
-                Link(Screen.TRANSACTIONS, query=(("merchant", s.merchant),)),
+        for row, share in _shares(a, s, kept):
+            note = f"{row.category} · son ödeme {_day(s.last.date)}"
+            if row.split_of:
+                note += " · bölünmüş ödemenin payı"
+            if s.status == "iptal_sonrasi":
+                note += " · iptalden sonra da çekildi"
+            out.append(
+                ForecastLine(
+                    ForecastPart.REGULAR,
+                    s.merchant,
+                    note,
+                    row.necessity or Necessity.UNKNOWN,
+                    row.group,
+                    group_slot(groups, row.group),
+                    tuple(round_half_up(s.monthly * share) for _ in ahead),
+                    Link(Screen.TRANSACTIONS, query=(("merchant", s.merchant),)),
+                )
             )
-        )
     return sorted(out, key=lambda line: -line.amounts[0])
 
 
-def _installments(
-    rows: list[RowView], hi: str, ahead: tuple[str, ...], names: dict[str, str], groups: list[str]
-) -> list[ForecastLine]:
-    """The installments still due: the newest seen of each purchase paid in installments."""
-    newest: dict[tuple[str, str, int, int], tuple[RowView, int, int]] = {}
+def _whole_rows(a: Analysis, rows: list[RowView]) -> list[RowView]:
+    """The rows as payments: a split row whole, once, where the filters keep any part of it."""
+    seen: set[str] = set()
+    out: list[RowView] = []
     for r in rows:
+        if not r.split_of:
+            out.append(r)
+        elif r.split_of not in seen:
+            seen.add(r.split_of)
+            out.append(view(a.dataset.split[r.split_of], r.certainty))
+    return out
+
+
+def _installments(
+    a: Analysis, rows: list[RowView], hi: str, ahead: tuple[str, ...], groups: list[str]
+) -> list[ForecastLine]:
+    """The installments still due: the newest seen of each purchase paid in installments, a split one whole."""
+    names = labels(a)
+    newest: dict[tuple[str, str, int, int], tuple[RowView, int, int]] = {}
+    for r in _whole_rows(a, rows):
         if month_of(r.day) < shift(hi, -2) or r.direction is not Direction.OUT or "/" not in r.installment:
             continue
         k_text, _, n_text = r.installment.partition("/")

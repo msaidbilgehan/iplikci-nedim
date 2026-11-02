@@ -4,7 +4,9 @@ document it is printed in.
 A receipt's or a bank notice's row that a statement showed left the ledger for the statement's row, which is the one
 counted; one that no statement covering its days shows never counted (excluded). Both are still found by their
 fingerprints: the first leads to the statement's row, the second is shown for what it is, never in a total. A row the
-user split (F04) is counted as its parts, each a row of its own; its own fingerprint still finds it whole."""
+user split (F04) is counted as its parts, each a row of its own; its own fingerprint still finds it whole. A part's
+fingerprint outlives its part: a split receipt's row a statement then showed has its parts on the statement's row, and
+a row no longer split is found whole."""
 
 from dataclasses import dataclass
 from datetime import date
@@ -142,6 +144,9 @@ class Rows:
         counted = self.counted.get(fingerprint) or self.ds.split.get(fingerprint)
         if counted is not None:
             return Found(counted, certainty_of(counted), TRY, None)
+        row, dash, number = fingerprint.partition("-")
+        if dash:
+            return self._part(row, number)
         line = self.evidence.get(fingerprint)
         if line is None:
             return None
@@ -155,6 +160,16 @@ class Rows:
         # with the transfer, or on another day), or foreign currency moved between own accounts changes nothing in TL.
         certainty = Certainty.PROVISIONAL if line.status == PROVISIONAL else Certainty.CONFIRMED
         return Found(line.txn, certainty, currency, line, counted=False)
+
+    def _part(self, row: str, number: str) -> Found | None:
+        """A part's fingerprint no counted row has: the same part of the statement's row, where a receipt's split row
+        was moved; else the row it was part of, whole again (joined, or its split no longer applies)."""
+        line = self.evidence.get(row)
+        if line is not None and line.status == CONFIRMED and line.match is not None:
+            moved = self.counted.get(f"{line.match.fingerprint}-{number}")
+            if moved is not None:
+                return Found(moved, certainty_of(moved), TRY, None)
+        return self.find(row)
 
     def _kept(self, fingerprint: str) -> bool:
         """Whether the ledger counts the row: as it is, or split into parts."""

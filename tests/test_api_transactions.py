@@ -225,6 +225,50 @@ def test_a_split_that_does_not_add_up_or_a_row_that_cannot_be_split_is_refused(o
     assert own.put(f"/api/transactions/{fp}/annotation", json={"parts": zero}, headers=OWN_PAGE).status_code == 422
 
 
+def test_a_split_rows_category_is_in_its_parts_and_one_for_the_row_itself_is_refused(own):
+    row = coffee(own)[0]
+    fp, minor = row["fingerprint"], row["amount"]["minor"]
+    url = f"/api/transactions/{fp}/annotation"
+    parts = [{"minor": minor - 1000, "category": "Kafe & Kahve"}, {"minor": 1000, "category": "Market & Gıda"}]
+    both = own.put(url, json={"parts": parts, "category": "Market & Gıda"}, headers=OWN_PAGE)
+    assert (both.status_code, both.json()["code"]) == (400, "correction_refused")
+    assert own.put(url, json={"parts": parts}, headers=OWN_PAGE).status_code == 200
+    for change in ({"category": "Market & Gıda"}, {"necessity": "required"}):  # it would not show: the parts count
+        refused = own.put(f"/api/transactions/{fp}-1/annotation", json=change, headers=OWN_PAGE)
+        assert (refused.status_code, refused.json()["code"]) == (400, "correction_refused")
+        assert "her parçada" in refused.json()["title"]
+    noted = own.put(url, json={"note": "ikiye bölündü"}, headers=OWN_PAGE).json()
+    assert [p["minor"] for p in noted["parts"]] == [minor - 1000, 1000]  # the split as the user made it
+    joined = own.put(url, json={"parts": [], "category": "Market & Gıda"}, headers=OWN_PAGE).json()
+    assert (joined["category"], joined["parts"], joined["note"]) == ("Market & Gıda", [], "ikiye bölündü")
+
+
+def test_a_split_a_rule_change_no_longer_takes_is_previewed_flagged_and_put_on_the_to_do_list(own):
+    row = coffee(own)[0]
+    fp, minor = row["fingerprint"], row["amount"]["minor"]
+    parts = [{"minor": minor - 1000, "category": "Kafe & Kahve"}, {"minor": 1000, "category": "Market & Gıda"}]
+    assert own.put(f"/api/transactions/{fp}/annotation", json={"parts": parts}, headers=OWN_PAGE).status_code == 200
+    # A rule counting the merchant as savings makes its rows a kind that is not split: the parts' move is shown too.
+    pension = {
+        "action": "merchant",
+        "category": "Bireysel Emeklilik (BES)",
+        "merchant": "Ornek Kahve",
+        "patterns": ["ORNEK KAHVE"],
+    }
+    preview = own.post("/api/rules/categories/preview", json=pension, headers=bearer()).json()
+    moves = {(m["before"], m["after"]): m["count"] for m in preview["moves"]}
+    assert moves == {("Kafe & Kahve", "Bireysel Emeklilik (BES)"): 10, ("Market & Gıda", "Bireysel Emeklilik (BES)"): 1}
+    assert own.put("/api/rules/categories", json=pension, headers=OWN_PAGE).json()["saved"]
+    found = own.get(f"/api/transactions/{fp}-2", headers=bearer()).json()  # a part's address finds its row whole
+    assert (found["row"]["fingerprint"], found["parts"], found["split_dropped"]) == (fp, [], True)
+    assert [p["minor"] for p in found["annotation"]["parts"]] == [minor - 1000, 1000]
+    listed = own.get("/api/todos", headers=bearer()).json()
+    [todo] = [t for t in listed["items"] if t["kind"] == "split_dropped"]
+    assert (todo["target"], todo["link"]["screen"], todo["link"]["id"]) == (fp, "transaction", fp)
+    assert "2 parçaya" in todo["detail"] and "Birikim & yatırım" in todo["detail"]
+    assert listed["counts"]["split_dropped"] == 1
+
+
 def test_money_moved_between_own_accounts_cannot_be_split(ws):
     add(ws, "giden.xls", teb.account_export([("20/10/2026", "FAST GIDEN", "-500,00", "1.250,00")], number="111111111"))
     add(ws, "gelen.xls", teb.account_export([("20/10/2026", "FAST GELEN", "500,00", "500,00")], number="222222222"))

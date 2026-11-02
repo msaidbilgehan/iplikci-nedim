@@ -226,11 +226,20 @@ class WhyOut(BaseModel):
     rate_day: date | None  # the day of the row that printed it (the source: the documents)
 
 
+class SplitPartOut(BaseModel):
+    """A part as the user split the row: the detail's parts are what the ledger counts of them."""
+
+    minor: int  # kuruş, above zero whichever way the row's money goes
+    category: str
+    necessity: Necessity | None  # null: the one the category's rules give
+
+
 class AnnotationOut(BaseModel):
     note: str
     tags: list[str]
     category: str  # "" when the rules decide
     necessity: Necessity | None  # null when the rules decide
+    parts: list[SplitPartOut]  # the split as the user made it; [] for none
     updated_at: str
 
 
@@ -244,6 +253,9 @@ class TransactionDetailOut(BaseModel):
     correctable: bool  # false for an excluded row: it carries no correction
     parts: list[RowOut]  # a split row's parts in order, each counted under its own category; [] for a whole row
     splittable: bool  # a counted row of a kind that can be split: spending, money sent to people, income
+    # The user split it (annotation.parts), but it counts whole again: its kind no longer splits, or its amount moved
+    # so far that a part came to nothing. The to-do list tells it too.
+    split_dropped: bool
 
 
 def _printed(p: Printed | None) -> PrintedOut | None:
@@ -260,6 +272,7 @@ def _annotation(found: transactions.Annotation | None) -> AnnotationOut | None:
         tags=list(found.tags),
         category=found.category,
         necessity=found.necessity,
+        parts=[SplitPartOut(minor=p.amount, category=p.category, necessity=p.necessity) for p in found.parts],
         updated_at=found.updated_at,
     )
 
@@ -309,6 +322,7 @@ def transaction_detail(request: Request, fingerprint: Fingerprint) -> Transactio
         correctable=found.correctable,
         parts=[row_out(part, labels) for part in found.parts],
         splittable=found.splittable,
+        split_dropped=found.split_dropped,
     )
 
 

@@ -179,6 +179,29 @@ Kart ödemeleri ve kart tarafındaki alacakları birbirini götürür; asla harc
   - Maaş ay sonlarına düşer; bir takvim ayında 0 ya da 2 maaş olabilir. Gelir takvim toplamlarından değil maaş
     serisinden alınır.
 
+## Bölünmüş satırlar (F04)
+
+Kullanıcı bir satırı birden çok kategoriye bölebilir: bir market fişinin bir kısmı ev eşyası, bir faturanın bir kısmı
+cihaz taksiti olabilir.
+
+- Yalnızca harcama, kişiye gönderilen para ve gelir bölünür. Kendi hesapları arası transfer, kart ödemesi, borç ve
+  yatırım bölünmez: bunları türleri belirler.
+- Parçalar satırın türünü, gününü, hesabını, belgesini ve notunu korur; yalnızca kategorileri, gereklilikleri ve
+  tutarları kendilerinindir. Bir parçayı başka türde saymanın yolu bir kuraldır.
+- Parçaların toplamı satırın tutarına kuruşu kuruşuna eşittir. Kur değişip satırın TL tutarı oynarsa parçalar aynı
+  oranla paylaştırılır; yuvarlamadan kalanı son parça alır.
+- Toplamlarda satırın yerini parçaları alır; her biri kendi kategorisinde sayılır. Ödeme düzeyindeki işler (düzenli
+  ödeme serileri, büyük harcama, olağan dışı hareket, işlem sayıları) satırın bütününe bakar: bölünmüş bir satır tek
+  ödemedir.
+- Değerlendirme'nin üç aylık tahmininde son ödemesi bölünmüş düzenli bir ödeme parçalarıyla görünür: her parça
+  kendi kategorisinde, aylık tutardan kendi payıyla. Kategori, grup ya da gereklilik süzgeci yalnızca tuttuğu
+  parçaları sayar.
+- Bölünmüş satırın kategorisi ve gerekliliği parçalarındadır; satırın kendisine ayrıca verilmez.
+- Bir kural değişikliği satırın türünü bölünmeyen bir türe çevirirse ya da tutarı bir parçayı sıfıra indirecek kadar
+  değişirse satır yeniden bütün sayılır. Parçalar düzeltmede saklanır, Yapılacaklar'da "Uygulanamayan bölme" çıkar.
+- Bir dekontun bölünmüş satırını ekstre gösterince bölme ekstrenin satırına geçer; parçaların eski adresleri ekstrenin
+  aynı parçalarını açar.
+
 ## Banka dışı faturalar (V1)
 
 Banka dışı e-postalardan okunan fatura, makbuz ve siparişler sayılmaz. Esas olan banka akışlarıdır (K12). Bunlar

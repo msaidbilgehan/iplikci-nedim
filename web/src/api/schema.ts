@@ -163,6 +163,7 @@ export interface AnnotationOut {
   tags: string[];
   category: string;
   necessity: Necessity | null;
+  parts: SplitPartOut[];
   updated_at: string;
 }
 
@@ -1805,6 +1806,13 @@ export interface SpendingOut {
   forecast: SpendingForecastOut | null;
 }
 
+/** A part as the user split the row: the detail's parts are what the ledger counts of them. */
+export interface SplitPartOut {
+  minor: number;
+  category: string;
+  necessity: Necessity | null;
+}
+
 /** Money out tied to no day: the median month of the complete months named, spread over each month's days. */
 export interface SpreadOut {
   monthly: MoneyOut;
@@ -1941,7 +1949,7 @@ export interface TodoIgnoredIn {
 }
 
 /** What keeps the data from being complete and right (F19): each a to-do with the step that settles it. */
-export type TodoKind = "uncategorized" | "unmatched_evidence" | "unmatched_invoice" | "unverified_statement" | "missing_documents" | "unprocessed_document" | "orphan_annotation" | "format_alarm";
+export type TodoKind = "uncategorized" | "unmatched_evidence" | "unmatched_invoice" | "unverified_statement" | "missing_documents" | "unprocessed_document" | "orphan_annotation" | "split_dropped" | "format_alarm";
 
 export interface TodoOut {
   key: string;
@@ -2001,6 +2009,7 @@ export interface TransactionDetailOut {
   correctable: boolean;
   parts: RowOut[];
   splittable: boolean;
+  split_dropped: boolean;
 }
 
 /**

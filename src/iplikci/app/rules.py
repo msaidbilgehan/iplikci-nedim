@@ -6,7 +6,7 @@ who changed it."""
 
 import difflib
 from collections import Counter, defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -194,20 +194,37 @@ def _labels(t: Transaction) -> Labels:
     return Labels(t.merchant, t.category, t.necessity, t.kind)
 
 
-def _effect(before: Dataset, after: Dataset) -> tuple[int, list[Move], list[Example]]:
-    """The rows the change moves (by their fingerprints: a row is the same row whatever its rules say)."""
+def _pairs(before: Dataset, after: Dataset) -> Iterator[tuple[Transaction, Transaction, Decimal]]:
+    """Each row as it was and as it is, with the amount concerned (by their fingerprints: a row is the same row
+    whatever its rules say). A row split on one side only, as its kind decides whether the user's split applies,
+    pairs each part with the whole row, for the part's amount."""
     old = {t.fingerprint: t for t in before.transactions}
+    parts: defaultdict[str, list[Transaction]] = defaultdict(list)
+    for t in before.transactions:
+        if t.split_of:
+            parts[t.split_of].append(t)
+    for y in after.transactions:
+        if y.fingerprint in old:
+            yield old[y.fingerprint], y, y.amount
+        elif y.split_of and y.split_of in old:  # split now, whole before
+            yield old[y.split_of], y, y.amount
+        else:  # whole now, split before; or a row only these rules make
+            for x in parts.get(y.fingerprint, ()):
+                yield x, y, x.amount
+
+
+def _effect(before: Dataset, after: Dataset) -> tuple[int, list[Move], list[Example]]:
+    """The rows the change moves."""
     moves: Counter[tuple[str, str]] = Counter()
     totals: defaultdict[tuple[str, str], Decimal] = defaultdict(Decimal)
     examples: list[Example] = []
-    for y in after.transactions:
-        x = old.get(y.fingerprint)
-        if x is None or _labels(x) == _labels(y):
+    for x, y, amount in _pairs(before, after):
+        if _labels(x) == _labels(y):
             continue
         moves[(x.category, y.category)] += 1
-        totals[(x.category, y.category)] += y.amount
+        totals[(x.category, y.category)] += amount
         if len(examples) < EXAMPLES:
-            examples.append(Example(y.fingerprint, y.date, y.description, y.amount, _labels(x), _labels(y)))
+            examples.append(Example(y.fingerprint, y.date, y.description, amount, _labels(x), _labels(y)))
     listed = [Move(f, t, n, round_half_up(totals[(f, t)])) for (f, t), n in moves.most_common(MOVES)]
     return sum(moves.values()), listed, examples
 

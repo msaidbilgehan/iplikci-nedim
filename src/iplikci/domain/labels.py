@@ -260,6 +260,7 @@ TODO_KIND: dict[TodoKind, str] = {
     TodoKind.MISSING_DOCUMENTS: "Eksik belge",
     TodoKind.UNPROCESSED_DOCUMENT: "İşlenmeyen belge",
     TodoKind.ORPHAN_ANNOTATION: "Eşi bulunamayan düzeltme",
+    TodoKind.SPLIT_DROPPED: "Uygulanamayan bölme",
     TodoKind.FORMAT_ALARM: "Okuyucu biçim alarmı",
 }
 

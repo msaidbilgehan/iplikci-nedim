@@ -10,7 +10,9 @@ row's kind stays: a rule in the user's rule file is the way to change how a merc
 A split row (F04) leaves the ledger for its parts: each counts under its own category with its share of the amount,
 the parts adding up to the row to the kuruş. They keep the row's day, account, kind, document and note, and are
 found by the row's fingerprint with their number after it. The whole row stays in `Dataset.split`: a payment's
-series, size and place in its document are the whole row's (analysis.payments).
+series, size and place in its document are the whole row's (analysis.payments). A row whose kind no longer splits
+(a rule now counts it as an own transfer), or whose amount moved so far that a part came to nothing, counts whole
+again; its parts stay with the annotation and the to-do list tells the user (Unsplit).
 """
 
 import difflib
@@ -30,11 +32,27 @@ from ..storage.annotations import Annotation, Part, Subject
 MAX_PARTS = 20
 
 
-def apply(ds: Dataset, found: Mapping[str, Annotation], categorizer: Categorizer) -> list[Annotation]:
-    """Put every annotation on its row and split the rows the user split; returns the orphans, oldest first."""
+@dataclass(frozen=True, slots=True)
+class Unsplit:
+    """A row the user split that counts whole again: its kind no longer splits, or its amount moved so far that a
+    part came to nothing. The parts stay with its annotation."""
+
+    row: Transaction
+    parts: int  # how many parts the user split it into
+
+
+@dataclass(frozen=True, slots=True)
+class Applied:
+    orphans: list[Annotation]  # the annotations no row carries any more, oldest first
+    unsplit: list[Unsplit]
+
+
+def apply(ds: Dataset, found: Mapping[str, Annotation], categorizer: Categorizer) -> Applied:
+    """Put every annotation on its row and split the rows the user split."""
     rows = {t.fingerprint: t for t in ds.transactions}
     moved = {line.txn.fingerprint: line.match.fingerprint for line in ds.receipts if line.match is not None}
     orphans: list[Annotation] = []
+    unsplit: list[Unsplit] = []
     split: dict[str, list[Transaction]] = {}
     for fp, annotation in found.items():
         target = fp if fp in rows else moved.get(fp, "")
@@ -46,10 +64,12 @@ def apply(ds: Dataset, found: Mapping[str, Annotation], categorizer: Categorizer
         parts = _parts(rows[target], annotation.parts, categorizer)
         if parts:
             split[target] = parts
+        elif annotation.parts:
+            unsplit.append(Unsplit(rows[target], len(annotation.parts)))
     if split:
         ds.split = {fp: rows[fp] for fp in split}
         ds.transactions = [part for t in ds.transactions for part in split.get(t.fingerprint, (t,))]
-    return orphans
+    return Applied(orphans, unsplit)
 
 
 def part_fingerprint(fingerprint: str, number: int) -> str:
@@ -77,6 +97,7 @@ def _parts(t: Transaction, parts: Sequence[Part], categorizer: Categorizer) -> l
             category=part.category,
             group=categorizer.categories.get(part.category, OTHER_GROUP),
             fingerprint=part_fingerprint(t.fingerprint, number),
+            original="",  # the foreign amount is the whole row's; a part of it has none of its own
             split_of=t.fingerprint,
             split_parts=len(parts),
             reason=replace(t.reason, category=CategoryReason.SPLIT, rule="", layer=""),
@@ -133,8 +154,9 @@ def subject(t: Transaction, label: str) -> Subject:
 
 
 def find(ds: Dataset, prefix: str) -> Transaction:
-    """The ledger row whose fingerprint starts with prefix (at least six characters, like a short commit id)."""
-    prefix = prefix.strip().lower()
+    """The ledger row whose fingerprint starts with prefix (at least six characters, like a short commit id); a
+    part's fingerprint names the row it is part of."""
+    prefix = prefix.strip().lower().partition("-")[0]
     if len(prefix) < 6:
         raise LookupError("parmak izinin en az ilk 6 karakterini yazın")
     hits = [t for t in payments(ds) if t.fingerprint.startswith(prefix)]

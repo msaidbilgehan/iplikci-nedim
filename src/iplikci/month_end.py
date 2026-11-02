@@ -31,6 +31,7 @@ from .analysis import (
     Dataset,
     ReceiptLine,
     statement_periods,
+    whole,
 )
 from .categorize import NECESSITY_SLOTS, group_slot
 from .domain.codes import (
@@ -464,12 +465,13 @@ class _Shared:
         typical = median(self.expense(m) for m in prior) if len(prior) >= 3 else None
 
         def ranked(key) -> list[tuple[str, Decimal, int]]:
-            sums: dict[str, list] = defaultdict(lambda: [ZERO, 0])
+            sums: dict[str, Decimal] = defaultdict(Decimal)
+            paid: dict[str, set[object]] = defaultdict(set)  # the payments behind each: a split row's parts are one
             for t in spent:
-                entry = sums[key(t)]
-                entry[0] += t.amount
-                entry[1] += 1
-            return sorted(((k, v, n) for k, (v, n) in sums.items() if v >= 1), key=lambda x: -x[1])
+                k = key(t)
+                sums[k] += t.amount
+                paid[k].add(t.split_of or id(t))
+            return sorted(((k, v, len(paid[k])) for k, v in sums.items() if v >= 1), key=lambda x: -x[1])
 
         groups = [(g, group_slot(ds.groups, g), v) for g, v, _ in ranked(lambda t: t.group)]
         by_level = {level: v for level, v, _ in ranked(lambda t: t.necessity or Necessity.UNKNOWN)}
@@ -492,9 +494,13 @@ class _Shared:
 
         expense = self.expense(month)
         threshold = max(Decimal(5000), Decimal("0.1") * (typical or expense))
+        # Payments as made: a split purchase is large or not as a whole, and is listed once.
+        payments = list({id(w): w for w in (whole(ds, t) for t in spent)}.values())
         big = sorted(
-            (t for t in spent if t.kind == TransactionKind.PURCHASE and t.amount >= threshold), key=lambda t: -t.amount
+            (t for t in payments if t.kind == TransactionKind.PURCHASE and t.amount >= threshold),
+            key=lambda t: -t.amount,
         )[:8]
+        waiting = {id(w): w for w in (whole(ds, t) for t in txns if t.provisional)}
         totals = self.totals(month)
         return MonthEnd(
             month=month,
@@ -510,12 +516,12 @@ class _Shared:
             merchants=merchants,
             regular=regular,
             big=big,
-            provisional=sorted((t for t in txns if t.provisional), key=lambda t: t.date),
+            provisional=sorted(waiting.values(), key=lambda t: t.date),
             unmatched=sorted(
                 (line for line in ds.receipts if line.status == NOT_ON_STATEMENT and month_of(line.txn.date) == month),
                 key=lambda line: line.txn.date,
             ),
-            count=len(spent),
+            count=len({t.split_of or id(t) for t in spent}),
             trend=[(m, self.expense(m)) for m in span(shift(month, -11), month)],
             income_note=self.income_note(month, totals, accounts, status),
             debt_end=debt_at(ds, last_day(month)) if status != RUNNING else None,

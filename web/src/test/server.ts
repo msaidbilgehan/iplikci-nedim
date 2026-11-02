@@ -1350,11 +1350,13 @@ export function transactionDetail(overrides: Partial<TransactionDetail> = {}): T
       tags: ["ev"],
       category: "",
       necessity: null,
+      parts: [],
       updated_at: "2026-11-13T09:00:00+00:00",
     },
     correctable: true,
     parts: [],
     splittable: true,
+    split_dropped: false,
     ...overrides,
   };
 }
@@ -1364,7 +1366,17 @@ export const SPLIT_DETAIL = transactionDetail({
   row: { ...PARTS[0]!, fingerprint: WHOLE, amount: tl(125000), category: "Market", split_of: "", split_parts: 2 },
   why: { ...transactionDetail().why, rule: "ORNEK SUPERMARKET" },
   told: [],
-  annotation: { note: "", tags: [], category: "", necessity: null, updated_at: "2026-11-02T09:00:00+00:00" },
+  annotation: {
+    note: "",
+    tags: [],
+    category: "",
+    necessity: null,
+    parts: [
+      { minor: 100000, category: "Market", necessity: null },
+      { minor: 25000, category: "Temizlik", necessity: null },
+    ],
+    updated_at: "2026-11-02T09:00:00+00:00",
+  },
   parts: PARTS,
 });
 

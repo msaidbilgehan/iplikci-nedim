@@ -261,6 +261,7 @@ class TodoKind(StrEnum):
     MISSING_DOCUMENTS = "missing_documents"  # an account's statements stop early or skip a month
     UNPROCESSED_DOCUMENT = "unprocessed_document"  # a document no reader read, or could not read
     ORPHAN_ANNOTATION = "orphan_annotation"  # a correction no row carries any more
+    SPLIT_DROPPED = "split_dropped"  # a row the user split that counts whole again: its kind or amount changed
     FORMAT_ALARM = "format_alarm"  # a reader that may no longer know its bank's format
 
 

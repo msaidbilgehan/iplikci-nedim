@@ -101,9 +101,11 @@ class Analysis:
     signature: tuple[object, ...]
     made: datetime
     outputs: Outputs | None = None
-    # The month-end closing, oldest first, and the annotations no row carries any more.
+    # The month-end closing, oldest first; the annotations no row carries any more, and the rows the user split that
+    # count whole again.
     months: list[month_end.MonthEnd] = field(default_factory=list[month_end.MonthEnd])
     orphans: list[Annotation] = field(default_factory=list[Annotation])
+    unsplit: list[annotate.Unsplit] = field(default_factory=list[annotate.Unsplit])
     # The names the user gave accounts (F07), by id: the screens show them; the bank's label stays the account's own.
     aliases: dict[str, str] = field(default_factory=dict[str, str])
     today: date = field(default_factory=date.today)  # the day the months were closed on: which one is current
@@ -138,13 +140,26 @@ def analyze(
     names = list(settings.identity.names)
     categorizer = Categorizer.layered(ws.rules)
     ds = build(found, categorizer, {"ad_soyad": names} if names else {})
-    orphans = annotate.apply(ds, notes, categorizer)
+    applied = annotate.apply(ds, notes, categorizer)
     ins = interpret(ds)
     today = today or date.today()
     months = month_end.build(ds, ins, today)
     payload = build_payload(ds, stats, ins, months)
     outputs = write_outputs(ws.exports, ds, ins, payload, months) if write else None
-    return Analysis(ds, stats, ins, payload, signature, datetime.now(), outputs, months, orphans, names_given, today)
+    return Analysis(
+        ds,
+        stats,
+        ins,
+        payload,
+        signature,
+        datetime.now(),
+        outputs,
+        months,
+        applied.orphans,
+        applied.unsplit,
+        names_given,
+        today,
+    )
 
 
 class Current:

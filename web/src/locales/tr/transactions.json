@@ -193,6 +193,8 @@
     "join": "Bölmeyi kaldır",
     "joinTitle": "Bölme kaldırılsın mı?",
     "joinText": "Parçalar silinir; satır yeniden tek parça olur ve bölmeden önceki kategorisiyle sayılır.",
+    "droppedTitle": "Bölme uygulanamıyor",
+    "droppedText": "Bu satırı parçalara bölmüştünüz. Türü ya da tutarı değiştiği için bölme artık uygulanamıyor; satır bütün olarak sayılıyor. Bölünebiliyorsa yeniden bölün, gerekmiyorsa bölmeyi kaldırın.",
     "errorAmount": "Tutar 250 ya da 250,50 gibi, sıfırdan büyük bir TL tutarı olmalı.",
     "errorCategory": "Bir kategori seçin.",
     "errorRest": "Diğer parçalar satırın tutarını tutuyor ya da aşıyor; ilk parçaya bir şey kalmıyor."

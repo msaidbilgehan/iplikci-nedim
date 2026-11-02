@@ -18,7 +18,7 @@ newest month is usually partial.
 """
 
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
 from decimal import Decimal
 from itertools import pairwise
@@ -614,6 +614,15 @@ def _classify(h: Habit, window: list[str], silence: int, stopped: bool) -> None:
         h.status = "ara_sira"
 
 
+def _per_payment(items: list[Transaction]) -> list[Transaction]:
+    """A habit's purchases: the parts of a split row in it are one purchase of their sum."""
+    merged: dict[object, Transaction] = {}
+    for t in items:
+        key = t.split_of or id(t)
+        merged[key] = replace(merged[key], amount=merged[key].amount + t.amount) if key in merged else t
+    return list(merged.values())
+
+
 def habits(ds: Dataset, tl_: Timeline, series: list[Series]) -> list[Habit]:
     """Discretionary merchants and avoidable cost categories seen in the window. Payees with a
     regular payment are left out: their extra charges are add-ons, not a habit."""
@@ -633,7 +642,8 @@ def habits(ds: Dataset, tl_: Timeline, series: list[Series]) -> list[Habit]:
         elif t.necessity == OPTIONAL:
             groups[(t.merchant, False)].append(t)
     found = []
-    for (name, by_category), items in groups.items():
+    for (name, by_category), parts in groups.items():
+        items = _per_payment(parts)
         inside = [t for t in items if month_of(t.date) in window]
         if not inside:
             continue
@@ -1434,8 +1444,9 @@ def _receipts_finding(c: _Context) -> None:
                 parts.append(f"{label} {tl(abs(total))}")
         first, last = min(t.date for t in rows), max(t.date for t in rows)
         when = _day(first) if first == last else f"{_day(first)}–{_day(last)}"
+        made = len({t.split_of or id(t) for t in rows})  # payments: a split row's parts are one
         text = (
-            f"Son ekstre ve hesap dökümlerinden sonra gelen dekontlardan {len(rows)} işlem şimdiden işlendi "
+            f"Son ekstre ve hesap dökümlerinden sonra gelen dekontlardan {made} işlem şimdiden işlendi "
             f"({when}): {', '.join(parts)}. Bakiyeler ve kart borcu bunlarla güncellendi; ekstre ya da döküm "
             "gelince satırlarıyla eşleşip kesinleşecekler."
         )

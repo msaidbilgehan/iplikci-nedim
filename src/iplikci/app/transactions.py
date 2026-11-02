@@ -355,6 +355,9 @@ class Detail:
     correctable: bool  # a counted row: an excluded one carries no correction
     parts: list[RowView] = field(default_factory=list[RowView])  # a split row's parts, in order
     splittable: bool = False  # a counted row of a kind that can be split (spending, money to people, income)
+    # The user split it, but it counts whole again: its kind no longer splits, or its amount moved so far that a part
+    # came to nothing (the annotation keeps the parts).
+    split_dropped: bool = False
 
 
 def _layer(name: str) -> RuleLayer | None:
@@ -444,6 +447,7 @@ def detail(ws: Workspace, a: Analysis, fingerprint: str) -> Detail:
             for part in rows.parts(t.fingerprint)
         ],
         splittable=found.counted and t.kind in SPLITTABLE_KINDS,
+        split_dropped=note is not None and bool(note.parts) and t.fingerprint not in a.dataset.split,
     )
 
 
@@ -526,11 +530,23 @@ def _changes(ws: Workspace, change: Correction, t: Transaction | None = None) ->
     return values
 
 
+def _labelled(change: Correction) -> bool:
+    """Whether a correction gives the row a category or a necessity of its own, rather than back to the rules."""
+    return bool(change.category) or (change.necessity is not None and not change.clear_necessity)
+
+
 def correct(ws: Workspace, a: Analysis, fingerprint: str, change: Correction, actor: Actor) -> Annotation | None:
     """Correct one row: its note, tags, category or necessity, bound to its fingerprint so a new reading keeps it.
-    Returns what is kept; None when nothing is (the rules decide again)."""
+    Returns what is kept; None when nothing is (the rules decide again). A split row's category and necessity are its
+    parts': one given to the row itself would not show, so it is refused unless the same change joins the row."""
     found = _counted(a, fingerprint)
     t = found.row
+    split_stays = (t.fingerprint in a.dataset.split and change.parts != ()) or bool(change.parts)
+    if split_stays and _labelled(change):
+        raise Refused(
+            "Bölünmüş satırın kategorisi ve gerekliliği her parçada ayrı seçilir: parçaları düzenleyin ya da önce "
+            "bölmeyi kaldırın."
+        )
     values = _changes(ws, change, t)
     label = a.dataset.accounts[t.account].label if t.account in a.dataset.accounts else t.account
     with ws.db() as db:

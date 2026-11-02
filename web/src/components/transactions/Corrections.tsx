@@ -2,7 +2,8 @@
 // as a rule for its merchant, its necessity, a note and tags, or a split into parts. Each is bound to the row's
 // fingerprint, so a new reading of the documents keeps it. A note and tags show at once; a category, a necessity or a
 // split shows as the service's new analysis settles, a few seconds later. A split row's category is in its parts:
-// the split editor stands in for the category correction.
+// the split editor stands in for the category correction. A split the row no longer takes (a rule changed its kind,
+// or its amount moved too far) is said, with the way to take it off.
 
 import { type FormEvent, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -60,6 +61,7 @@ export function Corrections({ found, fingerprint, labels }: CorrectionsProps) {
   const categories = rules.data.categories;
   return (
     <div className="flex flex-col gap-5">
+      {found.split_dropped ? <DroppedSplit fingerprint={fingerprint} /> : null}
       {isSplit || splitting ? (
         <SplitEditor
           fingerprint={fingerprint}
@@ -85,6 +87,26 @@ export function Corrections({ found, fingerprint, labels }: CorrectionsProps) {
       <NoteCorrection note={own.note} fingerprint={fingerprint} />
       <TagsCorrection tags={own.tags} fingerprint={fingerprint} />
     </div>
+  );
+}
+
+/** The user's split of a row that counts whole again: its kind no longer splits, or its amount moved too far. */
+function DroppedSplit({ fingerprint }: { fingerprint: string }) {
+  const { t } = useTranslation("transactions");
+  const correction = useCorrection(fingerprint);
+  return (
+    <Alert tone="warning" title={t("split.droppedTitle")}>
+      <p>{t("split.droppedText")}</p>
+      <Button
+        variant="secondary"
+        className="mt-2"
+        disabled={correction.isPending}
+        onClick={() => correction.mutate({ parts: [] })}
+      >
+        {t("split.join")}
+      </Button>
+      {correction.isError ? <p className="mt-2">{correction.error.message}</p> : null}
+    </Alert>
   );
 }
 

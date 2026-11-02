@@ -278,7 +278,8 @@ def _card(ds: Dataset, account: str, statements: list[Statement]) -> Card:
     paid = sum((t.amount for t in paying), ZERO)
     debt = max(ZERO, newest.total - paid) if credit and newest.total is not None else None
     later = [t for t in ds.transactions if t.account == account and t.date > newest.cut_date]
-    current = Period(newest.cut_date + timedelta(days=1), add_months(newest.cut_date, 1), _spent(later), len(later))
+    made = len({t.split_of or id(t) for t in later})  # payments: a split row's parts are one
+    current = Period(newest.cut_date + timedelta(days=1), add_months(newest.cut_date, 1), _spent(later), made)
     provisional = any(t.provisional for t in [*paying, *later])
     note = f"{_day(newest.cut_date)} ekstresi"
     if newest.total is not None:
@@ -286,7 +287,7 @@ def _card(ds: Dataset, account: str, statements: list[Statement]) -> Card:
     if paid:
         note += f"; sonra {_amount(paid, TRY)} ödendi" + (" (geçici)" if any(t.provisional for t in paying) else "")
     if later:
-        note += f"; bu dönemden şimdiye dek {len(later)} işlem biliniyor, tamamı ekstreyle gelir"
+        note += f"; bu dönemden şimdiye dek {made} işlem biliniyor, tamamı ekstreyle gelir"
     else:
         note += f"; bu dönemin harcamaları ~{_day(current.end)} kesimli ekstreyle gelir"
     return Card(

@@ -7,10 +7,11 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from iplikci import forecast, report
+from iplikci import forecast, month_end, report
 from iplikci.analysis import CONFIRMED, Dataset, ReceiptLine, payments
 from iplikci.app import annotate
 from iplikci.app.analysis import analyze
+from iplikci.app.rows import Rows
 from iplikci.app.workspace import Workspace
 from iplikci.categorize import Categorizer
 from iplikci.cli import main
@@ -18,7 +19,7 @@ from iplikci.domain.codes import AccountType, Actor, CategoryReason, Necessity, 
 from iplikci.domain.fingerprint import Fingerprints, fingerprint
 from iplikci.domain.models import Account, Statement, Transaction
 from iplikci.fakes import teb
-from iplikci.insights import interpret, regular_payments, timeline
+from iplikci.insights import habits, interpret, regular_payments, timeline
 from iplikci.parsers import registry
 from iplikci.settings.paths import HOME_ENV
 from iplikci.storage import annotations, audit
@@ -151,10 +152,10 @@ def test_a_receipts_note_moves_to_the_statement_row_that_confirmed_it():
     )
     subject = annotate.subject(receipt, "TEB")
     found = {"dekont": annotations.Annotation("dekont", subject, note="kira")}
-    assert annotate.apply(ds, found, Categorizer()) == [] and statement_row.note == "kira"
+    assert annotate.apply(ds, found, Categorizer()).orphans == [] and statement_row.note == "kira"
     # The statement's row has a note of its own: the user's word on that row wins, the receipt's is shown apart.
     own = annotations.Annotation("ekstre", subject, note="ekim kirası")
-    assert annotate.apply(ds, found | {"ekstre": own}, Categorizer()) == [found["dekont"]]
+    assert annotate.apply(ds, found | {"ekstre": own}, Categorizer()).orphans == [found["dekont"]]
     assert statement_row.note == "ekim kirası"
 
 
@@ -208,7 +209,9 @@ def _purchase(amount: str, day: date = date(2026, 1, 20), fp: str = "f" * 20) ->
 def _split_alone(t: Transaction, *parts: annotations.Part) -> Dataset:
     ds = Dataset({}, [], [t], [], [], {})
     found = {t.fingerprint: annotations.Annotation(t.fingerprint, annotate.subject(t, "Kart"), parts=parts)}
-    assert annotate.apply(ds, found, Categorizer()) == []
+    applied = annotate.apply(ds, found, Categorizer())
+    assert applied.orphans == []
+    assert applied.unsplit == ([] if ds.split else [annotate.Unsplit(t, len(parts))])  # a split it could not make
     return ds
 
 
@@ -226,6 +229,18 @@ def test_the_parts_always_add_up_to_their_row_or_it_stays_whole(minor, weights):
         assert sum(p.amount for p in ds.transactions) == t.amount and all(p.amount > 0 for p in ds.transactions)
     else:  # too small to share out among so many
         assert ds.transactions == [t]
+
+
+def test_a_row_whose_amount_moved_too_far_for_its_parts_counts_whole_and_says_so():
+    t = _purchase("0.02")  # split at 100,00 TL into 99,99 and 0,01; a new rate makes it 0,02 TL
+    ds = Dataset({}, [], [t], [], [], {})
+    note = annotations.Annotation(t.fingerprint, annotate.subject(t, "Kart"), parts=(_part(9999), _part(1), _part(1)))
+    applied = annotate.apply(ds, {t.fingerprint: note}, Categorizer())
+    assert ds.transactions == [t] and not ds.split and applied.unsplit == [annotate.Unsplit(t, 3)]
+
+
+def _part(minor: int, category: str = "Giyim", necessity: Necessity | None = None) -> annotations.Part:
+    return annotations.Part(minor, category, necessity)
 
 
 @pytest.mark.parametrize(
@@ -271,6 +286,57 @@ def test_a_split_payment_stays_one_payment_of_its_series():
     assert len(series.payments) == 6 and series.payments[-1] is last and series.price_change() is None
 
 
+def test_a_split_receipts_parts_are_found_on_the_statement_row_that_confirmed_it():
+    receipt, statement_row = (_purchase("500.00", fp=fp * 20) for fp in "de")
+    line = ReceiptLine(receipt, "k", CONFIRMED, Decimal(500), statement_row)
+    ds = Dataset({}, [], [statement_row], [], [], {}, receipts=[line])
+    note = annotations.Annotation(
+        receipt.fingerprint, annotate.subject(receipt, "TEB"), parts=(_part(40000), _part(10000))
+    )
+    annotate.apply(ds, {receipt.fingerprint: note}, Categorizer())
+    rows = Rows(ds)
+    moved = rows.find(f"{receipt.fingerprint}-2")  # the address the part had while only the receipt told the row
+    assert moved is not None and (moved.row.fingerprint, moved.row.amount) == (f"{'e' * 20}-2", Decimal(100))
+    gone = rows.find(f"{'e' * 20}-3")  # a part no more: its row, whole
+    assert gone is not None and gone.row is ds.split["e" * 20]
+
+
+def test_a_split_purchase_is_one_purchase_in_the_month_end_and_the_habits():
+    cash = Account("cash", "Test Vadesiz TL", "TEB", AccountType.CURRENT, number="111222333")
+    months = range(1, 5)
+    rows: list[Transaction] = []
+    for m in months:
+        for n, day in enumerate((5, 15)):  # a shop visited twice a month, for a different sum each time
+            t = _purchase(f"{150 + 50 * (2 * m + n)}.00", date(2026, m, day), f"{m:02d}{n}".ljust(20, "0"))
+            t.account, t.category, t.group, t.necessity = "cash", "Giyim", "Alışveriş", Necessity.OPTIONAL
+            rows.append(t)
+    big = _purchase("9000.00", date(2026, 4, 20), "9" * 20)
+    big.account, big.merchant, big.category, big.group = "cash", "Ornek Teknoloji", "Elektronik", "Alışveriş"
+    shop = rows[-1]  # April's second visit (600,00), split in two: one purchase still
+    spent = sum((t.amount for t in rows), Decimal(0))
+    cuts = [
+        Statement("cash", date(2026, m, 28), "TRY", "h.xls", Decimal(0), Decimal(0), start=date(2026, m, 1))
+        for m in months
+    ]
+    coverage = {"cash": {f"2026-{m:02d}": 1.0 for m in months}}
+    ds = Dataset({"cash": cash}, cuts, [*rows, big], [], [], {}, coverage=coverage)
+    notes = {
+        t.fingerprint: annotations.Annotation(t.fingerprint, annotate.subject(t, "TEB"), parts=parts)
+        for t, parts in (
+            (big, (_part(450000, "Elektronik"), _part(450000, "Giyim"))),
+            (shop, (_part(50000, "Giyim", Necessity.OPTIONAL), _part(10000, "Giyim", Necessity.OPTIONAL))),
+        )
+    }
+    annotate.apply(ds, notes, Categorizer())
+    ins = interpret(ds)
+    april = next(m for m in month_end.build(ds, ins, date(2026, 5, 15)) if m.month == "2026-04")
+    assert april.count == 3  # two visits and the large purchase, whatever their parts
+    assert [t.fingerprint for t in april.big] == [big.fingerprint]  # large as a whole (each half is not), once
+    assert {(m, n) for m, _, _, n in april.merchants} == {("Ornek Teknoloji", 1), ("Ornek Magaza", 2)}
+    [shopping] = [h for h in habits(ds, timeline(ds), ins.series) if h.name == "Ornek Magaza"]
+    assert (shopping.count, shopping.total, shopping.high) == (8, spent, Decimal("600.00"))  # the split one whole
+
+
 def test_a_split_series_payment_stays_with_its_series_in_the_forecast_and_the_report():
     cash = Account("cash", "Test Vadesiz TL", "TEB", AccountType.CURRENT, number="111222333")
     months = range(1, 9)
@@ -304,6 +370,19 @@ def home(ws, monkeypatch):
     add(ws, "ocak.xls", teb.account_export(JANUARY))
     monkeypatch.setenv(HOME_ENV, str(ws.home))
     return ws
+
+
+def test_the_command_line_shows_a_split_rows_parts_and_keeps_their_category_to_them(home, capsys):
+    t = coffee(home)
+    split(home, t, ("80.00", "Kafe & Kahve"), ("40.00", "Market & Gıda"))
+    assert main(["islem", "ara", "kahveci"]) == 0
+    shown = [line.split("  [")[0].rsplit(" · ", 1)[1] for line in capsys.readouterr().out.splitlines()]
+    assert shown == ["parça 2/2", "parça 1/2"]  # newest first, as every row
+    assert main(["islem", "duzelt", f"{t.fingerprint}-2", "--not", "ikiye bölündü"]) == 0  # a part names its row
+    assert "Kaydedildi — not: ikiye bölündü" in capsys.readouterr().out
+    with pytest.raises(SystemExit):
+        main(["islem", "duzelt", t.fingerprint[:8], "--kategori", "Market & Gıda"])
+    assert "bu işlem bölünmüş" in capsys.readouterr().err
 
 
 def test_the_command_line_finds_a_row_and_corrects_it(home, capsys):

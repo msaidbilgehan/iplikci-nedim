@@ -134,17 +134,30 @@ def test_the_forecasts_regular_payments_follow_the_tag_and_certainty_filters_too
     assert [line["label"] for line in worded["lines"] if line["part"] == "regular"] == ["Ornek Kahve"]
 
 
-def test_a_split_regular_payment_is_never_counted_again_as_variable_spending(tmp_path):
+def test_a_split_regular_payment_is_forecast_as_its_parts_and_never_again_as_variable_spending(tmp_path):
     ws = Workspace.load(demo.build(tmp_path / "veri"))
     client = TestClient(create_app(Context(ws=ws, token=TOKEN, today=lambda: demo.AS_OF)), base_url=BASE)
     url = client.post("/api/login-links", headers={"Authorization": f"Bearer {TOKEN}"}).json()["url"]
     client.get(url, follow_redirects=False)
     before = cards(client)["forecast"]["lines"]
     rents = client.get("/api/transactions", params={"category": "Kira", "limit": 500}, headers=OWN_PAGE).json()["rows"]
-    for rent in rents:  # rent and its dues, every month
+    for rent in rents:  # rent and the building's dues, every month
         minor = rent["amount"]["minor"]
         parts = [{"minor": minor - 100000, "category": "Kira"}, {"minor": 100000, "category": "Market & Gıda"}]
         put = client.put(f"/api/transactions/{rent['fingerprint']}/annotation", json={"parts": parts}, headers=OWN_PAGE)
         assert put.status_code == 200
     after = cards(client)["forecast"]["lines"]
-    assert after == before  # still one regular payment, and no part of it in the variable spending
+    rent = before[0]
+    shares = [line for line in after if line["label"] == rent["label"]]
+    assert [(line["part"], line["note"].split(" · ")[0]) for line in shares] == [
+        ("regular", "Kira"),
+        ("regular", "Market & Gıda"),
+    ]
+    assert [line["amounts"][0]["minor"] for line in shares] == [rent["amounts"][0]["minor"] - 100000, 100000]
+    others = [line for line in after if line["label"] != rent["label"]]
+    assert others == [line for line in before if line["label"] != rent["label"]]  # no part in the variable spending
+    # Under a category, the regular payment counts for its parts in it.
+    market = cards(client, category="Market & Gıda")["forecast"]["lines"]
+    assert [(line["part"], line["amounts"][0]["minor"]) for line in market if line["label"] == rent["label"]] == [
+        ("regular", 100000)
+    ]

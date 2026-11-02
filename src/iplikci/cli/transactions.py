@@ -61,6 +61,8 @@ def transaction_command(argv: list[str]) -> int:
 
 def _row_line(t, label: str) -> str:
     what = t.category + (f" · {NECESSITY[t.necessity]}" if t.necessity else "")
+    if t.split_of:
+        what += f" · parça {t.fingerprint.rpartition('-')[2]}/{t.split_parts}"
     line = f"{t.fingerprint[:10]}  {t.date:%d.%m.%Y}  {format_amount(t.amount):>12} TL  {t.merchant[:30]:30}  {what}"
     extra = [f"not: {t.note}"] if t.note else []
     extra += [f"#{tag}" for tag in t.tags]
@@ -109,6 +111,8 @@ def _fix_transaction(ws: Workspace, a: Analysis, args: argparse.Namespace, parse
         parser.error(str(exc))
     if not changes:
         parser.error("neyin değişeceğini yazın: --not, --etiket, --kategori ya da --gereklilik")
+    if t.fingerprint in a.dataset.split and (changes.get("category") or changes.get("necessity")):
+        parser.error("bu işlem bölünmüş: kategori ve gereklilik her parçada ayrı; parçaları arayüzden düzenleyin")
     label = a.dataset.accounts[t.account].label if t.account in a.dataset.accounts else t.account
     with ws.db() as db:
         kept = annotations.change(db, t.fingerprint, annotate.subject(t, label), Actor.USER, **changes)

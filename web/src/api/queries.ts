@@ -231,7 +231,8 @@ export function refreshTransactions(client: QueryClient): void {
 function withNote(detail: TransactionDetail, change: Correction): TransactionDetail {
   const note = change.note ?? detail.row.note;
   const tags = change.tags ?? detail.row.tags;
-  const annotation = detail.annotation ?? { note: "", tags: [], category: "", necessity: null, updated_at: "" };
+  const nothing = { note: "", tags: [], category: "", necessity: null, parts: [], updated_at: "" };
+  const annotation = detail.annotation ?? nothing;
   return { ...detail, row: { ...detail.row, note, tags }, annotation: { ...annotation, note, tags } };
 }
 

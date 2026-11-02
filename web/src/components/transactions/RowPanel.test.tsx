@@ -22,7 +22,14 @@ import {
 
 afterEach(() => localStorage.clear());
 
-const NOTHING_KEPT: Annotation = { note: "", tags: [], category: "", necessity: null, updated_at: "" };
+const NOTHING_KEPT: Annotation = {
+  note: "",
+  tags: [],
+  category: "",
+  necessity: null,
+  parts: [],
+  updated_at: "",
+};
 
 /**
  * The service for one row: its detail with the annotation read fresh, as the database keeps it, and the corrections
@@ -45,6 +52,7 @@ function serve(detail: TransactionDetail, { others = [] as TransactionDetail[], 
         tags: Array.isArray(body["tags"]) ? (body["tags"] as string[]) : was.tags,
         category: typeof body["category"] === "string" ? body["category"] : was.category,
         necessity: "necessity" in body ? ((body["necessity"] as Necessity | "") || null) : was.necessity,
+        parts: was.parts,
         updated_at: "2026-11-15T10:00:00+00:00",
       };
       return HttpResponse.json(annotation);
@@ -435,6 +443,18 @@ describe("RowPanel: splitting", () => {
     await user.click(within(third).getByRole("button", { name: "3. parçayı kaldır" }));
     expect(within(split).queryByRole("group", { name: "Parça 3" })).not.toBeInTheDocument();
     expect(sent).toEqual([]);
+  });
+
+  it("says when the row no longer takes the user's split, and takes the split off", async () => {
+    const user = userEvent.setup();
+    const { sent } = serve(transactionDetail({ split_dropped: true }));
+    const fix = await region("Düzeltmeler");
+    const [said] = within(fix)
+      .getAllByRole("status")
+      .filter((found) => found.textContent?.startsWith("Bölme uygulanamıyor"));
+    expect(said).toHaveTextContent("satır bütün olarak sayılıyor");
+    await user.click(within(said!).getByRole("button", { name: "Bölmeyi kaldır" }));
+    await waitFor(() => expect(sent).toEqual([{ parts: [] }]));
   });
 
   it("shows a split row's parts, edits them in place of the category, and joins the row again after asking", async () => {

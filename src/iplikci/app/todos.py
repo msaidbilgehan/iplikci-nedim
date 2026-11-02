@@ -13,8 +13,8 @@ from typing import Any, cast
 
 from ..analysis import NOT_ON_STATEMENT, Dataset
 from ..categorize import UNCATEGORIZED
-from ..domain.codes import Actor, DocumentStatus, InvoiceStatus, TodoAction, TodoKind
-from ..domain.labels import format_amount
+from ..domain.codes import SPLITTABLE_KINDS, Actor, DocumentStatus, InvoiceStatus, TodoAction, TodoKind
+from ..domain.labels import KIND, format_amount
 from ..domain.models import Transaction
 from ..domain.text import fold
 from ..parsers import registry
@@ -24,6 +24,7 @@ from ..storage import audit, documents, feed_state
 from ..storage.annotations import Annotation
 from ..storage.db import Database
 from .analysis import Analysis, document_gaps
+from .annotate import Unsplit
 from .bridge import INCOMPLETE_REASON
 from .links import Link, Screen
 from .reading import FORMAT_ALARM
@@ -248,6 +249,33 @@ def _orphans(orphans: list[Annotation]) -> list[Todo]:
     return found
 
 
+def _unsplit(unsplit: list[Unsplit]) -> list[Todo]:
+    found: list[Todo] = []
+    for u in unsplit:
+        t = u.row
+        if t.kind in SPLITTABLE_KINDS:
+            why = "tutarı değiştiği için bir parçası sıfıra indi"
+        else:
+            why = f"türü artık “{KIND[t.kind]}” ve bu tür bölünmüyor"
+        name = t.merchant or t.counterparty or t.description
+        found.append(
+            Todo(
+                key=f"split:{t.fingerprint}",
+                kind=TodoKind.SPLIT_DROPPED,
+                title=name,
+                detail=f"{_day(t.date)} günlü {_tl(t.amount)} tutarındaki satırı {u.parts} parçaya bölmüştünüz; {why}. "
+                "Satır bütün olarak sayılıyor. Satırı açıp yeniden bölün ya da bölmeyi kaldırın.",
+                count=1,
+                amount=t.amount,
+                target=t.fingerprint,
+                link=Link(Screen.TRANSACTION, t.fingerprint),
+                actions=(TodoAction.OPEN, TodoAction.IGNORE),
+                prompt="",
+            )
+        )
+    return found
+
+
 def _alarms(db: Database) -> list[Todo]:
     """Format alarms of the readers as they are now: an alarm an older version raised was answered by the new one."""
     raised: defaultdict[str, set[str]] = defaultdict(set)
@@ -303,6 +331,7 @@ def items(ws: Workspace, analysis: Analysis, today: date, with_ignored: bool = F
         + _gaps(ds, today)
         + stored
         + _orphans(analysis.orphans)
+        + _unsplit(analysis.unsplit)
     )
     found.sort(key=lambda t: _KIND_ORDER.index(t.kind))  # stable: each kind keeps its own order
     return [replace(t, ignored=True) if t.key in ignored else t for t in found if with_ignored or t.key not in ignored]
