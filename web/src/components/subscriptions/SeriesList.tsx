@@ -18,8 +18,12 @@ import { isLate, isRunning, monthOf, offerOf, priceOf, STATUS_TONES } from "./se
 
 export const SMALL = "text-xs text-zinc-600 dark:text-zinc-300";
 export const CARD = cn(
-  "flex flex-col gap-1.5 rounded-lg border border-zinc-200 bg-white p-3 text-sm",
-  "dark:border-zinc-700 dark:bg-zinc-900",
+  "flex flex-col gap-1.5 rounded-xl border border-zinc-200 bg-white p-4 text-sm",
+  "dark:border-zinc-800 dark:bg-zinc-900",
+);
+/** A card's actions, apart under a line at its foot. */
+export const CARD_ACTIONS = cn(
+  "mt-auto flex flex-wrap justify-end gap-2 border-t border-zinc-100 pt-1 dark:border-zinc-800",
 );
 export const NAME = cn(
   "min-w-0 rounded font-medium underline decoration-1 underline-offset-2 hover:decoration-2 wrap-break-word",
@@ -68,14 +72,27 @@ interface ActionsProps {
   opening: Opening;
 }
 
+/** The card's foot with its action, when it has one. */
+function SeriesFoot(props: ActionsProps) {
+  const offer = offerOf(props.series, props.rules);
+  if (offer !== "end" && offer !== "again" && offer !== "both") {
+    return null;
+  }
+  return (
+    <div className={CARD_ACTIONS}>
+      <SeriesActions {...props} quiet />
+    </div>
+  );
+}
+
 /** "İptal ettim…" or "Yeniden bekle…", each opening the series' panel at its form, where the change is previewed. */
-function SeriesActions({ series, rules, opening }: ActionsProps) {
+function SeriesActions({ series, rules, opening, quiet = false }: ActionsProps & { quiet?: boolean }) {
   const { t } = useTranslation("subscriptions");
   const offer = offerOf(series, rules);
   if (offer === "end") {
     return (
       <Button
-        variant="secondary"
+        variant={quiet ? "quiet" : "secondary"}
         className="whitespace-nowrap"
         aria-label={t("series.endOf", { payee: series.payee })}
         onClick={() => opening.onAct(series.id, "end")}
@@ -87,7 +104,7 @@ function SeriesActions({ series, rules, opening }: ActionsProps) {
   if (offer === "again" || offer === "both") {
     return (
       <Button
-        variant="secondary"
+        variant={quiet ? "quiet" : "secondary"}
         className="whitespace-nowrap"
         aria-label={t("series.againOf", { payee: series.payee })}
         onClick={() => opening.onAct(series.id, "again")}
@@ -106,7 +123,7 @@ function AmountLine({ series, labels }: { series: Series; labels: Labels }) {
   const moved = series.amount.minor !== series.last_amount.minor;
   return (
     <li>
-      <span className="font-semibold">
+      <span className="text-base font-semibold">
         {series.period === "month"
           ? t("series.monthly", { amount })
           : t("series.perPeriod", { period: labelOf(labels, "SeriesPeriod", series.period), amount })}
@@ -154,9 +171,7 @@ function SeriesCard({ series, kind, asOf, labels, rules, opening }: SeriesCardPr
         {series.price_change ? <li>{priceOf(series, t)}</li> : null}
       </ul>
       {series.note ? <p className={SMALL}>{series.note}</p> : null}
-      <div className="mt-1 flex flex-wrap gap-2">
-        <SeriesActions series={series} rules={rules} opening={opening} />
-      </div>
+      <SeriesFoot series={series} rules={rules} opening={opening} />
     </li>
   );
 }

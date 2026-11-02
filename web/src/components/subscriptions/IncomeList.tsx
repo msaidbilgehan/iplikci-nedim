@@ -48,7 +48,9 @@ export function IncomeList({ income, asOf, labels, opening }: IncomeListProps) {
               <p className={SMALL}>{[series.category, series.account.label].filter(Boolean).join(" · ")}</p>
               <ul className="flex flex-col gap-0.5">
                 <li>
-                  <span className="font-semibold">{t("series.expected", { amount: formatMoney(series.amount) })}</span>
+                  <span className="text-base font-semibold">
+                    {t("series.expected", { amount: formatMoney(series.amount) })}
+                  </span>
                   <span className={SMALL}> ({t("series.incomeMedian")})</span>
                 </li>
                 <li>

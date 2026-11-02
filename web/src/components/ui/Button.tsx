@@ -10,6 +10,10 @@ const VARIANTS = {
     "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 " +
     "dark:text-zinc-100 dark:hover:bg-zinc-700",
   danger: "bg-red-700 text-white hover:bg-red-800 dark:bg-red-400 dark:text-zinc-950 dark:hover:bg-red-300",
+  // A card's own action among many such cards: the words alone, so a list of cards is not a wall of buttons.
+  quiet:
+    "text-teal-800 hover:bg-teal-50 hover:text-teal-950 dark:text-teal-300 dark:hover:bg-zinc-800 " +
+    "dark:hover:text-teal-100",
 } as const;
 
 export type ButtonVariant = keyof typeof VARIANTS;
