@@ -111,7 +111,11 @@ function Current({ settings, paired }: { settings: Settings; paired: number }) {
     );
   }
   if (!mail.configured) {
-    return <Alert tone="neutral" title={t("mail.now.none")} />;
+    return (
+      <Alert tone="neutral" title={t("mail.now.none")}>
+        <p>{t("mail.now.noneNext")}</p>
+      </Alert>
+    );
   }
   if (mail.stopped) {
     // A refused login stopped it: nothing tries again until the account is set up again.

@@ -4,6 +4,7 @@
 
 import { type FormEvent, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router";
 
 import {
   useBackupNow,
@@ -24,6 +25,8 @@ import { Button } from "../components/ui/Button";
 import { Card, Facts } from "../components/ui/Card";
 import { DownloadLink } from "../components/ui/LinkButton";
 import { PageHeader } from "../components/ui/PageHeader";
+import { ArrowRightIcon } from "../components/ui/Icons";
+import { STEP } from "../components/ui/Say";
 import { Table, Td, Th } from "../components/ui/Table";
 import { formatDay, formatSize, formatTime } from "../lib/format";
 
@@ -95,12 +98,14 @@ function MailCard({ status }: { status: SystemStatus }) {
   const mail = status.mail;
   const bridges = useBridges();
   const byExtension = mail.connector === "browser_bridge";
+  // An IMAP account never set up is no way at all: the service's default is not a choice the user made.
+  const chosen = byExtension || mail.configured;
   return (
     <Card title={t("mail.title")}>
       <div className="flex flex-col gap-3">
         <Facts
           items={[
-            [t("mail.connector"), byExtension ? t("mail.byExtension") : t("mail.imap")],
+            [t("mail.connector"), chosen ? (byExtension ? t("mail.byExtension") : t("mail.imap")) : t("mail.notChosen")],
             [t("mail.state"), <MailBadge key="state" status={status} />],
             [t("mail.lastRun"), mail.last_run ? formatTime(mail.last_run) : t("mail.none")],
             [t("mail.startDay"), formatDay(mail.start_day)],
@@ -120,6 +125,12 @@ function MailCard({ status }: { status: SystemStatus }) {
           </Alert>
         ) : null}
         {byExtension && bridges.data ? <BridgeSeen bridges={bridges.data} /> : null}
+        {chosen ? null : (
+          <Link to="/ayarlar" className={STEP}>
+            {t("mail.setUp")}
+            <ArrowRightIcon className="size-4 shrink-0" />
+          </Link>
+        )}
       </div>
     </Card>
   );

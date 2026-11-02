@@ -148,6 +148,7 @@
       "paired": "{{count, number}} eklenti eşleşmiş.",
       "notPaired": "Henüz eşleşmiş bir eklenti yok: aşağıdan bir kod alıp eklentiye girin.",
       "none": "E-posta bağlantısı henüz kurulmadı.",
+      "noneNext": "Aşağıdan bir yol seçin: Gmail için tarayıcı eklentisi önerilir.",
       "refused": "{{address}} hesabının girişi reddedildi",
       "again": "Program reddedilen girişi yeniden denemez: uygulama şifresini aşağıya yeniden girin.",
       "imap": "E-postalar {{address}} hesabından geliyor ({{server}})."

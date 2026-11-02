@@ -71,6 +71,16 @@ describe("SystemPage", () => {
     expect(within(card).getByText("Hedefin altında")).toBeInTheDocument();
   });
 
+  it("says no e-mail way is set up when the default IMAP account never was, and leads to Ayarlar", async () => {
+    const mail = { ...systemStatus().mail, configured: false, last_run: "" };
+    server.use(http.get("/api/system", () => HttpResponse.json(systemStatus({ mail }))));
+    renderScreen(<SystemPage />);
+    const card = await screen.findByRole("region", { name: "E-posta" });
+    expect(within(card).getByText("Henüz kurulmadı")).toBeInTheDocument();
+    expect(within(card).queryByText("IMAP")).not.toBeInTheDocument();
+    expect(within(card).getByRole("link", { name: "E-postayı Ayarlar'da kurun" })).toHaveAttribute("href", "/ayarlar");
+  });
+
   it("says a refused login stopped the mail and is never tried again", async () => {
     const mail = { ...systemStatus().mail, last_run: "", last_error: "giriş reddedildi", stopped: true };
     server.use(http.get("/api/system", () => HttpResponse.json(systemStatus({ mail }))));
