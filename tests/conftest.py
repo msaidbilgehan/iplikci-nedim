@@ -114,6 +114,7 @@ def no_keyring_or_network(monkeypatch, tmp_path_factory):
     monkeypatch.delenv("IPLIKCI_TELEGRAM_TOKEN", raising=False)
     # A test that forgets to name its data folder gets an empty one, never the user's.
     monkeypatch.setenv(HOME_ENV, str(tmp_path_factory.mktemp("iplikci-bos")))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path_factory.mktemp("yerel")))  # where the Windows task's record goes
     # The interface as a development copy without its build, whether web/ was built here or not.
     monkeypatch.setattr(api_context, "UI", tmp_path_factory.mktemp("arayuz") / "derlenmemis")
     monkeypatch.setattr(extension, "BUILT", tmp_path_factory.mktemp("eklenti") / "derlenmemis")  # and the extension

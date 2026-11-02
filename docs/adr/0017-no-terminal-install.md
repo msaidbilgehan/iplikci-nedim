@@ -125,6 +125,10 @@ parçasıdır.
   - Giriş bağlantısı ancak yeni servis yanıt verince alınır: biten eski servisin verdiği bağlantı onunla ölürdü.
   - Disk görüntüsünden ya da macOS'un geçici yerinden açılan uygulama önce taşınmasını ister.
   - Geliştirme kopyası servisi hiçbir zaman kaydetmez. Sorunlar sistemin kendi penceresinde söylenir.
+  - Windows'ta görevin hangi Python'u hangi veri klasörü için çalıştırdığı uygulamanın kendi dosyasında da tutulur
+    (`%LOCALAPPDATA%\iplikci-servis\gorev.json`). schtasks görevi konsolun kod sayfasıyla yazar: İngilizce bir
+    Windows'ta "İplikçi"nin İ'si ya da kullanıcı klasörünün adındaki ş başka bir harfe döner. Görev dosyaya uydukça
+    yollar dosyadan okunur; uymazsa (dosyayı tutmayan bir kopya kaydettiyse) görevin kendi yazdığı geçerlidir.
 - **Güncelleme** her sistemde şöyle yürür; veri klasörüne dokunulmaz:
   - macOS: yeni uygulama eskisinin yerine sürüklenir. Çalışan servis eski dosyalarla sürer; uygulama açılınca yeni
     sürümle yeniden başlar.

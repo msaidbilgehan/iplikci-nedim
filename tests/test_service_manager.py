@@ -141,10 +141,72 @@ def test_the_windows_task_is_created_from_a_definition_that_does_not_stay_behind
             seen.append(Path(args[args.index("/XML") + 1]).read_text(encoding="utf-16"))
         return tools(args)
 
-    manager.TaskScheduler(run=run, env={"USERNAME": "deneme"}).install(program)
+    manager.TaskScheduler(run=run, env={"USERNAME": "deneme", "LOCALAPPDATA": str(tmp_path / "Yerel")}).install(program)
     assert "<LogonTrigger>" in seen[0]
     assert [c[1] for c in tools.calls] == ["/Create", "/End", "/Run"]
     assert not list((program.home / "run").iterdir())
+
+
+def windows_program(tmp_path: Path) -> manager.Program:
+    """The installed app's Python, pythonw beside it, for a data folder in a Turkish user's folder."""
+    python = tmp_path / "Programs" / "İplikçi Nedim" / "python" / "python.exe"
+    python.parent.mkdir(parents=True)
+    (python.parent / "pythonw.exe").write_bytes(b"")
+    return manager.Program(python, tmp_path / "Kullanıcılar" / "Ayşe" / "iplikci")
+
+
+def answering(xml: str) -> manager.Run:
+    def schtasks(args: Sequence[str]) -> manager.Completed:
+        return manager.Completed(0, xml if "/XML" in args else "", "")
+
+    return schtasks
+
+
+def lose(text: str) -> str:
+    """As schtasks writes text in an English console code page: no İ, ç, ı or ş."""
+    return text.replace("İ", "I").replace("ç", "?").replace("ı", "?").replace("ş", "?")
+
+
+def test_the_windows_task_is_read_from_the_apps_own_record_whatever_the_console_code_page(tmp_path):
+    program = windows_program(tmp_path)
+    env = {"USERNAME": "ayse", "LOCALAPPDATA": str(tmp_path / "Yerel")}
+    scheduler = manager.TaskScheduler(run=Tools(), env=env)
+    scheduler.install(program)
+    assert scheduler.record == tmp_path / "Yerel" / "iplikci-servis" / "gorev.json"
+    exact = manager.Program(program.python.with_name("pythonw.exe"), program.home)
+    xml = scheduler.task_xml(program)
+    lost = lose(xml)
+    assert manager.TaskScheduler(run=answering(lost), env=env).registered() == exact
+    assert manager.TaskScheduler(run=answering(xml), env=env).registered() == exact  # a Turkish code page keeps them
+    other = manager.TaskScheduler(run=Tools(), env={"USERNAME": "ayse"}).task_xml(
+        manager.Program(program.python, tmp_path / "Kullanıcılar" / "Ayşe" / "baska")
+    )  # registered since for another data folder by a copy that keeps no record
+    assert manager.TaskScheduler(run=answering(other), env=env).registered() == manager.Program(
+        exact.python, tmp_path / "Kullanıcılar" / "Ayşe" / "baska"
+    )
+    scheduler.record.unlink()  # a task registered by a copy that kept no record: as schtasks writes it
+    assert manager.TaskScheduler(run=answering(lost), env=env).registered() == manager.Program(
+        Path(lose(str(exact.python))), Path(lose(str(program.home)))
+    )
+
+
+def test_a_windows_task_that_is_gone_is_not_registered_whatever_its_record_says(tmp_path):
+    env = {"USERNAME": "ayse", "LOCALAPPDATA": str(tmp_path / "Yerel")}
+    manager.TaskScheduler(run=Tools(), env=env).install(windows_program(tmp_path))
+    assert manager.TaskScheduler(run=Tools({("schtasks", "/Query"): 1}), env=env).registered() is None
+
+
+def test_removing_the_windows_task_removes_its_record(tmp_path):
+    env = {"USERNAME": "ayse", "LOCALAPPDATA": str(tmp_path / "Yerel")}
+    scheduler = manager.TaskScheduler(run=Tools(), env=env)
+    for remove in (scheduler.uninstall, scheduler.unregister):
+        scheduler.install(windows_program(tmp_path / remove.__name__))
+        assert scheduler.record.is_file()
+        assert remove() and not scheduler.record.exists()
+    scheduler.record.parent.mkdir(parents=True, exist_ok=True)
+    scheduler.record.write_text("{}", encoding="utf-8")  # the task was deleted by hand: its note goes too
+    assert not manager.TaskScheduler(run=Tools({("schtasks", "/Query"): 1}), env=env).uninstall()
+    assert not scheduler.record.exists()
 
 
 def test_each_service_manager_says_what_its_registration_runs(tmp_path, program):

@@ -7,6 +7,7 @@ edited would otherwise reach the real data at the next restart. Until the instal
 a fixed copy with `uv tool install` and registers the service from it."""
 
 import getpass
+import json
 import os
 import plistlib
 import re
@@ -19,7 +20,7 @@ from pathlib import Path
 from typing import Protocol, cast
 from xml.sax.saxutils import escape, unescape
 
-from ..settings.paths import Layout
+from ..settings.paths import Layout, replace_private
 from .logs import OUTPUT_NAME
 
 LABEL = "com.iplikci.service"
@@ -333,11 +334,19 @@ class Systemd:
 
 class TaskScheduler:
     """Windows: a Task Scheduler task of the signed-in user, started at logon and again a minute after an error. It
-    runs pythonw, so no console window opens; the service writes its own log."""
+    runs pythonw, so no console window opens; the service writes its own log.
 
-    def __init__(self, run: Run | None = None, env: Mapping[str, str] | None = None) -> None:
+    schtasks writes the task back in the console's code page, where a letter the code page lacks (the İ of "İplikçi
+    Nedim" on an English Windows, the ş of a user's folder) comes back as another one. What the task was registered
+    with is also kept in a file of the app's own (`record`) and read from there while the task still matches it."""
+
+    def __init__(
+        self, run: Run | None = None, env: Mapping[str, str] | None = None, record: Path | None = None
+    ) -> None:
         self._run = run or run_tool
         self._env = os.environ if env is None else env
+        local = Path(self._env.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
+        self.record = record or local / "iplikci-servis" / "gorev.json"
 
     @property
     def name(self) -> str:
@@ -347,10 +356,15 @@ class TaskScheduler:
     def location(self) -> str:
         return f"{self.name} › {UNIT}"
 
-    def task_xml(self, program: Program) -> str:
-        python, *args = program.arguments()
+    @staticmethod
+    def command(program: Program) -> Path:
+        """What the task runs: pythonw beside the Python where there is one, so no console window opens."""
         quiet = program.python.with_name("pythonw.exe")
-        command = str(quiet) if quiet.exists() else python
+        return quiet if quiet.exists() else program.python
+
+    def task_xml(self, program: Program) -> str:
+        _, *args = program.arguments()
+        command = str(self.command(program))
         arguments = subprocess.list2cmdline(args)  # Windows quoting rules
         domain, user = self._env.get("USERDOMAIN"), self._env.get("USERNAME") or getpass.getuser()
         who = escape(f"{domain}\\{user}" if domain else user)
@@ -408,34 +422,48 @@ class TaskScheduler:
             self._schtasks("/Create", "/TN", UNIT, "/XML", str(definition), "/F")
         finally:
             definition.unlink(missing_ok=True)  # our own temporary file
+        self.record.parent.mkdir(parents=True, exist_ok=True)
+        replace_private(self.record, json.dumps({"command": str(self.command(program)), "home": str(program.home)}))
         self.restart()
 
     def uninstall(self) -> bool:
         if not self.installed():
+            self.record.unlink(missing_ok=True)  # the app's own note of a task that is gone
             return False
         self._run(["schtasks", "/End", "/TN", UNIT])
         self._schtasks("/Delete", "/TN", UNIT, "/F")
+        self.record.unlink(missing_ok=True)
         return True
 
     def unregister(self) -> bool:
         if not self.installed():
+            self.record.unlink(missing_ok=True)
             return False
         self._schtasks("/Delete", "/TN", UNIT, "/F")  # a running task's process goes on until it ends
+        self.record.unlink(missing_ok=True)
         return True
 
     def installed(self) -> bool:
         return self._run(["schtasks", "/Query", "/TN", UNIT]).code == 0
 
     def registered(self) -> Program | None:
+        """What the task runs: as the app's own record says it, exactly, while the task as schtasks writes it back
+        still matches the record; else as schtasks writes it (a task registered by a copy that kept no record)."""
         done = self._run(["schtasks", "/Query", "/TN", UNIT, "/XML"])
         if done.code != 0:
             return None
-        # The task task_xml() wrote: the Python (pythonw where there is one) and the data folder it works in.
-        command = re.search(r"<Command>([^<]*)</Command>", done.out)
-        home = re.search(r"<WorkingDirectory>([^<]*)</WorkingDirectory>", done.out)
-        if command is None or home is None:
+        shown = _task_program(done.out)
+        kept = self._kept()
+        if kept is not None and (shown is None or _shown_as(kept, shown)):
+            return kept
+        return shown
+
+    def _kept(self) -> Program | None:
+        try:
+            found = json.loads(self.record.read_text(encoding="utf-8"))
+            return Program(Path(str(found["command"])), Path(str(found["home"])))
+        except (OSError, ValueError, KeyError, TypeError):  # none, or not one this program wrote
             return None
-        return Program(Path(unescape(command.group(1))), Path(unescape(home.group(1))))
 
     def restart(self) -> None:
         self._run(["schtasks", "/End", "/TN", UNIT])  # fails harmlessly when it is not running
@@ -445,6 +473,28 @@ class TaskScheduler:
         done = self._run(["schtasks", *args])
         if done.code != 0:
             raise ManagerError(f"schtasks {args[0]} başarısız: {done.reason}")
+
+
+def _task_program(xml: str) -> Program | None:
+    """The Python (pythonw where there is one) and the data folder of the task task_xml() wrote, as schtasks shows
+    them."""
+    command = re.search(r"<Command>([^<]*)</Command>", xml)
+    home = re.search(r"<WorkingDirectory>([^<]*)</WorkingDirectory>", xml)
+    if command is None or home is None:
+        return None
+    return Program(Path(unescape(command.group(1))), Path(unescape(home.group(1))))
+
+
+def _shown_as(kept: Program, shown: Program) -> bool:
+    """Whether the task schtasks shows is the recorded one, written in the console's code page."""
+    return _same_but_lost(str(kept.python), str(shown.python)) and _same_but_lost(str(kept.home), str(shown.home))
+
+
+def _same_but_lost(exact: str, shown: str) -> bool:
+    """A code page that lacks a letter writes another letter or "?" for it, one for one; Windows paths ignore case."""
+    if len(exact) != len(shown):
+        return False
+    return all(a.lower() == b.lower() or not a.isascii() for a, b in zip(exact, shown, strict=True))
 
 
 def for_platform(platform: str | None = None) -> ServiceManager:
