@@ -216,7 +216,7 @@ class AccountClose:
             parts = [
                 (
                     f"{range_text(self.open)} için {'ekstre' if self.mailed else 'hesap dökümü'} yok: bankadan "
-                    "indirip Gelen Belgeler klasörüne bırakın"
+                    "indirip Belgeler ekranından yükleyin"
                 )
             ]
         elif self.status == WAITING and self.mailed:
@@ -836,7 +836,7 @@ def render_month(me: MonthEnd, ds: Dataset, months: list[str], made: datetime, h
         '<section class="card"><div class="card-head"><div><h2>Ekstre ile kapanış</h2><p class="hint">'
         "Her hesabın bu aydaki günlerini ekstre ya da hesap dökümü kapsıyor mu, belgeler tutarlı mı ve "
         "dekontlar ekstrelerde bulundu mu. Kart ekstreleri e-postayla gelir; hesap dökümlerini bankadan "
-        f"indirip Gelen Belgeler klasörüne bırakın.</p></div></div>{_closing_table(me)}{debt}</section>"
+        f"indirip İplikçi Nedim'in Belgeler ekranından yükleyin.</p></div></div>{_closing_table(me)}{debt}</section>"
     )
 
     expense = [
