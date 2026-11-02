@@ -14,7 +14,6 @@ import { useView } from "../components/Preferences";
 import { Empty, Failure, Loading } from "../components/QueryState";
 import { PageHeader } from "../components/ui/PageHeader";
 import { NextStep } from "../components/ui/Say";
-import { cn } from "../lib/cn";
 import { formatDay } from "../lib/format";
 
 const DOCUMENTS = { screen: "documents", id: "", query: {} } as const;
@@ -40,8 +39,13 @@ export default function DashboardPage() {
 function Cards({ found, labels }: { found: Dashboard; labels: Labels }) {
   const { t } = useTranslation("dashboard");
   const { view } = useView();
-  // Side by side the cards read at a glance; the detailed view's tables need the screen's width.
-  const grid = cn("grid items-start gap-4", view === "simple" && "md:grid-cols-2 xl:grid-cols-3");
+  // Side by side the cards read at a glance. They differ in height, so they stand in columns rather than a grid's
+  // rows: each card goes under the one before without a gap, and the eye reads each column down, in the order a screen
+  // reader reads them. The detailed view's tables need the screen's width: one card under the other.
+  const grid =
+    view === "simple"
+      ? "gap-4 *:mb-4 *:break-inside-avoid md:columns-2 xl:columns-3"
+      : "grid items-start gap-4";
   if (found.freshness.accounts.length === 0 && found.net_worth.parts.length === 0) {
     // No document yet: what could still ask for attention (the mail, a backup) and the first step.
     return (
