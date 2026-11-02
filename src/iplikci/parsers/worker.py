@@ -23,7 +23,7 @@ from collections.abc import Sequence
 from contextlib import suppress
 from typing import IO, Any, cast
 
-from .. import parsers
+from .. import __version__, parsers
 from ..domain.models import ParseResult
 from . import wire
 from .common import Skipped, Unreadable, business_names, caused_by, set_business_names
@@ -89,9 +89,18 @@ class _Process:
         self.replies: queue.Queue[bytes] = queue.Queue()
         self.served = 0  # documents it has read
         threading.Thread(target=self._collect, daemon=True).start()
-        if _decode(self.wait(_START_LIMIT) or b"") != {"ready": True}:
+        ready = _decode(self.wait(_START_LIMIT) or b"") or {}
+        if ready.get("ready") is not True:
             self.stop()
             raise WorkerError("okuma süreci başlatılamadı: hazır olduğunu bildirmeden kapandı")
+        if ready.get("version") != __version__:
+            # An update replaced the program under the running app: the new readers' results would not match it,
+            # and a document read wrong would look unreadable. It is read once the service has started again.
+            self.stop()
+            raise WorkerError(
+                f"okuma süreci programın başka bir sürümünden ({ready.get('version')}, servis {__version__}); "
+                "belge, servis güncel sürümle yeniden başlayınca okunur"
+            )
 
     def _collect(self) -> None:
         stdout = self.popen.stdout
@@ -252,7 +261,7 @@ def _serve() -> None:
     os.dup2(2, 1)  # whatever a library prints goes to stderr, never among the replies
     sys.stdout = sys.stderr
     requests = sys.stdin.buffer
-    _write(replies, {"ready": True})
+    _write(replies, {"ready": True, "version": __version__})
     while header := requests.readline():
         job = json.loads(header)
         data = requests.read(job["size"])

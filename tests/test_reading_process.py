@@ -11,7 +11,7 @@ from decimal import Decimal
 import pytest
 from pdfplumber.utils.exceptions import PdfminerException
 
-from iplikci import demo, parsers
+from iplikci import __version__, demo, parsers
 from iplikci.app import reading
 from iplikci.domain.codes import AccountType, DocumentStatus, TransactionKind
 from iplikci.domain.models import Account, ParseResult, Security, SourceRef, Statement, Transaction
@@ -26,14 +26,15 @@ from conftest import add
 
 REAL = worker.COMMAND
 
-# A stand-in reading process: it reports ready, then takes one step of its plan per document (answer, die, sleep).
+# A stand-in reading process: it reports ready with its version, then takes one step of its plan per document (answer,
+# die, sleep).
 STAND_IN = """\
 import json, os, sys, time
-plan, reply, pid = sys.argv[1].split(","), sys.argv[2], sys.argv[3]
+plan, reply, pid, version = sys.argv[1].split(","), sys.argv[2], sys.argv[3], sys.argv[4]
 with open(pid, "w") as f:
     f.write(str(os.getpid()))
 out = sys.stdout.buffer
-out.write(b'{"ready": true}\\n')
+out.write(json.dumps({"ready": True, "version": version}).encode() + b"\\n")
 out.flush()
 for step in plan:
     header = sys.stdin.buffer.readline()
@@ -57,9 +58,10 @@ def stand_in(tmp_path, monkeypatch):
     script = tmp_path / "sahte_okuma.py"
     script.write_text(STAND_IN, encoding="utf-8")
 
-    def use(plan: str, reply: str = ANSWER) -> None:
+    def use(plan: str, reply: str = ANSWER, version: str = __version__) -> None:
         worker.stop()
-        monkeypatch.setattr(worker, "COMMAND", (sys.executable, "-I", str(script), plan, reply, str(tmp_path / "pid")))
+        command = (sys.executable, "-I", str(script), plan, reply, str(tmp_path / "pid"), version)
+        monkeypatch.setattr(worker, "COMMAND", command)
 
     yield use
     worker.stop()
@@ -273,6 +275,19 @@ def test_nothing_is_recorded_while_no_reading_process_starts(ws, monkeypatch):
     with ws.db() as db:
         kept = documents.get(db, stored.sha256)
     assert kept.status is DocumentStatus.PROCESSED and reading.stale(kept)  # waits for a reading process
+
+
+def test_a_reading_process_of_another_version_reads_nothing_and_marks_nothing_unreadable(ws, stand_in, monkeypatch):
+    [stored] = add(ws, "dekont.pdf", receipt().data).stored
+    reader = registry.find("garanti.receipt")
+    monkeypatch.setattr(reader, "version", reader.version + 1)  # so that the document is read again
+    # An update replaced the program under the running service: its new readers would not match the service.
+    stand_in("answer", version="9.9.9")
+    with pytest.raises(worker.WorkerError, match=r"programın başka bir sürümünden \(9\.9\.9"), ws.db() as db:
+        reading.read_pending(ws, db)
+    with ws.db() as db:
+        kept = documents.get(db, stored.sha256)
+    assert kept.status is DocumentStatus.PROCESSED and reading.stale(kept)  # it waits for the service to start again
 
 
 def _inflating_pdf(size: int) -> bytes:

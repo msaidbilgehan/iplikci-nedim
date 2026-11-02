@@ -266,3 +266,30 @@ def test_a_restore_is_recorded_before_the_service_ends(demo_ws):
     lifecycle.request_restore(demo_ws, taken.name, Actor.USER)
     with demo_ws.db() as db:
         assert [e.target for e in audit.entries(db) if e.action == lifecycle.RESTORE_REQUESTED] == [taken.name]
+
+
+class Ended:
+    def __init__(self) -> None:
+        self.codes: list[int] = []
+
+    def end(self, code: int) -> None:
+        self.codes.append(code)
+
+
+def test_the_service_starts_again_once_an_update_replaced_the_program_under_it():
+    from iplikci import __version__
+
+    seen = iter([__version__, "9.9.9", None, "9.9.9", "9.9.9"])  # a copy being made reads as None or once only
+    life = Ended()
+    watch = runner.ProgramWatch(life, found=lambda: next(seen), every=0.01)  # pyright: ignore[reportArgumentType] - a stand-in
+    watch._run()  # the watch's loop, run here rather than in its thread
+    assert life.codes == [lifecycle.RESTART]
+
+
+def test_the_program_watch_reads_the_version_the_files_on_disk_hold(tmp_path):
+    (tmp_path / "__init__.py").write_text('"""Bir paket."""\n\n__version__ = "1.2.3"\n', encoding="utf-8")
+    assert runner.version_on_disk(tmp_path) == "1.2.3"
+    assert runner.version_on_disk(tmp_path / "yok") is None  # being replaced: asked again later
+    from iplikci import __version__
+
+    assert runner.version_on_disk() == __version__  # this checkout's own files

@@ -3,11 +3,14 @@ service runs per data folder; the service manager starts the same command in the
 
 import logging
 import os
+import re
 import signal
 import sys
+import threading
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import TextIO
 
 import uvicorn
@@ -30,6 +33,53 @@ log = logging.getLogger("iplikci.service")
 
 def _say(text: str) -> None:
     print(text, flush=True)  # at once, also when the output goes to a file
+
+
+_VERSION = re.compile(r'^__version__ = "([^"]+)"$', re.MULTILINE)
+PACKAGE = Path(__file__).resolve().parent.parent  # the program's files, as the running process imported them
+PROGRAM_CHECK_SECONDS = 60.0
+
+
+def version_on_disk(package: Path = PACKAGE) -> str | None:
+    """The version the program's files on disk hold now; None while they cannot be read (being replaced)."""
+    try:
+        found = _VERSION.search((package / "__init__.py").read_text(encoding="utf-8"))
+    except OSError:
+        return None
+    return found[1] if found else None
+
+
+class ProgramWatch:
+    """Ends the service to start again with the program on disk once that is another version: an update dragged
+    over the app (macOS) replaces the files under the running process, whose new reading processes and pages would no
+    longer match it. The new version must be seen twice in a row, so that a copy still being made is not started."""
+
+    def __init__(
+        self, life: "Life", found: Callable[[], str | None] = version_on_disk, every: float = PROGRAM_CHECK_SECONDS
+    ) -> None:
+        self.life = life
+        self.found = found
+        self.every = every
+        self._stop = threading.Event()
+
+    def start(self) -> None:
+        threading.Thread(target=self._run, name="program-watch", daemon=True).start()
+
+    def stop(self) -> None:
+        self._stop.set()
+
+    def _run(self) -> None:
+        seen: str | None = None
+        while not self._stop.wait(self.every):
+            now = self.found()
+            if now is None or now == __version__:
+                seen = None
+                continue
+            if now == seen:
+                log.info("the program on disk is version %s; the service starts again with it", now)
+                self.life.end(lifecycle.RESTART)
+                return
+            seen = now
 
 
 class Life:
@@ -133,6 +183,8 @@ def _serve(ws: Workspace, announce: Callable[[str], None]) -> int:
     ear.start()
     inbox = inbox_watcher(ws, jobs)
     inbox.start()
+    program = ProgramWatch(life)
+    program.start()
     announce(f"İplikçi Nedim servisi http://{HOST}:{ws.port} adresinde çalışıyor (durdurmak için Ctrl+C).")
     if sys.stdout is not None and sys.stdout.isatty():
         announce(f"Arayüz için tek kullanımlık giriş bağlantısı: {ctx.login_url(ctx.keys.issue())}")
@@ -152,6 +204,7 @@ def _serve(ws: Workspace, announce: Callable[[str], None]) -> int:
     try:
         life.server.run()
     finally:
+        program.stop()
         inbox.stop()
         ear.stop()
         jobs.stop()
