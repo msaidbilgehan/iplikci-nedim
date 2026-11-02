@@ -42,7 +42,8 @@ export function Facts({ items }: FactsProps) {
       {items.map(([name, value]) => (
         <div key={name} className="contents">
           <dt className="text-zinc-500 dark:text-zinc-400">{name}</dt>
-          <dd className="break-words text-zinc-900 dark:text-zinc-100">{value}</dd>
+          {/* min-w-0 lets a long unbroken value (a folder's path) wrap instead of widening the card. */}
+          <dd className="min-w-0 break-words text-zinc-900 dark:text-zinc-100">{value}</dd>
         </div>
       ))}
     </dl>
