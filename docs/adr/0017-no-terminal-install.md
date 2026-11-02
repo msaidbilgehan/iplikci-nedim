@@ -112,6 +112,10 @@ parçasıdır.
   - Programın kullanmadığı parçalar çıkarılır: paket kurucusu, test takımları, Tk, IDLE, C başlıkları.
   - macOS: `İplikçi Nedim.app` (`com.iplikci.app`), ad-hoc imzalı ve Apple onaysız (K22); `.dmg` içinde Uygulamalar
     bağlantısıyla.
+    - macOS imzasız uygulamayı bir kez sorar ("Yine de aç"). Kullanıcı uygulamayı açınca uygulamanın kendi betiği,
+      indirmenin karantina işaretini uygulamanın kendi dosyalarından kaldırır. İşaret kalsaydı macOS paketteki
+      Python'u ve kütüphanelerini dosya dosya reddederdi.
+    - Disk görüntüsünden ya da indirildiği yerden açılan uygulama, Python çalışmadan önce taşınmasını ister.
   - Windows: Inno Setup kurulum programı, `%LOCALAPPDATA%\Programs\İplikçi Nedim` klasörüne, yönetici izni
     olmadan; Başlat menüsü uygulamayı `pythonw` ile açar.
   - Linux: AppImage. AppRun, Python'u sürüm başına bir kez `~/.local/share/iplikci/app/<sürüm>` klasörüne kopyalar.

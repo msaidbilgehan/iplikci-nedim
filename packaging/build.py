@@ -127,6 +127,39 @@ def install_program(python: Path, work: Path) -> None:
     run(python, "-I", "-c", INSTALLED)
 
 
+MISPLACED = (  # as service/launcher.misplaced says it, for an app that cannot run its Python from where it is
+    "İplikçi Nedim'i önce Uygulamalar klasörüne taşıyın, sonra oradan açın. Disk görüntüsünden ya da indirildiği "
+    "yerden açılan uygulama her açılışta başka bir yerde çalışır; arka plan servisi onu bulamaz."
+)
+MAC_LAUNCHER = """#!/bin/sh
+# Opens İplikçi Nedim: the Python inside the app runs the program isolated, in UTF-8 (ADR-0017).
+app="$(cd "$(dirname "$0")/../.." && pwd)"
+case "$app" in
+/Volumes/*|*/AppTranslocation/*)
+    # A disk image's place, or the random one macOS runs a downloaded app from, goes away: said before the Python runs,
+    # which macOS would refuse there while it keeps the download's mark.
+    /usr/bin/osascript -e 'on run argv' \\
+        -e 'display dialog (item 1 of argv) with title "İplikçi Nedim" buttons {{"Tamam"}} default button 1' \\
+        -e 'end run' "{misplaced}" >/dev/null 2>&1
+    exit 1
+    ;;
+esac
+# Unsigned (K22): macOS asks the user once whether to open the app. What the app carries, its Python and libraries,
+# would be refused file by file while they keep the download's quarantine mark; the user has just opened the app, so
+# the mark goes from the app's own files.
+python="$app/Contents/Resources/python/bin/python3"
+if /usr/bin/xattr -p com.apple.quarantine "$python" >/dev/null 2>&1; then
+    /usr/bin/xattr -dr com.apple.quarantine "$app" 2>/dev/null
+fi
+exec "$python" {launch}
+"""
+
+
+def mac_launcher() -> str:
+    """The app's own executable: it runs the Python inside the app (Contents/Resources/python)."""
+    return MAC_LAUNCHER.format(misplaced=MISPLACED, launch=" ".join(LAUNCH))
+
+
 def macos(python_root: Path, out: Path, work: Path) -> Path:
     app = work / f"{NAME}.app"
     contents = app / "Contents"
@@ -135,13 +168,7 @@ def macos(python_root: Path, out: Path, work: Path) -> Path:
     shutil.copytree(python_root, resources / "python", symlinks=True)
     shutil.copy2(ASSETS / "iplikci.icns", resources / "iplikci.icns")
     launcher = contents / "MacOS" / SLUG
-    launcher.write_text(
-        "#!/bin/sh\n"
-        "# Opens İplikçi Nedim: the Python inside the app runs the program isolated, in UTF-8 (ADR-0017).\n"
-        'here="$(cd "$(dirname "$0")/../Resources" && pwd)"\n'
-        f'exec "$here/python/bin/python3" {" ".join(LAUNCH)}\n',
-        encoding="utf-8",
-    )
+    launcher.write_text(mac_launcher(), encoding="utf-8")
     launcher.chmod(0o755)
     (contents / "Info.plist").write_bytes(
         plistlib.dumps(
