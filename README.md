@@ -84,11 +84,34 @@ Aşama 5 (Bildirimler, v0.6.0) önemli olayları kullanıcıya ulaştırır:
 - Bir olay için her kanala tek bildirim gider. Gönderilemeyen bildirim yeniden denenir; sessiz saatte gelenler sabah
   tek bir özetle gider. Gönderilen her bildirim teslim kaydında görünür.
 
-Sırada Aşama 6 (Arayüz) var.
+Aşama 6 (Arayüz) sürüyor: ekranlar, kurulum sihirbazı ve kurulum paketleri bu aşamada geliyor. Aşama bitene dek
+uygulama son kullanıcıya hazır sayılmaz.
 
 MVP 2026-10-31'de emekliye ayrıldı. İplikçi Nedim onun kodundan başlar ama verisini devralmaz; belgeleri kendisi toplar.
-Uygulama henüz son kullanıcıya hazır değil: kurulum paketi, kurulum sihirbazı ve arayüzün tamamı sonraki aşamalarda
-gelir.
+
+## Kurulum
+
+İplikçi Nedim her işletim sistemi için bir kurulum paketiyle gelir; Python ya da başka bir program kurmanız gerekmez.
+Paketler şimdilik imzasızdır ve bir mağazada ya da indirme sayfasında yayımlanmıyor: her sürümde bu deponun "Paketler"
+iş akışı üretir.
+
+1. Paketi açın:
+   - **macOS:** `.dmg` dosyasını açın ve İplikçi Nedim'i Uygulamalar klasörüne sürükleyin; uygulamayı oradan açın. İlk
+     açılışta macOS uygulamanın geliştiricisini doğrulayamadığını söyler. Sistem Ayarları → Gizlilik ve Güvenlik'te
+     "Yine de aç"a basın.
+   - **Windows:** kurulum programını çalıştırın. "Windows bilgisayarınızı korudu" uyarısında "Ek bilgi"ye, sonra "Yine
+     de çalıştır"a basın. Program yönetici izni istemeden kendi klasörünüze kurulur ve Başlat menüsünden açılır.
+   - **Linux:** AppImage dosyasının özelliklerinden program olarak çalıştırılmasına izin verin ve dosyaya çift
+     tıklayın.
+2. Uygulama arka plan servisini bilgisayarınıza kaydeder ve tarayıcıda kurulum sihirbazını açar. Servis her oturum
+   açılışında kendiliğinden başlar; uygulamayı sonra açtığınızda arayüz doğrudan açılır.
+3. Sihirbaz adlarınızı, e-postanın nasıl geleceğini, bankaları ve bildirimleri sorar. Gmail hesabınız uygulama
+   şifresine izin vermiyorsa (örneğin Gelişmiş Koruma'daysa) e-postalar tarayıcı eklentisiyle gelir. Eklenti
+   programla gelir: sihirbaz eklentinin klasörünü açar ve tarayıcıya nasıl yükleneceğini adım adım gösterir.
+
+Güncellemek için yeni paketi aynı yoldan açın; verileriniz yerinde kalır. Kaldırmak için önce Ayarlar'daki "Kaldır"
+servisi bilgisayardan kaldırır; veri klasörü yalnızca siz isterseniz çöp kutusuna taşınır. Sonra uygulamayı sisteminizin
+olağan yoluyla kaldırın: macOS'ta çöp kutusuna sürükleyerek, Windows'ta Ayarlar → Uygulamalar'dan.
 
 ## Belgeler
 
@@ -126,13 +149,15 @@ Servis, arayüz ve tarayıcı eklentisi:
 
 ```bash
 (cd web && npm ci && npm run build)              # arayüz; çıktı pakete girer (src/iplikci/api/ui)
+(cd e2e && npm ci && npx playwright test)        # uçtan uca: demo veri klasöründe, iki temada, axe ile
 uv run iplikci dev api-tipleri web/src/api/schema.ts   # API'nin modelleri değişince arayüzün tipleri
 uv run iplikci servis calistir                   # servis ön planda: http://127.0.0.1:8643
 uv run iplikci ac                                # arayüzü tek kullanımlık giriş bağlantısıyla açar
 uv run iplikci servis durum                      # servis çalışıyor mu; kuyruk, e-posta ve kapsamı, yedek ve disk
 uv run iplikci yedek al | liste | geri-yukle | prova
 uv run iplikci eposta kur | durum | kaldir | al  # IMAP hesabı; şifre yalnızca anahtar zincirinde
-(cd extension && npm ci && npm test && npm run build)   # eklenti; extension/dist tarayıcıya yüklenir
+(cd extension && npm ci && npm test && npm run build)   # eklenti; extension/dist ve pakete giren kopyası
+uv run python packaging/build.py                 # bu sistemin kurulum paketi dist/paket/'e; önce web/ ve extension/
 ```
 
 `iplikci servis kur | kaldir | yeniden-baslat` servisi sistemin servis yöneticisine kaydeder. `kur` geliştirme

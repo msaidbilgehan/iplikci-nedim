@@ -56,6 +56,23 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
   çıkarılmış.
 - Dışa aktarımlar (rapor, CSV, Excel, ay sonu sayfaları) Sistem ekranında listelenir, indirilir ve istenince yeniden
   yazılır.
+- Kurulum paketleri ([ADR-0017](docs/adr/0017-no-terminal-install.md)): macOS'ta `.dmg`, Windows'ta kurulum
+  programı, Linux'ta AppImage. Pakette taşınabilir CPython 3.13 ve içine kurulmuş program vardır; derlenmiş arayüz ve
+  tarayıcı eklentisi de içindedir. Kullanıcıda Python ya da uv gerekmez. Paketler bir sürüm etiketinde ya da
+  istenince CI'da, her sistemin kendi makinesinde üretilir ve iki hafta saklanır; şimdilik imzasızdır (K22).
+- Kurulan uygulama açılınca servisi kendi kopyası için kaydeder ve başlatır. Eski bir sürüm çalışıyorsa yeniden
+  başlatır, sonra arayüzü tek kullanımlık giriş bağlantısıyla açar. Disk görüntüsünden açılırsa önce Uygulamalar
+  klasörüne taşınmasını ister. Sorunları sistemin kendi penceresinde söyler (`iplikci uygulama`).
+- Servis arayüzden durdurulur, yeniden başlatılır ve bilgisayardan kaldırılır; veri klasörü yalnızca istenirse çöp
+  kutusuna taşınır. Bir yedek arayüzden geri yüklenir: yedek hemen denetlenir, servis yeniden başlarken veritabanı
+  açılmadan yerine konur, öncesi ayrı bir yedekte kalır. API: `GET /api/service`,
+  `POST /api/service/stop|restart|remove`, `POST /api/backups/{ad}/restore`.
+- Tarayıcı eklentisi programla gelir; mağazaya çıkana dek paketlenmemiş yüklenir (K20):
+  - Tarayıcı eklentisi ekranındaki "Eklenti klasörünü aç" eklentiyi veri klasörünün `extension/` klasörüne kopyalar
+    ve dosya yöneticisinde gösterir.
+  - Ekran klasörün yerini ve eklentiler sayfasının adresini kopyalatır, paketlenmemiş yüklemeyi adım adım anlatır.
+  - Program güncellenince servis bir sonraki açılışında klasörü yeniler.
+  - API: `GET /api/extension`, `POST /api/extension/folder`.
 - CI: uçtan uca testler her push'ta, her ekran iki temada axe ile.
 
 ### Düzeltilenler

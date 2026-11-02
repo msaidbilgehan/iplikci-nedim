@@ -174,14 +174,18 @@ a use case and a route per screen in `app` and `api/routes`: `feed` and `now` (A
 `assessment` and `spending` (Değerlendirme), `closing` (Ay sonu), `holdings` (Döviz), `rules` (Kurallar), `todos`
 (Yapılacaklar), `setup` (the wizard and the settings) and `exports`; `links` names where an item leads, `events` the
 stream's start. `viewer` makes a document's page images, cells and e-mail view in a process of its own;
-`storage/aliases` keeps the names the user gives accounts and `settings/locks` the file locks between processes. The
-rest keeps the MVP's flat layout
-(`analysis`, `insights`, `month_end`, `report` with its `templates`, `mcp_server`, …) until the phases in the roadmap's
-MVP module table move it. Next to them: `fakes` (the fake document builders and every reader's specimens, shared with
-the tests and the demo), `demo` (the demo data folder), `baseline` (the verification baseline) and `mvp_codes` (the MVP
-codes the report's script and baseline v1 still speak). `web/` builds into `src/iplikci/api/ui`; `extension/` builds
-into `extension/dist`; `e2e/` holds the Playwright tests, which run the service on a demo data folder with the built
-interface, every test in the light and the dark theme, with axe.
+`storage/aliases` keeps the names the user gives accounts and `settings/locks` the file locks between processes.
+`service/launcher` is what the installed app runs when opened (registers this copy, restarts an older one, opens the
+interface; refuses a development copy) and `service/dialog` the system's own windows; `app/lifecycle` stops, restarts,
+restores and removes the service from the interface, and `app/extension` keeps the browser extension's folder in the
+data dir (K20: loaded unpacked). `packaging/build.py` builds the installers (ADR-0017). The rest keeps the MVP's flat
+layout (`analysis`, `insights`, `month_end`, `report` with its `templates`, `mcp_server`, …) until the phases in the
+roadmap's MVP module table move it. Next to them: `fakes` (the fake document builders and every reader's specimens,
+shared with the tests and the demo), `demo` (the demo data folder), `baseline` (the verification baseline) and
+`mvp_codes` (the MVP codes the report's script and baseline v1 still speak). `web/` builds into `src/iplikci/api/ui`;
+`extension/` builds into `extension/dist` and the program's copy `src/iplikci/browser_extension`; `e2e/` holds the
+Playwright tests, which run the service on a demo data folder with the built interface, every test in the light and the
+dark theme, with axe.
 
 The workspace is the data dir (architecture §9). The user's company names go in its `settings.toml` under
 `[identity] business_names`; the user's category rules live in `rules/personal.yaml` over the shipped defaults.
@@ -218,7 +222,8 @@ uv run iplikci bildirim durum | kurallar | gecmis | dene <kanal>   # notificatio
 uv run iplikci telegram kur | eslestir | kaldir   # the bot's token in a hidden prompt (the user types it), pairing
 (cd web && npm ci && npm run typecheck && npm test && npm run build)         # the interface, built into the package
 (cd e2e && npm ci && npx playwright test)      # end-to-end on a demo data folder, both themes, axe; build web/ first
-uv run python packaging/build.py               # this system's installer into dist/paket/ (ADR-0017); build web/ first
+uv run python packaging/build.py               # this system's installer into dist/paket/; build web/, extension/ first
+uv run iplikci uygulama                        # what the installed app runs when opened; refuses a development copy
 uv run iplikci dev api-tipleri web/src/api/schema.ts   # the interface's API types from the OpenAPI document (ADR-0007)
 (cd extension && npm ci && npm run typecheck && npm test && npm run build)   # the extension; load extension/dist
 ```
