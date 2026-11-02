@@ -8,6 +8,7 @@ import {
   nearestDay,
   type StackSeries,
   stackLayout,
+  stretches,
   valueAxis,
 } from "./layout";
 
@@ -147,6 +148,22 @@ describe("lineLayout", () => {
     const layout = lineLayout([{ key: "a", label: "Vadesiz", slot: 1, points: days([100_000, 50_000]) }], SIZE, MARGIN);
     const corners = (layout.paths[0]?.d ?? "").split("L").length - 1;
     expect(corners).toBe(2); // across at the first balance, then down to the second
+  });
+
+  it("leaves the days a series with gaps skips blank, each stretch holding its last day to its end", () => {
+    const points = [
+      { day: "2026-11-01", value: 100 },
+      { day: "2026-11-02", value: 80 },
+      { day: "2026-11-05", value: 60 },
+    ];
+    expect(stretches(points)).toEqual([
+      [...points.slice(0, 2), { day: "2026-11-03", value: 80 }],
+      [points[2], { day: "2026-11-06", value: 60 }],
+    ]);
+    const layout = lineLayout([{ key: "a", label: "Vadesiz", slot: 1, points, gaps: true }], SIZE, MARGIN);
+    expect((layout.paths[0]?.d ?? "").split("M").length - 1).toBe(2); // two lines, nothing across the blank days
+    expect(layout.x("2026-11-06")).toBe(SIZE.width - MARGIN.right); // the last day held to its end
+    expect(layout.days).toEqual(["2026-11-01", "2026-11-02", "2026-11-05"]); // the pointer finds the real days
   });
 
   it("finds the day nearest the pointer", () => {

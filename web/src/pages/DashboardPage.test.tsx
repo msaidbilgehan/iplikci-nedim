@@ -39,8 +39,12 @@ describe("DashboardPage", () => {
       "href",
       "/bildirimler",
     );
-    // The accounts and the months' pages come later: their cards lead nowhere meanwhile.
-    expect(within(await card("Net varlık")).queryByRole("link")).not.toBeInTheDocument();
+    expect(within(await card("Net varlık")).getByRole("link", { name: "Hesaplara bak" })).toHaveAttribute(
+      "href",
+      "/hesaplar",
+    );
+    // The months' pages come later: the closing card leads nowhere meanwhile.
+    expect(within(await card("Son 7 ayın kapanışı")).queryByRole("link")).not.toBeInTheDocument();
   });
 
   it("shows the net worth in TL and in other units, a missing rate as the documents not having one", async () => {

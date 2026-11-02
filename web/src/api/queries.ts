@@ -12,7 +12,9 @@ import {
 
 import { api } from "./client";
 import type {
+  AccountPage,
   Accounts,
+  Alias,
   AlertPreview,
   AlertRule,
   AlertRules,
@@ -30,6 +32,7 @@ import type {
   ExportItem,
   ExportsQueued,
   FeedPage,
+  Flows,
   Forecast,
   Invoices,
   Labels,
@@ -61,7 +64,9 @@ export const keys = {
   feedAll: ["feed"] as const, // the events and what stands now: every event of the stream refreshes them
   feed: (filter: FeedFilter) => ["feed", "events", filter] as const,
   now: ["feed", "now"] as const,
-  accounts: ["accounts"] as const,
+  accounts: ["accounts"] as const, // the list, every account's page and the flows between them
+  account: (id: string, offset: number) => ["accounts", "page", id, offset] as const,
+  flows: (from: string, to: string) => ["accounts", "flows", from, to] as const,
   dashboard: ["dashboard"] as const,
   allTransactions: ["transactions"] as const, // the lists and the rows' details: a new analysis moves them
   transactions: (query: string) => ["transactions", "list", query] as const,
@@ -184,6 +189,50 @@ export function useNow() {
 /** The accounts in their groups with their balances and freshness, and the closed ones apart (F07). */
 export function useAccounts() {
   return useQuery({ queryKey: keys.accounts, queryFn: () => api.get<Accounts>("/api/accounts") });
+}
+
+export const ACCOUNT_ROWS = 50; // an account page's rows a page at a time
+
+/** An account's page: its card, its rows a page at a time, its balance by day, its months and what its type adds. */
+export function useAccount(id: string, offset: number) {
+  return useQuery({
+    queryKey: keys.account(id, offset),
+    queryFn: () =>
+      api.get<AccountPage>(`/api/accounts/${encodeURIComponent(id)}?offset=${offset}&limit=${ACCOUNT_ROWS}`),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** Where the money went between the accounts from one day to another; the service's window when none is given. */
+export function useFlows(from: string, to: string) {
+  const params = new URLSearchParams();
+  if (from) {
+    params.set("from", from);
+  }
+  if (to) {
+    params.set("to", to);
+  }
+  return useQuery({
+    queryKey: keys.flows(from, to),
+    queryFn: () => api.get<Flows>(`/api/accounts/flows?${params.toString()}`),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * Give an account a name of the user's own, or take it away with "". Every screen that names the account asks again:
+ * the accounts, the rows, what stands now and the dashboard.
+ */
+export function useRename(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (alias: string) => api.put<Alias>(`/api/accounts/${encodeURIComponent(id)}/alias`, { alias }),
+    onSuccess: () => {
+      for (const key of [keys.accounts, keys.allTransactions, keys.feedAll, keys.dashboard]) {
+        void client.invalidateQueries({ queryKey: key });
+      }
+    },
+  });
 }
 
 /** The dashboard's cards as of today, each with its sentence and the screen it leads to (F06). */

@@ -228,6 +228,10 @@ export interface LineSeries {
   label: string;
   slot: Slot;
   points: readonly LinePoint[];
+  // A day the points skip is blank, no line across it (an account's days no document covers); each stretch of days
+  // holds its last balance to the end of its last day. Without it, a balance holds until the next point, as a
+  // forecast's does.
+  gaps?: boolean;
 }
 
 export interface LineLayout {
@@ -243,6 +247,29 @@ export interface LineLayout {
 }
 
 const dateOf = (day: string): Date => new Date(`${day.slice(0, 10)}T00:00:00Z`);
+const DAY_MS = 86_400_000;
+const nextDay = (day: string): string => new Date(dateOf(day).getTime() + DAY_MS).toISOString().slice(0, 10);
+
+/** The points in stretches of days that follow one another, each ending at the end of its last day. */
+export function stretches(points: readonly LinePoint[]): LinePoint[][] {
+  const found: LinePoint[][] = [];
+  let current: LinePoint[] = [];
+  for (const point of points) {
+    const last = current.at(-1);
+    if (last && nextDay(last.day) !== point.day) {
+      found.push(current);
+      current = [];
+    }
+    current.push(point);
+  }
+  if (current.length > 0) {
+    found.push(current);
+  }
+  return found.map((stretch) => {
+    const last = stretch.at(-1);
+    return last ? [...stretch, { day: nextDay(last.day), value: last.value }] : stretch;
+  });
+}
 
 /**
  * Lines of balances over days. A balance holds until the next day's moves, so each line steps rather than slopes; the
@@ -254,7 +281,9 @@ export function lineLayout(series: readonly LineSeries[], size: Size, margin: Ma
   const values = series.flatMap((s) => s.points.map((p) => p.value));
   const { scale: yScale, ticks } = valueAxis(Math.min(0, ...values), Math.max(0, ...values), plot.top, plot.bottom);
   const first = days[0] ?? "1970-01-01";
-  const last = days[days.length - 1] ?? first;
+  const lastDay = days[days.length - 1] ?? first;
+  // A series with gaps holds its last day to that day's end: the axis reaches the day after.
+  const last = series.some((s) => s.gaps) ? nextDay(lastDay) : lastDay;
   const xScale = scaleUtc()
     .domain([dateOf(first), dateOf(last)])
     .range([plot.left, plot.right]);
@@ -269,7 +298,10 @@ export function lineLayout(series: readonly LineSeries[], size: Size, margin: Ma
   const zero = y(0);
   const lowest = yScale.domain()[0] ?? 0;
   return {
-    paths: series.map((s) => ({ series: s, d: draw([...s.points]) ?? "" })),
+    paths: series.map((s) => ({
+      series: s,
+      d: s.gaps ? stretches(s.points).map((stretch) => draw(stretch) ?? "").join("") : (draw([...s.points]) ?? ""),
+    })),
     ticks,
     days,
     dayTicks,

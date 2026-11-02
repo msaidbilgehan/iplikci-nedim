@@ -5,7 +5,8 @@
   "empty": "Gösterilecek veri yok.",
   "image": {
     "stacked": "{{title}}: yığılmış sütun grafiği. Değerler Tablo görünümünde.",
-    "line": "{{title}}: çizgi grafiği. Değerler Tablo görünümünde."
+    "line": "{{title}}: çizgi grafiği. Değerler Tablo görünümünde.",
+    "sankey": "{{title}}: akış diyagramı. Değerler Tablo görünümünde."
   },
   "month": "Ay",
   "day": "Gün",
@@ -17,5 +18,7 @@
   "forecastLegend": "Soluk sütunlar: tahmin",
   "forecastMonth": "{{month}} (tahmin)",
   "reference": "{{label}}: {{amount}}",
-  "belowZero": "Sıfırın altı: eksi bakiye"
+  "belowZero": "Sıfırın altı: eksi bakiye",
+  "sankeyUnavailable": "Bu akış diyagram olarak çizilemiyor; Tablo görünümü her akışı gösterir.",
+  "sankeyScroll": "Diyagram ekrandan geniş: yana kaydırın ya da her akışı Tablo görünümünde görün."
 }

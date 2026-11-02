@@ -31,7 +31,7 @@ export const MENU: readonly ScreenGroup[] = [
   {
     key: "money", // the accounts, their rows, what is paid regularly and what comes next
     screens: [
-      { to: "/hesaplar", key: "accounts", ready: false },
+      { to: "/hesaplar", key: "accounts", ready: true },
       { to: "/islemler", key: "transactions", ready: true },
       { to: "/abonelikler", key: "subscriptions", ready: true },
       { to: "/takvim", key: "calendar", ready: true },
@@ -88,6 +88,6 @@ export function isReady(key: ScreenKey): boolean {
 // one when its route lands, as `ready` above.
 export const DETAILS: Readonly<Record<"document" | "account" | "month", boolean>> = {
   document: false, // /belgeler/:id, the viewer: ?satir=<fingerprint> opens it at a row
-  account: false, // /hesaplar/:id
+  account: true, // /hesaplar/:id
   month: false, // /ay-sonu/:ay
 };

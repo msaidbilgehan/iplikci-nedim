@@ -5,6 +5,7 @@ import { setupServer } from "msw/node";
 
 import type {
   AccountItem,
+  AccountPage,
   Accounts,
   AlertEvent,
   AlertRule,
@@ -23,6 +24,7 @@ import type {
   FeedDetail,
   FeedItem,
   FeedPage,
+  Flows,
   Forecast,
   InvoiceItem,
   Invoices,
@@ -93,7 +95,45 @@ export const LABELS: Labels = {
     "month.closed": "Ay kapandı",
     "backup.failed": "Yedek alınamadı",
   },
-  AccountType: { credit_card: "Kredi kartı", current: "Vadesiz hesap", fx: "Döviz hesabı" },
+  AccountType: {
+    credit_card: "Kredi kartı",
+    debit_card: "Banka kartı",
+    current: "Vadesiz hesap",
+    deposit: "Vadeli hesap",
+    overdraft: "Kredili mevduat",
+    fx: "Döviz hesabı",
+    gold: "Altın hesabı",
+    brokerage: "Yatırım hesabı",
+    loan: "Kredi",
+  },
+  AccountGroup: {
+    cards: "Kredi kartları",
+    current: "Vadesiz",
+    deposit: "Vadeli",
+    overdraft: "KMH",
+    fx: "Döviz",
+    gold: "Altın",
+    brokerage: "Yatırım",
+    loan: "Krediler",
+  },
+  PaidStatus: {
+    full: "Tamamı ödendi",
+    minimum: "Asgarisi ödendi",
+    partial: "Bir kısmı ödendi",
+    unpaid: "Ödenmedi",
+    open: "Son ödeme günü gelmedi",
+    nothing_due: "Borç yoktu",
+  },
+  FlowKind: {
+    account: "Hesap",
+    income: "Gelir",
+    spending: "Harcama",
+    people: "Kişiler",
+    saving: "Birikim ve yatırım",
+    loan: "Kredi",
+    cash: "Nakit",
+    elsewhere: "Başka bir yer",
+  },
   TodoKind: { missing_documents: "Eksik belge", unprocessed_document: "İşlenmeyen belge" },
   MonthStatus: { closed: "Kapandı", waiting: "Ekstre bekleniyor", missing: "Belge eksik", running: "Ay sürüyor" },
   TransactionKind: {
@@ -658,7 +698,7 @@ export const FEED_OLDER: FeedPage = {
   next: null,
 };
 
-function accountItem(overrides: Partial<AccountItem> = {}): AccountItem {
+export function accountItem(overrides: Partial<AccountItem> = {}): AccountItem {
   return {
     account: CASH,
     label: CASH.label,
@@ -671,7 +711,19 @@ function accountItem(overrides: Partial<AccountItem> = {}): AccountItem {
     day: "2026-11-04",
     certainty: "provisional",
     note: "",
-    freshness: null,
+    freshness: {
+      account: CASH,
+      kind: "account_statement",
+      document: "a".repeat(64),
+      name: "Örnek Vadesiz TL Ekim 2026",
+      last: "2026-10-31",
+      behind: 15,
+      expected: null,
+      late: false,
+      missing: [],
+      note: "son döküm 31.10.2026",
+      link: { screen: "account", id: CASH.id, query: {} },
+    },
     month: { month: "2026-11", money_in: tl(0), money_out: tl(150000), rows: 2, provisional: 2, note: "" },
     closed: false,
     link: { screen: "account", id: CASH.id, query: {} },
@@ -679,6 +731,10 @@ function accountItem(overrides: Partial<AccountItem> = {}): AccountItem {
   };
 }
 
+const CLOSED = { id: "ornek-999", label: "Örnek Eski Hesap" };
+
+// A card in debt, a TL account moved by receipts since its statement, one no document gives a balance for, a euro
+// account valued at the documents' rate, and an account whose documents stopped long ago.
 export const ACCOUNTS: Accounts = {
   today: "2026-11-15",
   groups: [
@@ -688,7 +744,21 @@ export const ACCOUNTS: Accounts = {
       debts: tl(700000),
       total: tl(-700000),
       unvalued: 0,
-      accounts: [accountItem({ account: CARD, label: CARD.label, type: "credit_card", group: "cards" })],
+      accounts: [
+        accountItem({
+          account: CARD,
+          label: CARD.label,
+          type: "credit_card",
+          group: "cards",
+          balance: tl(-700000),
+          value: tl(-700000),
+          day: "2026-11-15",
+          certainty: "confirmed",
+          freshness: null,
+          month: { month: "2026-11", money_in: tl(200000), money_out: tl(320000), rows: 6, provisional: 0, note: "" },
+          link: { screen: "account", id: CARD.id, query: {} },
+        }),
+      ],
     },
     {
       group: "current",
@@ -698,7 +768,19 @@ export const ACCOUNTS: Accounts = {
       unvalued: 1,
       accounts: [
         accountItem(),
-        accountItem({ account: UNKNOWN, label: UNKNOWN.label, bank: "Garanti BBVA", balance: null, value: null }),
+        accountItem({
+          account: UNKNOWN,
+          label: UNKNOWN.label,
+          bank: "Garanti BBVA",
+          balance: null,
+          value: null,
+          day: null,
+          certainty: null,
+          note: "Bakiyesi hiçbir belgede yazmıyor.",
+          freshness: null,
+          month: { month: "2026-11", money_in: tl(0), money_out: tl(0), rows: 0, provisional: 0, note: "" },
+          link: { screen: "account", id: UNKNOWN.id, query: {} },
+        }),
       ],
     },
     {
@@ -707,10 +789,36 @@ export const ACCOUNTS: Accounts = {
       debts: tl(0),
       total: tl(1850000),
       unvalued: 0,
-      accounts: [accountItem({ account: FX, label: FX.label, type: "fx", group: "fx" })],
+      accounts: [
+        accountItem({
+          account: FX,
+          label: FX.label,
+          type: "fx",
+          group: "fx",
+          balance: { minor: 50000, currency: "EUR" },
+          value: tl(1850000),
+          certainty: "confirmed",
+          freshness: null,
+          month: { month: "2026-11", money_in: tl(0), money_out: tl(0), rows: 0, provisional: 0, note: "" },
+          link: { screen: "account", id: FX.id, query: {} },
+        }),
+      ],
     },
   ],
-  closed: [],
+  closed: [
+    accountItem({
+      account: CLOSED,
+      label: CLOSED.label,
+      value: null,
+      balance: tl(0),
+      day: "2026-02-28",
+      certainty: "confirmed",
+      freshness: null,
+      month: { month: "2026-11", money_in: tl(0), money_out: tl(0), rows: 0, provisional: 0, note: "" },
+      closed: true,
+      link: { screen: "account", id: CLOSED.id, query: {} },
+    }),
+  ],
   assets: tl(1950000),
   debts: tl(700000),
   total: tl(1250000),
@@ -1449,6 +1557,205 @@ export const STATEMENT_DETAIL: DocumentDetail = {
   attachments: [],
 };
 
+// --- the Hesaplar screens (F07) -------------------------------------------------------------------------------------
+
+const MONTHS = ["2025-12", ...Array.from({ length: 11 }, (_, i) => `2026-${String(i + 1).padStart(2, "0")}`)];
+
+/** The TL account's page: its rows, a balance curve with days no document covers, its months, fees and series. */
+export function accountPage(overrides: Partial<AccountPage> = {}): AccountPage {
+  const cash = ACCOUNTS.groups[1]!.accounts[0]!;
+  return {
+    account: cash,
+    rows: [INCOME, row({ fingerprint: "c7c7c7c7c7c7c7c7c7c7", account: CASH, day: "2026-11-03", title: "Ev kirası" })],
+    totals: { count: 2, counted: 2, spent: tl(1250000), money_out: tl(1250000), money_in: tl(4000000), provisional: 1, excluded: 0 },
+    offset: 0,
+    next: null,
+    curve: [
+      { day: "2026-10-29", balance: tl(250000), certainty: "confirmed" },
+      { day: "2026-10-30", balance: tl(-30000), certainty: "confirmed" },
+      { day: "2026-10-31", balance: tl(120000), certainty: "confirmed" },
+      { day: "2026-11-04", balance: tl(100000), certainty: "provisional" },
+    ],
+    curve_note: "Gün sonu bakiyeleri hesap dökümlerinden; son dökümden sonrası bildirim ve dekontlardan.",
+    months: MONTHS.map((month) => ({
+      month,
+      money_in: tl(4000000),
+      money_out: tl(month === "2026-10" ? 3500000 : 3000000),
+      rows: 12,
+      complete: month !== "2026-11",
+    })),
+    fees: {
+      months: MONTHS.slice(0, 11),
+      total: tl(11250),
+      categories: [
+        { category: "Hesap işletim ücreti", amount: tl(9000) },
+        { category: "EFT ücreti", amount: tl(2250) },
+      ],
+    },
+    payments: [series()],
+    income: [
+      series({
+        id: "fp-maas",
+        payee: "Örnek İşveren A.Ş.",
+        category: "Maaş",
+        kind: "income",
+        necessity: null,
+        amount: tl(4000000),
+        last_amount: tl(4000000),
+        price_change: null,
+      }),
+    ],
+    card: null,
+    overdraft: {
+      limit: null,
+      used: tl(0),
+      days_below: 1,
+      window_start: "2025-11-15",
+      window_end: "2026-11-15",
+      interest: tl(1250),
+      note: "Limit hiçbir belgede yazmıyor.",
+    },
+    deposit: null,
+    holding: null,
+    brokerage: null,
+    loan: null,
+    ...overrides,
+  };
+}
+
+/** The card's page: its newest statement, three statements with how each was paid, an installment purchase. */
+export const CARD_PAGE: AccountPage = accountPage({
+  account: ACCOUNTS.groups[0]!.accounts[0]!,
+  rows: [PURCHASE],
+  curve: [],
+  curve_note: "Günlük bakiye TL vadesiz, vadeli ve ek hesaplar için çizilir.",
+  payments: [],
+  income: [],
+  overdraft: null,
+  card: {
+    statement: NOW.cards[0]!,
+    statements: [
+      {
+        cut: "2026-10-28",
+        start: "2026-09-29",
+        end: "2026-10-28",
+        total: tl(900000),
+        due: "2026-11-25",
+        minimum: tl(180000),
+        limit: tl(5000000),
+        rows: 14,
+        spent: tl(900000),
+        verified: true,
+        document: STATEMENT,
+        paid: tl(200000),
+        status: "open",
+      },
+      {
+        cut: "2026-09-28",
+        start: "2026-08-29",
+        end: "2026-09-28",
+        total: tl(800000),
+        due: "2026-10-25",
+        minimum: tl(160000),
+        limit: null,
+        rows: 11,
+        spent: tl(800000),
+        verified: true,
+        document: STATEMENT,
+        paid: tl(160000),
+        status: "minimum",
+      },
+      {
+        cut: "2026-08-28",
+        start: "2026-07-29",
+        end: "2026-08-28",
+        total: tl(600000),
+        due: "2026-09-25",
+        minimum: tl(120000),
+        limit: tl(5000000),
+        rows: 9,
+        spent: tl(600000),
+        verified: false,
+        document: STATEMENT,
+        paid: tl(600000),
+        status: "full",
+      },
+    ],
+    installments: [
+      {
+        card: CARD,
+        title: "Örnek Elektronik",
+        number: 3,
+        count: 6,
+        amount: tl(250000),
+        left: 3,
+        remaining: tl(750000),
+        last_day: "2027-01-28",
+        fingerprint: "0123456789abcdef0123",
+      },
+    ],
+    schedule: [
+      { month: "2026-11", amount: tl(250000), count: 1 },
+      { month: "2026-12", amount: tl(250000), count: 1 },
+      { month: "2027-01", amount: tl(250000), count: 1 },
+    ],
+    left: tl(750000),
+  },
+});
+
+/** The euro account's page: its amount and value at the documents' rate; what it cost is printed nowhere. */
+export const FX_PAGE: AccountPage = accountPage({
+  account: ACCOUNTS.groups[2]!.accounts[0]!,
+  rows: [],
+  totals: { count: 0, counted: 0, spent: tl(0), money_out: tl(0), money_in: tl(0), provisional: 0, excluded: 0 },
+  curve: [],
+  curve_note: "Günlük bakiye TL vadesiz, vadeli ve ek hesaplar için çizilir.",
+  months: MONTHS.map((month) => ({ month, money_in: tl(0), money_out: tl(0), rows: 0, complete: true })),
+  fees: { months: MONTHS.slice(0, 11), total: tl(0), categories: [] },
+  payments: [],
+  income: [],
+  overdraft: null,
+  holding: {
+    amount: { minor: 50000, currency: "EUR" },
+    value: tl(1850000),
+    rate: "37.0000",
+    rate_day: "2026-10-31",
+    cost: null,
+    gain: null,
+    note: "Ne kadara alındığı hiçbir belgede yazmıyor.",
+  },
+});
+
+// From the salary into the TL account, from there to the card and to spending, and from the card to spending.
+export const FLOWS: Flows = {
+  start: "2026-10-01",
+  end: "2026-10-31",
+  nodes: [
+    { id: "income:Örnek İşveren A.Ş.", kind: "income", name: "Örnek İşveren A.Ş.", account: null },
+    { id: CASH.id, kind: "account", name: "", account: CASH },
+    { id: CARD.id, kind: "account", name: "", account: CARD },
+    { id: "spending:Gıda", kind: "spending", name: "Gıda", account: null },
+    { id: "spending:Ev", kind: "spending", name: "Ev", account: null },
+    { id: "people", kind: "people", name: "", account: null },
+  ],
+  edges: [
+    edge("income:Örnek İşveren A.Ş.", CASH.id, 4000000, 1, ["income"], { account: CASH.id, kind: "income" }),
+    edge(CASH.id, "spending:Ev", 1500000, 1, ["purchase"], { account: CASH.id, group: "Ev" }),
+    edge(CASH.id, CARD.id, 900000, 1, ["card_payment"], { account: CASH.id, kind: "card_payment" }),
+    edge(CARD.id, "spending:Gıda", 840050, 6, ["purchase", "refund"], { account: CARD.id, group: "Gıda" }),
+    edge(CASH.id, "people", 250000, 2, ["p2p_transfer"], { account: CASH.id, kind: "p2p_transfer" }),
+  ],
+  note: "",
+};
+
+type Band = Flows["edges"][number];
+
+/** A band of the flow, its rows on the Transactions screen narrowed to the flow's month. */
+function edge(source: string, target: string, minor: number, rows: number, kinds: Band["kinds"], query: Band["link"]["query"]) {
+  const link = { screen: "transactions" as const, id: "", query: { ...query, from: "2026-10-01", to: "2026-10-31" } };
+  return { source, target, amount: tl(minor), rows, kinds, link };
+}
+
 export const handlers = [
   http.get("/api/labels", () => HttpResponse.json(LABELS)),
   http.get("/api/dashboard", () => HttpResponse.json(DASHBOARD)),
@@ -1457,6 +1764,11 @@ export const handlers = [
   ),
   http.get("/api/feed/now", () => HttpResponse.json(NOW)),
   http.get("/api/accounts", () => HttpResponse.json(ACCOUNTS)),
+  http.get("/api/accounts/flows", () => HttpResponse.json(FLOWS)), // before the pages: "flows" is no account
+  http.get("/api/accounts/:id", ({ params }) => {
+    const pages: Record<string, AccountPage> = { [CARD.id]: CARD_PAGE, [FX.id]: FX_PAGE };
+    return HttpResponse.json(pages[String(params["id"])] ?? accountPage());
+  }),
   http.get("/api/transactions", ({ request }) =>
     HttpResponse.json(new URL(request.url).searchParams.get("offset") === "50" ? NEXT_TRANSACTIONS : TRANSACTIONS),
   ),

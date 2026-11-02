@@ -9,6 +9,8 @@ const SCREENS = [
   { path: "/", heading: "Pano" },
   { path: "/akis", heading: "Akış" },
   { path: "/islemler", heading: "İşlemler" },
+  { path: "/hesaplar", heading: "Hesaplar" },
+  { path: "/hesaplar/teb-123456789", heading: "TEB Vadesiz TL 123456789" }, // the demo's TL account
   { path: "/sistem", heading: "Sistem" },
   { path: "/belgeler", heading: "Belgeler" },
   { path: "/abonelikler", heading: "Abonelikler" },

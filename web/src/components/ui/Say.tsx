@@ -32,7 +32,8 @@ export function Say({ children, next }: SayProps) {
   );
 }
 
-const STEP = cn(
+/** A next step's look, for a step whose address the caller builds (a list narrowed by several values of a filter). */
+export const STEP = cn(
   "inline-flex min-h-8 items-center gap-1 rounded text-sm font-medium underline underline-offset-2",
   "text-teal-800 hover:text-teal-950 dark:text-teal-300 dark:hover:text-teal-100",
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600",
@@ -76,10 +77,11 @@ export function NextStep({ step, context, className }: NextStepProps) {
   if (!href) {
     return null;
   }
+  // The visible words lead the name (WCAG's label in name). An aria-label, not hidden words: the browser reads a flex
+  // item's text apart and would say "İşlemleri göster : …" with a space before the colon.
   return (
-    <Link to={href} className={cn(STEP, className)}>
+    <Link to={href} aria-label={context ? `${step.label}: ${context}` : undefined} className={cn(STEP, className)}>
       {step.label}
-      {context ? <span className="sr-only">: {context}</span> : null}
       <ArrowRightIcon className="size-4 shrink-0" />
     </Link>
   );

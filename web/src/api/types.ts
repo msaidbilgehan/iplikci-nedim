@@ -3,10 +3,29 @@
 // /api/labels. Times are ISO 8601 strings, sizes are bytes, amounts are minor units with their currency.
 
 import type {
+  AccountDetailOut,
   AccountForecastOut,
+  AccountGroup,
   AccountOut,
   AccountRefOut,
   AccountsOut,
+  AliasOut,
+  BrokerageOut,
+  CardPageOut,
+  CurvePointOut,
+  DepositOut,
+  FeesOut,
+  FlowEdgeOut,
+  FlowKind,
+  FlowNodeOut,
+  FlowsOut,
+  GroupOut,
+  HoldingOut,
+  LoanOut,
+  MonthTotalsOut,
+  OverdraftOut,
+  PaidStatus,
+  StatementOut,
   AlertOut,
   AnnotationOut,
   AlertPreviewOut,
@@ -147,6 +166,26 @@ export type NowCard = NowCardOut;
 // The accounts in their groups (F07).
 export type Accounts = AccountsOut;
 export type AccountItem = AccountOut;
+
+// The Hesaplar screens (F07): the accounts in their groups, an account's page with what its type adds, the name the
+// user gives one, and where the money went between them.
+export type AccountGroupItem = GroupOut;
+export type AccountPage = AccountDetailOut;
+export type CurvePoint = CurvePointOut;
+export type MonthTotals = MonthTotalsOut;
+export type Fees = FeesOut;
+export type CardPage = CardPageOut;
+export type Statement = StatementOut;
+export type Overdraft = OverdraftOut;
+export type Deposit = DepositOut;
+export type Holding = HoldingOut;
+export type Brokerage = BrokerageOut;
+export type Loan = LoanOut;
+export type Alias = AliasOut;
+export type Flows = FlowsOut;
+export type FlowNode = FlowNodeOut;
+export type FlowEdge = FlowEdgeOut;
+export type { AccountGroup, FlowKind, PaidStatus };
 
 // The Transactions screen (F04): the rows a filter keeps with their totals, one row with why it is what it is, the
 // corrections, the kept views; and the category rules a correction may become.

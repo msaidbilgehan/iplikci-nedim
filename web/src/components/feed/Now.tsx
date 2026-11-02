@@ -213,7 +213,8 @@ function CardsCard({ cards, today }: { cards: NowCard[]; today: string }) {
 
 const CALENDAR = { screen: "calendar", id: "", query: {} } as const;
 
-function CardSummary({ card }: { card: NowCard }) {
+/** A card's period so far and what it owes, in a line or two (also an account page's card, F07). */
+export function CardSummary({ card }: { card: NowCard }) {
   const { t } = useTranslation("feed");
   const owing = [
     card.due ? t("now.cards.dueShort", { day: formatDay(card.due) }) : "",
@@ -238,7 +239,8 @@ function CardSummary({ card }: { card: NowCard }) {
   );
 }
 
-function CardFacts({ card }: { card: NowCard }) {
+/** Every value of a card's newest statement and period, as a list of names and values. */
+export function CardFacts({ card }: { card: NowCard }) {
   const { t } = useTranslation("feed");
   const credit = card.type === "credit_card";
   const rows: Array<[string, ReactNode, ReactNode]> = [

@@ -10,6 +10,8 @@ import { Loading } from "./components/QueryState";
 const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 const FeedPage = lazy(() => import("./pages/FeedPage"));
 const TransactionsPage = lazy(() => import("./pages/TransactionsPage"));
+const AccountsPage = lazy(() => import("./pages/AccountsPage"));
+const AccountPage = lazy(() => import("./pages/AccountPage"));
 const SystemPage = lazy(() => import("./pages/SystemPage"));
 const DocumentsPage = lazy(() => import("./pages/DocumentsPage"));
 const SubscriptionsPage = lazy(() => import("./pages/SubscriptionsPage"));
@@ -29,6 +31,8 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, element: screen(<DashboardPage />) },
       { path: "akis", element: screen(<FeedPage />) },
+      { path: "hesaplar", element: screen(<AccountsPage />) },
+      { path: "hesaplar/:id", element: screen(<AccountPage />) },
       { path: "islemler", element: screen(<TransactionsPage />) },
       { path: "sistem", element: screen(<SystemPage />) },
       { path: "belgeler", element: screen(<DocumentsPage />) },

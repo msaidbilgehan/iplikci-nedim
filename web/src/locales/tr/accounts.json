@@ -1,0 +1,223 @@
+{
+  "title": "Hesaplar",
+  "description": "Hesaplarınız gruplarıyla: bakiyeleri, belgelerinin ulaştığı gün, bu ayki giriş ve çıkışları; aralarındaki para akışı.",
+  "say": "Varlıklar {{assets}}, borçlar {{debts}}; net {{total}}.",
+  "sayUnvalued": "{{count}} hesabın TL değeri bilinmediği için toplamlara girmedi.",
+  "empty": "Henüz hesap yok",
+  "emptyText": "Ekstreler, dökümler ve dekontlar geldikçe hesaplar burada görünür.",
+  "emptyNext": "Belgeleri göster",
+  "unknown": "belgelerde yok",
+  "summary": {
+    "label": "Toplamlar",
+    "assets": "Varlıklar",
+    "debts": "Borçlar",
+    "total": "Net"
+  },
+  "group": {
+    "figures": "Varlık {{assets}} · Borç {{debts}}",
+    "unvalued": "{{count}} hesabın TL değeri bilinmiyor; toplama girmedi.",
+    "caption": "{{group}} grubundaki hesaplar"
+  },
+  "closed": {
+    "title": "Kapanmış hesaplar",
+    "text": "Belgeleri en yeni belgeden 180 günden eski; hiçbir toplama girmez."
+  },
+  "account": {
+    "select": "Birlikte göster: {{name}}",
+    "balanceUnknown": "Bakiyesi belgelerde yok",
+    "asOf": "{{day}} itibarıyla",
+    "inTl": "TL karşılığı {{value}}",
+    "valueUnknown": "TL karşılığı belgelerde yok",
+    "today": "bugün",
+    "behind": "{{count}} gün önce",
+    "late": "Beklenen belge gecikti",
+    "missing": "Eksik aylar: {{months}}",
+    "month": "{{month}}: giren {{moneyIn}}, çıkan {{moneyOut}}",
+    "monthNone": "{{month}}: henüz işlem yok",
+    "monthProvisional": "({{count}} tanesi geçici)"
+  },
+  "table": {
+    "select": "Seç",
+    "account": "Hesap",
+    "balance": "Bakiye",
+    "value": "TL karşılığı",
+    "freshness": "Son belge",
+    "moneyIn": "Bu ay giren",
+    "moneyOut": "Bu ay çıkan",
+    "note": "Not",
+    "unknown": "belgelerde yok"
+  },
+  "combined": {
+    "label": "Seçili hesaplar",
+    "worth": "{{count}} hesap seçildi; TL karşılıklarının toplamı {{worth}}.",
+    "unvalued": "{{count}} tanesinin TL karşılığı bilinmiyor; toplama girmedi.",
+    "month": "{{month, inMonth}} giren {{moneyIn}}, çıkan {{moneyOut}}.",
+    "rows": "İşlemlerini birlikte göster",
+    "clear": "Seçimi kaldır"
+  },
+  "flows": {
+    "title": "Hesaplar arası akış",
+    "chart": "Hesaplar arası para akışı",
+    "from": "Başlangıç",
+    "to": "Bitiş",
+    "say": "{{start}} – {{end}}: gelirlerden hesaplara {{income}} girdi, hesaplardan {{out}} çıktı. En büyük akış {{source}} → {{target}}: {{amount}}.",
+    "none": "{{start}} – {{end}} arasında hesaplara giren ya da çıkan para yok.",
+    "caption": "{{start}} – {{end}} arasındaki akışlar",
+    "source": "Nereden",
+    "target": "Nereye",
+    "amount": "Tutar",
+    "rows": "İşlem",
+    "kinds": "Türler",
+    "open": "İşlemleri göster"
+  },
+  "page": {
+    "title": "Hesap",
+    "back": "Hesaplar",
+    "bankName": "bankadaki adı {{label}}",
+    "closed": "kapanmış hesap"
+  },
+  "alias": {
+    "edit": "Adını değiştir",
+    "label": "Hesabın adı",
+    "hint": "Ekranlarda bu ad görünür. Raporlar ve dışa aktarımlar bankanın adını ({{label}}) kullanır.",
+    "save": "Adı kaydet",
+    "remove": "Bankanın adına dön",
+    "cancel": "Vazgeç",
+    "saved": "Hesabın adı kaydedildi.",
+    "removed": "Hesap yeniden bankanın adıyla görünüyor."
+  },
+  "status": {
+    "title": "Durum",
+    "balance": "Bakiye {{balance}}; {{day}} itibarıyla.",
+    "noBalance": "Bakiyesi hiçbir belgede yazmıyor.",
+    "month": "{{month, inMonth}} giren {{moneyIn}}, çıkan {{moneyOut}}.",
+    "balanceName": "Bakiye",
+    "value": "TL karşılığı",
+    "day": "Bakiyenin günü",
+    "certainty": "Kesinlik",
+    "lastDocument": "Son belge",
+    "reach": "Belgelerin ulaştığı gün",
+    "expected": "Sonraki belge",
+    "missing": "Eksik aylar",
+    "monthName": "Bu ay",
+    "note": "Not"
+  },
+  "curve": {
+    "title": "Günlük bakiye",
+    "chart": "{{account}}, gün sonu bakiyesi",
+    "say": "{{start}} – {{end}}: en düşük {{low}}, en yüksek {{high}}; son gün {{last}}. Hiçbir belgenin kapsamadığı günler boş."
+  },
+  "months": {
+    "title": "Son 12 ay",
+    "chart": "Aylık giren ve çıkan",
+    "say": "Son tam ay {{month}}: giren {{moneyIn}}, çıkan {{moneyOut}}.",
+    "sayNone": "Belgelerin baştan sona kapsadığı bir ay henüz yok; rakamlar belgelerin gösterdikleri.",
+    "in": "Giren",
+    "out": "Çıkan",
+    "partial": "Tamamlanmamış aylar (içinde bulunulan ay, belgelerin tam kapsamadığı aylar) yalnızca belgelerin gösterdiklerini toplar."
+  },
+  "fees": {
+    "title": "Faiz ve ücretler",
+    "chart": "Faiz ve ücretler, kategoriye göre",
+    "say": "{{from}} – {{to}}: faiz ve ücretler toplam {{total}}.",
+    "none": "{{from}} – {{to}} arasında faiz ya da ücret yok.",
+    "category": "Kategori"
+  },
+  "payments": {
+    "title": "Bu hesaptan düzenli ödemeler"
+  },
+  "income": {
+    "title": "Bu hesaba düzenli gelirler"
+  },
+  "series": {
+    "last": "son: {{day}}, {{amount}}",
+    "next": "sonraki: {{day}}"
+  },
+  "rows": {
+    "title": "İşlemler",
+    "all": "İşlemler ekranında aç",
+    "none": "Bu hesabın henüz işlemi yok."
+  },
+  "card": {
+    "title": "Kart",
+    "statements": "Ekstreler ve ödemeleri",
+    "noStatements": "Henüz ekstresi yok.",
+    "statementLine": "{{cut}} kesimli ekstre",
+    "cut": "Kesim",
+    "period": "Dönem",
+    "rows": "{{count}} işlem",
+    "total": "Dönem borcu",
+    "due": "Son ödeme",
+    "minimum": "Asgari",
+    "limit": "Limit",
+    "paid": "Ödenen",
+    "status": "Ödeme",
+    "spent": "Harcama",
+    "verified": "Toplam",
+    "verifiedYes": "Doğrulandı",
+    "verifiedNo": "Doğrulanmadı",
+    "installments": "Taksitler",
+    "installmentsSay": "{{count}} taksitli alışverişin kalan tutarı {{left}}; son taksit {{month}} ekstresinde.",
+    "installmentLine": "taksit {{number}}/{{count}}, {{left}} taksit kaldı",
+    "purchase": "Alışveriş",
+    "installment": "Taksit",
+    "installmentAmount": "Taksit tutarı",
+    "left": "Kalan taksit",
+    "remaining": "Kalan tutar",
+    "lastDay": "Son taksit",
+    "schedule": "Gelecek aylara yayılan taksitler",
+    "month": "Ay",
+    "scheduleAmount": "Tutar",
+    "scheduleCount": "Taksit sayısı"
+  },
+  "overdraft": {
+    "title": "Kredili mevduat (KMH)",
+    "limit": "Limit",
+    "used": "Kullanılan",
+    "daysBelow": "Eksi günler",
+    "days": "{{count}} gün",
+    "window": "{{start}} – {{end}} arasında",
+    "interest": "Faiz maliyeti"
+  },
+  "deposit": {
+    "title": "Vadeli hesap",
+    "principal": "Anapara",
+    "rate": "Faiz oranı",
+    "maturity": "Vade sonu",
+    "interest": "Net getiri"
+  },
+  "holding": {
+    "amount": "Miktar",
+    "value": "TL karşılığı",
+    "rate": "Kur",
+    "rateText": "{{rate}} TL",
+    "rateDay": "{{day}} belgesindeki kur",
+    "cost": "Maliyet",
+    "gain": "Kur farkı"
+  },
+  "brokerage": {
+    "title": "Yatırım hesabı",
+    "asOf": "Ekstrenin günü",
+    "worth": "Toplam değer",
+    "cash": "Nakit",
+    "dividends": "Temettü",
+    "dividendsText": "{{amount}} ({{count}} işlem)",
+    "securities": "Portföy",
+    "code": "Kod",
+    "name": "Ad",
+    "quantity": "Adet",
+    "value": "Değer",
+    "day": "Gün"
+  },
+  "loan": {
+    "title": "Kredi",
+    "remaining": "Kalan anapara",
+    "principalPaid": "Ödenen anapara",
+    "interestPaid": "Ödenen faiz",
+    "next": "Sıradaki taksitler",
+    "paid": "Ödenen taksitler",
+    "day": "Gün",
+    "principal": "Anapara",
+    "cost": "Faiz ve vergiler"
+  }
+}
