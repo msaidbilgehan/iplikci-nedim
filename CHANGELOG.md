@@ -4,6 +4,21 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.7.5] — 2026-11-03 — Belge ekle ekranı
+
+### Eklenenler
+
+- "Belge ekle" ekranı: bankadan elle indirilen belgeler buradan, bir klasörün tamamı ya da tek tek dosyalar olarak
+  eklenir. Sade görünümün menüsünde ve Pano'nun "Ne yapmalısınız?" kartında da yeri var. Ekran ne yapılacağını adım adım
+  anlatır.
+- Sürüklenen bir klasörün içindekilerin hepsi, alt klasörleriyle alınır; önceden tarayıcı klasörün içini vermiyordu.
+  Gizli dosyalar (`.DS_Store` gibi) atlanır.
+
+### Değişenler
+
+- Servis dosyaları okurken bunu söyler. Sonunda kaç belgenin arşive alındığı ve kaçının zaten arşivde olduğu yazar,
+  Belgeler'e ve Pano'ya giden bağlantılarla. Onay düğmesinin adı "Arşive al".
+
 ## [0.7.4] — 2026-11-03 — Belgeler içeriğinden tanınır
 
 Bankadan elle indirilen belgeler bir klasör olarak verilebilir: dosya ve klasör adlarına bakılmadan her belge

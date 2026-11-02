@@ -111,8 +111,11 @@ G1, G10, G13 · Çekirdek
 
 G1 · Çekirdek
 
-- **Yollar:** arayüzde sürükle-bırak, dosya seç ve klasör seç; MCP'de `import_documents`; komut satırında
-  `iplikci ekle`.
+- **Yollar:** arayüzde "Belge ekle" ekranı (`/belge-ekle`, sade görünümün menüsünde de) ve Belgeler ekranının üstü:
+  sürükle-bırak, dosya seç ve klasör seç; MCP'de `import_documents`; komut satırında `iplikci ekle`.
+- **Klasör:** seçilen ya da sürüklenen bir klasörün içindeki bütün dosyalar, alt klasörleriyle gönderilir; gizli
+  dosyalar (`.DS_Store` gibi) atlanır. Servis dosyaları okurken bunu söyler; sonunda kaç belgenin arşive alındığını
+  ve kaçının zaten arşivde olduğunu yazar.
 - **Türler:** PDF, XLS, XLSX, HTML, XML, ZIP, MBOX ve EML. Bir dosyanın türü içeriğinden anlaşılır: uzantısı olmayan
   ya da yanlış olan bir indirme de alınır. Belge olmayanlar reddedilir ve nedeni söylenir.
 - **Adlar önemli değil (K24):** bir belgenin hangi bankanın hangi belgesi olduğu, hesabı ve dönemi içeriğinden okunur.
@@ -213,8 +216,8 @@ G7 · Çekirdek
   - yapılacakların sayısı.
 - Her kart ve her grafik ilgili ekrana gider.
 - **Menü:** sade görünümde sık kullanılan ekranlar (Pano, Hesaplar, İşlemler, Düzenli ödemeler, Takvim, Değerlendirme,
-  Yapılacaklar) tek listede, diğerleri "Diğer ekranlar" altında; açık ekran oradaysa bölüm açık gelir. Ayrıntılı
-  görünümde bütün ekranlar gruplarıyla.
+  Yapılacaklar, Belge ekle) tek listede, diğerleri "Diğer ekranlar" altında; açık ekran oradaysa bölüm açık gelir.
+  Ayrıntılı görünümde bütün ekranlar gruplarıyla.
 
 ## F07 — Hesaplar
 
