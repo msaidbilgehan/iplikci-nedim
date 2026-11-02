@@ -55,6 +55,8 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
 - Harcama kartları ortalamalara kısmen kapsanan ayları da katıyordu; artık yalnızca tam aylar sayılır, gün aralığı
   İşlemler ekranındaki gibi sayılır, tahminin düzenli ödemeleri dönem dışındaki bütün süzgeçlere uyar.
 - CSV ve Excel dışa aktarımında formül gibi başlayan metin artık metin olarak yazılır.
+- Kategori kurallarında aynı anda yapılan iki değişiklikten biri ötekinin eklediğini siliyordu; değişiklikler artık
+  sırayla, her biri bir öncekinin bıraktığı dosyadan yapılır.
 - Olağan dışı hareketler `docs/domain/interpretation.md`'deki eşiklere uyar; kart aidatı için iade adımı önerilir.
 - Olay akışı baştan açılınca bütün kaydı yeniden göndermez; son dakikanın olaylarını yeniden söyler.
 - Bölünmüş bir satır her sayımda tek ödemedir: ay sonu, alışkanlıklar, en çok harcanan yerler, kart dönemi ve
