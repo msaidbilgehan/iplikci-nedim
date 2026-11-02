@@ -57,3 +57,13 @@ def title_tr(s: str) -> str:
         low = w.translate(_TR_LOWER).lower()
         words.append(low[:1].upper() + low[1:] if low[:1] != "i" else "İ" + low[1:])
     return " ".join(words)
+
+
+# What a spreadsheet takes for the start of a formula: a cell from a document (a transfer's description, which its
+# sender writes) could run as one when the export is opened.
+_FORMULA_START = ("=", "+", "-", "@", "\t", "\r")
+
+
+def spreadsheet_text(value: str) -> str:
+    """value as a spreadsheet shows it, never as a formula: one that starts like a formula gets an apostrophe."""
+    return f"'{value}" if value.startswith(_FORMULA_START) else value

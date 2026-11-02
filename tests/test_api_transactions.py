@@ -6,10 +6,12 @@ from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
+from openpyxl import load_workbook
 
-from iplikci import demo
+from iplikci import demo, report
 from iplikci.api.app import create_app
 from iplikci.api.context import Context
+from iplikci.app.analysis import analyze
 from iplikci.app.workspace import Workspace
 from iplikci.fakes import teb
 
@@ -99,6 +101,23 @@ def test_the_csv_holds_every_row_the_filters_keep_for_turkish_excel(client):
     lines = text.lstrip("﻿").splitlines()
     assert text.startswith("﻿") and lines[0].startswith("Tarih;Ay;Banka;Hesap") and len(lines) == 11
     assert ";Kafe & Kahve;" in lines[1] and "," in lines[1].split(";")[10]
+
+
+def test_a_description_that_starts_like_a_formula_is_exported_as_text(ws, tmp_path):
+    formula = '=HYPERLINK("http://ornek.example";"tikla")'  # a transfer's description, which its sender writes
+    moves = [("20/10/2026", formula, "-50,00", "950,00"), ("21/10/2026", "ORNEK GELEN", "50,00", "1.000,00")]
+    add(ws, "hareket.xls", teb.account_export(moves))
+    text = client_for(ws).get("/api/transactions.csv", headers=bearer()).content.decode("utf-8")
+    rows = text.lstrip("\ufeff").splitlines()[1:]
+    assert any("'=HYPERLINK" in row for row in rows)
+    assert any(";-50,00;" in row for row in rows) and "'-50,00" not in text  # money in stays a number
+    a = analyze(ws)
+    report.write_csv(a.dataset, tmp_path / "rapor.csv")
+    assert "'=HYPERLINK" in (tmp_path / "rapor.csv").read_text(encoding="utf-8-sig")
+    report.write_xlsx(a.dataset, tmp_path / "rapor.xlsx", a.insights, a.months)
+    sheet = load_workbook(tmp_path / "rapor.xlsx")["İşlemler"]
+    found = [c.data_type for line in sheet.iter_rows() for c in line if str(c.value).startswith("=HYPERLINK")]
+    assert found and set(found) == {"s"}  # the merchant's and the description's cells, as text
 
 
 def test_a_rows_detail_names_where_it_is_printed_and_why_it_is_what_it_is(client):

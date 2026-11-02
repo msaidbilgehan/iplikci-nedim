@@ -34,7 +34,7 @@ from ..domain.codes import (
 )
 from ..domain.labels import CERTAINTY, KIND, NECESSITY, currency_label
 from ..domain.models import Reason, Transaction
-from ..domain.text import fold
+from ..domain.text import fold, spreadsheet_text
 from ..storage import annotations, audit, documents, feed_state
 from ..storage.annotations import Annotation
 from . import annotate, background
@@ -265,26 +265,27 @@ def csv_text(a: Analysis, f: Filter, order: Order) -> str:
     w.writerow(_CSV_COLUMNS)
     for r in ordered(select(a, f), order.sort, order.descending, names):
         signed = r.amount if r.direction is Direction.OUT else -r.amount
+        text = spreadsheet_text  # what the documents, the rules and the user wrote: never run as a formula
         w.writerow(
             (
                 f"{r.day:%d.%m.%Y}",
                 f"{r.day:%Y-%m}",
-                banks.get(r.account, ""),
-                names.get(r.account, r.account),
+                text(banks.get(r.account, "")),
+                text(names.get(r.account, r.account)),
                 KIND[r.kind],
-                r.group,
-                r.category,
+                text(r.group),
+                text(r.category),
                 NECESSITY[r.necessity] if r.necessity else "",
-                r.title,
-                r.description,
+                text(r.title),
+                text(r.description),
                 f"{signed:.2f}".replace(".", ","),
                 currency_label(r.currency),
-                r.installment,
-                r.original,
+                text(r.installment),
+                text(r.original),
                 "Evet" if r.expense else "Hayır",
                 CERTAINTY[r.certainty],
-                r.note,
-                ", ".join(r.tags),
+                text(r.note),
+                text(", ".join(r.tags)),
                 r.fingerprint,
             )
         )

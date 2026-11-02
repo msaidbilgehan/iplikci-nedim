@@ -20,7 +20,7 @@ from .categorize import NECESSITY_SLOTS, group_slot
 from .domain.codes import DEFAULT_EXPENSE_KINDS, Necessity, TransactionKind
 from .domain.labels import ACCOUNT_TYPE, KIND, NECESSITY, currency_label
 from .domain.money import round_half_up
-from .domain.text import fold
+from .domain.text import fold, spreadsheet_text
 from .insights import HABIT_STATUS, STATUS, Insights, interpret, listed, month_of
 
 CLOSING_MONTHS = 7  # months the report's closing card lists: the current one and six before it
@@ -363,14 +363,25 @@ def _rows(ds: Dataset):
 
 
 def write_csv(ds: Dataset, path: Path) -> None:
-    """Semicolon-separated, comma decimals, UTF-8 with BOM: opens cleanly in Turkish Excel."""
+    """Semicolon-separated, comma decimals, UTF-8 with BOM: opens cleanly in Turkish Excel. A text that starts like a
+    formula is written to be read as text."""
     with path.open("w", encoding="utf-8-sig", newline="") as f:
         w = csv.writer(f, delimiter=";")
         w.writerow(_COLUMNS)
         for row in _rows(ds):
             row[0] = row[0].strftime("%d.%m.%Y")
             row[10] = f"{row[10]:.2f}".replace(".", ",")
-            w.writerow(row)
+            w.writerow([spreadsheet_text(v) if isinstance(v, str) and i != 10 else v for i, v in enumerate(row)])
+
+
+def _as_text(wb: Workbook) -> None:
+    """Every text cell kept as text: openpyxl writes a string that starts with "=" as a formula, and a document's
+    text (a transfer's description, which its sender writes) must never run when the workbook is opened."""
+    for sheet in wb.worksheets:
+        for row in sheet.iter_rows():
+            for cell in row:
+                if cell.data_type == "f":
+                    cell.data_type = "s"
 
 
 _HEADER_FONT = Font(bold=True, color="FFFFFF")
@@ -510,6 +521,7 @@ def write_xlsx(
             cell.number_format = "#,##0.00"
     _insight_sheets(wb, ds, ins)
     _month_end_sheets(wb, months)
+    _as_text(wb)  # the workbook writes no formula of its own
     wb.save(path)
 
 
