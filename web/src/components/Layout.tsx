@@ -12,6 +12,7 @@ import { cn } from "../lib/cn";
 import type { Theme, View } from "../lib/preferences";
 import { builtGroups, MENU, type ScreenGroup, SETUP } from "./navigation";
 import { useTheme, useView } from "./Preferences";
+import { useFirstRun } from "./setup/useFirstRun";
 import { CloseIcon, MenuIcon, MonitorIcon, MoonIcon, SunIcon } from "./ui/Icons";
 import { Segmented } from "./ui/Segmented";
 
@@ -19,6 +20,7 @@ const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visi
 
 export function Layout() {
   useEventStream();
+  useFirstRun();
   const { t } = useTranslation("shell");
   const unread = useUnreadNotifications();
   const [open, setOpen] = useState(false);

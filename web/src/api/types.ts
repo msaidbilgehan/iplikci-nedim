@@ -93,6 +93,7 @@ import type {
   FxOut,
   FxRateOut,
   HoldingsOut,
+  ImapOut,
   InstallmentOut,
   InvoiceOut,
   InvoicesOut,
@@ -101,6 +102,8 @@ import type {
   CoverageOut,
   CoverOut,
   MailCoverageOut,
+  MailSettingsIn,
+  MailSettingsOut,
   MerchantNecessityIn,
   MerchantNecessityOut,
   MerchantRuleIn,
@@ -139,6 +142,10 @@ import type {
   RuleChangeOut,
   SeriesOut,
   SeriesStatus,
+  SettingsOut,
+  SetupOut,
+  SetupStep,
+  SetupStepOut,
   SourceRefOut,
   StatementCheckOut,
   StepOut,
@@ -350,3 +357,13 @@ export type ChangedRow = ChangedRowOut;
 export type { TodoAction, TodoKind };
 export type Todos = TodosOut;
 export type TodoItem = TodoOut;
+
+// The setup wizard and the Settings screen (F17): where each step stands, and the settings with no secret in them,
+// the e-mail address masked as the service gives it.
+export type { SetupStep };
+export type Setup = SetupOut;
+export type SetupStepState = SetupStepOut;
+export type Settings = SettingsOut;
+export type MailSettings = MailSettingsOut;
+export type MailChange = MailSettingsIn;
+export type ImapSetUp = ImapOut;

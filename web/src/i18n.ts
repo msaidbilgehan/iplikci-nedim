@@ -38,6 +38,8 @@ import invoices from "./locales/tr/invoices.json";
 import monthEnd from "./locales/tr/monthEnd.json";
 import notifications from "./locales/tr/notifications.json";
 import rules from "./locales/tr/rules.json";
+import settings from "./locales/tr/settings.json";
+import setup from "./locales/tr/setup.json";
 import shell from "./locales/tr/shell.json";
 import subscriptions from "./locales/tr/subscriptions.json";
 import system from "./locales/tr/system.json";
@@ -67,6 +69,8 @@ export const resources = {
     notifications,
     rules,
     todo,
+    setup,
+    settings,
   },
 } as const;
 

@@ -49,6 +49,8 @@ import type {
   Row,
   RuleChange,
   Series,
+  Settings,
+  Setup,
   Spending,
   Subscriptions,
   SystemStatus,
@@ -169,6 +171,17 @@ export const LABELS: Labels = {
     open: "Göster",
     ask_claude: "Claude'a ver",
     ignore: "Yok say",
+  },
+  SetupStep: {
+    data_folder: "Veri klasörü",
+    names: "Adınız",
+    business_names: "Şirket adları",
+    mail: "E-posta",
+    senders: "Bankalar ve göndericiler",
+    documents: "Eski belgeler",
+    notifications: "Bildirimler",
+    service: "Servis",
+    remote: "Uzaktan erişim",
   },
   MonthStatus: {
     closed: "Kapandı",
@@ -2858,6 +2871,45 @@ export const IGNORED_TODO = todo({
   ignored: true,
 });
 
+// --- the setup wizard and the Settings screen (F17) -----------------------------------------------------------------
+
+/** A computer where only the data folder, the senders and the service stand: names, e-mail and documents to do. */
+export const SETUP: Setup = {
+  steps: [
+    { step: "data_folder", done: true, optional: false, note: "/veri/iplikci" },
+    { step: "names", done: false, optional: false, note: "Henüz ad yok." },
+    { step: "business_names", done: false, optional: true, note: "Yok." },
+    { step: "mail", done: false, optional: false, note: "E-posta bağlantısı kurulmadı." },
+    { step: "senders", done: true, optional: true, note: "3 banka adresi, 1 banka dışı gönderici" },
+    { step: "documents", done: false, optional: false, note: "Henüz belge yok." },
+    { step: "notifications", done: false, optional: true, note: "Yalnızca uygulama içi." },
+    { step: "service", done: true, optional: false, note: "Bilgisayar açılınca kendiliğinden başlar." },
+    { step: "remote", done: false, optional: true, note: "Kapalı: yalnızca bu bilgisayardan." },
+  ],
+  first_run: false,
+};
+
+export function settings(overrides: Partial<Settings> = {}): Settings {
+  return {
+    home: "/veri/iplikci",
+    port: 8643,
+    names: [],
+    business_names: [],
+    mail: {
+      connector: "imap",
+      configured: false,
+      address: "",
+      start: "2026-01-01",
+      server: "",
+      stopped: false,
+      last_error: "",
+    },
+    bank_senders: ["garanti.com.tr", "teb.com.tr", "vakifbank.com.tr"],
+    backup_days: 30,
+    ...overrides,
+  };
+}
+
 export const handlers = [
   http.get("/api/labels", () => HttpResponse.json(LABELS)),
   http.get("/api/dashboard", () => HttpResponse.json(DASHBOARD)),
@@ -2935,6 +2987,22 @@ export const handlers = [
   ),
   http.post("/api/todos/ignored", () => new HttpResponse(null, { status: 204 })),
   http.post("/api/documents/:sha256/reparse", () => HttpResponse.json({ status: "processed" })),
+  // the setup wizard and the Settings screen (F17)
+  http.get("/api/setup", () => HttpResponse.json(SETUP)),
+  http.get("/api/settings", () => HttpResponse.json(settings())),
+  http.put("/api/settings/identity", async ({ request }) =>
+    HttpResponse.json(settings((await request.json()) as Pick<Settings, "names" | "business_names">)),
+  ),
+  http.put("/api/settings/mail", async ({ request }) => {
+    const change = (await request.json()) as { connector?: "imap" | "browser_bridge"; start?: string };
+    const mail = settings().mail;
+    return HttpResponse.json(settings({ mail: { ...mail, ...change } }));
+  }),
+  http.put("/api/settings/backup", async ({ request }) =>
+    HttpResponse.json(settings({ backup_days: ((await request.json()) as { keep_days: number }).keep_days })),
+  ),
+  http.post("/api/settings/mail/imap", () => HttpResponse.json({ folder: "INBOX", in_keyring: true })),
+  http.delete("/api/settings/mail/imap", () => new HttpResponse(null, { status: 204 })),
 ];
 
 export const server = setupServer(...handlers);

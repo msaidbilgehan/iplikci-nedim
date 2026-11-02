@@ -1,0 +1,66 @@
+{
+  "names": {
+    "label": "Ad ya da adın bir biçimi",
+    "hint": "Adınız ve soyadınız, bankaların yazdığı biçimleriyle (büyük harfle, Türkçe harfsiz, kısaltılmış): kendi hesaplarınız arasındaki transferler bunlarla tanınır.",
+    "list": "Adlarınız",
+    "add": "Ekle",
+    "remove": "{{name}} adını kaldır",
+    "needName": "Bir ad yazın.",
+    "twice": "Bu ad zaten listede.",
+    "tooMany": "En çok {{count, number}} ad yazılabilir.",
+    "saved": "Adlar kaydedildi."
+  },
+  "business": {
+    "label": "Şirket adı",
+    "hint": "Şirket kartları, ticari hesaplar ve bordro hiç okunmaz ve saklanmaz. Şirketinizin adını ekleyin: onun belgeleri de dışarıda kalır; liste değişince belgeler yeniden okunur.",
+    "list": "Şirket adları",
+    "saved": "Şirket adları kaydedildi; belgeler yeniden okunuyor."
+  },
+  "mail": {
+    "choose": "E-postalar nasıl gelsin?",
+    "option": {
+      "browser_bridge": "Tarayıcı eklentisi",
+      "imap": "Uygulama şifresi (IMAP)"
+    },
+    "about": {
+      "browser_bridge": "Chrome, Edge ya da Brave'deki açık Gmail oturumunuzdan banka iletilerini getirir; şifre istemez. Gmail'de Gelişmiş Koruma açıksa tek yol budur.",
+      "imap": "Uygulama şifresine izin veren bir hesabın adresi ve uygulama şifresiyle; bilgisayar açıkken e-postalar kendiliğinden gelir."
+    },
+    "now": {
+      "bridge": "E-postalar tarayıcı eklentisiyle geliyor.",
+      "paired": "{{count, number}} eklenti eşleşmiş.",
+      "notPaired": "Henüz eşleşmiş bir eklenti yok: aşağıdan bir kod alıp eklentiye girin.",
+      "none": "E-posta bağlantısı henüz kurulmadı.",
+      "refused": "{{address}} hesabının girişi reddedildi",
+      "again": "Program reddedilen girişi yeniden denemez: uygulama şifresini aşağıya yeniden girin.",
+      "imap": "E-postalar {{address}} hesabından geliyor ({{server}})."
+    },
+    "useBridge": "Tarayıcı eklentisini kullan",
+    "imap": {
+      "step1": "Hesabınızın güvenlik ayarlarından bu bilgisayar için bir uygulama şifresi oluşturun.",
+      "step2": "E-posta adresinizi ve uygulama şifresini aşağıya yazın.",
+      "step3": "Bir kez giriş denenir; olursa şifre bu bilgisayarın anahtar zincirinde saklanır.",
+      "address": "E-posta adresi",
+      "password": "Uygulama şifresi",
+      "send": "Hesabı kur",
+      "sending": "Giriş deneniyor…",
+      "kept": "Şifre yalnızca bu bilgisayarın anahtar zincirinde saklanır; bir daha gösterilmez.",
+      "refused": "Giriş yapılamadı",
+      "noRetry": "Reddedilen giriş yeniden denenmez: adresi ya da şifreyi düzeltip yeniden gönderin.",
+      "failed": "Beklenmeyen bir hata oldu.",
+      "done": "Hesap kuruldu: {{folder}} klasörü okunacak.",
+      "noKeyring": "Bu bilgisayarda anahtar zinciri olmadığı için şifre saklanamadı ve e-postalar bu yoldan alınamaz; tarayıcı eklentisini kullanın.",
+      "remove": "Hesabı kaldır",
+      "removed": "IMAP hesabı kaldırıldı.",
+      "removeTitle": "IMAP hesabı kaldırılsın mı?",
+      "removeText": "Adres ve uygulama şifresi bu bilgisayardan silinir; e-postalar bu yoldan gelmez."
+    },
+    "start": {
+      "label": "Okumaya başlama günü",
+      "now": "E-postalar {{day}} itibaren okunuyor.",
+      "save": "Günü kaydet",
+      "saved": "Kaydedildi: e-postalar {{day}} itibaren yeniden okunur.",
+      "outside": "Gün 01.01.2000 ile {{today}} arasında olmalı."
+    }
+  }
+}

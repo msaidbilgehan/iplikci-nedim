@@ -1,0 +1,36 @@
+{
+  "title": "Kurulum sihirbazı",
+  "description": "İplikçi Nedim'i dokuz adımda hazırlayın. İsteğe bağlı adımları atlayabilir, her adıma sonra buradan ya da Ayarlar ekranından dönebilirsiniz.",
+  "steps": "Kurulum adımları",
+  "stepOf": "Adım {{number}}/{{total}}: {{step}}",
+  "status": {
+    "done": "Tamam",
+    "optional": "İsteğe bağlı",
+    "todo": "Yapılmadı"
+  },
+  "back": "Geri",
+  "next": "İleri",
+  "skip": "Atla",
+  "later": "Şimdilik geç",
+  "finish": "Bitir",
+  "laterHint": "Bu adım gerekli: tamamlanmadan ilk değerlendirme eksik kalır. Şimdilik geçip sonra dönebilirsiniz.",
+  "about": {
+    "data_folder": "Belgeleriniz, ayarlarınız ve veritabanı bu klasörde; uygulamanın kendisinden ayrı durur. Yedekler de bu klasörden alınır.",
+    "names": "Kendi hesaplarınız arasındaki transferleri tanımak için adınız ve soyadınız gerekir.",
+    "business_names": "Şirketinize ait belgeler hiç okunmaz ve saklanmaz. Şirketiniz yoksa bu adımı atlayın.",
+    "mail": "Bankaların gönderdiği ekstreler, dekontlar ve bildirimler e-postayla gelir.",
+    "senders": "Bankaların gönderen adresleri uygulamayla gelir. Fatura ve makbuz gönderen başka kurumları da ekleyebilirsiniz.",
+    "documents": "Bankanızdan indirdiğiniz ekstreler ve hesap hareketleri, e-posta arşivleri (mbox) ya da bunların zip'i: geçmişiniz bunlarla tamamlanır.",
+    "notifications": "Bildirimler uygulamanın içinde her zaman görünür. Telefonunuza da gelsin isterseniz kendi Telegram botunuzu bağlayın ya da masaüstü bildirimlerini açın.",
+    "service": "Servis, İplikçi Nedim'in arka planda çalışan parçasıdır: e-postaları alır, belgeleri okur, yedekleri alır.",
+    "remote": "Arayüzü bu bilgisayarın dışından, örneğin telefonunuzdan açmak için."
+  },
+  "folder": "Veri klasörü",
+  "banks": "Okunan banka adresleri ({{count, number}})",
+  "banksList": "Okunan banka adresleri",
+  "service": {
+    "running": "Sürüm {{version}}; {{since}} tarihinden beri çalışıyor.",
+    "notRegistered": "Servis şu an çalışıyor, ama bilgisayar yeniden başlayınca kendiliğinden başlamaz. Servisi bilgisayara kurulum paketi kaydeder."
+  },
+  "remote": "Telefonunuzdan Tailscale ile güvenli erişim sonraki bir sürümde gelecek; o zamana dek arayüz yalnızca bu bilgisayardan açılır."
+}

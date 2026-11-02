@@ -75,6 +75,12 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
   Kurallar ekranını işyeriyle açar, "Belge yükle" yükleme panelini, "Yeniden oku" belgeyi yeniden okur, "Göster"
   satıra, faturaya ya da belgeye götürür, "Claude'a ver" isteği kopyalar. "Yok say" maddeyi listeden çıkarır, "Geri
   al" ile ya da yok sayılanların listesinden geri gelir. Panodaki sayı ekrana türüyle süzülmüş olarak götürür.
+- Kurulum sihirbazı (`/kurulum`): veri klasöründen uzaktan erişime dokuz adım, her biri nerede durduğu ve ne
+  istediğiyle; adım adreste durur (`?adim=`), sihirbaz yapılmamış ilk adımda açılır. Adlarınız ve şirket adlarınız;
+  e-postanın yolu, ya tarayıcı eklentisi (klasöründen kurulup eşleştirilir) ya da uygulama şifreli IMAP hesabı (şifre
+  yalnızca girilir, adres maskeli görünür); bankalar ve banka dışı göndericiler, eski belgeler, bildirim kanalları,
+  servis ve uzaktan erişim. Hiçbir şey kurulmamışken (ilk açılış) arayüz Pano yerine sihirbazla açılır, oturumda bir
+  kez.
 - API: akışın sayfaları ve "Şu an" (`GET /api/feed`, `GET /api/feed/now`), pano kartları (`GET /api/dashboard`),
   hesap grupları, hesap sayfası, hesaplar arası akış ve hesaba verilen ad (`GET /api/accounts…`,
   `PUT /api/accounts/{id}/alias`).

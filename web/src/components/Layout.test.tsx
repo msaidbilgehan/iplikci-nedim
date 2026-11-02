@@ -50,7 +50,7 @@ describe("Layout", () => {
       Analiz: ["/degerlendirme", "/ay-sonu"],
       Arşiv: ["/belgeler", "/faturalar"],
       Uygulama: ["/bildirimler", "/kurallar", "/sistem"],
-      Kurulum: ["/kurulum/eklenti"],
+      Kurulum: ["/kurulum", "/kurulum/eklenti"],
     };
     const lists = within(menu()).getAllByRole("list");
     expect(lists.map(accessibleNameOf)).toEqual(Object.keys(expected));

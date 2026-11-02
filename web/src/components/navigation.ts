@@ -67,7 +67,7 @@ export const MENU: readonly ScreenGroup[] = [
 export const SETUP: ScreenGroup = {
   key: "setup",
   screens: [
-    { to: "/kurulum", key: "setup", ready: false, end: true },
+    { to: "/kurulum", key: "setup", ready: true, end: true },
     { to: "/kurulum/eklenti", key: "extension", ready: true },
   ],
 };

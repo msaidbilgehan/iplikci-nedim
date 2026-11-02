@@ -40,9 +40,12 @@ import type {
   Flows,
   Forecast,
   Holdings,
+  ImapSetUp,
   Insights,
   Invoices,
   Labels,
+  MailChange,
+  MerchantRule,
   MonthEndDetail,
   MonthEndList,
   Notifications,
@@ -59,6 +62,8 @@ import type {
   RuleChange,
   RuleEdit,
   SavedView,
+  Settings,
+  Setup,
   Spending,
   Subscriptions,
   SystemStatus,
@@ -799,5 +804,75 @@ export function useIgnoreTodo() {
   return useMutation({
     mutationFn: (change: { key: string; ignored: boolean }) => api.post<void>("/api/todos/ignored", change),
     onSettled: () => client.invalidateQueries({ queryKey: keys.dashboard }),
+  });
+}
+
+// --- the setup wizard and the Settings screen (F17) -----------------------------------------------------------------
+
+// Under the System screen's key, as the exports: every event of the stream refreshes them (a paired extension, a
+// document read, a channel made ready all move a step of the setup).
+const setupKey = [...keys.system, "setup"] as const;
+const settingsKey = [...keys.system, "settings"] as const;
+const SETTINGS = "/api/settings";
+
+/** Where each step of the setup wizard stands, and whether nothing is set up yet (the app then opens the wizard). */
+export function useSetup() {
+  return useQuery({ queryKey: setupKey, queryFn: () => api.get<Setup>("/api/setup") });
+}
+
+/** The settings with no secret in them; the e-mail address masked, as the service gives it. */
+export function useSettings() {
+  return useQuery({ queryKey: settingsKey, queryFn: () => api.get<Settings>(SETTINGS) });
+}
+
+/** A settings change answered with the settings as they are now; the setup's steps are asked again. */
+function useSettingsChange<T>(path: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (change: T) => api.put<Settings>(`${SETTINGS}/${path}`, change),
+    onSuccess: (saved) => {
+      client.setQueryData(settingsKey, saved);
+      void client.invalidateQueries({ queryKey: setupKey });
+    },
+  });
+}
+
+/** The user's names and the company names, both lists whole; other company names make the documents be read again. */
+export function useSetIdentity() {
+  return useSettingsChange<{ names: string[]; business_names: string[] }>("identity");
+}
+
+/** The way e-mail comes in and the day the mailbox is read from. */
+export function useSetMail() {
+  return useSettingsChange<MailChange>("mail");
+}
+
+/** How many days of daily backups are kept. */
+export function useSetBackupDays() {
+  return useSettingsChange<{ keep_days: number }>("backup");
+}
+
+/**
+ * Set an IMAP account up: one login with its app password, then the password goes to the keychain. A plain call, not
+ * a mutation: a mutation keeps its variables in the client's cache, and the password must not stay in the page. A
+ * refused login keeps nothing, and nothing here tries it again.
+ */
+export async function setUpImap(
+  client: QueryClient,
+  account: { address: string; password: string; start: string | null },
+): Promise<ImapSetUp> {
+  try {
+    return await api.post<ImapSetUp>(`${SETTINGS}/mail/imap`, account);
+  } finally {
+    void client.invalidateQueries({ queryKey: keys.system }); // the settings, the setup and the mail's state
+  }
+}
+
+/** Forget the IMAP account and its password. */
+export function useRemoveImap() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.delete<void>(`${SETTINGS}/mail/imap`),
+    onSettled: () => client.invalidateQueries({ queryKey: keys.system }),
   });
 }
