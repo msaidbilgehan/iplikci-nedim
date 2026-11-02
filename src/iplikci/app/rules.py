@@ -5,6 +5,7 @@ which category to which — before the file is written; the file before it goes 
 who changed it."""
 
 import difflib
+import threading
 from collections import Counter, defaultdict
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
@@ -22,6 +23,7 @@ from ..domain.labels import NECESSITY
 from ..domain.models import Transaction
 from ..domain.money import round_half_up
 from ..domain.text import fold
+from ..settings import locks
 from ..storage import annotations, audit
 from . import annotate, background
 from .analysis import Current, ledger_input
@@ -246,23 +248,37 @@ def preview(ws: Workspace, before: Dataset, text: str) -> Change:
     return Change(text, rulefile.diff(old, text, ws.rules.name), changed, moves, examples, False, "")
 
 
-def save(ws: Workspace, current: Current, text: str, actor: Actor, write: bool = False) -> Change:
-    """Write text as the user's rules, the file before it kept in the history; what it changed. The analysis is made
-    again now and the exports and the feed follow in the background; write=True writes the exports at once (the MCP
-    server, which may run with no service to do it). RulesError for no change or unreadable rules."""
-    old = _personal(ws)
-    if text == old:
-        raise RulesError("değişiklik yok: kurallar zaten böyle")
-    _checked(ws, text)
-    before = current.get().dataset
-    backup = rulefile.replace(ws.rules, text, ws.rules_history)
-    with ws.db() as db:
-        audit.record(db, actor, RULES_CHANGED, ws.rules.name, backup=backup.name if backup else "")
+# One change of the rule file at a time: the service's threads by this lock, the other processes (the command line,
+# the MCP server) by the file lock beside the file. An edit made from the file another change was about to replace
+# would write over that change.
+_CHANGING = threading.Lock()
+_WAIT = 30.0  # seconds; a change waits for the analysis before it, which takes seconds on many documents
+
+
+def save(ws: Workspace, current: Current, text: str | Callable[[], str], actor: Actor, write: bool = False) -> Change:
+    """Write text as the user's rules, the file before it kept in the history; what it changed. text may be an edit
+    that makes the new file from the one there is: it is made once the change's turn comes, so two edits at once
+    both stand. The analysis is made again now and the exports and the feed follow in the background; write=True
+    writes the exports at once (the MCP server, which may run with no service to do it). RulesError for no change or
+    unreadable rules."""
+    try:
+        with _CHANGING, locks.held(ws.rules.with_name(f".{ws.rules.name}.kilit"), _WAIT):
+            old = _personal(ws)
+            new = text() if callable(text) else text
+            if new == old:
+                raise RulesError("değişiklik yok: kurallar zaten böyle")
+            _checked(ws, new)
+            before = current.get().dataset
+            backup = rulefile.replace(ws.rules, new, ws.rules_history)
+            with ws.db() as db:
+                audit.record(db, actor, RULES_CHANGED, ws.rules.name, backup=backup.name if backup else "")
+    except locks.LockTimeout as exc:
+        raise RulesError("kurallar şu an başka bir yerden değiştiriliyor; birazdan yeniden deneyin") from exc
     changed, moves, examples = _effect(before, current.refresh(write=write).dataset)
     background.request_refresh(ws)
     return Change(
-        text,
-        rulefile.diff(old, text, ws.rules.name),
+        new,
+        rulefile.diff(old, new, ws.rules.name),
         changed,
         moves,
         examples,

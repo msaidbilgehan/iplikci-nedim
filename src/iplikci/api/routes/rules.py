@@ -231,8 +231,9 @@ def change_category_rules(request: Request, body: RuleChangeIn) -> RuleChangeOut
     is returned."""
     context = context_of(request)
     try:
-        text = _text(context.ws, context.analysis.get(), body)
-        return _out(rules.save(context.ws, context.analysis, text, Actor.USER))
+        analysis = context.analysis.get()
+        # The edit is made from the rule file as it is once this change's turn comes: two changes at once both stand.
+        return _out(rules.save(context.ws, context.analysis, lambda: _text(context.ws, analysis, body), Actor.USER))
     except RulesError as exc:
         raise Problem(400, "rules_refused", str(exc)) from exc
     except Busy as exc:

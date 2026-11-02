@@ -2,6 +2,8 @@
 ledger (which rows move, from which category to which) and written only from the service's own pages, the file before
 it kept in the history."""
 
+import threading
+
 import pytest
 import yaml
 from fastapi.testclient import TestClient
@@ -10,7 +12,11 @@ from iplikci import demo
 from iplikci.api.app import create_app
 from iplikci.api.context import Context
 from iplikci.app import rules
+from iplikci.app.analysis import Current
 from iplikci.app.workspace import Workspace
+from iplikci.categorize import Categorizer
+from iplikci.domain.codes import Actor
+from iplikci.settings import locks
 from iplikci.storage import audit
 
 TOKEN = "deneme-belirteci"
@@ -114,3 +120,31 @@ def test_a_rule_file_the_program_could_not_read_is_refused_and_nothing_changes(c
     assert demo_ws.rules.read_text(encoding="utf-8") == before
     wrong = client.put("/api/rules/categories", json={"action": "faks"}, headers=OWN_PAGE)
     assert wrong.status_code == 422
+
+
+def test_two_rule_changes_made_at_the_same_moment_both_stand(demo_ws):
+    current = Current(demo_ws, write=False)
+    edits = [
+        lambda: rules.merchant_rule(demo_ws, "Market & Gıda", "Ornek Kahve", ["ORNEK KAHVE"]),
+        lambda: rules.merchant_rule(demo_ws, "Elektronik", "Ornek Teknoloji", ["ORNEK TEKNO"]),
+    ]
+    start = threading.Barrier(len(edits))
+    failed: list[Exception] = []
+
+    def change(edit) -> None:
+        start.wait()
+        try:
+            rules.save(demo_ws, current, edit, Actor.USER)
+        except (rules.RulesError, locks.LockTimeout) as exc:
+            failed.append(exc)
+
+    threads = [threading.Thread(target=change, args=(edit,)) for edit in edits]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert failed == []
+    homes = Categorizer.layered(demo_ws.rules).categories
+    data = yaml.safe_load(demo_ws.rules.read_text(encoding="utf-8"))
+    assert data[homes["Market & Gıda"]]["Market & Gıda"]["Ornek Kahve"] == ["ORNEK KAHVE"]
+    assert data[homes["Elektronik"]]["Elektronik"]["Ornek Teknoloji"] == ["ORNEK TEKNO"]  # the first is not lost

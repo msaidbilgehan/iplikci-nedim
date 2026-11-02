@@ -845,7 +845,7 @@ def _change_rules(s: Server, edit: Callable[[], str]) -> dict:
     """Make the change through the rules' use case (app.rules: the history, the audit log, the analysis again) and
     tell it as the MVP's tools did: the diff, the earlier file kept, which rows moved, the report written."""
     try:
-        change = category_rules.save(s.ws, s.current, edit(), Actor.MCP, write=True)
+        change = category_rules.save(s.ws, s.current, edit, Actor.MCP, write=True)
     except category_rules.RulesError as exc:
         raise ToolError(str(exc)) from exc
     outputs = s.current.get().outputs
