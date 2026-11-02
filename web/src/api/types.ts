@@ -11,6 +11,7 @@ import type {
   BridgeOut,
   CalendarItemOut,
   CalendarOut,
+  Certainty,
   Channel,
   ChannelStage,
   ChannelStateOut,
@@ -61,6 +62,7 @@ export type Queued = QueuedOut;
 export type RefusedMail = RefusedMailOut;
 export type MailCoverage = MailCoverageOut;
 export type Money = MoneyOut;
+export type { Certainty }; // how sure a row or a total is, and whether it counts (architecture §8)
 export type Subscriptions = SubscriptionsOut;
 export type Series = SeriesOut;
 export type Installment = InstallmentOut;

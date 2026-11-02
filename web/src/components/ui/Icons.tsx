@@ -110,3 +110,27 @@ export function CloseIcon(props: IconProps) {
     </Icon>
   );
 }
+
+export function ExclamationIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 5v9M12 19h.01" />
+    </Icon>
+  );
+}
+
+export function DotsIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M6 12h.01M12 12h.01M18 12h.01" />
+    </Icon>
+  );
+}
+
+export function ChevronDownIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="m6 9 6 6 6-6" />
+    </Icon>
+  );
+}
