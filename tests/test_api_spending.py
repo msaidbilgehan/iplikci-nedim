@@ -11,6 +11,8 @@ from iplikci.api.context import Context
 from iplikci.app.workspace import Workspace
 
 TOKEN = "deneme-belirteci"
+BASE = "http://127.0.0.1:8643"
+OWN_PAGE = {"Origin": BASE, "X-Iplikci": "1"}
 
 
 @pytest.fixture(scope="module")
@@ -99,3 +101,19 @@ def test_a_period_narrows_the_cards_but_never_the_forecast(client, found):
 def test_other_kinds_than_spending_are_counted_only_when_asked_for(client):
     income = cards(client, kind="income")
     assert income["tiles"]["count"] == 9 and income["categories"][0]["category"] == "Diğer Gelirler"
+
+
+def test_a_split_regular_payment_is_never_counted_again_as_variable_spending(tmp_path):
+    ws = Workspace.load(demo.build(tmp_path / "veri"))
+    client = TestClient(create_app(Context(ws=ws, token=TOKEN, today=lambda: demo.AS_OF)), base_url=BASE)
+    url = client.post("/api/login-links", headers={"Authorization": f"Bearer {TOKEN}"}).json()["url"]
+    client.get(url, follow_redirects=False)
+    before = cards(client)["forecast"]["lines"]
+    rents = client.get("/api/transactions", params={"category": "Kira", "limit": 500}, headers=OWN_PAGE).json()["rows"]
+    for rent in rents:  # rent and its dues, every month
+        minor = rent["amount"]["minor"]
+        parts = [{"minor": minor - 100000, "category": "Kira"}, {"minor": 100000, "category": "Market & Gıda"}]
+        put = client.put(f"/api/transactions/{rent['fingerprint']}/annotation", json={"parts": parts}, headers=OWN_PAGE)
+        assert put.status_code == 200
+    after = cards(client)["forecast"]["lines"]
+    assert after == before  # still one regular payment, and no part of it in the variable spending

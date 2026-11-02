@@ -75,6 +75,7 @@ class RowView:
     invoice: str  # the non-bank bill or receipt it paid, "<sha256>:<position>"; "" for none
     document: str  # the sha256 of the document it is printed in
     split_of: str  # a part of a split row: the row's fingerprint; "" for any other row
+    split_parts: int  # a part of a split row: how many parts the row has; 0 for any other row
 
 
 def view(t: Transaction, certainty: Certainty, currency: str = TRY, counted: bool = True) -> RowView:
@@ -103,6 +104,7 @@ def view(t: Transaction, certainty: Certainty, currency: str = TRY, counted: boo
         invoice=t.invoice,
         document=t.document,
         split_of=t.split_of,
+        split_parts=t.split_parts,
     )
 
 

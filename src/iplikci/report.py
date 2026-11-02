@@ -15,7 +15,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from . import month_end, mvp_codes
-from .analysis import CONFIRMED, NOT_ON_STATEMENT, PROVISIONAL, Dataset
+from .analysis import CONFIRMED, NOT_ON_STATEMENT, PROVISIONAL, Dataset, whole
 from .categorize import NECESSITY_SLOTS, group_slot
 from .domain.codes import DEFAULT_EXPENSE_KINDS, Necessity, TransactionKind
 from .domain.labels import ACCOUNT_TYPE, KIND, NECESSITY, currency_label
@@ -106,7 +106,7 @@ def build_payload(
                 "n": _level(t.necessity),
                 # r: regular payment it belongs to; x: merchant listed as ended (`_biten`);
                 # p: from a receipt no statement shows yet (provisional)
-                "r": series_of.get(id(t)),
+                "r": series_of.get(id(whole(ds, t))),  # a split row's parts belong to its series
                 "x": 1 if fold(t.merchant) in ds.ended else None,
                 "p": 1 if t.provisional else None,
             }

@@ -85,6 +85,7 @@ class RowOut(BaseModel):
     # A part of a row the user split (F04): the row's fingerprint, which its detail, its corrections and the viewer
     # go by; the part's own is the row's with its number after it. "" for any other row.
     split_of: str
+    split_parts: int  # a part of a split row: how many parts the row has; 0 for any other row
 
 
 def row_out(row: RowView, labels: dict[str, str]) -> RowOut:
@@ -112,6 +113,7 @@ def row_out(row: RowView, labels: dict[str, str]) -> RowOut:
         invoice=row.invoice,
         document=row.document,
         split_of=row.split_of,
+        split_parts=row.split_parts,
     )
 
 

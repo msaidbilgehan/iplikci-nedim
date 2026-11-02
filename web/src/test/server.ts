@@ -409,6 +409,7 @@ export function row(overrides: Partial<Row> = {}): Row {
     invoice: "",
     document: "e".repeat(64),
     split_of: "",
+    split_parts: 0,
     ...overrides,
   };
 }

@@ -7,6 +7,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
+from iplikci import forecast, report
 from iplikci.analysis import CONFIRMED, Dataset, ReceiptLine, payments
 from iplikci.app import annotate
 from iplikci.app.analysis import analyze
@@ -17,7 +18,7 @@ from iplikci.domain.codes import AccountType, Actor, CategoryReason, Necessity, 
 from iplikci.domain.fingerprint import Fingerprints, fingerprint
 from iplikci.domain.models import Account, Statement, Transaction
 from iplikci.fakes import teb
-from iplikci.insights import regular_payments, timeline
+from iplikci.insights import interpret, regular_payments, timeline
 from iplikci.parsers import registry
 from iplikci.settings.paths import HOME_ENV
 from iplikci.storage import annotations, audit
@@ -268,6 +269,31 @@ def test_a_split_payment_stays_one_payment_of_its_series():
     )
     [series], _ = regular_payments(ds, timeline(ds))
     assert len(series.payments) == 6 and series.payments[-1] is last and series.price_change() is None
+
+
+def test_a_split_series_payment_stays_with_its_series_in_the_forecast_and_the_report():
+    cash = Account("cash", "Test Vadesiz TL", "TEB", AccountType.CURRENT, number="111222333")
+    months = range(1, 9)
+    rows = [_purchase("1000.00", date(2026, m, 5), f"{m:020d}") for m in months]
+    for t in rows:
+        t.account, t.merchant, t.category = "cash", "Ornek Kira", "Kira"
+    cuts = [
+        Statement("cash", date(2026, m, 28), "TRY", "h.xls", Decimal(0), Decimal(0), start=date(2026, m, 1))
+        for m in months
+    ]
+    ds = Dataset({"cash": cash}, cuts, rows, [], [], {}, coverage={"cash": {f"2026-{m:02d}": 1.0 for m in months}})
+    parts = (annotations.Part(90000, "Kira"), annotations.Part(10000, "Aidat"))
+    notes = {
+        t.fingerprint: annotations.Annotation(t.fingerprint, annotate.subject(t, "TEB"), parts=parts) for t in rows[-5:]
+    }
+    annotate.apply(ds, notes, Categorizer())
+    assert {(p.split_of[-1:], p.split_parts) for p in ds.transactions if p.split_of} >= {("8", 2)}
+    ins = interpret(ds)
+    # The spending spread over the days ahead leaves the series out, its split payments' parts too.
+    spending, _ = forecast.spreads(ds, ins, "cash")
+    assert spending is not None and spending.monthly == 0
+    # The report marks every row of the series, parts and all.
+    assert {row["r"] for row in report.build_payload(ds, {"documents": 0, "duplicates": 0}, ins)["tx"]} == {0}
 
 
 # --- the command line ----------------------------------------------------------------------------------

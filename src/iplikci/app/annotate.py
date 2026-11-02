@@ -78,6 +78,7 @@ def _parts(t: Transaction, parts: Sequence[Part], categorizer: Categorizer) -> l
             group=categorizer.categories.get(part.category, OTHER_GROUP),
             fingerprint=part_fingerprint(t.fingerprint, number),
             split_of=t.fingerprint,
+            split_parts=len(parts),
             reason=replace(t.reason, category=CategoryReason.SPLIT, rule="", layer=""),
         )
         row.necessity = part.necessity or categorizer.necessity_for(row)

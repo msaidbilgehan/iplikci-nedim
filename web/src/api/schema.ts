@@ -1633,6 +1633,7 @@ export interface RowOut {
   invoice: string;
   document: string;
   split_of: string;
+  split_parts: number;
 }
 
 export interface RuleChangeOut {

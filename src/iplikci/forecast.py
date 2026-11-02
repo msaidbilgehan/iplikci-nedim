@@ -19,7 +19,7 @@ from decimal import Decimal
 from itertools import pairwise
 from statistics import median
 
-from .analysis import NO_STATEMENT, PROVISIONAL, Dataset, ReceiptLine
+from .analysis import NO_STATEMENT, PROVISIONAL, Dataset, ReceiptLine, whole
 from .domain.codes import CARD_TYPES, AccountType, PaymentKind, TransactionKind
 from .domain.labels import format_amount
 from .domain.models import TRY
@@ -191,7 +191,7 @@ def spreads(ds: Dataset, ins: Insights, account: str) -> tuple[Spread | None, Sp
             t.account != account
             or month not in spend
             or t.amount <= 0
-            or id(t) in in_series
+            or id(whole(ds, t)) in in_series  # a split payment's parts are in its series too
             or t.kind == TransactionKind.OWN_TRANSFER
             or fold(t.merchant) in ds.ended
         ):

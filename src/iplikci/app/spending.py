@@ -500,7 +500,7 @@ def _variable(a: Analysis, rows: list[RowView], base: tuple[str, ...], ahead: tu
         r
         for r in rows
         if month_of(r.day) in inside
-        and r.fingerprint not in in_series
+        and (r.split_of or r.fingerprint) not in in_series  # a split payment's parts are in its series too
         and not r.installment
         and fold(r.merchant) not in ended
         and r.necessity is not None
