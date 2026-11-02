@@ -172,6 +172,7 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
   birincinin başlattığı servisi durduruyordu. Açılışlar artık sırayla yürür.
 - Linux'ta zenity ya da kdialog olmayan bir masaüstünde, uygulamanın açılırken söylediği sorun ve tarayıcı
   açılamayınca verdiği bağlantı hiç görünmüyordu; artık kapatılana dek kalan bir bildirimle söylenir.
+- Başka bir diskin Uygulamalar klasörüne konan Mac uygulaması da "önce Uygulamalar klasörüne taşıyın" diyordu.
 
 ## [0.6.0] — 2026-11-02 — Aşama 5: Bildirimler
 

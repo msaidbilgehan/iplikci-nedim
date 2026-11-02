@@ -135,16 +135,20 @@ MISPLACED = (  # as service/launcher.misplaced says it, for an app that cannot r
 )
 MAC_LAUNCHER = """#!/bin/sh
 # Opens İplikçi Nedim: the Python inside the app runs the program isolated, in UTF-8 (ADR-0017).
-app="$(cd "$(dirname "$0")/../.." && pwd)"
-case "$app" in
-/Volumes/*|*/AppTranslocation/*)
+app="$(cd "$(dirname "$0")/../.." && pwd -P)"
+misplaced() {{
     # A disk image's place, or the random one macOS runs a downloaded app from, goes away: said before the Python runs,
     # which macOS would refuse there while it keeps the download's mark.
     /usr/bin/osascript -e 'on run argv' \\
         -e 'display dialog (item 1 of argv) with title "İplikçi Nedim" buttons {{"Tamam"}} default button 1' \\
         -e 'end run' "{misplaced}" >/dev/null 2>&1
     exit 1
-    ;;
+}}
+# The patterns service/launcher.misplaced tells the same with.
+case "$app" in
+*/AppTranslocation/*) misplaced ;;
+/Volumes/*/Applications/*) ;; # an Applications folder on another disk lasts as /Applications does
+/Volumes/*) misplaced ;;
 esac
 # Unsigned (K22): macOS asks the user once whether to open the app. What the app carries, its Python and libraries,
 # would be refused file by file while they keep the download's quarantine mark; the user has just opened the app, so

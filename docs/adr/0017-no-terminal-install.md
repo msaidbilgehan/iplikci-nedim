@@ -91,7 +91,8 @@ parçasıdır.
 - Ölçü: bir Mac'te (Apple Silicon), sıkıştırılmadan, CPython 3.13.18 72 MB, kurulu program ve
   bağımlılıkları 102 MB tutuyor.
 - **Kalıcı yer:** servis kaydı yeri değişmeyen bir yolu göstermelidir.
-  - macOS: uygulama Uygulamalar klasöründen çalışır. Disk görüntüsünden açılırsa önce taşınmasını ister.
+  - macOS: uygulama Uygulamalar klasöründen çalışır; başka bir diskteki Uygulamalar klasörü de olur. Disk
+    görüntüsünden açılırsa önce taşınmasını ister.
   - Windows: kurulum programı kullanıcının kendi klasörüne kurar (`%LOCALAPPDATA%\Programs`); yönetici izni
     gerekmez.
   - Linux: AppImage her açılışta başka bir yere bağlanır. İlk açılışta çalışma ortamını

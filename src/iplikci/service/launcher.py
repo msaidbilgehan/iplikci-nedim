@@ -9,6 +9,7 @@ import time
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
+from fnmatch import fnmatchcase
 from pathlib import Path
 
 from .. import __version__
@@ -38,9 +39,14 @@ class Opened:
 def misplaced(executable: Path, platform: str) -> str | None:
     """Why this copy may not register the service from where it runs, for the user; None when its place lasts. The
     service starts the Python it was registered with at every login, so that path must stay: not a disk image's,
-    and not the random place macOS runs a downloaded app from until it is moved (App Translocation)."""
+    and not the random place macOS runs a downloaded app from until it is moved (App Translocation). An Applications
+    folder on another disk lasts as /Applications does. The app's own executable tells the same with the same
+    patterns before its Python runs (packaging/build.py)."""
     text = executable.as_posix()
-    if platform == "darwin" and (text.startswith("/Volumes/") or "/AppTranslocation/" in text):
+    if platform != "darwin":
+        return None
+    on_a_volume = fnmatchcase(text, "/Volumes/*") and not fnmatchcase(text, "/Volumes/*/Applications/*")
+    if on_a_volume or fnmatchcase(text, "*/AppTranslocation/*"):
         return (
             "İplikçi Nedim'i önce Uygulamalar klasörüne taşıyın, sonra oradan açın. Disk görüntüsünden ya da "
             "indirildiği yerden açılan uygulama her açılışta başka bir yerde çalışır; arka plan servisi onu bulamaz."

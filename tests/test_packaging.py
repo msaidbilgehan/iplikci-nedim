@@ -28,6 +28,28 @@ def test_the_mac_app_says_what_the_program_says_when_it_runs_from_where_it_canno
     assert build_script().MISPLACED == launcher.misplaced(app, "darwin")
 
 
+@pytest.mark.parametrize(
+    ("place", "lasts"),
+    [
+        ("/Applications/İplikçi Nedim.app", True),
+        ("/Users/ayse/Applications/İplikçi Nedim.app", True),
+        ("/Volumes/Harici Disk/Applications/İplikçi Nedim.app", True),
+        ("/Volumes/Harici Disk/Users/ayse/Applications/İplikçi Nedim.app", True),
+        ("/Volumes/İplikçi Nedim/İplikçi Nedim.app", False),  # the disk image
+        ("/Volumes/Harici Disk/İndirilenler/İplikçi Nedim.app", False),
+        ("/private/var/folders/xy/T/AppTranslocation/1234/d/İplikçi Nedim.app", False),
+    ],
+)
+def test_the_mac_app_and_the_program_agree_on_where_the_app_lasts(place, lasts):
+    text = build_script().mac_launcher()
+    block = text[text.index('case "$app" in') : text.index("esac") + len("esac")]
+    script = f'misplaced() {{ echo tasinmali; exit 1; }}\napp="$1"\n{block}\necho kalir\n'  # a stand-in for the window
+    done = subprocess.run(["/bin/sh", "-c", script, "sh", place], capture_output=True, text=True, check=False)
+    assert done.stdout.strip() == ("kalir" if lasts else "tasinmali")
+    python = Path(place) / "Contents" / "Resources" / "python" / "bin" / "python3"
+    assert (launcher.misplaced(python, "darwin") is None) == lasts
+
+
 def _marked(path: Path) -> bool:
     return subprocess.run(["xattr", "-p", MARK, str(path)], capture_output=True, check=False).returncode == 0
 
