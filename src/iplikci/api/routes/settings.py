@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from ...app import senders, setup
 from ...app.senders import SenderRefused, SettingsError
-from ...app.setup import Actor
+from ...app.setup import Actor, SetupStep
 from ..context import context_of
 from ..guard import Principal
 from ..models import OtherSendersIn, OtherSendersOut
@@ -65,6 +65,7 @@ class SettingsOut(BaseModel):
     names: list[str]  # the user's own names and their forms
     business_names: list[str]  # company names: their documents stay out
     mail: MailSettingsOut
+    bank_senders: list[str]  # the banks' sender domains the program reads (shipped with it)
     backup_days: int
 
 
@@ -114,6 +115,7 @@ def _settings_out(found: setup.SettingsView) -> SettingsOut:
             stopped=m.stopped,
             last_error=m.last_error,
         ),
+        bank_senders=list(found.bank_senders),
         backup_days=found.backup_days,
     )
 
@@ -175,3 +177,28 @@ def settings_imap_remove(request: Request) -> None:
     """Forget the IMAP account and its password."""
     if not setup.remove_imap(context_of(request).ws, Actor.USER):
         raise Problem(404, "mail_not_set_up", "Kurulu bir IMAP hesabı yok.")
+
+
+class SetupStepOut(BaseModel):
+    step: SetupStep
+    done: bool
+    optional: bool  # the wizard lets the user go on without it
+    note: str
+
+
+class SetupOut(BaseModel):
+    steps: list[SetupStepOut]  # in the wizard's order
+    first_run: bool  # nothing set up yet: the interface opens the wizard
+
+
+@router.get("/api/setup", dependencies=[Depends(only(Principal.BROWSER, Principal.CLIENT))])
+def setup_progress(request: Request) -> SetupOut:
+    """Where each step of the setup wizard stands (F17)."""
+    try:
+        found = setup.progress(context_of(request).ws)
+    except setup.SettingsError as exc:
+        raise _refused(exc) from exc
+    return SetupOut(
+        steps=[SetupStepOut(step=s.step, done=s.done, optional=s.optional, note=s.note) for s in found.steps],
+        first_run=found.first_run,
+    )

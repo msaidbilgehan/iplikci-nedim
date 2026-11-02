@@ -6,11 +6,14 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 
-from ..domain.codes import Actor
+from ..domain.codes import Actor, Channel, DocumentStatus, SetupStep
+from ..domain.labels import CHANNEL
+from ..service import manager
 from ..settings import config
 from ..settings.config import SettingsError
-from ..storage import audit
-from . import background, mail
+from ..storage import audit, documents
+from ..storage import mail as mail_store
+from . import background, bridge, mail, notify
 from .workspace import Workspace
 
 __all__ = [
@@ -18,8 +21,11 @@ __all__ = [
     "ImapSetUp",
     "MailError",
     "MailView",
+    "Progress",
     "SettingsError",
     "SettingsView",
+    "SetupStep",
+    "StepState",
     "remove_imap",
     "set_backup_days",
     "set_identity",
@@ -54,6 +60,7 @@ class SettingsView:
     names: tuple[str, ...]  # the user's own names and their forms, to know transfers between own accounts
     business_names: tuple[str, ...]  # company names: their documents stay out
     mail: MailView
+    bank_senders: tuple[str, ...]  # the banks' sender domains the program reads (shipped with it)
     backup_days: int  # how many days of daily backups are kept
 
 
@@ -81,6 +88,7 @@ def view(ws: Workspace) -> SettingsView:
             stopped=bool(state["stopped"]),
             last_error=str(state["lastError"] or ""),
         ),
+        bank_senders=settings.mail.bank_senders,
         backup_days=settings.backup.keep_days,
     )
 
@@ -168,3 +176,85 @@ def remove_imap(ws: Workspace, actor: Actor) -> bool:
         with ws.db() as db:
             audit.record(db, actor, MAIL_CHANGED, "mail", removed=True)
     return removed
+
+
+# --- where the setup stands (the wizard, F17) -----------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class StepState:
+    step: SetupStep
+    done: bool
+    optional: bool  # the wizard lets the user go on without it
+    note: str  # where it stands, in Turkish
+
+
+@dataclass(frozen=True, slots=True)
+class Progress:
+    steps: list[StepState]
+    first_run: bool  # nothing set up yet: no name, no e-mail, no document; the interface opens the wizard
+
+
+def service_installed() -> bool:
+    """The service is registered with this computer's service manager (launchd, systemd or Task Scheduler)."""
+    return manager.for_platform().installed()
+
+
+def _mail_step(ws: Workspace, settings: config.Settings) -> StepState:
+    if settings.mail.connector == mail.BRIDGE:
+        paired = [b for b in bridge.every(ws) if b.active]
+        note = "Tarayıcı eklentisi eşleşti." if paired else "Tarayıcı eklentisi seçildi; henüz eşleşmedi."
+        return StepState(SetupStep.MAIL, bool(paired), False, note)
+    if not settings.mail.address:
+        return StepState(SetupStep.MAIL, False, False, "E-posta bağlantısı kurulmadı.")
+    with ws.db() as db:
+        stopped = mail_store.load(db, mail.IMAP).stopped
+    if stopped:
+        return StepState(SetupStep.MAIL, False, False, "E-posta girişi reddedildi; uygulama şifresini yeniden girin.")
+    return StepState(SetupStep.MAIL, True, False, "IMAP hesabı kurulu.")
+
+
+def progress(ws: Workspace) -> Progress:
+    """Each step of the wizard, whether it is done and where it stands."""
+    settings = config.load(ws.layout.settings)
+    with ws.db() as db:
+        kept = sum(d.status is not DocumentStatus.REMOVED for d in documents.every(db))
+    ready = [c for c in notify.status(ws).channels if c.ready and c.channel is not Channel.IN_APP]
+    registered = service_installed()
+    names, companies = settings.identity.names, settings.identity.business_names
+    others = settings.mail.other_senders
+    steps = [
+        StepState(SetupStep.DATA_FOLDER, True, False, str(ws.home)),
+        StepState(SetupStep.NAMES, bool(names), False, f"{len(names)} ad" if names else "Henüz ad yok."),
+        StepState(
+            SetupStep.BUSINESS_NAMES, bool(companies), True, f"{len(companies)} şirket adı" if companies else "Yok."
+        ),
+        _mail_step(ws, settings),
+        StepState(
+            SetupStep.SENDERS,
+            True,
+            True,
+            f"{len(settings.mail.bank_senders)} banka adresi, {len(others)} banka dışı gönderici",
+        ),
+        StepState(SetupStep.DOCUMENTS, kept > 0, False, f"{kept} belge" if kept else "Henüz belge yok."),
+        StepState(
+            SetupStep.NOTIFICATIONS,
+            bool(ready),
+            True,
+            "Hazır: " + ", ".join(CHANNEL[c.channel] for c in ready) if ready else "Yalnızca uygulama içi.",
+        ),
+        StepState(
+            SetupStep.SERVICE,
+            registered,
+            False,
+            "Bilgisayar açılınca kendiliğinden başlar." if registered else "Bu bilgisayara kayıtlı değil.",
+        ),
+        StepState(
+            SetupStep.REMOTE,
+            settings.server.remote == "tailscale",
+            True,
+            "Tailscale ile açık." if settings.server.remote == "tailscale" else "Kapalı: yalnızca bu bilgisayardan.",
+        ),
+    ]
+    mail_done = next(s.done for s in steps if s.step is SetupStep.MAIL)
+    return Progress(steps, not names and not kept and not mail_done)

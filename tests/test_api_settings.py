@@ -126,3 +126,22 @@ def test_backups_are_kept_for_one_day_to_a_year(client, ws):
     assert found["backup_days"] == 30 and config.load(ws.layout.settings).backup.keep_days == 30
     for days in (0, 366):
         assert client.put("/api/settings/backup", json={"keep_days": days}, headers=OWN_PAGE).status_code == 422
+
+
+def test_the_wizard_says_where_each_step_stands_and_opens_on_the_first_run(client, ws, mail, monkeypatch):
+    monkeypatch.setattr(setup, "service_installed", lambda: False)
+    first = client.get("/api/setup", headers=bearer()).json()
+    steps = {s["step"]: s for s in first["steps"]}
+    assert list(steps)[:2] == ["data_folder", "names"] and steps["data_folder"]["note"] == str(ws.home)
+    assert steps["mail"]["done"] and steps["mail"]["note"] == "IMAP hesabı kurulu."  # the fixture set one up
+    assert not first["first_run"]  # e-mail is set up: no first run any more
+    assert (steps["service"]["done"], steps["remote"]["optional"]) == (False, True)
+    assert not steps["documents"]["done"] and steps["documents"]["note"] == "Henüz belge yok."
+
+
+def test_without_anything_set_up_it_is_the_first_run(client, ws, monkeypatch):
+    monkeypatch.setattr(setup, "service_installed", lambda: True)
+    found = client.get("/api/setup", headers=bearer()).json()
+    assert found["first_run"]
+    assert next(s for s in found["steps"] if s["step"] == "service")["done"]
+    assert client.get("/api/settings", headers=bearer()).json()["bank_senders"]  # the shipped banks

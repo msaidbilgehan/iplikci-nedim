@@ -35,6 +35,7 @@ from .codes import (
     RuleLayer,
     SeriesPeriod,
     SeriesStatus,
+    SetupStep,
     SourceKind,
     TodoAction,
     TodoKind,
@@ -354,6 +355,18 @@ PAID_STATUS: dict[PaidStatus, str] = {
     PaidStatus.NOTHING_DUE: "Borç yoktu",
 }
 
+SETUP_STEP: dict[SetupStep, str] = {
+    SetupStep.DATA_FOLDER: "Veri klasörü",
+    SetupStep.NAMES: "Adınız",
+    SetupStep.BUSINESS_NAMES: "Şirket adları",
+    SetupStep.MAIL: "E-posta",
+    SetupStep.SENDERS: "Bankalar ve göndericiler",
+    SetupStep.DOCUMENTS: "Eski belgeler",
+    SetupStep.NOTIFICATIONS: "Bildirimler",
+    SetupStep.SERVICE: "Servis",
+    SetupStep.REMOTE: "Uzaktan erişim",
+}
+
 FLOW_KIND: dict[FlowKind, str] = {
     FlowKind.ACCOUNT: "Hesap",
     FlowKind.INCOME: "Gelir",
@@ -407,6 +420,7 @@ TABLES: dict[type[StrEnum], dict[StrEnum, str]] = {
     UnusualKind: _table(UNUSUAL_KIND),
     NecessityReason: _table(NECESSITY_REASON),
     ForecastPart: _table(FORECAST_PART),
+    SetupStep: _table(SETUP_STEP),
 }
 
 # The interface writes the Turkish lira as "TL" (ADR-0006).

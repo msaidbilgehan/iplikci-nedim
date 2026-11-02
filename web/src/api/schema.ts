@@ -1529,7 +1529,23 @@ export interface SettingsOut {
   names: string[];
   business_names: string[];
   mail: MailSettingsOut;
+  bank_senders: string[];
   backup_days: number;
+}
+
+export interface SetupOut {
+  steps: SetupStepOut[];
+  first_run: boolean;
+}
+
+/** The setup wizard's steps (F17), in its order. */
+export type SetupStep = "data_folder" | "names" | "business_names" | "mail" | "senders" | "documents" | "notifications" | "service" | "remote";
+
+export interface SetupStepOut {
+  step: SetupStep;
+  done: boolean;
+  optional: boolean;
+  note: string;
 }
 
 export interface SkippedOut {

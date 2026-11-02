@@ -391,3 +391,17 @@ class FlowKind(StrEnum):
     LOAN = "loan"  # a loan's principal paid, or a loan received
     CASH = "cash"  # cash taken with a card
     ELSEWHERE = "elsewhere"  # an own account or a card no document shows the other side of
+
+
+class SetupStep(StrEnum):
+    """The setup wizard's steps (F17), in its order."""
+
+    DATA_FOLDER = "data_folder"  # where the data lives: information only
+    NAMES = "names"  # the user's own names and their forms
+    BUSINESS_NAMES = "business_names"  # company names, whose documents stay out (optional)
+    MAIL = "mail"  # how e-mail comes in: the browser extension paired, or an IMAP account
+    SENDERS = "senders"  # the banks the program reads, and the non-bank senders the user adds (optional)
+    DOCUMENTS = "documents"  # older documents taken in from a folder, an mbox or a zip
+    NOTIFICATIONS = "notifications"  # a channel besides the interface's box (optional)
+    SERVICE = "service"  # the service registered to start with the computer (ADR-0017)
+    REMOTE = "remote"  # remote access through Tailscale (optional)
