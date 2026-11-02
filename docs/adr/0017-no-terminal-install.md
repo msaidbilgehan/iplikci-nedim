@@ -144,7 +144,8 @@ parçasıdır.
   - macOS: yeni uygulama eskisinin yerine sürüklenir. Çalışan servis eski dosyalarla sürer; uygulama açılınca yeni
     sürümle yeniden başlar.
   - Windows: kurulum programı önce servisi kaldırır ve sürecin bitmesini bekler, Python'u bütünüyle değiştirir,
-    sonra uygulamayı açar; uygulama servisi yeniden kaydeder.
+    sonra uygulamayı açar; uygulama servisi yeniden kaydeder. Servis durmazsa güncelleme yapılmaz; kurulum programı
+    nedenini söyler.
   - Linux: yeni sürümün kopyası eskisinin yanına kurulur; yeni servis yanıt verince yalnızca daha eski sürümlerin
     kopyaları kaldırılır.
 - **Her iş arayüzde:** servis arayüzden durdurulur, yeniden başlatılır ve bilgisayardan kaldırılır; bir yedek

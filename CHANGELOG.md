@@ -180,6 +180,8 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
 - Linux'ta programın kopyaları veri klasörünün içindeydi (`~/.local/share/iplikci/app`): veri klasörünü çöpe atan
   kaldırma çalışan programı da götürüyor, veri klasörünü kenara almak servisi bozuyordu. Kopyalar artık
   `~/.local/lib/iplikci/<sürüm>` klasöründedir; eski yerdekiler yeni sürüm ilk açıldığında kaldırılır.
+- Windows güncellemesi, arka plan servisi durmasa da sürüyor ve çalışan programın dosyalarını değiştirmeye
+  kalkışıyordu; artık durur ve nedenini söyler.
 
 ## [0.6.0] — 2026-11-02 — Aşama 5: Bildirimler
 

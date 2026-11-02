@@ -334,7 +334,9 @@ RunOnceId: "servis"
 
 [Code]
 // An update: the running service holds the older Python's files open. It is taken off the computer first and waits
-// until the process has ended; the app opened at the end registers and starts it again from the new files.
+// until the process has ended; the app opened at the end registers and starts it again from the new files. When the
+// service does not end, the update stops here: replacing files a running process holds would leave a broken program.
+// An older program that cannot run at all holds nothing, and the update repairs it.
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   Code: Integer;
@@ -343,9 +345,29 @@ begin
   Result := '';
   Python := ExpandConstant('{{app}}\\python\\python.exe');
   if FileExists(Python) then
-    Exec(Python, '-I -X utf8 -m iplikci servis kaldir', '', SW_HIDE, ewWaitUntilTerminated, Code);
+    if Exec(Python, '-I -X utf8 -m iplikci servis kaldir', '', SW_HIDE, ewWaitUntilTerminated, Code) then
+      if Code <> 0 then
+        Result := '{stopped}';
 end;
 """
+SERVICE_NOT_STOPPED = (  # the Windows installer's own words when the update cannot go on (Inno Setup's quoting)
+    "İplikçi Nedim''in arka plan servisi durdurulamadı, bu yüzden güncelleme yapılmadı. Bilgisayarı yeniden "
+    "başlatın, sonra kurulum programını yeniden çalıştırın."
+)
+
+
+def inno_script(out: Path | str, source: Path | str) -> str:
+    """The Inno Setup script of the installer: the program's folder source, the setup program written into out."""
+    return ISS.format(
+        version=version(),
+        out=out,
+        slug=SLUG,
+        arch=arch(),
+        icon=ASSETS / "iplikci.ico",
+        source=source,
+        launch=" ".join(LAUNCH),
+        stopped=SERVICE_NOT_STOPPED,
+    )
 
 
 def iscc() -> str | None:
@@ -362,16 +384,7 @@ def windows(python_root: Path, out: Path, work: Path) -> Path:
     shutil.copytree(python_root, folder / "python")
     shutil.copy2(ASSETS / "iplikci.ico", folder / "iplikci.ico")
     script = work / "iplikci.iss"
-    text = ISS.format(
-        version=version(),
-        out=out,
-        slug=SLUG,
-        arch=arch(),
-        icon=ASSETS / "iplikci.ico",
-        source=folder,
-        launch=" ".join(LAUNCH),
-    )
-    script.write_text(text, encoding="utf-8-sig")  # Inno Setup reads UTF-8 by its byte order mark
+    script.write_text(inno_script(out, folder), encoding="utf-8-sig")  # Inno Setup reads UTF-8 by its byte order mark
     compiler = iscc()
     if compiler is None:
         print(f"ISCC bulunamadı: kurulum programı derlenmedi; klasör hazır: {folder}")

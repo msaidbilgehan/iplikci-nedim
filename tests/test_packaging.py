@@ -147,21 +147,23 @@ def test_an_appimage_that_cannot_copy_its_python_says_so_in_the_desktops_window(
 
 
 def test_a_windows_update_takes_the_service_off_and_replaces_the_whole_python():
-    build = build_script()
-    script = build.ISS.format(
-        version="0.7.0",
-        out="C:\\cikti",
-        slug=build.SLUG,
-        arch="x86_64",
-        icon="C:\\simge.ico",
-        source="C:\\kaynak",
-        launch=" ".join(build.LAUNCH),
-    )
+    script = build_script().inno_script("C:\\cikti", "C:\\kaynak")
     assert 'Type: filesandordirs; Name: "{app}\\python"' in script.split("[InstallDelete]")[1].split("[Files]")[0]
     assert "function PrepareToInstall(var NeedsRestart: Boolean): String;" in script
     assert "Exec(Python, '-I -X utf8 -m iplikci servis kaldir'" in script
     run = script[script.index("[Run]") : script.index("[UninstallRun]")]
     assert "postinstall" not in run and "-m iplikci uygulama" in run  # the app always opens and registers the service
+
+
+def test_a_windows_update_stops_with_its_reason_when_the_service_does_not_end():
+    code = build_script().inno_script("C:\\cikti", "C:\\kaynak").split("[Code]")[1]
+    # Exec is true when the older program ran: one that cannot run holds nothing, and the update repairs it.
+    assert "if Exec(Python, '-I -X utf8 -m iplikci servis kaldir', '', SW_HIDE, ewWaitUntilTerminated, Code)" in code
+    assert "if Code <> 0 then" in code
+    assert (
+        "Result := 'İplikçi Nedim''in arka plan servisi durdurulamadı, bu yüzden güncelleme yapılmadı. Bilgisayarı "
+        "yeniden başlatın, sonra kurulum programını yeniden çalıştırın.';"
+    ) in code  # a non-empty result stops Inno Setup on its "Preparing to install" page with these words
 
 
 def test_the_portable_python_is_the_install_itself_never_the_link_uv_makes_to_it(tmp_path, monkeypatch):
