@@ -11,7 +11,7 @@ import re
 import sqlite3
 import sys
 from collections.abc import Generator, Iterator, Sequence
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from datetime import UTC, datetime
 from importlib import resources
 from pathlib import Path
@@ -123,10 +123,21 @@ def applied(db: Database) -> set[int]:
     return {int(row[0]) for row in db.rows("SELECT version FROM schema_migrations")}
 
 
+class NewerDatabase(Exception):
+    """A newer version of the program has changed the database: this one would read it wrong (Turkish message)."""
+
+
 def migrate(db: Database, backups: Path | None) -> list[int]:
     """Apply the migrations the database lacks, each in its own transaction; returns their numbers. A
-    database that already holds data is backed up into backups first."""
+    database that already holds data is backed up into backups first. NewerDatabase when a newer version has
+    migrated it further than this one knows: an older copy of the program opened again never runs on it."""
     done = applied(db)
+    newest = schema_version()
+    if done and max(done) > newest:
+        raise NewerDatabase(
+            "Bu veri klasörünü İplikçi Nedim'in daha yeni bir sürümü açmış (veritabanının son göçü "
+            f"{max(done)}, bu sürümün bildiği son göç {newest}). İplikçi Nedim'in yeni sürümünü açın."
+        )
     pending = [m for m in migrations() if m[0] not in done]
     if pending and done and backups is not None:
         backup(db, backups / f"iplikci göç öncesi {max(done):04d} {_stamp()}.db")
@@ -139,6 +150,19 @@ def migrate(db: Database, backups: Path | None) -> list[int]:
                 (number, name, now()),
             )
     return [number for number, _, _ in pending]
+
+
+def written_by_newer(path: Path) -> int | None:
+    """The newest migration of the database at path when a newer program made it, read without changing anything
+    (the launcher asks before it registers an older copy); None for a database this program knows, or none at all."""
+    if not path.is_file():
+        return None
+    try:
+        with closing(sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True)) as connection:
+            newest = connection.execute("SELECT max(version) FROM schema_migrations").fetchone()[0]
+    except sqlite3.Error:
+        return None  # not a database of ours yet, or no migration made: connect makes it
+    return int(newest) if newest is not None and int(newest) > schema_version() else None
 
 
 def _statements(sql: str) -> Iterator[str]:

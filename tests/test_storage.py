@@ -66,6 +66,19 @@ def test_a_new_migration_backs_the_database_up_first(tmp_path, monkeypatch):
         old.close()
 
 
+def test_an_older_program_never_runs_on_a_database_a_newer_one_migrated(tmp_path, monkeypatch):
+    path = tmp_path / "iplikci.db"
+    db.connect(path).close()
+    newest = db.schema_version()
+    known = db.migrations()
+    monkeypatch.setattr(db, "migrations", lambda: known[:-1])  # the copy one version older
+    with pytest.raises(db.NewerDatabase, match=f"veritabanının son göçü {newest}, bu sürümün bildiği son göç"):
+        db.connect(path)
+    assert db.written_by_newer(path) == newest  # what the launcher asks before it registers this copy
+    monkeypatch.undo()
+    assert db.written_by_newer(path) is None and db.written_by_newer(tmp_path / "yok.db") is None
+
+
 def test_migration_numbers_have_no_gaps():
     assert [n for n, _, _ in db.migrations()] == list(range(1, len(db.migrations()) + 1))
 
