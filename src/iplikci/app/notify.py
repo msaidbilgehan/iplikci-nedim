@@ -618,41 +618,50 @@ def set_preferences(
     return saved
 
 
+def _tested(channel: Channel, detail: DetailLevel, error: str = "") -> Notification:
+    """A test as the history keeps it: sent, or failed with its error."""
+    at = _iso(_now())
+    return Notification(
+        id=0,
+        created_at=at,
+        rule=_TEST.title,
+        event_id=0,
+        kind=TEST_KIND,
+        key=f"{_TESTED}{at}",
+        channel=channel,
+        detail=detail,
+        title=_TEST.title,
+        body=_TEST.body,
+        status=DeliveryStatus.FAILED if error else DeliveryStatus.SENT,
+        attempts=1 if error else 0,
+        sent_at="" if error else at,
+        error=error,
+    )
+
+
 def send_test(ws: Workspace, channel: Channel, senders: Mapping[Channel, Sender] | None = None) -> None:
     """A test notification now, on a channel turned on or not: the user asked for it, so a channel a refused login
-    stopped is tried once again. NotifyError says why it did not go."""
+    stopped is tried once again. The history keeps every attempt; NotifyError says why it did not go."""
     settings = _settings(ws)
     with ws.db() as db:
         if channel is Channel.IN_APP:
-            at = _iso(_now())
-            test = Notification(
-                id=0,
-                created_at=at,
-                rule=_TEST.title,
-                event_id=0,
-                kind=TEST_KIND,
-                key=f"{_TESTED}{at}",
-                channel=Channel.IN_APP,
-                detail=DetailLevel.FULL,
-                title=_TEST.title,
-                body=_TEST.body,
-                status=DeliveryStatus.SENT,
-                sent_at=at,
-            )
-            stored.add(db, test)
+            stored.add(db, _tested(channel, DetailLevel.FULL))
             return
         _resume(db, channel)
         carriers = dict(senders) if senders is not None else open_senders(ws, db, settings, every=True)
         sender = carriers.get(channel)
-        if sender is None:
+        if sender is None:  # nothing was tried: the channel's note says what it still needs
             note = next(s.note for s in channel_states(ws, db, settings, full=True) if s.channel is channel)
             raise NotifyError(note)
+        detail = DetailLevel(settings.notify.detail.get(channel.value, DetailLevel.SUMMARY.value))
         try:
             sender.send(_TEST)
         except SendError as exc:
             if exc.refused:
                 _stop(db, channel, str(exc))
+            stored.add(db, _tested(channel, detail, str(exc)))
             raise NotifyError(str(exc)) from None
+        stored.add(db, _tested(channel, detail))
 
 
 # --- Telegram ------------------------------------------------------------------------------------------

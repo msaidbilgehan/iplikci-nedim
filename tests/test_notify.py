@@ -571,7 +571,19 @@ def test_a_test_notification_goes_to_the_channel_asked_or_says_why_not(ws, desk)
     notify.send_test(ws, Channel.IN_APP)
     assert notify.status(ws).unread == 1
     with pytest.raises(notify.NotifyError, match="belirteci girilmedi"):
-        notify.send_test(ws, Channel.TELEGRAM)
+        notify.send_test(ws, Channel.TELEGRAM)  # nothing was tried: no history for it
+    logged = {n.channel: n for n in rows(ws)}
+    assert logged.keys() == {Channel.DESKTOP, Channel.IN_APP}
+    tried = logged[Channel.DESKTOP]
+    assert (tried.kind, tried.status, tried.detail) == (notify.TEST_KIND, DeliveryStatus.SENT, DetailLevel.SUMMARY)
+
+
+def test_a_failed_test_is_kept_in_the_history_with_its_error(ws, desk):
+    desk.refused = True
+    with pytest.raises(notify.NotifyError):
+        notify.send_test(ws, Channel.DESKTOP)
+    [failed] = rows(ws)
+    assert (failed.status, failed.attempts) == (DeliveryStatus.FAILED, 1) and failed.error
 
 
 # --- primary data --------------------------------------------------------------------------------------
