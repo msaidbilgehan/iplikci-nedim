@@ -36,7 +36,7 @@ from ..domain.text import fold
 from ..storage import annotations, audit, documents, feed_state
 from ..storage.annotations import Annotation
 from . import annotate, background
-from .analysis import Analysis
+from .analysis import Analysis, account_labels
 from .rows import Direction, Found, Rows, RowView, view
 from .workspace import Workspace
 
@@ -148,7 +148,8 @@ class Page:
 
 
 def labels(a: Analysis) -> dict[str, str]:
-    return {key: acc.label for key, acc in a.dataset.accounts.items()}
+    """The accounts as the screens name them: the user's own name for one, else the bank's label."""
+    return account_labels(a)
 
 
 def every_row(a: Analysis) -> list[RowView]:
@@ -417,7 +418,7 @@ def detail(ws: Workspace, a: Analysis, fingerprint: str) -> Detail:
         about = [found.told]
     return Detail(
         row=found.view,
-        account=a.dataset.accounts[t.account].label if t.account in a.dataset.accounts else t.account,
+        account=labels(a).get(t.account, t.account),
         printed=_printed(t, docs),
         why=_why(t.reason, level, level_file, Rows(a.dataset)),
         told=_told(about, docs),
