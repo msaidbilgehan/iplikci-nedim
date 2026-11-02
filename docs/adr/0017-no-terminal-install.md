@@ -54,7 +54,8 @@ Bugünkü tasarımda kurulum ve bazı işler terminal ister (mimari §19): `uv t
 - macOS'ta Apple onayı (notarization) ve Windows'ta kod imzalama ücretlidir. İmzasız paket ilk açılışta uyarı verir.
 - Kurulum rehberi uyarının arayüzden nasıl geçileceğini gösterir: macOS'ta Sistem Ayarları → Gizlilik ve Güvenlik →
   "Yine de aç"; Windows'ta "Ek bilgi" → "Yine de çalıştır".
-- İmzalama için ödeme yapılıp yapılmayacağı kullanıcının kararıdır (açık soru).
+- İmzalama için ödeme yapılıp yapılmayacağı kullanıcının kararıdır. Karar (K22, 2026-11-02): paketler şimdilik
+  imzalanmaz.
 
 **Zamanlama**
 
