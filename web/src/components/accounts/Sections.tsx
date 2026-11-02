@@ -27,10 +27,12 @@ export function StatusCard({ item, labels }: { item: AccountItem; labels: Labels
   const balance = item.balance
     ? t("status.balance", { balance: formatMoney(item.balance), day: item.day ? formatDay(item.day) : "—" })
     : t("status.noBalance");
-  const month = t("status.month", {
+  // The service's note goes with the figures: a month no document reaches yet reads 0 and 0 until one does.
+  const month = t(m.note ? "status.monthNote" : "status.month", {
     month: m.month,
     moneyIn: formatMoney(m.money_in),
     moneyOut: formatMoney(m.money_out),
+    note: m.note,
   });
   return (
     <Card title={t("status.title")}>

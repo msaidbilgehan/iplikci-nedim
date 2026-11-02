@@ -55,6 +55,25 @@ describe("AccountsPage: the account map", () => {
     expect(within(euro).getByText("TL karşılığı 18.500,00 TL")).toBeInTheDocument();
   });
 
+  it("puts the service's note beside this month's figures, as when no document reaches the month yet", async () => {
+    const note = "bu ayın hareketleri henüz hiçbir belgede yok";
+    const groups = ACCOUNTS.groups.map((group) =>
+      group.group !== "current"
+        ? group
+        : {
+            ...group,
+            accounts: group.accounts.map((item, i) => {
+              const month = { ...item.month, rows: 0, money_out: { minor: 0, currency: "TRY" }, note };
+              return i === 0 ? { ...item, month } : item;
+            }),
+          },
+    );
+    server.use(http.get("/api/accounts", () => HttpResponse.json({ ...ACCOUNTS, groups })));
+    renderScreen(<AccountsPage />, { path: "/hesaplar" });
+    const cash = within(await group("Vadesiz")).getByRole("link", { name: "Örnek Vadesiz TL" }).closest("li")!;
+    expect(within(cash).getByText(`Kasım 2026: henüz işlem yok (${note})`)).toBeInTheDocument();
+  });
+
   it("leads every account to its page", async () => {
     renderScreen(<AccountsPage />, { path: "/hesaplar" });
     expect(within(await group("Vadesiz")).getByRole("link", { name: "Örnek Vadesiz TL" })).toHaveAttribute(

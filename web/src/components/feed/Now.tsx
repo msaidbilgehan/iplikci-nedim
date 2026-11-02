@@ -297,7 +297,10 @@ function PaceCard({ pace, today }: { pace: Pace; today: string }) {
   const { t } = useTranslation("feed");
   const spent = formatMoney(pace.spent);
   let say: string;
-  if (pace.typical === null || pace.by_day === null) {
+  if (pace.covered === 0 && pace.spent.minor === 0) {
+    // No document reaches the month yet: that nothing was spent is not known.
+    say = t("now.pace.sayNone", { month: pace.month });
+  } else if (pace.typical === null || pace.by_day === null) {
     say = t("now.pace.sayNoTypical", { month: pace.month, spent });
   } else {
     const values = { month: pace.month, spent, byDay: formatMoney(pace.by_day) };

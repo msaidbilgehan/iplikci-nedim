@@ -101,6 +101,7 @@
     "balance": "Bakiye {{balance}}; {{day}} itibarıyla.",
     "noBalance": "Bakiyesi hiçbir belgede yazmıyor.",
     "month": "{{month, inMonth}} giren {{moneyIn}}, çıkan {{moneyOut}}.",
+    "monthNote": "{{month, inMonth}} giren {{moneyIn}}, çıkan {{moneyOut}} ({{note}}).",
     "balanceName": "Bakiye",
     "value": "TL karşılığı",
     "day": "Bakiyenin günü",

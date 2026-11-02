@@ -47,6 +47,7 @@
       "say": "{{month, inMonth}} bugüne kadar {{spent}} harcandı; tipik ayın aynı günlerinde {{byDay}} harcanmıştı.",
       "sayCovered": "{{month, inMonth}} bugüne kadar {{spent}} harcandı (tipik ayın aynı günlerinde {{byDay}}); günlerin {{share, percentPossessive}} belgelerle kapsandı.",
       "sayNoTypical": "{{month, inMonth}} bugüne kadar {{spent}} harcandı; tipik ayla karşılaştırmak için en az 3 tam ay gerekiyor.",
+      "sayNone": "{{month, inMonth}} bugüne kadarki günleri kapsayan ekstre ya da döküm henüz gelmedi; harcamalar belgeler geldikçe görünür.",
       "next": "Bu ayın işlemlerini göster"
     },
     "empty": "Henüz bakiyesi, kartı ya da harcaması bilinen bir hesap yok",

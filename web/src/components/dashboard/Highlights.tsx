@@ -71,6 +71,8 @@ export function Highlights({ found, labels }: { found: Dashboard; labels: Labels
   const { t } = useTranslation("dashboard");
   const { net_worth: worth, month, due, todo } = found;
   const pace = month.pace;
+  // No document reaches the month yet: that nothing was spent is not known, so no zero and no meter are shown.
+  const unread = pace.covered === 0 && pace.spent.minor === 0;
   const [first] = due.items;
   return (
     <section aria-label={t("highlights.label")} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -89,10 +91,17 @@ export function Highlights({ found, labels }: { found: Dashboard; labels: Labels
       <Tile
         label={t("highlights.month")}
         icon={<PulseIcon className="size-4" />}
-        value={formatMoney(pace.spent)}
+        value={unread ? t("highlights.monthNone") : formatMoney(pace.spent)}
         link={month.link}
       >
-        {pace.typical ? (
+        {unread ? (
+          <>
+            <span className="block">{t("highlights.monthNoneText", { month: formatMonth(pace.month) })}</span>
+            {pace.typical ? (
+              <span className="block">{t("highlights.typicalOnly", { amount: formatMoney(pace.typical) })}</span>
+            ) : null}
+          </>
+        ) : pace.typical ? (
           <>
             <span className="block">
               {t("highlights.typical", { month: formatMonth(pace.month), amount: formatMoney(pace.typical) })}

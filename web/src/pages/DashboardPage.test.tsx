@@ -32,6 +32,18 @@ describe("DashboardPage", () => {
     expect(tile(/^Yapılacaklar/)).toHaveTextContent("3 iş bekliyor");
   });
 
+  it("says no document has come for the month yet instead of a zero spent", async () => {
+    const pace = { ...DASHBOARD.month.pace, covered: 0, spent: { minor: 0, currency: "TRY" } };
+    const month = { ...DASHBOARD.month, pace };
+    server.use(http.get("/api/dashboard", () => HttpResponse.json({ ...DASHBOARD, month })));
+    renderScreen(<DashboardPage />);
+    const first = await screen.findByRole("region", { name: "Özet" });
+    const tile = within(first).getByRole("link", { name: /^Bu ay harcanan/ });
+    expect(tile).toHaveTextContent("Belge yok");
+    expect(tile).toHaveTextContent("Kasım 2026 için ekstre ya da döküm henüz gelmedi");
+    expect(tile).not.toHaveTextContent("0,00 TL");
+  });
+
   it("says what each card shows in the service's words, and leaves out what the first row already says", async () => {
     renderScreen(<DashboardPage />);
     const says: Array<[string, string]> = [
@@ -158,6 +170,9 @@ describe("DashboardPage", () => {
     expect(within(july).getByText("Belge eksik")).toBeInTheDocument();
     expect(within(july).getByText("−9.039,99 TL")).toBeInTheDocument();
     expect(within(july).getByText("Örnek Vadesiz TL: 1–4 Temmuz hesap dökümü eksik")).toBeInTheDocument();
+    expect(within(july).getByText(/^gelir eksik olabilir: Örnek Vadesiz TL dökümü/)).toBeInTheDocument();
+    const october = within(within(closing).getByRole("table")).getByText("Ekim 2026").closest("tr")!;
+    expect(within(october).queryByText("hesap dökümlerindeki gelen para")).not.toBeInTheDocument(); // closed
     const november = within(within(closing).getByRole("table")).getByText("Kasım 2026").closest("tr")!;
     expect(within(november).getAllByText("bilinmiyor")).toHaveLength(2); // its income is not known yet
     const worth = await card("Net varlık");

@@ -131,7 +131,12 @@ function MonthFlow({ item }: { item: AccountItem }) {
   const { t } = useTranslation("accounts");
   const m = item.month;
   if (m.rows === 0) {
-    return <p className={SMALL}>{t("account.monthNone", { month: formatMonth(m.month) })}</p>;
+    return (
+      <p className={SMALL}>
+        {t("account.monthNone", { month: formatMonth(m.month) })}
+        {m.note ? ` (${m.note})` : ""}
+      </p>
+    );
   }
   return (
     <p className={SMALL}>
@@ -141,7 +146,7 @@ function MonthFlow({ item }: { item: AccountItem }) {
         moneyOut: formatMoney(m.money_out),
       })}
       {m.provisional > 0 ? ` ${t("account.monthProvisional", { count: m.provisional })}` : ""}
-      {m.note ? ` ${m.note}` : ""}
+      {m.note ? `; ${m.note}` : ""}
     </p>
   );
 }

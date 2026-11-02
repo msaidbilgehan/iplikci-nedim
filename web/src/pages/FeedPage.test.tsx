@@ -91,6 +91,19 @@ describe("FeedPage: what stands now", () => {
     ).toBeInTheDocument();
   });
 
+  it("says no document has come for the month yet rather than that nothing was spent", async () => {
+    const pace = { ...NOW.pace, covered: 0, spent: { minor: 0, currency: "TRY" } };
+    server.use(http.get("/api/feed/now", () => HttpResponse.json({ ...NOW, pace })));
+    renderScreen(<FeedPage />, { path: NOW_TAB });
+    const card = await section("Ay içi tempo");
+    expect(
+      within(card).getByText(
+        "Kasım 2026'da bugüne kadarki günleri kapsayan ekstre ya da döküm henüz gelmedi; harcamalar belgeler " +
+          "geldikçe görünür.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("shows the balances as a table in the detailed view", async () => {
     localStorage.setItem("iplikci.view", "detailed");
     renderScreen(<FeedPage />, { path: NOW_TAB });
