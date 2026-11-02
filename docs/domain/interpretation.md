@@ -45,6 +45,14 @@ Kullanıcı yalnızca toplamları değil, yorumu ve stratejiyi istiyor. Kullanı
 
 Biten bir "Gerekli" fatura "Belgelerde yok" diye gösterilir: belgesi olmayan bir hesaptan ödeniyor olabilir.
 
+**Fiyat değişimi**
+
+- Son fiyat en az iki ödemedir sürüyorsa ve kendinden önceki üç ödemenin medyanından %5'ten fazla farklıysa yeni
+  fiyattır. Birbirinden %2 içinde kalan tutarlar aynı fiyat sayılır. Değişimin günü yeni fiyatın ilk ödemesidir.
+- Yurt dışından dövizle faturalanan bir ödeme (kart ekstresi TL tutarın yanında döviz tutarını da yazar: "4,00 USD")
+  döviz tutarıyla karşılaştırılır. Aylık 4 dolarlık bir planın TL tutarı her ay kurla oynar; bu zam değildir. Yalnızca
+  son ödemeyle aynı dövizde yazılı son ödemelere bakılır. Gösterilen eski ve yeni fiyat yine TL'dir.
+
 **Dönemsel seriler (V1 taslak kuralı)**
 
 - Aynı ödeme alanına ~182 gün (160–200) ya da ~365 gün (330–400) arayla en az iki ödeme.
@@ -61,7 +69,8 @@ Biten bir "Gerekli" fatura "Belgelerde yok" diye gösterilir: belgesi olmayan bi
     kadardır: ödeme son ödemeden 200 (altı ayda bir) ya da 400 (yılda bir) gün sonrasına kadar gecikebilir, beklenen
     tarihten en az 10 gün.
   - Beklenen tutar son ödemedir: dönemsel bir fiyat bir dönem boyunca değişmez. Fiyat değişimi son ödemeyi bir
-    öncekiyle karşılaştırır ve fark %5'i geçerse gösterilir.
+    öncekiyle karşılaştırır ve fark %5'i geçerse gösterilir. Dövizle faturalanan iki ödeme döviz tutarlarıyla
+    karşılaştırılır.
 
 ## Alışkanlıklar
 
@@ -162,7 +171,8 @@ nedenleri arasında sayılmaz.
     - Seri dışı girişler öngörülmez: düzensiz gelir ileriye taşınmaz.
   - KMH faizi yalnızca belgede yazan aylık oranla hesaplanır; oran yoksa faiz tahmin edilmez (oranı okuyan bir okuyucu
     henüz yok).
-  - Öngörü her zaman "tahmin" diye işaretlenir. Eksiye düştüğü gün `balance.forecast_negative` olayı üretilir.
+  - Öngörü her zaman "tahmin" diye işaretlenir. Eksiye düştüğü gün uyarı sayılıyorsa `balance.forecast_negative`
+    olayı üretilir (aşağıda, Akış olayları).
 - **Olağan dışı hareketler** (yalnızca işaret, satır silinmez; son 90 günün hareketleri)
   - Geçmişte en az 3 ödemesi olan bir işyerinde, medyanının 3 katından büyük ve medyanından en az 500 TL fazla bir
     çekim. Kafede birkaç lira fazlası haber değildir.
@@ -196,7 +206,15 @@ kez söylenir; ilk analiz yalnızca not eder.
   - Gününe 7, 3, 1 ve 0 gün kala söylenir; her eşik bir kez. Kalan günün girdiği en dar eşik söylenir: servis kapalı
     kaldıysa atlanan eşikler sonradan söylenmez.
 - **Eksiye düşen hesap** (`balance.forecast_negative`)
-  - Nakit akışı öngörüsünde bir TL hesabın eksiye düştüğü ilk gün.
+  - Nakit akışı öngörüsünde bir TL hesabın eksiye düştüğü ilk gün. İki hesabınki uyarı sayılmaz; öngörü grafiği
+    onların eksi günlerini yine gösterir, öngörünün notu nedenini yazar:
+    - Ek hesap (KMH): eksi bakiyesi kullanılan kredidir.
+    - Kendi hesaplarından düzenli para aktarılan hesap: öngörünün seri dışı çıkışları yaydığı tam aylarda kendi
+      hesaplardan gelen para, hesaptan çıkanın en az yarısıdır. Öngörü bu aktarmaları saymaz (kendi hesaplar arası
+      transferler öngörüye girmez); hesap, kartı ödediği ve aktarmalar gelmediği için eksiye iner.
+  - Hesapların toplamı da izlenir ("Hesaplarınızın toplamı"): toplam bugün eksi değilken öngörüde eksiye düşerse
+    söylenir. Kendi hesaplar arasındaki aktarmalar toplamda birbirini götürür, KMH'nin kullanılan kredisi borç olarak
+    sayılır. Toplamın ilk eksi günü bir hesabın uyarısıyla aynı gün ve tutarsa (tek hesap) ikinci kez söylenmez.
   - Hesap önceki analizde eksiye düşmüyorduysa ya da gün öne geldiyse söylenir.
   - Gün yalnızca ileri kaydıysa yeni haber değildir. Bakiye bugün zaten eksideyse ilk eksi gün her gün bugündür;
     bakiyesi 60 günden eski bir hesabın öngörüsü her gün aynı bakiyeden başlar, günlere yayılan çıkışların
@@ -214,7 +232,13 @@ kez söylenir; ilk analiz yalnızca not eder.
     sonradan gelse de söylenmez.
 - **Zam ve iptalden sonra ödeme**
   - `subscription.price_changed`: süren bir serinin yeni fiyatı (fiyat değişimi kuralı yukarıda), yeni fiyatın ilk
-    ödemesinin günüyle.
+    ödemesinin günüyle. Kuralın adı "Düzenli ödeme zammı"dır: faturalar ve kira da seridir (2026-11-03'e dek
+    "Abonelik zammı").
+    - Yeni fiyatı kesinleştiren ödeme analiz gününden en çok 45 gün önceyse söylenir: aylık seride yeni fiyatın
+      ikinci ödemesi, dönemsel seride tek ödemesi. Bir kart ekstresi bir ödemeyi bir aya kadar sonra gösterir ve
+      kesimden günler sonra gelir.
+    - Daha eskisi geçmiştir: geçen yılın belgelerini getiren bir içe aktarma geçen yılın zamlarını söylemez. Fiyat
+      değişimi Düzenli ödemeler ekranında yine görünür.
   - `subscription.paid_after_cancel`: iptal edilmiş serinin iptal ayından sonraki en son ödemesi; daha yeni bir ödeme
     yeniden söylenir.
 - **Gelen gelir** (`income.received`): bir gelir serisinin yeni satırı. Büyük harcama gibi yalnızca analiz gününden en

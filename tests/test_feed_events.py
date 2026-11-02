@@ -337,6 +337,31 @@ def test_a_new_price_is_told_once_from_the_payment_that_shows_it_holds():
     ]
 
 
+def test_a_new_price_is_history_once_the_payment_that_made_it_certain_is_older_than_repriced_days():
+    # 1.640 TL from 5 April, certain with the second payment at it on 5 May: an import that brings these
+    # statements later tells it only within REPRICED_DAYS of 5 May.
+    amounts = [1500] * 3 + [1640] * 3
+    gym = [
+        tx(d, "Örnek Spor", a, "Dijital Abonelikler", account="card")
+        for d, a in zip(monthly(date(2026, 1, 5), 6), amounts, strict=True)
+    ]
+    ds = dataset(gym, [card_statement(date(2026, 6, 18))])
+    last_day = date(2026, 5, 5) + timedelta(days=news.REPRICED_DAYS)
+    assert [f.detail["since"] for f in finds(news.REPRICED, ds, last_day)] == ["2026-04-05"]
+    assert finds(news.REPRICED, ds, last_day + timedelta(days=1)) == []
+
+
+def test_a_yearly_payments_new_price_is_certain_on_its_one_payment_and_history_after_repriced_days():
+    insurance = [
+        tx(date(2024, 11, 5), "Örnek Sigorta", 4000, "Sigorta"),
+        tx(date(2025, 11, 5), "Örnek Sigorta", 4400, "Sigorta"),
+    ]
+    ds = dataset(insurance, [account_list(date(2025, 11, 30), start=date(2024, 11, 1))])
+    last_day = date(2025, 11, 5) + timedelta(days=news.REPRICED_DAYS)
+    assert [f.detail["new"] for f in finds(news.REPRICED, ds, last_day)] == ["4400.00"]
+    assert finds(news.REPRICED, ds, last_day + timedelta(days=1)) == []
+
+
 def test_a_payment_after_the_cancellation_month_is_told_once_at_the_latest_one():
     magazine = [tx(d, "Örnek Dergi", 50, "Dijital Abonelikler", account="card") for d in monthly(date(2026, 6, 9), 5)]
     ended = {fold("Örnek Dergi"): "2026-08"}

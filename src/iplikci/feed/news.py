@@ -6,11 +6,14 @@ match. Each finder returns what it finds with what its notification says; the sn
   its day. A card's installments are paid within its statement, and what a card is charged on its own (a
   subscription) asks nothing of the user: telling them would be noise every month. Each of these thresholds is told
   once, the tightest one the days left reach: after a stop only that one, not those skipped.
-- `balance.forecast_negative`: a bank account's forecast goes below zero within its days.
+- `balance.forecast_negative`: a bank account's forecast goes below zero within its days (an overdraft account's
+  below-zero balance is its credit in use, and an account the user tops up from their own accounts goes as low as the
+  transfers the forecast does not project: neither is told), or the accounts' total does.
 - `expected_payment.missing`, `income.late`: the documents of the accounts a regular or periodic payment, or a regular
   income, was last seen on went past its expected day and its grace without it.
-- `subscription.price_changed`: a running series' new price; `subscription.paid_after_cancel`: a payment after the
-  month the user's rules give a cancelled series as its last.
+- `subscription.price_changed`: a running series' new price, while the payment that made it certain is recent (an
+  import of last year's statements brings last year's price rises: history, not news);
+  `subscription.paid_after_cancel`: a payment after the month the user's rules give a cancelled series as its last.
 - `income.received`: a row of a regular income; `transaction.large`: a single purchase outside the series from the
   insights' large purchase threshold on; both dated within NEWS_DAYS before the analysis day, so that the history an
   import or a statement brings tells nothing. A statement row that confirms a receipt's row is that row told again,
@@ -56,6 +59,10 @@ TO_PAY = frozenset(
 _FROM_ACCOUNT = frozenset({PaymentKind.REGULAR, PaymentKind.PERIODIC})
 NEWS_DAYS = 7  # a new row dated more than this many days before the analysis day is history, not news
 LATE_DAYS = HORIZON  # a payment or income that did not come is news as long after its grace as the calendar looks ahead
+# A price change is news while the payment that made it certain is this recent: a card statement shows a payment up
+# to a month after it and comes days after its cut.
+REPRICED_DAYS = 45
+TOTAL = "Hesaplarınızın toplamı"  # what the accounts' summed forecast is called where an account's name would stand
 _EXPECTED = ("devam", "bitti")  # running, or ended as its documents went past it; a cancelled series is not expected
 
 
@@ -91,7 +98,7 @@ def find(ds: Dataset, ins: Insights, today: date, dues: Sequence[CardDue] = ()) 
         *negatives(forecast(ds, ins, today, items)),
         *missing(ds, ins, today),
         *late(ds, ins, today),
-        *repriced(ins),
+        *repriced(ins, today),
         *paid_after_cancelling(ds, ins),
         *income_received(ins, today, confirmed),
         *large(ds, ins, today, confirmed),
@@ -128,20 +135,20 @@ def due_soon(items: Iterable[Due], today: date, cards: Iterable[str] = ()) -> li
 
 
 def negatives(fc: Forecast) -> list[Found]:
-    """The bank accounts whose forecast goes below zero within its days, at the first such day."""
+    """The bank accounts whose forecast goes below zero within its days and warns of it (AccountForecast.warning), at
+    the first such day; and the accounts' total, when it goes below zero after today."""
+    labels = {account.account: account.label for account in fc.accounts}
     found: list[Found] = []
-    for account in fc.accounts:
-        if (first := account.negative) is None:
-            continue
-        day, balance = first
+    for account, (day, balance) in fc.warnings:
+        title = labels[account] if account else TOTAL
         detail: dict[str, Any] = {
-            "account": account.account,
-            "title": account.label,
+            "account": account,
+            "title": title,
             "day": day.isoformat(),
             "days": (day - fc.today).days,
             "balance": money(balance),
         }
-        found.append(Found(NEGATIVE, f"{account.account}|{day.isoformat()}", detail))
+        found.append(Found(NEGATIVE, f"{account or 'toplam'}|{day.isoformat()}", detail))
     return found
 
 
@@ -206,18 +213,26 @@ def late(ds: Dataset, ins: Insights, today: date) -> list[Found]:
     return found
 
 
-def repriced(ins: Insights) -> list[Found]:
+def repriced(ins: Insights, today: date) -> list[Found]:
     """The running regular and periodic payments with a new price (Series.price_change), from the first payment at
-    it."""
+    it, while the payment that made the price certain is within REPRICED_DAYS before today."""
     found: list[Found] = []
     for s in [*ins.series, *ins.periodic]:
         change = s.price_change() if s.running else None
-        if change is None:
+        if change is None or _certain_on(s, change[2]) < today - timedelta(days=REPRICED_DAYS):
             continue
         old, new, since = change
         detail: dict[str, Any] = {"title": s.merchant, "old": money(old), "new": money(new), "since": since.isoformat()}
         found.append(Found(REPRICED, f"{series_id(s)}|{since.isoformat()}", detail))
     return found
+
+
+def _certain_on(s: Series, since: date) -> date:
+    """The day a new price became certain: the second payment at it (Series.price_change wants two); a periodic
+    payment's one."""
+    if isinstance(s, PeriodicSeries):
+        return since
+    return next((t.date for t in s.payments if t.date > since), since)
 
 
 def paid_after_cancelling(ds: Dataset, ins: Insights) -> list[Found]:

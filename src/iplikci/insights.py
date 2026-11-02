@@ -17,6 +17,7 @@ Only complete months are used: card statements end at their cut dates, so the
 newest month is usually partial.
 """
 
+import re
 from collections import defaultdict
 from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
@@ -295,15 +296,47 @@ class Series:
 
     def price_change(self) -> tuple[Decimal, Decimal, date] | None:
         """(old price, new price, first payment at the new price) when the latest price has held
-        for at least two payments and differs from the three payments before it."""
-        amounts = [abs(t.amount) for t in self.payments]
-        i = len(amounts) - 1
-        while i > 0 and _change(amounts[i - 1], amounts[-1]) <= Decimal("0.02"):
+        for at least two payments and differs from the three payments before it. A payee that bills in a foreign
+        currency is compared by what it bills, the amount a card statement prints beside the TL one: its TL amount
+        moves with the rate every month (a plan at 4 USD a month is no price rise as the dollar climbs). The prices
+        given are TL, as the payments were."""
+        billed = _billed_tail(self.payments)
+        paid = self.payments[-len(billed) :] if billed else self.payments
+        amounts = [abs(t.amount) for t in paid]
+        prices = billed or amounts
+        i = len(prices) - 1
+        while i > 0 and _change(prices[i - 1], prices[-1]) <= Decimal("0.02"):
             i -= 1
-        if len(amounts) - i < 2 or i == 0:
+        if len(prices) - i < 2 or i == 0:
             return None
-        old = median(amounts[max(0, i - 3) : i])
-        return (old, amounts[-1], self.payments[i].date) if _change(old, amounts[-1]) > Decimal("0.05") else None
+        if _change(median(prices[max(0, i - 3) : i]), prices[-1]) <= Decimal("0.05"):
+            return None
+        return median(amounts[max(0, i - 3) : i]), amounts[-1], paid[i].date
+
+
+# The foreign amount a card statement prints beside a payment made abroad: "4,00 USD", "1.234,56 EUR".
+_FOREIGN = re.compile(r"^(\d{1,3}(?:\.\d{3})*|\d+),(\d{2}) ([A-Z]{3})$")
+
+
+def _billed(t: Transaction) -> tuple[Decimal, str] | None:
+    """What a payment billed in a foreign currency cost in it, and the currency; None for a payment in TL."""
+    found = _FOREIGN.match(t.original.strip())
+    return (Decimal(f"{found[1].replace('.', '')}.{found[2]}"), found[3]) if found else None
+
+
+def _billed_tail(payments: list[Transaction]) -> list[Decimal]:
+    """The foreign amounts of the latest payments that all have one in the last payment's currency, oldest first;
+    none when the last payment was in TL."""
+    last = _billed(payments[-1]) if payments else None
+    if last is None:
+        return []
+    tail: list[Decimal] = []
+    for t in reversed(payments):
+        found = _billed(t)
+        if found is None or found[1] != last[1]:
+            break
+        tail.append(found[0])
+    return tail[::-1]
 
 
 def _day_gap(a: date, b: date) -> int:
@@ -487,11 +520,14 @@ class PeriodicSeries(Series):
 
     def price_change(self) -> tuple[Decimal, Decimal, date] | None:
         """(previous amount, last amount, the last payment's day) when the last payment moved more than 5%: a
-        periodic price holds for a whole period, so one payment at it is enough."""
+        periodic price holds for a whole period, so one payment at it is enough. A foreign price is compared in its
+        own currency, as Series.price_change does."""
         if len(self.payments) < 2:
             return None
         old = abs(self.payments[-2].amount)
-        return (old, self.amount, self.last.date) if _change(old, self.amount) > Decimal("0.05") else None
+        billed = _billed_tail(self.payments)
+        before, after = (billed[-2], billed[-1]) if len(billed) >= 2 else (old, self.amount)
+        return (old, self.amount, self.last.date) if _change(before, after) > Decimal("0.05") else None
 
 
 def _periodic_chain(payee: str, items: list[Transaction]) -> list[PeriodicSeries]:

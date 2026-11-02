@@ -259,7 +259,7 @@ Ekranın adı "Düzenli ödemeler"dir (`/abonelikler`; 2026-11-02'ye dek "Abonel
   - durum,
   - aylık karşılık (yalnızca süren serilerde; dönemselde dönem başına tutar),
   - son ödeme ve beklenen sonraki ödeme (tarih ve tutar),
-  - fiyat değişimi (dövizli serilerde kur etkisi ayrı),
+  - fiyat değişimi (dövizle faturalanan serilerde döviz tutarıyla karşılaştırılır: kurun etkisi zam sayılmaz),
   - belgeleri.
 - **"İptal ettim":** `_biten`'e ay yazılır. Sonra ödeme görünürse uyarı verilir.
 - **Taksitli alışverişler:** kalan taksit sayısı ve tutarı, bitiş ayı.
@@ -280,6 +280,9 @@ G10, K7 · Çekirdek
   - Önümüzdeki 60 gün için hesap başına gün gün bakiye.
   - Varsayımlar görünür; örneğin hangi ödemenin hangi hesaptan çıkacağı geçmiş ödemelerden çıkarılır.
   - Hesabın eksiye düştüğü gün ve tutar.
+  - Uyarı: ek hesabın (KMH) ve kendi hesaplarından düzenli para aktarılan hesabın eksi günleri uyarı sayılmaz; notları
+    nedenini yazar. Hesapların toplamı eksiye düşerse uyarılır
+    ([domain/interpretation.md](../domain/interpretation.md#akış-olayları)).
   - KMH faizi tahmini, oran belgede yazıyorsa.
 - **Etiket:** öngörü her zaman "tahmin" etiketi taşır.
 - **V1+:** takvim aboneliği (`.ics`).
@@ -374,6 +377,13 @@ G12, K10 · Çekirdek
 - **İlk okuma (Aşama 6, 2026-11-02):** e-posta geçmişi baştan okunurken bildirimler yalnızca uygulamanın kutusuna
   düşer: eklentide ilk tarama bitene, IMAP'te geçmiş sonuna dek okunana kadar. Geçmişin bir parçasından çıkan uyarılar
   masaüstüne, Telegram'a ve e-postaya gitmez (test edilir). Taramanın ortasında doğan geçici bir "Hesap eksiye düşecek" uyarısı, tarama bitince geçersiz kalabilir.
+- **Gerçek veriyle denetim (v0.7.6, 2026-11-03):** uygulamanın kutusundaki bildirimler belgelerle tek tek karşılaştırıldı ve kurallar düzeltildi:
+  - Elle indirilen eski belgeler aylar önceki zamları yeni gibi bildirebiliyordu. Artık yeni fiyatı kesinleştiren ödeme
+    45 günden eskiyse zam söylenmez.
+  - Dolarla faturalanan bir planın kur yükseldikçe artan TL tutarı zam sanılabiliyordu. Artık döviz tutarıyla
+    karşılaştırılır.
+  - Ek hesapların (KMH) ve kendi hesaplarından para aktarılan hesapların eksi günleri, hesapların toplamı eksiye düşmese de "Hesap eksiye düşecek" diye bildirilebiliyordu. Artık bu hesaplar uyarmaz; toplam izlenir.
+  - Kural "Abonelik zammı" adıyla faturaları ve kirayı da kapsıyordu; adı "Düzenli ödeme zammı" oldu.
 
 ## F14 — Banka dışı e-postalar
 

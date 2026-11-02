@@ -1,5 +1,6 @@
 """Interpretation: regular payments and their status, habits, balances and the findings."""
 
+from dataclasses import replace
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -226,6 +227,36 @@ def test_price_change_needs_the_new_price_to_hold():
     assert s.price_change() is None
 
 
+def billed(d: date, merchant: str, amount: Decimal | int | str, original: str) -> Transaction:
+    """A card payment made in a foreign currency: its TL amount, and the foreign one the statement prints beside it."""
+    return replace(tx(d, merchant, Decimal(amount)), original=original)
+
+
+def test_a_plan_billed_in_dollars_is_no_price_rise_as_the_dollar_climbs():
+    # 4 USD each month; the TL amount climbs with the rate, by 12% over the last two months.
+    lira = ["120.40", "121.10", "122.00", "135.50", "136.20"]
+    plan = [billed(d, "Örnek Kod", a, "4,00 USD") for d, a in zip(monthly(date(2026, 5, 9), 5), lira, strict=True)]
+    (s,) = find_series(plan, REGULAR)
+    assert s.price_change() is None
+
+
+def test_a_plan_billed_in_dollars_rises_when_its_dollar_price_does_and_says_it_in_tl():
+    lira = ["120.40", "121.10", "122.00", "152.50", "153.10"]
+    dollars = ["4,00 USD"] * 3 + ["5,00 USD"] * 2
+    plan = [billed(d, "Örnek Kod", a, o) for d, a, o in zip(monthly(date(2026, 5, 9), 5), lira, dollars, strict=True)]
+    (s,) = find_series(plan, REGULAR)
+    assert s.price_change() == (Decimal("121.10"), Decimal("153.10"), date(2026, 8, 9))
+
+
+def test_a_plan_billed_in_dollars_only_lately_is_compared_from_then_on():
+    # Paid in TL until July, in dollars from August: the dollar months alone say whether the price held.
+    lira = ["99.90", "99.90", "99.90", "135.50", "136.20"]
+    dollars = ["", "", "", "4,00 USD", "4,00 USD"]
+    plan = [billed(d, "Örnek Kod", a, o) for d, a, o in zip(monthly(date(2026, 5, 9), 5), lira, dollars, strict=True)]
+    (s,) = find_series(plan, REGULAR)
+    assert s.price_change() is None
+
+
 def test_only_running_series_and_commitments_that_ended_in_the_window_are_listed():
     window = ["2026-01", "2026-02", "2026-03"]
     ds = dataset([], [])
@@ -266,6 +297,19 @@ def test_a_yearly_payment_is_a_periodic_series_with_its_price_change_and_next_da
     assert (s.period, s.status, s.per_period) == (SeriesPeriod.YEAR, "devam", Decimal(5200))
     assert s.expected == date(2026, 3, 9) + timedelta(days=364)  # the median of 367 and 362 days
     assert s.price_change() == (Decimal(4400), Decimal(5200), date(2026, 3, 9))
+
+
+@pytest.mark.parametrize(
+    ("dollars", "changed"), [(("100,00 USD", "100,00 USD"), False), (("100,00 USD", "120,00 USD"), True)]
+)
+def test_a_yearly_payment_billed_in_dollars_is_compared_in_dollars(dollars, changed):
+    licence = [billed(date(2025, 3, 10), "Örnek Lisans", 3300, dollars[0])]
+    licence.append(billed(date(2026, 3, 9), "Örnek Lisans", 3900 if not changed else 4700, dollars[1]))
+    ds = dataset(licence, card_statements(date(2025, 3, 15), 20))
+    tl_ = timeline(ds)
+    (s,) = periodic_payments(ds, tl_, regular_payments(ds, tl_)[0])
+    expected = (Decimal(3300), Decimal(4700), date(2026, 3, 9)) if changed else None
+    assert s.price_change() == expected
 
 
 def test_a_half_yearly_tax_is_periodic_too():

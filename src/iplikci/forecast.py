@@ -91,11 +91,20 @@ class AccountForecast:
     cards: Spread | None  # card payments beyond the due dates known
     notes: list[str]  # what the forecast assumes, in Turkish, each with its window and numbers
     interest: Decimal | None = None  # overdraft interest on the days below zero, only at a rate a document prints
+    overdraft: bool = False  # an overdraft account (KMH): below zero is its credit in use
+    funded: bool = False  # topped up from the user's own accounts for what it pays (funded_by_own)
 
     @property
     def negative(self) -> tuple[date, Decimal] | None:
         """The first day the balance is below zero, and the balance that day."""
         return next(((day, balance) for day, balance in self.days if balance < 0), None)
+
+    @property
+    def warning(self) -> tuple[date, Decimal] | None:
+        """The first day below zero as a warning: none for an overdraft account, whose balance below zero is the
+        credit in use, nor for one the user tops up from their own accounts, which goes as low as the transfers the
+        forecast does not project (the accounts' total still counts both: Forecast.total_negative)."""
+        return None if self.overdraft or self.funded else self.negative
 
     @property
     def lowest(self) -> tuple[date, Decimal]:
@@ -115,6 +124,30 @@ class Forecast:
     skipped: list[tuple[str, str]]  # (account, why it has no forecast), by the accounts' labels
     notes: list[str]  # what every account's forecast assumes, in Turkish
     label: str = ESTIMATE
+
+    @property
+    def total_negative(self) -> tuple[date, Decimal] | None:
+        """The first day the accounts' summed balance is below zero, when it starts at zero or above today: the
+        transfers between own accounts cancel out in it, an overdraft's credit in use counts as owed."""
+        total: dict[date, Decimal] = defaultdict(Decimal)
+        for account in self.accounts:
+            for day, balance in account.days:
+                total[day] += balance
+        days = sorted(total)
+        if not days or total[days[0]] < 0:
+            return None
+        return next(((day, total[day]) for day in days if total[day] < 0), None)
+
+    @property
+    def warnings(self) -> list[tuple[str, tuple[date, Decimal]]]:
+        """(account, its first day below zero) for each account that warns of one (AccountForecast.warning), then
+        ("", the total's) when the total goes below zero and says more than an account does: with one account, or
+        one alone below zero, the total is that account's balance."""
+        found = [(account.account, first) for account in self.accounts if (first := account.warning) is not None]
+        total = self.total_negative
+        if total is not None and all(first != total for _, first in found):
+            found.append(("", total))
+        return found
 
 
 def _tl(value: Decimal) -> str:
@@ -243,6 +276,21 @@ def spreads(ds: Dataset, ins: Insights, account: str) -> tuple[Spread | None, Sp
         (cards if t.kind in CARD_PAYMENTS else spend)[month] += t.amount
     found = [Spread(median(totals.values()), tuple(months)) for totals in (spend, cards)]
     return found[0], (found[1] if found[1].monthly > 0 else None)
+
+
+def funded_by_own(ds: Dataset, account: str, months: Sequence[str]) -> tuple[Decimal, Decimal] | None:
+    """(money in from the user's own accounts, all money out) over months when the transfers in are at least half of
+    what went out: the user tops the account up for what it pays (a card paid from an account the salary never reaches
+    directly). None otherwise."""
+    into = out = ZERO
+    for t in ds.transactions:
+        if t.account != account or month_of(t.date) not in months:
+            continue
+        if t.amount < 0 and t.kind == TransactionKind.OWN_TRANSFER:
+            into -= t.amount
+        elif t.amount > 0:
+            out += t.amount
+    return (into, out) if out > 0 and into * 2 >= out else None
 
 
 # --- who pays what -----------------------------------------------------------------------------------------------
@@ -451,4 +499,14 @@ def _account(
     found.interest, note = _interest(found, rate)
     if note:
         found.notes.append(note)
+    found.overdraft = ds.accounts[account].type == AccountType.OVERDRAFT
+    if found.overdraft:
+        found.notes.append("Ek hesap (KMH): eksi bakiye kullanılan krediyi gösterir; eksiye düşmesi uyarı sayılmaz.")
+    elif spend is not None and (topped := funded_by_own(ds, account, spend.months)) is not None:
+        found.funded = True
+        found.notes.append(
+            f"Bu hesaba kendi hesaplarınızdan düzenli para aktarılıyor: {_window(spend.months)} arasında "
+            f"{_tl(topped[0])} geldi, hesaptan {_tl(topped[1])} çıktı. Öngörü bu aktarmaları saymaz; bu hesabın eksi "
+            "günleri uyarı sayılmaz."
+        )
     return found

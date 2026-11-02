@@ -215,7 +215,7 @@ EVENT_KIND: dict[EventKind, str] = {
     EventKind.PAYMENT_DUE_SOON: "Son ödeme yaklaşıyor",
     EventKind.EXPECTED_PAYMENT_MISSING: "Beklenen ödeme gelmedi",
     EventKind.BALANCE_FORECAST_NEGATIVE: "Hesap eksiye düşecek",
-    EventKind.SUBSCRIPTION_PRICE_CHANGED: "Abonelik zammı",
+    EventKind.SUBSCRIPTION_PRICE_CHANGED: "Düzenli ödeme zammı",
     EventKind.SUBSCRIPTION_PAID_AFTER_CANCEL: "İptalden sonra ödeme",
     EventKind.INCOME_RECEIVED: "Gelir geldi",
     EventKind.INCOME_LATE: "Gelir gecikti",

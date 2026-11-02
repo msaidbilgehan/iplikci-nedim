@@ -18,7 +18,7 @@ from .. import month_end
 from ..domain.codes import CARD_TYPES, Certainty, DocumentKind, DocumentStatus, MonthStatus, PaymentKind
 from ..domain.labels import TODO_KIND, format_amount
 from ..domain.models import TRY
-from ..feed.news import TO_PAY
+from ..feed.news import TO_PAY, TOTAL
 from ..insights import month_of, months_in, pct
 from ..report import CLOSING_MONTHS
 from ..storage import bridges, documents, events
@@ -292,20 +292,18 @@ def due_soon(a: Analysis, today: date) -> DueSoon:
 
 
 def _negatives(a: Analysis, today: date) -> list[Alert]:
+    """The accounts whose forecast warns of a day below zero (AccountForecast.warning), and the accounts' total."""
     labels = account_labels(a)
     found: list[Alert] = []
-    for account in outlook.cash_flow(a, today).forecast.accounts:
-        if account.negative is None:
-            continue
-        day, balance = account.negative
-        days = (day - today).days
-        level = AlertLevel.CRITICAL if days < DUE_DAYS else AlertLevel.WARNING
-        when = {0: "bugün", 1: "yarın"}.get(days, f"{days} gün sonra")
+    for account, (day, balance) in outlook.cash_flow(a, today).forecast.warnings:
+        name = labels.get(account, account) if account else TOTAL
+        left = (day - today).days
+        level = AlertLevel.CRITICAL if left < DUE_DAYS else AlertLevel.WARNING
+        when = {0: "bugün", 1: "yarın"}.get(left, f"{left} gün sonra")
         # As the notification of "balance.forecast_negative" says it in full (notify.content).
-        name = labels.get(account.account, account.account)
         text = f"{name}: öngörüye göre bakiye {_day(day)} günü ({when}) {_amount(balance)} olacak."
-        link = Link(Screen.FORECAST, account.account)
-        found.append(Alert(AlertKind.NEGATIVE, level, "Hesap eksiye düşecek", text, 1, account.account, link))
+        link = Link(Screen.FORECAST, account)
+        found.append(Alert(AlertKind.NEGATIVE, level, "Hesap eksiye düşecek", text, 1, account, link))
     return found
 
 

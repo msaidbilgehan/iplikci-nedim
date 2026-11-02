@@ -107,7 +107,7 @@ def _text(kind: EventKind, target: str, d: Mapping[str, Any], full: bool) -> str
     if kind is E.SUBSCRIPTION_PRICE_CHANGED:
         old, new = _tl(d.get("old", "")), _tl(d.get("new", ""))
         if not full:
-            return f"Bir abonelik zamlandı: {old} yerine {new}."
+            return f"Bir düzenli ödeme zamlandı: {old} yerine {new}."
         return f"{title}: {_day(d.get('since'))} gününden beri {old} yerine {new} ödeniyor."
     if kind is E.SUBSCRIPTION_PAID_AFTER_CANCEL:
         if not full:

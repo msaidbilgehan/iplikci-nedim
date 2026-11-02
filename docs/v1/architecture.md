@@ -504,7 +504,7 @@ sorar:
 - son ödemeye 3 gün,
 - hesap eksiye düşecek,
 - büyük harcama,
-- abonelik zammı,
+- düzenli ödeme zammı (2026-11-03'e dek adı "abonelik zammı"),
 - iptalden sonra ödeme,
 - beklenen ödeme gelmedi,
 - maaş gecikti,

@@ -373,3 +373,59 @@ def test_the_forecast_has_one_balance_a_day(days):
     ds = dataset(statements=[account_list("cash", date(2026, 7, 1), date(2026, 10, 31), 1000)])
     (cash,) = forecast(ds, interpret(ds), date(2026, 11, 1), [], days=days).accounts
     assert len(cash.days) == days and cash.days[-1][0] == date(2026, 10, 31) + timedelta(days=days)
+
+
+# --- which days below zero warn ----------------------------------------------------------------------------------
+
+
+def test_an_overdraft_account_below_zero_warns_of_nothing_its_credit_in_use_is_no_news():
+    ds = dataset(
+        statements=[account_list("qnb-other", date(2026, 7, 1), date(2026, 10, 31), -24000)], accounts=(QNB_OTHER,)
+    )
+    (overdraft,) = forecast(ds, interpret(ds), date(2026, 11, 1), []).accounts
+    assert overdraft.negative == (date(2026, 11, 1), Decimal(-24000))  # the chart still shows where it stands
+    assert overdraft.warning is None
+    assert "Ek hesap (KMH): eksi bakiye kullanılan krediyi gösterir; eksiye düşmesi uyarı sayılmaz." in overdraft.notes
+
+
+def test_an_account_the_user_tops_up_for_what_it_pays_warns_of_nothing_and_says_why():
+    # Each month 5.000 TL comes in from another own account and pays the card: the balance stays near zero, and the
+    # card payments the forecast spreads take it below it without the transfers that would come.
+    coverage = {"cash": dict.fromkeys(MONTHS, 1.0)}
+    txns = []
+    for m in MONTHS:
+        year, month = int(m[:4]), int(m[5:])
+        txns.append(tx(date(year, month, 5), "Kendi hesabınızdan", -5000, TransactionKind.OWN_TRANSFER))
+        txns.append(tx(date(year, month, 6), "Kart ödemesi", 5000, TransactionKind.CARD_PAYMENT))
+    ds = dataset(txns, [account_list("cash", date(2026, 4, 1), date(2026, 10, 31), 0)], coverage=coverage)
+    (cash,) = forecast(ds, interpret(ds), date(2026, 11, 1), []).accounts
+    assert cash.negative is not None and cash.warning is None
+    assert cash.notes[-1] == (
+        "Bu hesaba kendi hesaplarınızdan düzenli para aktarılıyor: Nisan 2026 – Eylül 2026 arasında 30.000,00 TL geldi, "
+        "hesaptan 30.000,00 TL çıktı. Öngörü bu aktarmaları saymaz; bu hesabın eksi günleri uyarı sayılmaz."
+    )
+
+
+def test_the_accounts_total_warns_when_it_goes_below_zero_and_says_more_than_one_account():
+    # The rent takes the TL account below zero; the overdraft account says nothing of itself, but the total does.
+    statements = [
+        account_list("cash", date(2026, 7, 1), date(2026, 10, 31), 6000),
+        account_list("qnb-other", date(2026, 7, 1), date(2026, 10, 31), -2000),
+    ]
+    ds = dataset(statements=statements, accounts=(CASH, QNB_OTHER))
+    result = forecast(ds, interpret(ds), date(2026, 11, 1), [due(date(2026, 11, 3), "Ev kirası", "cash", 5000)])
+    assert result.total_negative == (date(2026, 11, 3), Decimal(-1000))
+    assert result.warnings == [("", (date(2026, 11, 3), Decimal(-1000)))]  # the cash account stays at 1.000 TL
+
+
+def test_one_account_below_zero_is_told_once_not_again_as_the_total():
+    ds = dataset(statements=[account_list("cash", date(2026, 7, 1), date(2026, 10, 31), 1000)])
+    result = forecast(ds, interpret(ds), date(2026, 11, 1), [due(date(2026, 11, 3), "Ev kirası", "cash", 15000)])
+    assert result.warnings == [("cash", (date(2026, 11, 3), Decimal(-14000)))]
+
+
+def test_a_total_below_zero_already_today_is_no_forecast_and_warns_of_nothing():
+    ds = dataset(
+        statements=[account_list("qnb-other", date(2026, 7, 1), date(2026, 10, 31), -500)], accounts=(QNB_OTHER,)
+    )
+    assert forecast(ds, interpret(ds), date(2026, 11, 1), []).warnings == []
