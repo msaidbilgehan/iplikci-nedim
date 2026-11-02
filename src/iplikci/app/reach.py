@@ -2,10 +2,12 @@
 F06, F07, F10). An account whose documents stopped more than 180 days before the newest document is closed or no
 longer followed: the screens list it apart and leave it out of every total (F07)."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
 
 from ..analysis import ACTIVE_DAYS, Dataset
+from ..domain.text import fold
 from ..insights import span
 
 
@@ -21,7 +23,7 @@ class Cover:
 @dataclass(frozen=True, slots=True)
 class Coverage:
     months: tuple[str, ...]  # from the first month any account's documents cover to the last
-    accounts: list[Cover]  # the accounts with a statement or an account list, by id: receipts cover no month
+    accounts: list[Cover]  # with a statement or an account list (receipts cover no month): the open first, by name
 
 
 def last_seen(ds: Dataset) -> dict[str, date]:
@@ -44,18 +46,16 @@ def closed(seen: dict[str, date]) -> set[str]:
     return {account for account, day in seen.items() if (newest - day).days > ACTIVE_DAYS}
 
 
-def coverage(ds: Dataset) -> Coverage:
+def coverage(ds: Dataset, labels: Mapping[str, str]) -> Coverage:
     """Each account's months as its statements and account lists cover them: the MVP report's coverage grid. A month
-    outside an account's first and last statement is not covered (0)."""
+    outside an account's first and last statement is not covered (0). The accounts come by the names the screens show
+    (labels), the closed ones after the open."""
     covered = {account: months for account, months in ds.coverage.items() if months}
     if not covered:
         return Coverage((), [])
     months = tuple(span(min(min(m) for m in covered.values()), max(max(m) for m in covered.values())))
     gone = closed(last_seen(ds))
-    return Coverage(
-        months,
-        [
-            Cover(account, account in gone, tuple(cover.get(month, 0.0) for month in months))
-            for account, cover in sorted(covered.items())
-        ],
-    )
+    found = [
+        Cover(account, account in gone, tuple(cover.get(m, 0.0) for m in months)) for account, cover in covered.items()
+    ]
+    return Coverage(months, sorted(found, key=lambda c: (c.closed, fold(labels.get(c.account, c.account)))))

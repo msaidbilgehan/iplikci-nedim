@@ -17,7 +17,6 @@ from ...app.analysis import Analysis, account_labels
 from ...app.flows import FlowKind, TransactionKind
 from ...app.links import Link, Screen
 from ...app.workspace import Busy
-from ...domain.text import fold
 from ..context import Context, context_of
 from ..guard import Principal
 from ..models import AccountRefOut, LinkOut, MoneyOut, RowOut, account_ref, link_out, money, row_out
@@ -558,8 +557,8 @@ def _share(value: float) -> str:
 def account_coverage(request: Request) -> CoverageOut:
     """Each account's months as its statements and account lists cover them; receipts and notices cover none."""
     a = _analysis(context_of(request))
-    found = reach.coverage(a.dataset)
     labels = account_labels(a)
+    found = reach.coverage(a.dataset, labels)
     return CoverageOut(
         months=list(found.months),
         accounts=[
@@ -569,7 +568,7 @@ def account_coverage(request: Request) -> CoverageOut:
                 shares=[_share(share) for share in c.shares],
                 link=_link(Link(Screen.ACCOUNT, c.account)),
             )
-            for c in sorted(found.accounts, key=lambda c: (c.closed, fold(labels.get(c.account, c.account))))
+            for c in found.accounts
         ],
     )
 
