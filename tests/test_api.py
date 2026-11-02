@@ -430,8 +430,13 @@ def test_the_forecast_runs_each_bank_account_day_by_day_as_an_estimate(demo_clie
     assert (start["source"], start["day"], start["moves"]) == ("statement", "2026-10-31", 0)
     assert start["balance"] == start["stated"] == tl(18438010)
     assert len(teb_account["days"]) == 60 and teb_account["negative"] is None
-    assert teb_account["lowest"] == {"day": "2026-11-30", "balance": tl(18235583)}
-    assert teb_account["end_balance"] == tl(22452450)
+    # 1–14 November are counted too: the salary of the 1st and the payments up to the 12th the list does not reach.
+    assert teb_account["lowest"] == {"day": "2026-11-30", "balance": tl(20445211)}
+    assert teb_account["end_balance"] == tl(24662078)
+    assert teb_account["notes"][1] == (
+        "01.11.2026–14.11.2026 arası için belgelerin henüz göstermediği beklenenler de sayıldı: 6 kalem "
+        "(+22.100,01 TL) ve seri dışı çıkışlardan 3,73 TL."
+    )
     assert teb_account["spend"] == {"monthly": tl(800), "months": found_months(), "after": None}  # the FAST fee
     assert teb_account["cards"] is None and teb_account["interest"] is None
     assert {item["kind"] for item in teb_account["items"]} == {"regular", "income"}

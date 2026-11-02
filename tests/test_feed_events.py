@@ -205,8 +205,9 @@ def test_a_refresh_tells_a_cards_due_date_its_statement_prints(ws):
 
 
 def test_a_balance_below_zero_names_the_account_its_first_day_and_the_balance_then():
-    ds = dataset(RENT, [account_list(date(2026, 10, 31), total=1000)])
-    (negative,) = finds(news.NEGATIVE, ds, date(2026, 11, 15))  # the rent of 3 December takes it below zero
+    # 16.000 TL on 31 October; the rent of 3 November is expected already, that of 3 December takes it below zero.
+    ds = dataset(RENT, [account_list(date(2026, 10, 31), total=16000)])
+    (negative,) = finds(news.NEGATIVE, ds, date(2026, 11, 15))
     assert (negative.target, negative.detail) == (
         "cash|2026-12-03",
         {"account": "cash", "title": "Örnek Vadesiz TL", "day": "2026-12-03", "days": 18, "balance": "-14000.00"},
@@ -214,8 +215,8 @@ def test_a_balance_below_zero_names_the_account_its_first_day_and_the_balance_th
 
 
 def test_a_balance_below_zero_is_told_once_and_again_when_it_comes_sooner_or_after_it_recovered():
-    lists = [account_list(date(2026, 10, 31), total=1000)]
-    spent, received = notice(date(2026, 11, 17), 2000), notice(date(2026, 11, 19), -50000)
+    lists = [account_list(date(2026, 10, 31), total=20000)]  # 5.000 TL left after the rent of 3 November
+    spent, received = notice(date(2026, 11, 17), 6000), notice(date(2026, 11, 19), -50000)
     spent_more = notice(date(2026, 11, 20), 60000)
 
     def on(day: int, *rows: ReceiptLine) -> tuple[Dataset, date]:

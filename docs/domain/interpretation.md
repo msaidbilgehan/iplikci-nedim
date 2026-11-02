@@ -123,6 +123,13 @@ nedenleri arasında sayılmaz.
       satırları eklenir.
     - Bakiyesi hiçbir belgede yazmayan, bakiyesi en yeni belgeden 180 günden eski olan ve döviz ya da altın olan
       hesaplar öngörüye girmez; nedenleri yazılır.
+    - Bakiyeyi yazan belgenin gününden bugüne kadarki günler de sayılır: döküm 31'inde bitip bugün ayın 2'siyse,
+      1'inde beklenen maaş bugünkü bakiyededir; belge aksini gösterene dek beklenen sayılır. O günlerin beklenen
+      kalemleri ve seri dışı çıkışların o günlere düşen payı bugünden önce işlenir; öngörünün notu günleri ve
+      rakamları yazar. Sonraki dekont ve bildirimler yalnızca anlattıkları hareketleri gösterir: bir serinin ödemesini
+      anlatan dekont serinin sonraki gününü zaten ileri taşır. Takvim yine bugünden ileriye bakar.
+    - Bakiye bugünden 60 günden (öngörünün ileri baktığı kadar) eskiyse aradaki günler tahmin edilmez: öngörü o
+      bakiyeden başlar ve not bunu söyler.
   - Üstüne beklenen olaylar eklenir:
     - maaş (serinin günü; son üç tutarın medyanı),
     - düzenli ve dönemsel ödemeler (en son hangi hesaptan ödendiyse oradan),
@@ -188,8 +195,9 @@ kez söylenir; ilk analiz yalnızca not eder.
 - **Eksiye düşen hesap** (`balance.forecast_negative`)
   - Nakit akışı öngörüsünde bir TL hesabın eksiye düştüğü ilk gün.
   - Hesap önceki analizde eksiye düşmüyorduysa ya da gün öne geldiyse söylenir.
-  - Gün yalnızca ileri kaydıysa yeni haber değildir. Yeni belge gelmedikçe her günün öngörüsü aynı bakiyeden başlar;
-    günlere yayılan çıkışların belirlediği gün her gün bir ileri kayar.
+  - Gün yalnızca ileri kaydıysa yeni haber değildir. Bakiye bugün zaten eksideyse ilk eksi gün her gün bugündür;
+    bakiyesi 60 günden eski bir hesabın öngörüsü her gün aynı bakiyeden başlar, günlere yayılan çıkışların
+    belirlediği gün her gün bir ileri kayar.
 - **Gelmeyen ödeme ve gecikmiş gelir** (`expected_payment.missing`, `income.late`)
   - Serinin son iki ödemesinin görüldüğü hesapların belgeleri, beklenen günü ve serinin payını ödemesiz geçmiştir:
     payın son gününde ya da sonra biten bir döküm ya da ekstre, ya da daha sonraki bir günün dekontu ya da bildirimi

@@ -371,16 +371,24 @@ def bill_items(ds: Dataset, start: date, end: date) -> list[Due]:
     return found
 
 
-def upcoming(ds: Dataset, ins: Insights, today: date, dues: Iterable[CardDue] = (), days: int = HORIZON) -> list[Due]:
-    """Every item expected from today on, for days days, by day."""
-    end = horizon_end(today, days)
+def upcoming(
+    ds: Dataset,
+    ins: Insights,
+    today: date,
+    dues: Iterable[CardDue] = (),
+    days: int = HORIZON,
+    since: date | None = None,
+) -> list[Due]:
+    """Every item expected from today on, for days days, by day; from since on when that is earlier (the forecast
+    counts the days before today its documents do not reach yet)."""
+    start, end = min(since or today, today), horizon_end(today, days)
     items = [
-        *series_items(ds, ins.series, today, end),
-        *periodic_items(ins.periodic, today, end),
-        *income_items(ins.income, today, end),
-        *installment_items(ds, today, end),
-        *loan_items(ds, ins.timeline, ins.series, today, end),
-        *card_due_items(ds, dues, today, end),
-        *bill_items(ds, today, end),
+        *series_items(ds, ins.series, start, end),
+        *periodic_items(ins.periodic, start, end),
+        *income_items(ins.income, start, end),
+        *installment_items(ds, start, end),
+        *loan_items(ds, ins.timeline, ins.series, start, end),
+        *card_due_items(ds, dues, start, end),
+        *bill_items(ds, start, end),
     ]
     return sorted(items, key=lambda d: (d.day, d.kind, d.title))

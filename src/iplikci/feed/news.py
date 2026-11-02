@@ -32,7 +32,7 @@ from ..domain.codes import CARD_TYPES, PaymentKind, SeriesPeriod, TransactionKin
 from ..domain.models import TRY
 from ..domain.money import round_half_up
 from ..domain.text import fold
-from ..forecast import Forecast, forecast
+from ..forecast import Forecast, counted_from, forecast
 from ..insights import Insights, PeriodicSeries, Series, large_purchase_threshold, paid_after_cancel
 from ..upcoming import HORIZON, CardDue, Due, expected_amount, income_amount, next_day, series_id, upcoming
 
@@ -84,7 +84,7 @@ def find(ds: Dataset, ins: Insights, today: date, dues: Sequence[CardDue] = ()) 
     """Everything the analysis has to tell as of today, kind by kind. The calendar and the forecast are made as the
     outlook makes them (app.outlook.calendar and cash_flow), with the cards' dues the caller reads from the
     statements."""
-    items = upcoming(ds, ins, today, dues)
+    items = upcoming(ds, ins, today, dues, since=counted_from(ds, today))
     confirmed = _confirmed(ds)
     return [
         *due_soon(items, today, {a.id for a in ds.accounts.values() if a.type in CARD_TYPES}),

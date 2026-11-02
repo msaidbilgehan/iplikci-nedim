@@ -12,7 +12,7 @@ from ..domain.codes import AccountType, Certainty, Necessity, PaymentKind, Serie
 from ..domain.models import TRY, Statement, Transaction
 from ..domain.money import Money, round_half_up
 from ..domain.text import fold
-from ..forecast import AccountForecast, Forecast, Spread, Start, forecast
+from ..forecast import AccountForecast, Forecast, Spread, Start, counted_from, forecast
 from ..insights import V1_STATUS, PeriodicSeries, Series, listed, month_name, paid_after
 from ..upcoming import (
     CardDue,
@@ -214,7 +214,8 @@ def calendar(a: Analysis, today: date) -> Calendar:
 
 
 def cash_flow(a: Analysis, today: date) -> CashFlow:
-    """Each bank account's balance day by day from today on, for the next 60 days, with the calendar's items: an
-    estimate (F09)."""
-    items = upcoming(a.dataset, a.insights, today, card_dues(a.dataset))
+    """Each bank account's balance day by day from today on, for the next 60 days, with the calendar's items (from
+    the days before today the documents do not reach yet, too): an estimate (F09)."""
+    since = counted_from(a.dataset, today)
+    items = upcoming(a.dataset, a.insights, today, card_dues(a.dataset), since=since)
     return CashFlow(forecast(a.dataset, a.insights, today, items), _labels(a.dataset))

@@ -8,9 +8,19 @@ import pytest
 from iplikci.analysis import CONFIRMED, NO_STATEMENT, PROVISIONAL, Dataset, ReceiptLine
 from iplikci.domain.codes import AccountType, EvidenceStatus, Necessity, PaymentKind, TransactionKind
 from iplikci.domain.models import Account, Statement, Transaction
-from iplikci.forecast import ESTIMATE, Spread, Start, forecast, paid_share, paying_account, spreads, start_of
+from iplikci.forecast import (
+    ESTIMATE,
+    Spread,
+    Start,
+    counted_from,
+    forecast,
+    paid_share,
+    paying_account,
+    spreads,
+    start_of,
+)
 from iplikci.insights import interpret
-from iplikci.upcoming import Due, add_months
+from iplikci.upcoming import Due, add_months, upcoming
 
 CASH = Account("cash", "Örnek Vadesiz TL", "TEB", AccountType.CURRENT, number="111222333")
 CARD = Account("card", "Örnek Kart •1234", "TEB", AccountType.CREDIT_CARD, number="1234")
@@ -268,10 +278,64 @@ def test_the_spread_lowers_the_balance_every_day_by_its_months_share():
     txns = [tx(date(int(m[:4]), int(m[5:]), 10), "Ayşe Örnek", 3000, TransactionKind.P2P_TRANSFER) for m in MONTHS]
     ds = dataset(txns, [account_list("cash", date(2026, 4, 1), date(2026, 10, 15), 10000)], coverage=coverage)
     (cash,) = forecast(ds, interpret(ds), date(2026, 11, 1), []).accounts
-    assert cash.days[0] == (date(2026, 11, 1), Decimal(9900)) and cash.days[29] == (date(2026, 11, 30), Decimal(7000))
+    # The list ends on 15 October: the 16 days after it spend their share too (16 × 3.000 / 31 = 1.548,39 TL).
+    assert cash.days[0] == (date(2026, 11, 1), Decimal("8351.61"))
+    assert cash.days[29] == (date(2026, 11, 30), Decimal("5451.61"))
     assert cash.notes[1] == (
+        "16.10.2026–31.10.2026 arası için belgelerin henüz göstermediği beklenenler de sayıldı: seri dışı "
+        "çıkışlardan 1.548,39 TL."
+    )
+    assert cash.notes[2] == (
         "Seri dışı çıkışlar: Nisan 2026 – Eylül 2026 arasındaki 6 tam ayın medyanı, ayda 3.000,00 TL, günlere yayıldı."
     )
+
+
+def test_what_was_expected_on_the_days_the_documents_do_not_reach_yet_is_in_todays_balance():
+    # The list ends on 31 October and today is 2 November: the salary due on the 1st is expected, not lost.
+    ds = dataset(statements=[account_list("cash", date(2026, 7, 1), date(2026, 10, 31), 1000)])
+    today = date(2026, 11, 2)
+    assert counted_from(ds, today) == date(2026, 11, 1)
+    items = [
+        due(date(2026, 10, 31), "Eski kalem", "cash", 500),  # the list's own day: its balance knows of it
+        due(date(2026, 11, 1), "Örnek İşveren", "cash", -40000, PaymentKind.INCOME),
+        due(date(2026, 11, 1), "Örnek Müzik", "card", "99.99"),  # nobody's balance: not listed before today
+        due(date(2026, 11, 3), "Ev kirası", "cash", 15000),
+    ]
+    result = forecast(ds, interpret(ds), today, items)
+    (cash,) = result.accounts
+    assert cash.days[0] == (today, Decimal(41000)) and cash.days[1] == (date(2026, 11, 3), Decimal(26000))
+    assert cash.lowest == (date(2026, 11, 3), Decimal(26000)) and cash.negative is None
+    assert [item.title for item in cash.items] == ["Örnek İşveren", "Ev kirası"]
+    assert result.elsewhere == []
+    assert cash.notes[1] == (
+        "01.11.2026 günü için belgelerin henüz göstermediği beklenenler de sayıldı: 1 kalem (+40.000,00 TL)."
+    )
+    # A balance that knows of today needs nothing before it.
+    assert counted_from(ds, date(2026, 11, 1)) == date(2026, 11, 1)
+
+
+def test_a_balance_older_than_the_days_ahead_is_not_carried_over_that_many_days_of_guesses():
+    ds = dataset(statements=[account_list("cash", date(2026, 1, 1), date(2026, 1, 31), 1000)])
+    today = date(2026, 11, 2)  # 275 days after the list: what came between is anyone's guess
+    assert counted_from(ds, today) == today
+    items = [due(date(2026, 3, 3), "Ev kirası", "cash", 15000), due(date(2026, 11, 3), "Ev kirası", "cash", 15000)]
+    (cash,) = forecast(ds, interpret(ds), today, items).accounts
+    assert cash.days[0] == (today, Decimal(1000)) and [item.day for item in cash.items] == [date(2026, 11, 3)]
+    assert cash.notes[1] == "Son bakiye 275 gün önceki: aradaki günler tahmin edilmedi, öngörü o bakiyeden başlıyor."
+
+
+def test_the_calendar_brings_the_forecast_the_days_before_today_its_documents_do_not_reach():
+    salary = [
+        tx(d, "Örnek İşveren", -40000, TransactionKind.INCOME, category="Maaş")
+        for d in (date(2026, m, 1) for m in range(5, 11))
+    ]
+    ds = dataset(salary, [account_list("cash", date(2026, 5, 1), date(2026, 10, 31), 1000)])
+    ins, today = interpret(ds), date(2026, 11, 2)
+    assert [item.day for item in upcoming(ds, ins, today)] == [date(2026, 12, 1)]  # the calendar looks ahead
+    items = upcoming(ds, ins, today, since=counted_from(ds, today))
+    assert [item.day for item in items] == [date(2026, 11, 1), date(2026, 12, 1)]
+    (cash,) = forecast(ds, ins, today, items).accounts
+    assert cash.days[0] == (today, Decimal(41000))
 
 
 def test_accounts_without_a_balance_known_today_are_left_out_and_say_why():
