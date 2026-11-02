@@ -541,37 +541,41 @@ Ayrıntılar [ADR-0010](../adr/0010-notification-channels.md)'un uygulama notund
 
 | Yol | Amaç |
 |---|---|
-| `GET /api/status` | servis, e-posta, kuyruk, son analiz |
-| `GET /api/events/stream`, `GET /api/events` | SSE olay akışı (`Last-Event-ID` ile kaldığı yerden); bir bildirim oluşunca ya da gidince kimliksiz `notifications` olayı; olay kaydı, sayfalı |
+| `GET /api/events/stream`, `GET /api/events` | SSE olay akışı (`Last-Event-ID` ile kaldığı yerden; baştan açılan akış son dakikanın olaylarını yeniden söyler ve başladığı olayı adlı `start` olayıyla bildirir); bir bildirim oluşunca ya da gidince kimliksiz `notifications` olayı; olay kaydı, sayfalı |
 | `GET /healthz` | servis ayakta mı; kimlik istemez |
 | `GET /giris`, `POST /api/login-links`, `POST /api/logout` | tek kullanımlık giriş bağlantısı, oturum çerezine döner; çıkış (ADR-0007) |
 | `GET /api/labels` | kodların Türkçe adları, tek eşleme modülünden |
-| `GET /api/feed` | akış (sayfalı, süzgeçli) |
-| `GET /api/dashboard` | pano özetleri |
-| `GET /api/accounts`, `GET /api/accounts/{id}` | hesap haritası; hesap ayrıntısı (akış, bakiye eğrisi, türe özel alanlar) |
-| `GET /api/transactions`, `GET /api/transactions/{fp}` | liste ve arama; ayrıntı ve "neden?" |
-| `PUT /api/transactions/{fp}/annotation` | not, etiket, düzeltme, bölme |
-| `GET /api/documents`, `GET /api/documents/{id}` | arşiv listesi ve ayrıntısı |
-| `GET /api/documents/{id}/pages/{n}.png`, `GET /api/documents/{id}/download` | sayfa resmi; aslını indirme |
+| `GET /api/feed`, `GET /api/feed/now` | akış (sayfalı; hesap, olay türü ve kesinlik süzgeçli); "Şu an" (hesap başına tahmini bakiye, kart dönemleri, ay içi tempo) ve "Yaklaşanlar" (14 gün) |
+| `GET /api/dashboard` | pano kartları: net varlık, nakit akışı, yaklaşanlar, tempo, uyarılar, yapılacaklar, belgelerin tazeliği |
+| `GET /api/accounts`, `GET /api/accounts/{id}`, `GET /api/accounts/flows`, `PUT /api/accounts/{id}/alias` | hesap haritası; hesap ayrıntısı (bakiye eğrisi, ekstreler, türe özel alanlar); hesaplar arası para akışı; kullanıcının verdiği hesap adı |
+| `GET /api/transactions`, `GET /api/transactions.csv`, `GET /api/transactions/{fp}` | süzgeçli, sıralı ve sayfalı liste, süzülenlerin toplamlarıyla; CSV; ayrıntı ve "neden?" (bölünmüş satırın parçası satırının ayrıntısını verir) |
+| `PUT /api/transactions/{fp}/annotation`, `POST /api/transactions/bulk` | not, etiket, kategori ve gereklilik düzeltmesi, bölme; seçili satırlara kategori ya da etiket |
+| `GET/PUT /api/transactions/views`, `DELETE /api/transactions/views/{ad}` | kayıtlı görünümler |
+| `GET /api/documents`, `GET /api/documents/{id}` | arşiv listesi (tam metin arama; tür, geliş yolu, hesap ve banka süzgeci) ve ayrıntısı |
+| `GET /api/documents/{id}/view`, `GET /api/documents/{id}/pages/{n}.png`, `GET /api/documents/{id}/pages/{n}/lines` | görüntüleyici: belgenin türüne göre gösterimi; sayfa resmi; sayfadaki satırların kutuları |
+| `GET /api/documents/{id}/original.html`, `GET /api/documents/{id}/download` | e-postanın betiksiz, uzak içeriksiz özgün görünümü (`sandbox`); aslını okunaklı adıyla indirme |
 | `POST /api/documents/{id}/reparse`, `POST /api/documents/{id}/remove` | yeniden okuma; çöp kutusuna taşıma |
 | `POST /api/uploads`, `POST /api/inbox/plan`, `POST /api/inbox/apply` | elle ekleme (plan → onay → uygula) |
-| `GET /api/subscriptions`, `/api/calendar`, `/api/forecast`, `/api/insights`, `/api/holdings`, `/api/fx` | analizler |
+| `GET /api/subscriptions`, `/api/calendar`, `/api/forecast`, `/api/insights`, `/api/spending`, `/api/holdings`, `/api/fx` | analizler: abonelikler, takvim, nakit öngörüsü, değerlendirme (bulgular, adımlar, olağan dışı hareketler), harcama kartları (İşlemler süzgeçleriyle), varlıklar, kurlar |
 | `GET /api/invoices` | banka dışı faturalar ve makbuzlar: durumu (bekliyor, eşleşmedi, eşleşti), ödeyen banka satırı ya da olası nedenler, durum başına sayılar; hiçbiri toplamlara girmez (F14) |
 | `GET /api/month-end`, `GET /api/month-end/{YYYY-MM}` | ay kapanışı |
+| `GET /api/todos`, `POST /api/todos/ignored` | yapılacaklar; birini görmezden gelme |
 | `GET/PUT /api/rules/categories`, `POST /api/rules/categories/preview` | kategori kuralları ve önizleme |
 | `GET/PUT /api/rules/alerts`, `POST /api/rules/alerts/preview` | bildirim kuralları, izlenebilecek olaylar ve izin verdikleri koşullar; bir kuralın son 30 günde kaç kez konuşacağı |
 | `GET /api/notifications`, `POST /api/notifications/read` | gönderilen bildirimler (kanal kanal ya da hepsi; sonraki sayfanın başladığı yerle), uygulama içi kutunun okunmamış sayısı; kutuyu okundu sayma |
 | `GET/PUT /api/notify/settings`, `POST /api/notify/test` | sessiz saat, kanal başına ayrıntı düzeyi, açık kanallar ve her kanalın neye ihtiyacı olduğu; bir kanala deneme bildirimi |
 | `POST /api/notify/telegram/token`, `POST /api/notify/telegram/pairing`, `POST /api/notify/telegram/check`, `DELETE /api/notify/telegram` | Telegram botunun belirteci (anahtar zincirine; geri dönmez), eşleştirme kodu, kodun gelip gelmediği, botu unutma (ADR-0010) |
-| `GET /api/mail`, `POST /api/mail/fetch` | e-posta durumu; şimdi al |
+| `POST /api/mail/fetch` | e-postayı şimdi al; e-postanın durumu `GET /api/system`'dadır |
 | `POST /api/bridge/pairings`, `POST /api/bridge/pair`, `GET /api/bridge/hello`, `GET /api/bridge`, `DELETE /api/bridge/{id}` | tarayıcı eklentisi: eşleştirme kodu, kodun belirtece dönmesi, servisin kanıtı (HMAC), eşleşmeler, iptal (ADR-0016) |
 | `GET /api/ingest/mail/cursor`, `POST /api/ingest/mail`, `POST /api/ingest/mail/known`, `POST /api/ingest/mail/scanned`, `POST /api/ingest/mail/alarm` | eklentinin konumu ve geçmişin taranması gerekip gerekmediği, ham iletilerin teslimi, taramanın bulduğu iletilerden eksik olanlar, biten bir taramanın neyi aradığı, bir katmanın biçim alarmı; yalnızca eklenti belirteciyle |
-| `GET/PUT /api/settings` | ayarlar (sır içermez) |
+| `GET /api/settings`, `PUT /api/settings/identity`, `PUT /api/settings/backup`, `PUT /api/settings/mail` | ayarlar (sır içermez, adres maskeli): adlar ve şirket adları, yedeklerin saklanma süresi, e-posta bağlayıcısı ve başlangıç günü; yalnızca arayüz değiştirir |
+| `POST /api/settings/mail/imap`, `DELETE /api/settings/mail/imap` | IMAP hesabını tek bir girişle kurma (şifre anahtar zincirine; reddedilen giriş yeniden denenmez); hesabı ve şifresini unutma |
 | `GET/PUT /api/settings/mail/other-senders` | banka dışı göndericiler (F14); yalnızca arayüz değiştirir. Banka alan adı (altı ya da üstü dahil), iki kez yazılan ve alan adı olmayan değer reddedilir, hiçbir şey yazılmaz |
-| `GET /api/system` | sağlık, işler, okuyucu sağlığı, yedekler |
+| `GET /api/setup` | kurulum sihirbazının adımları, her birinin durumu ve ilk açılış mı olduğu |
+| `GET /api/system`, `GET /api/system/log` | sağlık, işler, okuyucu sağlığı, e-posta, yedekler; servisin günlüğü, kişisel olabilecek yollar, adlar, adresler ve numaralar çıkarılmış |
 | `GET /api/backups`, `POST /api/backups` | yedekler; şimdi yedek al |
-| `POST /api/exports` | CSV, XLSX, tek dosyalık rapor, ay sonu sayfaları |
-| `/mcp` | MCP Streamable HTTP |
+| `GET /api/exports`, `POST /api/exports`, `GET /api/exports/{tür}` | CSV, XLSX, tek dosyalık rapor, ay sonu sayfaları: üretme ve indirme |
+| `/mcp` | MCP Streamable HTTP (Aşama 7) |
 
 Kimlik doğrulama ve istek güvenliği ADR-0007'dedir. Liste uçları imleçle sayfalanır; tutarlar en küçük birim ve para
 birimiyle döner, biçimlendirme arayüzdedir.
@@ -627,6 +631,9 @@ Teknoloji ADR-0008'dedir. Ekranlar ve davranışları [features.md](features.md)
   - `/ayarlar`
 - **Veri:** TanStack Query; SSE bir olay alınca ilgili sorguları geçersiz kılar. Arayüzde iyimser güncelleme yalnızca
   notlarda ve etiketlerde vardır.
+- **PWA:** web uygulaması bildirgesi ve simgeler oturum istemez, kişisel bir şey taşımaz; servis çalışanı yalnızca
+  uygulamanın kabuğunu (derlenmiş dosyaları) saklar, API yanıtlarını asla. Kayıt satır içi betikle değil, kendi
+  dosyasıyla yapılır.
 - **Belge görüntüleyici:**
   - PDF sayfaları sunucuda PNG'ye çevrilir; satırın kutusu üstüne vurgu olarak çizilir.
   - Tablo dökümlerinde satır, tabloda vurgulanır.
