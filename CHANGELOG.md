@@ -33,6 +33,11 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
   işaretli; e-postanın metni, satırın sözcükleri işaretli, özgün görünümü yalnızca kum havuzlu bir çerçevede; yanında
   okunan satırlar, ekstrenin denetimleri, nasıl geldiği ve ekleri; aslını indirme, yeniden okuma ve sorulduktan sonra
   çöp kutusuna taşıma. Satır panelindeki "Belgede aç" buraya gider.
+- Abonelikler ekranı (`/abonelikler`): süren aylık ödemelerin bir aya düşen toplamı, dönemsel ödemeler dönem başına
+  (aya çevrilmeden), bitenler ve iptal edilenler, düzenli gelirler ve taksiti kalan kart alışverişleri; her seride
+  durumu, tutarı, son ve sonraki ödemesi ve fiyat değişimi. Serinin paneli dayandığı ödemeleri satırlarına
+  bağlantılarıyla listeler. "İptal ettim" ayı seçtirir, kural dosyasının farkını gösterdikten sonra `_biten`'e yazar;
+  "Yeniden bekle" bunu geri alır. İptalden sonra gelen ödeme ekranın başında uyarı olur.
 - API: akışın sayfaları ve "Şu an" (`GET /api/feed`, `GET /api/feed/now`), pano kartları (`GET /api/dashboard`),
   hesap grupları, hesap sayfası, hesaplar arası akış ve hesaba verilen ad (`GET /api/accounts…`,
   `PUT /api/accounts/{id}/alias`).
