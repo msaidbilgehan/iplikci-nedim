@@ -41,6 +41,7 @@ import rules from "./locales/tr/rules.json";
 import shell from "./locales/tr/shell.json";
 import subscriptions from "./locales/tr/subscriptions.json";
 import system from "./locales/tr/system.json";
+import todo from "./locales/tr/todo.json";
 import transactions from "./locales/tr/transactions.json";
 
 export const defaultNS = "common";
@@ -65,6 +66,7 @@ export const resources = {
     monthEnd,
     notifications,
     rules,
+    todo,
   },
 } as const;
 

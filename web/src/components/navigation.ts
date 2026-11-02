@@ -25,7 +25,7 @@ export const MENU: readonly ScreenGroup[] = [
     screens: [
       { to: "/", key: "dashboard", ready: true, end: true },
       { to: "/akis", key: "feed", ready: true },
-      { to: "/yapilacaklar", key: "todo", ready: false },
+      { to: "/yapilacaklar", key: "todo", ready: true },
     ],
   },
   {

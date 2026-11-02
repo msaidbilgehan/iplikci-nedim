@@ -52,6 +52,8 @@ import type {
   Spending,
   Subscriptions,
   SystemStatus,
+  TodoItem,
+  Todos,
   TransactionDetail,
   TransactionPage,
 } from "../api/types";
@@ -154,7 +156,20 @@ export const LABELS: Labels = {
     elsewhere: "Başka bir yer",
   },
   StatementCheck: { verified: "Tutarlı", failed: "Tutmuyor", nothing: "Denetlenecek satır yok" },
-  TodoKind: { missing_documents: "Eksik belge", unprocessed_document: "İşlenmeyen belge" },
+  TodoKind: {
+    uncategorized: "Kategorisiz işlemler",
+    missing_documents: "Eksik belge",
+    unprocessed_document: "İşlenmeyen belge",
+    split_dropped: "Uygulanamayan bölme",
+  },
+  TodoAction: {
+    add_rule: "Kural ekle",
+    upload: "Belge yükle",
+    reparse: "Yeniden oku",
+    open: "Göster",
+    ask_claude: "Claude'a ver",
+    ignore: "Yok say",
+  },
   MonthStatus: {
     closed: "Kapandı",
     waiting: "Ekstre bekleniyor",
@@ -2756,6 +2771,93 @@ export const RULE_CHANGE: RuleChange = {
   backup: "",
 };
 
+// --- the to-do list (F19) -------------------------------------------------------------------------------------------
+
+export const TALIMAT = "b".repeat(64); // a document no reader takes
+
+export function todo(overrides: Partial<TodoItem> = {}): TodoItem {
+  return {
+    key: "uncategorized:ornek kafe",
+    kind: "uncategorized",
+    title: "Örnek Kafe",
+    detail: "5 işlem, toplam 2.521,50 TL; sonuncusu 12.11.2026. Hiçbir kural adlandırmıyor.",
+    count: 5,
+    amount: tl(252150),
+    target: "Örnek Kafe",
+    link: { screen: "transactions", id: "", query: { category: "Diğer Harcamalar", q: "Örnek Kafe" } },
+    actions: ["add_rule", "ask_claude", "ignore"],
+    prompt: "İplikçi Nedim'de 'Örnek Kafe' adlı işyerinin 5 işlemi kategorisiz.",
+    ignored: false,
+    ...overrides,
+  };
+}
+
+/** A merchant no rule names, an account behind, a document no reader takes and a split the row no longer takes. */
+export const TODOS: Todos = {
+  items: [
+    todo(),
+    todo({
+      key: "gap:Örnek Vadesiz TL:2026-10-31:2026-07",
+      kind: "missing_documents",
+      title: "Örnek Vadesiz TL",
+      detail: "Son hesap hareketleri 31.10.2026 tarihli, 15 gün önce; eksik aylar: 2026-07.",
+      count: 1,
+      amount: null,
+      target: "Örnek Vadesiz TL",
+      link: { screen: "documents", id: "", query: {} },
+      actions: ["upload", "ignore"],
+      prompt: "",
+    }),
+    todo({
+      key: `document:${TALIMAT}`,
+      kind: "unprocessed_document",
+      title: "TalimatFormu.pdf",
+      detail: "Belge işlenmedi: talimat formu.",
+      count: 1,
+      amount: null,
+      target: TALIMAT,
+      link: { screen: "document", id: TALIMAT, query: {} },
+      actions: ["open", "reparse", "ask_claude", "ignore"],
+      prompt: "İplikçi Nedim'de 'TalimatFormu.pdf' belgesi işlenmedi (talimat formu).",
+    }),
+    todo({
+      key: `split:${WHOLE}`,
+      kind: "split_dropped",
+      title: "Örnek Süpermarket",
+      detail: "01.11.2026 günlü 1.250,00 TL tutarındaki satırı 2 parçaya bölmüştünüz; satır bütün olarak sayılıyor.",
+      count: 1,
+      amount: tl(125000),
+      target: WHOLE,
+      link: { screen: "transaction", id: WHOLE, query: {} },
+      actions: ["open", "ignore"],
+      prompt: "",
+    }),
+  ],
+  counts: {
+    uncategorized: 1,
+    unmatched_evidence: 0,
+    unmatched_invoice: 0,
+    unverified_statement: 0,
+    missing_documents: 1,
+    unprocessed_document: 1,
+    orphan_annotation: 0,
+    split_dropped: 1,
+    format_alarm: 0,
+  },
+  ignored: 1,
+};
+
+/** What the user took off the list, listed when asked for. */
+export const IGNORED_TODO = todo({
+  key: "uncategorized:eski kitapci",
+  title: "Eski Kitapçı",
+  detail: "2 işlem, toplam 340,00 TL; sonuncusu 02.09.2026. Hiçbir kural adlandırmıyor.",
+  count: 2,
+  amount: tl(34000),
+  target: "Eski Kitapçı",
+  ignored: true,
+});
+
 export const handlers = [
   http.get("/api/labels", () => HttpResponse.json(LABELS)),
   http.get("/api/dashboard", () => HttpResponse.json(DASHBOARD)),
@@ -2823,6 +2925,16 @@ export const handlers = [
   http.put("/api/rules/categories", () =>
     HttpResponse.json({ ...RULE_CHANGE, saved: true, backup: "personal 2026-11-15 09.00.00.yaml" }),
   ),
+  // the to-do list (F19)
+  http.get("/api/todos", ({ request }) =>
+    HttpResponse.json(
+      new URL(request.url).searchParams.get("with_ignored") === "true"
+        ? { ...TODOS, items: [...TODOS.items, IGNORED_TODO] }
+        : TODOS,
+    ),
+  ),
+  http.post("/api/todos/ignored", () => new HttpResponse(null, { status: 204 })),
+  http.post("/api/documents/:sha256/reparse", () => HttpResponse.json({ status: "processed" })),
 ];
 
 export const server = setupServer(...handlers);

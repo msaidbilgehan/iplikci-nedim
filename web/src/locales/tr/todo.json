@@ -1,0 +1,52 @@
+{
+  "title": "Yapılacaklar",
+  "description": "Verilerin tam ve doğru olması için bakılması gerekenler; her birinin yanında onu çözen adım var.",
+  "say": "{{count, number}} iş bekliyor: {{kinds}}.",
+  "kindCount": "{{kind}} ({{count, number}})",
+  "empty": "Yapılacak bir şey yok",
+  "emptyText": "Veriler tam ve doğru görünüyor: kategorisiz işlem, eksik ya da okunamayan belge yok.",
+  "kindEmpty": "Bu türde bekleyen iş yok",
+  "kinds": "Türler",
+  "all": "Tümü ({{count, number}})",
+  "showAll": "Bütün işleri göster",
+  "tone": {
+    "critical": "Önemli",
+    "warning": "Bakılmalı",
+    "neutral": "Bilgi"
+  },
+  "about": {
+    "uncategorized": "Hiçbir kuralın adlandırmadığı işyerleri, en sık görülen önce. Bir kural, işyerinin bütün işlemlerini adlandırır.",
+    "unmatched_evidence": "Dekontta ya da banka bildiriminde olup ekstrede görünmeyen hareketler; toplamlara girmezler.",
+    "unmatched_invoice": "Banka dışı göndericilerin faturaları: ödeyen banka satırı bulunamadı.",
+    "unverified_statement": "Satırları yazdığı toplamla ya da bakiyeyle tutmayan ekstreler: okuyucu bir satırı kaçırmış olabilir.",
+    "missing_documents": "Ekstresi ya da hesap hareketleri geride kalan hesaplar: bankadan indirip yükleyin.",
+    "unprocessed_document": "Okunamayan ya da işlenmeyen belgeler.",
+    "orphan_annotation": "Bağlı olduğu satır artık hiçbir belgede olmayan düzeltmeler.",
+    "split_dropped": "Böldüğünüz ama artık bölünemeyen satırlar: bütün olarak sayılıyorlar.",
+    "format_alarm": "Bankanın biçimini tanımayan okuyucular: banka biçimini değiştirmiş olabilir."
+  },
+  "table": {
+    "caption": "{{kind}}: bekleyen işler",
+    "item": "İş",
+    "detail": "Ayrıntı",
+    "count": "Adet",
+    "amount": "Tutar",
+    "target": "Hedef",
+    "steps": "Adımlar"
+  },
+  "ignoredBadge": "Yok sayıldı",
+  "restore": "Listeye geri al",
+  "ignoredCount": "{{count, number}} iş yok sayıldı.",
+  "showIgnored": "Yok sayılanları göster",
+  "ignoredDone": "“{{title}}” listeden çıkarıldı.",
+  "restoredDone": "“{{title}}” listeye geri alındı.",
+  "undo": "Geri al",
+  "reparsing": "Okunuyor…",
+  "reparsed": "“{{title}}” yeniden okundu: {{status}}.",
+  "prompt": "Claude'a verilecek istek",
+  "promptHint": "İplikçi Nedim'in MCP sunucusu bağlı Claude'a yapıştırın.",
+  "copied": "İstek panoya kopyalandı: Claude'a yapıştırın.",
+  "copyFailed": "İstek panoya kopyalanamadı; aşağıdan seçip kopyalayın.",
+  "upload": "Belge yükle",
+  "failed": "Yapılamadı"
+}

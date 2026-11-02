@@ -70,6 +70,11 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
   yeni işyeri kuralı. Her değişiklik yazılmadan önce kaç satırı hangi kategoriden hangisine taşıyacağını, örnek
   satırları ve kural dosyasının farkını gösterir. Ayrıntılı görünüm kural dosyasının tamamını düzenletir ve önceki
   sürümlerini listeler.
+- Yapılacaklar ekranı (`/yapilacaklar`): verinin eksiksiz ve doğru olmasını engelleyenler türlerine göre, önemleri ve
+  ne anlama geldikleriyle; her madde sayıları ve penceresiyle, onu kapatacak tek tıklık adımlarla: "Kural ekle"
+  Kurallar ekranını işyeriyle açar, "Belge yükle" yükleme panelini, "Yeniden oku" belgeyi yeniden okur, "Göster"
+  satıra, faturaya ya da belgeye götürür, "Claude'a ver" isteği kopyalar. "Yok say" maddeyi listeden çıkarır, "Geri
+  al" ile ya da yok sayılanların listesinden geri gelir. Panodaki sayı ekrana türüyle süzülmüş olarak götürür.
 - API: akışın sayfaları ve "Şu an" (`GET /api/feed`, `GET /api/feed/now`), pano kartları (`GET /api/dashboard`),
   hesap grupları, hesap sayfası, hesaplar arası akış ve hesaba verilen ad (`GET /api/accounts…`,
   `PUT /api/accounts/{id}/alias`).

@@ -45,7 +45,7 @@ describe("Layout", () => {
   it("lists the screens built so far in their groups, setting up apart", () => {
     renderScreen(<Layout />);
     const expected: Record<string, string[]> = {
-      Bugün: ["/", "/akis"],
+      Bugün: ["/", "/akis", "/yapilacaklar"],
       Para: ["/hesaplar", "/islemler", "/abonelikler", "/takvim", "/doviz"],
       Analiz: ["/degerlendirme", "/ay-sonu"],
       Arşiv: ["/belgeler", "/faturalar"],

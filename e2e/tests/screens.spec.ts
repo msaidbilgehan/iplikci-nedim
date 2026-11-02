@@ -24,6 +24,7 @@ const SCREENS = [
   { path: "/ay-sonu", heading: "Ay sonu" },
   { path: "/ay-sonu/2026-10", heading: "Ekim 2026" }, // a closed month of the demo
   { path: "/kurallar", heading: "Kurallar" },
+  { path: "/yapilacaklar", heading: "Yapılacaklar" },
 ] as const;
 
 for (const screen of SCREENS) {

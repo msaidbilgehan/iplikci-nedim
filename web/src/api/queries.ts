@@ -65,6 +65,7 @@ import type {
   TelegramBot,
   TelegramCheck,
   TelegramPairing,
+  Todos,
   TransactionDetail,
   TransactionPage,
 } from "./types";
@@ -774,5 +775,29 @@ export function useMonthEnd(month: string, enabled = true) {
     queryKey: [...monthEndKey, month],
     queryFn: () => api.get<MonthEndDetail>(`/api/month-end/${month}`),
     enabled,
+  });
+}
+
+// --- the to-do list (F19) -------------------------------------------------------------------------------------------
+
+// Under the dashboard's key, as the dashboard counts the same items: every event of the stream (a document read again)
+// and every change that refreshes the dashboard (a rule, a correction) refreshes the list too.
+const todoKey = (withIgnored: boolean) => [...keys.dashboard, "todos", withIgnored] as const;
+
+/** The to-do list by kind in F19's order; withIgnored also lists what the user took off it. */
+export function useTodos(withIgnored: boolean) {
+  return useQuery({
+    queryKey: todoKey(withIgnored),
+    queryFn: () => api.get<Todos>(`/api/todos?with_ignored=${withIgnored}`),
+    placeholderData: keepPreviousData, // showing what was taken off keeps the list on the page meanwhile
+  });
+}
+
+/** Take an item off the list (ignored), or put it back. */
+export function useIgnoreTodo() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (change: { key: string; ignored: boolean }) => api.post<void>("/api/todos/ignored", change),
+    onSettled: () => client.invalidateQueries({ queryKey: keys.dashboard }),
   });
 }

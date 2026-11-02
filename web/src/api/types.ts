@@ -148,6 +148,10 @@ import type {
   TelegramPairingOut,
   TelegramTokenOut,
   TilesOut,
+  TodoAction,
+  TodoKind,
+  TodoOut,
+  TodosOut,
   TodoSummaryOut,
   Tone,
   TotalsOut,
@@ -340,3 +344,9 @@ export type MonthEndRegular = MonthEndRegularOut;
 export type MerchantNecessity = MerchantNecessityOut;
 export type CategoryMove = CategoryMoveOut;
 export type ChangedRow = ChangedRowOut;
+
+// The to-do list (F19): what keeps the data from being complete and right, each item with the steps that settle it.
+// A kind or a step this version does not know yet is shown by its label from /api/labels.
+export type { TodoAction, TodoKind };
+export type Todos = TodosOut;
+export type TodoItem = TodoOut;
