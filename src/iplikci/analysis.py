@@ -12,11 +12,14 @@ news before the statement does: a receipt's row counts as provisional until a
 statement of its account covers its day, then the statement's own row takes
 its place (the receipt is confirmed) or, when the statement does not show it,
 the receipt is flagged for a look.
+
+Movement lists the user downloads cover any dates, so two lists of one account
+may cover the same days: each such day's rows are counted from one list only.
 """
 
 import calendar
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
@@ -160,6 +163,41 @@ def statement_periods(statements: list[Statement]) -> list[tuple[Statement, date
                     start = _one_month_before(s.cut_date) + timedelta(days=1)
             periods.append((s, start, s.cut_date))
     return periods
+
+
+def one_list_per_day(statements: Sequence[Statement]) -> list[Statement]:
+    """statements as the ledger counts them. Where movement lists of one account cover the same day, that day's rows
+    come from one of them: the one with more rows that day (a list taken during the day lacks the day's later rows),
+    else the one reaching further, else the first by document. A list's own rows are never deduplicated among
+    themselves, and a statement given here is never changed: the one counted on fewer days is a copy without the rows
+    of the days another list gives (the documents keep their checks and their own view)."""
+    by_account: dict[tuple[str, str], list[Statement]] = defaultdict(list)
+    for s in statements:
+        if s.is_account:
+            by_account[(s.account, s.currency)].append(s)
+    elsewhere: dict[int, set[date]] = {}  # id of a list -> the days whose rows another list gives
+    for lists in by_account.values():
+        if len(lists) < 2:
+            continue
+        rows = [Counter(t.date for t in s.transactions) for s in lists]
+        covering: dict[date, list[int]] = defaultdict(list)
+        for i, s in enumerate(lists):
+            start = s.start or s.cut_date
+            for n in range((s.cut_date - start).days + 1):
+                covering[start + timedelta(days=n)].append(i)
+        for day, found in covering.items():
+            if len(found) < 2:
+                continue
+            kept = min(found, key=lambda i: (-rows[i][day], -lists[i].cut_date.toordinal(), lists[i].document))
+            for i in found:
+                if i != kept and rows[i][day]:
+                    elsewhere.setdefault(id(lists[i]), set()).add(day)
+    return [
+        replace(s, transactions=[t for t in s.transactions if t.date not in days])
+        if (days := elsewhere.get(id(s)))
+        else s
+        for s in statements
+    ]
 
 
 def covered_days(statements: list[Statement]) -> dict[str, set[date]]:
@@ -660,16 +698,19 @@ def build(
         accounts.setdefault(a.id, a)
     _drop_told_twice(receipts, notices)
     stmts = sorted(statements.values(), key=lambda s: (s.account, s.cut_date, s.currency))
-    _fingerprint(stmts, receipts, accounts)
-    _link_foreign_currency(stmts)
+    # The rows the ledger counts: a day two lists of an account cover comes from one of them. Fingerprints are given
+    # to those rows only, so a row keeps its fingerprint (and the user's notes) whichever list brings it.
+    counted = one_list_per_day(stmts)
+    _fingerprint(counted, receipts, accounts)
+    _link_foreign_currency(counted)
     days = covered_days(stmts)
     coverage = _coverage(days)
 
-    card_txns = [t for s in stmts if not s.is_account and s.currency == TRY for t in s.transactions]
-    account_txns = [t for s in stmts if s.is_account for t in s.transactions]
+    card_txns = [t for s in counted if not s.is_account and s.currency == TRY for t in s.transactions]
+    account_txns = [t for s in counted if s.is_account for t in s.transactions]
     # Receipts add what no statement shows yet (a transfer made today) or ever will (a 2022 card payment,
     # old loan installments); a statement's own row stands for what it shows.
-    lines = settle_receipts(receipts, stmts, accounts, days)
+    lines = settle_receipts(receipts, counted, accounts, days)
     receipt_txns = [line.txn for line in lines if line.status in (PROVISIONAL, NO_STATEMENT)]
     for line in lines:
         line.txn.provisional = line.status == PROVISIONAL
@@ -679,7 +720,7 @@ def build(
     warnings: list[str] = []
     # A receipt's transfer (a FAST to the landlord, a payment between own accounts) resolves like a list row.
     _resolve_transfers(
-        account_txns + receipt_txns, own, categorizer, stmts, accounts, _free_card_payments(card_txns, account_txns)
+        account_txns + receipt_txns, own, categorizer, counted, accounts, _free_card_payments(card_txns, account_txns)
     )
     rates = _rates(account_txns)
     account_txns = _to_tl(account_txns, accounts, rates, warnings)
