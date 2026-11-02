@@ -316,16 +316,54 @@ Durum: 2026-11-02'de `asama-6` dalında uygulandı, `v0.7.0` ([değişiklik gün
 
 ## Aşama 7 — MCP
 
+Durum: sırada; Aşama 6 2026-11-02'de `v0.7.0` ile bitti.
+
+**Başlangıçtaki durum (2026-11-02)**
+
+- MCP sunucusu MVP'nin düz düzeninde, `src/iplikci/mcp_server.py`'dadır. JSON-RPC elle yazılmıştır; yalnızca stdio
+  (`iplikci mcp`) ve yalnızca araçlar vardır, kaynak ve hazır istem yoktur.
+- 21 araç vardır: MVP'nin 16'sı (`status`, `import_documents`, `fetch_email`, `plan_inbox`, `apply_inbox`,
+  `build_report`, `insights`, `transactions`, `regular_payments`, `habits`, `accounts`, `month_end`, `read_rules`,
+  `add_rule`, `mark_ended`, `write_rules`) ve Aşama 4–5'te gelen `subscriptions`, `upcoming_payments`,
+  `cash_flow_forecast`, `invoices`, `alerts`.
+- Araçlar servise değil, kendi süreçlerinde veri klasörüne bağlanır. Ekranların her biri için `app`'te bir kullanım
+  durumu vardır; MCP de aynı kullanım durumlarını kullanmalıdır.
+- Depoda `.mcp.json` yoktur; resmî MCP SDK'sı bağımlılıklarda yoktur.
+
 **Teslimler**
 
-- Resmî SDK; servis üzerinden HTTP ve stdio köprüsü (ADR-0011).
-- MVP'nin 16 aracı ve yeni araçlar; kaynaklar; istemler.
-- Şema anlık görüntü testleri; maskeleme.
-- Deponun `.mcp.json`'u; belirteç ortam değişkeninden okunur.
+- `mcp/` paketi (MVP modüllerinin hedefleri tablosu) ve resmî Python SDK'sı (ADR-0011):
+  - Asıl taşıma, servisin `/mcp` adresindeki Streamable HTTP'dir; ADR-0007'nin kapısının arkasındadır (Host ve Origin
+    denetimi, API belirteci).
+  - `iplikci mcp` stdio köprüsüdür: servis çalışıyorsa istekleri ona iletir. Çalışmıyorsa veritabanını salt okunur
+    açar; yazan araçlar o sırada reddedilir.
+- Araçlar:
+  - MVP'nin 16 aracı aynı adlarla kalır; Aşama 4–5'tekiler de kalır.
+  - ADR-0011'in yeni araçları eklenir: `search`, `explain_transaction`, `get_document`, `unprocessed_documents`,
+    `reparse_document`, `feed`, `accounts_overview`, `net_worth`, `fx_rates`, `annotate_transaction`.
+  - Aynı soruya ekranla MCP aynı cevabı verir: araçlar `app`'in kullanım durumlarını çağırır.
+- Her araçta ek açıklamalar (`readOnlyHint`, `destructiveHint`, `idempotentHint`) vardır. Yazan araçlar plan → onay →
+  uygula akışını izler. Büyük çıktı önce özet döner; ayrıntı istenince ve sayfa sayfa gelir.
+- Kaynaklar ve hazır istemler ADR-0011'deki gibidir.
+- Gizlilik:
+  - Türkçe sunucu talimatları belge metninin veri olduğunu, talimat olmadığını söyler.
+  - Ayarlardaki maskeleme seçeneği hesap numaralarını, IBAN'ları ve kişi adlarını gizler.
+  - Her araç çağrısı denetim kaydına yazılır.
+- Testler: araç listesinin, şemaların ve ek açıklamaların anlık görüntüsü; maskeleme; salt okunur köprü.
+- Deponun `.mcp.json`'u: belirteç ortam değişkeninden okunur, depoya yazılmaz. Kullanıcının Claude'u terminal açmadan
+  bağlayabileceği bir arayüz yolu da gerekir (K14). Belirtecin arayüzde gösterilip gösterilmeyeceği kullanıcıya
+  sorulur.
 
-**Çıkış koşulu:** F16 ölçütleri sağlanır.
+**Çıkış koşulu**
+
+- F16 ölçütleri sağlanır.
+- MVP eşitlik listesinin MCP ve kurallar maddeleri işaretlenir.
 
 ## Aşama 8 — Döviz
+
+**Başlangıçtaki durum (2026-11-02):** kur sağlayıcısı yoktur. Döviz ekranı ve net varlık belgelerin kendi kurlarıyla
+çalışır (Aşama 6); kuru belgelerde olmayan birim toplama girmez ve ekranda adıyla yazar. `fx` paketi yoktur. Kur
+sağlayıcılarının adresleri ADR-0009'da listelidir; `egress` onları ancak bu özellik gelince kabul eder.
 
 **Teslimler**
 

@@ -11,6 +11,9 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 
 ## Değişiklik kaydı
 
+- 2026-11-02 (21) — Aşama 7'ye hazırlık: [yol haritası](v1/roadmap.md#aşama-7--mcp)'na Aşama 7'nin başlangıçtaki
+  durumu (MCP sunucusunun bugünkü hâli, 21 araç) ve ayrıntılı teslimleri, Aşama 8'in başlangıçtaki durumu yazıldı.
+
 - 2026-11-02 (20) — Aşama 6 uygulandı (`asama-6` dalı); belgeler kodla uyumlu hâle getirildi:
   - README'nin durum bölümü ve `web/README.md` güncellendi; `CHANGELOG.md`'ye 0.7.0 eklendi.
   - [Yol haritası](v1/roadmap.md#aşama-6--arayüz): Aşama 6'nın durumu, macOS'ta temiz kurulumun sonucu ve açık
