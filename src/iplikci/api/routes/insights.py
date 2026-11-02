@@ -21,7 +21,7 @@ from .deps import only
 router = APIRouter()
 
 
-class WindowOut(BaseModel):
+class InsightsWindowOut(BaseModel):
     months: list[str]  # the complete months the interpretation uses, oldest first
     as_of: date  # the newest statement's end
     last_complete: str
@@ -114,7 +114,7 @@ class UnusualOut(BaseModel):
 
 
 class InsightsOut(BaseModel):
-    window: WindowOut
+    window: InsightsWindowOut
     findings: list[FindingOut]
     steps: list[StepOut]
     budget: list[BudgetLineOut]
@@ -201,7 +201,7 @@ def insights(request: Request) -> InsightsOut:
     labels = account_labels(a)
     w = found.window
     return InsightsOut(
-        window=WindowOut(months=list(w.months), as_of=w.as_of, last_complete=w.last_complete),
+        window=InsightsWindowOut(months=list(w.months), as_of=w.as_of, last_complete=w.last_complete),
         findings=[FindingOut(tone=f.tone, title=f.title, text=f.text, link=_link(f.link)) for f in found.findings],
         steps=[
             StepOut(title=s.title, text=s.text, monthly=money(s.monthly) if s.monthly is not None else None)

@@ -334,3 +334,20 @@ class UnusualKind(StrEnum):
     POSSIBLE_DUPLICATE = "possible_duplicate"  # the same amount at the same merchant on the same day, again
     NEW_LARGE = "new_large"  # a large amount at a merchant never seen before
     UNEXPECTED_FEE = "unexpected_fee"  # a fee or a due the account did not charge in the months before
+
+
+class NecessityReason(StrEnum):
+    """Where a spending row's necessity comes from (docs/domain/categorization.md, "Gereklilik")."""
+
+    USER = "user"  # the user's correction on this row
+    MERCHANT = "merchant"  # the rules' `_gereklilik_işyeri`: this merchant's own level
+    CATEGORY = "category"  # the rules' `_gereklilik`: the category's level
+    DEFAULT = "default"  # no rule gives one: "Belirsiz"
+
+
+class ForecastPart(StrEnum):
+    """The parts of the three-month spending forecast (docs/domain/interpretation.md, "Tahmin")."""
+
+    REGULAR = "regular"  # regular payments still running, at their monthly amount
+    INSTALLMENTS = "installments"  # installments still due
+    VARIABLE = "variable"  # everything else, a necessity level at a time: the median of the base months

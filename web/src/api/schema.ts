@@ -230,6 +230,17 @@ export interface CardPeriodOut {
   rows: number;
 }
 
+export interface CategoryLineOut {
+  category: string;
+  group: string;
+  slot: number;
+  total: MoneyOut;
+  share: string | null;
+  average: MoneyOut;
+  count: number;
+  link: LinkOut;
+}
+
 export interface CategoryMoveOut {
   before: string;
   after: string;
@@ -381,6 +392,14 @@ export interface DocumentDetailOut {
 
 export type DocumentKind = "card_statement" | "account_statement" | "receipt" | "notice" | "invoice";
 
+export interface DocumentMailOut {
+  subject: string;
+  sender: string;
+  sent: string;
+  lines: string[];
+  text: string;
+}
+
 export interface DocumentOut {
   sha256: string;
   name: string;
@@ -424,7 +443,7 @@ export interface DocumentViewOut {
   kind: ViewKind;
   pages: PageSizeOut[];
   table: TableOut | null;
-  mail: iplikci__api__routes__documents__MailOut | null;
+  mail: DocumentMailOut | null;
   text: string;
   has_html: boolean;
 }
@@ -567,6 +586,17 @@ export interface FindingOut {
   link: LinkOut;
 }
 
+export interface FlowMonthOut {
+  month: string;
+  income: MoneyOut;
+  expense: MoneyOut;
+  net: MoneyOut;
+  people: MoneyOut;
+  debt: MoneyOut;
+  saving: MoneyOut;
+  left: MoneyOut;
+}
+
 /** Each a monthly average over the window's months. */
 export interface FlowOut {
   months: string[];
@@ -592,6 +622,9 @@ export interface ForecastOut {
   skipped: SkippedOut[];
   notes: string[];
 }
+
+/** The parts of the three-month spending forecast (docs/domain/interpretation.md, "Tahmin"). */
+export type ForecastPart = "regular" | "installments" | "variable";
 
 /** How far an account's documents reach. */
 export interface FreshnessOut {
@@ -664,7 +697,7 @@ export interface IncomeOut {
 }
 
 export interface InsightsOut {
-  window: iplikci__api__routes__insights__WindowOut;
+  window: InsightsWindowOut;
   findings: FindingOut[];
   steps: StepOut[];
   budget: BudgetLineOut[];
@@ -673,6 +706,12 @@ export interface InsightsOut {
   trend: TrendOut | null;
   income: IncomeOut[];
   unusual: UnusualOut[];
+}
+
+export interface InsightsWindowOut {
+  months: string[];
+  as_of: string;
+  last_complete: string;
 }
 
 /** A card purchase in installments with some still to come: the card's newest statement billed `number`. */
@@ -718,7 +757,7 @@ export interface InvoiceOut {
   due: string | null;
   total: MoneyOut;
   lines: InvoiceLineOut[];
-  window: iplikci__api__models__WindowOut;
+  window: WindowOut;
   document: string;
   sha256: string;
   row: BankRowOut | null;
@@ -773,6 +812,18 @@ export interface MailCoverageOut {
   left: UnknownMailOut[];
 }
 
+export interface MailOut {
+  connector: "imap" | "browser_bridge";
+  configured: boolean;
+  last_run: string;
+  last_error: string;
+  stopped: boolean;
+  start_day: string;
+  history_due: boolean;
+  refused: RefusedMailOut[];
+  coverage: MailCoverageOut;
+}
+
 export interface MailSettingsIn {
   connector?: "imap" | "browser_bridge" | null;
   start?: string | null;
@@ -786,6 +837,18 @@ export interface MailSettingsOut {
   server: string;
   stopped: boolean;
   last_error: string;
+}
+
+export interface MerchantLineOut {
+  merchant: string;
+  category: string;
+  group: string;
+  slot: number;
+  count: number;
+  total: MoneyOut;
+  per_row: MoneyOut;
+  last: string;
+  link: LinkOut;
 }
 
 /** A merchant's own level of necessity; null takes it back to its category's. */
@@ -818,8 +881,19 @@ export interface MoneyOut {
   currency: string;
 }
 
+export interface MonthRowOut {
+  month: string;
+  values: MoneyOut[];
+  partial: boolean;
+}
+
 /** Month-end closing: of a month, and of each account within it. */
 export type MonthStatus = "closed" | "waiting" | "missing" | "check" | "running";
+
+export interface MonthTableOut {
+  slices: SliceOut[];
+  months: MonthRowOut[];
+}
 
 export type Necessity = "required" | "optional" | "unnecessary" | "unknown";
 
@@ -1023,6 +1097,13 @@ export interface PaymentOut {
   amount: MoneyOut;
   document: string;
   certainty: Certainty;
+}
+
+export interface PeriodOut {
+  start: string;
+  end: string;
+  first: string;
+  last: string;
 }
 
 /** The document a plan item would add: a statement, an account statement or a receipt, and its check. */
@@ -1232,6 +1313,11 @@ export interface SkippedOut {
   reason: string;
 }
 
+export interface SliceOut {
+  key: string;
+  slot: number;
+}
+
 export type Sort = "day" | "amount" | "title" | "category" | "account";
 
 /** How a document reached the archive. */
@@ -1248,6 +1334,43 @@ export interface SourceRefOut {
   sheet: string | null;
   row: number | null;
   span: number[] | null;
+}
+
+export interface SpendingForecastLineOut {
+  part: ForecastPart;
+  label: string;
+  note: string;
+  necessity: Necessity;
+  group: string;
+  slot: number;
+  amounts: MoneyOut[];
+  link: LinkOut | null;
+}
+
+export interface SpendingForecastOut {
+  base: string[];
+  months: string[];
+  lines: SpendingForecastLineOut[];
+  totals: MoneyOut[];
+  by_level: MonthTableOut;
+  actual: MonthTableOut;
+  income: MoneyOut;
+  income_names: string[];
+  saving: MoneyOut;
+  saving_names: string[];
+  other: MoneyOut;
+  left: MoneyOut | null;
+}
+
+export interface SpendingOut {
+  period: PeriodOut | null;
+  tiles: TilesOut;
+  by_group: MonthTableOut;
+  by_level: MonthTableOut;
+  categories: CategoryLineOut[];
+  merchants: MerchantLineOut[];
+  flow: FlowMonthOut[];
+  forecast: SpendingForecastOut | null;
 }
 
 /** Money out tied to no day: the median month of the complete months named, spread over each month's days. */
@@ -1298,7 +1421,7 @@ export interface SystemOut {
   readers: ReaderHealthOut[];
   disk: DiskOut;
   queue: QueueOut;
-  mail: iplikci__api__models__MailOut;
+  mail: MailOut;
   backup: BackupHealthOut;
 }
 
@@ -1333,6 +1456,22 @@ export interface ThisMonthOut {
   pace: PaceOut;
   say: string;
   link: LinkOut;
+}
+
+export interface TilesOut {
+  total: MoneyOut;
+  count: number;
+  average: MoneyOut | null;
+  average_months: number;
+  partial_months: number;
+  income_average: MoneyOut | null;
+  income_months: number;
+  income_share: string | null;
+  unnecessary: MoneyOut;
+  last_month: string | null;
+  last_total: MoneyOut;
+  last_partial: boolean;
+  last_change: string | null;
 }
 
 /** The steps a to-do offers (F19). */
@@ -1502,40 +1641,14 @@ export interface WhyOut {
   rate_day: string | null;
 }
 
-/** The whole rule file, as the user edited it. */
-export interface WriteRulesIn {
-  action: "write";
-  content: string;
-}
-
-export interface iplikci__api__models__MailOut {
-  connector: "imap" | "browser_bridge";
-  configured: boolean;
-  last_run: string;
-  last_error: string;
-  stopped: boolean;
-  start_day: string;
-  history_due: boolean;
-  refused: RefusedMailOut[];
-  coverage: MailCoverageOut;
-}
-
 /** The days a document's bank row is looked for in. */
-export interface iplikci__api__models__WindowOut {
+export interface WindowOut {
   start: string;
   end: string;
 }
 
-export interface iplikci__api__routes__documents__MailOut {
-  subject: string;
-  sender: string;
-  sent: string;
-  lines: string[];
-  text: string;
-}
-
-export interface iplikci__api__routes__insights__WindowOut {
-  months: string[];
-  as_of: string;
-  last_complete: string;
+/** The whole rule file, as the user edited it. */
+export interface WriteRulesIn {
+  action: "write";
+  content: string;
 }

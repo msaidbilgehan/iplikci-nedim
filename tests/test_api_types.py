@@ -15,6 +15,12 @@ def test_the_interfaces_types_are_generated_from_the_api_as_it_is():
     )
 
 
+def test_every_model_has_a_name_of_its_own():
+    # Two models of one name get their modules' paths as names, and the interface's imports of either break.
+    names = openapi_document()["components"]["schemas"]
+    assert not [name for name in names if "__" in name]
+
+
 def schema(**schemas: object) -> dict[str, object]:
     return {"components": {"schemas": schemas}}
 

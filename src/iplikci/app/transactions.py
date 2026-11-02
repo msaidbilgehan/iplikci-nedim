@@ -25,6 +25,7 @@ from ..domain.codes import (
     DocumentKind,
     EvidenceStatus,
     Necessity,
+    NecessityReason,
     RuleLayer,
     TransactionKind,
     TransferStep,
@@ -80,15 +81,6 @@ class Sort(StrEnum):
     TITLE = "title"
     CATEGORY = "category"
     ACCOUNT = "account"
-
-
-class NecessityReason(StrEnum):
-    """Where a spending row's necessity comes from (docs/domain/categorization.md, "Gereklilik")."""
-
-    USER = "user"  # the user's correction on this row
-    MERCHANT = "merchant"  # the rules' `_gereklilik_işyeri`: this merchant's own level
-    CATEGORY = "category"  # the rules' `_gereklilik`: the category's level
-    DEFAULT = "default"  # no rule gives one: "Belirsiz"
 
 
 @dataclass(frozen=True, slots=True)

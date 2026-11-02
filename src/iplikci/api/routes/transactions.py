@@ -68,7 +68,7 @@ def _analysis(context: Context) -> Analysis:
         raise Problem(503, "busy", str(exc)) from exc
 
 
-def _filter(
+def filters(
     start: Annotated[date | None, Query(alias="from")] = None,
     end: Annotated[date | None, Query(alias="to")] = None,
     account: Annotated[list[str] | None, Many] = None,
@@ -107,7 +107,7 @@ def _order(
 
 @router.get("/api/transactions", dependencies=READ)
 def transaction_list(
-    request: Request, f: Annotated[Filter, Depends(_filter)], o: Annotated[Order, Depends(_order)]
+    request: Request, f: Annotated[Filter, Depends(filters)], o: Annotated[Order, Depends(_order)]
 ) -> TransactionsOut:
     """The rows the filters keep, a page at a time, and what they all add up to."""
     a = _analysis(context_of(request))
@@ -132,7 +132,7 @@ def transaction_list(
 
 @router.get("/api/transactions.csv", dependencies=READ, response_class=Response)
 def transaction_csv(
-    request: Request, f: Annotated[Filter, Depends(_filter)], o: Annotated[Order, Depends(_order)]
+    request: Request, f: Annotated[Filter, Depends(filters)], o: Annotated[Order, Depends(_order)]
 ) -> Response:
     """Every row the filters keep as CSV, in the list's order, for Excel."""
     context = context_of(request)

@@ -21,11 +21,13 @@ from .codes import (
     DocumentStatus,
     EventKind,
     EvidenceStatus,
+    ForecastPart,
     HabitStatus,
     InvoiceKind,
     InvoiceStatus,
     MonthStatus,
     Necessity,
+    NecessityReason,
     PaymentKind,
     RuleLayer,
     SeriesPeriod,
@@ -309,6 +311,19 @@ HABIT_STATUS: dict[HabitStatus, str] = {
     HabitStatus.ONE_OFF: "Tek seferlik",
 }
 
+NECESSITY_REASON: dict[NecessityReason, str] = {
+    NecessityReason.USER: "Sizin düzeltmeniz",
+    NecessityReason.MERCHANT: "İşyerinin kendi düzeyi",
+    NecessityReason.CATEGORY: "Kategorisinin düzeyi",
+    NecessityReason.DEFAULT: "Kural yok: belirsiz",
+}
+
+FORECAST_PART: dict[ForecastPart, str] = {
+    ForecastPart.REGULAR: "Düzenli ödemeler",
+    ForecastPart.INSTALLMENTS: "Kalan taksitler",
+    ForecastPart.VARIABLE: "Değişken harcamalar",
+}
+
 UNUSUAL_KIND: dict[UnusualKind, str] = {
     UnusualKind.UNUSUAL_AMOUNT: "Alışılmadık tutar",
     UnusualKind.POSSIBLE_DUPLICATE: "Olası çift çekim",
@@ -353,6 +368,8 @@ TABLES: dict[type[StrEnum], dict[StrEnum, str]] = {
     RuleLayer: _table(RULE_LAYER),
     HabitStatus: _table(HABIT_STATUS),
     UnusualKind: _table(UNUSUAL_KIND),
+    NecessityReason: _table(NECESSITY_REASON),
+    ForecastPart: _table(FORECAST_PART),
 }
 
 # The interface writes the Turkish lira as "TL" (ADR-0006).

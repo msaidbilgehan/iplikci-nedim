@@ -161,7 +161,7 @@ class TableOut(BaseModel):
     more: bool
 
 
-class MailOut(BaseModel):
+class DocumentMailOut(BaseModel):
     subject: str
     sender: str  # the domain of the From address
     sent: str  # ISO time; "" when the message has no date
@@ -173,7 +173,7 @@ class DocumentViewOut(BaseModel):
     kind: ViewKind
     pages: list[PageSizeOut]  # a PDF's pages
     table: TableOut | None
-    mail: MailOut | None
+    mail: DocumentMailOut | None
     text: str  # an HTML document's visible text, or a text document as it is
     has_html: bool  # the sandboxed original view (mail.html) exists
 
@@ -277,7 +277,7 @@ def document_view(request: Request, sha256: Sha256) -> DocumentViewOut:
         kind=found.kind,
         pages=[PageSizeOut(width=w, height=h) for w, h in found.pages],
         table=TableOut(name=found.table.name, rows=found.table.rows, more=found.table.more) if found.table else None,
-        mail=MailOut(subject=mail.subject, sender=mail.sender, sent=mail.sent, lines=mail.lines, text=mail.text)
+        mail=DocumentMailOut(subject=mail.subject, sender=mail.sender, sent=mail.sent, lines=mail.lines, text=mail.text)
         if mail
         else None,
         text=found.text,
