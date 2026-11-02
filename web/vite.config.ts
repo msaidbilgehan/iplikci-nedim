@@ -62,5 +62,8 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
     restoreMocks: true,
+    // A screen's first render with its user events takes a second or two in jsdom, and many times that on a busy
+    // machine or a shared CI runner; the default five seconds turned that into failures of tests that pass.
+    testTimeout: 30_000,
   },
 });
