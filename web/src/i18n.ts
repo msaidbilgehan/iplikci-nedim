@@ -36,6 +36,7 @@ import glossary from "./locales/tr/glossary.json";
 import insights from "./locales/tr/insights.json";
 import invoices from "./locales/tr/invoices.json";
 import monthEnd from "./locales/tr/monthEnd.json";
+import notifications from "./locales/tr/notifications.json";
 import shell from "./locales/tr/shell.json";
 import subscriptions from "./locales/tr/subscriptions.json";
 import system from "./locales/tr/system.json";
@@ -61,6 +62,7 @@ export const resources = {
     fx,
     system,
     monthEnd,
+    notifications,
   },
 } as const;
 

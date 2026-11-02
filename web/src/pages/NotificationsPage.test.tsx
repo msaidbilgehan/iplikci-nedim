@@ -43,9 +43,18 @@ async function openNewRule() {
   return { rules, editor: within(rules).getByRole("form", { name: "Yeni kural" }) };
 }
 
+const detailed = () => localStorage.setItem("iplikci.view", "detailed");
+
 describe("NotificationsPage", () => {
   afterEach(() => {
     vi.useRealTimers();
+    localStorage.clear();
+  });
+
+  it("names the screen in the window's title", async () => {
+    renderScreen(<NotificationsPage />);
+    expect(screen.getByRole("heading", { level: 1, name: "Bildirimler" })).toBeInTheDocument();
+    await waitFor(() => expect(document.title).toBe("Bildirimler · İplikçi Nedim"));
   });
 
   describe("the box", () => {
@@ -63,6 +72,29 @@ describe("NotificationsPage", () => {
       expect(within(large!).getByText("Yeni")).toBeInTheDocument();
       expect(month).toHaveTextContent("Ekim 2026 kapandı: bütün belgeleri geldi ve doğrulandı.");
       expect(within(month!).queryByText("Yeni")).toBeNull();
+    });
+
+    it("says in the simple view how many are unseen and which is the newest of them", async () => {
+      renderScreen(<NotificationsPage />);
+      const box = await screen.findByRole("region", { name: "Bildirim kutusu" });
+      expect(
+        await within(box).findByText("2 bildirimi henüz görmediniz; en yenisi: Son ödeme yaklaşıyor."),
+      ).toBeInTheDocument();
+      expect(within(box).queryByText(/^Olay:/)).toBeNull(); // the events are the detailed view's
+    });
+
+    it("adds each notification's event and the page of what it concerns in the detailed view", async () => {
+      detailed();
+      renderScreen(<NotificationsPage />);
+      const box = await screen.findByRole("region", { name: "Bildirim kutusu" });
+      const list = await within(box).findByRole("list", { name: "Bildirimler, en yenisi önce" });
+      const [due, large, month] = within(list).getAllByRole("listitem");
+      expect(within(due!).getByText("Olay: Son ödeme yaklaşıyor")).toBeInTheDocument();
+      expect(within(due!).getByRole("link", { name: "Takvim ekranı" })).toHaveAttribute("href", "/takvim");
+      const row = within(large!).getByRole("link", { name: "İşlem 3f9a2c7d" });
+      expect(row).toHaveAttribute("href", `/islemler?satir=${BOX.items[1]!.target}`);
+      expect(within(month!).getByRole("link", { name: "Ekim 2026" })).toHaveAttribute("href", "/ay-sonu/2026-10");
+      expect(within(box).queryByText(/henüz görmediniz/)).toBeNull(); // the sentence is the simple view's
     });
 
     it("marks the box seen up to the newest notification shown, from the service's own page", async () => {
@@ -113,7 +145,27 @@ describe("NotificationsPage", () => {
   });
 
   describe("the history", () => {
-    it("shows each delivery's channel, status and what it concerns, and why a failed one failed", async () => {
+    it("lists each delivery with its channel and status in the simple view, and says how many went", async () => {
+      renderScreen(<NotificationsPage />);
+      const log = await screen.findByRole("region", { name: "Teslim kaydı" });
+      const list = await within(log).findByRole("list", { name: "Gönderilen bildirimler, en yenisi önce" });
+      const [failed, held] = within(list).getAllByRole("listitem");
+      expect(within(failed!).getByText("Son ödeme yaklaşıyor")).toBeInTheDocument();
+      expect(within(failed!).getByText("Gönderilemedi")).toBeInTheDocument();
+      expect(within(failed!).getByText(/^Telegram · 02\.11\.2026 \d\d:\d\d$/)).toBeInTheDocument();
+      expect(within(failed!).getByText("Telegram'a ulaşılamadı: zaman aşımı.")).toBeInTheDocument();
+      expect(within(held!).getByText("Özete kaldı")).toBeInTheDocument();
+      expect(
+        within(log).getByText(
+          "4 bildirim gönderildi, 1 bildirim gönderilemedi. " +
+            "1 bildirim sessiz saat ya da sıklık sınırı yüzünden özete kaldı.",
+        ),
+      ).toBeInTheDocument();
+      expect(within(log).queryByRole("table")).toBeNull(); // the table is the detailed view's
+    });
+
+    it("shows in the detailed view each delivery's level, rule, attempts and the page of what it concerns", async () => {
+      detailed();
       renderScreen(<NotificationsPage />);
       const log = await screen.findByRole("region", { name: "Teslim kaydı" });
       const failed = (await within(log).findByText("Telegram'a ulaşılamadı: zaman aşımı.")).closest("tr")!;
@@ -124,10 +176,15 @@ describe("NotificationsPage", () => {
       expect(within(failed).getByRole("link", { name: "Takvim ekranı" })).toHaveAttribute("href", "/takvim");
       const held = within(log).getByText("Büyük harcama: 12.500,00 TL.").closest("tr")!;
       expect(within(held).getByText("Özete kaldı")).toBeInTheDocument();
-      expect(within(held).getByText("3f9a2c7d")).toHaveAttribute("title", LOG.items[1]!.target); // the row's code
+      const row = within(held).getByRole("link", { name: "İşlem 3f9a2c7d" });
+      expect(row).toHaveAttribute("href", `/islemler?satir=${LOG.items[1]!.target}`);
+      expect(within(row).getByText("3f9a2c7d")).toHaveAttribute("title", LOG.items[1]!.target); // the row's code
       expect(within(log).getByRole("link", { name: "Faturalar ekranı" })).toHaveAttribute("href", "/faturalar");
-      expect(within(log).getByText("aaaaaaaa")).toHaveAttribute("title", "a".repeat(64)); // the document's sha256
-      expect(within(log).getByText("Ekim 2026")).toBeInTheDocument(); // the month the event is about
+      const unreadable = within(log).getByRole("link", { name: "Belge aaaaaaaa" });
+      expect(unreadable).toHaveAttribute("href", `/belgeler/${"a".repeat(64)}`);
+      expect(within(unreadable).getByText("aaaaaaaa")).toHaveAttribute("title", "a".repeat(64)); // its sha256
+      // The month the event is about.
+      expect(within(log).getByRole("link", { name: "Ekim 2026" })).toHaveAttribute("href", "/ay-sonu/2026-10");
       expect(
         within(log).getByText("Gönderildi: 3 · Özetle gönderildi: 1 · Özete kaldı: 1 · Gönderilemedi: 1"),
       ).toBeInTheDocument();
@@ -177,6 +234,50 @@ describe("NotificationsPage", () => {
       expect(within(email!).getByText("Kapalı")).toBeInTheDocument();
       expect(within(email!).getByText("Kullanılamıyor")).toBeInTheDocument();
       expect(within(email!).getByRole("checkbox", { name: "E-posta: Açık" })).not.toBeChecked();
+    });
+
+    it("says in the simple view where notifications go now and when the quiet hours are", async () => {
+      renderScreen(<NotificationsPage />);
+      const card = await screen.findByRole("region", { name: "Kanallar" });
+      // Telegram is on but has no bot yet, so it carries nothing; e-mail is off.
+      expect(
+        await within(card).findByText(
+          "Bildirimler uygulamadaki kutuya ve Masaüstü kanalına gidiyor. Sessiz saatler 23:00–08:00.",
+        ),
+      ).toBeInTheDocument();
+      expect(within(card).queryByRole("table")).toBeNull(); // the states are the detailed view's
+    });
+
+    it("says when only the box gets notifications and there are no quiet hours", async () => {
+      const settings = notifySettings();
+      const channels = settings.channels.map((state) => ({ ...state, on: state.channel === "in_app" }));
+      server.use(http.get("/api/notify/settings", () => HttpResponse.json({ ...settings, quiet_hours: "", channels })));
+      renderScreen(<NotificationsPage />);
+      const card = await screen.findByRole("region", { name: "Kanallar" });
+      expect(await within(card).findByText(/^Bildirimler yalnızca uygulamadaki kutuya düşüyor;/)).toHaveTextContent(
+        "başka bir kanal açık değil ya da hazır değil. Sessiz saat yok.",
+      );
+    });
+
+    it("adds every channel's state as the service gives it in the detailed view", async () => {
+      detailed();
+      renderScreen(<NotificationsPage />);
+      const card = await screen.findByRole("region", { name: "Kanallar" });
+      const name = "Kanalların ayarları ve durumu, servisin verdiği gibi";
+      const table = await within(card).findByRole("table", { name });
+      const telegram = within(table).getByRole("row", { name: /^Telegram/ });
+      const cells = within(telegram).getAllByRole("cell");
+      expect(cells.map((cell) => cell.textContent)).toEqual([
+        "Telegram",
+        "Evet", // on
+        "Hayır", // but it cannot carry one yet
+        "Kurulmadı",
+        "Özet",
+        TELEGRAM_NOTES.none,
+      ]);
+      const inApp = within(table).getByRole("row", { name: /^Uygulama içi/ });
+      expect(within(inApp).getAllByRole("cell")[4]).toHaveTextContent("—"); // the box has no level of its own
+      expect(within(card).queryByText(/^Bildirimler uygulamadaki kutuya/)).toBeNull();
     });
 
     it("saves the quiet hours, the channels turned on and each channel's level of detail", async () => {
@@ -387,7 +488,8 @@ describe("NotificationsPage", () => {
       const card = await screen.findByRole("region", { name: "Telegram" });
       expect(await within(card).findByText(note)).toBeInTheDocument();
       expect(within(card).getByText("Durdu")).toBeInTheDocument();
-      expect(within(card).getByText(/^Telegram reddettiği için kanal durdu/)).toBeInTheDocument();
+      expect(within(card).getByText(/^Telegram reddettiği için kanal durdu; program kendiliğinden/)).toBeVisible();
+      expect(within(card).getByText("Telegram reddettiği için kanal durdu; belirteci yeniden girin.")).toBeVisible();
       expect(within(card).getByText("Bot belirtecini yeniden girin.")).toBeInTheDocument();
       expect(within(card).getByLabelText("Bot belirteci")).toBeInTheDocument();
       expect(within(card).getByRole("button", { name: "Telegram'ı kaldır" })).toBeInTheDocument();
@@ -412,16 +514,42 @@ describe("NotificationsPage", () => {
           return new HttpResponse(null, { status: 204 });
         }),
       );
-      const ask = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
       renderScreen(<NotificationsPage />);
       const card = await screen.findByRole("region", { name: "Telegram" });
-      await userEvent.click(await within(card).findByRole("button", { name: "Telegram'ı kaldır" }));
+      const remove = await within(card).findByRole("button", { name: "Telegram'ı kaldır" });
+      await userEvent.click(remove);
+      const asked = await screen.findByRole("alertdialog", { name: "Telegram kaldırılsın mı?" });
+      expect(asked).toHaveAccessibleDescription(
+        "Bot belirteci ve eşleşen sohbet unutulur; bildirimler Telegram'a gitmez.",
+      );
+      await userEvent.click(within(asked).getByRole("button", { name: "Vazgeç" }));
       expect(removed).toBe(0); // the user said no
-      await userEvent.click(within(card).getByRole("button", { name: "Telegram'ı kaldır" }));
+      await waitFor(() => expect(remove).toHaveFocus()); // back where it was asked
+      await userEvent.click(remove);
+      const again = await screen.findByRole("alertdialog", { name: "Telegram kaldırılsın mı?" });
+      await userEvent.click(within(again).getByRole("button", { name: "Telegram'ı kaldır" }));
       expect(await within(card).findByText("Telegram kaldırıldı")).toBeInTheDocument();
       expect(removed).toBe(1);
-      expect(ask).toHaveBeenCalledTimes(2);
-      expect(within(card).getByLabelText("Bot belirteci")).toBeInTheDocument();
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+      // The button is gone with the bot: the focus goes to the field that takes its place.
+      await waitFor(() => expect(within(card).getByLabelText("Bot belirteci")).toHaveFocus());
+    });
+
+    it("says in the simple view what the bot's stage asks of the user", async () => {
+      let telegram = telegramState();
+      server.use(settingsWith(() => telegram));
+      const { client } = renderScreen(<NotificationsPage />);
+      const card = await screen.findByRole("region", { name: "Telegram" });
+      const say = "Bildirimleri Telegram'dan da almak için kendi botunuzu kurun.";
+      expect(await within(card).findByText(say)).toBeInTheDocument();
+      telegram = { ...TELEGRAM_PAIRED, on: false, ready: false };
+      await act(() => client.invalidateQueries());
+      expect(
+        await within(card).findByText("Telegram eşleşti, ama kanal kapalı: Kanallar kartında açın."),
+      ).toBeInTheDocument();
+      telegram = TELEGRAM_PAIRED;
+      await act(() => client.invalidateQueries());
+      expect(await within(card).findByText("Bildirimler Telegram sohbetinize gidiyor.")).toBeInTheDocument();
     });
   });
 
@@ -576,18 +704,53 @@ describe("NotificationsPage", () => {
       expect(name).toHaveValue("büyük harcama"); // the editor stays open with what was typed
     });
 
-    it("deletes a rule after asking", async () => {
+    it("deletes a rule after asking, then moves the focus to the button that adds one", async () => {
       const sent: AlertRule[][] = [];
       server.use(savingRules(sent));
-      const ask = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
       renderScreen(<NotificationsPage />);
       const list = await screen.findByRole("list", { name: "Bildirim kuralları" });
-      await userEvent.click(within(list).getByRole("button", { name: "Ay kapandı: Sil" }));
+      const remove = within(list).getByRole("button", { name: "Ay kapandı: Sil" });
+      await userEvent.click(remove);
+      const asked = await screen.findByRole("alertdialog", { name: "“Ay kapandı” kuralı silinsin mi?" });
+      expect(asked).toHaveAccessibleDescription(/^Kural listeden çıkar; bu olay için bildirim gelmez\./);
+      await userEvent.click(within(asked).getByRole("button", { name: "Vazgeç" }));
       expect(sent).toEqual([]); // the user said no
-      await userEvent.click(within(list).getByRole("button", { name: "Ay kapandı: Sil" }));
+      await waitFor(() => expect(remove).toHaveFocus()); // back where it was asked
+      await userEvent.click(remove);
+      const again = await screen.findByRole("alertdialog", { name: "“Ay kapandı” kuralı silinsin mi?" });
+      await userEvent.click(within(again).getByRole("button", { name: "Kuralı sil" }));
       await waitFor(() => expect(within(list).queryByText("Ay kapandı")).toBeNull());
       expect(sent.map((rules) => rules.map((rule) => rule.name))).toEqual([["Son ödemeye 3 gün", "Büyük harcama"]]);
-      expect(ask).toHaveBeenLastCalledWith("“Ay kapandı” kuralı silinsin mi?");
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+      await waitFor(() => expect(screen.getByRole("button", { name: "Yeni kural" })).toHaveFocus());
+    });
+
+    it("says in the simple view how many rules are on", async () => {
+      renderScreen(<NotificationsPage />);
+      const rules = await screen.findByRole("region", { name: "Kurallar" });
+      expect(await within(rules).findByText("2 kural açık, 1 kural kapalı.")).toBeInTheDocument();
+      expect(within(rules).queryByText(/^Olayın kodu:/)).toBeNull(); // the codes are the detailed view's
+    });
+
+    it.each([
+      [true, "3 kuralın hepsi açık."],
+      [false, "3 kuralın hepsi kapalı; hiçbir olay bildirim vermez."],
+    ])("says so when every rule is on or every one off (on: %s)", async (enabled, said) => {
+      const rules = ALERT_RULES.rules.map((rule) => ({ ...rule, enabled }));
+      server.use(http.get("/api/rules/alerts", () => HttpResponse.json({ ...ALERT_RULES, rules })));
+      renderScreen(<NotificationsPage />);
+      const card = await screen.findByRole("region", { name: "Kurallar" });
+      expect(await within(card).findByText(said)).toBeInTheDocument();
+    });
+
+    it("adds each rule's event code in the detailed view", async () => {
+      detailed();
+      renderScreen(<NotificationsPage />);
+      const list = await screen.findByRole("list", { name: "Bildirim kuralları" });
+      const [due, large] = within(list).getAllByRole("listitem");
+      expect(within(due!).getByText("payment.due_soon")).toBeInTheDocument();
+      expect(within(large!).getByText(/^Olayın kodu:/)).toHaveTextContent("Olayın kodu: transaction.large");
+      expect(screen.queryByText("2 kural açık, 1 kural kapalı.")).toBeNull();
     });
 
     it("says the shipped rules apply until the user changes one", async () => {
@@ -595,6 +758,7 @@ describe("NotificationsPage", () => {
       renderScreen(<NotificationsPage />);
       const rules = await screen.findByRole("region", { name: "Kurallar" });
       expect(await within(rules).findByText(/^Bunlar uygulamayla gelen hazır kurallar\./)).toBeInTheDocument();
+      expect(within(rules).getByText("Uygulamayla gelen 3 hazır kural geçerli.")).toBeInTheDocument();
     });
 
     it("warns when the user's rule file could not be read and the shipped rules stand in", async () => {

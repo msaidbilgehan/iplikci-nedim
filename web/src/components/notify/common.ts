@@ -30,9 +30,9 @@ export function labelOf(labels: Labels, type: string, code: string): string {
   return labels[type]?.[code] ?? code;
 }
 
-/** What went wrong, as the service said it in Turkish. */
-export function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : "Beklenmeyen bir hata oldu.";
+/** What went wrong, as the service said it in Turkish; the fallback for an error with no message. */
+export function messageOf(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
 }
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600";

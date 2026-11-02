@@ -1,18 +1,22 @@
 // The delivery history (F13): every notification on every channel as it was sent, kept back for a digest, retried or
-// given up, with the error of its last attempt and what its event concerns. The names of the channels, statuses,
-// levels and events come from /api/labels.
+// given up, with the error of its last attempt and what its event concerns. The simple view says how many went and
+// lists each with its channel and status; the detailed view's table adds the rule, the level of detail, the attempts
+// and what the event concerns. The names of the channels, statuses, levels and events come from /api/labels.
 
-import { Link } from "react-router";
+import { useTranslation } from "react-i18next";
 
 import { useLabels, useNotificationLog, useNotifySettings } from "../../api/queries";
 import type { DeliveryStatus, Labels, NotificationItem } from "../../api/types";
-import { formatMonth, formatTime } from "../../lib/format";
+import { formatTime } from "../../lib/format";
+import { Detailed, Simple } from "../Preferences";
 import { Empty, Failure, Loading } from "../QueryState";
 import { Badge, type Tone } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
+import { Say } from "../ui/Say";
 import { Table, Td, Th } from "../ui/Table";
-import { labelOf, LINK, MUTED } from "./common";
+import { labelOf, MUTED } from "./common";
+import { Concerns } from "./Concerns";
 
 const STATUS_TONES: Record<DeliveryStatus, Tone> = {
   pending: "neutral",
@@ -23,32 +27,32 @@ const STATUS_TONES: Record<DeliveryStatus, Tone> = {
 };
 const STATUSES: readonly DeliveryStatus[] = ["sent", "digested", "held", "pending", "failed"];
 const TEST_KIND = "test"; // a test the user asked for: no event behind it
-// The events whose target is a row's fingerprint, besides transaction.* (architecture §13).
-const ROW_KINDS: ReadonlySet<string> = new Set(["income.received", "evidence.unmatched"]);
-// The events about what the days ahead hold, and those about a series of payments: their screens show them.
-const CALENDAR_KINDS: ReadonlySet<string> = new Set(["payment.due_soon", "balance.forecast_negative"]);
-const SERIES_KINDS: ReadonlySet<string> = new Set([
-  "expected_payment.missing",
-  "income.late",
-  "subscription.price_changed",
-  "subscription.paid_after_cancel",
-]);
-const SHORT = 8; // the characters of a fingerprint or a sha256 that tell it apart at a glance
+const ERROR = "text-xs text-red-800 dark:text-red-200";
 
 export function DeliveryLog() {
+  const { t } = useTranslation("notifications");
   const log = useNotificationLog();
   const labels = useLabels().data ?? {};
+  const counts = useNotifySettings().data?.counts ?? {};
   const items = log.data?.pages.flatMap((page) => page.items) ?? [];
   return (
-    <Card title="Teslim kaydı">
+    <Card title={t("log.title")}>
+      {items.length > 0 ? <LogSay counts={counts} /> : null}
       <div className="flex flex-col gap-3">
-        <StatusCounts labels={labels} />
+        <StatusCounts counts={counts} labels={labels} />
         {log.isPending ? <Loading /> : null}
         {log.isError ? <Failure error={log.error} onRetry={() => void log.refetch()} /> : null}
-        {log.isSuccess && items.length === 0 ? (
-          <Empty title="Henüz teslim kaydı yok">Gönderilen her bildirim kanalı ve durumuyla burada listelenir.</Empty>
+        {log.isSuccess && items.length === 0 ? <Empty title={t("log.empty")}>{t("log.emptyText")}</Empty> : null}
+        {items.length > 0 ? (
+          <>
+            <Simple>
+              <LogList items={items} labels={labels} />
+            </Simple>
+            <Detailed>
+              <LogTable items={items} labels={labels} />
+            </Detailed>
+          </>
         ) : null}
-        {items.length > 0 ? <LogTable items={items} labels={labels} /> : null}
         {log.hasNextPage ? (
           <Button
             variant="secondary"
@@ -56,7 +60,7 @@ export function DeliveryLog() {
             onClick={() => void log.fetchNextPage()}
             disabled={log.isFetchingNextPage}
           >
-            {log.isFetchingNextPage ? "Yükleniyor…" : "Daha eski kayıtlar"}
+            {log.isFetchingNextPage ? t("log.loadingOlder") : t("log.older")}
           </Button>
         ) : null}
       </div>
@@ -64,33 +68,74 @@ export function DeliveryLog() {
   );
 }
 
+/** How many went and how many could not; those kept for a digest besides. */
+function LogSay({ counts }: { counts: Readonly<Record<string, number>> }) {
+  const { t } = useTranslation("notifications");
+  const sent = (counts["sent"] ?? 0) + (counts["digested"] ?? 0);
+  const held = counts["held"] ?? 0;
+  return (
+    <Say>
+      {t("log.say", { sent, failed: counts["failed"] ?? 0 })}
+      {held > 0 ? ` ${t("log.sayHeld", { count: held })}` : ""}
+    </Say>
+  );
+}
+
 /** How many notifications stand at each status, from the channels' settings. */
-function StatusCounts({ labels }: { labels: Labels }) {
-  const counts = useNotifySettings().data?.counts ?? {};
+function StatusCounts({ counts, labels }: { counts: Readonly<Record<string, number>>; labels: Labels }) {
+  const { t } = useTranslation("notifications");
   const shown = STATUSES.filter((status) => (counts[status] ?? 0) > 0);
   if (shown.length === 0) {
     return null;
   }
   return (
     <p className="text-sm text-zinc-600 dark:text-zinc-300">
-      {shown.map((status) => `${labelOf(labels, "DeliveryStatus", status)}: ${counts[status] ?? 0}`).join(" · ")}
+      {shown
+        .map((status) => t("log.count", { status: labelOf(labels, "DeliveryStatus", status), count: counts[status] }))
+        .join(" · ")}
     </p>
   );
 }
 
+function StatusBadge({ item, labels }: { item: NotificationItem; labels: Labels }) {
+  return <Badge tone={STATUS_TONES[item.status]}>{labelOf(labels, "DeliveryStatus", item.status)}</Badge>;
+}
+
+/** Each notification with its channel, its status and when it was made; a failed one with why. */
+function LogList({ items, labels }: { items: NotificationItem[]; labels: Labels }) {
+  const { t } = useTranslation("notifications");
+  return (
+    <ul aria-label={t("log.list")} className="flex flex-col divide-y divide-zinc-100 text-sm dark:divide-zinc-800">
+      {items.map((item) => (
+        <li key={item.id} className="flex flex-col gap-1 py-2 first:pt-0 last:pb-0">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="font-medium">{item.title}</span>
+            <StatusBadge item={item} labels={labels} />
+          </div>
+          <span className={MUTED}>
+            {labelOf(labels, "Channel", item.channel)} · {formatTime(item.created_at)}
+          </span>
+          {item.error ? <span className={ERROR}>{item.error}</span> : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function LogTable({ items, labels }: { items: NotificationItem[]; labels: Labels }) {
+  const { t } = useTranslation("notifications");
   return (
     <Table>
-      <caption className="sr-only">Gönderilen bildirimler, en yenisi önce</caption>
+      <caption className="sr-only">{t("log.caption")}</caption>
       <thead>
         <tr>
-          <Th>Zaman</Th>
-          <Th>Kanal</Th>
-          <Th>Durum</Th>
-          <Th>Kural</Th>
-          <Th>Bildirim</Th>
-          <Th>İlgili</Th>
-          <Th className="text-right">Başarısız deneme</Th>
+          <Th>{t("log.time")}</Th>
+          <Th>{t("log.channel")}</Th>
+          <Th>{t("log.status")}</Th>
+          <Th>{t("log.rule")}</Th>
+          <Th>{t("log.notification")}</Th>
+          <Th>{t("log.concerns")}</Th>
+          <Th className="text-right">{t("log.attempts")}</Th>
         </tr>
       </thead>
       <tbody>
@@ -99,7 +144,7 @@ function LogTable({ items, labels }: { items: NotificationItem[]; labels: Labels
             <Td className="whitespace-nowrap">
               {formatTime(item.created_at)}
               {item.sent_at && item.sent_at !== item.created_at ? (
-                <span className={`block ${MUTED}`}>gönderim {formatTime(item.sent_at)}</span>
+                <span className={`block ${MUTED}`}>{t("log.sentAt", { time: formatTime(item.sent_at) })}</span>
               ) : null}
             </Td>
             <Td>
@@ -107,15 +152,13 @@ function LogTable({ items, labels }: { items: NotificationItem[]; labels: Labels
               <span className={`block ${MUTED}`}>{labelOf(labels, "DetailLevel", item.detail)}</span>
             </Td>
             <Td>
-              <Badge tone={STATUS_TONES[item.status]}>{labelOf(labels, "DeliveryStatus", item.status)}</Badge>
-              {item.error ? (
-                <span className="mt-1 block text-xs text-red-800 dark:text-red-200">{item.error}</span>
-              ) : null}
+              <StatusBadge item={item} labels={labels} />
+              {item.error ? <span className={`mt-1 block ${ERROR}`}>{item.error}</span> : null}
             </Td>
             <Td>
               {item.rule}
               <span className={`block ${MUTED}`}>
-                {item.kind === TEST_KIND ? "Deneme" : labelOf(labels, "EventKind", item.kind)}
+                {item.kind === TEST_KIND ? t("test") : labelOf(labels, "EventKind", item.kind)}
               </span>
             </Td>
             <Td>
@@ -130,48 +173,5 @@ function LogTable({ items, labels }: { items: NotificationItem[]; labels: Labels
         ))}
       </tbody>
     </Table>
-  );
-}
-
-/**
- * What the notification's event concerns: a document or a row (no screen of its own yet, so its short code), the
- * screen that shows a bill, a payment ahead or a series, or the month; nothing for an event standing for many.
- */
-function Concerns({ item }: { item: NotificationItem }) {
-  const { kind, target } = item;
-  if (!target) {
-    return "—";
-  }
-  if (kind.startsWith("document.")) {
-    return <Code label="Belge" value={target} />;
-  }
-  if (kind.startsWith("transaction.") || ROW_KINDS.has(kind)) {
-    return <Code label="İşlem" value={target} />;
-  }
-  if (kind.startsWith("month.")) {
-    return <span className="whitespace-nowrap">{formatMonth(target)}</span>;
-  }
-  if (kind.startsWith("invoice.")) {
-    return <ScreenLink to="/faturalar" name="Faturalar" />;
-  }
-  if (CALENDAR_KINDS.has(kind)) {
-    return <ScreenLink to="/takvim" name="Takvim" />;
-  }
-  return SERIES_KINDS.has(kind) ? <ScreenLink to="/abonelikler" name="Abonelikler" /> : "—";
-}
-
-function Code({ label, value }: { label: string; value: string }) {
-  return (
-    <span className="whitespace-nowrap">
-      {label} <code title={value}>{value.slice(0, SHORT)}</code>
-    </span>
-  );
-}
-
-function ScreenLink({ to, name }: { to: string; name: string }) {
-  return (
-    <Link to={to} className={`whitespace-nowrap ${LINK}`}>
-      {name} ekranı
-    </Link>
   );
 }

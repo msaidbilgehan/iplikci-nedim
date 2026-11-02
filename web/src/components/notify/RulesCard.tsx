@@ -1,17 +1,22 @@
 // The alert rules (F13, architecture §14): each rule in words with a switch, edited in place; every change saves the
 // whole list, which the service checks and refuses whole when it would not read it. Until the user changes one, the
-// rules shipped with the app apply.
+// rules shipped with the app apply. The simple view says how many are on; the detailed view adds each rule's event
+// code, as the rule file writes it.
 
 import { useEffect, useId, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useAlertRules, useLabels, useSetAlertRules } from "../../api/queries";
 import type { AlertEvent, AlertRule, AlertRules, Labels } from "../../api/types";
 import { cn } from "../../lib/cn";
+import { Detailed } from "../Preferences";
 import { Empty, Failure, Loading } from "../QueryState";
 import { Alert } from "../ui/Alert";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
+import { ConfirmDialog } from "../ui/Dialog";
+import { Say } from "../ui/Say";
 import { CHECKBOX, labelOf, MUTED } from "./common";
 import { RuleEditor } from "./RuleEditor";
 import { channelWords, conditionWords, detailWords } from "./rules";
@@ -22,6 +27,7 @@ type Editing = { kind: "new" } | { kind: "edit"; rule: AlertRule };
 type SaveRules = ReturnType<typeof useSetAlertRules>;
 
 export function RulesCard() {
+  const { t } = useTranslation("notifications");
   const rules = useAlertRules();
   const labels = useLabels().data ?? {};
   const save = useSetAlertRules();
@@ -35,7 +41,7 @@ export function RulesCard() {
   // One card through loading and after: the screen reader's region stays where it is.
   return (
     <Card
-      title="Kurallar"
+      title={t("rules.title")}
       action={
         rules.data ? (
           <Button
@@ -44,7 +50,7 @@ export function RulesCard() {
             disabled={editor.editing !== null || save.isPending}
             onClick={(e) => open({ kind: "new" }, e.currentTarget)}
           >
-            Yeni kural
+            {t("rules.add")}
           </Button>
         ) : undefined
       }
@@ -57,6 +63,7 @@ export function RulesCard() {
           labels={labels}
           save={save}
           editing={editor.editing}
+          addId={editor.addId}
           onOpen={open}
           onClose={editor.close}
         />
@@ -95,17 +102,43 @@ function useEditing() {
   };
 }
 
+/**
+ * Which rule the deletion asks about. Once a rule is gone the focus goes to "Yeni kural": the button that asked is
+ * gone with its rule, whichever comes first, the list without it or the question closing.
+ */
+function useDeleting(rules: readonly AlertRule[], addId: string) {
+  const [asking, setAsking] = useState<AlertRule | null>(null);
+  const deleted = useRef<string | null>(null); // the name of the rule just deleted, until the focus has moved
+  useEffect(() => {
+    const name = deleted.current;
+    if (name !== null && asking === null && !rules.some((rule) => rule.name === name)) {
+      deleted.current = null;
+      document.getElementById(addId)?.focus();
+    }
+  }, [rules, asking, addId]);
+  return {
+    asking,
+    ask: setAsking,
+    done(rule: AlertRule) {
+      deleted.current = rule.name;
+    },
+  };
+}
+
 interface RuleBookProps {
   found: AlertRules;
   labels: Labels;
   save: SaveRules;
   editing: Editing | null;
+  addId: string;
   onOpen: (next: Editing, from: HTMLElement) => void;
   onClose: () => void;
 }
 
-function RuleBook({ found, labels, save, editing, onOpen, onClose }: RuleBookProps) {
+function RuleBook({ found, labels, save, editing, addId, onOpen, onClose }: RuleBookProps) {
+  const { t } = useTranslation("notifications");
   const busy = save.isPending;
+  const deleting = useDeleting(found.rules, addId);
 
   function commit(rule: AlertRule) {
     const at = editing?.kind === "edit" ? found.rules.findIndex((r) => r.name === editing.rule.name) : -1;
@@ -118,28 +151,21 @@ function RuleBook({ found, labels, save, editing, onOpen, onClose }: RuleBookPro
   }
 
   function drop(rule: AlertRule) {
-    if (window.confirm(`“${rule.name}” kuralı silinsin mi?`)) {
-      save.mutate(found.rules.filter((r) => r !== rule));
-    }
+    const rest = found.rules.filter((r) => r !== rule);
+    save.mutate(rest, { onSuccess: () => deleting.done(rule), onSettled: () => deleting.ask(null) });
   }
 
+  const asked = deleting.asking;
   return (
     <div className="flex flex-col gap-3">
+      {found.rules.length > 0 ? <RulesSay found={found} /> : null}
       {found.problem ? (
-        <Alert tone="warning" title="Kural dosyanız okunamadı">
+        <Alert tone="warning" title={t("rules.problem")}>
           <p>{found.problem}</p>
-          <p className="mt-1">
-            Şimdilik uygulamayla gelen kurallar geçerli. Burada kaydederseniz dosyanın yerine bu liste yazılır; eski
-            dosya kural geçmişinde saklanır.
-          </p>
+          <p className="mt-1">{t("rules.problemText")}</p>
         </Alert>
       ) : null}
-      {!found.own ? (
-        <p className="text-sm text-zinc-700 dark:text-zinc-300">
-          Bunlar uygulamayla gelen hazır kurallar. Birini değiştirdiğinizde ya da yeni kural eklediğinizde kendi kural
-          dosyanız oluşur.
-        </p>
-      ) : null}
+      {!found.own ? <p className="text-sm text-zinc-700 dark:text-zinc-300">{t("rules.shipped")}</p> : null}
       {editing !== null ? (
         <RuleEditor
           key={editing.kind === "edit" ? `duzenle-${editing.rule.name}` : "yeni"}
@@ -155,9 +181,9 @@ function RuleBook({ found, labels, save, editing, onOpen, onClose }: RuleBookPro
       {/* Hidden, not gone, while the editor is open: the button that opened it gets the focus back. */}
       <div hidden={editing !== null} className="flex flex-col gap-3">
         {found.rules.length === 0 ? (
-          <Empty title="Hiç kural yok">Kural olmadan bildirim gelmez; "Yeni kural" ile ekleyin.</Empty>
+          <Empty title={t("rules.empty")}>{t("rules.emptyText")}</Empty>
         ) : (
-          <ul aria-label="Bildirim kuralları" className="flex flex-col gap-2">
+          <ul aria-label={t("rules.list")} className="flex flex-col gap-2">
             {found.rules.map((rule, index) => (
               <RuleItem
                 key={rule.name}
@@ -167,20 +193,47 @@ function RuleBook({ found, labels, save, editing, onOpen, onClose }: RuleBookPro
                 busy={busy}
                 onToggle={() => toggle(index)}
                 onEdit={(from) => onOpen({ kind: "edit", rule }, from)}
-                onDelete={() => drop(rule)}
+                onDelete={() => {
+                  save.reset();
+                  deleting.ask(rule);
+                }}
               />
             ))}
           </ul>
         )}
         {save.isError && editing === null ? (
-          <Alert tone="critical" title="Kurallar kaydedilemedi" live>
+          <Alert tone="critical" title={t("rules.saveFailed")} live>
             <p>{save.error.message}</p>
           </Alert>
         ) : null}
-        {save.isSuccess && editing === null ? <Alert tone="good" title="Kurallar kaydedildi" live /> : null}
+        {save.isSuccess && editing === null ? <Alert tone="good" title={t("rules.saved")} live /> : null}
       </div>
+      <ConfirmDialog
+        open={asked !== null}
+        onOpenChange={(next) => (next ? undefined : deleting.ask(null))}
+        title={t("rules.deleteTitle", { name: asked?.name ?? "" })}
+        description={t("rules.deleteAbout")}
+        confirmLabel={busy ? t("rules.deleting") : t("rules.deleteConfirm")}
+        variant="danger"
+        busy={busy}
+        onConfirm={() => (asked ? drop(asked) : undefined)}
+      />
     </div>
   );
+}
+
+/** How many rules are on and how many off; while the user has none of their own, that the shipped ones apply. */
+function RulesSay({ found }: { found: AlertRules }) {
+  const { t } = useTranslation("notifications");
+  if (!found.own) {
+    return <Say>{t("rules.sayShipped", { count: found.rules.length })}</Say>;
+  }
+  const count = found.rules.length;
+  const on = found.rules.filter((rule) => rule.enabled ?? true).length;
+  if (on === count || on === 0) {
+    return <Say>{t(on === count ? "rules.sayAllOn" : "rules.sayAllOff", { count })}</Say>;
+  }
+  return <Say>{t("rules.say", { on, off: count - on })}</Say>;
 }
 
 interface RuleItemProps {
@@ -194,9 +247,10 @@ interface RuleItemProps {
 }
 
 function RuleItem({ rule, events, labels, busy, onToggle, onEdit, onDelete }: RuleItemProps) {
+  const { t } = useTranslation("notifications");
   const enabled = rule.enabled ?? true;
   const event = events.find((candidate) => candidate.kind === rule.event)?.label;
-  const condition = conditionWords(rule);
+  const condition = conditionWords(rule, t);
   return (
     <li
       className={cn(
@@ -207,15 +261,22 @@ function RuleItem({ rule, events, labels, busy, onToggle, onEdit, onDelete }: Ru
       <div className="flex flex-col gap-1 text-sm">
         <p className="flex flex-wrap items-center gap-2 font-medium">
           {rule.name}
-          {enabled ? null : <Badge tone="neutral">Kapalı</Badge>}
+          {enabled ? null : <Badge tone="neutral">{t("rules.off")}</Badge>}
         </p>
         <p>
-          Olay: {event ?? labelOf(labels, "EventKind", rule.event)} · {condition ? `Koşul: ${condition}` : "Koşulsuz"}
+          {t("rules.event", { event: event ?? labelOf(labels, "EventKind", rule.event) })} ·{" "}
+          {condition ? t("rules.condition", { condition }) : t("rules.noCondition")}
         </p>
         <p className={MUTED}>
-          Kanallar: {channelWords(rule, labels)} · Ayrıntı: {detailWords(rule, labels)}
-          {rule.quiet === false ? " · sessiz saatte de gider" : ""}
+          {t("rules.channels", { channels: channelWords(rule, labels) })} ·{" "}
+          {t("rules.detail", { detail: detailWords(rule, labels, t) })}
+          {rule.quiet === false ? ` · ${t("rules.loud")}` : ""}
         </p>
+        <Detailed>
+          <p className={MUTED}>
+            {t("rules.code")} <code>{rule.event}</code>
+          </p>
+        </Detailed>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <label className="inline-flex min-h-11 items-center gap-2 text-sm">
@@ -225,16 +286,27 @@ function RuleItem({ rule, events, labels, busy, onToggle, onEdit, onDelete }: Ru
             className={CHECKBOX}
             checked={enabled}
             disabled={busy}
+            aria-label={t("rules.on", { name: rule.name })}
             onChange={onToggle}
           />
-          <span className="sr-only">{rule.name}:</span> Açık
+          {t("rules.onText")}
         </label>
-        <Button variant="secondary" disabled={busy} onClick={(e) => onEdit(e.currentTarget)}>
-          <span className="sr-only">{rule.name}:</span> Düzenle
+        <Button
+          variant="secondary"
+          disabled={busy}
+          aria-label={t("rules.edit", { name: rule.name })}
+          onClick={(e) => onEdit(e.currentTarget)}
+        >
+          {t("rules.editText")}
         </Button>
         {/* Not red: a red button on every rule would shout; the deletion is asked about first. */}
-        <Button variant="secondary" disabled={busy} onClick={onDelete}>
-          <span className="sr-only">{rule.name}:</span> Sil
+        <Button
+          variant="secondary"
+          disabled={busy}
+          aria-label={t("rules.delete", { name: rule.name })}
+          onClick={onDelete}
+        >
+          {t("rules.deleteText")}
         </Button>
       </div>
     </li>

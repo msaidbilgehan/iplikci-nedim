@@ -1,16 +1,22 @@
 // The channels (F13, ADR-0010): the quiet hours, which channels are on and how much each says, and whether each can
 // carry a notification now, in the service's own words. A test notification goes on any channel, on or off; when it
-// cannot go, the service says why.
+// cannot go, the service says why. The simple view says in a sentence where notifications go; the detailed view adds
+// each channel's state as the service gives it.
 
+import type { TFunction } from "i18next";
 import { type FormEvent, type ReactNode, useId, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useLabels, useNotifySettings, useSetNotifySettings, useTestNotification } from "../../api/queries";
 import type { Channel, ChannelState, DetailLevel, Labels, NotifyPreferences, NotifySettings } from "../../api/types";
+import { Detailed } from "../Preferences";
 import { Failure, Loading } from "../QueryState";
 import { Alert } from "../ui/Alert";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
+import { Say } from "../ui/Say";
+import { Table, Td, Th } from "../ui/Table";
 import {
   CHECKBOX,
   DETAIL_LEVELS,
@@ -52,14 +58,14 @@ function draftOf(settings: NotifySettings): Draft {
 }
 
 /** What is wrong with the quiet hours as typed; "" when nothing is. */
-function quietProblem(draft: Draft): string {
+function quietProblem(draft: Draft, t: TFunction<"notifications">): string {
   if (!draft.quiet) {
     return "";
   }
   if (!CLOCK.test(draft.start) || !CLOCK.test(draft.end)) {
-    return "Başlangıç ve bitiş saatini girin.";
+    return t("channels.needBoth");
   }
-  return draft.start === draft.end ? "Başlangıç ve bitiş saati aynı olamaz." : "";
+  return draft.start === draft.end ? t("channels.same") : "";
 }
 
 function preferencesOf(draft: Draft): NotifyPreferences {
@@ -71,23 +77,86 @@ function preferencesOf(draft: Draft): NotifyPreferences {
 }
 
 export function ChannelsCard() {
+  const { t } = useTranslation("notifications");
   const settings = useNotifySettings();
   const labels = useLabels().data ?? {};
   return (
-    <Card title="Kanallar">
+    <Card title={t("channels.title")}>
+      {settings.data ? <ChannelsSay settings={settings.data} labels={labels} /> : null}
       {settings.isPending ? <Loading /> : null}
       {settings.isError ? <Failure error={settings.error} onRetry={() => void settings.refetch()} /> : null}
       {settings.data ? <ChannelsForm settings={settings.data} labels={labels} /> : null}
+      {settings.data ? (
+        <Detailed>
+          <StatesTable settings={settings.data} labels={labels} />
+        </Detailed>
+      ) : null}
     </Card>
   );
 }
 
+/** Where notifications go now: the box always, then the channels that are on and can carry one; the quiet hours. */
+function ChannelsSay({ settings, labels }: { settings: NotifySettings; labels: Labels }) {
+  const { t } = useTranslation("notifications");
+  const going = settings.channels
+    .filter((state) => state.channel !== "in_app" && state.on && state.ready)
+    .map((state) => labelOf(labels, "Channel", state.channel));
+  const [start, end] = settings.quiet_hours.split("-");
+  const quiet = start && end ? t("channels.sayQuiet", { start, end }) : t("channels.sayNoQuiet");
+  const where = going.length > 0 ? t("channels.say", { channels: going.join(", ") }) : t("channels.sayInApp");
+  return (
+    <Say>
+      {where} {quiet}
+    </Say>
+  );
+}
+
+/** Each channel as the service gives it: on or not, able to carry a notification or not, its stage and note. */
+function StatesTable({ settings, labels }: { settings: NotifySettings; labels: Labels }) {
+  const { t } = useTranslation("notifications");
+  const yes = (value: boolean) => (value ? t("channels.yes") : t("channels.no"));
+  return (
+    <div className="mt-4 flex flex-col gap-2">
+      <h3 className="text-sm font-semibold">{t("channels.states")}</h3>
+      <Table>
+        <caption className="sr-only">{t("channels.stateCaption")}</caption>
+        <thead>
+          <tr>
+            <Th>{t("channels.channel")}</Th>
+            <Th>{t("channels.turnedOn")}</Th>
+            <Th>{t("channels.ready")}</Th>
+            <Th>{t("channels.stage")}</Th>
+            <Th>{t("channels.detail")}</Th>
+            <Th>{t("channels.note")}</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {settings.channels.map((state) => {
+            const level = settings.detail[state.channel];
+            return (
+              <tr key={state.channel}>
+                <Td className="font-medium">{labelOf(labels, "Channel", state.channel)}</Td>
+                <Td>{yes(state.on)}</Td>
+                <Td>{yes(state.ready)}</Td>
+                <Td>{labelOf(labels, "ChannelStage", state.stage)}</Td>
+                <Td>{level ? labelOf(labels, "DetailLevel", level) : "—"}</Td>
+                <Td className={MUTED}>{state.note || "—"}</Td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </Table>
+    </div>
+  );
+}
+
 function ChannelsForm({ settings, labels }: { settings: NotifySettings; labels: Labels }) {
+  const { t } = useTranslation("notifications");
   const save = useSetNotifySettings();
   // null: nothing changed, so the service's settings show as they come; a refresh never overwrites what was chosen.
   const [edited, setEdited] = useState<Draft | null>(null);
   const draft = edited ?? draftOf(settings);
-  const problem = quietProblem(draft);
+  const problem = quietProblem(draft, t);
   const aboutId = useId();
   const problemId = useId();
 
@@ -106,11 +175,9 @@ function ChannelsForm({ settings, labels }: { settings: NotifySettings; labels: 
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1 text-sm font-medium">Sessiz saatler</legend>
+        <legend className="mb-1 text-sm font-medium">{t("channels.quiet")}</legend>
         <p id={aboutId} className={MUTED}>
-          Bu saatlerde gelen bildirimler bekletilir ve saatler bitince tek bir özetle gönderilir; sessiz saatlere
-          uymayan kuralların bildirimleri yine hemen gider. Bir kanala kısa sürede çok bildirim düşerse fazlası da özete
-          kalır. Uygulamadaki kutuya her bildirim hemen düşer.
+          {t("channels.quietAbout")}
         </p>
         <label className="inline-flex min-h-11 items-center gap-2 text-sm">
           <input
@@ -120,18 +187,18 @@ function ChannelsForm({ settings, labels }: { settings: NotifySettings; labels: 
             onChange={(e) => change({ quiet: e.target.checked })}
             aria-describedby={aboutId}
           />
-          Sessiz saatleri kullan
+          {t("channels.useQuiet")}
         </label>
         <div className="flex flex-wrap gap-3">
           <TimeField
-            label="Başlangıç"
+            label={t("channels.start")}
             value={draft.start}
             disabled={!draft.quiet}
             problemId={problem ? problemId : ""}
             onChange={(start) => change({ start })}
           />
           <TimeField
-            label="Bitiş"
+            label={t("channels.end")}
             value={draft.end}
             disabled={!draft.quiet}
             problemId={problem ? problemId : ""}
@@ -147,20 +214,20 @@ function ChannelsForm({ settings, labels }: { settings: NotifySettings; labels: 
       <ChannelList settings={settings} draft={draft} labels={labels} onChange={change} />
       <div className="flex flex-wrap items-center gap-2">
         <Button type="submit" disabled={save.isPending || problem !== ""}>
-          {save.isPending ? "Kaydediliyor…" : "Kaydet"}
+          {save.isPending ? t("channels.saving") : t("channels.save")}
         </Button>
         {edited ? (
           <Button variant="secondary" disabled={save.isPending} onClick={() => setEdited(null)}>
-            Değişiklikleri geri al
+            {t("channels.undo")}
           </Button>
         ) : null}
       </div>
       {save.isError ? (
-        <Alert tone="critical" title="Ayarlar kaydedilemedi" live>
+        <Alert tone="critical" title={t("channels.saveFailed")} live>
           <p>{save.error.message}</p>
         </Alert>
       ) : null}
-      {save.isSuccess ? <Alert tone="good" title="Bildirim ayarları kaydedildi" live /> : null}
+      {save.isSuccess ? <Alert tone="good" title={t("channels.saved")} live /> : null}
     </form>
   );
 }
@@ -201,15 +268,16 @@ interface ChannelListProps {
 
 /** Every channel with its state as the service tells it; those that leave the app can be turned on and tuned. */
 function ChannelList({ settings, draft, labels, onChange }: ChannelListProps) {
+  const { t } = useTranslation("notifications");
   const test = useTestNotification();
   const inAppName = labelOf(labels, "Channel", "in_app");
   const outcome = (channel: Channel) =>
     test.variables === channel ? <TestOutcome channel={channel} test={test} /> : null;
   return (
-    <ul aria-label="Kanallar" className="flex flex-col gap-3">
+    <ul aria-label={t("channels.list")} className="flex flex-col gap-3">
       <li className={CHANNEL_BOX}>
-        <ChannelHeading name={inAppName} badge={<Badge tone="good">Her zaman açık</Badge>} />
-        <p className={NOTE}>{stateOf(settings, "in_app")?.note || "Arayüzdeki bildirim kutusu; her zaman açık."}</p>
+        <ChannelHeading name={inAppName} badge={<Badge tone="good">{t("channels.alwaysOn")}</Badge>} />
+        <p className={NOTE}>{stateOf(settings, "in_app")?.note || t("channels.inAppNote")}</p>
         <TestButton name={inAppName} busy={test.isPending} onClick={() => test.mutate("in_app")} />
         {outcome("in_app")}
       </li>
@@ -226,15 +294,15 @@ function ChannelList({ settings, draft, labels, onChange }: ChannelListProps) {
                   type="checkbox"
                   className={CHECKBOX}
                   checked={draft.on[channel]}
+                  aria-label={t("channels.onLabel", { name })}
                   onChange={(e) => onChange({ on: { ...draft.on, [channel]: e.target.checked } })}
                 />
-                <span className="sr-only">{name}:</span> Açık
+                {t("channels.on")}
               </label>
               <label className="flex flex-col gap-1 text-sm">
-                <span>
-                  <span className="sr-only">{name}:</span> Ayrıntı düzeyi
-                </span>
+                <span>{t("channels.detail")}</span>
                 <select
+                  aria-label={t("channels.detailLabel", { name })}
                   value={draft.detail[channel]}
                   onChange={(e) => {
                     const level = DETAIL_LEVELS.find((option) => option === e.target.value);
@@ -275,6 +343,7 @@ function ChannelHeading({ name, badge }: { name: string; badge: ReactNode }) {
  * a notification even if it were on. Always in words, never the colour alone.
  */
 function StageBadges({ state, labels }: { state: ChannelState | undefined; labels: Labels }) {
+  const { t } = useTranslation("notifications");
   if (!state) {
     return null;
   }
@@ -284,38 +353,45 @@ function StageBadges({ state, labels }: { state: ChannelState | undefined; label
   }
   return (
     <span className="flex flex-wrap gap-1">
-      <Badge tone="neutral">Kapalı</Badge>
+      <Badge tone="neutral">{t("channels.off")}</Badge>
       {state.stage === "ready" ? null : stage}
     </span>
   );
 }
 
 function TestButton({ name, busy, onClick }: { name: string; busy: boolean; onClick: () => void }) {
+  const { t } = useTranslation("notifications");
   return (
-    <Button variant="secondary" className="self-start" disabled={busy} onClick={onClick}>
-      <span className="sr-only">{name}:</span> Deneme bildirimi gönder
+    <Button
+      variant="secondary"
+      className="self-start"
+      disabled={busy}
+      aria-label={t("channels.test", { name })}
+      onClick={onClick}
+    >
+      {t("channels.testLabel")}
     </Button>
   );
 }
 
 function TestOutcome({ channel, test }: { channel: Channel; test: ReturnType<typeof useTestNotification> }) {
+  const { t } = useTranslation("notifications");
   if (test.isPending) {
     return (
       <p role="status" className="text-sm">
-        Deneme bildirimi gönderiliyor…
+        {t("channels.testing")}
       </p>
     );
   }
   if (test.isError) {
     return (
-      <Alert tone="critical" title="Deneme bildirimi gönderilemedi" live>
+      <Alert tone="critical" title={t("channels.testFailed")} live>
         <p>{test.error.message}</p>
       </Alert>
     );
   }
   if (test.isSuccess) {
-    const title = channel === "in_app" ? "Deneme bildirimi kutuya düştü" : "Deneme bildirimi gönderildi";
-    return <Alert tone="good" title={title} live />;
+    return <Alert tone="good" title={channel === "in_app" ? t("channels.testInApp") : t("channels.testSent")} live />;
   }
   return null;
 }

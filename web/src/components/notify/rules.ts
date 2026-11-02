@@ -2,6 +2,8 @@
 // with what is wrong with it before the service is asked. The service checks the whole list again and has the last
 // word; its refusal is shown as it says it.
 
+import type { TFunction } from "i18next";
+
 import type { AlertEvent, AlertRule, DetailLevel, EventKind, Labels } from "../../api/types";
 import { liraInput, parseLira } from "../../lib/amount";
 import { formatMoney } from "../../lib/format";
@@ -9,22 +11,23 @@ import { labelOf, PUSH_CHANNELS, type PushChannel } from "./common";
 
 export const MAX_DAYS = 60; // the calendar's horizon (F09): a due date further away is no event yet
 export const TEXT_LIMIT = 80; // the longest name and text the service takes
-const PREVIEW_NAME = "Önizleme"; // a rule not named yet can be previewed: the service wants some name
+
+type Words = TFunction<"notifications">;
 
 /** A rule's condition in words, "en çok 3 gün kala, en az 7.500,00 TL"; "" for a rule without one. */
-export function conditionWords(rule: AlertRule): string {
+export function conditionWords(rule: AlertRule, t: Words): string {
   const days = rule.condition?.days;
   const amount = rule.condition?.amount;
   const text = rule.condition?.text;
   const parts: string[] = [];
   if (days !== null && days !== undefined) {
-    parts.push(days === 0 ? "günü gelince" : `en çok ${days} gün kala`);
+    parts.push(days === 0 ? t("words.onTheDay") : t("words.daysAhead", { days }));
   }
   if (amount !== null && amount !== undefined) {
-    parts.push(`en az ${formatMoney({ minor: amount, currency: "TRY" })}`);
+    parts.push(t("words.atLeast", { amount: formatMoney({ minor: amount, currency: "TRY" }) }));
   }
   if (text) {
-    parts.push(`başlığında “${text}” geçerse`);
+    parts.push(t("words.inTitle", { text }));
   }
   return parts.join(", ");
 }
@@ -35,8 +38,8 @@ export function channelWords(rule: AlertRule, labels: Labels): string {
   return ["in_app", ...channels].map((channel) => labelOf(labels, "Channel", channel)).join(", ");
 }
 
-export function detailWords(rule: AlertRule, labels: Labels): string {
-  return rule.detail ? labelOf(labels, "DetailLevel", rule.detail) : "her kanalın kendi düzeyi";
+export function detailWords(rule: AlertRule, labels: Labels, t: Words): string {
+  return rule.detail ? labelOf(labels, "DetailLevel", rule.detail) : t("words.ownLevel");
 }
 
 /** A rule as the editor holds it: what is typed, the amount in lira as the user writes it. */
@@ -88,27 +91,33 @@ export type Checked = { ok: true; rule: AlertRule } | { ok: false; errors: Draft
 
 /**
  * The rule a draft makes, carrying only the conditions its event allows (a condition typed for another event is
- * dropped), or what is wrong with it field by field. A preview needs no name yet.
+ * dropped), or what is wrong with it field by field. A preview needs no name yet: the service wants some name, so a
+ * rule not named yet is previewed under a stand-in.
  */
-export function checkDraft(draft: RuleDraft, events: readonly AlertEvent[], purpose: "save" | "preview"): Checked {
+export function checkDraft(
+  draft: RuleDraft,
+  events: readonly AlertEvent[],
+  purpose: "save" | "preview",
+  t: Words,
+): Checked {
   const errors: DraftErrors = {};
   const name = draft.name.trim();
   if (purpose === "save" && !name) {
-    errors.name = "Kurala bir ad verin.";
+    errors.name = t("words.needName");
   }
   const event = events.find((candidate) => candidate.kind === draft.event);
   if (!event) {
-    errors.event = "İzlenecek olayı seçin.";
+    errors.event = t("words.needEvent");
   }
   const typedDays = draft.days.trim();
   const days = event?.days && typedDays ? (/^\d+$/.test(typedDays) ? Number(typedDays) : Number.NaN) : null;
   if (days !== null && !(days <= MAX_DAYS)) {
-    errors.days = `Gün sayısı 0 ile ${MAX_DAYS} arasında bir tam sayı olmalı.`;
+    errors.days = t("words.badDays", { max: MAX_DAYS });
   }
   const typedAmount = draft.amount.trim();
   const amount = event?.amount && typedAmount ? parseLira(typedAmount) : null;
   if (event?.amount && typedAmount && amount === null) {
-    errors.amount = "Tutar 7.500 ya da 7.500,50 gibi bir TL tutarı olmalı.";
+    errors.amount = t("words.badAmount");
   }
   if (!event || DRAFT_FIELDS.some((field) => errors[field])) {
     return { ok: false, errors };
@@ -116,7 +125,7 @@ export function checkDraft(draft: RuleDraft, events: readonly AlertEvent[], purp
   return {
     ok: true,
     rule: {
-      name: name || PREVIEW_NAME,
+      name: name || t("words.previewName"),
       event: event.kind,
       condition: { days, amount, text: event.text ? draft.text.trim() : "" },
       channels: [...draft.channels],

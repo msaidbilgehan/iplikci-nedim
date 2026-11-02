@@ -3,6 +3,7 @@
 // 30 günde kaç kez?" asks the service how often the rule would have spoken; nothing is saved by it.
 
 import { type FormEvent, type KeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { usePreviewAlertRule } from "../../api/queries";
 import type { AlertEvent, AlertPreview, AlertRule, Labels } from "../../api/types";
@@ -34,6 +35,7 @@ interface RuleEditorProps {
 }
 
 export function RuleEditor({ rule, events, labels, saving, refusal, onSave, onCancel }: RuleEditorProps) {
+  const { t } = useTranslation("notifications");
   const [draft, setDraft] = useState<RuleDraft>(() => (rule ? draftOf(rule) : NEW_RULE));
   const [errors, setErrors] = useState<DraftErrors>({});
   const preview = usePreviewAlertRule();
@@ -60,7 +62,7 @@ export function RuleEditor({ rule, events, labels, saving, refusal, onSave, onCa
 
   /** The rule the draft makes, or nothing after showing what is wrong and moving to the first wrong field. */
   function checked(purpose: "save" | "preview"): AlertRule | null {
-    const found = checkDraft(draft, events, purpose);
+    const found = checkDraft(draft, events, purpose, t);
     if (found.ok) {
       return found.rule;
     }
@@ -104,9 +106,9 @@ export function RuleEditor({ rule, events, labels, saving, refusal, onSave, onCa
       className="flex flex-col gap-4 rounded-md border border-zinc-200 p-3 dark:border-zinc-700"
     >
       <h3 id={headingId} className="text-base font-semibold">
-        {rule ? `“${rule.name}” kuralını düzenle` : "Yeni kural"}
+        {rule ? t("editor.edit", { name: rule.name }) : t("editor.new")}
       </h3>
-      <Field label="Ad" id={ids.name} error={errors.name}>
+      <Field label={t("editor.name")} id={ids.name} error={errors.name}>
         <input
           ref={nameField}
           id={ids.name}
@@ -119,7 +121,7 @@ export function RuleEditor({ rule, events, labels, saving, refusal, onSave, onCa
           className={`max-w-md ${FIELD}`}
         />
       </Field>
-      <Field label="Olay" id={ids.event} error={errors.event}>
+      <Field label={t("editor.event")} id={ids.event} error={errors.event}>
         <select
           id={ids.event}
           value={draft.event}
@@ -128,7 +130,7 @@ export function RuleEditor({ rule, events, labels, saving, refusal, onSave, onCa
           className={`max-w-md ${FIELD}`}
         >
           <option value="" disabled>
-            Bir olay seçin
+            {t("editor.chooseEvent")}
           </option>
           {events.map((option) => (
             <option key={option.kind} value={option.kind}>
@@ -139,8 +141,8 @@ export function RuleEditor({ rule, events, labels, saving, refusal, onSave, onCa
       </Field>
       <Conditions event={event} draft={draft} errors={errors} ids={ids} onChange={change} />
       <fieldset className="flex flex-col gap-1">
-        <legend className="text-sm font-medium">Kanallar</legend>
-        <p className={MUTED}>Uygulamadaki bildirim kutusuna her zaman gelir.</p>
+        <legend className="text-sm font-medium">{t("editor.channels")}</legend>
+        <p className={MUTED}>{t("editor.channelsNote")}</p>
         <div className="flex flex-wrap gap-x-4">
           {PUSH_CHANNELS.map((channel) => (
             <label key={channel} className="inline-flex min-h-11 items-center gap-2 text-sm">
@@ -159,13 +161,13 @@ export function RuleEditor({ rule, events, labels, saving, refusal, onSave, onCa
         </div>
       </fieldset>
       <label className="flex flex-col gap-1 text-sm">
-        <span>Ayrıntı düzeyi</span>
+        <span>{t("editor.detail")}</span>
         <select
           value={draft.detail}
           onChange={(e) => change({ detail: DETAIL_LEVELS.find((level) => level === e.target.value) ?? "" })}
           className={`self-start ${FIELD}`}
         >
-          <option value="">Her kanalın kendi düzeyi</option>
+          <option value="">{t("editor.ownLevel")}</option>
           {DETAIL_LEVELS.map((level) => (
             <option key={level} value={level}>
               {labelOf(labels, "DetailLevel", level)}
@@ -173,46 +175,26 @@ export function RuleEditor({ rule, events, labels, saving, refusal, onSave, onCa
           ))}
         </select>
       </label>
-      <div className="flex flex-col">
-        <label className="inline-flex min-h-11 items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            className={CHECKBOX}
-            checked={draft.quiet}
-            onChange={(e) => change({ quiet: e.target.checked })}
-          />
-          Sessiz saatlere uy
-        </label>
-        <p className={MUTED}>İşaret kaldırılırsa bu kuralın bildirimleri sessiz saatlerde de hemen gider.</p>
-        <label className="inline-flex min-h-11 items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            className={CHECKBOX}
-            checked={draft.enabled}
-            onChange={(e) => change({ enabled: e.target.checked })}
-          />
-          Kural açık
-        </label>
-      </div>
+      <QuietAndOn draft={draft} onChange={change} />
       <div className="flex flex-wrap gap-2">
         <Button type="submit" disabled={saving}>
-          {saving ? "Kaydediliyor…" : "Kaydet"}
+          {saving ? t("editor.saving") : t("editor.save")}
         </Button>
         <Button variant="secondary" onClick={ask} disabled={preview.isPending}>
-          {preview.isPending ? "Bakılıyor…" : "Son 30 günde kaç kez?"}
+          {preview.isPending ? t("editor.previewing") : t("editor.preview")}
         </Button>
         <Button variant="secondary" onClick={onCancel} disabled={saving}>
-          Vazgeç
+          {t("editor.cancel")}
         </Button>
       </div>
       {preview.data ? <PreviewResult found={preview.data} /> : null}
       {preview.isError ? (
-        <Alert tone="critical" title="Önizleme yapılamadı" live>
+        <Alert tone="critical" title={t("editor.previewFailed")} live>
           <p>{preview.error.message}</p>
         </Alert>
       ) : null}
       {refusal ? (
-        <Alert tone="critical" title="Kurallar kaydedilemedi" live>
+        <Alert tone="critical" title={t("editor.refused")} live>
           <p>{refusal}</p>
         </Alert>
       ) : null}
@@ -246,6 +228,38 @@ function Field({ label, id, error, children }: FieldProps) {
   );
 }
 
+/** Whether the rule keeps to the quiet hours, with what leaving them means, and whether it is on. */
+function QuietAndOn({ draft, onChange }: { draft: RuleDraft; onChange: (next: Partial<RuleDraft>) => void }) {
+  const { t } = useTranslation("notifications");
+  const noteId = useId();
+  return (
+    <div className="flex flex-col">
+      <label className="inline-flex min-h-11 items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          className={CHECKBOX}
+          checked={draft.quiet}
+          aria-describedby={noteId}
+          onChange={(e) => onChange({ quiet: e.target.checked })}
+        />
+        {t("editor.quiet")}
+      </label>
+      <p id={noteId} className={MUTED}>
+        {t("editor.quietNote")}
+      </p>
+      <label className="inline-flex min-h-11 items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          className={CHECKBOX}
+          checked={draft.enabled}
+          onChange={(e) => onChange({ enabled: e.target.checked })}
+        />
+        {t("editor.enabled")}
+      </label>
+    </div>
+  );
+}
+
 interface ConditionsProps {
   event: AlertEvent | undefined;
   draft: RuleDraft;
@@ -256,22 +270,21 @@ interface ConditionsProps {
 
 /** Only the conditions the chosen event carries; an empty one is not looked at. */
 function Conditions({ event, draft, errors, ids, onChange }: ConditionsProps) {
+  const { t } = useTranslation("notifications");
   const none = event !== undefined && !event.days && !event.amount && !event.text;
   return (
     <fieldset className="flex flex-col gap-3">
-      <legend className="text-sm font-medium">Koşullar</legend>
-      {event === undefined ? (
-        <p className={MUTED}>Olayı seçin; o olayın izin verdiği koşullar burada görünür.</p>
-      ) : null}
-      {none ? <p className={MUTED}>Bu olayda koşul yok: olay her olduğunda bildirim gelir.</p> : null}
+      <legend className="text-sm font-medium">{t("editor.conditions")}</legend>
+      {event === undefined ? <p className={MUTED}>{t("editor.chooseFirst")}</p> : null}
+      {none ? <p className={MUTED}>{t("editor.noConditions")}</p> : null}
       {event?.days ? (
-        <Field label="En çok kaç gün kala" id={ids.days} error={errors.days}>
+        <Field label={t("editor.days")} id={ids.days} error={errors.days}>
           <input
             id={ids.days}
             type="text"
             inputMode="numeric"
             value={draft.days}
-            placeholder="ör. 3"
+            placeholder={t("editor.daysHint")}
             autoComplete="off"
             onChange={(e) => onChange({ days: e.target.value })}
             {...invalid(ids.days, errors.days)}
@@ -280,13 +293,13 @@ function Conditions({ event, draft, errors, ids, onChange }: ConditionsProps) {
         </Field>
       ) : null}
       {event?.amount ? (
-        <Field label="En az tutar (TL)" id={ids.amount} error={errors.amount}>
+        <Field label={t("editor.amount")} id={ids.amount} error={errors.amount}>
           <input
             id={ids.amount}
             type="text"
             inputMode="decimal"
             value={draft.amount}
-            placeholder="ör. 7.500"
+            placeholder={t("editor.amountHint")}
             autoComplete="off"
             onChange={(e) => onChange({ amount: e.target.value })}
             {...invalid(ids.amount, errors.amount)}
@@ -295,35 +308,36 @@ function Conditions({ event, draft, errors, ids, onChange }: ConditionsProps) {
         </Field>
       ) : null}
       {event?.text ? (
-        <Field label="Başlığında geçen yazı" id={ids.text}>
+        <Field label={t("editor.text")} id={ids.text}>
           <input
             id={ids.text}
             type="text"
             value={draft.text}
             maxLength={TEXT_LIMIT}
-            placeholder="ör. bir işyerinin ya da ödemenin adı"
+            placeholder={t("editor.textHint")}
             autoComplete="off"
             onChange={(e) => onChange({ text: e.target.value })}
             className={`max-w-md ${FIELD}`}
           />
         </Field>
       ) : null}
-      {event && !none ? <p className={MUTED}>Boş bırakılan koşul aranmaz.</p> : null}
+      {event && !none ? <p className={MUTED}>{t("editor.emptyIgnored")}</p> : null}
     </fieldset>
   );
 }
 
 function PreviewResult({ found }: { found: AlertPreview }) {
+  const { t } = useTranslation("notifications");
   return (
     <div role="status" className="flex flex-col gap-2 rounded-md bg-zinc-100 p-3 text-sm dark:bg-zinc-800">
       <p className="font-medium">
         {found.count > 0
-          ? `Son ${found.days} günde ${found.count} kez bildirim verirdi.`
-          : `Son ${found.days} günde hiç bildirim vermezdi.`}
+          ? t("editor.would", { days: found.days, count: found.count })
+          : t("editor.wouldNot", { days: found.days })}
       </p>
       {found.examples.length > 0 ? (
         <>
-          <p className={MUTED}>{found.examples.length < found.count ? "En yenileri:" : "Bildirimler:"}</p>
+          <p className={MUTED}>{found.examples.length < found.count ? t("editor.newest") : t("editor.all")}</p>
           <ul className="flex flex-col gap-1">
             {found.examples.map((example, index) => (
               // The examples come in order and never move: their place tells two alike apart.
