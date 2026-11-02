@@ -1,4 +1,4 @@
-"""Draws every icon of the product from its logo, the line drawing of İplikçi Nedim in iplikci_nedim_logo_transparent/:
+"""Draws every icon of the product from its logo, the line drawing of İplikçi Nedim in packaging/logo/:
 the interface's (web/public), the browser extension's (extension/static/icons) and the installers'
 (packaging/assets). The face is filled white inside its outline with its lines in teal, on a teal tile: a line
 drawing alone thins to nothing at 16 px, a light face still reads there. Small icons get thicker lines.
@@ -12,7 +12,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parent.parent
-LOGO = ROOT / "iplikci_nedim_logo_transparent" / "white.png"  # white lines on a transparent ground
+LOGO = ROOT / "packaging" / "logo" / "white.png"  # white lines on a transparent ground
 WEB = ROOT / "web" / "public"
 EXTENSION = ROOT / "extension" / "static" / "icons"
 ASSETS = ROOT / "packaging" / "assets"

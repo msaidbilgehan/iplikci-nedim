@@ -200,8 +200,9 @@ stream's start. `viewer` makes a document's page images, cells and e-mail view i
 interface; refuses a development copy) and `service/dialog` the system's own windows; `app/lifecycle` stops, restarts,
 restores and removes the service from the interface, and `app/extension` keeps the browser extension's folder in the
 data dir (K20: loaded unpacked). `packaging/build.py` builds the installers (ADR-0017) and `packaging/icons.py` draws
-every icon (the interface's, the extension's, the installers') from `iplikci_nedim_logo_transparent/`; in `web/`,
-`components/ui/SectionTabs` splits a long screen into parts. The rest keeps the MVP's flat
+every icon (the interface's, the extension's, the installers') from the logo, `packaging/logo/white.png` (its lines in
+white on a transparent ground; `black.png` beside it has them in black); in `web/`, `components/ui/SectionTabs` splits
+a long screen into parts. The rest keeps the MVP's flat
 layout (`analysis`, `insights`, `month_end`, `report` with its `templates`, `mcp_server`, …) until the phases in the
 roadmap's MVP module table move it. Next to them: `fakes` (the fake document builders and every reader's specimens,
 shared with the tests and the demo), `demo` (the demo data folder), `baseline` (the verification baseline) and

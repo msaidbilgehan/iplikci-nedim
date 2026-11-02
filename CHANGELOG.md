@@ -4,6 +4,13 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [Yayımlanmamış]
+
+### Değişenler
+
+- Logo, depo kökündeki `iplikci_nedim_logo_transparent/` klasöründen simgeleri çizen betiğin yanına,
+  `packaging/logo/`'ya taşındı; `packaging/icons.py` simgeleri oradan çizer, simgeler değişmedi.
+
 ## [0.7.1] — 2026-11-02 — Arayüzün sadeleşmesi
 
 Aşama 6'nın ardından arayüz sadeleşti, hesap kitabı daha açık anlatır oldu ve bütün ekranlar demo çalışma alanında
