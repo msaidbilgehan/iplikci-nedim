@@ -4,7 +4,8 @@
 // group and by necessity with the habits; income and spending; the next three months; the categories and merchants; how
 // the spending moved and what is worth a look; the regular payments; the rows as a list and as CSV; and where the data
 // comes from. The cards the filters narrow come from /api/spending, the interpretation from /api/insights, which no
-// filter changes; each card says which it is, with its window and numbers.
+// filter changes, and the regular payments from /api/subscriptions, narrowed here by every filter but the period; each
+// card says which it is, with its window and numbers.
 
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -34,7 +35,7 @@ import { ForecastCard } from "../components/insights/Forecast";
 import { Interpretation } from "../components/insights/Interpretation";
 import { MonthlyCard, NecessityCard } from "../components/insights/Months";
 import { Presets } from "../components/insights/Presets";
-import { spendingQuery, withKind, withRange } from "../components/insights/query";
+import { needsGroups, spendingQuery, withKind, withRange } from "../components/insights/query";
 import { CategoriesCard, MerchantsCard } from "../components/insights/Rankings";
 import { RegularCard } from "../components/insights/Regular";
 import { RowsCard } from "../components/insights/Rows";
@@ -164,17 +165,7 @@ export default function InsightsPage() {
                 <UnusualCard found={insights.data.unusual} labels={labels} />
               </div>
             ) : null}
-            {subscriptions.data ? (
-              <RegularCard found={subscriptions.data} />
-            ) : (
-              <Card title={t("regular.title")}>
-                {subscriptions.isError ? (
-                  <Failure error={subscriptions.error} onRetry={() => void subscriptions.refetch()} />
-                ) : (
-                  <Loading />
-                )}
-              </Card>
-            )}
+            <RegularPart subscriptions={subscriptions} rules={rules} params={params} />
             {found ? <RowsCard found={found} params={params} /> : null}
             <SourcesCard dashboard={dashboard} system={system} coverage={coverage} labels={labels} />
           </div>
@@ -240,6 +231,28 @@ function InsightsPart({ query, title, children }: InsightsPartProps) {
       {query.isError ? <Failure error={query.error} onRetry={() => void query.refetch()} /> : <Loading />}
     </Card>
   );
+}
+
+interface RegularPartProps {
+  subscriptions: ReturnType<typeof useSubscriptions>;
+  rules: ReturnType<typeof useCategoryRules>;
+  params: URLSearchParams;
+}
+
+/** The regular payments once read, with the category rules when a filter or the search needs a series' group. */
+function RegularPart({ subscriptions, rules, params }: RegularPartProps) {
+  const { t } = useTranslation("insights");
+  const waitsFor = needsGroups(params) ? rules : undefined;
+  if (subscriptions.data && (!waitsFor || waitsFor.data)) {
+    return <RegularCard found={subscriptions.data} params={params} rules={rules.data} />;
+  }
+  let body = <Loading />;
+  if (subscriptions.isError) {
+    body = <Failure error={subscriptions.error} onRetry={() => void subscriptions.refetch()} />;
+  } else if (waitsFor?.isError) {
+    body = <Failure error={waitsFor.error} onRetry={() => void waitsFor.refetch()} />;
+  }
+  return <Card title={t("regular.title")}>{body}</Card>;
 }
 
 /** The net worth and the months' closing, as the dashboard has them: they are about today, not the filters. */

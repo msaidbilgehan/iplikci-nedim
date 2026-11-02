@@ -1,12 +1,15 @@
 // The Değerlendirme screen's address: the Transactions screen's filters in the API's names (F10, "Süzgeçler"), which
 // /api/spending takes as they are, and the period presets the MVP report offered. Without a period the service shows
-// the data's last twelve months, so "Son 12 ay" is the address without one.
+// the data's last twelve months, so "Son 12 ay" is the address without one. The regular payments come from
+// /api/subscriptions, which takes no filter, so the screen narrows them itself.
 
-import type { MonthTable } from "../../api/types";
+import type { CategoryRules, Installment, MonthTable, Series } from "../../api/types";
+import { selectionOf } from "../../lib/selection";
+import { fold } from "../../lib/turkish";
 import type { StackSeries } from "../charts/layout";
-import { slotOf } from "../charts/palette";
+import { OTHER_GROUP, slotOf } from "../charts/palette";
 import type { MonthValues } from "../charts/StackedBars";
-import { filtersOf } from "../transactions/query";
+import { filtersOf, type MANY } from "../transactions/query";
 
 // What the spending counts when no kind is chosen (domain.codes.DEFAULT_EXPENSE_KINDS), and the kinds it leaves out
 // that the MVP offered to add ("Toplama dahil değil").
@@ -131,4 +134,51 @@ export function stackOf(
     })),
     partial: table.months.filter((row) => row.partial).map((row) => row.month),
   };
+}
+
+// The regular payments follow every filter but the period (features.md, "Süzgeçlerin kapsamı"), matched on the series
+// as /api/transactions matches a row (app/transactions.Filter): its account, kind, category, the category's group and
+// its necessity among the ones chosen, its payee as the merchant by the folded name, and every word of the search in
+// its names. A series has no tags and no certainty, so those two keep every series, and the card says so.
+
+/** The search's words in their folded form, as the service splits them. */
+function wordsOf(params: URLSearchParams): string[] {
+  return fold(params.get("q") ?? "").split(" ").filter(Boolean);
+}
+
+/** Whether the regular payments need the category rules to be matched: a group, or a search that may name one. */
+export function needsGroups(params: URLSearchParams): boolean {
+  return selectionOf(params, "group") !== null || wordsOf(params).length > 0;
+}
+
+/** Whether a filter of many values keeps a value: no filter keeps every one, none chosen keeps none. */
+function among(params: URLSearchParams, name: (typeof MANY)[number], value: string | null): boolean {
+  const chosen = selectionOf(params, name);
+  return chosen === null || (value !== null && chosen.has(value));
+}
+
+/** A category's group as categorize gives a row its group: the rules' own, else "Diğer". */
+function groupOf(rules: CategoryRules | undefined, category: string): string {
+  return rules?.categories.find((item) => item.name === category)?.group ?? OTHER_GROUP;
+}
+
+/** Whether the address's filters keep a regular payment: every one but the period, the tags and the certainty. */
+export function keepsSeries(params: URLSearchParams, series: Series, rules: CategoryRules | undefined): boolean {
+  const group = groupOf(rules, series.category);
+  const merchant = fold(params.get("merchant") ?? "");
+  const names = fold([series.payee, series.category, group, series.account.label].join(" "));
+  return (
+    among(params, "account", series.account.id) &&
+    among(params, "kind", series.kind) &&
+    among(params, "category", series.category) &&
+    among(params, "group", group) &&
+    among(params, "necessity", series.necessity) &&
+    (!merchant || fold(series.payee) === merchant) &&
+    wordsOf(params).every((word) => names.includes(word))
+  );
+}
+
+/** Whether the address's filters keep a card purchase in installments: the account filter alone. */
+export function keepsInstallment(params: URLSearchParams, installment: Installment): boolean {
+  return among(params, "account", installment.card.id);
 }

@@ -1,7 +1,8 @@
 // The Değerlendirme screen on the service itself (F10): a preset writes its period into the address, the monthly
 // spending's heat table passes axe, and the cards' rows open on the İşlemler screen with the same filters — the very
-// rows the cards count, adding up to the same total. The detailed view shows the budget, the habits and the forecast
-// line by line. Nothing is changed, so both themes run side by side on the one demo data folder.
+// rows the cards count, adding up to the same total. The regular payments follow every filter but the period and say
+// which they cannot. The detailed view shows the budget, the habits and the forecast line by line. Nothing is changed,
+// so both themes run side by side on the one demo data folder.
 
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
@@ -49,6 +50,18 @@ test("bir dönem seçilir, ısı tablosu erişilebilir, işlemler aynı toplamla
   await expect(page).toHaveURL(/[?&]from=2026-08-01&to=2026-10-31(&|$)/);
   await loaded(page);
   await expect(page.getByText(`${count} işlem; harcama ${total},`)).toBeVisible();
+});
+
+test("düzenli ödemeler dönemden başka her süzgece uyar, uyamadığını söyler", async ({ page }) => {
+  // The demo's two Migros payments, the merchant written as the bank prints it; the period is before the data.
+  await page.goto("/degerlendirme?merchant=MIGROS&tag=ev&from=2025-01-01&to=2025-01-31");
+  await expect(page.getByRole("heading", { level: 1, name: "Değerlendirme" })).toBeVisible({ timeout: 30_000 });
+  await loaded(page);
+  const regular = page.getByRole("region", { name: "Düzenli ödemeler ve abonelikler" });
+  await expect(regular.getByText("Bu süzgeçlerle süren 2 aylık ödeme ayda 3.990,00 TL tutuyor.")).toBeVisible();
+  await expect(regular).toContainText(
+    "Dönem süzgecinden bağımsızdır, diğer süzgeçlere uyar; durumlar bugüne göredir. Etiket süzgecini dikkate almaz,",
+  );
 });
 
 test("ayrıntılı görünüm bütçeyi, alışkanlıkları ve tahmini kalem kalem gösterir", async ({ page }) => {

@@ -3,14 +3,21 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { Spending, TransactionPage } from "../api/types";
-import { INSIGHTS, server, SPENDING, tl, TRANSACTIONS } from "../test/server";
+import type { CategoryRules, Spending, TransactionPage } from "../api/types";
+import { CATEGORY_RULES, category, INSIGHTS, server, SPENDING, tl, TRANSACTIONS } from "../test/server";
 import { renderScreen } from "../test/render";
 import InsightsPage from "./InsightsPage";
 
 afterEach(() => localStorage.clear());
 
 const detailed = () => localStorage.setItem("iplikci.view", "detailed");
+const REGULAR_HINT = "Dönem süzgecinden bağımsızdır, diğer süzgeçlere uyar; durumlar bugüne göredir.";
+const RENT_ONLY = "Bu süzgeçlerle süren 1 aylık ödeme ayda 15.000,00 TL tutuyor.";
+// The rules with the rent's category in a group of its own.
+const GROUPED: CategoryRules = {
+  ...CATEGORY_RULES,
+  categories: [...CATEGORY_RULES.categories, category("Kira", "Ev", 4, { necessity: "required", regular: true })],
+};
 
 /** The spending as the service sends it for every request, with what the requests asked. */
 function serveSpending(found: Spending | (() => Response)): string[] {
@@ -343,6 +350,82 @@ describe("InsightsPage", () => {
     ]);
     expect(within(table).getByRole("link", { name: "Ev kirası" })).toHaveAttribute("href", "/abonelikler?seri=fp-kira");
     expect(within(table).getByRole("row", { name: /^Aylık toplam/ })).toHaveTextContent("15.949,98 TL");
+  });
+
+  it("says the regular payments follow every filter but the period, the installments the account alone", async () => {
+    renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    expect(await screen.findByText(REGULAR_HINT)).toBeInTheDocument();
+    const regular = screen.getByRole("region", { name: "Düzenli ödemeler ve abonelikler" });
+    const installments = within(regular).getByRole("region", { name: "Taksitli alışverişler" });
+    expect(within(installments).getByText("Yalnızca hesap süzgecine uyar.")).toBeInTheDocument();
+  });
+
+  it("narrows the regular payments by every filter but the period, the installments by the account", async () => {
+    detailed();
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?account=teb-1234&from=2026-10-01&to=2026-10-31" });
+    const table = await screen.findByRole("table", { name: "Süren aylık ödemeler" });
+    expect(within(table).getAllByRole("link").map((link) => link.textContent)).toEqual(["Örnek Video", "Örnek Müzik"]);
+    expect(within(table).getByRole("row", { name: /^Aylık toplam/ })).toHaveTextContent("249,98 TL");
+    const installments = screen.getByRole("table", { name: "Kalan taksitleri olan kart alışverişleri" });
+    expect(installments).toHaveTextContent("Örnek Elektronik");
+  });
+
+  it("drops the installments of the other accounts, whatever the other filters", async () => {
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?account=teb-123456789&category=Kira" });
+    expect(await screen.findByText(RENT_ONLY)).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Taksitli alışverişler" })).not.toBeInTheDocument();
+  });
+
+  it.each(["simple", "detailed"])("says no regular payment runs under the filters in the %s view", async (view) => {
+    localStorage.setItem("iplikci.view", view);
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?merchant=ORNEK%20MARKET" });
+    expect(await screen.findByText("Bu süzgeçlerle süren aylık ödeme yok.")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["tag=ev", "Etiket süzgecini dikkate almaz, çünkü etiket bir düzenli ödemeye değil tek tek işlemlere verilir."],
+    [
+      "certainty=provisional",
+      "Kesinlik süzgecini dikkate almaz, çünkü kesinlik bir düzenli ödemenin değil tek tek işlemlerin özelliğidir.",
+    ],
+    [
+      "tag=ev&certainty=provisional",
+      "Etiket ve kesinlik süzgeçlerini dikkate almaz, çünkü ikisi de bir düzenli ödemenin değil tek tek işlemlerin " +
+        "özelliğidir.",
+    ],
+  ])("keeps every regular payment with ?%s and says the card does not follow it", async (query, ignored) => {
+    renderScreen(<InsightsPage />, { path: `/degerlendirme?${query}` });
+    expect(await screen.findByText(`${REGULAR_HINT} ${ignored}`)).toBeInTheDocument();
+    expect(screen.getByText("Süren 4 aylık ödeme ayda 15.949,98 TL tutuyor.")).toBeInTheDocument();
+  });
+
+  it("finds a series' group in the category rules, and says when they cannot be read", async () => {
+    let fail = true;
+    server.use(
+      http.get("/api/rules/categories", () =>
+        fail
+          ? HttpResponse.json({ code: "internal", title: "Kurallar okunamadı." }, { status: 500 })
+          : HttpResponse.json(GROUPED),
+      ),
+    );
+    const user = userEvent.setup();
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?group=Ev" });
+    expect(await screen.findByText("Kurallar okunamadı.")).toBeInTheDocument();
+    fail = false;
+    const regular = screen.getByRole("region", { name: "Düzenli ödemeler ve abonelikler" });
+    await user.click(within(regular).getByRole("button", { name: "Yeniden dene" }));
+    expect(await screen.findByText(RENT_ONLY)).toBeInTheDocument();
+  });
+
+  it("shows the regular payments without the category rules when no filter needs them", async () => {
+    server.use(
+      http.get("/api/rules/categories", () =>
+        HttpResponse.json({ code: "internal", title: "Kurallar okunamadı." }, { status: 500 }),
+      ),
+    );
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?necessity=optional" });
+    expect(await screen.findByText("Bu süzgeçlerle süren 2 aylık ödeme ayda 249,98 TL tutuyor.")).toBeInTheDocument();
+    expect(screen.queryByText("Kurallar okunamadı.")).not.toBeInTheDocument();
   });
 
   it("leads to the rows the cards count, the spending's kinds written out, and downloads them as CSV", async () => {

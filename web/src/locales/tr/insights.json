@@ -218,9 +218,14 @@
   },
   "regular": {
     "title": "Düzenli ödemeler ve abonelikler",
-    "hint": "Süzgeçlerden bağımsızdır; durumlar bugüne göredir.",
+    "hint": "Dönem süzgecinden bağımsızdır, diğer süzgeçlere uyar; durumlar bugüne göredir.",
+    "ignoresTag": "Etiket süzgecini dikkate almaz, çünkü etiket bir düzenli ödemeye değil tek tek işlemlere verilir.",
+    "ignoresCertainty": "Kesinlik süzgecini dikkate almaz, çünkü kesinlik bir düzenli ödemenin değil tek tek işlemlerin özelliğidir.",
+    "ignoresBoth": "Etiket ve kesinlik süzgeçlerini dikkate almaz, çünkü ikisi de bir düzenli ödemenin değil tek tek işlemlerin özelliğidir.",
     "say": "Süren {{count}} aylık ödeme ayda {{total}} tutuyor.",
+    "sayFiltered": "Bu süzgeçlerle süren {{count}} aylık ödeme ayda {{total}} tutuyor.",
     "sayNone": "Süren aylık ödeme yok.",
+    "sayNoneFiltered": "Bu süzgeçlerle süren aylık ödeme yok.",
     "next": "Abonelikleri aç",
     "caption": "Süren aylık ödemeler",
     "payee": "Ödeme",
@@ -228,7 +233,8 @@
     "last": "Son ödeme",
     "nextDay": "Sıradaki",
     "total": "Aylık toplam",
-    "installments": "Taksitli alışverişler"
+    "installments": "Taksitli alışverişler",
+    "installmentsHint": "Yalnızca hesap süzgecine uyar."
   },
   "rows": {
     "title": "İşlemler",
