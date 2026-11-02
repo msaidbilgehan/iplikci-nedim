@@ -1,37 +1,64 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { FORECAST, server } from "../test/server";
 import { renderScreen } from "../test/render";
 import CalendarPage from "./CalendarPage";
 
+afterEach(() => localStorage.clear());
+
 describe("CalendarPage", () => {
-  it("lists the next sixty days' items by day with their kind, account, amount and basis", async () => {
+  it("lists the next sixty days' items by day with their kind, account and amount, each leading on", async () => {
     renderScreen(<CalendarPage />);
     const agenda = await screen.findByRole("region", { name: "Önümüzdeki 60 gün" });
-    expect(await within(agenda).findByText(/^15\.11\.2026 – 13\.01\.2027/)).toBeInTheDocument();
+    expect(await within(agenda).findByText(/^15\.11\.2026 – 13\.01\.2027: geçmiş ödemelerden/)).toBeInTheDocument();
     const salary = within(agenda).getByText("Örnek İşveren A.Ş.").closest("tr")!;
     expect(within(salary).getByText("01.12.2026")).toBeInTheDocument();
     expect(within(salary).getByText("Düzenli gelir")).toBeInTheDocument();
     expect(within(salary).getByText("+40.000,00 TL")).toBeInTheDocument();
+    expect(within(salary).getByRole("link", { name: "Örnek İşveren A.Ş." })).toHaveAttribute(
+      "href",
+      "/abonelikler?seri=fp-maas",
+    );
     const card = within(agenda).getAllByText("Örnek Kart •1234")[0]!.closest("tr")!;
     expect(within(card).getByText("Kart son ödemesi")).toBeInTheDocument();
     expect(within(card).getByText("asgari 1.800,00 TL")).toBeInTheDocument();
+    expect(within(card).getByRole("link", { name: "Örnek Kart •1234" })).toHaveAttribute("href", "/hesaplar/teb-1234");
     const rent = within(agenda).getByText("Ev kirası").closest("tr")!;
     expect(within(rent).getByText("−15.000,00 TL")).toBeInTheDocument();
-    expect(within(rent).getByText("son ödeme 03.10.2026: 15.000,00 TL")).toBeInTheDocument();
     expect(within(agenda).getByText("giriş +40.000,00 TL")).toBeInTheDocument();
     expect(within(agenda).getByText("çıkış −24.000,00 TL")).toBeInTheDocument();
     expect(within(agenda).getByText("Tahmin")).toBeInTheDocument();
+  });
+
+  it("says in a sentence what the days hold and which comes first", async () => {
+    renderScreen(<CalendarPage />);
+    const agenda = await screen.findByRole("region", { name: "Önümüzdeki 60 gün" });
+    expect(
+      await within(agenda).findByText(
+        "15.11.2026 – 13.01.2027 arasında 2 ödeme bekleniyor, toplam 24.000,00 TL. 1 gelir bekleniyor, toplam " +
+          "40.000,00 TL. İlki 25.11.2026'da: Örnek Kart •1234.",
+      ),
+    ).toBeInTheDocument();
+    expect(within(agenda).getByRole("link", { name: /Abonelikleri aç/ })).toHaveAttribute("href", "/abonelikler");
+  });
+
+  it("says what each item rests on in the detailed view", async () => {
+    localStorage.setItem("iplikci.view", "detailed");
+    renderScreen(<CalendarPage />);
+    const agenda = await screen.findByRole("region", { name: "Önümüzdeki 60 gün" });
+    const rent = (await within(agenda).findByText("Ev kirası")).closest("tr")!;
+    expect(within(rent).getByText("son ödeme 03.10.2026: 15.000,00 TL")).toBeInTheDocument();
   });
 
   it("shows each account's forecast as an estimate, with the day it goes below zero and what it assumes", async () => {
     renderScreen(<CalendarPage />);
     const forecast = await screen.findByRole("region", { name: "Nakit akışı öngörüsü" });
     expect(within(forecast).getByText("Tahmin")).toBeInTheDocument();
-    const account = (await within(forecast).findAllByText("Örnek Vadesiz TL"))[0]!.closest("tr")!;
+    const table = await within(forecast).findByRole("table", { name: "Hesap başına bakiye öngörüsü" });
+    const account = within(table).getByText("Örnek Vadesiz TL").closest("tr")!;
     expect(within(account).getByText("1.000,00 TL")).toBeInTheDocument();
     expect(within(account).getByText("31.10.2026 dökümü ve 2 hareket")).toBeInTheDocument();
     expect(within(account).getByText("03.12.2026: −14.019,00 TL")).toBeInTheDocument();
@@ -41,11 +68,37 @@ describe("CalendarPage", () => {
     expect(within(forecast).getByText(/Örnek Müzik \(Örnek Kart •1234\): −99,99 TL/)).toBeInTheDocument();
   });
 
-  it("shows the balances day by day as a table", async () => {
+  it("says which account goes below zero first and leads to it", async () => {
     renderScreen(<CalendarPage />);
     const forecast = await screen.findByRole("region", { name: "Nakit akışı öngörüsü" });
-    await userEvent.click(await within(forecast).findByText("Gün gün bakiyeler"));
-    const table = within(forecast).getByRole("table", { name: "Her günün sonundaki tahmini bakiye, hesap başına" });
+    expect(
+      await within(forecast).findByText("Örnek Vadesiz TL 03.12.2026'da −14.019,00 TL ile eksiye düşüyor."),
+    ).toBeInTheDocument();
+    const next = within(forecast).getByRole("link", { name: /Hesabı aç/ });
+    expect(next).toHaveAttribute("href", "/hesaplar/teb-123456789");
+  });
+
+  it("says the lowest balance when no account goes below zero", async () => {
+    const [cash] = FORECAST.accounts;
+    const lowest = { day: "2026-11-30", balance: { minor: 50000, currency: "TRY" } };
+    const above = { ...cash!, negative: null, lowest };
+    server.use(http.get("/api/forecast", () => HttpResponse.json({ ...FORECAST, accounts: [above] })));
+    renderScreen(<CalendarPage />);
+    expect(
+      await screen.findByText(
+        "Hiçbir hesap eksiye düşmüyor; en düşük bakiye 30.11.2026'da 500,00 TL (Örnek Vadesiz TL).",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Eksiye düşmüyor")).toBeInTheDocument();
+  });
+
+  it("draws the balances day by day, with every day's balance in the table view", async () => {
+    renderScreen(<CalendarPage />);
+    const forecast = await screen.findByRole("region", { name: "Nakit akışı öngörüsü" });
+    const chart = await within(forecast).findByRole("img", { name: /^Gün gün bakiye öngörüsü: çizgi grafiği/ });
+    expect(chart).toBeInTheDocument();
+    await userEvent.click(within(forecast).getByRole("tab", { name: "Tablo" }));
+    const table = within(forecast).getByRole("table", { name: "Gün gün bakiye öngörüsü" });
     expect(within(table).getAllByRole("row")).toHaveLength(61); // the header and sixty days
     expect(within(table).getByText("13.01.2027").closest("tr")).toHaveTextContent("−14.060,00 TL");
   });

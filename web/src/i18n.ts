@@ -24,6 +24,7 @@ import {
   possessiveLocative,
 } from "./lib/turkish";
 import accounts from "./locales/tr/accounts.json";
+import calendar from "./locales/tr/calendar.json";
 import charts from "./locales/tr/charts.json";
 import common from "./locales/tr/common.json";
 import dashboard from "./locales/tr/dashboard.json";
@@ -49,6 +50,7 @@ export const resources = {
     documents,
     extension,
     subscriptions,
+    calendar,
   },
 } as const;
 
