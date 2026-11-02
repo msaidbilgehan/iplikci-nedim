@@ -1,15 +1,17 @@
-"""The event log for the feed: a page of events, and the live stream (SSE, F05). A stream opened afresh starts after
-the newest event, as what happened before is in what the page loads; its first message, the named `start` event,
-carries that event's id, so the browser resumes after it. A stream that breaks off resumes from the last event it
-delivered: the browser sends its id back in Last-Event-ID. Beside the events the stream tells, as a named
-`notifications` event without an id, that a notification was made or settled: the notifications follow the events by
-a moment (ADR-0010), so the event alone would leave the box behind."""
+"""The event log for the feed: a page of events, and the live stream (SSE, F05). A stream opened afresh tells the
+last minute's events again, which the page may have been loading through, and none older, as those are in what the
+page loads; its first message, the named `start` event, carries the id it starts after, so the browser resumes there.
+A stream that breaks off resumes from the last event it delivered: the browser sends its id back in Last-Event-ID.
+Beside the events the stream tells, as a named `notifications` event without an id, that a notification was made or
+settled: the notifications follow the events by a moment (ADR-0010), so the event alone would leave the box
+behind."""
 
 import asyncio
 import json
 import time
 from collections.abc import AsyncIterator
 from dataclasses import asdict
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Query, Request
 from starlette.concurrency import run_in_threadpool
@@ -44,7 +46,7 @@ def stream(request: Request, after: int | None = Query(None, ge=0)) -> Streaming
 async def _events(context: Context, after: int | None) -> AsyncIterator[str]:
     yield f"retry: {_RETRY_MS}\n\n"
     if after is None:
-        after = await run_in_threadpool(events.newest, context.ws)
+        after = await run_in_threadpool(events.fresh_start, context.ws, datetime.now(UTC))
         yield f"event: start\nid: {after}\ndata: {after}\n\n"
     deadline = time.monotonic() + context.stream_limit
     quiet_since = time.monotonic()

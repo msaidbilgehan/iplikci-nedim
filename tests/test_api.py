@@ -230,11 +230,14 @@ def test_events_come_as_a_page_and_as_a_stream_that_starts_now_and_resumes(clien
     assert page[0]["detail"] == {"parser": "teb.bonus_card", "reason": "x", "version": "1.3"}
     assert client.get("/api/events?after=1", headers=bearer()).json()[0]["id"] == 2
 
-    # Opened afresh, the stream starts after the newest event and says which one, so the browser resumes after it.
+    # Opened afresh, the stream tells the last minute again, which the page may have been loading through, and says
+    # which event it starts after, so the browser resumes there; what is older is in what the page loads.
+    with ws.db() as db:
+        db.execute("UPDATE events SET at = '2026-01-01T00:00:00+00:00' WHERE id = 1")
     fresh = client.get("/api/events/stream", headers=bearer())
     assert fresh.headers["content-type"].startswith("text/event-stream")
-    assert fresh.text.startswith("retry: 3000\n\nevent: start\nid: 2\ndata: 2\n\n")
-    assert "data: {" not in fresh.text
+    assert fresh.text.startswith("retry: 3000\n\nevent: start\nid: 1\ndata: 1\n\n")
+    assert "id: 1\ndata: {" not in fresh.text and "id: 2\ndata: {" in fresh.text
     replayed = client.get("/api/events/stream", params={"after": 0}, headers=bearer())
     assert "id: 1\ndata: {" in replayed.text and "id: 2\ndata: {" in replayed.text
     assert "event: start" not in replayed.text

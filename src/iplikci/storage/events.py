@@ -81,6 +81,11 @@ def newest(db: Database) -> int:
     return int(db.scalar("SELECT COALESCE(MAX(id), 0) FROM events") or 0)
 
 
+def newest_before(db: Database, at: str) -> int:
+    """The id of the last event recorded before a time (UTC, as stored); 0 when there is none."""
+    return int(db.scalar("SELECT COALESCE(MAX(id), 0) FROM events WHERE at < ?", (at,)) or 0)
+
+
 def entries(db: Database, kind: str | None = None) -> list[Event]:
     rows = (
         db.rows("SELECT * FROM events ORDER BY id")

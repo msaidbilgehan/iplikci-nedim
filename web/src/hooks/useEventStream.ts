@@ -1,9 +1,10 @@
 // The service's event stream (SSE, F05): each new event refreshes the server state it touches, and a burst of events
-// refreshes each query once. A stream opened afresh starts after the newest event, as what came before is in what the
-// page loads; the named `start` event names that event first. After a break the browser reconnects on its own and the
-// service resumes after the last event it delivered (Last-Event-ID); a stream the browser gave up on is opened again
-// after the last event seen or named, so nothing that happened meanwhile is missed. A named `notifications` event says
-// that a notification was made or settled: the notifications follow their event by a moment (ADR-0010).
+// refreshes each query once. A stream opened afresh tells the last minute's events again, which the page may have been
+// loading through; the named `start` event first names the event it starts after. After a break the browser reconnects
+// on its own and the service resumes after the last event it delivered (Last-Event-ID); a stream the browser gave up on
+// is opened again after the last event seen or named, so nothing that happened meanwhile is missed. A named
+// `notifications` event says that a notification was made or settled: the notifications follow their event by a
+// moment (ADR-0010).
 
 import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
@@ -21,7 +22,7 @@ const EVERY = [keys.feedAll, keys.dashboard, keys.system] as const;
 // What the stream's `notifications` event refreshes: the box, the history and the channels' counts.
 export const NOTIFICATIONS_EVENT = "notifications";
 export const NOTIFICATIONS: readonly QueryKey[] = [keys.notifications, keys.notifySettings];
-// The named event a stream opened afresh begins with: the id of the newest event, which the stream starts after.
+// The named event a stream opened afresh begins with: the id of the event the stream starts after.
 export const START_EVENT = "start";
 
 const BATCH_MS = 200; // the events of a burst refresh each query once

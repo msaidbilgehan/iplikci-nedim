@@ -1,10 +1,13 @@
 """The event log as the feed and its live stream read it (ADR-0014, architecture §13)."""
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Any
 
 from ..storage import events
 from .workspace import Workspace
+
+REPLAY = timedelta(minutes=1)  # what a stream opened afresh tells again: the page may have been loading through it
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,7 +26,8 @@ def since(ws: Workspace, after: int = 0, limit: int = 100) -> list[LoggedEvent]:
     return [LoggedEvent(id, e.at, e.kind, e.target, e.detail) for id, e in found]
 
 
-def newest(ws: Workspace) -> int:
-    """The id of the newest event; 0 while the log is empty."""
+def fresh_start(ws: Workspace, now: datetime) -> int:
+    """Where a stream opened afresh starts: after the newest event older than REPLAY. What happened before is in what
+    the page loads, but the events of the moment the page was loading may be in neither: those come again."""
     with ws.db() as db:
-        return events.newest(db)
+        return events.newest_before(db, (now - REPLAY).replace(microsecond=0).isoformat())
