@@ -10,16 +10,17 @@ from fastapi.testclient import TestClient
 from iplikci import demo
 from iplikci.api.app import create_app
 from iplikci.api.context import Context
-from iplikci.app import setup
-from iplikci.app.analysis import analyze
+from iplikci.app import intake, reading, setup
+from iplikci.app.analysis import Analysis, Current, analyze
 from iplikci.app.workspace import Workspace
-from iplikci.domain.codes import DocumentStatus
+from iplikci.domain.codes import Actor, DocumentStatus, SourceKind, TransactionKind
 from iplikci.fakes import teb
 from iplikci.parsers.common import business_names_signature
 from iplikci.settings import config
 from iplikci.storage import audit, documents
+from iplikci.storage.documents import Source
 
-from conftest import ADDRESS, APP_PASSWORD, JANUARY, add
+from conftest import ADDRESS, APP_PASSWORD, FEBRUARY, JANUARY, add
 
 TOKEN = "deneme-belirteci"
 BASE = "http://127.0.0.1:8643"
@@ -118,6 +119,44 @@ def test_a_company_name_added_while_the_service_runs_takes_its_documents_out(cli
         doc = documents.get(db, kept.sha256)
     assert doc is not None and doc.status is DocumentStatus.REMOVED
     assert not ws.vault.has(kept.sha256)
+
+
+def test_a_company_name_saved_while_an_upload_waits_for_its_apply_still_takes_it_out(ws, private_trash):
+    data = teb.account_export(JANUARY, holder=COMPANY)
+    incoming = intake.Incoming("hareket.xls", data, Source(SourceKind.UPLOAD, "hareket.xls", ""))
+    plan = intake.plan_documents(ws, [incoming])  # read now, with no company names
+    setup.set_identity(ws, [], ["Örnek Teknoloji"], Actor.USER)  # saved on the Settings screen meanwhile
+    intake.apply(ws, plan, Actor.USER)
+    with ws.db() as db:
+        [doc] = documents.every(db)
+        assert reading.stale(doc)  # kept under the names it was read with: read again with the new ones
+        reading.read_pending(ws, db)
+        [doc] = documents.every(db)
+    assert doc.status is DocumentStatus.REMOVED and not ws.vault.has(doc.sha256)
+
+
+def _transfer_kind(a: Analysis) -> TransactionKind:
+    [row] = [t for t in a.dataset.transactions if "ORNEK SIRKET" in t.description]
+    return row.kind
+
+
+def test_names_saved_while_the_documents_are_read_leave_that_analysis_stale(ws, monkeypatch):
+    add(ws, "ocak.xls", teb.account_export(JANUARY))
+    add(ws, "subat.xls", FEBRUARY)
+    current = Current(ws, write=False)
+    assert _transfer_kind(current.get()) is TransactionKind.INCOME
+    read_pending = reading.read_pending
+
+    def read_while_the_user_saves_names(*args, **kwargs):
+        found = read_pending(*args, **kwargs)
+        setup.set_identity(ws, ["Ornek Sirket"], [], Actor.USER)  # the documents take a while: saved meanwhile
+        return found
+
+    monkeypatch.setattr(reading, "read_pending", read_while_the_user_saves_names)
+    made = current.refresh(write=False)
+    monkeypatch.setattr(reading, "read_pending", read_pending)
+    assert _transfer_kind(made) is TransactionKind.INCOME  # made with the names as they were
+    assert _transfer_kind(current.get()) is TransactionKind.OWN_TRANSFER  # stale: made again with the new ones
 
 
 def test_backups_are_kept_for_one_day_to_a_year(client, ws):

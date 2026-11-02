@@ -19,6 +19,7 @@ import signal
 import subprocess
 import sys
 import threading
+from collections.abc import Sequence
 from contextlib import suppress
 from typing import IO, Any, cast
 
@@ -48,8 +49,9 @@ class WorkerError(RuntimeError):
 # --- the app's side ---------------------------------------------------------------------------------------------
 
 
-def parse_document(doc: Document) -> ParseResult:
+def parse_document(doc: Document, business: Sequence[str] | None = None) -> ParseResult:
     """parsers.parse_document in the reading process: the same result and the same exceptions, within the limits.
+    business: the company names to read with; the ones this process has by default.
 
     A process that had read other documents before dying gets one more try in a fresh one: a document is unreadable
     for its own sake, never for what the documents before it left behind. Raises WorkerError when no reading process
@@ -59,7 +61,7 @@ def parse_document(doc: Document) -> ParseResult:
         "name": doc.name,
         "origin": doc.origin,
         "sha256": doc.sha256,
-        "business": list(business_names()),
+        "business": list(business_names() if business is None else business),
         "size": len(doc.data),
     }
     job = (json.dumps(header, ensure_ascii=False).encode() + b"\n", doc.data)

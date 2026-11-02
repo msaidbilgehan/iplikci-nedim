@@ -66,8 +66,8 @@ _BUSINESS_MARKS = (
     "IMZASIRKULER",  # a company's signature circular …
     "GENELKURUL",  # … and its general assembly
 )
-_given_names: tuple[str, ...] = ()
-_business_names: tuple[str, ...] = ()
+# The names as given and as the check uses them, set together: a reading takes both at one moment (business_check).
+_names: tuple[tuple[str, ...], tuple[str, ...]] = ((), ())
 # Legal forms after a company's name, written in any spelling ("A.Ş.", "ANONİM ŞİRKETİ", "SAN. VE TİC. LTD. ŞTİ."):
 # a name is looked for without them, so a document that spells the form another way still matches it.
 _LEGAL_FORMS = frozenset({"AS", "ANONIM", "SIRKETI", "LTD", "LIMITED", "STI", "SAN", "SANAYI", "TIC", "TICARET", "VE"})
@@ -84,20 +84,31 @@ def set_business_names(names: Iterable[str]) -> None:
     """The user's company names, squashed like the headers they are looked for in. The readers have no
     settings of their own, so the workspace hands the names over when it loads them. A name shorter than
     three letters would mark nearly every document as a company's: it is left out."""
-    global _given_names, _business_names
-    _given_names = tuple(names)
-    _business_names = tuple(sorted({s for s in map(_business_name, _given_names) if len(s) >= 3}))
+    global _names
+    given = tuple(names)
+    _names = (given, tuple(sorted({s for s in map(_business_name, given) if len(s) >= 3})))
 
 
 def business_names() -> tuple[str, ...]:
     """The names as set_business_names got them: the reading process gets them with every document (worker.py)."""
-    return _given_names
+    return _names[0]
+
+
+def _signature(used: tuple[str, ...]) -> str:
+    return hashlib.sha256("\n".join(_BUSINESS_MARKS + ("",) + used).encode()).hexdigest()[:16]
 
 
 def business_names_signature() -> str:
     """Changes whenever the company check does, the company names or the marks in this module: a reading made with
     another check is stale, so a company document kept before is found."""
-    return hashlib.sha256("\n".join(_BUSINESS_MARKS + ("",) + _business_names).encode()).hexdigest()[:16]
+    return _signature(_names[1])
+
+
+def business_check() -> tuple[tuple[str, ...], str]:
+    """The names a reading is to be made with and the signature it is to be kept under, taken at one moment: the
+    names may change from another thread while the document is read (the Settings screen)."""
+    given, used = _names
+    return given, _signature(used)
 
 
 # An SGK workplace number: 26 digits, given to whoever employs someone. Premiums paid under one are an employer's, part
@@ -145,7 +156,7 @@ def is_business(header: str) -> bool:
     transaction lines: personal statements mention the company too
     ("GOOGLE*GSUITE <company domain>")."""
     s = squash(header)
-    return any(mark in s for mark in _BUSINESS_MARKS + _business_names)
+    return any(mark in s for mark in _BUSINESS_MARKS + _names[1])
 
 
 _FEE_PATTERNS = (

@@ -124,9 +124,14 @@ class Workspace:
     def lock(self, timeout: float = 120.0) -> AbstractContextManager[None]:
         return file_lock(self.run, _LOCK_NAME, timeout)
 
-    def signature(self) -> tuple[object, ...]:
+    def file_stamps(self) -> tuple[object, ...]:
+        """The rule file's and the settings file's sizes and times, as signature keeps them."""
+        return tuple(_stamp(p) for p in (self.rules, self.layout.settings))
+
+    def signature(self, files: tuple[object, ...] | None = None) -> tuple[object, ...]:
         """Changes whenever the documents, their readings, the annotations, the rules or the settings change:
-        when an analysis is stale."""
+        when an analysis is stale. files: the file stamps taken before the files were read, for an analysis that
+        read them earlier: a change made since then must leave it stale."""
         with self.db() as database:
             state = database.one(
                 "SELECT (SELECT count(*) FROM documents), (SELECT max(added_at) FROM documents), "
@@ -134,8 +139,7 @@ class Workspace:
                 "(SELECT count(*) FROM annotations), (SELECT max(updated_at) FROM annotations), "
                 "(SELECT count(*) FROM audit_log)"
             )
-        files = tuple(_stamp(p) for p in (self.rules, self.layout.settings))
-        return (tuple(state) if state else (), files)
+        return (tuple(state) if state else (), self.file_stamps() if files is None else files)
 
 
 def _stamp(path: Path) -> tuple[int, int] | None:

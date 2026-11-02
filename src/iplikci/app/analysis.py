@@ -126,13 +126,15 @@ def analyze(
     Excel exports and the month-end pages (today decides which month is the current one). reread=True reads every
     document again, whatever its reading says."""
     with ws.lock():
+        files = ws.file_stamps()  # before the files are read: a change from here on leaves this analysis stale
         settings = ws.fresh_settings()  # the company names the documents are read with, as the file says now
         with ws.db() as db:
             reading.read_pending(ws, db, progress, every=reread)
+            # Taken before what the analysis reads, never after: a change in between makes it stale (Current.get).
+            signature = ws.signature(files)
             found, stats = ledger_input(db)
             notes = annotations.every(db)
             names_given = {account: given.alias for account, given in aliases.every(db).items()}
-        signature = ws.signature()
     names = list(settings.identity.names)
     categorizer = Categorizer.layered(ws.rules)
     ds = build(found, categorizer, {"ad_soyad": names} if names else {})

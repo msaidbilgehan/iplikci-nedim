@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from ..domain.codes import Actor, DocumentKind, DocumentStatus
 from ..domain.models import ParseResult
 from ..parsers import Skipped, Unreadable, registry
-from ..parsers.common import BUSINESS_REASON, business_names_signature
+from ..parsers.common import BUSINESS_REASON, business_check, business_names_signature
 from ..parsers.contract import Document
 from ..parsers.worker import parse_document
 from ..storage import audit, documents, events, readings
@@ -38,6 +38,9 @@ class Outcome:
     business: bool = False  # a company document: never kept
     result: ParseResult | None = None
     parser: str = ""  # the reader that recognised the document and then gave up on it
+    # The signature of the company names it was read with (business_check): the reading is kept under it, so one
+    # made before the names changed is stale, however late it is recorded (an upload's plan waits for the user).
+    business_sig: str = ""
 
     def format_alarm(self) -> dict[str, object] | None:
         """What says the bank may have changed its format (ADR-0005): the reader recognised the document and then
@@ -80,7 +83,7 @@ class Outcome:
                 self.reason,
                 parser=self.parser,
                 parser_version=_version(self.parser),
-                business_sig=business_names_signature(),
+                business_sig=self.business_sig or business_names_signature(),
             )
         first = r.statements[0] if r.statements else None
         return documents.Reading(
@@ -88,7 +91,7 @@ class Outcome:
             kind=self.kind,
             parser=r.parser,
             parser_version=_version(r.parser),
-            business_sig=business_names_signature(),
+            business_sig=self.business_sig or business_names_signature(),
             holder=r.holder,
             receipt_key=r.receipt_key,
             title=r.title,
@@ -115,15 +118,16 @@ def _version(parser_id: str) -> str:
 def read(name: str, data: bytes, sha256: str, origin: str = "") -> Outcome:
     """Read one document in the reading process (ADR-0005). A broken document never stops the others: it is
     unreadable, with the reason. Only a reading process that cannot start stops the run (worker.WorkerError)."""
+    names, sig = business_check()
     try:
-        result = parse_document(Document(name=name, origin=origin, data=data, sha256=sha256))
+        result = parse_document(Document(name=name, origin=origin, data=data, sha256=sha256), names)
     except Skipped as exc:
         if exc.business:
-            return Outcome(DocumentStatus.UNPROCESSED, str(exc), business=True)
-        return Outcome(DocumentStatus.UNPROCESSED, str(exc), parser=exc.parser)
+            return Outcome(DocumentStatus.UNPROCESSED, str(exc), business=True, business_sig=sig)
+        return Outcome(DocumentStatus.UNPROCESSED, str(exc), parser=exc.parser, business_sig=sig)
     except Unreadable as exc:
-        return Outcome(DocumentStatus.UNREADABLE, str(exc), parser=exc.parser)
-    return Outcome(DocumentStatus.PROCESSED, result=result)
+        return Outcome(DocumentStatus.UNREADABLE, str(exc), parser=exc.parser, business_sig=sig)
+    return Outcome(DocumentStatus.PROCESSED, result=result, business_sig=sig)
 
 
 def record(db: Database, sha256: str, name: str, outcome: Outcome) -> None:

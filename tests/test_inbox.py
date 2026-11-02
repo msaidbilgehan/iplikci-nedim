@@ -90,10 +90,10 @@ def test_upload_works_where_the_disk_has_no_hard_links(ws, monkeypatch):
 def test_an_encrypted_pdf_is_kept_once_for_a_manual_look(ws, monkeypatch):
     real = reading.parse_document
 
-    def parse(doc):
+    def parse(doc, business=None):
         if doc.name == "kilitli.pdf":
             raise Unreadable(ENCRYPTED_REASON)
-        return real(doc)
+        return real(doc, business)
 
     monkeypatch.setattr(reading, "parse_document", parse)
     put(ws.inbox / "kilitli.pdf", "%PDF şifreli")
