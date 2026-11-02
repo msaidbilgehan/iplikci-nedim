@@ -6,5 +6,15 @@
   "signedOut": {
     "title": "Oturum kapandı",
     "text": "Arayüzü İplikçi Nedim'den yeniden açın; tek kullanımlık yeni bir giriş bağlantısı açılır."
+  },
+  "cancel": "Vazgeç",
+  "filter": {
+    "summary": "{{label}}: {{value}}",
+    "all": "Tümü",
+    "none": "Hiçbiri",
+    "count": "{{count}}/{{total}}",
+    "active": "Etkin süzgeçler",
+    "remove": "{{name}} süzgecini kaldır",
+    "reset": "Sıfırla"
   }
 }

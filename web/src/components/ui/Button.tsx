@@ -1,4 +1,4 @@
-import type { ComponentPropsWithoutRef } from "react";
+import type { ComponentProps } from "react";
 
 import { cn } from "../../lib/cn";
 
@@ -12,7 +12,8 @@ const VARIANTS = {
   danger: "bg-red-700 text-white hover:bg-red-800 dark:bg-red-400 dark:text-zinc-950 dark:hover:bg-red-300",
 } as const;
 
-interface ButtonProps extends ComponentPropsWithoutRef<"button"> {
+// With its ref, so a dialog can put the focus on one of its buttons.
+interface ButtonProps extends ComponentProps<"button"> {
   variant?: keyof typeof VARIANTS;
 }
 
