@@ -20,6 +20,8 @@ export interface AccountRefOut {
   label: string;
 }
 
+export type AccountType = "credit_card" | "debit_card" | "current" | "deposit" | "overdraft" | "fx" | "gold" | "brokerage" | "loan";
+
 export interface AlarmIn {
   layer: number;
   version?: string;
@@ -127,6 +129,9 @@ export interface BalanceOut {
   balance: MoneyOut;
 }
 
+/** What printed the balance an estimate starts from. */
+export type BalanceSource = "statement" | "notice" | "portfolio";
+
 /** The bank row that paid a bill or a receipt. */
 export interface BankRowOut {
   fingerprint: string;
@@ -162,6 +167,14 @@ export interface CalendarOut {
   today: string;
   end: string;
   items: CalendarItemOut[];
+}
+
+/** A card's statement period and its spending (purchases, refunds, interest and fees). */
+export interface CardPeriodOut {
+  start: string;
+  end: string;
+  spent: MoneyOut;
+  rows: number;
 }
 
 export interface CategoryMoveOut {
@@ -243,6 +256,9 @@ export type DeliveryStatus = "pending" | "sent" | "held" | "digested" | "failed"
 /** How much a notification says (ADR-0010). */
 export type DetailLevel = "full" | "summary" | "minimal";
 
+/** Which way a row's money goes: the screens say it in words, never by a sign (architecture §16). */
+export type Direction = "out" | "in";
+
 export interface DiskOut {
   vault: number;
   database: number;
@@ -260,6 +276,8 @@ export interface DocumentDetailOut {
   parent: string;
   attachments: AttachmentOut[];
 }
+
+export type DocumentKind = "card_statement" | "account_statement" | "receipt" | "notice" | "invoice";
 
 export interface DocumentOut {
   sha256: string;
@@ -296,6 +314,9 @@ export interface DocumentRowOut {
   evidence: EvidenceStatus | null;
   ref: SourceRefOut | null;
 }
+
+/** Where a stored document stands (ADR-0003). */
+export type DocumentStatus = "processed" | "unprocessed" | "unreadable" | "removed";
 
 export interface DocumentViewOut {
   kind: ViewKind;
@@ -362,6 +383,63 @@ export interface FailedJobOut {
   attempts: number;
   finished_at: string;
   error: string;
+}
+
+/** What an event's detail says (architecture §13); a field the event does not carry is null or empty. */
+export interface FeedDetailOut {
+  title: string;
+  amount: MoneyOut | null;
+  minimum: MoneyOut | null;
+  balance: MoneyOut | null;
+  old: MoneyOut | null;
+  new: MoneyOut | null;
+  day: string | null;
+  days: number | null;
+  payment: PaymentKind | null;
+  period: SeriesPeriod | null;
+  cancelled: string;
+  status: MonthStatus | null;
+  count: number | null;
+  first: string | null;
+  last: string | null;
+  provisional: boolean | null;
+  source: SourceKind | null;
+  document_kind: DocumentKind | null;
+  parser: string;
+  reader: string;
+  version: string;
+  reason: string;
+  stage: string;
+  unverified: AccountRefOut[];
+}
+
+/** A document an event concerns, as the archive keeps it now. */
+export interface FeedDocumentOut {
+  sha256: string;
+  name: string;
+  kind: DocumentKind | null;
+  status: DocumentStatus;
+}
+
+/** An event of the log, with what it concerns now and where it leads. */
+export interface FeedItemOut {
+  id: number;
+  at: string;
+  kind: string;
+  label: string;
+  text: string;
+  target: string;
+  account: AccountRefOut | null;
+  certainty: Certainty | null;
+  detail: FeedDetailOut;
+  row: RowOut | null;
+  document: FeedDocumentOut | null;
+  link: LinkOut | null;
+}
+
+export interface FeedOut {
+  items: FeedItemOut[];
+  next: number | null;
 }
 
 export interface FetchQueuedOut {
@@ -451,6 +529,13 @@ export interface KnownOut {
 /** The Turkish label of every code, by code type (DocumentStatus, JobKind, …). */
 export type LabelsOut = Record<string, Record<string, string>>;
 
+/** Where an item leads in the interface: a screen and what to open there (Screen names what id holds for each). */
+export interface LinkOut {
+  screen: Screen;
+  id: string;
+  query: Record<string, string>;
+}
+
 export interface LoginLink {
   url: string;
 }
@@ -496,6 +581,9 @@ export interface MoneyOut {
   minor: number;
   currency: string;
 }
+
+/** Month-end closing: of a month, and of each account within it. */
+export type MonthStatus = "closed" | "waiting" | "missing" | "check" | "running";
 
 export type Necessity = "required" | "optional" | "unnecessary" | "unknown";
 
@@ -560,6 +648,54 @@ export interface NotifyTestIn {
   channel: Channel;
 }
 
+/**
+ * An account's balance today as far as the documents tell: the newest balance a document prints, moved by the receipt
+ * and notice rows after it.
+ */
+export interface NowBalanceOut {
+  account: AccountRefOut;
+  type: AccountType;
+  balance: MoneyOut;
+  value: MoneyOut | null;
+  rate: string | null;
+  rate_day: string | null;
+  stated: MoneyOut;
+  on: string;
+  source: BalanceSource;
+  moves: number;
+  through: string;
+  certainty: Certainty;
+  note: string;
+}
+
+/** A card's newest statement, what it still asks, and the period the card is in now. */
+export interface NowCardOut {
+  account: AccountRefOut;
+  type: AccountType;
+  cut: string;
+  total: MoneyOut | null;
+  due: string | null;
+  minimum: MoneyOut | null;
+  limit: MoneyOut | null;
+  paid: MoneyOut;
+  debt: MoneyOut | null;
+  last: CardPeriodOut;
+  current: CardPeriodOut;
+  certainty: Certainty;
+  note: string;
+}
+
+/** What stands now (F05's "Şu an" and "Yaklaşanlar"). */
+export interface NowOut {
+  today: string;
+  balances: NowBalanceOut[];
+  unknown: UnknownOut[];
+  cards: NowCardOut[];
+  pace: PaceOut;
+  upcoming: CalendarItemOut[];
+  end: string;
+}
+
 export interface OtherSendersIn {
   domains: string[];
 }
@@ -567,6 +703,24 @@ export interface OtherSendersIn {
 /** The domains whose bills and receipts are taken in beside the banks' messages (settings: mail.other_senders). */
 export interface OtherSendersOut {
   domains: string[];
+}
+
+/**
+ * The month's spending so far (purchases, refunds, interest and fees) against the typical month. The month is partial:
+ * card spending comes with the statements after their cut dates; the typical month comes from complete months only.
+ */
+export interface PaceOut {
+  month: string;
+  partial: boolean;
+  day: number;
+  days: number;
+  spent: MoneyOut;
+  provisional: MoneyOut;
+  typical: MoneyOut | null;
+  by_day: MoneyOut | null;
+  months: string[];
+  covered: number;
+  note: string;
 }
 
 export interface PageLinesOut {
@@ -697,6 +851,32 @@ export interface RowLabelsOut {
   kind: TransactionKind;
 }
 
+/** A row of the ledger as the screens list it. */
+export interface RowOut {
+  fingerprint: string;
+  day: string;
+  account: AccountRefOut;
+  title: string;
+  description: string;
+  merchant: string;
+  counterparty: string;
+  amount: MoneyOut;
+  direction: Direction;
+  kind: TransactionKind;
+  category: string;
+  group: string;
+  necessity: Necessity | null;
+  counted: boolean;
+  expense: boolean;
+  certainty: Certainty;
+  original: string;
+  installment: string;
+  note: string;
+  tags: string[];
+  invoice: string;
+  document: string;
+}
+
 export interface RuleChangeOut {
   content: string;
   diff: string;
@@ -716,6 +896,15 @@ export interface ScannedIn {
 export interface ScannedOut {
   history_due: boolean;
 }
+
+/**
+ * A screen of the interface, as a link names it, and what the link's id holds there: document (a document's sha256, its
+ * query's "satir" a row's fingerprint to open it at), documents, transaction (a row's fingerprint), transactions,
+ * account (an account's id), accounts, month (YYYY-MM), invoice (a bill's or a receipt's key), invoices, subscription
+ * (a series' id), calendar (a day, YYYY-MM-DD, or "" for the days from today on), forecast (an account's id), insights,
+ * fx, todo (a kind of item to see to), system, notifications. A list screen opens with the link's query as its filters.
+ */
+export type Screen = "document" | "documents" | "transaction" | "transactions" | "account" | "accounts" | "month" | "invoice" | "invoices" | "subscription" | "calendar" | "forecast" | "insights" | "fx" | "todo" | "system" | "notifications";
 
 export interface SeriesOut {
   id: string;
@@ -753,6 +942,9 @@ export interface SkippedOut {
   account: AccountRefOut;
   reason: string;
 }
+
+/** How a document reached the archive. */
+export type SourceKind = "email" | "upload" | "inbox" | "import";
 
 /**
  * Where a row is printed: a PDF page with the line's box (points from the page's top left) or its line in the page's
@@ -849,6 +1041,12 @@ export interface UnknownMailOut {
   domain: string;
   template: string;
   count: number;
+}
+
+/** An account with no balance or statement to show, and why. */
+export interface UnknownOut {
+  account: AccountRefOut;
+  reason: string;
 }
 
 export interface UploadOut {

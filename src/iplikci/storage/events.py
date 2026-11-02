@@ -3,6 +3,7 @@ finds the same event twice is no news: `record` does not add an event the log al
 target and detail. The feed's changes are news each time it sees them (`append`)."""
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -52,6 +53,26 @@ def since(db: Database, after: int = 0, limit: int = 100) -> list[tuple[int, Eve
 def since_time(db: Database, at: str) -> list[tuple[int, Event]]:
     """The events recorded at or after a time (UTC, as stored), oldest first, with their ids."""
     rows = db.rows("SELECT * FROM events WHERE at >= ? ORDER BY id", (at,))
+    return [(int(r["id"]), Event(r["at"], r["kind"], r["target"], json.loads(r["detail"]))) for r in rows]
+
+
+def newest_first(
+    db: Database, before: int = 0, limit: int = 100, codes: Sequence[str] = (), families: Sequence[str] = ()
+) -> list[tuple[int, Event]]:
+    """The events before the one with id before (0: from the newest), newest first, with their ids. codes and
+    families narrow them: an event of one of the codes ("transaction.created"), or whose kind starts with one of the
+    families ("document."); neither given, every kind."""
+    where: list[str] = []
+    params: list[object] = []
+    if before:
+        where.append("id < ?")
+        params.append(before)
+    kinds = [("kind = ?", [code]) for code in codes] + [("substr(kind, 1, ?) = ?", [len(f), f]) for f in families]
+    if kinds:
+        where.append("(" + " OR ".join(clause for clause, _ in kinds) + ")")
+        params += [value for _, values in kinds for value in values]
+    sql = "SELECT * FROM events" + (f" WHERE {' AND '.join(where)}" if where else "") + " ORDER BY id DESC LIMIT ?"
+    rows = db.rows(sql, [*params, limit])
     return [(int(r["id"]), Event(r["at"], r["kind"], r["target"], json.loads(r["detail"]))) for r in rows]
 
 

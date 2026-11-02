@@ -1,12 +1,17 @@
 """The API's answers (pydantic at the boundary). Amounts, when they come, are minor units with their currency."""
 
 from datetime import date
+from decimal import Decimal
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, StringConstraints
 
+from ..app import invoices
 from ..app.invoices import InvoiceKind, InvoiceStatus
+from ..app.links import Link, Screen
 from ..app.notify import Channel, ChannelStage, DeliveryStatus, DetailLevel, EventKind
+from ..app.now import Pace
+from ..app.rows import Certainty, Direction, Necessity, RowView, TransactionKind
 
 
 class LoginLink(BaseModel):
@@ -21,9 +26,123 @@ class MoneyOut(BaseModel):
     currency: str
 
 
+def money(value: Decimal, currency: str = "TRY") -> MoneyOut:
+    """An exact amount as the API carries it: minor units of its currency, rounded half up to them (ADR-0006). Grams
+    of gold ("GR") count in hundredths, as the documents print them."""
+    return MoneyOut(minor=invoices.minor(value, currency), currency=currency)
+
+
 class AccountRefOut(BaseModel):
     id: str
     label: str
+
+
+def account_ref(account: str, labels: dict[str, str]) -> AccountRefOut:
+    return AccountRefOut(id=account, label=labels.get(account, account))
+
+
+class LinkOut(BaseModel):
+    """Where an item leads in the interface: a screen and what to open there (Screen names what id holds for each)."""
+
+    screen: Screen
+    id: str
+    query: dict[str, str]  # the filters a list screen opens with; a document opens at a row with {"satir": fp}
+
+
+def link_out(link: Link | None) -> LinkOut | None:
+    return None if link is None else LinkOut(screen=link.screen, id=link.id, query=dict(link.query))
+
+
+class RowOut(BaseModel):
+    """A row of the ledger as the screens list it."""
+
+    fingerprint: str  # its identity: notes and corrections are bound to it (architecture §8)
+    day: date
+    account: AccountRefOut
+    title: str  # the merchant or the person as the rules name them, else what the bank printed
+    description: str  # as the bank printed it
+    merchant: str
+    counterparty: str  # the other party of a transfer; "" for none
+    # Above zero; direction says which way. In TL as the ledger counts it; an excluded row of a foreign account,
+    # which no rate ever valued, in the account's currency.
+    amount: MoneyOut
+    direction: Direction
+    kind: TransactionKind
+    category: str
+    group: str
+    necessity: Necessity | None  # only spending and money sent to people have one
+    # In the ledger's totals. Not: an excluded row, or a receipt's row a statement confirmed in its own words (a fee
+    # the statement prints with the transfer).
+    counted: bool
+    expense: bool  # counted as spending: a purchase, a refund, interest or a fee
+    certainty: Certainty  # confirmed; provisional (only a receipt or a notice shows it); excluded (never counted)
+    original: str  # the foreign amount as printed, with the rate it was valued at; "" for a TL row
+    installment: str  # "8/12"; "" for none
+    note: str
+    tags: list[str]
+    invoice: str  # the non-bank bill or receipt it paid, "<sha256>:<position>"; "" for none
+    document: str  # the sha256 of the document it is printed in (the viewer: /belgeler/<sha256>?satir=<fingerprint>)
+
+
+def row_out(row: RowView, labels: dict[str, str]) -> RowOut:
+    return RowOut(
+        fingerprint=row.fingerprint,
+        day=row.day,
+        account=account_ref(row.account, labels),
+        title=row.title,
+        description=row.description,
+        merchant=row.merchant,
+        counterparty=row.counterparty,
+        amount=money(row.amount, row.currency),
+        direction=row.direction,
+        kind=row.kind,
+        category=row.category,
+        group=row.group,
+        necessity=row.necessity,
+        counted=row.counted,
+        expense=row.expense,
+        certainty=row.certainty,
+        original=row.original,
+        installment=row.installment,
+        note=row.note,
+        tags=list(row.tags),
+        invoice=row.invoice,
+        document=row.document,
+    )
+
+
+class PaceOut(BaseModel):
+    """The month's spending so far (purchases, refunds, interest and fees) against the typical month. The month is
+    partial: card spending comes with the statements after their cut dates; the typical month comes from complete
+    months only."""
+
+    month: str  # the current month, YYYY-MM
+    partial: bool  # always true: the current month is not over
+    day: int  # today's day of the month
+    days: int  # the month's days
+    spent: MoneyOut  # spending dated in the month up to today, as far as the documents tell
+    provisional: MoneyOut  # of that, what only receipts and notices show yet
+    typical: MoneyOut | None  # the median month of up to six complete months before it; null with fewer than three
+    by_day: MoneyOut | None  # the median of the same months' spending up to the same day of the month
+    months: list[str]  # those complete months
+    covered: float  # the share of the month's days so far the accounts' documents cover, 0..1
+    note: str  # what the numbers rest on, in Turkish
+
+
+def pace_out(found: Pace) -> PaceOut:
+    return PaceOut(
+        month=found.month,
+        partial=True,
+        day=found.day,
+        days=found.days,
+        spent=money(found.spent),
+        provisional=money(found.provisional),
+        typical=None if found.typical is None else money(found.typical),
+        by_day=None if found.by_day is None else money(found.by_day),
+        months=list(found.months),
+        covered=found.covered,
+        note=found.note,
+    )
 
 
 class ReaderHealthOut(BaseModel):

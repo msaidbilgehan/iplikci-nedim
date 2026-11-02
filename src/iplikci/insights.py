@@ -818,22 +818,28 @@ def _latest_rate(ds: Dataset, currency: str) -> tuple[date, Decimal] | None:
     return max(found) if found else None
 
 
-def paid_after(ds: Dataset, card: str, cut: date) -> Decimal:
-    """Card payments after the statement's cut date: from bank accounts' lists, and from payment receipts
+def payments_after(ds: Dataset, card: str, cut: date) -> list[Transaction]:
+    """The card payments after the statement's cut date: from bank accounts' lists, and from payment receipts
     (booked on the card itself) the next statement will show."""
     acc = ds.accounts[card]
     digits = acc.number[-4:]
-    paid = ZERO
+    found = []
     for t in ds.transactions:
         if t.kind != TransactionKind.CARD_PAYMENT or t.date <= cut or t.amount <= 0:
             continue
         if t.account == card:
-            paid += t.amount if t.provisional else ZERO
+            if t.provisional:
+                found.append(t)
             continue
         src = ds.accounts.get(t.account)
         if src and src.type not in CARD_TYPES and (digits in t.description or src.bank == acc.bank):
-            paid += t.amount
-    return paid
+            found.append(t)
+    return found
+
+
+def paid_after(ds: Dataset, card: str, cut: date) -> Decimal:
+    """What was paid on the card after the statement's cut date (payments_after)."""
+    return sum((t.amount for t in payments_after(ds, card, cut)), ZERO)
 
 
 def _waiting(ds: Dataset) -> dict[str, list[ReceiptLine]]:

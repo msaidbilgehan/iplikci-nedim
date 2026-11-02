@@ -106,6 +106,11 @@ class Analysis:
     orphans: list[Annotation] = field(default_factory=list[Annotation])
 
 
+def account_labels(a: Analysis) -> dict[str, str]:
+    """Every account's name as the screens show it, by id."""
+    return {account.id: account.label for account in a.dataset.accounts.values()}
+
+
 def analyze(
     ws: Workspace,
     progress: reading.Progress | None = None,
