@@ -16,7 +16,7 @@ import { ChartFrame } from "../charts/ChartFrame";
 import { ScreenLink } from "../ui/Say";
 import { Table, Td, Th } from "../ui/Table";
 
-const WHOLE = 0.97; // covered to within a day: whole, as the MVP report counted it
+const WHOLE = 0.97; // at least 97 days in a hundred covered: whole, as the MVP report counted it
 const SMALL = "text-xs text-zinc-600 dark:text-zinc-300";
 const COVERS = ["whole", "part", "none"] as const;
 
