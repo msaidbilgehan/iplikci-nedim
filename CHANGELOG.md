@@ -165,6 +165,9 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
   gelmiyordu: Görev Zamanlayıcı yalnızca başlayamayan görevi yeniden başlatır. Servis artık biterken görevi yeniden
   çalıştıracak bir yardımcı bırakır; yardımcı ve uygulamanın yeniden başlatması, biten sürecin işi bitmeden görevi
   çalıştırmaz.
+- Eski bir kopya açılınca, daha yeni bir sürümün servisi çalışsa ya da veri klasörünü daha yeni bir sürüm açmış olsa
+  da servisi kendine kaydediyor, Linux'ta yeni sürümün kopyasını da siliyordu. Artık yeni sürümün açılmasını ister ve
+  yalnızca daha eski sürümlerin kopyalarını kaldırır; sürümler sayı olarak karşılaştırılır.
 
 ## [0.6.0] — 2026-11-02 — Aşama 5: Bildirimler
 

@@ -11,6 +11,7 @@ import pytest
 from iplikci import __version__
 from iplikci.cli import main
 from iplikci.service import dialog, instance, launcher, manager
+from iplikci.storage import db
 
 APP = Path("/Applications/İplikçi Nedim.app/Contents/Resources/python/bin/python3")
 SHOW_FOLDER = dialog.show_folder  # the real one: every test gets a stand-in that refuses (conftest)
@@ -133,15 +134,41 @@ def test_a_restart_waits_for_the_new_service_before_it_asks_for_a_login_link(ws,
 
 def test_the_pythons_of_older_versions_an_appimage_left_go_once_this_one_answers(ws, tmp_path, monkeypatch):
     folder = tmp_path / "share" / "iplikci" / "app"
-    for version in ("0.6.0", "0.7.0", "0.6.0.yeni", "0.7.0.yeni"):
-        (folder / version / "bin").mkdir(parents=True)
-    python = folder / "0.7.0" / "bin" / "python3"
+    for name in ("0.9.0", "0.9.0.yeni", "0.10.0", "0.10.0.yeni.4242", "0.11.0", "notlar"):
+        (folder / name / "bin").mkdir(parents=True)
+    python = folder / "0.10.0" / "bin" / "python3"
     monkeypatch.setattr(manager, "development_folder", lambda module=None: None)
     monkeypatch.setattr(manager.sys, "executable", str(python))
     assert launcher.older_copies(python, "darwin") == [] and launcher.older_copies(APP, "linux") == []
     service = FakeService()
     launcher.open_app(ws, service, "linux", python, healthy=lambda port: True, serving=service.serving, login=str)
-    assert sorted(p.name for p in folder.iterdir()) == ["0.7.0", "0.7.0.yeni"]  # this one, and a copy AppRun makes
+    # 0.9 is older than 0.10 (a comparison of words would say otherwise); a newer copy, a copy of this version AppRun
+    # is making and what is no version stay.
+    assert sorted(p.name for p in folder.iterdir()) == ["0.10.0", "0.10.0.yeni.4242", "0.11.0", "notlar"]
+
+
+def test_versions_are_compared_as_numbers():
+    assert launcher.newer("0.10.0", "0.9.1") and not launcher.newer("0.9.1", "0.10.0")
+    assert not launcher.newer("1.0", "1.0.0") and not launcher.newer("1.0.0rc1", "1.0.0")
+    assert not launcher.newer("", "0.6.0") and not launcher.newer("bilinmiyor", "0.6.0")
+    assert launcher.version_key("0.7.0.yeni.4242") == (0, 7) and launcher.version_key("notlar") is None
+
+
+def test_an_older_copy_never_takes_over_from_a_newer_service(ws, installed):
+    service = FakeService(manager.Program(Path("/Applications/Yeni.app/python3"), ws.home), running(version="99.0"))
+    with pytest.raises(launcher.LaunchError, match=r"daha yeni bir sürümü \(99.0\) çalışıyor; açtığınız kopya"):
+        opened(ws, service)
+    assert service.calls == [] and service.program != this_copy(ws)  # the newer one stays registered
+
+
+def test_an_older_copy_never_registers_itself_for_a_database_a_newer_one_made(ws, installed, monkeypatch):
+    db.connect(ws.layout.database).close()
+    known = db.migrations()
+    monkeypatch.setattr(db, "migrations", lambda: known[:-1])  # this copy, one migration older
+    service = FakeService()  # stopped: launchd would start it again and again on a database it cannot open
+    with pytest.raises(launcher.LaunchError, match="Bu veri klasörünü İplikçi Nedim'in daha yeni bir sürümü açmış"):
+        opened(ws, service)
+    assert service.calls == []
 
 
 def test_a_service_registered_from_another_copy_or_folder_is_registered_again_from_this_one(ws, installed, tmp_path):

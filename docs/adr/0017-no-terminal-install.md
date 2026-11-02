@@ -122,6 +122,8 @@ parçasıdır.
 - **Açılış** (`iplikci uygulama`, `service/launcher`):
   - Kayıt bu kopyanın ve bu veri klasörünün değilse servis yeniden kaydedilir ve başlatılır.
   - Servis çalışmıyorsa ya da eski bir sürümse yeniden başlatılır.
+  - Eski bir kopya, daha yeni bir sürümün servisi çalışırken ya da veri klasörünü daha yeni bir sürüm açmışken servisi
+    kaydetmez; yeni sürümün açılmasını ister. Sürümler sayı olarak karşılaştırılır (0.10, 0.9'dan yenidir).
   - Giriş bağlantısı ancak yeni servis yanıt verince alınır: biten eski servisin verdiği bağlantı onunla ölürdü.
   - Disk görüntüsünden ya da macOS'un geçici yerinden açılan uygulama önce taşınmasını ister.
   - Geliştirme kopyası servisi hiçbir zaman kaydetmez. Sorunlar sistemin kendi penceresinde söylenir.
@@ -134,7 +136,8 @@ parçasıdır.
     sürümle yeniden başlar.
   - Windows: kurulum programı önce servisi kaldırır ve sürecin bitmesini bekler, Python'u bütünüyle değiştirir,
     sonra uygulamayı açar; uygulama servisi yeniden kaydeder.
-  - Linux: yeni sürümün kopyası eskisinin yanına kurulur; yeni servis yanıt verince eski kopyalar kaldırılır.
+  - Linux: yeni sürümün kopyası eskisinin yanına kurulur; yeni servis yanıt verince yalnızca daha eski sürümlerin
+    kopyaları kaldırılır.
 - **Her iş arayüzde:** servis arayüzden durdurulur, yeniden başlatılır ve bilgisayardan kaldırılır; bir yedek
   arayüzden geri yüklenir.
   - Servis kendi sürecini bitirir: temiz çıkış (0) durmadır. 75 çıkış kodunu launchd ve systemd servisi yeniden

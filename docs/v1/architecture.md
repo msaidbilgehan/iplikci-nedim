@@ -670,7 +670,8 @@ Teknoloji ADR-0008'dedir. Ekranlar ve davranışları [features.md](features.md)
   derlenmiş arayüz ve tarayıcı eklentisi de içindedir (ADR-0017, "Paketleme biçimi").
 - **Uygulamanın açılışı:** uygulama `python -I -X utf8 -m iplikci uygulama` çalıştırır (`service/launcher`).
   - Kayıt bu kopyanın değilse servisi yeniden kaydeder ve başlatır.
-  - Çalışan servisin sürümü farklıysa servisi yeniden başlatır.
+  - Çalışan servisin sürümü eskiyse servisi yeniden başlatır. Daha yeni bir sürümün servisi çalışıyorsa ya da veri
+    klasörünü daha yeni bir sürüm açmışsa servisi kaydetmez, yeni sürümün açılmasını ister.
   - Servis sağlık denetiminden geçince arayüzü tek kullanımlık giriş bağlantısıyla açar.
   - Disk görüntüsünden ya da macOS'un geçici yerinden (App Translocation) açılan uygulama önce Uygulamalar klasörüne
     taşınmasını ister.
