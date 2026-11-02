@@ -4,9 +4,14 @@ import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router";
 
 import { ApiError } from "./api/client";
+import { AppProviders } from "./components/AppProviders";
 import "./i18n";
+import { applyTheme, isDark, readTheme, systemIsDark } from "./lib/preferences";
 import { routes } from "./routes";
 import "./index.css";
+
+// The remembered theme goes on <html> before anything renders. This module does it: the CSP allows no inline script.
+applyTheme(isDark(readTheme(), systemIsDark()));
 
 const queries = new QueryClient({
   defaultOptions: {
@@ -23,7 +28,9 @@ if (root) {
   createRoot(root).render(
     <StrictMode>
       <QueryClientProvider client={queries}>
-        <RouterProvider router={createBrowserRouter(routes)} />
+        <AppProviders>
+          <RouterProvider router={createBrowserRouter(routes)} />
+        </AppProviders>
       </QueryClientProvider>
     </StrictMode>,
   );

@@ -1,7 +1,109 @@
 @import "tailwindcss";
 
+/* Dark mode follows the class the theme puts on <html> ("Açık", "Koyu", or "Sistem", which follows the computer as it
+   changes; lib/preferences.ts), not the media query alone. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   /* The system's own fonts: nothing is fetched from elsewhere (ADR-0009). */
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* Until the module script names the theme the page follows the system, so nothing flashes; then its class decides
+   the colours of the browser's own controls and scrollbars too. */
+:root {
+  color-scheme: light dark;
+}
+:root.light {
+  color-scheme: light;
+}
+:root.dark {
+  color-scheme: dark;
+}
+
+/* The charts' palette, ported from the MVP report (rapor.css): a validated categorical palette whose light and dark
+   values are each chosen, not flipped (features.md, the charts' rules). Slots 1-8 belong to the first eight groups in
+   the rule file's order and keep them whatever the filters; slot 0 ("Diğer") is the neutral grey. The necessity levels
+   take slots 1, 4, 5 and 0 (categorize.NECESSITY_SLOTS). Text on charts uses ink-2 (AA on the cards in both themes);
+   grid and axis lines are faint by design. Status fills are the same in both themes and never stand without an icon
+   and a label. The sequential ramp is for heat tables. */
+:root {
+  --chart-s1: #2a78d6;
+  --chart-s2: #eb6834;
+  --chart-s3: #1baf7a;
+  --chart-s4: #eda100;
+  --chart-s5: #e87ba4;
+  --chart-s6: #008300;
+  --chart-s7: #6250d6;
+  --chart-s8: #e34948;
+  --chart-other: #8f8d86;
+  --chart-ink: #0b0b0b;
+  --chart-ink-2: #52514e;
+  --chart-muted: #898781;
+  --chart-grid: #e1e0d9;
+  --chart-axis: #c3c2b7;
+  --chart-good: #006300;
+  --chart-bad: #d03b3b;
+  --chart-accent: #2a78d6;
+  --chart-status-good: #0ca30c;
+  --chart-status-warning: #fab219;
+  --chart-status-critical: #d03b3b;
+  --chart-seq-100: #cde2fb;
+  --chart-seq-200: #9ec5f4;
+  --chart-seq-300: #6da7ec;
+  --chart-seq-400: #3987e5;
+  --chart-seq-500: #256abf;
+  --chart-seq-600: #184f95;
+  --chart-seq-700: #0d366b;
+}
+:root.dark {
+  --chart-s1: #3987e5;
+  --chart-s2: #d95926;
+  --chart-s3: #199e70;
+  --chart-s4: #c98500;
+  --chart-s5: #d55181;
+  --chart-s6: #008300;
+  --chart-s7: #9085e9;
+  --chart-s8: #e66767;
+  --chart-other: #77756f;
+  --chart-ink: #f0efec;
+  --chart-ink-2: #c3c2b7;
+  --chart-muted: #898781;
+  --chart-grid: #2c2c2a;
+  --chart-axis: #383835;
+  --chart-good: #0ca30c;
+  --chart-bad: #e66767;
+  --chart-accent: #3987e5;
+}
+
+/* The palette as Tailwind colours: fill-slot-3, bg-slot-0, stroke-chart-grid, text-chart-ink-2, bg-status-warning … */
+@theme inline {
+  --color-slot-0: var(--chart-other);
+  --color-slot-1: var(--chart-s1);
+  --color-slot-2: var(--chart-s2);
+  --color-slot-3: var(--chart-s3);
+  --color-slot-4: var(--chart-s4);
+  --color-slot-5: var(--chart-s5);
+  --color-slot-6: var(--chart-s6);
+  --color-slot-7: var(--chart-s7);
+  --color-slot-8: var(--chart-s8);
+  --color-chart-ink: var(--chart-ink);
+  --color-chart-ink-2: var(--chart-ink-2);
+  --color-chart-muted: var(--chart-muted);
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-axis: var(--chart-axis);
+  --color-chart-good: var(--chart-good);
+  --color-chart-bad: var(--chart-bad);
+  --color-chart-accent: var(--chart-accent);
+  --color-status-good: var(--chart-status-good);
+  --color-status-warning: var(--chart-status-warning);
+  --color-status-critical: var(--chart-status-critical);
+  --color-seq-100: var(--chart-seq-100);
+  --color-seq-200: var(--chart-seq-200);
+  --color-seq-300: var(--chart-seq-300);
+  --color-seq-400: var(--chart-seq-400);
+  --color-seq-500: var(--chart-seq-500);
+  --color-seq-600: var(--chart-seq-600);
+  --color-seq-700: var(--chart-seq-700);
 }

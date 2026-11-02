@@ -3,12 +3,16 @@ import { render, type RenderResult } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
 
-/** ui with fresh server state and a router, as the app gives every screen. */
-export function renderScreen(ui: ReactNode): RenderResult {
+import { AppProviders } from "../components/AppProviders";
+
+/** ui with fresh server state, a router and the display preferences, as the app gives every screen. */
+export function renderScreen(ui: ReactNode, { path = "/" }: { path?: string } = {}): RenderResult {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>{ui}</MemoryRouter>
+      <AppProviders>
+        <MemoryRouter initialEntries={[path]}>{ui}</MemoryRouter>
+      </AppProviders>
     </QueryClientProvider>,
   );
 }
