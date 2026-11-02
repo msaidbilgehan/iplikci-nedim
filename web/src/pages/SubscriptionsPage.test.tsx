@@ -134,7 +134,11 @@ describe("SubscriptionsPage", () => {
     const newest = within(payments).getByRole("link", { name: "03.11.2026" });
     expect(newest).toHaveAttribute("href", "/islemler?satir=fp-kira-11");
     expect(within(newest.closest("tr")!).getByText("geçici")).toBeInTheDocument();
-    expect(within(payments).getByText("TEB Hesap Dökümü Ekim 2026.xls")).toBeInTheDocument();
+    // Many documents share a file's name: each opens the very one, at the payment's row.
+    expect(within(payments).getByRole("link", { name: "TEB Hesap Dökümü Ekim 2026.xls" })).toHaveAttribute(
+      "href",
+      `/belgeler/${"1".repeat(64)}?satir=fp-kira-10`,
+    );
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(view.location()).toBe("/abonelikler");

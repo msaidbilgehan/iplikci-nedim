@@ -116,6 +116,7 @@
     "amount": "Tutar",
     "document": "Belge",
     "noDocument": "Belge adı yok",
+    "openDocument": "Belgeyi aç",
     "afterCancel": "İptalden sonra",
     "calendar": "Takvimde göster"
   },

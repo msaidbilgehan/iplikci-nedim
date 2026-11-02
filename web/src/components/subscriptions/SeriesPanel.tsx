@@ -1,7 +1,7 @@
 // One series in a panel over the list (F08), as ?seri=<id> opens it from this screen or another (the feed's warning,
 // an account's page): what it is and what it means, every payment it rests on leading to its row on the İşlemler
-// screen (and from there to its document), and "İptal ettim" or "Yeniden bekle". A payment after the month the user's
-// rules give as the last is marked: the warning is about it.
+// screen and to its document, opened at the row, and "İptal ettim" or "Yeniden bekle". A payment after the month the
+// user's rules give as the last is marked: the warning is about it.
 
 import type { TFunction } from "i18next";
 import { type ReactNode, type RefObject, useId, useRef, useState } from "react";
@@ -209,7 +209,7 @@ interface PaymentsTableProps {
   labels: Labels;
 }
 
-/** The rows the series rests on, newest first: each day leads to its row, which leads to its document. */
+/** The rows the series rests on, newest first: each day leads to its row, each document to its page at the row. */
 function PaymentsTable({ series, cancelled, labels }: PaymentsTableProps) {
   const { t } = useTranslation("subscriptions");
   const payments = [...series.payments].sort((a, b) => b.day.localeCompare(a.day));
@@ -244,7 +244,20 @@ function PaymentsTable({ series, cancelled, labels }: PaymentsTableProps) {
               <Money value={payment.amount} certainty={payment.certainty} className="justify-end" />
             </Td>
             <Td className="min-w-40 wrap-break-word">
-              {payment.document || <span className={SMALL}>{t("panel.noDocument")}</span>}
+              {payment.sha256 ? (
+                // Many documents share a file's name: the link opens the very one, at the payment's row.
+                <ScreenLink
+                  link={{
+                    screen: "document",
+                    id: payment.sha256,
+                    query: payment.fingerprint ? { satir: payment.fingerprint } : {},
+                  }}
+                >
+                  {payment.document || t("panel.openDocument")}
+                </ScreenLink>
+              ) : (
+                payment.document || <span className={SMALL}>{t("panel.noDocument")}</span>
+              )}
             </Td>
           </tr>
         ))}
