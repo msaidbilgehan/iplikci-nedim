@@ -1031,6 +1031,37 @@ export interface TelegramTokenOut {
   in_keyring: boolean;
 }
 
+/** The steps a to-do offers (F19). */
+export type TodoAction = "add_rule" | "upload" | "reparse" | "open" | "ask_claude" | "ignore";
+
+export interface TodoIgnoredIn {
+  key: string;
+  ignored: boolean;
+}
+
+/** What keeps the data from being complete and right (F19): each a to-do with the step that settles it. */
+export type TodoKind = "uncategorized" | "unmatched_evidence" | "unmatched_invoice" | "unverified_statement" | "missing_documents" | "unprocessed_document" | "orphan_annotation" | "format_alarm";
+
+export interface TodoOut {
+  key: string;
+  kind: TodoKind;
+  title: string;
+  detail: string;
+  count: number;
+  amount: MoneyOut | null;
+  target: string;
+  link: LinkOut | null;
+  actions: TodoAction[];
+  prompt: string;
+  ignored: boolean;
+}
+
+export interface TodosOut {
+  items: TodoOut[];
+  counts: Record<string, number>;
+  ignored: number;
+}
+
 /**
  * What a row is. For every kind, an amount above zero is money leaving the user and below zero money coming in (a
  * refund, income, a transfer in).

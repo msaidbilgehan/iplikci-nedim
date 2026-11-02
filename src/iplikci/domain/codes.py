@@ -243,6 +243,30 @@ class DeliveryStatus(StrEnum):
     FAILED = "failed"  # every attempt failed: never tried again
 
 
+class TodoKind(StrEnum):
+    """What keeps the data from being complete and right (F19): each a to-do with the step that settles it."""
+
+    UNCATEGORIZED = "uncategorized"  # rows no rule names ("Belirsiz"), a merchant at a time
+    UNMATCHED_EVIDENCE = "unmatched_evidence"  # a receipt's or notice's row its statement leaves out
+    UNMATCHED_INVOICE = "unmatched_invoice"  # a non-bank bill no bank row paid
+    UNVERIFIED_STATEMENT = "unverified_statement"  # a statement whose rows do not add up to what it prints
+    MISSING_DOCUMENTS = "missing_documents"  # an account's statements stop early or skip a month
+    UNPROCESSED_DOCUMENT = "unprocessed_document"  # a document no reader read, or could not read
+    ORPHAN_ANNOTATION = "orphan_annotation"  # a correction no row carries any more
+    FORMAT_ALARM = "format_alarm"  # a reader that may no longer know its bank's format
+
+
+class TodoAction(StrEnum):
+    """The steps a to-do offers (F19)."""
+
+    ADD_RULE = "add_rule"  # a category rule for the merchant
+    UPLOAD = "upload"  # the missing document, from the computer
+    REPARSE = "reparse"  # read the document again
+    OPEN = "open"  # the screen that shows it
+    ASK_CLAUDE = "ask_claude"  # a request to paste into Claude, with the MCP server connected
+    IGNORE = "ignore"  # take it off the list
+
+
 class ChannelStage(StrEnum):
     """What stands between a notification channel and the next notification besides its being turned off: the
     interface names the user's next step by it (ADR-0010)."""

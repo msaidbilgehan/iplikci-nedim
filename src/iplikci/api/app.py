@@ -23,6 +23,7 @@ from .routes import (
     rules,
     settings,
     system,
+    todos,
     uploads,
 )
 
@@ -43,6 +44,7 @@ ROUTERS = (
     invoices,
     notify,
     rules,
+    todos,
     pages,
 )
 

@@ -28,6 +28,8 @@ from .codes import (
     SeriesPeriod,
     SeriesStatus,
     SourceKind,
+    TodoAction,
+    TodoKind,
     Tone,
     TransactionKind,
 )
@@ -237,6 +239,26 @@ DELIVERY_STATUS: dict[DeliveryStatus, str] = {
     DeliveryStatus.FAILED: "Gönderilemedi",
 }
 
+TODO_KIND: dict[TodoKind, str] = {
+    TodoKind.UNCATEGORIZED: "Kategorisiz işlemler",
+    TodoKind.UNMATCHED_EVIDENCE: "Ekstrede görünmeyen kanıt",
+    TodoKind.UNMATCHED_INVOICE: "Eşleşmeyen fatura",
+    TodoKind.UNVERIFIED_STATEMENT: "Doğrulanmayan ekstre",
+    TodoKind.MISSING_DOCUMENTS: "Eksik belge",
+    TodoKind.UNPROCESSED_DOCUMENT: "İşlenmeyen belge",
+    TodoKind.ORPHAN_ANNOTATION: "Eşi bulunamayan düzeltme",
+    TodoKind.FORMAT_ALARM: "Okuyucu biçim alarmı",
+}
+
+TODO_ACTION: dict[TodoAction, str] = {
+    TodoAction.ADD_RULE: "Kural ekle",
+    TodoAction.UPLOAD: "Belge yükle",
+    TodoAction.REPARSE: "Yeniden oku",
+    TodoAction.OPEN: "Göster",
+    TodoAction.ASK_CLAUDE: "Claude'a ver",
+    TodoAction.IGNORE: "Yok say",
+}
+
 CHANNEL_STAGE: dict[ChannelStage, str] = {
     ChannelStage.READY: "Hazır",
     ChannelStage.STOPPED: "Durdu",
@@ -276,6 +298,8 @@ TABLES: dict[type[StrEnum], dict[StrEnum, str]] = {
     DetailLevel: _table(DETAIL_LEVEL),
     DeliveryStatus: _table(DELIVERY_STATUS),
     ChannelStage: _table(CHANNEL_STAGE),
+    TodoKind: _table(TODO_KIND),
+    TodoAction: _table(TODO_ACTION),
 }
 
 # The interface writes the Turkish lira as "TL" (ADR-0006).
