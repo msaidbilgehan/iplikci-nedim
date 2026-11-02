@@ -35,17 +35,17 @@ class PeriodOut(BaseModel):
 class TilesOut(BaseModel):
     total: MoneyOut
     count: int
-    average: MoneyOut | None  # monthly, over the complete months with spending
+    average: MoneyOut | None  # monthly, over the period's whole months, those without spending too
     average_months: int
-    partial_months: int  # months after the last complete one: not in the average
-    income_average: MoneyOut | None  # monthly, over the months account lists cover
+    partial_months: int  # the period's months that are not whole (covered only partly, or cut by it): averaged nowhere
+    income_average: MoneyOut | None  # monthly, over the whole months account lists cover
     income_months: int
     income_share: str | None  # the spending of those months as a share of their income, a decimal ("0.54")
     unnecessary: MoneyOut
     last_month: str | None
     last_total: MoneyOut
     last_partial: bool
-    last_change: str | None  # against the three months before it, a decimal ("-0.12")
+    last_change: str | None  # against the up to three whole months before it, a decimal ("-0.12")
 
 
 class SliceOut(BaseModel):
@@ -56,7 +56,7 @@ class SliceOut(BaseModel):
 class MonthRowOut(BaseModel):
     month: str
     values: list[MoneyOut]  # one per slice, in the slices' order
-    partial: bool
+    partial: bool  # not whole: covered only partly, or cut by the period; drawn lighter, averaged nowhere
 
 
 class MonthTableOut(BaseModel):
@@ -70,7 +70,7 @@ class CategoryLineOut(BaseModel):
     slot: int
     total: MoneyOut
     share: str | None  # of the total, a decimal
-    average: MoneyOut  # per month with spending
+    average: MoneyOut | None  # monthly, over the period's whole months; null without one
     count: int
     link: LinkOut
 
@@ -89,6 +89,7 @@ class MerchantLineOut(BaseModel):
 
 class FlowMonthOut(BaseModel):
     month: str
+    partial: bool  # not whole: drawn lighter, averaged nowhere
     income: MoneyOut
     expense: MoneyOut
     net: MoneyOut
@@ -225,7 +226,7 @@ def spending_cards(request: Request, f: Annotated[Filter, Depends(filters)]) -> 
                 slot=c.slot,
                 total=money(c.total),
                 share=_share(round(c.share, 4) if c.share is not None else None),
-                average=money(c.average),
+                average=money(c.average) if c.average is not None else None,
                 count=c.count,
                 link=_link(c.link),
             )
@@ -248,6 +249,7 @@ def spending_cards(request: Request, f: Annotated[Filter, Depends(filters)]) -> 
         flow=[
             FlowMonthOut(
                 month=m.month,
+                partial=m.partial,
                 income=money(m.income),
                 expense=money(m.expense),
                 net=money(m.net),

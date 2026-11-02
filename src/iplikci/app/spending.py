@@ -3,12 +3,14 @@ the summary tiles, the months by group and by necessity, the categories, the mer
 and the three-month forecast, which every filter but the period narrows (features.md, "Süzgeçlerin kapsamı").
 
 Without a kind filter the spending kinds count (purchases, refunds, interest and fees), as the MVP's "Giderler"; the
-rows the ledger never counts stay out. Averages use complete months only; irregular spending is never annualized."""
+rows the ledger never counts stay out. The cards count the days the period names, as the Transactions screen does.
+Averages use whole months only: complete in the documents, and inside the days counted; a month the documents cover
+only partly, or the period cuts, is drawn lighter and averaged nowhere. Irregular spending is never annualized."""
 
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, replace
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from statistics import median
 
@@ -46,17 +48,17 @@ class Period:
 class Tiles:
     total: Decimal  # spending the filters keep over the period
     count: int
-    average: Decimal | None  # monthly, over the complete months with spending
+    average: Decimal | None  # monthly, over the period's whole months, those without spending too
     average_months: int
-    partial_months: int  # months with spending some account covers only partly: not in the average
-    income_average: Decimal | None  # monthly, over the period's months account lists cover
+    partial_months: int  # the period's months that are not whole: not in any average
+    income_average: Decimal | None  # monthly, over the whole months account lists cover
     income_months: int
     income_share: Decimal | None  # the spending of those months as a share of their income
     unnecessary: Decimal  # spent on what the rules call unnecessary: interest, late fees, bank charges
     last_month: str | None  # the newest month with spending
     last_total: Decimal
-    last_partial: bool  # not complete: a card statement of it still to come, or a gap in the documents
-    last_change: Decimal | None  # against the average of the up to three months before it with spending
+    last_partial: bool  # not whole: a card statement of it still to come, a gap in the documents, or cut by the period
+    last_change: Decimal | None  # against the average of the up to three whole months before it
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,7 +73,7 @@ class Slice:
 class MonthRow:
     month: str
     values: tuple[Decimal, ...]  # one per slice
-    partial: bool  # some account covers it only partly: drawn lighter, never in an average
+    partial: bool  # not whole (covered only partly, or cut by the period): drawn lighter, never in an average
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,7 +89,7 @@ class CategoryLine:
     slot: int
     total: Decimal
     share: Decimal | None  # of the total spending; None when that is not above zero
-    average: Decimal  # per month with spending in the period
+    average: Decimal | None  # monthly, over the period's whole months; None without one
     count: int
     link: Link
 
@@ -108,6 +110,7 @@ class MerchantLine:
 @dataclass(frozen=True, slots=True)
 class FlowMonth:
     month: str
+    partial: bool  # not whole: drawn lighter, never in an average
     income: Decimal
     expense: Decimal
     net: Decimal  # income − expense
@@ -188,32 +191,39 @@ def _period(a: Analysis, f: Filter) -> Period | None:
     return Period(start, end, first, last)
 
 
-def _within(f: Filter, period: Period) -> Filter:
-    """The filters with the period as whole months."""
-    start = date(int(period.start[:4]), int(period.start[5:]), 1)
-    end_month = shift(period.end, 1)
-    end = date.fromordinal(date(int(end_month[:4]), int(end_month[5:]), 1).toordinal() - 1)
-    return replace(f, start=start, end=end)
+def _first_day(month: str) -> date:
+    return date(int(month[:4]), int(month[5:]), 1)
+
+
+def _last_day(month: str) -> date:
+    return _first_day(shift(month, 1)) - timedelta(days=1)
+
+
+def _whole(months: Sequence[str], start: date, end: date, complete: set[str]) -> set[str]:
+    """The months the cards may average: complete in the documents, and every day of them counted."""
+    return {m for m in months if m in complete and start <= _first_day(m) and _last_day(m) <= end}
 
 
 def spending(a: Analysis, f: Filter) -> Spending:
     period = _period(a, f)
-    complete = complete_months(a.dataset)
     if period is None:
         empty = MonthTable([], [])
-        return Spending(None, _tiles(a, f, [], [], complete), empty, empty, [], [], [], None)
-    narrowed = _within(_expenses(f), period)
+        return Spending(None, _tiles(a, f, [], [], [], set()), empty, empty, [], [], [], None)
+    # The days the filters name, as the Transactions screen counts them; whole months where they name none.
+    start, end = f.start or _first_day(period.start), f.end or _last_day(period.end)
+    narrowed = replace(_expenses(f), start=start, end=end)
     rows = _counted(a, narrowed)
     months = span(period.start, period.end)
+    whole = _whole(months, start, end, complete_months(a.dataset))
     income_months = _income_months(a, months, f)
     return Spending(
         period=period,
-        tiles=_tiles(a, narrowed, rows, income_months, complete),
-        by_group=_by_group(a, rows, months, complete),
-        by_level=_level_table(rows, months, complete),
-        categories=_categories(a, rows),
+        tiles=_tiles(a, narrowed, rows, months, income_months, whole),
+        by_group=_by_group(a, rows, months, whole),
+        by_level=_level_table(rows, months, whole),
+        categories=_categories(a, rows, months, whole),
         merchants=_merchants(a, rows),
-        flow=_flow(a, narrowed, rows, income_months),
+        flow=_flow(a, narrowed, rows, income_months, whole),
         forecast=_forecast(a, _expenses(f), period),
     )
 
@@ -237,70 +247,75 @@ def _by_month(rows: Iterable[RowView]) -> dict[str, Decimal]:
     return totals
 
 
-def _tiles(a: Analysis, f: Filter, rows: list[RowView], income_months: list[str], complete: set[str]) -> Tiles:
+def _tiles(
+    a: Analysis, f: Filter, rows: list[RowView], months: Sequence[str], income_months: list[str], whole: set[str]
+) -> Tiles:
     total = sum((_signed(r) for r in rows), ZERO)
     by_month = _by_month(rows)
-    with_rows = sorted(by_month)
-    full = [m for m in with_rows if m in complete]
-    average = sum((by_month[m] for m in full), ZERO) / len(full) if full else None
-    came = _counted(a, _kinds(f, TransactionKind.INCOME)) if income_months else []
-    income = -sum((_signed(r) for r in came if month_of(r.day) in income_months), ZERO)
-    spent_then = sum((by_month.get(m, ZERO) for m in income_months), ZERO)
-    last = with_rows[-1] if with_rows else None
-    before = with_rows[-4:-1]
-    base = sum((by_month[m] for m in before), ZERO) / len(before) if before else ZERO
+    full = [m for m in months if m in whole]
+    average = sum((by_month.get(m, ZERO) for m in full), ZERO) / len(full) if full else None
+    earned = [m for m in income_months if m in whole]
+    came = _counted(a, _kinds(f, TransactionKind.INCOME)) if earned else []
+    income = -sum((_signed(r) for r in came if month_of(r.day) in earned), ZERO)
+    spent_then = sum((by_month.get(m, ZERO) for m in earned), ZERO)
+    last = max(by_month, default=None)
+    before = [m for m in full if last is not None and m < last][-3:]
+    base = sum((by_month.get(m, ZERO) for m in before), ZERO) / len(before) if before else ZERO
     return Tiles(
         total=total,
         count=len(rows),
         average=average,
         average_months=len(full),
-        partial_months=len(with_rows) - len(full),
-        income_average=income / len(income_months) if income_months else None,
-        income_months=len(income_months),
+        partial_months=len(months) - len(full),
+        income_average=income / len(earned) if earned else None,
+        income_months=len(earned),
         income_share=spent_then / income if income > 0 else None,
         unnecessary=sum((_signed(r) for r in rows if r.necessity is Necessity.UNNECESSARY), ZERO),
         last_month=last,
         last_total=by_month[last] if last else ZERO,
-        last_partial=bool(last and last not in complete),
+        last_partial=bool(last and last not in whole),
         last_change=(by_month[last] - base) / base if last and base > 0 else None,
     )
 
 
 def _table(
-    slices: list[Slice], months: Sequence[str], values: dict[tuple[str, str], Decimal], complete: set[str]
+    slices: list[Slice], months: Sequence[str], values: dict[tuple[str, str], Decimal], whole: set[str]
 ) -> MonthTable:
     present = [s for s in slices if any(values.get((m, s.key), ZERO) for m in months)]
     return MonthTable(
         present,
-        [MonthRow(m, tuple(values.get((m, s.key), ZERO) for s in present), m not in complete) for m in months],
+        [MonthRow(m, tuple(values.get((m, s.key), ZERO) for s in present), m not in whole) for m in months],
     )
 
 
-def _by_group(a: Analysis, rows: list[RowView], months: Sequence[str], complete: set[str]) -> MonthTable:
+def _by_group(a: Analysis, rows: list[RowView], months: Sequence[str], whole: set[str]) -> MonthTable:
     groups = a.dataset.groups
     values: dict[tuple[str, str], Decimal] = defaultdict(Decimal)
     for r in rows:
         values[(month_of(r.day), r.group)] += _signed(r)
     known = [*groups, *sorted({r.group for r in rows} - set(groups))]
-    return _table([Slice(g, group_slot(groups, g)) for g in known], months, values, complete)
+    return _table([Slice(g, group_slot(groups, g)) for g in known], months, values, whole)
 
 
-def _level_table(rows: Iterable[RowView], months: Sequence[str], complete: set[str]) -> MonthTable:
+def _level_table(rows: Iterable[RowView], months: Sequence[str], whole: set[str]) -> MonthTable:
     values: dict[tuple[str, str], Decimal] = defaultdict(Decimal)
     for r in rows:
         if r.necessity is not None:
             values[(month_of(r.day), r.necessity.value)] += _signed(r)
-    return _table([Slice(n.value, NECESSITY_SLOTS[n]) for n in LEVELS], months, values, complete)
+    return _table([Slice(n.value, NECESSITY_SLOTS[n]) for n in LEVELS], months, values, whole)
 
 
-def _categories(a: Analysis, rows: list[RowView]) -> list[CategoryLine]:
+def _categories(a: Analysis, rows: list[RowView], months: Sequence[str], whole: set[str]) -> list[CategoryLine]:
     total = sum((_signed(r) for r in rows), ZERO)
-    months = len({month_of(r.day) for r in rows}) or 1
+    full = len([m for m in months if m in whole])
     sums: dict[str, Decimal] = defaultdict(Decimal)
+    in_whole: dict[str, Decimal] = defaultdict(Decimal)  # what of it the whole months hold
     counts: dict[str, int] = defaultdict(int)
     group: dict[str, str] = {}
     for r in rows:
         sums[r.category] += _signed(r)
+        if month_of(r.day) in whole:
+            in_whole[r.category] += _signed(r)
         counts[r.category] += 1
         group[r.category] = r.group
     groups = a.dataset.groups
@@ -311,7 +326,7 @@ def _categories(a: Analysis, rows: list[RowView]) -> list[CategoryLine]:
             slot=group_slot(groups, group[c]),
             total=v,
             share=v / total if total > 0 else None,
-            average=v / months,
+            average=in_whole[c] / full if full else None,
             count=counts[c],
             link=Link(Screen.TRANSACTIONS, query=(("category", c),)),
         )
@@ -344,7 +359,7 @@ def _merchants(a: Analysis, rows: list[RowView]) -> list[MerchantLine]:
     return sorted(lines, key=lambda m: -m.total)[:TOP_MERCHANTS]
 
 
-def _flow(a: Analysis, f: Filter, rows: list[RowView], income_months: list[str]) -> list[FlowMonth]:
+def _flow(a: Analysis, f: Filter, rows: list[RowView], income_months: list[str], whole: set[str]) -> list[FlowMonth]:
     if not income_months:
         return []
     spent = _by_month(rows)
@@ -358,25 +373,11 @@ def _flow(a: Analysis, f: Filter, rows: list[RowView], income_months: list[str])
     for m in income_months:
         came, went = -income.get(m, ZERO), spent.get(m, ZERO)
         p, d, s = people.get(m, ZERO), debt.get(m, ZERO), saving.get(m, ZERO)
-        out.append(FlowMonth(m, came, went, came - went, p, d, s, came - went - p - d - s))
+        out.append(FlowMonth(m, m not in whole, came, went, came - went, p, d, s, came - went - p - d - s))
     return out
 
 
 # --- the forecast ---------------------------------------------------------------------------------------------
-
-
-def _series_kept(s: Series, f: Filter) -> bool:
-    """A regular payment the filters keep, as the MVP report's recurring card kept it: every filter but the period."""
-    last = s.last
-    return (
-        (not f.accounts or any(t.account in f.accounts for t in s.payments))
-        and (last.kind is not TransactionKind.PURCHASE or not f.kinds or TransactionKind.PURCHASE in f.kinds)
-        and (not f.categories or last.category in f.categories)
-        and (not f.groups or last.group in f.groups)
-        and (not f.necessities or (last.necessity or Necessity.UNKNOWN) in f.necessities)
-        and (not f.merchant or fold(s.merchant) == fold(f.merchant))
-        and (not f.text or all(w in fold(s.merchant) for w in fold(f.text).split()))
-    )
 
 
 def _day(d: date) -> str:
@@ -396,8 +397,9 @@ def _forecast(a: Analysis, f: Filter, period: Period) -> Forecast | None:
     ahead = tuple(shift(hi, k) for k in range(1, AHEAD + 1))
     rows = _counted(a, replace(f, start=None, end=None))
     groups = ds.groups
+    kept = {r.split_of or r.fingerprint for r in rows}  # a regular payment is in when any of its rows is
     lines = [
-        *_regular(ins.series, f, groups, ahead),
+        *_regular(ins.series, kept, groups, ahead),
         *_installments(rows, hi, ahead, labels(a), groups),
         *_variable(a, rows, base, ahead),
     ]
@@ -431,10 +433,13 @@ def _forecast(a: Analysis, f: Filter, period: Period) -> Forecast | None:
     )
 
 
-def _regular(series: Sequence[Series], f: Filter, groups: list[str], ahead: tuple[str, ...]) -> list[ForecastLine]:
+def _regular(series: Sequence[Series], kept: set[str], groups: list[str], ahead: tuple[str, ...]) -> list[ForecastLine]:
+    """The running regular purchases the filters keep a row of: every filter but the period, as the rows are kept."""
     out: list[ForecastLine] = []
     for s in series:
-        if s.status not in _RUNNING or s.last.kind is not TransactionKind.PURCHASE or not _series_kept(s, f):
+        if s.status not in _RUNNING or s.last.kind is not TransactionKind.PURCHASE:
+            continue
+        if not any(t.fingerprint in kept for t in s.payments):
             continue
         note = f"{s.last.category} · son ödeme {_day(s.last.date)}"
         if s.status == "iptal_sonrasi":

@@ -103,6 +103,37 @@ def test_other_kinds_than_spending_are_counted_only_when_asked_for(client):
     assert income["tiles"]["count"] == 9 and income["categories"][0]["category"] == "Diğer Gelirler"
 
 
+def test_monthly_averages_go_over_the_whole_months_only_and_months_without_spending_count(client, found):
+    rent = next(c for c in found["categories"] if c["category"] == "Kira")
+    assert rent["average"]["minor"] == 1500000  # the nine whole months, not July's gap
+    july_only = next(c for c in found["categories"] if c["category"] == "Uçak, Tren & Otobüs")
+    assert july_only["total"]["minor"] > 0 and july_only["average"]["minor"] == 0  # spent only in the partial month
+    once = cards(client, category="Elektronik")["tiles"]  # one purchase in ten months
+    assert (once["average_months"], once["average"]["minor"]) == (9, round(once["total"]["minor"] / 9))
+    assert found["tiles"]["income_months"] == 9  # July's income is known, but July is not whole
+    assert [m["month"] for m in found["flow"] if m["partial"]] == ["2026-07"]
+
+
+def test_a_period_of_days_counts_those_days_as_the_transactions_screen_does(client):
+    days = {"from": "2026-03-15", "to": "2026-03-20"}
+    narrowed = cards(client, **days)
+    listed = client.get(
+        "/api/transactions",
+        params={**days, "kind": ["purchase", "refund", "interest_fee"]},
+        headers={"Authorization": f"Bearer {TOKEN}"},
+    ).json()["totals"]
+    assert (narrowed["tiles"]["total"], narrowed["tiles"]["count"]) == (listed["spent"], listed["counted"])
+    assert narrowed["by_group"]["months"][0]["partial"] and narrowed["tiles"]["average"] is None  # a cut month
+
+
+def test_the_forecasts_regular_payments_follow_the_tag_and_certainty_filters_too(client, found):
+    assert [line["label"] for line in found["forecast"]["lines"] if line["part"] == "regular"]
+    for narrowing in ({"tag": "hicbir-satirda-olmayan"}, {"certainty": "excluded"}):
+        assert cards(client, **narrowing)["forecast"] is None  # no row kept: nothing to forecast
+    worded = cards(client, q="kahve")["forecast"]
+    assert [line["label"] for line in worded["lines"] if line["part"] == "regular"] == ["Ornek Kahve"]
+
+
 def test_a_split_regular_payment_is_never_counted_again_as_variable_spending(tmp_path):
     ws = Workspace.load(demo.build(tmp_path / "veri"))
     client = TestClient(create_app(Context(ws=ws, token=TOKEN, today=lambda: demo.AS_OF)), base_url=BASE)

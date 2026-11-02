@@ -333,7 +333,7 @@ export interface CategoryLineOut {
   slot: number;
   total: MoneyOut;
   share: string | null;
-  average: MoneyOut;
+  average: MoneyOut | null;
   count: number;
   link: LinkOut;
 }
@@ -739,6 +739,7 @@ export type FlowKind = "account" | "income" | "spending" | "people" | "saving" |
 
 export interface FlowMonthOut {
   month: string;
+  partial: boolean;
   income: MoneyOut;
   expense: MoneyOut;
   net: MoneyOut;
