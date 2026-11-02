@@ -277,3 +277,41 @@ class ChannelStage(StrEnum):
     NO_BOT = "no_bot"  # Telegram: no bot's token was entered
     TOKEN_LOST = "token_lost"  # Telegram: the keyring no longer holds the token
     NOT_PAIRED = "not_paired"  # Telegram: no chat sent the pairing code yet
+
+
+class CategoryReason(StrEnum):
+    """How a row got its category (docs/domain/categorization.md): the Transactions screen's "Neden?" (F04)."""
+
+    RULE = "rule"  # a merchant or a keyword of the rules named it
+    BANK_CATEGORY = "bank_category"  # no rule did: the category heading the bank printed, as the rules map it
+    WEAK_RULE = "weak_rule"  # a weak keyword, tried after the bank's heading
+    INVOICE = "invoice"  # the seller a matched bill or receipt names in full (F14)
+    TRANSFER_RULE = "transfer_rule"  # a rule named the transfer's party or purpose: rent, family, salary
+    KIND = "kind"  # its kind decides it: loan principal, a cash advance, a card payment, savings
+    FEE = "fee"  # interest and fees, by what caused them
+    OWN_TRANSFER = "own_transfer"  # between the user's own accounts, or foreign currency and gold bought or sold
+    PERSON = "person"  # money sent to a person
+    INCOME = "income"  # money that came in, no rule naming it
+    UNCATEGORIZED = "uncategorized"  # nothing named it
+    USER = "user"  # the user's correction on this very row
+
+
+class TransferStep(StrEnum):
+    """How the ledger resolved a row that moves money to or from someone its reader could not name
+    (docs/domain/ledger.md, transfers), in the order the ledger tries them."""
+
+    OWN_NAME = "own_name"  # the other party is the user
+    OWN_ACCOUNT = "own_account"  # the description names one of the user's accounts
+    RULE = "rule"  # a rule names the party or the purpose
+    LIKE_NAMED = "like_named"  # the same receiving bank and amount as a payment a rule names
+    PAIRED = "paired"  # an opposite row of the same amount in another own account, a few days apart
+    UNCOVERED_BANK = "uncovered_bank"  # to a bank where the user has an account, on a day its statements leave out
+    PERSON = "person"  # none of these, money out: sent to a person
+    INCOME = "income"  # none of these, money in
+
+
+class RuleLayer(StrEnum):
+    """The rule file a category rule is in (docs/domain/categorization.md): the user's own goes above the shipped."""
+
+    OWN = "own"
+    SHIPPED = "shipped"

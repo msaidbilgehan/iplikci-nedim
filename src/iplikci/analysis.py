@@ -18,13 +18,13 @@ import calendar
 import re
 from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
 from .categorize import Categorizer, clean_description
-from .domain.codes import CARD_TYPES, AccountType, DocumentKind, EvidenceStatus, TransactionKind
+from .domain.codes import CARD_TYPES, AccountType, DocumentKind, EvidenceStatus, TransactionKind, TransferStep
 from .domain.fingerprint import Fingerprints
 from .domain.labels import EVIDENCE_STATUS, format_amount
 from .domain.models import TRY, Account, Invoice, ParseResult, Statement, Transaction
@@ -366,9 +366,11 @@ def _resolve_transfers(
     for t in candidates:
         if own.is_self(t.counterparty) or own.mentions_own_account(t.description):
             t.kind = TransactionKind.OWN_TRANSFER
+            step = TransferStep.OWN_NAME if own.is_self(t.counterparty) else TransferStep.OWN_ACCOUNT
+            t.reason = replace(t.reason, transfer=step)
             found_by_name.append(t)
         elif categorizer.resolve_kind(t):
-            pass  # a rule named the receiver/sender: rent, family, salary, ...
+            t.reason = replace(t.reason, transfer=TransferStep.RULE)  # a rule named the receiver/sender: rent, ...
         else:
             open_.append(t)
 
@@ -391,6 +393,7 @@ def _resolve_transfers(
         if like:
             t.kind, t.category, t.merchant, t.counterparty = like.kind, like.category, like.merchant, like.counterparty
             t.description += f" (→ {like.counterparty})"
+            t.reason = replace(like.reason, transfer=TransferStep.LIKE_NAMED, pair=like.fingerprint)
         else:
             still_open.append(t)
 
@@ -411,6 +414,8 @@ def _resolve_transfers(
         if best:
             t.kind = best.kind = TransactionKind.OWN_TRANSFER
             paired.update((id(t), id(best)))
+            t.reason = replace(t.reason, transfer=TransferStep.PAIRED, pair=best.fingerprint)
+            best.reason = replace(best.reason, transfer=best.reason.transfer or TransferStep.PAIRED, pair=t.fingerprint)
 
     # A bank-only payment to a bank where the user has an account, on a date none of
     # that bank's statements cover, most likely went to that own account.
@@ -425,10 +430,13 @@ def _resolve_transfers(
         if bank in covered and not any(a <= t.date <= b for a, b in covered[bank]):
             t.kind = TransactionKind.OWN_TRANSFER
             t.description += " (muhtemelen kendi hesabınıza)"
+            t.reason = replace(t.reason, transfer=TransferStep.UNCOVERED_BANK)
 
     for t in still_open:
         if t.kind == TransactionKind.TRANSFER_CANDIDATE:
-            t.kind = TransactionKind.INCOME if t.amount < 0 else TransactionKind.P2P_TRANSFER
+            income = t.amount < 0
+            t.kind = TransactionKind.INCOME if income else TransactionKind.P2P_TRANSFER
+            t.reason = replace(t.reason, transfer=TransferStep.INCOME if income else TransferStep.PERSON)
 
 
 # --- foreign currency -------------------------------------------------------------
@@ -448,10 +456,19 @@ def _rates(txns: list[Transaction]) -> dict[str, list[tuple[date, Decimal]]]:
     return rates
 
 
+def nearest(
+    rates: Mapping[str, Sequence[tuple[date, Decimal]]], currency: str, day: date
+) -> tuple[date, Decimal] | None:
+    """The TL rate of currency the documents print nearest to day, with the day it was printed for; None when they
+    print none."""
+    known = rates.get(currency)
+    return min(known, key=lambda r: abs((r[0] - day).days)) if known else None
+
+
 def nearest_rate(rates: Mapping[str, Sequence[tuple[date, Decimal]]], currency: str, day: date) -> Decimal | None:
     """The TL rate of currency the documents print nearest to day; None when they print none."""
-    known = rates.get(currency)
-    return min(known, key=lambda r: abs((r[0] - day).days))[1] if known else None
+    found = nearest(rates, currency, day)
+    return found[1] if found else None
 
 
 def _to_tl(
@@ -466,12 +483,14 @@ def _to_tl(
             continue
         if t.kind == TransactionKind.OWN_TRANSFER:
             continue  # moving foreign currency between own accounts changes nothing
-        rate = nearest_rate(rates, currency, t.date)
-        if rate is None:
+        found = nearest(rates, currency, t.date)
+        if found is None:
             warnings.append(f"{t.date} {currency} {t.amount}: kur bulunamadı, işlem dışarıda bırakıldı")
             continue
+        day, rate = found
         t.amount = round_half_up(t.amount * rate)
         t.original = f"{t.original} × {format_amount(rate)}"
+        t.reason = replace(t.reason, rate=rate, rate_day=day)
         out.append(t)
     return out
 

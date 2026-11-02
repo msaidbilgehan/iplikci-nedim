@@ -10,10 +10,11 @@ row's kind stays: a rule in the user's rule file is the way to change how a merc
 
 import difflib
 from collections.abc import Mapping
+from dataclasses import replace
 
 from ..analysis import Dataset
 from ..categorize import OTHER_GROUP, Categorizer
-from ..domain.codes import Necessity
+from ..domain.codes import CategoryReason, Necessity
 from ..domain.labels import NECESSITY
 from ..domain.models import Transaction
 from ..domain.text import fold
@@ -41,6 +42,7 @@ def _put(t: Transaction, annotation: Annotation, categorizer: Categorizer) -> No
         t.category = annotation.category
         t.group = categorizer.categories.get(annotation.category, OTHER_GROUP)
         t.necessity = categorizer.necessity_for(t)
+        t.reason = replace(t.reason, category=CategoryReason.USER, rule="", layer="")
     if annotation.necessity:
         t.necessity = annotation.necessity
 

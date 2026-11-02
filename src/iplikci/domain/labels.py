@@ -11,6 +11,7 @@ from .codes import (
     AccountType,
     Actor,
     BackupReason,
+    CategoryReason,
     Certainty,
     Channel,
     ChannelStage,
@@ -25,6 +26,7 @@ from .codes import (
     MonthStatus,
     Necessity,
     PaymentKind,
+    RuleLayer,
     SeriesPeriod,
     SeriesStatus,
     SourceKind,
@@ -32,6 +34,7 @@ from .codes import (
     TodoKind,
     Tone,
     TransactionKind,
+    TransferStep,
 )
 from .money import Money, Unit, round_half_up
 
@@ -268,6 +271,34 @@ CHANNEL_STAGE: dict[ChannelStage, str] = {
     ChannelStage.NOT_PAIRED: "Eşleşmedi",
 }
 
+CATEGORY_REASON: dict[CategoryReason, str] = {
+    CategoryReason.RULE: "Kategori kuralı",
+    CategoryReason.BANK_CATEGORY: "Bankanın yazdığı kategori",
+    CategoryReason.WEAK_RULE: "Zayıf anahtar sözcük",
+    CategoryReason.INVOICE: "Faturadaki satıcı",
+    CategoryReason.TRANSFER_RULE: "Transfer kuralı",
+    CategoryReason.KIND: "İşlemin türü",
+    CategoryReason.FEE: "Faiz ve ücret",
+    CategoryReason.OWN_TRANSFER: "Kendi hesaplarınız arası",
+    CategoryReason.PERSON: "Kişiye gönderilen para",
+    CategoryReason.INCOME: "Gelen para",
+    CategoryReason.UNCATEGORIZED: "Hiçbir kural bulamadı",
+    CategoryReason.USER: "Sizin düzeltmeniz",
+}
+
+TRANSFER_STEP: dict[TransferStep, str] = {
+    TransferStep.OWN_NAME: "Karşı taraf sizsiniz",
+    TransferStep.OWN_ACCOUNT: "Açıklama kendi hesabınızı anıyor",
+    TransferStep.RULE: "Bir kural karşı tarafı ya da amacı adlandırıyor",
+    TransferStep.LIKE_NAMED: "Kuralın adlandırdığı bir ödemeyle aynı banka ve tutar",
+    TransferStep.PAIRED: "Başka bir hesabınızda karşılığı var",
+    TransferStep.UNCOVERED_BANK: "Hesabınız olan bir bankaya, dökümünün kapsamadığı bir günde",
+    TransferStep.PERSON: "Kişiye gönderilen para",
+    TransferStep.INCOME: "Gelen para",
+}
+
+RULE_LAYER: dict[RuleLayer, str] = {RuleLayer.OWN: "Sizin kurallarınız", RuleLayer.SHIPPED: "Hazır kurallar"}
+
 
 def _table[K: StrEnum](labels: Mapping[K, str]) -> dict[StrEnum, str]:
     return {code: text for code, text in labels.items()}
@@ -300,6 +331,9 @@ TABLES: dict[type[StrEnum], dict[StrEnum, str]] = {
     ChannelStage: _table(CHANNEL_STAGE),
     TodoKind: _table(TODO_KIND),
     TodoAction: _table(TODO_ACTION),
+    CategoryReason: _table(CATEGORY_REASON),
+    TransferStep: _table(TRANSFER_STEP),
+    RuleLayer: _table(RULE_LAYER),
 }
 
 # The interface writes the Turkish lira as "TL" (ADR-0006).

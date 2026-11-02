@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 
 from iplikci.categorize import DEFAULT_RULES, OTHER_INCOME, TO_PEOPLE, Categorizer, clean_description, display_name
-from iplikci.domain.codes import AccountType, Necessity, TransactionKind
+from iplikci.domain.codes import AccountType, CategoryReason, Necessity, TransactionKind
 from iplikci.domain.models import Account, Transaction
 
 from conftest import PEOPLE_RULES
@@ -283,3 +283,21 @@ def test_without_a_personal_file_the_defaults_alone_decide(tmp_path, cat):
     alone = Categorizer.layered(tmp_path / "yok.yaml")
     assert alone.groups == cat.groups and alone.categories == cat.categories
     assert categorize(alone, "SBX ORNEK").merchant == "Starbucks"
+
+
+def test_a_row_says_which_rule_of_which_file_named_it(layered):
+    own = categorize(layered, "MIGROS JET OFIS ISTANBUL").reason
+    assert (own.category, own.rule, own.layer) == (CategoryReason.RULE, "MIGROS JET OFIS", "personal.yaml")
+    shipped = categorize(layered, "MIGROS ORNEK SUBE").reason
+    assert (shipped.category, shipped.layer) == (CategoryReason.RULE, "default.yaml") and shipped.rule
+    heading = categorize(layered, "ORNEK DUKKAN", bank_category="MARKET ALISVERISI").reason
+    assert (heading.category, heading.rule) == (CategoryReason.BANK_CATEGORY, "")
+
+
+def test_a_row_no_rule_names_and_a_fee_say_so(cat):
+    assert categorize(cat, "XYZ QWERTY LTD ISTANBUL TR").reason.category is CategoryReason.UNCATEGORIZED
+    assert categorize(cat, "ORNEK GIDA").reason.category is CategoryReason.WEAK_RULE
+    fee = categorize(cat, "FAIZ TUTARI FZ:1.00 VR/FN:0.30", kind=TransactionKind.INTEREST_FEE)
+    assert fee.reason.category is CategoryReason.FEE
+    paid = categorize(cat, "9999-123456 HESAPTAN AKTARIM", kind=TransactionKind.CARD_PAYMENT, amount=-500)
+    assert paid.reason.category is CategoryReason.KIND

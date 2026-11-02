@@ -7,7 +7,7 @@ import pytest
 
 from iplikci.analysis import Own, _rates, _resolve_transfers, _to_tl, build
 from iplikci.categorize import Categorizer
-from iplikci.domain.codes import AccountType, TransactionKind
+from iplikci.domain.codes import AccountType, CategoryReason, TransactionKind, TransferStep
 from iplikci.domain.models import Account, ParseResult, Statement, Transaction
 from iplikci.parsers.contract import Document
 
@@ -77,7 +77,7 @@ def test_a_masked_name_is_the_users_when_every_word_starts_as_shown():
 
 def test_transfer_to_self_by_name(cat):
     (t,) = resolve(cat, [cand(date(2026, 1, 5), "FAST", Decimal(1000), counterparty="ÖRNEK İSİM SOYADOĞLU")])
-    assert t.kind == TransactionKind.OWN_TRANSFER
+    assert t.kind == TransactionKind.OWN_TRANSFER and t.reason.transfer is TransferStep.OWN_NAME
 
 
 def test_bank_only_row_inherits_the_named_payment(cat):
@@ -95,15 +95,20 @@ def test_bank_only_row_inherits_the_named_payment(cat):
     assert (named.kind, named.category) == (TransactionKind.PURCHASE, "Kira")
     assert (bank_only.kind, bank_only.category) == (TransactionKind.PURCHASE, "Kira")
     assert bank_only.description.endswith("(→ Veli Örneksoy)")
+    assert (named.reason.transfer, named.reason.category) == (TransferStep.RULE, CategoryReason.TRANSFER_RULE)
+    assert (bank_only.reason.transfer, bank_only.reason.rule) == (TransferStep.LIKE_NAMED, named.reason.rule)
 
 
 def test_opposite_rows_on_two_own_accounts_pair_up(cat):
     out = cand(date(2026, 2, 1), "Giden FAST", Decimal(5000))
     inc = cand(date(2026, 2, 2), "Gelen FAST", Decimal(-5000), account="vakifbank-0999000000123456")
     far = cand(date(2026, 2, 20), "Gelen FAST", Decimal(-5000), account="vakifbank-0999000000123456")
+    out.fingerprint, inc.fingerprint = "a" * 16, "b" * 16
     resolve(cat, [out, inc, far])
     assert (out.kind, inc.kind) == (TransactionKind.OWN_TRANSFER, TransactionKind.OWN_TRANSFER)
+    assert (out.reason.transfer, out.reason.pair, inc.reason.pair) == (TransferStep.PAIRED, "b" * 16, "a" * 16)
     assert far.kind == TransactionKind.INCOME  # nothing left to pair with: money from someone else
+    assert far.reason.transfer is TransferStep.INCOME
 
 
 def test_bank_only_payment_outside_coverage_goes_to_own_account(cat):
@@ -118,7 +123,7 @@ def test_bank_only_payment_outside_coverage_goes_to_own_account(cat):
     )
     t = cand(date(2025, 12, 15), "TÜRKİYE VAKIFLAR BANKASI T.A.O.", Decimal(3000))
     resolve(cat, [t], [covered])
-    assert t.kind == TransactionKind.OWN_TRANSFER
+    assert t.kind == TransactionKind.OWN_TRANSFER and t.reason.transfer is TransferStep.UNCOVERED_BANK
 
 
 def test_unknown_people(cat):
@@ -128,6 +133,7 @@ def test_unknown_people(cat):
     )
     resolve(cat, [out, inc])
     assert (out.kind, inc.kind) == (TransactionKind.P2P_TRANSFER, TransactionKind.INCOME)
+    assert (out.reason.transfer, inc.reason.transfer) == (TransferStep.PERSON, TransferStep.INCOME)
 
 
 def test_foreign_currency_rows_valued_in_tl():
@@ -156,6 +162,7 @@ def test_foreign_currency_rows_valued_in_tl():
     warnings: list[str] = []
     out = _to_tl([rate_row, income, moved], ACCOUNTS, _rates([rate_row]), warnings)
     assert income.amount == round(Decimal(-1500) * Decimal("54.44"), 2) and "× 54,44" in income.original
+    assert (income.reason.rate, income.reason.rate_day) == (Decimal("54.44"), date(2026, 3, 1))
     assert moved not in out and not warnings  # EUR moved between own accounts changes nothing
 
 

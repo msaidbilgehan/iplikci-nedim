@@ -12,7 +12,7 @@ from iplikci.app.analysis import analyze
 from iplikci.app.workspace import Workspace
 from iplikci.categorize import Categorizer
 from iplikci.cli import main
-from iplikci.domain.codes import Actor, Necessity, TransactionKind
+from iplikci.domain.codes import Actor, CategoryReason, Necessity, TransactionKind
 from iplikci.domain.fingerprint import Fingerprints, fingerprint
 from iplikci.domain.models import Transaction
 from iplikci.fakes import teb
@@ -99,10 +99,12 @@ def test_a_corrected_category_brings_its_group_and_the_necessity_its_rules_give(
     note(ws, t, category="Market & Gıda")
     t = coffee(ws)
     assert (t.category, t.group, t.necessity) == ("Market & Gıda", "Yeme & İçme", Necessity.REQUIRED)
+    assert (t.reason.category, t.reason.rule) == (CategoryReason.USER, "")
     note(ws, t, necessity=Necessity.UNNECESSARY)
     assert (coffee(ws).category, coffee(ws).necessity) == ("Market & Gıda", Necessity.UNNECESSARY)
     note(ws, t, category="", necessity=None)  # back to the rules
     assert (coffee(ws).category, coffee(ws).necessity) == ("Kafe & Kahve", Necessity.OPTIONAL)
+    assert (coffee(ws).reason.category, coffee(ws).reason.rule) == (CategoryReason.TRANSFER_RULE, "KAHVE")
 
 
 def test_an_annotation_left_empty_is_removed_and_the_log_names_fields_not_contents(ws):

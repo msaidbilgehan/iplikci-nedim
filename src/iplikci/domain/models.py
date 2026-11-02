@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 
-from .codes import AccountType, InvoiceKind, Necessity, TransactionKind
+from .codes import AccountType, CategoryReason, InvoiceKind, Necessity, TransactionKind, TransferStep
 from .money import TOLERANCE, round_half_up
 
 # The lira as the models carry it (ADR-0006); labels.currency_label writes it as "TL".
@@ -34,6 +34,20 @@ class SourceRef:
     sheet: str | None = None  # the sheet's name; "" for an HTML table
     row: int | None = None  # 1-based row of the sheet or table
     span: tuple[int, int] | None = None  # start and end in the document's text, its whitespace collapsed
+
+
+@dataclass(frozen=True, slots=True)
+class Reason:
+    """Why a row has its kind, its category and its TL amount: the Transactions screen's "Neden?" (F04). The rules
+    and the ledger fill it in as they decide."""
+
+    category: CategoryReason = CategoryReason.UNCATEGORIZED
+    rule: str = ""  # the pattern that matched, as its rule file writes it
+    layer: str = ""  # the name of the rule file it is in (categorize.RuleSet.name)
+    transfer: TransferStep | None = None  # how a row moving money to or from someone unnamed was resolved
+    pair: str = ""  # PAIRED: the opposite row's fingerprint; LIKE_NAMED: the fingerprint of the payment it is like
+    rate: Decimal | None = None  # a foreign account's row: the TL rate it was valued at, the documents' nearest
+    rate_day: date | None = None  # the day of the row that printed that rate
 
 
 @dataclass
@@ -68,6 +82,8 @@ class Transaction:
     # Set by analysis.py: the sha256 of the document the row is printed in. `source` is the file's name as its reader
     # saw it, and many documents share one ("HesapOzeti.pdf"); this names the very one.
     document: str = ""
+    # Set by categorize.py and analysis.py as they decide: why the row is what it is.
+    reason: Reason = Reason()
 
 
 @dataclass

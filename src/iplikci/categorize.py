@@ -1,13 +1,13 @@
 """Assign merchant, category, group and necessity to transactions using the category rules."""
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from decimal import Decimal
 from pathlib import Path
 
 import yaml
 
-from .domain.codes import CARD_TYPES, AccountType, Necessity, TransactionKind
+from .domain.codes import CARD_TYPES, AccountType, CategoryReason, Necessity, TransactionKind
 from .domain.labels import NECESSITY
 from .domain.models import Account, Transaction
 from .domain.text import fold, nfc, title_tr
@@ -81,6 +81,8 @@ class Rule:
     merchant: str  # "" for generic keywords
     regex: re.Pattern
     squashed: str  # multi-word pattern without spaces, for descriptions printed without spaces
+    pattern: str = ""  # as the rule file writes it
+    layer: str = ""  # the name of the rule file (RuleSet.name)
 
     def find(self, folded: str, squashed: str) -> int | None:
         m = self.regex.search(folded)
@@ -192,9 +194,8 @@ class RuleSet:
                     target = {_GENERIC: rules.generic, _WEAK: rules.weak}.get(fold(merchant), rules.named)
                     for p in patterns or []:
                         regex, squashed = _compile(p)
-                        target.append(
-                            Rule(group, category, "" if target is not rules.named else merchant, regex, squashed)
-                        )
+                        merchant_name = "" if target is not rules.named else merchant
+                        target.append(Rule(group, category, merchant_name, regex, squashed, str(p), name))
         return rules
 
     def strong(self, f: str, sq: str) -> Rule | None:
@@ -281,6 +282,7 @@ class Categorizer:
         t.kind = self.kind_for(rule.category, t.amount)
         t.category = rule.category
         t.merchant = rule.merchant or display_name(t.counterparty or t.description)
+        _because(t, CategoryReason.TRANSFER_RULE, rule)
         return True
 
     def apply(self, txn: Transaction, account: Account | None) -> None:
@@ -291,6 +293,7 @@ class Categorizer:
             txn.merchant = (
                 rule.merchant if rule and rule.merchant else f"{bank} faiz & ücretleri" if bank else "Faiz & ücretler"
             )
+            _because(txn, CategoryReason.FEE)
         elif txn.kind == TransactionKind.OWN_TRANSFER:
             f = fold(txn.description)
             txn.category = (
@@ -299,34 +302,41 @@ class Categorizer:
                 else KIND_CATEGORY[TransactionKind.OWN_TRANSFER]
             )
             txn.merchant = account.label if account else "Transfer"
+            _because(txn, CategoryReason.OWN_TRANSFER)
         elif txn.category:
-            pass  # decided while resolving transfers (rent, family, salary, ...)
+            pass  # decided while resolving transfers (rent, family, salary, ...), the reason with it
         elif txn.kind in KIND_CATEGORY:
             txn.category = KIND_CATEGORY[txn.kind]
             txn.merchant = _finance_merchant(txn, account, bank)
+            _because(txn, CategoryReason.KIND)
         elif txn.kind == TransactionKind.INCOME:
             rule = self.match(f"{txn.description} {txn.counterparty}", weak=False)
             txn.category = rule.category if rule else OTHER_INCOME
             txn.merchant = (rule.merchant if rule and rule.merchant else "") or display_name(
                 txn.counterparty or txn.description
             )
+            _because(txn, CategoryReason.RULE if rule else CategoryReason.INCOME, rule)
         elif txn.kind == TransactionKind.P2P_TRANSFER:
             txn.category, txn.merchant = TO_PEOPLE, display_name(txn.counterparty or txn.description)
+            _because(txn, CategoryReason.PERSON)
         else:
             # Named merchants and keywords first, then the bank's own category
             # heading, and only then the weak keywords.
             rule = self.match(txn.description, weak=False)
+            why = CategoryReason.RULE
             hint = "" if rule else self._bank_hint(txn.bank_category)
             if not rule and not hint:
-                rule = self.match(txn.description)
+                rule, why = self.match(txn.description), CategoryReason.WEAK_RULE
             if rule:
                 txn.category = rule.category
                 txn.merchant = rule.merchant or display_name(txn.description)
                 if self.types.get(rule.category) == "yatirim":
                     txn.kind = TransactionKind.INVESTMENT  # e.g. a private pension paid by card
+                _because(txn, why, rule)
             else:
                 txn.category = hint or UNCATEGORIZED
                 txn.merchant = display_name(txn.description)
+                _because(txn, CategoryReason.BANK_CATEGORY if hint else CategoryReason.UNCATEGORIZED)
         txn.group = self.categories.get(txn.category, OTHER_GROUP)
         txn.necessity = self.necessity_for(txn)
 
@@ -340,6 +350,7 @@ class Categorizer:
         if rule is None or self.kind_for(rule.category, txn.amount) != txn.kind:
             return
         txn.category, txn.merchant = rule.category, rule.merchant or txn.merchant
+        _because(txn, CategoryReason.INVOICE, rule)
         txn.group = self.categories.get(txn.category, OTHER_GROUP)
         txn.necessity = self.necessity_for(txn)
 
@@ -360,6 +371,11 @@ class Categorizer:
                 if key in f:
                     return category
         return ""
+
+
+def _because(txn: Transaction, why: CategoryReason, rule: Rule | None = None) -> None:
+    """Note why the row got its category, and the rule that named it."""
+    txn.reason = replace(txn.reason, category=why, rule=rule.pattern if rule else "", layer=rule.layer if rule else "")
 
 
 def _fee_category(txn: Transaction, account: Account | None) -> str:
