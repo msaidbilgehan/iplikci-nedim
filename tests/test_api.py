@@ -82,6 +82,10 @@ def test_without_a_session_the_api_answers_401_and_a_page_says_how_to_come_in(cl
     assert page.status_code == 401
     assert "Önce giriş yapın" in page.text
     assert "terminal" not in page.text.lower()
+    # The ways in without a terminal (K14): the app, and the browser extension's button (ADR-0019).
+    assert "İplikçi Nedim uygulamasını açarak" in page.text and "“İplikçi Nedim'i aç”" in page.text
+    assert '<img src="/logo.png"' in page.text  # an open path: the page shows it without a session
+    assert "<script" not in page.text and "style" not in page.text  # the CSP allows neither inline
 
 
 def test_a_wrong_token_is_refused(client):
@@ -354,11 +358,13 @@ def test_the_pwas_manifest_and_icons_open_without_a_session_and_its_worker_is_as
     (ui / "index.html").write_text("<!doctype html><title>arayüz</title>", encoding="utf-8")
     (ui / "manifest.webmanifest").write_text('{"name": "İplikçi Nedim"}', encoding="utf-8")
     (ui / "pwa-192x192.png").write_bytes(b"\x89PNG")
+    (ui / "logo.png").write_bytes(b"\x89PNG")
     (ui / "sw.js").write_text("self.addEventListener('fetch', () => {});", encoding="utf-8")
     outsider = TestClient(create_app(Context(ws=ws, token=TOKEN, ui=ui)), base_url=BASE)
     manifest = outsider.get("/manifest.webmanifest")  # a browser reads it without its cookies as it installs
     assert manifest.status_code == 200 and manifest.headers["content-type"].startswith("application/manifest+json")
     assert outsider.get("/pwa-192x192.png").status_code == 200
+    assert outsider.get("/logo.png").headers["content-type"] == "image/png"  # the sign-in page's mark
     assert outsider.get("/sw.js").status_code == 401  # the worker comes with the session, as every page does
     worker = signed_in(outsider).get("/sw.js")
     assert worker.status_code == 200 and worker.headers["cache-control"] == "no-store"
