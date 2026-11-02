@@ -27,5 +27,6 @@ kullanıcı aksini söylemedikçe geçerlidir.
 | [0016](0016-mail-connectors.md) | E-posta bağlayıcıları; uygulama şifresi olmayan Gmail için Gmail'in web arayüzünü okuyan tarayıcı eklentisi | G1, G12, K5, K10, K14, K15, K16 |
 | [0017](0017-no-terminal-install.md) | Terminalsiz kurulum ve kullanım: işletim sistemi başına kurulum paketi (kabul edildi 2026-11-02; imzasız, K22) | K14, K22, G4 |
 | [0018](0018-retire-mvp-clean-start.md) | MVP'yi V1'den önce emekliye ayırmak ve veri taşımadan başlamak | K17 |
+| [0019](0019-bridge-login-link.md) | Eşleşmiş tarayıcı eklentisi arayüzü tek kullanımlık giriş bağlantısıyla açar | K14, tasarım |
 
 Yeni kayıt: sıradaki numarayla `NNNN-kisa-ad.md`; başlık karar cümlesi olur; bu tabloya eklenir.

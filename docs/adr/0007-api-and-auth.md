@@ -66,6 +66,12 @@ modeli işe yaradı:
   - Üretici depodadır: `iplikci dev api-tipleri`, `src/iplikci/api/typescript.py`. openapi-typescript TypeScript 5
     ister, arayüz ise 7'yi kullanır.
   - API'nin modelleri değişip dosya yeniden üretilmezse bir test başarısız olur.
+- **Eklentinin giriş bağlantısı** (2026-11-02, [ADR-0019](0019-bridge-login-link.md)): tarayıcı eklentisinin
+  belirteci artık `POST /api/bridge/login-link` ile tek kullanımlık giriş bağlantısı da ister. Eklentinin "İplikçi
+  Nedim'i aç" düğmesi arayüzü bununla açar. Bağlantı CLI'ninkiyle aynıdır: iki dakika, tek kullanım, yalnızca
+  127.0.0.1. Bu, bu bilgisayardaki bir saldırganın yapabileceğini genişletmez: bu kullanıcı olarak çalışan her program
+  veri klasörünü de tarayıcı profilini de zaten okuyabilir. Servisin giriş sayfalarının başlığı
+  "Giriş · İplikçi Nedim"dir; eklenti giriş sayfasını gösteren sekmeyi bundan tanır.
 
 ## Değerlendirilen seçenekler
 

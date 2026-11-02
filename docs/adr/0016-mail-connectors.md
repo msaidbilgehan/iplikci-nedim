@@ -230,6 +230,17 @@ Sonuca göre:
   - Kendiliğinden başka tarama yoktur: sekmesi kullanıcının işinin önüne çıkardı. Geçmiş gerekiyorsa eklentinin
     penceresi, Sistem sayfası ve eklenti sayfası bunu söyler; "Şimdi denetle" de önce taramayı yapar.
 - Başlangıç gününün arayüzden seçilmesi sonra gelecek; varsayılanı iki yıl öncesinin 1 Ocak'ıdır.
+- **Eklentinin penceresi ve "İplikçi Nedim'i aç"** (eklenti 0.5.0, 2026-11-02, [ADR-0019](0019-bridge-login-link.md)):
+  - Araç çubuğundaki düğme artık ayarlar sayfasını değil, küçük bir pencere açar: durum, "İplikçi Nedim'i aç",
+    "Şimdi denetle" ve "Eşleştirme ve ayarlar". Eşleştirme, Gmail hesabının seçimi ve "Gmail'de eksikleri tara" ayarlar
+    sayfasında kalır, çünkü pencere odak dışına çıkınca kapanır.
+  - Eşleşmenin belirteci artık bir uç daha açar: `POST /api/bridge/login-link`. Eklenti, servisten kanıt aldıktan
+    sonra bununla tek kullanımlık bir giriş bağlantısı ister ve arayüzü açar. Arayüzü gösteren bir sekme açıksa onu öne
+    getirir. Bu, bu bilgisayardaki bir saldırganın yapabileceğini genişletmez: bu kullanıcı olarak çalışan her program
+    veri klasörünü de tarayıcı profilini de zaten okuyabilir. Bağlantı yine tek kullanımlık, kısa ömürlüdür ve yalnızca
+    127.0.0.1'e gider.
+  - İzinler değişmedi. Açık sekmeyi bulmak için `tabs` izni gerekmez: `http://127.0.0.1:8643/*` adres izni o
+    adresteki sekmelerin adresini ve başlığını görmeye yeter.
 
 ## Sonuçlar
 
