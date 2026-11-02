@@ -46,6 +46,10 @@ web/test-results/
 src/iplikci/api/ui/
 extension/node_modules/
 extension/dist/
+# the end-to-end tests: their packages and what a run leaves (screenshots and traces of the demo workspace only)
+e2e/node_modules/
+e2e/playwright-report/
+e2e/test-results/
 # Local tool state (Claude Code locks, logs and personal settings)
 .claude/locks/
 .claude/logs/
