@@ -38,10 +38,10 @@ export function AssetTable({ assets, labels, note }: AssetTableProps) {
             <Th className="text-right">{t("assets.value")}</Th>
             {detailed ? (
               <>
-                <Th>{t("assets.rate")}</Th>
-                <Th className="text-right">{t("assets.cost")}</Th>
-                <Th className="text-right">{t("assets.gain")}</Th>
-                <Th>{t("assets.day")}</Th>
+                <Th className="whitespace-nowrap">{t("assets.rate")}</Th>
+                <Th className="whitespace-nowrap text-right">{t("assets.cost")}</Th>
+                <Th className="whitespace-nowrap text-right">{t("assets.gain")}</Th>
+                <Th className="whitespace-nowrap">{t("assets.day")}</Th>
               </>
             ) : null}
           </tr>
@@ -49,7 +49,8 @@ export function AssetTable({ assets, labels, note }: AssetTableProps) {
         <tbody>
           {assets.map((asset) => (
             <tr key={asset.account.id}>
-              <Td>
+              {/* Wide enough to read on a phone, where the table scrolls inside its card. */}
+              <Td className="min-w-44">
                 <ScreenLink link={{ screen: "account", id: asset.account.id, query: {} }} className="font-medium">
                   {asset.account.label}
                 </ScreenLink>
