@@ -25,12 +25,13 @@ import {
 } from "./lib/turkish";
 import charts from "./locales/tr/charts.json";
 import common from "./locales/tr/common.json";
+import dashboard from "./locales/tr/dashboard.json";
 import feed from "./locales/tr/feed.json";
 import glossary from "./locales/tr/glossary.json";
 import shell from "./locales/tr/shell.json";
 
 export const defaultNS = "common";
-export const resources = { tr: { common, shell, glossary, charts, feed } } as const;
+export const resources = { tr: { common, shell, glossary, charts, feed, dashboard } } as const;
 
 const WHOLE = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0, useGrouping: "always" });
 

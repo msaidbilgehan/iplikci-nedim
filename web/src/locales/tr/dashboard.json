@@ -1,0 +1,80 @@
+{
+  "title": "Pano",
+  "description": "Bugün {{today}}; en yeni ekstre {{asOf}} tarihine kadar.",
+  "empty": "Henüz belge yok",
+  "emptyText": "Ekstreler, hesap dökümleri ve dekontlar geldikçe pano dolar. Belgeleri Belgeler ekranından ekleyebilir, e-posta bağlantısını kurabilirsiniz.",
+  "emptyNext": "Belge ekle",
+  "netWorth": {
+    "title": "Net varlık",
+    "next": "Hesaplara bak",
+    "assets": "Varlıklar",
+    "debts": "Borçlar",
+    "inOther": "Diğer birimlerle",
+    "currency": {
+      "EUR": "Euro",
+      "USD": "Dolar",
+      "GR": "Gram altın"
+    },
+    "noValue": "belgelerde yok",
+    "leftOut": "Toplama girmeyenler",
+    "caption": "Net varlığın hesaplara dağılımı",
+    "account": "Hesap",
+    "value": "TL değeri"
+  },
+  "month": {
+    "title": "Bu ay ve tipik ay",
+    "next": "Ay sonunu aç"
+  },
+  "due": {
+    "title": "Yaklaşan ödemeler",
+    "next": "Takvimi aç",
+    "until": "{{end}} tarihine kadar; tutarlar tahminidir.",
+    "total": "Toplam {{amount}}",
+    "caption": "{{end}} tarihine kadar ödenecekler"
+  },
+  "alerts": {
+    "title": "Açık uyarılar",
+    "next": "Bildirimleri aç",
+    "level": {
+      "critical": "Kritik",
+      "warning": "Uyarı"
+    },
+    "count": "{{count}} kayıt"
+  },
+  "closing": {
+    "title": "Son 7 ayın kapanışı",
+    "next": "Ay sonunu aç",
+    "caption": "Son 7 ayın kapanış durumu ve tutarları",
+    "month": "Ay",
+    "status": "Durum",
+    "summary": "Özet",
+    "expense": "Gider",
+    "income": "Gelir",
+    "left": "Kalan",
+    "provisional": "Geçici",
+    "unmatched": "Eşleşmeyen",
+    "waiting": "Beklenen belgeler",
+    "unknown": "bilinmiyor"
+  },
+  "freshness": {
+    "title": "Veri tazeliği",
+    "next": "Hesaplara bak",
+    "caption": "Hesapların belgelerinin ulaştığı son gün",
+    "account": "Hesap",
+    "kind": "Son belge",
+    "last": "Son gün",
+    "behind": "Geride",
+    "expected": "Sonraki",
+    "missing": "Eksik aylar",
+    "note": "Not",
+    "behindDays": "{{count}} gün önce",
+    "behindToday": "bugün",
+    "late": "Gecikti",
+    "expectedDay": "~{{day}}"
+  },
+  "todo": {
+    "title": "Yapılacaklar",
+    "next": "Yapılacakları göster",
+    "total": "{{count}} iş bekliyor"
+  }
+}

@@ -6,7 +6,7 @@ import type { MoneyOut } from "../api/schema";
 const DAY = new Intl.DateTimeFormat("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
 const MONTH = new Intl.DateTimeFormat("tr-TR", { month: "long", year: "numeric" });
 const WHOLE = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0, useGrouping: "always" });
-const CURRENCIES: Record<string, string> = { TRY: "TL" };
+const CURRENCIES: Record<string, string> = { TRY: "TL", GR: "gr altın" }; // GR: grams of gold, as the service counts them
 const MINUTE = new Intl.DateTimeFormat("tr-TR", {
   day: "2-digit",
   month: "2-digit",

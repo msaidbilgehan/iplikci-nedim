@@ -38,6 +38,32 @@ const STEP = cn(
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600",
 );
 
+interface ScreenLinkProps {
+  link: Destination;
+  className?: string;
+  children: ReactNode;
+}
+
+/** Words that lead to the screen a link names once that screen is built; until then, the words alone. */
+export function ScreenLink({ link, className, children }: ScreenLinkProps) {
+  const href = hrefOf(link);
+  if (!href) {
+    return <span className={className}>{children}</span>;
+  }
+  return (
+    <Link
+      to={href}
+      className={cn(
+        "rounded underline decoration-1 underline-offset-2 hover:decoration-2",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600",
+        className,
+      )}
+    >
+      {children}
+    </Link>
+  );
+}
+
 interface NextStepProps {
   step: Step;
   context?: string; // what the step is about, for screen readers among many alike: "Belgeyi aç: <its name>"

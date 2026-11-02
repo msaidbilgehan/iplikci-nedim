@@ -12,6 +12,7 @@ import type {
   Bridge,
   Calendar,
   Channel,
+  Dashboard,
   DocumentPage,
   FeedPage,
   Forecast,
@@ -39,6 +40,7 @@ export const keys = {
   feed: (filter: FeedFilter) => ["feed", "events", filter] as const,
   now: ["feed", "now"] as const,
   accounts: ["accounts"] as const,
+  dashboard: ["dashboard"] as const,
   documents: (filter: DocumentFilter) => ["documents", filter] as const,
   allDocuments: ["documents"] as const,
   bridges: ["bridges"] as const,
@@ -152,6 +154,11 @@ export function useNow() {
 /** The accounts in their groups with their balances and freshness, and the closed ones apart (F07). */
 export function useAccounts() {
   return useQuery({ queryKey: keys.accounts, queryFn: () => api.get<Accounts>("/api/accounts") });
+}
+
+/** The dashboard's cards as of today, each with its sentence and the screen it leads to (F06). */
+export function useDashboard() {
+  return useQuery({ queryKey: keys.dashboard, queryFn: () => api.get<Dashboard>("/api/dashboard") });
 }
 
 /** The monthly and periodic payments, the regular income and the installments left (F08). */

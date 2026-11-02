@@ -7,6 +7,7 @@ import type {
   AccountOut,
   AccountRefOut,
   AccountsOut,
+  AlertOut,
   AlertPreviewOut,
   AlertRuleModel,
   AlertRulesOut,
@@ -18,6 +19,8 @@ import type {
   Channel,
   ChannelStage,
   ChannelStateOut,
+  ClosingOut,
+  DashboardOut,
   DeliveryStatus,
   DetailLevel,
   DocumentOut,
@@ -29,6 +32,7 @@ import type {
   FeedItemOut,
   FeedOut,
   ForecastOut,
+  FreshnessOut,
   InstallmentOut,
   InvoiceOut,
   InvoicesOut,
@@ -36,6 +40,7 @@ import type {
   LinkOut,
   MailCoverageOut,
   MoneyOut,
+  NetWorthOut,
   NotificationOut,
   NotificationsOut,
   NotificationsReadOut,
@@ -57,6 +62,7 @@ import type {
   TelegramCheckOut,
   TelegramPairingOut,
   TelegramTokenOut,
+  TodoSummaryOut,
   UploadOut,
 } from "./schema";
 
@@ -119,3 +125,11 @@ export type NowCard = NowCardOut;
 // The accounts in their groups (F07).
 export type Accounts = AccountsOut;
 export type AccountItem = AccountOut;
+
+// The dashboard (F06): every card with its plain-view sentence (`say`) and the screen it leads to (`link`).
+export type Dashboard = DashboardOut;
+export type NetWorth = NetWorthOut;
+export type OpenAlert = AlertOut;
+export type MonthClosing = ClosingOut;
+export type Freshness = FreshnessOut;
+export type TodoSummary = TodoSummaryOut;

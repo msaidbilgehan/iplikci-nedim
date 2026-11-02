@@ -13,6 +13,7 @@ import type {
   Calendar,
   CalendarItem,
   ChannelState,
+  Dashboard,
   DocumentPage,
   FeedDetail,
   FeedItem,
@@ -22,6 +23,7 @@ import type {
   Invoices,
   Labels,
   Money,
+  MonthClosing,
   NotificationItem,
   Notifications,
   NotifySettings,
@@ -85,6 +87,7 @@ export const LABELS: Labels = {
     "backup.failed": "Yedek alınamadı",
   },
   AccountType: { credit_card: "Kredi kartı", current: "Vadesiz hesap", fx: "Döviz hesabı" },
+  TodoKind: { missing_documents: "Eksik belge", unprocessed_document: "İşlenmeyen belge" },
   MonthStatus: { closed: "Kapandı", waiting: "Ekstre bekleniyor", missing: "Belge eksik", running: "Ay sürüyor" },
   TransactionKind: { purchase: "Harcama", income: "Gelir", interest_fee: "Faiz & banka ücreti" },
 };
@@ -970,8 +973,188 @@ export const ALERT_RULES: AlertRules = {
   events: ALERT_EVENTS,
 };
 
+// --- the dashboard (F06) ----------------------------------------------------------------------------------------------
+
+function closing(month: string, status: MonthClosing["status"], overrides: Partial<MonthClosing> = {}): MonthClosing {
+  return {
+    month,
+    status,
+    summary: "Bütün hesapların belgeleri ayın tamamını kapsıyor ve tutarlı.",
+    expense: tl(1997799),
+    income: tl(4000000),
+    left: tl(2002201),
+    provisional: 0,
+    unmatched: 0,
+    waiting: [],
+    link: { screen: "month", id: month, query: {} },
+    ...overrides,
+  };
+}
+
+// On 15 November: a provisional net worth with one account left out, the month's pace, a card's due date within the
+// week, a critical and a plain alert, seven months of closing with July missing a document, three accounts' freshness
+// and three things to see to.
+export const DASHBOARD: Dashboard = {
+  today: "2026-11-15",
+  as_of: "2026-10-31",
+  net_worth: {
+    total: tl(1250000),
+    assets: tl(1950000),
+    debts: tl(700000),
+    certainty: "provisional",
+    parts: [
+      { account: FX, value: tl(1850000), certainty: "confirmed" },
+      { account: CARD, value: tl(-700000), certainty: "provisional" },
+      { account: CASH, value: tl(100000), certainty: "provisional" },
+    ],
+    left_out: [{ account: UNKNOWN, reason: "bakiyesi hiçbir belgede yazmıyor" }],
+    currencies: [
+      {
+        currency: "EUR",
+        amount: { minor: 33784, currency: "EUR" },
+        rate: "37.0000",
+        rate_day: "2026-10-31",
+        note: "31.10.2026 belgesindeki kurla",
+      },
+      { currency: "USD", amount: null, rate: null, rate_day: null, note: "belgelerde USD kuru yok" },
+      { currency: "GR", amount: null, rate: null, rate_day: null, note: "gram altının TL fiyatı belgelerde yok" },
+    ],
+    note: "Hesapların son belgelerindeki bakiyeler, sonraki dekont ve bildirimlerle. Değeri bilinmeyenler toplama girmedi.",
+    say: "Net varlığınız 12.500,00 TL (geçici); 1 hesabın TL değeri bilinmediği için toplama girmedi.",
+    link: { screen: "accounts", id: "", query: {} },
+  },
+  month: {
+    pace: NOW.pace,
+    say: "Gelen belgelere göre bu ay 4.200,00 TL harcandı (1.200,00 TL geçici); tipik ayın aynı günlerinden (9.800,00 TL) %57 az.",
+    link: { screen: "month", id: "2026-11", query: {} },
+  },
+  due: {
+    items: [
+      item({
+        day: "2026-11-20",
+        kind: "card_due",
+        title: "Örnek Kart •1234",
+        account: CARD,
+        amount: tl(900000),
+        minimum: tl(180000),
+        basis: "ekstrenin dönem borcu 9.000,00 TL, asgari ödeme 1.800,00 TL",
+        series: "",
+        fingerprints: [],
+      }),
+    ],
+    total: tl(900000),
+    end: "2026-11-21",
+    say: "Önümüzdeki 7 günde 1 ödeme var, toplam 9.000,00 TL; ilki 20.11.2026: Örnek Kart •1234.",
+    link: { screen: "calendar", id: "", query: {} },
+  },
+  alerts: {
+    items: [
+      {
+        kind: "negative",
+        level: "critical",
+        title: "Hesap eksiye düşecek",
+        text: "Örnek Vadesiz TL: öngörüye göre bakiye 03.12.2026 günü (18 gün sonra) −14.019,00 TL olacak.",
+        count: 1,
+        account: CASH,
+        link: { screen: "forecast", id: CASH.id, query: {} },
+      },
+      {
+        kind: "unreadable",
+        level: "warning",
+        title: "Okunamayan belgeler",
+        text: "2 belge olduğu gibi okunamadı: şifreli ya da bozuk olabilir. Belgeler ekranında nedenleri var.",
+        count: 2,
+        account: null,
+        link: { screen: "documents", id: "", query: { status: "unreadable" } },
+      },
+    ],
+    say: "2 açık uyarı var, 1 tanesi kritik; ilki: Hesap eksiye düşecek.",
+    link: { screen: "notifications", id: "", query: {} },
+  },
+  closing: {
+    months: [
+      closing("2026-05", "closed"),
+      closing("2026-06", "closed"),
+      closing("2026-07", "missing", {
+        summary: "Kapanması için eksik belge var: Örnek Vadesiz TL (1–4 Temmuz hesap dökümü eksik).",
+        expense: tl(903999),
+        income: tl(0),
+        left: tl(-903999),
+        waiting: [{ account: CASH, waiting_for: "1–4 Temmuz hesap dökümü eksik" }],
+      }),
+      closing("2026-08", "closed"),
+      closing("2026-09", "closed"),
+      closing("2026-10", "closed"),
+      closing("2026-11", "running", {
+        summary: "Rakamlar şimdiye kadar gelen ekstre ve dökümlerden.",
+        expense: tl(420000),
+        income: null,
+        left: null,
+        provisional: 2,
+      }),
+    ],
+    say: "Temmuz 2026'da belge eksik; diğer 5 ay kapandı.",
+    link: { screen: "month", id: "2026-07", query: {} },
+  },
+  freshness: {
+    accounts: [
+      {
+        account: UNKNOWN,
+        kind: "receipt",
+        document: "f".repeat(64),
+        name: "Garanti Giden Havale Dekontu 10.09.2026.pdf",
+        last: "2026-09-10",
+        behind: 66,
+        expected: null,
+        late: false,
+        missing: [],
+        note: "yalnızca dekont ve banka bildirimlerinden biliniyor",
+        link: { screen: "account", id: UNKNOWN.id, query: {} },
+      },
+      {
+        account: CARD,
+        kind: "card_statement",
+        document: "e".repeat(64),
+        name: "Örnek Kart Ekstresi Ekim 2026.pdf",
+        last: "2026-10-28",
+        behind: 18,
+        expected: "2026-11-28",
+        late: false,
+        missing: [],
+        note: "son ekstre 28.10.2026; sonraki ~28.11.2026",
+        link: { screen: "account", id: CARD.id, query: {} },
+      },
+      {
+        account: CASH,
+        kind: "account_statement",
+        document: "a".repeat(64),
+        name: "TEB Hesap Dökümü Ekim 2026",
+        last: "2026-10-31",
+        behind: 15,
+        expected: null,
+        late: false,
+        missing: ["2026-07"],
+        note: "son döküm 31.10.2026",
+        link: { screen: "account", id: CASH.id, query: {} },
+      },
+    ],
+    say: "Geciken ekstre yok; en geride kalan Garanti Vadesiz TL, belgeleri 10.09.2026 tarihine kadar.",
+    link: { screen: "accounts", id: "", query: {} },
+  },
+  todo: {
+    kinds: [
+      { kind: "missing_documents", count: 1, link: { screen: "todo", id: "missing_documents", query: {} } },
+      { kind: "unprocessed_document", count: 2, link: { screen: "todo", id: "unprocessed_document", query: {} } },
+    ],
+    total: 3,
+    say: "3 iş bekliyor: Eksik belge (1), İşlenmeyen belge (2).",
+    link: { screen: "todo", id: "", query: {} },
+  },
+};
+
 export const handlers = [
   http.get("/api/labels", () => HttpResponse.json(LABELS)),
+  http.get("/api/dashboard", () => HttpResponse.json(DASHBOARD)),
   http.get("/api/feed", ({ request }) =>
     HttpResponse.json(new URL(request.url).searchParams.get("before") === "27" ? FEED_OLDER : FEED_FIRST),
   ),

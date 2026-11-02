@@ -2,20 +2,14 @@
 // week): by day, each with its kind, account, amount and what the amount rests on. They are estimates, as the
 // calendar's are: a regular payment's amount is its last one's or the median of its last three (F09).
 
-import type { UseQueryResult } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import type { CalendarItem, Labels, Now } from "../../api/types";
-import { addDays, daysBetween, formatDay, formatFlow, formatMoney, formatWeekday } from "../../lib/format";
-import { labelOf } from "../../lib/labels";
-import { Detailed, Simple } from "../Preferences";
-import { Failure, Loading } from "../QueryState";
-import { Card } from "../ui/Card";
-import { Say } from "../ui/Say";
-import { Table, Td, Th } from "../ui/Table";
+import type { CalendarItem, Labels } from "../api/types";
+import { addDays, formatDay, formatFlow, formatMoney, formatWeekday } from "../lib/format";
+import { labelOf } from "../lib/labels";
+import { Table, Td, Th } from "./ui/Table";
 
 const SMALL = "text-xs text-zinc-600 dark:text-zinc-300";
-const CALENDAR = { screen: "calendar", id: "", query: {} } as const;
 
 /** The items by their day, in the order the calendar gives them. */
 function byDay(items: readonly CalendarItem[]): Array<[string, CalendarItem[]]> {
@@ -34,12 +28,12 @@ interface DueListProps {
 
 /** The items under their days' headings: "Bugün", "Yarın", then the weekday and the date. */
 export function DueList({ items, today, labels }: DueListProps) {
-  const { t } = useTranslation("feed");
+  const { t } = useTranslation();
   const heading = (day: string) =>
     day === today
-      ? `${t("upcoming.headingToday")} · ${formatDay(day)}`
+      ? `${t("due.today")} · ${formatDay(day)}`
       : day === addDays(today, 1)
-        ? `${t("upcoming.headingTomorrow")} · ${formatDay(day)}`
+        ? `${t("due.tomorrow")} · ${formatDay(day)}`
         : formatWeekday(day);
   return (
     <ol className="flex flex-col gap-3">
@@ -64,7 +58,7 @@ export function DueList({ items, today, labels }: DueListProps) {
                     {formatFlow(item.amount, item.direction)}
                   </span>
                   {item.minimum ? (
-                    <p className={SMALL}>{t("upcoming.minimum", { amount: formatMoney(item.minimum) })}</p>
+                    <p className={SMALL}>{t("due.minimum", { amount: formatMoney(item.minimum) })}</p>
                   ) : null}
                 </div>
               </li>
@@ -76,20 +70,26 @@ export function DueList({ items, today, labels }: DueListProps) {
   );
 }
 
+interface DueTableProps {
+  items: readonly CalendarItem[];
+  caption: string;
+  labels: Labels;
+}
+
 /** The same items as a table, for the detailed view. */
-export function DueTable({ items, caption, labels }: { items: readonly CalendarItem[]; caption: string; labels: Labels }) {
-  const { t } = useTranslation("feed");
+export function DueTable({ items, caption, labels }: DueTableProps) {
+  const { t } = useTranslation();
   return (
     <Table>
       <caption className="sr-only">{caption}</caption>
       <thead>
         <tr>
-          <Th>{t("upcoming.day")}</Th>
-          <Th>{t("upcoming.item")}</Th>
-          <Th>{t("upcoming.kind")}</Th>
-          <Th>{t("upcoming.account")}</Th>
-          <Th className="text-right">{t("upcoming.amount")}</Th>
-          <Th>{t("upcoming.basis")}</Th>
+          <Th>{t("due.day")}</Th>
+          <Th>{t("due.item")}</Th>
+          <Th>{t("due.kind")}</Th>
+          <Th>{t("due.account")}</Th>
+          <Th className="text-right">{t("due.amount")}</Th>
+          <Th>{t("due.basis")}</Th>
         </tr>
       </thead>
       <tbody>
@@ -102,7 +102,7 @@ export function DueTable({ items, caption, labels }: { items: readonly CalendarI
             <Td className="text-right tabular-nums">
               <span className="whitespace-nowrap">{formatFlow(item.amount, item.direction)}</span>
               {item.minimum ? (
-                <span className={`block ${SMALL}`}>{t("upcoming.minimum", { amount: formatMoney(item.minimum) })}</span>
+                <span className={`block ${SMALL}`}>{t("due.minimum", { amount: formatMoney(item.minimum) })}</span>
               ) : null}
             </Td>
             <Td className={SMALL}>{item.basis}</Td>
@@ -110,56 +110,5 @@ export function DueTable({ items, caption, labels }: { items: readonly CalendarI
         ))}
       </tbody>
     </Table>
-  );
-}
-
-/** How a sentence names a day ahead: "bugün", "yarın", or the day with its locative (feed.json, upcoming). */
-export function whenKey(day: string, today: string): "today" | "tomorrow" | "on" {
-  if (day === today) {
-    return "today";
-  }
-  return day === addDays(today, 1) ? "tomorrow" : "on";
-}
-
-export function UpcomingCard({ now, labels }: { now: UseQueryResult<Now>; labels: Labels }) {
-  const { t } = useTranslation("feed");
-  return (
-    <Card title={t("upcoming.title")}>
-      {now.isPending ? <Loading /> : null}
-      {now.isError ? <Failure error={now.error} onRetry={() => void now.refetch()} /> : null}
-      {now.data ? <Upcoming now={now.data} labels={labels} /> : null}
-    </Card>
-  );
-}
-
-function Upcoming({ now, labels }: { now: Now; labels: Labels }) {
-  const { t } = useTranslation("feed");
-  const days = daysBetween(now.today, now.end) + 1;
-  const items = now.upcoming;
-  const first = items[0];
-  if (!first) {
-    return <p className="text-sm">{t("upcoming.empty", { days })}</p>;
-  }
-  const payments = items.filter((item) => item.direction === "out").length;
-  const incomes = items.length - payments;
-  const when = t(`upcoming.${whenKey(first.day, now.today)}`, { day: first.day });
-  const values = { days, payments, incomes, when, title: first.title };
-  const say =
-    payments && incomes
-      ? t("upcoming.sayBoth", values)
-      : payments
-        ? t("upcoming.sayPayments", values)
-        : t("upcoming.sayIncomes", values);
-  return (
-    <>
-      <Say next={{ link: CALENDAR, label: t("upcoming.next") }}>{say}</Say>
-      <p className={`mb-2 ${SMALL}`}>{t("upcoming.estimate")}</p>
-      <Simple>
-        <DueList items={items} today={now.today} labels={labels} />
-      </Simple>
-      <Detailed>
-        <DueTable items={items} caption={t("upcoming.caption", { days })} labels={labels} />
-      </Detailed>
-    </>
   );
 }

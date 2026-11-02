@@ -7,9 +7,9 @@ import { keys } from "../api/queries";
 import { NOTIFICATIONS, staleBy, useEventStream } from "./useEventStream";
 
 describe("staleBy", () => {
-  it("refreshes the documents on a document's events, and the feed and the System screen on every event", () => {
+  it("refreshes the documents on a document's events, and the feed, the dashboard and the System screen on every event", () => {
     const analysis = [keys.subscriptions, keys.calendar, keys.forecast, keys.invoices];
-    const every = [keys.feedAll, keys.system];
+    const every = [keys.feedAll, keys.dashboard, keys.system];
     expect(staleBy("document.received")).toEqual([keys.allDocuments, ...analysis, ...every]);
     expect(staleBy("transaction.created")).toEqual([keys.allDocuments, ...analysis, ...every]);
     expect(staleBy("month.closed")).toEqual([...analysis, ...every]); // a new analysis: the days ahead move

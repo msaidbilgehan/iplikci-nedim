@@ -8,10 +8,10 @@ import { type ReactNode, useId } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { Labels, Now, NowBalance, NowCard, Pace } from "../../api/types";
+import { cn } from "../../lib/cn";
 import { formatDay, formatMoney, formatRate } from "../../lib/format";
 import { labelOf } from "../../lib/labels";
-import { cn } from "../../lib/cn";
-import { PaceMeter } from "../PaceMeter";
+import { PaceFigures } from "../Pace";
 import { Detailed, Simple, useView } from "../Preferences";
 import { Empty, Failure, Loading } from "../QueryState";
 import { Card } from "../ui/Card";
@@ -308,29 +308,7 @@ function PaceCard({ pace, today }: { pace: Pace; today: string }) {
   return (
     <Card title={t("now.pace.title")} level={3}>
       <Say next={next}>{say}</Say>
-      <p className="text-sm text-zinc-700 dark:text-zinc-300">{t("now.pace.spent", { month: pace.month })}</p>
-      <p className="text-2xl font-semibold">
-        <Money value={pace.spent} />
-      </p>
-      {pace.provisional.minor > 0 ? (
-        <p className={SMALL}>
-          {t("now.pace.provisional", { amount: formatMoney(pace.provisional) })} <Term id="provisional" />
-        </p>
-      ) : null}
-      <PaceMeter pace={pace} />
-      {pace.typical && pace.by_day ? (
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-          <dt className="text-zinc-600 dark:text-zinc-300">{t("now.pace.byDay")}</dt>
-          <dd className="tabular-nums">{formatMoney(pace.by_day)}</dd>
-          <dt className="text-zinc-600 dark:text-zinc-300">
-            <Term id="typicalMonth">{t("now.pace.typical")}</Term>
-          </dt>
-          <dd className="tabular-nums">{formatMoney(pace.typical)}</dd>
-        </dl>
-      ) : (
-        <p className="text-sm">{t("now.pace.noTypical")}</p>
-      )}
-      <p className={`mt-2 ${SMALL}`}>{pace.note}</p>
+      <PaceFigures pace={pace} />
     </Card>
   );
 }

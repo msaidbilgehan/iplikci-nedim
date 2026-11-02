@@ -1,12 +1,13 @@
-// The screens and their addresses (architecture §18). Each screen loads when it is first opened. Until the
-// dashboard comes (Phase 6), the home address shows the System screen.
+// The screens and their addresses (architecture §18). Each screen loads when it is first opened; the dashboard is the
+// home page.
 
 import { lazy, Suspense, type ReactNode } from "react";
-import { Navigate, type RouteObject } from "react-router";
+import type { RouteObject } from "react-router";
 
 import { Layout } from "./components/Layout";
 import { Loading } from "./components/QueryState";
 
+const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 const FeedPage = lazy(() => import("./pages/FeedPage"));
 const SystemPage = lazy(() => import("./pages/SystemPage"));
 const DocumentsPage = lazy(() => import("./pages/DocumentsPage"));
@@ -25,7 +26,7 @@ export const routes: RouteObject[] = [
   {
     element: <Layout />,
     children: [
-      { index: true, element: <Navigate to="/sistem" replace /> },
+      { index: true, element: screen(<DashboardPage />) },
       { path: "akis", element: screen(<FeedPage />) },
       { path: "sistem", element: screen(<SystemPage />) },
       { path: "belgeler", element: screen(<DocumentsPage />) },

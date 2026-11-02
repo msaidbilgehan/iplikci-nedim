@@ -60,6 +60,7 @@ interface EventCardProps {
 
 export function EventCard({ item, labels, isNew }: EventCardProps) {
   const { t } = useTranslation("feed");
+  const { t: tc } = useTranslation();
   const heading = useId();
   return (
     <article
@@ -93,7 +94,7 @@ export function EventCard({ item, labels, isNew }: EventCardProps) {
       </Detailed>
       {item.link ? (
         <NextStep
-          step={{ link: item.link, label: t(`events.open.${item.link.screen}`) }}
+          step={{ link: item.link, label: tc(`open.${item.link.screen}`) }}
           context={subjectOf(item)}
           className="mt-2"
         />

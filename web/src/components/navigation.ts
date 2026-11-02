@@ -23,7 +23,7 @@ export const MENU: readonly ScreenGroup[] = [
   {
     key: "today", // what to look at first: where things stand, what happened, what needs the user
     screens: [
-      { to: "/", key: "dashboard", ready: false, end: true },
+      { to: "/", key: "dashboard", ready: true, end: true },
       { to: "/akis", key: "feed", ready: true },
       { to: "/yapilacaklar", key: "todo", ready: false },
     ],

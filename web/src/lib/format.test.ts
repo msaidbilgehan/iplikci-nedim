@@ -52,6 +52,7 @@ describe("format", () => {
     expect(formatMoney({ minor: 5, currency: "TRY" })).toBe("0,05 TL");
     expect(formatMoney({ minor: -1400000, currency: "TRY" })).toBe("−14.000,00 TL");
     expect(formatMoney({ minor: 1999, currency: "USD" })).toBe("19,99 USD");
+    expect(formatMoney({ minor: 1250, currency: "GR" })).toBe("12,50 gr altın");
   });
 
   it("writes a rate with a decimal comma and every digit the service sent", () => {

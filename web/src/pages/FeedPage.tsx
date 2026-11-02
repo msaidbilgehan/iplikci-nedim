@@ -5,7 +5,7 @@
 import { useTranslation } from "react-i18next";
 
 import { useAccounts, useLabels, useNow } from "../api/queries";
-import { UpcomingCard } from "../components/feed/Due";
+import { UpcomingCard } from "../components/feed/Upcoming";
 import { EventsSection } from "../components/feed/Events";
 import { NowSection } from "../components/feed/Now";
 import { accountOptions } from "../components/filters";

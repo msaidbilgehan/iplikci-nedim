@@ -16,5 +16,42 @@
     "active": "Etkin süzgeçler",
     "remove": "{{name}} süzgecini kaldır",
     "reset": "Sıfırla"
+  },
+  "open": {
+    "document": "Belgeyi aç",
+    "documents": "Belgeleri göster",
+    "transaction": "İşlemi aç",
+    "transactions": "İşlemleri göster",
+    "account": "Hesabı aç",
+    "accounts": "Hesapları göster",
+    "month": "Ay sonunu aç",
+    "invoice": "Faturayı aç",
+    "invoices": "Faturaları göster",
+    "subscription": "Ödemeyi aç",
+    "calendar": "Takvimde göster",
+    "forecast": "Öngörüyü aç",
+    "insights": "Değerlendirmeyi aç",
+    "fx": "Dövizi aç",
+    "todo": "Yapılacakları göster",
+    "system": "Sistem ekranını aç",
+    "notifications": "Bildirimleri aç"
+  },
+  "pace": {
+    "spent": "{{month, inMonth}} bugüne kadar harcanan",
+    "provisional": "bunun {{amount}} kadarı",
+    "byDay": "Tipik ayın aynı günlerinde",
+    "typical": "Tipik ay",
+    "noTypical": "Tipik ay için en az 3 tam ay gerekiyor."
+  },
+  "due": {
+    "today": "Bugün",
+    "tomorrow": "Yarın",
+    "minimum": "asgari {{amount}}",
+    "day": "Gün",
+    "item": "Ödeme",
+    "kind": "Tür",
+    "account": "Hesap",
+    "amount": "Tutar",
+    "basis": "Dayanak"
   }
 }
