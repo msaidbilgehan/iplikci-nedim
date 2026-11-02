@@ -29,6 +29,10 @@ grafiğe bir tablo görünümü, ayrı açık ve koyu paletler.
 
 - Manifest ve service worker vite-plugin-pwa ile üretilir.
 - Önbelleğe yalnızca uygulama kabuğu alınır; API verisi varsayılan olarak önbelleğe alınmaz.
+- Yeni bir derleme hemen devreye girer (2026-11-03 notu): service worker beklemeden etkinleşir ve açık sekmeleri
+  devralır, sayfa da bunu görünce kendini bir kez yeniler. Sekme her öne geldiğinde yeni bir derleme olup olmadığı
+  sorulur, en çok dakikada bir. Önceden yeni service worker uygulamanın bütün sekmeleri kapanana dek bekliyordu; açık
+  bırakılan bir sekme güncellemelerden sonra da eski arayüzü gösteriyordu.
 - Derlenen dosyalar Python paketine girer ve servis tarafından sunulur. Çalışırken Node gerekmez.
 
 **Güvenlik**

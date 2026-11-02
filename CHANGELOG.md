@@ -4,6 +4,16 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.7.3] — 2026-11-03 — Güncellemeler açık sekmeye ulaşır
+
+### Düzeltilenler
+
+- Arayüzün güncellemeleri açık bir sekmeye hiç ulaşmıyordu. Yeni sürüm indiriliyor, ama uygulamanın bütün sekmeleri
+  kapanana dek bekliyordu; sayfayı yenilemek de yetmiyordu. 0.7.2'deki "sayfa bir kez kendiliğinden yenilenir"
+  düzeltmesi de bu yüzden devreye girmedi. Yeni sürüm artık hemen devreye girer ve açık sayfa kendini bir kez yeniler.
+  Sekme her öne geldiğinde de yeni bir sürüm olup olmadığına bakılır. Eski bir sürümde kalmış sekme bir kez
+  yenilenince yeni sürüme geçer (gerekirse Shift'le: ⌘⇧R).
+
 ## [0.7.2] — 2026-11-03 — Pano resimlerle anlatır
 
 Arayüz hâlâ karışık bulundu ve paranın grafiklerle okunması istendi. Sade görünümde Pano finans bilgisi

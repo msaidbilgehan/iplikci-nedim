@@ -7,7 +7,8 @@ the user's own computer. It is a hobby project for the user's own needs, yet it 
 or not; it is not an enterprise product.
 
 Status (2026-11-03): Phases 0–6 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.7.0), then the interface's
-simplification (v0.7.1) and the Pano's story in pictures (v0.7.2); Phase 7 (MCP) is next.
+simplification (v0.7.1), the Pano's story in pictures (v0.7.2) and updates that reach an open tab (v0.7.3); Phase 7
+(MCP) is next.
 - Phase 0 brought the MVP's code in as the `iplikci` package, cleaned of personal traces, with the shipped default
   rules, the verification baseline and the demo workspace.
 - Phase 1 (data core) moved everything into the data dir: `settings.toml`, the content-addressed vault, SQLite with the
@@ -67,9 +68,13 @@ simplification (v0.7.1) and the Pano's story in pictures (v0.7.2); Phase 7 (MCP)
 - Then (v0.7.2, 2026-11-03) the user still found the panel cluttered and wanted to read the money in charts. The simple
   view's Pano is now a story in pictures (`components/dashboard/Overview`): the last closed month's money in, out and
   left with a verdict, the months as bars, where the money went, the next 30 days and what to do. The detailed view
-  keeps the cards. The simple view's menu lists seven everyday screens with the rest under "Diğer ekranlar"
-  (`navigation.ts`), and the page reloads once when an update's service worker takes over (`lib/appUpdate`): before
-  that, the first visit after an update showed the old interface.
+  keeps the cards; the simple view's menu lists seven everyday screens with the rest under "Diğer ekranlar"
+  (`navigation.ts`).
+- v0.7.3 (the same day) fixed why no update had reached the user's browser since v0.7.0: the new service worker
+  waited until every tab of the app was closed, and a reload does not close one (vite-plugin-pwa 2 leaves the takeover
+  to its own register module, which `injectRegister: "script-defer"` does not use). `web/vite.config.ts` sets
+  `skipWaiting` and `clientsClaim`; the page reloads once when a new worker takes over and asks for a new build each
+  time it is shown again (`lib/appUpdate`). Check a PWA change by updating a tab kept open, not with a fresh browser.
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 
