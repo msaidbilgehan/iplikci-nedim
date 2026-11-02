@@ -423,6 +423,20 @@ export interface CommitmentIn {
   on: boolean;
 }
 
+export interface ConnectionOut {
+  address: string;
+  name: string;
+  helper: string;
+  command: string;
+  arguments: string[];
+  claude_code: Record<string, unknown>;
+  claude_desktop: Record<string, unknown>;
+  sak_add: string;
+  sak_remove: string;
+  masking: "off" | "accounts" | "accounts_and_names";
+  development: boolean;
+}
+
 /**
  * What changes; a field left out stays. "" gives the category or the necessity back to the rules; [] joins a split row
  * again.
@@ -1097,6 +1111,10 @@ export interface MailSettingsOut {
   server: string;
   stopped: boolean;
   last_error: string;
+}
+
+export interface MaskingIn {
+  masking: "off" | "accounts" | "accounts_and_names";
 }
 
 export interface MerchantLineOut {
@@ -2037,6 +2055,10 @@ export interface TodosOut {
   items: TodoOut[];
   counts: Record<string, number>;
   ignored: number;
+}
+
+export interface TokenOut {
+  token: string;
 }
 
 export interface ToldOut {
