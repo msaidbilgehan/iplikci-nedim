@@ -12,12 +12,13 @@ import uvicorn
 from test_service import TOKEN, free_port
 
 from iplikci.api.app import create_app
-from iplikci.app import reading
+from iplikci.app import calls, reading
 from iplikci.app.workspace import Workspace
 from iplikci.fakes import teb
 from iplikci.mcp import bridge
 from iplikci.mcp.tools import CANNOT_READ, OFFLINE, Session
 from iplikci.service import runner
+from iplikci.storage import audit
 
 from conftest import JANUARY, add
 
@@ -163,3 +164,16 @@ def test_a_service_gone_away_is_an_error_for_the_request_and_silence_for_a_notif
     replies = [json.loads(line) for line in out.getvalue().splitlines()]
     assert [r.get("id") for r in replies] == [4, None]
     assert replies[0]["error"]["message"].startswith(bridge.UNREACHABLE)
+
+
+def test_a_call_answered_while_the_service_was_down_reaches_the_audit_log_when_it_starts(read):
+    answer(Session(replace(read, offline=True), offline=True), "transactions", text="kahveci")
+    waiting = read.run / calls.WAITING
+    assert waiting.is_file()
+    with read.db() as db:
+        assert audit.entries(db, calls.ACTION) == []  # the database was only read
+    assert calls.take_waiting(read) == 1 and not waiting.exists()
+    with read.db() as db:
+        (entry,) = audit.entries(db, calls.ACTION)
+    assert (entry.actor, entry.target, entry.detail) == ("mcp", "transactions", {"arguments": ["text"], "ok": True})
+    assert calls.take_waiting(read) == 0

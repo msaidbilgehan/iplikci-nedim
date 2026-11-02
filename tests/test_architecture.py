@@ -20,6 +20,7 @@ RULES = {
     "iplikci.mcp": (
         "iplikci.app",
         "iplikci.domain",
+        "iplikci.analysis",
         "iplikci.categorize",
         "iplikci.insights",
         "iplikci.month_end",

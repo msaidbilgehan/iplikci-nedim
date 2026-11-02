@@ -348,3 +348,20 @@ def test_the_tools_names_schemas_and_hints_change_only_on_purpose(server):
     if os.environ.get("IPLIKCI_UPDATE_GOLDEN"):
         TOOLS_GOLDEN.write_text(text, encoding="utf-8")
     assert text == TOOLS_GOLDEN.read_text(encoding="utf-8")
+
+
+# --- the audit log (ADR-0011): every call, with its arguments' names and never their values -----------------------
+
+
+def test_every_call_is_in_the_audit_log_with_the_names_of_its_arguments_never_their_values(server, ws):
+    call(server, "transactions", text="kahveci", limit=5)
+    call(server, "transactions", limit="çok")
+    call(server, "yok")
+    with ws.db() as db:
+        entries = audit.entries(db, "mcp.tool")
+    assert [(e.actor, e.target, e.detail) for e in entries] == [
+        ("mcp", "transactions", {"arguments": ["limit", "text"], "ok": True}),
+        ("mcp", "transactions", {"arguments": ["limit"], "ok": False}),
+        ("mcp", "yok", {"arguments": [], "ok": False}),
+    ]
+    assert "kahveci" not in json.dumps([e.detail for e in entries])

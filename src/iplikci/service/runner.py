@@ -18,7 +18,7 @@ import uvicorn
 from .. import __version__
 from ..api.app import create_app
 from ..api.context import Context
-from ..app import access, background, extension, lifecycle, mail
+from ..app import access, background, calls, extension, lifecycle, mail
 from ..app.workspace import Workspace
 from ..ingest.inbox import InboxWatcher
 from ..ingest.mail.idle import IdleWatcher
@@ -178,6 +178,7 @@ def _serve(ws: Workspace, announce: Callable[[str], None]) -> int:
     for its new mail; the inbox watcher hands over what is dropped into the inbox folder."""
     life = Life()
     ctx = context(ws, life)
+    calls.take_waiting(ws)  # the MCP calls answered while the service was down, into the audit log
     app = create_app(ctx)
     jobs = worker(ws)
     background.request_refresh(ws)

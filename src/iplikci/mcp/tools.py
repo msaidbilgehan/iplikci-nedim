@@ -19,7 +19,7 @@ from decimal import Decimal
 from typing import Any, cast
 
 from .. import month_end
-from ..app import accounts, closing, intake, invoices, notify, outlook
+from ..app import accounts, calls, closing, intake, invoices, notify, outlook
 from ..app import mail as email
 from ..app import rules as category_rules
 from ..app.analysis import Current, document_gaps, summary
@@ -42,6 +42,7 @@ from ..domain.money import round_half_up, to_decimal
 from ..domain.text import fold
 from ..insights import HABIT_STATUS, STATUS, receipt_amount
 from ..upcoming import HORIZON
+from . import masking
 
 ZERO = Decimal(0)
 _log = logging.getLogger(__name__)
@@ -115,25 +116,38 @@ class Session:
         self.offline = offline
 
     def call(self, name: str, arguments: Args | None) -> Outcome:
-        """Run the tool called name: its answer as JSON text, or the reason it could not, for the model."""
+        """Run the tool called name: its answer as JSON text, or the reason it could not, for the model; masked as
+        the settings say, and recorded in the audit log (app.calls) either way."""
         tool = TOOLS_BY_NAME.get(name)
-        if tool is None:
-            return Outcome(f"bilinmeyen araç: {name}", error=True)
+        outcome = self._run(tool, arguments) if tool else Outcome(f"bilinmeyen araç: {name}", error=True)
+        given = list(arguments or {})
+        calls.record(self.ws, tool.name if tool else name[:64], given, not outcome.error)
+        return outcome
+
+    def _run(self, tool: "Tool", arguments: Args | None) -> Outcome:
         try:
             args = _check(tool.schema, arguments or {})
             if self.offline and tool.changes(args):
                 return Outcome(OFFLINE, error=True)
             value = tool.run(self, args)
+            return Outcome(json.dumps(self.mask().apply(value), ensure_ascii=False, default=_plain))
         except (ToolError, Busy, StalePlan, ValueError, FileNotFoundError, email.MailError) as exc:
-            return Outcome(str(exc), error=True)
+            return Outcome(self.mask().text(str(exc)), error=True)
         except SchemaMismatch as exc:
             return Outcome(
                 f"{CANNOT_READ}: {exc}. İplikçi Nedim uygulamasını açın, servis veritabanını hazırlar.", True
             )
         except Exception as exc:  # told to the model, the details logged; the server keeps running  # noqa: BLE001
-            _log.exception("tool %s failed", name)
-            return Outcome(f"beklenmeyen hata: {type(exc).__name__}: {exc}", error=True)
-        return Outcome(json.dumps(value, ensure_ascii=False, default=_plain))
+            _log.exception("tool %s failed", tool.name)
+            return Outcome(f"beklenmeyen hata: {type(exc).__name__}", error=True)
+
+    def mask(self) -> masking.Mask:
+        """What the settings hide from the model now (the Settings screen may change it while the service runs)."""
+        settings = self.ws.fresh_settings()
+        level = settings.privacy.mcp_masking
+        if level == masking.OFF:
+            return masking.Mask(masking.OFF)
+        return masking.mask_for(level, self.current.get().dataset, settings.identity.names)
 
     def keep(self, plan: intake.Plan) -> None:
         self.plans[plan.id] = plan
