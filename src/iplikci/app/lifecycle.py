@@ -2,8 +2,8 @@
 backup back and removing it from the computer.
 
 The service ends its own process. A clean exit stays a stop until the next login or until the app is opened again;
-the exit code RESTART asks the system's service manager to start it again, as launchd, systemd and the Windows task
-restart only an unsuccessful exit. What must happen with the database closed waits in run/: a backup put back at the
+the exit code RESTART starts it again: launchd and systemd restart an unsuccessful exit, and on Windows, whose task
+does not, a detached helper runs the task again once this process has ended (service/respawn). What must happen with the database closed waits in run/: a backup put back at the
 next start, before anything opens the database, and the data folder moved to the Trash once this run has let go of
 it. A removal request only this run's stop honours: one an earlier run left behind is dropped."""
 
