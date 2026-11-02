@@ -32,7 +32,7 @@
     "title": "Eşleştir",
     "stepInstall": "Eklentiyi “Kur” kartındaki adımlarla Chrome, Edge ya da Brave'e kurun.",
     "stepCode": "Aşağıdan bir eşleştirme kodu alın.",
-    "stepEnter": "Eklentinin penceresinde kodu girin; eşleşme bu sayfadan da görünür.",
+    "stepEnter": "Tarayıcının araç çubuğundaki İplikçi Nedim simgesine basın, “Eşleştirme ve ayarlar”ı açın ve kodu girin; eşleşme bu sayfadan da görünür.",
     "code": "Eşleştirme kodu",
     "left": "Tek kullanımlık; {{minutes}} dakika içinde girin.",
     "expiredTitle": "Kodun süresi doldu",
@@ -59,6 +59,6 @@
   },
   "history": {
     "title": "Geçmiş iletilerin taraması tamamlanmadı",
-    "text": "Eklenti eşleşince Gmail'i bir sekmede açar ve listedeki bankaların iletilerini arar (başlangıç günü: {{day}}). Tarama sürmüyorsa eklentinin penceresinde “Gmail'de eksikleri tara” düğmesine basın."
+    "text": "Eklenti eşleşince Gmail'i bir sekmede açar ve listedeki bankaların iletilerini arar (başlangıç günü: {{day}}). Tarama sürmüyorsa eklentinin ayarlar sayfasında (araç çubuğundaki simge, “Eşleştirme ve ayarlar”) “Gmail'de eksikleri tara” düğmesine basın."
   }
 }

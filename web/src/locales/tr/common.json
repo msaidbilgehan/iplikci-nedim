@@ -6,7 +6,7 @@
   "retry": "Yeniden dene",
   "signedOut": {
     "title": "Oturum kapandı",
-    "text": "Arayüzü İplikçi Nedim'den yeniden açın; tek kullanımlık yeni bir giriş bağlantısı açılır."
+    "text": "Arayüzü İplikçi Nedim uygulamasından ya da tarayıcı eklentisinin “İplikçi Nedim'i aç” düğmesinden yeniden açın; tek kullanımlık yeni bir giriş bağlantısı açılır."
   },
   "cancel": "Vazgeç",
   "close": "Kapat",
