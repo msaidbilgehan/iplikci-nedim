@@ -38,7 +38,6 @@ import type {
   Forecast,
   Invoices,
   Labels,
-  MerchantRule,
   Notifications,
   NotificationsMarked,
   NotifyPreferences,
@@ -51,6 +50,7 @@ import type {
   Removed,
   Reparsed,
   RuleChange,
+  RuleEdit,
   SavedView,
   Subscriptions,
   SystemStatus,
@@ -361,21 +361,38 @@ export function useCategoryRules() {
   return useQuery({ queryKey: keys.categoryRules, queryFn: () => api.get<CategoryRules>(CATEGORY_RULES) });
 }
 
-/** What a merchant rule would do to the ledger: the rows it moves, and from which category to which. Nothing saved. */
+/**
+ * What a rule edit would do: the rule file's difference and the rows it moves, from which category to which (an
+ * ended payment moves none). Nothing saved.
+ */
 export function usePreviewRule() {
-  return useMutation({ mutationFn: (rule: MerchantRule) => api.post<RuleChange>(`${CATEGORY_RULES}/preview`, rule) });
+  return useMutation({ mutationFn: (rule: RuleEdit) => api.post<RuleChange>(`${CATEGORY_RULES}/preview`, rule) });
 }
 
-/** Save a merchant rule: the service writes it and makes its analysis again, then says what moved. */
+/**
+ * Save a rule edit: the service writes it and makes its analysis again before it answers, then says what moved. The
+ * rows, the regular payments and what they expect are asked again.
+ */
 export function useSaveRule() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (rule: MerchantRule) => api.put<RuleChange>(CATEGORY_RULES, rule),
+    mutationFn: (rule: RuleEdit) => api.put<RuleChange>(CATEGORY_RULES, rule),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: keys.categoryRules });
       refreshTransactions(client);
+      refreshOutlook(client);
     },
   });
+}
+
+/**
+ * What a new analysis moves beyond the rows: the regular payments, the days ahead and the balances they expect, what
+ * stands now, the dashboard and the accounts' pages (which list the payments made from them).
+ */
+export function refreshOutlook(client: QueryClient): void {
+  for (const key of [keys.subscriptions, keys.calendar, keys.forecast, keys.feedAll, keys.dashboard, keys.accounts]) {
+    void client.invalidateQueries({ queryKey: key });
+  }
 }
 
 // --- a document as the viewer shows it (F03) ------------------------------------------------------------------------

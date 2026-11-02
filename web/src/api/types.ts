@@ -53,6 +53,8 @@ import type {
   DocumentPageOut,
   DocumentRowOut,
   DocumentViewOut,
+  EndedIn,
+  EndedOut,
   EventInfoOut,
   EventKind,
   EventOut,
@@ -76,6 +78,7 @@ import type {
   MoneyOut,
   Necessity,
   NetWorthOut,
+  NotEndedIn,
   NotificationOut,
   NotificationsOut,
   NotificationsReadOut,
@@ -88,6 +91,7 @@ import type {
   PaceOut,
   PageLinesOut,
   PairingOut,
+  PaymentOut,
   PlanOut,
   PrintedOut,
   QueuedOut,
@@ -97,6 +101,7 @@ import type {
   RowOut,
   RuleChangeOut,
   SeriesOut,
+  SeriesStatus,
   SourceRefOut,
   StatementCheckOut,
   SubscriptionsOut,
@@ -135,7 +140,9 @@ export type Money = MoneyOut;
 export type { Certainty }; // how sure a row or a total is, and whether it counts (architecture §8)
 export type Subscriptions = SubscriptionsOut;
 export type Series = SeriesOut;
+export type Payment = PaymentOut; // a row a series rests on
 export type Installment = InstallmentOut;
+export type { SeriesStatus };
 export type Calendar = CalendarOut;
 export type CalendarItem = CalendarItemOut;
 export type Forecast = ForecastOut;
@@ -212,6 +219,11 @@ export type Category = CategoryOut;
 export type MerchantRule = MerchantRuleIn;
 export type RuleChange = RuleChangeOut;
 export type { Necessity };
+// The payments the user ended (`_biten`): "İptal ettim" writes one, "Yeniden bekle" takes the user's own back.
+export type EndedPayment = EndedOut;
+export type EndedRule = EndedIn;
+export type NotEndedRule = NotEndedIn;
+export type RuleEdit = MerchantRule | EndedRule | NotEndedRule; // the narrow edits the screens preview, then write
 
 // A document as the viewer shows it, and where its rows are printed (F03).
 export type DocumentDetail = DocumentDetailOut;

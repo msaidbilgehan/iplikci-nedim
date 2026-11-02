@@ -32,11 +32,24 @@ import extension from "./locales/tr/extension.json";
 import feed from "./locales/tr/feed.json";
 import glossary from "./locales/tr/glossary.json";
 import shell from "./locales/tr/shell.json";
+import subscriptions from "./locales/tr/subscriptions.json";
 import transactions from "./locales/tr/transactions.json";
 
 export const defaultNS = "common";
 export const resources = {
-  tr: { common, shell, glossary, charts, feed, dashboard, transactions, accounts, documents, extension },
+  tr: {
+    common,
+    shell,
+    glossary,
+    charts,
+    feed,
+    dashboard,
+    transactions,
+    accounts,
+    documents,
+    extension,
+    subscriptions,
+  },
 } as const;
 
 const WHOLE = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0, useGrouping: "always" });

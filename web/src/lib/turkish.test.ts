@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ablative,
+  fold,
   fromMonth,
   inMonth,
   lastWord,
@@ -119,5 +120,23 @@ describe("suffixes after any number", () => {
 describe("roundHalfEven", () => {
   it("rounds as Python's round() does", () => {
     expect([12.5, 13.5, -12.5, -13.5, 12.4, 12.6].map(roundHalfEven)).toEqual([12, 14, -12, -14, 12, 13]);
+  });
+});
+
+describe("fold", () => {
+  // The cases of domain/text.py's fold: the user's rules name a merchant as they like, the ledger as the bank prints.
+  it.each([
+    ["Migros Örnek Şube", "MIGROS ORNEK SUBE"],
+    ["ığüşöç İĞÜŞÖÇ", "IGUSOC IGUSOC"],
+    ["  Doğalgaz   (İGDAŞ) ", "DOGALGAZ (IGDAS)"],
+    ["kâğıt îmân ûfuk", "KAGIT IMAN UFUK"],
+    ["Café", "CAFE"],
+  ])("folds %j to %j", (text, folded) => {
+    expect(fold(text)).toBe(folded);
+  });
+
+  it("finds a name however it is written", () => {
+    expect(fold("ÖRNEK VİDEO")).toBe(fold("Örnek Video"));
+    expect(fold("ornek video")).toBe(fold("Örnek Video"));
   });
 });

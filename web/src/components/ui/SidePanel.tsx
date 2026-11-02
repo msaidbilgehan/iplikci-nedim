@@ -4,7 +4,7 @@
 // inline style Radix's overlay would bring. A press on the backdrop closes it too: nothing is lost by closing.
 
 import * as RadixDialog from "@radix-ui/react-dialog";
-import { type ReactNode, useRef } from "react";
+import { type ReactNode, type RefObject, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import { cn } from "../../lib/cn";
@@ -16,10 +16,13 @@ interface SidePanelProps {
   onClose: () => void;
   title: ReactNode;
   description?: ReactNode; // a line under the title: what the item is
+  // What the focus goes to when the panel opens for one of its controls ("İptal ettim…" opens it at its form); the
+  // title otherwise, or when that control is not there.
+  initialFocus?: RefObject<HTMLElement | null> | undefined;
   children: ReactNode;
 }
 
-export function SidePanel({ open, onClose, title, description, children }: SidePanelProps) {
+export function SidePanel({ open, onClose, title, description, initialFocus, children }: SidePanelProps) {
   const { t } = useTranslation();
   const returnTo = useRef<HTMLElement | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -34,7 +37,7 @@ export function SidePanel({ open, onClose, title, description, children }: SideP
           onOpenAutoFocus={(event) => {
             returnTo.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
             event.preventDefault();
-            heading.current?.focus();
+            (initialFocus?.current ?? heading.current)?.focus();
           }}
           onCloseAutoFocus={(event) => {
             event.preventDefault();

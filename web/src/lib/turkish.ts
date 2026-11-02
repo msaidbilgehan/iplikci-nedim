@@ -124,6 +124,38 @@ export function fromMonth(month: string): string {
   return `${formatMonth(month)}${yearSuffix(month.slice(0, 4), true)}`;
 }
 
+// The letters domain/text.py's fold turns into ASCII before taking the marks off the rest.
+const ASCII: Readonly<Record<string, string>> = {
+  ı: "i",
+  İ: "I",
+  ş: "s",
+  Ş: "S",
+  ğ: "g",
+  Ğ: "G",
+  ü: "u",
+  Ü: "U",
+  ö: "o",
+  Ö: "O",
+  ç: "c",
+  Ç: "C",
+  â: "a",
+  Â: "A",
+  î: "i",
+  Î: "I",
+  û: "u",
+  Û: "U",
+};
+
+/**
+ * A name in the form the service compares names in (domain/text.py's fold): Turkish letters in ASCII, the marks off,
+ * upper case, the spaces collapsed. "Örnek  Şube" → "ORNEK SUBE". The user's rules name a merchant as they like; the
+ * service finds it by this form.
+ */
+export function fold(text: string): string {
+  const ascii = text.normalize("NFC").replace(/[ıİşŞğĞüÜöÖçÇâÂîÎûÛ]/g, (letter) => ASCII[letter] ?? letter);
+  return ascii.normalize("NFKD").replace(/\p{Mn}/gu, "").toUpperCase().replace(/\s+/g, " ").trim();
+}
+
 /** As insights.months_in: ["2026-03", "2026-07", "2025-12"] → "Mart ve Temmuz 2026'da, Aralık 2025'te". */
 export function monthsIn(months: readonly string[]): string {
   const byYear = new Map<string, string[]>();
