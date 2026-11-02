@@ -2,6 +2,7 @@
   "loading": "Yükleniyor…",
   "loadFailed": "Yüklenemedi",
   "unexpected": "Beklenmeyen bir hata oldu.",
+  "unreachable": "Servise ulaşılamadı; servis çalışıyor mu?",
   "retry": "Yeniden dene",
   "signedOut": {
     "title": "Oturum kapandı",

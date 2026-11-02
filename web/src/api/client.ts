@@ -1,5 +1,8 @@
 // The service's API from the interface: same origin, the session cookie, and on writes the header that tells the
-// service the request comes from its own pages (ADR-0007). Errors arrive as problem+json with a Turkish title.
+// service the request comes from its own pages (ADR-0007). Errors arrive as problem+json with a Turkish title; what
+// says nothing of its own is said in the interface's words.
+
+import i18n from "../i18n";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -18,7 +21,8 @@ export class ApiError extends Error {
   }
 }
 
-const FALLBACK = "Servise ulaşılamadı; servis çalışıyor mu?";
+/** What an error says when the service could not be reached or its answer named nothing. */
+const fallback = (): string => i18n.t("unreachable");
 
 interface Options {
   json?: unknown;
@@ -42,7 +46,7 @@ async function request<T>(method: string, path: string, options: Options = {}): 
   try {
     response = await fetch(path, init);
   } catch {
-    throw new ApiError(0, "unreachable", FALLBACK);
+    throw new ApiError(0, "unreachable", fallback());
   }
   if (!response.ok) {
     throw await problemOf(response);
@@ -57,10 +61,10 @@ async function problemOf(response: Response): Promise<ApiError> {
   try {
     const found = (await response.json()) as { code?: unknown; title?: unknown };
     const code = typeof found.code === "string" ? found.code : `http_${response.status}`;
-    const title = typeof found.title === "string" ? found.title : FALLBACK;
+    const title = typeof found.title === "string" ? found.title : fallback();
     return new ApiError(response.status, code, title);
   } catch {
-    return new ApiError(response.status, `http_${response.status}`, FALLBACK);
+    return new ApiError(response.status, `http_${response.status}`, fallback());
   }
 }
 
