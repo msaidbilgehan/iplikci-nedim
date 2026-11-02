@@ -92,13 +92,15 @@ export function UploadPanel() {
           onDragLeave={() => setOver(false)}
           onDrop={dropped}
           className={cn(
-            "flex flex-col items-center gap-3 rounded-md border-2 border-dashed p-6 text-center",
+            // A row on a wide screen: the words beside the buttons, so the list below starts higher.
+            "flex flex-col items-center gap-3 rounded-lg border-2 border-dashed p-4 text-center",
+            "sm:flex-row sm:text-left",
             over ? "border-teal-600 bg-teal-50 dark:bg-teal-950" : "border-zinc-300 dark:border-zinc-600",
           )}
         >
-          <UploadIcon className="size-6 text-zinc-500" />
-          <p className="text-sm">{t("upload.text")}</p>
-          <div className="flex flex-wrap justify-center gap-2">
+          <UploadIcon className="size-6 shrink-0 text-zinc-500" />
+          <p className="flex-1 text-sm">{t("upload.text")}</p>
+          <div className="flex shrink-0 flex-wrap justify-center gap-2">
             <Button variant="secondary" onClick={() => files.current?.click()} disabled={busy}>
               {t("upload.files")}
             </Button>

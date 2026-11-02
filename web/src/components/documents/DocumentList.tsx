@@ -17,10 +17,12 @@ import { ScreenLink } from "../ui/Say";
 import { Table, Td, Th } from "../ui/Table";
 
 const SMALL = "text-xs text-zinc-600 dark:text-zinc-300";
-const CARD = cn(
-  "flex flex-col gap-1 rounded-lg border border-zinc-200 bg-white p-3 text-sm",
-  "dark:border-zinc-700 dark:bg-zinc-900",
+// One framed list with a line between the documents: a long archive reads as a list, not a pile of cards.
+const LIST = cn(
+  "flex flex-col divide-y divide-zinc-200 overflow-hidden rounded-xl border border-zinc-200 bg-white",
+  "dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900",
 );
+const CARD = "flex flex-col gap-0.5 px-4 py-3 text-sm";
 export const STATUS_TONES: Record<DocumentItem["status"], Tone> = {
   processed: "good",
   unprocessed: "neutral",
@@ -43,7 +45,7 @@ export function DocumentList({ documents, labels, reparsing }: DocumentListProps
   return (
     <>
       <Simple>
-        <ul aria-label={t("list.caption")} className="flex flex-col gap-3">
+        <ul aria-label={t("list.caption")} className={LIST}>
           {documents.map((document) => (
             <DocumentCard key={document.sha256} document={document} labels={labels} reparsing={reparsing} />
           ))}
