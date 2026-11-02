@@ -235,6 +235,19 @@ export interface EventOut {
   detail: Record<string, unknown>;
 }
 
+export type ExportKind = "report" | "csv" | "xlsx" | "month_end";
+
+export interface ExportOut {
+  kind: ExportKind;
+  name: string;
+  size: number;
+  made_at: string;
+}
+
+export interface ExportsQueuedOut {
+  queued: boolean;
+}
+
 export interface FailedJobOut {
   id: number;
   kind: string;
