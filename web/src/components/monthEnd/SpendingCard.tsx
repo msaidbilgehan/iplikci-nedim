@@ -1,10 +1,10 @@
 // Where a month's money went (F11): its spending by main group, each in the group's fixed colour, and the merchants
-// it went to most; the detailed view adds the necessity levels and the categories and merchants in full. A category,
-// a merchant or a group leads to its rows of the month on the Transactions screen.
+// it went to most; the detailed view adds the necessity levels and the categories and merchants in full. A group, a
+// level, a category or a merchant leads to its rows of the month on the Transactions screen.
 
 import { useTranslation } from "react-i18next";
 
-import type { MonthEndDetail, MonthEndShare } from "../../api/types";
+import type { Destination, MonthEndDetail, MonthEndShare } from "../../api/types";
 import { formatMoney } from "../../lib/format";
 import { HBars } from "../charts/HBars";
 import { slotOf } from "../charts/palette";
@@ -28,12 +28,13 @@ export function SpendingCard({ detail }: { detail: MonthEndDetail }) {
     );
   }
   const total = detail.month.totals.expense;
-  const bars = (shares: readonly MonthEndShare[]) =>
+  const bars = (shares: readonly MonthEndShare[], link: (share: MonthEndShare) => Destination) =>
     shares.map((share) => ({
       key: share.name,
       label: share.name,
       value: share.amount.minor,
       slot: slotOf(share.slot),
+      link: link(share),
     }));
   return (
     <Card title={t("spending.title")}>
@@ -50,7 +51,7 @@ export function SpendingCard({ detail }: { detail: MonthEndDetail }) {
           title={t("spending.groups")}
           summary={t("spending.groupsSay", { month, count: detail.groups.length, total: formatMoney(total) })}
           itemName={t("spending.group")}
-          items={bars(detail.groups)}
+          items={bars(detail.groups, (share) => monthRows(month, { group: share.name }))}
         />
         <Simple>
           <div className="flex flex-col gap-2">
@@ -71,7 +72,7 @@ export function SpendingCard({ detail }: { detail: MonthEndDetail }) {
               title={t("spending.levels")}
               summary={t("spending.levelsSay", { month })}
               itemName={t("spending.level")}
-              items={bars(detail.levels)}
+              items={bars(detail.levels, (share) => monthRows(month, { necessity: share.code }))}
             />
           ) : null}
           <SharesTable

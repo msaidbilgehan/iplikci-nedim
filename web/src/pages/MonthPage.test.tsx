@@ -150,13 +150,21 @@ describe("MonthPage: where the money went and the rows", () => {
       "href",
       "/islemler?from=2026-10-01&to=2026-10-31&merchant=%C3%96rnek+Market",
     );
+    expect(within(spending).getByRole("link", { name: "Ev" })).toHaveAttribute(
+      "href",
+      "/islemler?from=2026-10-01&to=2026-10-31&group=Ev",
+    );
   });
 
-  it("lists the necessity levels, the categories and the merchants in full in the detailed view", async () => {
+  it("lists every level, category and merchant in the detailed view, each leading to its rows", async () => {
     detailed();
     open("2026-10");
     const spending = await card("Para nereye gitti");
-    expect(within(spending).getByRole("figure", { name: "Gerekliliğe göre gider" })).toBeInTheDocument();
+    const levels = within(spending).getByRole("figure", { name: "Gerekliliğe göre gider" });
+    expect(within(levels).getByRole("link", { name: "Gereksiz" })).toHaveAttribute(
+      "href",
+      "/islemler?from=2026-10-01&to=2026-10-31&necessity=unnecessary",
+    );
     const categories = within(spending).getByRole("table", { name: "Kategoriler" });
     expect(within(categories).getByRole("link", { name: "Kira" })).toHaveAttribute(
       "href",

@@ -1,14 +1,17 @@
 // Ranked horizontal bars — categories, merchants — as the MVP report drew them: each row's name, its bar in its group's
 // colour with the data end rounded by 4 px, and its amount written beside the bar. The rows are a list in HTML rather
 // than SVG text, so a long name wraps or shortens as text does (the bar widths still come from d3-scale). Nothing
-// below zero has a bar; its amount says so with its sign. The table view adds each row's share of the whole.
+// below zero has a bar; its amount says so with its sign. The table view adds each row's share of the whole. A row
+// with a destination names it with a link, in the bars and in the table alike.
 
 import { type ReactNode, useId } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { Destination } from "../../api/types";
 import { cn } from "../../lib/cn";
 import { formatMoney } from "../../lib/format";
 import { percent } from "../../lib/turkish";
+import { ScreenLink } from "../ui/Say";
 import { Table, Td, Th } from "../ui/Table";
 import { ChartFrame } from "./ChartFrame";
 import { barShares } from "./layout";
@@ -19,6 +22,7 @@ export interface BarItem {
   label: string;
   value: number; // minor units
   slot: Slot; // its group's colour
+  link?: Destination; // where its rows are
 }
 
 interface HBarsProps {
@@ -45,9 +49,15 @@ export function HBars({ title, summary, itemName, items, currency = "TRY", table
           <li key={item.key} className="grid grid-cols-[minmax(7rem,38%)_1fr] items-center gap-x-3 text-sm">
             <span className="flex min-w-0 items-center gap-2">
               <span aria-hidden="true" className={cn("size-2.5 shrink-0 rounded-sm", SLOT_BG[item.slot])} />
-              <span className="truncate" title={item.label}>
-                {item.label}
-              </span>
+              {item.link ? (
+                <ScreenLink link={item.link} className="truncate">
+                  {item.label}
+                </ScreenLink>
+              ) : (
+                <span className="truncate" title={item.label}>
+                  {item.label}
+                </span>
+              )}
             </span>
             <span className="flex min-h-7 min-w-0 items-center gap-2">
               <span className="sr-only">: </span>
@@ -82,7 +92,7 @@ export function HBars({ title, summary, itemName, items, currency = "TRY", table
             <Td>
               <span className="inline-flex items-center gap-1.5">
                 <span aria-hidden="true" className={cn("size-2.5 shrink-0 rounded-sm", SLOT_BG[item.slot])} />
-                {item.label}
+                {item.link ? <ScreenLink link={item.link}>{item.label}</ScreenLink> : item.label}
               </span>
             </Td>
             <Td className="whitespace-nowrap text-right tabular-nums">{money(item.value)}</Td>
