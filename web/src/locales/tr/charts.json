@@ -4,9 +4,11 @@
   "table": "Tablo",
   "empty": "Gösterilecek veri yok.",
   "image": {
-    "stacked": "{{title}}: yığılmış sütun grafiği. Değerler Tablo görünümünde."
+    "stacked": "{{title}}: yığılmış sütun grafiği. Değerler Tablo görünümünde.",
+    "line": "{{title}}: çizgi grafiği. Değerler Tablo görünümünde."
   },
   "month": "Ay",
+  "day": "Gün",
   "total": "Toplam",
   "share": "Pay",
   "amount": "Tutar",
@@ -14,5 +16,6 @@
   "forecast": "tahmin",
   "forecastLegend": "Soluk sütunlar: tahmin",
   "forecastMonth": "{{month}} (tahmin)",
-  "reference": "{{label}}: {{amount}}"
+  "reference": "{{label}}: {{amount}}",
+  "belowZero": "Sıfırın altı: eksi bakiye"
 }
