@@ -95,6 +95,9 @@ class Life:
         if self.server is not None:
             self.server.should_exit = True
 
+    def ending(self) -> bool:
+        return self.server is not None and self.server.should_exit  # uvicorn sets it on the system's stop too
+
 
 def context(ws: Workspace, life: Life | None = None) -> Context:
     """The service's context: the API token made or found, and the expired sessions forgotten."""

@@ -2,6 +2,7 @@
 last minute's events again, which the page may have been loading through, and none older, as those are in what the
 page loads; its first message, the named `start` event, carries the id it starts after, so the browser resumes there.
 A stream that breaks off resumes from the last event it delivered: the browser sends its id back in Last-Event-ID.
+A stream ends when the service stops, so that the stop does not wait for it and cut it off.
 Beside the events the stream tells, as a named `notifications` event without an id, that a notification was made or
 settled: the notifications follow the events by a moment (ADR-0010), so the event alone would leave the box
 behind."""
@@ -64,7 +65,7 @@ async def _events(context: Context, after: int | None) -> AsyncIterator[str]:
             yield f"event: notifications\ndata: {version}\n\n"
             quiet_since = time.monotonic()
         now = time.monotonic()
-        if now >= deadline:
+        if now >= deadline or (context.lifecycle is not None and context.lifecycle.ending()):
             return
         if now - quiet_since >= _HEARTBEAT:
             yield ": canlı\n\n"

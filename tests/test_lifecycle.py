@@ -30,6 +30,9 @@ class FakeLife:
     def end(self, code: int) -> None:
         self.codes.append(code)
 
+    def ending(self) -> bool:
+        return bool(self.codes)
+
 
 class FakeManager:
     name = "launchd"

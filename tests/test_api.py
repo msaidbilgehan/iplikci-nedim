@@ -3,6 +3,7 @@ the login link, the System screen's data and the event stream."""
 
 import json
 import logging
+import time
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import PureWindowsPath
@@ -243,6 +244,25 @@ def test_events_come_as_a_page_and_as_a_stream_that_starts_now_and_resumes(clien
     assert "event: start" not in replayed.text
     resumed = client.get("/api/events/stream", headers={**bearer(), "Last-Event-ID": "1"})
     assert "id: 1\n" not in resumed.text and "id: 2\n" in resumed.text
+
+
+class Stopping:
+    """A service that is stopping, asked to here or by the system."""
+
+    def end(self, code: int) -> None:
+        raise AssertionError("nothing asks the service to end here")
+
+    def ending(self) -> bool:
+        return True
+
+
+def test_an_event_stream_ends_when_the_service_stops(ws):
+    # Left open, a stream would hold the stop up until the server cut it off, and the cut lands in the log as an error.
+    stopping = Context(ws=ws, token=TOKEN, stream_limit=60.0, poll=0.01, lifecycle=Stopping())
+    began = time.monotonic()
+    found = TestClient(create_app(stopping), base_url=BASE).get("/api/events/stream", headers=bearer())
+    assert found.text.startswith("retry: 3000\n\nevent: start\n")
+    assert time.monotonic() - began < 10  # the stream would otherwise stay open for its whole minute
 
 
 def test_errors_are_problems_in_turkish(client, monkeypatch):

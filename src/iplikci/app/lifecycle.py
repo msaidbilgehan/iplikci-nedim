@@ -41,6 +41,11 @@ class Lifecycle(Protocol):
         """End the service once the responses being written are sent; the process exits with code."""
         ...
 
+    def ending(self) -> bool:
+        """Whether the service is stopping, asked to here or by the system: an event stream ends rather than hold
+        the stop up."""
+        ...
+
 
 class LifecycleError(Exception):
     """The step cannot be taken here; the message says why (Turkish)."""
