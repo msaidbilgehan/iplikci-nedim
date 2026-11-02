@@ -23,9 +23,10 @@ import {
   possessiveLocative,
 } from "./lib/turkish";
 import common from "./locales/tr/common.json";
+import shell from "./locales/tr/shell.json";
 
 export const defaultNS = "common";
-export const resources = { tr: { common } } as const;
+export const resources = { tr: { common, shell } } as const;
 
 const WHOLE = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0, useGrouping: "always" });
 

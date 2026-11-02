@@ -1,0 +1,48 @@
+{
+  "appName": "İplikçi Nedim",
+  "skipToContent": "İçeriğe geç",
+  "menu": {
+    "button": "Menü",
+    "label": "Ana menü"
+  },
+  "groups": {
+    "today": "Bugün",
+    "money": "Para",
+    "analysis": "Analiz",
+    "archive": "Arşiv",
+    "app": "Uygulama",
+    "setup": "Kurulum"
+  },
+  "screens": {
+    "dashboard": "Pano",
+    "feed": "Akış",
+    "todo": "Yapılacaklar",
+    "accounts": "Hesaplar",
+    "transactions": "İşlemler",
+    "subscriptions": "Abonelikler",
+    "calendar": "Takvim",
+    "fx": "Döviz",
+    "insights": "Değerlendirme",
+    "monthEnd": "Ay sonu",
+    "documents": "Belgeler",
+    "invoices": "Faturalar",
+    "notifications": "Bildirimler",
+    "rules": "Kurallar",
+    "settings": "Ayarlar",
+    "system": "Sistem",
+    "setup": "Kurulum sihirbazı",
+    "extension": "Tarayıcı eklentisi"
+  },
+  "unread": "({{count}} okunmamış)",
+  "theme": {
+    "label": "Tema",
+    "light": "Açık",
+    "dark": "Koyu",
+    "system": "Sistem"
+  },
+  "view": {
+    "label": "Görünüm",
+    "simple": "Sade",
+    "detailed": "Ayrıntılı"
+  }
+}
