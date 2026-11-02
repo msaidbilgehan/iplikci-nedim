@@ -43,7 +43,7 @@ def test_the_list_names_each_item_with_its_steps_and_where_it_is_shown(demo_ws):
     kinds = [t["kind"] for t in found["items"]]
     assert kinds == ["missing_documents", "unprocessed_document"]  # in F19's order
     gap, unread = found["items"]
-    assert "eksik aylar: 2026-07" in gap["detail"] and gap["actions"] == ["upload", "ignore"]
+    assert "eksik aylar: Temmuz 2026." in gap["detail"] and gap["actions"] == ["upload", "ignore"]
     assert unread["link"] == {"screen": "document", "id": unread["target"], "query": {}}
     assert unread["actions"][:2] == ["open", "reparse"] and unread["prompt"].startswith("İplikçi Nedim'de")
     assert found["counts"]["unprocessed_document"] == 1 and found["ignored"] == 0

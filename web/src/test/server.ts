@@ -2816,7 +2816,7 @@ export const TODOS: Todos = {
       key: "gap:Örnek Vadesiz TL:2026-10-31:2026-07",
       kind: "missing_documents",
       title: "Örnek Vadesiz TL",
-      detail: "Son hesap hareketleri 31.10.2026 tarihli, 15 gün önce; eksik aylar: 2026-07.",
+      detail: "Son hesap hareketleri 31.10.2026 tarihli, 15 gün önce; eksik aylar: Temmuz 2026.",
       count: 1,
       amount: null,
       target: "Örnek Vadesiz TL",

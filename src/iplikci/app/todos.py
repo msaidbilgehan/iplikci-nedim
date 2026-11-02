@@ -17,6 +17,7 @@ from ..domain.codes import SPLITTABLE_KINDS, Actor, DocumentStatus, InvoiceStatu
 from ..domain.labels import KIND, format_amount
 from ..domain.models import Transaction
 from ..domain.text import fold
+from ..insights import month_name
 from ..parsers import registry
 from ..parsers.common import BUSINESS_REASON
 from ..parsers.messages import ATTACHED, NO_MONEY
@@ -178,7 +179,7 @@ def _gaps(ds: Dataset, today: date) -> list[Todo]:
     found: list[Todo] = []
     for gap in document_gaps(ds, today):
         what = "ekstresi" if gap.kind == "ekstre" else "hesap hareketleri"
-        months = f"; eksik aylar: {', '.join(gap.months)}" if gap.months else ""
+        months = f"; eksik aylar: {', '.join(month_name(m) for m in gap.months)}" if gap.months else ""
         found.append(
             Todo(
                 key=f"gap:{gap.account}:{gap.last.isoformat()}:{','.join(gap.months)}",
