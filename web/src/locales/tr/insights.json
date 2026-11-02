@@ -241,6 +241,8 @@
     "title": "Veri kaynakları ve kapsam",
     "documents": "{{count}} belge kayıtlı: {{parts}}.",
     "noDocuments": "Henüz kayıtlı belge yok.",
+    "checksAll": "Ekstre denetimi: {{count}} ekstrenin hepsi tutarlı.",
+    "checks": "Ekstre denetimi: {{verified}}/{{count}} ekstre tutarlı; tutmayanlar Belgeler ekranında.",
     "openDocuments": "Belgeleri göster",
     "openAccounts": "Hesapları göster",
     "caption": "Hesapların belgeleri nereye kadar uzanıyor",

@@ -1,12 +1,12 @@
-// "Veri kaynakları ve kapsam" (the MVP report's sources card): how many documents are kept and how many were read, the
-// months each account's statements cover, and how far each account's documents reach — the last day, how long ago,
+// "Veri kaynakları ve kapsam" (the MVP report's sources card): how many documents are kept and how many were read, how
+// many statements their checks hold, the months each account's statements cover, and how far each account's documents reach — the last day, how long ago,
 // whether a new one is late and the months they leave out — leading to the Belgeler and Hesaplar screens. It is about
 // the archive; no filter changes it.
 
 import { useTranslation } from "react-i18next";
 
 import type { useCoverage, useDashboard, useSystem } from "../../api/queries";
-import type { Freshness, Labels } from "../../api/types";
+import type { Freshness, Labels, SystemStatus } from "../../api/types";
 import { formatDay, formatMonth } from "../../lib/format";
 import { labelOf } from "../../lib/labels";
 import { Detailed, Simple } from "../Preferences";
@@ -36,7 +36,9 @@ export function SourcesCard({ dashboard, system, coverage, labels }: SourcesCard
       <div className="flex flex-col gap-4">
         {system.isPending ? <Loading /> : null}
         {system.isError ? <Failure error={system.error} onRetry={() => void system.refetch()} /> : null}
-        {system.data ? <Documents counts={system.data.documents} labels={labels} /> : null}
+        {system.data ? (
+          <Documents counts={system.data.documents} readers={system.data.readers} labels={labels} />
+        ) : null}
         {coverage.isPending ? <Loading /> : null}
         {coverage.isError ? <Failure error={coverage.error} onRetry={() => void coverage.refetch()} /> : null}
         {coverage.data ? <CoverageGrid coverage={coverage.data} /> : null}
@@ -48,19 +50,34 @@ export function SourcesCard({ dashboard, system, coverage, labels }: SourcesCard
   );
 }
 
-/** "12 belge kayıtlı: 10 işlendi, 1 işlenmedi, 1 okunamadı." */
-function Documents({ counts, labels }: { counts: Record<string, number>; labels: Labels }) {
+interface DocumentsProps {
+  counts: Record<string, number>;
+  readers: SystemStatus["readers"];
+  labels: Labels;
+}
+
+/** "12 belge kayıtlı: 10 işlendi, 1 işlenmedi, 1 okunamadı.", and how many statements their checks hold. */
+function Documents({ counts, readers, labels }: DocumentsProps) {
   const { t } = useTranslation("insights");
   const kept = Object.entries(counts).filter(([status, count]) => status !== REMOVED && count > 0);
   const total = kept.reduce((sum, [, count]) => sum + count, 0);
   const parts = kept
     .map(([status, count]) => `${count} ${labelOf(labels, "DocumentStatus", status).toLocaleLowerCase("tr-TR")}`)
     .join(", ");
+  const statements = readers.reduce((sum, reader) => sum + reader.statements, 0);
+  const verified = readers.reduce((sum, reader) => sum + reader.verified, 0);
   return (
     <div className="flex flex-col items-start gap-1">
       <p className="text-sm">
         {total > 0 ? t("sources.documents", { count: total, parts }) : t("sources.noDocuments")}
       </p>
+      {statements > 0 ? (
+        <p className="text-sm">
+          {verified === statements
+            ? t("sources.checksAll", { count: statements })
+            : t("sources.checks", { verified, count: statements })}
+        </p>
+      ) : null}
       <NextStep step={{ link: DOCUMENTS, label: t("sources.openDocuments") }} />
     </div>
   );

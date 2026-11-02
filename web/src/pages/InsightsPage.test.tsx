@@ -360,10 +360,13 @@ describe("InsightsPage", () => {
     );
   });
 
-  it("says how many documents are kept and how far the accounts' documents reach", async () => {
+  it("says how many documents are kept, how many statements hold and how far the documents reach", async () => {
     renderScreen(<InsightsPage />, { path: "/degerlendirme" });
     const sources = await card("Veri kaynakları ve kapsam");
     expect(await within(sources).findByText("4 belge kayıtlı: 3 işlendi, 1 okunamadı.")).toBeInTheDocument();
+    expect(
+      within(sources).getByText("Ekstre denetimi: 2/3 ekstre tutarlı; tutmayanlar Belgeler ekranında."),
+    ).toBeInTheDocument();
     expect(
       await within(sources).findByText("3 hesabın belgeleri izleniyor; 1 hesapta eksik ay var."),
     ).toBeInTheDocument();
