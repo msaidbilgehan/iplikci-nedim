@@ -2,7 +2,8 @@
 
 1. The Host header must name the service: a site that rebinds its own name to 127.0.0.1 sends its own name.
 2. The sender proves who it is: the API token (`Authorization: Bearer`, the command line and the MCP bridge) or a
-   session cookie (a browser). Only the health check and the login link need neither.
+   session cookie (a browser). Only the health check and the login link need neither. MCP (`/mcp`) takes only the
+   API token: Claude reaches it as the command line does, never with a browser's cookie.
 3. A browser's writes must come from the service's own pages (Origin) and carry `X-Iplikci: 1`: a cross-site form
    cannot set the header, and a cross-site script can set it only after a CORS preflight the service never answers.
 
@@ -54,6 +55,8 @@ BRIDGE_PATHS = frozenset(
         "/api/bridge/login-link",
     }
 )
+# MCP's endpoint (ADR-0011): for the API token alone.
+CLIENT_PATHS = frozenset({"/mcp"})
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 CSP = (
     "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; "
@@ -103,7 +106,9 @@ class Guard:
         if principal is None:
             await self._refuse(path)(scope, receive, send)
             return
-        if (principal is Principal.BRIDGE) != (path in BRIDGE_PATHS):
+        if (principal is Principal.BRIDGE) != (path in BRIDGE_PATHS) or (
+            path in CLIENT_PATHS and principal is not Principal.CLIENT
+        ):
             await problem(403, "forbidden", "Bu işlem bu oturumla yapılamaz.")(scope, receive, send)
             return
         if scope["method"] not in SAFE_METHODS and principal is Principal.BROWSER and not self._own_page(headers):

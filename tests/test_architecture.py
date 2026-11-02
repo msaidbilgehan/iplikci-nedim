@@ -13,7 +13,19 @@ ROOT = {"iplikci", "iplikci.__version__"}  # the package itself and its version:
 # package: the internal modules it may import (itself always)
 RULES = {
     "iplikci.domain": (),
-    "iplikci.api": ("iplikci.app",),
+    # The service answers MCP beside the API, on the same app and the same analysis (ADR-0011).
+    "iplikci.api": ("iplikci.app", "iplikci.mcp"),
+    # MCP is the API's twin for Claude: the use cases in app, the domain's codes and labels. The tools the MVP had
+    # still read a few of its flat modules; the stdio bridge reaches the service through the command line's client.
+    "iplikci.mcp": (
+        "iplikci.app",
+        "iplikci.domain",
+        "iplikci.categorize",
+        "iplikci.insights",
+        "iplikci.month_end",
+        "iplikci.upcoming",
+        "iplikci.service.client",
+    ),
     "iplikci.jobs": ("iplikci.storage",),
     # The feed compares analyses and touches no storage; the analysis still lives in the MVP's flat modules. The
     # calendar and the forecast are pure too: what falls due soon, or goes below zero, is news.
