@@ -16,8 +16,6 @@ import { ChangePreview, MUTED, Notice, useNotice, useRuleEdit, useSavedText } fr
 import { errorIdOf, HINT } from "./fields";
 
 const LIMIT = 1_000_000; // the service's (WriteRulesIn)
-// An example for an empty file: a group, a category under it and a merchant with its pattern.
-const EXAMPLE = "Yeme & İçme:\n  Kafe & Kahve:\n    Örnek Kafe: [ORNEK KAFE]\n";
 
 interface FileCardProps {
   content: string; // the user's rule file; "" before the first change
@@ -73,7 +71,7 @@ export function FileCard({ content, labels }: FileCardProps) {
               spellCheck={false}
               autoCapitalize="off"
               autoComplete="off"
-              placeholder={EXAMPLE}
+              placeholder={t("file.example")}
               aria-describedby={refused ? `${hintId} ${errorIdOf(id)}` : hintId}
               aria-invalid={refused ? true : undefined}
               onChange={(event) => {

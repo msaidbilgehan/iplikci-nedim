@@ -375,6 +375,14 @@ describe("RulesPage: the rule file", () => {
     expect(within(card).queryByRole("button", { name: "Kaydet" })).not.toBeInTheDocument();
   });
 
+  it("offers the file's shape as an example while it is empty", async () => {
+    localStorage.setItem("iplikci.view", "detailed");
+    renderScreen(<RulesPage />, { path: "/kurallar" }); // the shipped rules alone: no file of the user's yet
+    const file = within(await region("Kural dosyası")).getByLabelText("Kişisel kurallar");
+    expect(file).toHaveValue("");
+    expect(file).toHaveAttribute("placeholder", "Yeme & İçme:\n  Kafe & Kahve:\n    Örnek Kafe: [ORNEK KAFE]\n");
+  });
+
   it("is not in the simple view", async () => {
     serve();
     renderScreen(<RulesPage />, { path: "/kurallar" });

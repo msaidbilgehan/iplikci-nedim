@@ -124,6 +124,7 @@
     "title": "Kural dosyası",
     "intro": "Kişisel kurallarınız, YAML biçiminde ve Türkçe anahtarlarla. Uygulamayla gelen kurallar burada değildir; sizin yazdıklarınız onlardan önce denenir.",
     "label": "Kişisel kurallar",
+    "example": "Yeme & İçme:\n  Kafe & Kahve:\n    Örnek Kafe: [ORNEK KAFE]\n",
     "hint": "En üstte ana gruplar, altlarında kategoriler, kategorilerin altında işyerleri ve desenleri yazılır. _gereklilik, _gereklilik_işyeri, _düzenli ve _biten bölümleri gereklilik düzeylerini, taahhüt kategorilerini ve biten ödemeleri tutar.",
     "preview": "Önizle",
     "changedMeanwhile": "Kural dosyası siz düzenlerken değişti; kaydederseniz o değişiklik kaybolur.",
