@@ -6,6 +6,7 @@ The service runs an installed copy of the program, never a development folder: a
 edited would otherwise reach the real data at the next restart. Until the installer of Phase 6, a developer installs
 a fixed copy with `uv tool install` and registers the service from it."""
 
+import csv
 import getpass
 import json
 import os
@@ -14,6 +15,7 @@ import re
 import shlex
 import subprocess
 import sys
+import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -31,6 +33,11 @@ RESTART_SECONDS = 30
 # opens a console window of its own for every call unless it is created without one.
 WINDOWS = os.name == "nt"
 NO_WINDOW = 0x08000000  # CREATE_NO_WINDOW; subprocess names it on Windows only
+# A task's status is a word in the system's language; its last result is a number, SCHED_S_TASK_RUNNING while an
+# instance runs: the 7th field of `schtasks /Query /V /FO CSV`.
+TASK_RUNNING = 0x41301
+_LAST_RESULT = 6
+STOP_WAIT = 15.0  # seconds a start of the task waits for its ended instance to be done with
 
 
 class ManagerError(Exception):
@@ -341,12 +348,20 @@ class TaskScheduler:
     with is also kept in a file of the app's own (`record`) and read from there while the task still matches it."""
 
     def __init__(
-        self, run: Run | None = None, env: Mapping[str, str] | None = None, record: Path | None = None
+        self,
+        run: Run | None = None,
+        env: Mapping[str, str] | None = None,
+        record: Path | None = None,
+        *,
+        sleep: Callable[[float], None] = time.sleep,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._run = run or run_tool
         self._env = os.environ if env is None else env
         local = Path(self._env.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
         self.record = record or local / "iplikci-servis" / "gorev.json"
+        self._sleep = sleep
+        self._clock = clock
 
     @property
     def name(self) -> str:
@@ -467,7 +482,23 @@ class TaskScheduler:
 
     def restart(self) -> None:
         self._run(["schtasks", "/End", "/TN", UNIT])  # fails harmlessly when it is not running
+        self.start()
+
+    def start(self) -> None:
+        """Run the task once no instance of it runs: one still ending would make Task Scheduler ignore the start
+        (MultipleInstancesPolicy IgnoreNew). The wait is bounded, and the start is asked for either way."""
+        deadline = self._clock() + STOP_WAIT
+        while self.running() and self._clock() < deadline:
+            self._sleep(0.25)
         self._schtasks("/Run", "/TN", UNIT)
+
+    def running(self) -> bool:
+        """Whether an instance of the task runs now, by its last result (its status is in the system's language)."""
+        done = self._run(["schtasks", "/Query", "/TN", UNIT, "/V", "/FO", "CSV", "/NH"])
+        if done.code != 0:
+            return False
+        rows = csv.reader(done.out.splitlines())
+        return any(len(row) > _LAST_RESULT and row[_LAST_RESULT].strip() == str(TASK_RUNNING) for row in rows)
 
     def _schtasks(self, *args: str) -> None:
         done = self._run(["schtasks", *args])

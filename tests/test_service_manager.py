@@ -143,8 +143,42 @@ def test_the_windows_task_is_created_from_a_definition_that_does_not_stay_behind
 
     manager.TaskScheduler(run=run, env={"USERNAME": "deneme", "LOCALAPPDATA": str(tmp_path / "Yerel")}).install(program)
     assert "<LogonTrigger>" in seen[0]
-    assert [c[1] for c in tools.calls] == ["/Create", "/End", "/Run"]
+    assert [c[1] for c in tools.calls] == ["/Create", "/End", "/Query", "/Run"]  # /Query: is it still running?
     assert not list((program.home / "run").iterdir())
+
+
+def task_row(status: str, last_result: int) -> str:
+    """A row of `schtasks /Query /V /FO CSV /NH`: the status in the system's language, the last result a number."""
+    return f'"PC","\\iplikci","N/A","{status}","Etkileşimli/Arka plan","2.11.2026 09:00:00","{last_result}","ayse"'
+
+
+def test_a_windows_restart_runs_the_task_again_only_once_its_ended_instance_is_done(tmp_path):
+    rows = [task_row("Çalışıyor", manager.TASK_RUNNING)] * 2 + [task_row("Hazır", 0x41306)]  # ended by /End
+    calls: list[str] = []
+    slept: list[float] = []
+
+    def schtasks(args: Sequence[str]) -> manager.Completed:
+        calls.append(args[1])
+        return manager.Completed(0, rows.pop(0) if "/V" in args else "", "")
+
+    manager.TaskScheduler(run=schtasks, env={"LOCALAPPDATA": str(tmp_path)}, sleep=slept.append).restart()
+    assert calls == ["/End", "/Query", "/Query", "/Query", "/Run"] and slept == [0.25, 0.25]
+
+
+def test_a_windows_restart_waits_a_bounded_time_for_an_instance_that_does_not_end(tmp_path):
+    calls: list[str] = []
+    ticks = iter(range(100))
+
+    def schtasks(args: Sequence[str]) -> manager.Completed:
+        calls.append(args[1])
+        return manager.Completed(0, task_row("Running", manager.TASK_RUNNING) if "/V" in args else "", "")
+
+    scheduler = manager.TaskScheduler(
+        run=schtasks, env={"LOCALAPPDATA": str(tmp_path)}, sleep=lambda s: None, clock=lambda: next(ticks)
+    )
+    scheduler.restart()
+    # The clock moves a second a look: STOP_WAIT looks, then the start is asked for anyway.
+    assert calls[-1] == "/Run" and calls.count("/Query") == manager.STOP_WAIT
 
 
 def windows_program(tmp_path: Path) -> manager.Program:
