@@ -6,7 +6,7 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, Field, StringConstraints
 
 from ..app.invoices import InvoiceKind, InvoiceStatus
-from ..app.notify import Channel, DeliveryStatus, DetailLevel, EventKind
+from ..app.notify import Channel, ChannelStage, DeliveryStatus, DetailLevel, EventKind
 
 
 class LoginLink(BaseModel):
@@ -309,6 +309,7 @@ class ChannelStateOut(BaseModel):
     channel: Channel
     on: bool  # turned on (the interface's box always is)
     ready: bool  # can carry a notification now
+    stage: ChannelStage  # what stands in its way besides being off; the interface names the next step by it
     note: str  # what it is, or what it still needs
 
 

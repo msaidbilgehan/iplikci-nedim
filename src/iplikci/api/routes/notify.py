@@ -107,7 +107,10 @@ def _settings_out(request: Request) -> NotifySettingsOut:
     return NotifySettingsOut(
         quiet_hours=found.quiet_hours,
         detail=dict(found.detail),
-        channels=[ChannelStateOut(channel=s.channel, on=s.on, ready=s.ready, note=s.note) for s in found.channels],
+        channels=[
+            ChannelStateOut(channel=s.channel, on=s.on, ready=s.ready, stage=s.stage, note=s.note)
+            for s in found.channels
+        ],
         counts=dict(found.counts),
         unread=found.unread,
     )

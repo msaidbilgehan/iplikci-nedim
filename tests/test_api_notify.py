@@ -150,6 +150,7 @@ def test_the_channels_settings_say_what_each_channel_needs_and_are_changed_from_
     states = {s["channel"]: s for s in found["channels"]}
     assert states["in_app"]["ready"] and states["desktop"]["ready"]
     assert not states["telegram"]["ready"] and "belirteci girilmedi" in states["telegram"]["note"]
+    assert (states["desktop"]["stage"], states["telegram"]["stage"]) == ("ready", "no_bot")
     signed_in(client)
     wrong = client.put(
         "/api/notify/settings", json={"quiet_hours": "25:00-08:00", "detail": {}, "channels": []}, headers=OWN_PAGE

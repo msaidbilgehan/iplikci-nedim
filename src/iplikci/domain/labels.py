@@ -13,6 +13,7 @@ from .codes import (
     BackupReason,
     Certainty,
     Channel,
+    ChannelStage,
     DeliveryStatus,
     DetailLevel,
     DocumentKind,
@@ -236,6 +237,15 @@ DELIVERY_STATUS: dict[DeliveryStatus, str] = {
     DeliveryStatus.FAILED: "Gönderilemedi",
 }
 
+CHANNEL_STAGE: dict[ChannelStage, str] = {
+    ChannelStage.READY: "Hazır",
+    ChannelStage.STOPPED: "Durdu",
+    ChannelStage.UNAVAILABLE: "Kullanılamıyor",
+    ChannelStage.NO_BOT: "Kurulmadı",
+    ChannelStage.TOKEN_LOST: "Belirteç gerekli",
+    ChannelStage.NOT_PAIRED: "Eşleşmedi",
+}
+
 
 def _table[K: StrEnum](labels: Mapping[K, str]) -> dict[StrEnum, str]:
     return {code: text for code, text in labels.items()}
@@ -265,6 +275,7 @@ TABLES: dict[type[StrEnum], dict[StrEnum, str]] = {
     Channel: _table(CHANNEL),
     DetailLevel: _table(DETAIL_LEVEL),
     DeliveryStatus: _table(DELIVERY_STATUS),
+    ChannelStage: _table(CHANNEL_STAGE),
 }
 
 # The interface writes the Turkish lira as "TL" (ADR-0006).

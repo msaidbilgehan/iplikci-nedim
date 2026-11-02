@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from .. import egress, rulefile
-from ..domain.codes import Actor, Channel, DeliveryStatus, DetailLevel, EventKind
+from ..domain.codes import Actor, Channel, ChannelStage, DeliveryStatus, DetailLevel, EventKind
 from ..domain.labels import EVENT_KIND
 from ..ingest.mail.imap import clean_password
 from ..notify import content, timing
@@ -44,6 +44,7 @@ __all__ = [
     "Actor",
     "AlertRule",
     "Channel",
+    "ChannelStage",
     "ChannelState",
     "Condition",
     "DeliveryStatus",
@@ -249,8 +250,13 @@ def _post_for(settings: config.Settings) -> PostFor:
 class ChannelState:
     channel: Channel
     on: bool  # turned on in the settings (the interface's box always is)
-    ready: bool  # it can carry a notification now
+    stage: ChannelStage  # what stands in its way besides being off: READY for nothing
     note: str  # what it is, or what it still needs (Turkish)
+
+    @property
+    def ready(self) -> bool:
+        """It can carry a notification now."""
+        return self.on and self.stage is ChannelStage.READY
 
 
 def _email_note(ws: Workspace, db: Database, settings: config.Settings) -> str:
@@ -278,48 +284,51 @@ def _telegram_state(db: Database, settings: config.Settings, on: bool, stopped: 
     chat = settings.notify.telegram_chat
     token = _telegram_token() if chat and bot is not None else ""
     if Channel.TELEGRAM in stopped:
-        note = f"Durdu: {stopped[Channel.TELEGRAM]}"
-    elif bot is None:
+        return ChannelState(Channel.TELEGRAM, on, ChannelStage.STOPPED, f"Durdu: {stopped[Channel.TELEGRAM]}")
+    if bot is None:
         note = "Bot belirteci girilmedi: BotFather'da bir bot oluşturup belirtecini girin."
-    elif not chat:
+        return ChannelState(Channel.TELEGRAM, on, ChannelStage.NO_BOT, note)
+    if not chat:
         note = "Botla sohbet eşleşmedi: eşleştirme kodunu bota gönderin."
-    elif not token:
+        return ChannelState(Channel.TELEGRAM, on, ChannelStage.NOT_PAIRED, note)
+    if not token:
         note = "Bot belirteci anahtar zincirinde bulunamadı; yeniden girin."
-    else:
-        note = f"@{name} botuyla eşleşti." if name else "Eşleşti."
-    return ChannelState(Channel.TELEGRAM, on, on and bool(token) and Channel.TELEGRAM not in stopped, note)
+        return ChannelState(Channel.TELEGRAM, on, ChannelStage.TOKEN_LOST, note)
+    return ChannelState(Channel.TELEGRAM, on, ChannelStage.READY, f"@{name} botuyla eşleşti." if name else "Eşleşti.")
+
+
+def _desktop_state(on: bool, stopped: Mapping[str, str]) -> ChannelState:
+    if Channel.DESKTOP in stopped:
+        return ChannelState(Channel.DESKTOP, on, ChannelStage.STOPPED, f"Durdu: {stopped[Channel.DESKTOP]}")
+    if not Desktop().available:
+        return ChannelState(Channel.DESKTOP, on, ChannelStage.UNAVAILABLE, "Bu sistemde masaüstü bildirimi yok.")
+    return ChannelState(Channel.DESKTOP, on, ChannelStage.READY, "Bu bilgisayarın bildirim merkezi.")
+
+
+def _email_state(
+    ws: Workspace, db: Database, settings: config.Settings, stopped: Mapping[str, str], full: bool
+) -> ChannelState:
+    on = Channel.EMAIL in settings.notify.channels
+    if Channel.EMAIL in stopped:
+        return ChannelState(Channel.EMAIL, on, ChannelStage.STOPPED, f"Durdu: {stopped[Channel.EMAIL]}")
+    if not (on or full):
+        return ChannelState(Channel.EMAIL, on, ChannelStage.READY, "Kapalı.")  # not looked at: the keyring rests
+    reason = _email_note(ws, db, settings)
+    if reason:
+        return ChannelState(Channel.EMAIL, on, ChannelStage.UNAVAILABLE, reason)
+    return ChannelState(Channel.EMAIL, on, ChannelStage.READY, "Kendi adresinize, uygulama şifresiyle gönderilir.")
 
 
 def channel_states(ws: Workspace, db: Database, settings: config.Settings, full: bool = False) -> list[ChannelState]:
-    """Every channel, whether it is on and whether it can carry a notification now, with a word on it. full: the
-    word on the e-mail channel also while it is off (it reads the keyring)."""
+    """Every channel, whether it is on and what stands in its way, with a word on it. full: the e-mail channel is
+    looked at also while it is off (it reads the keyring)."""
     on = set(settings.notify.channels)
     stopped = _stopped(db)
-    desktop = Desktop().available
-    email_on = Channel.EMAIL in on
-    if Channel.EMAIL in stopped:
-        email_note = f"Durdu: {stopped[Channel.EMAIL]}"
-    else:
-        email_note = _email_note(ws, db, settings) if email_on or full else "Kapalı."
-    if Channel.DESKTOP in stopped:
-        desktop_note = f"Durdu: {stopped[Channel.DESKTOP]}"
-    else:
-        desktop_note = "Bu bilgisayarın bildirim merkezi." if desktop else "Bu sistemde masaüstü bildirimi yok."
     return [
-        ChannelState(Channel.IN_APP, True, True, "Arayüzdeki bildirim kutusu; her zaman açık."),
-        ChannelState(
-            Channel.DESKTOP,
-            Channel.DESKTOP in on,
-            desktop and Channel.DESKTOP in on and Channel.DESKTOP not in stopped,
-            desktop_note,
-        ),
+        ChannelState(Channel.IN_APP, True, ChannelStage.READY, "Arayüzdeki bildirim kutusu; her zaman açık."),
+        _desktop_state(Channel.DESKTOP in on, stopped),
         _telegram_state(db, settings, Channel.TELEGRAM in on, stopped),
-        ChannelState(
-            Channel.EMAIL,
-            email_on,
-            email_on and not email_note,
-            email_note or "Kendi adresinize, uygulama şifresiyle gönderilir.",
-        ),
+        _email_state(ws, db, settings, stopped, full),
     ]
 
 

@@ -154,10 +154,17 @@ export type Certainty = "confirmed" | "provisional" | "excluded" | "info";
 /** Where a notification goes (ADR-0010). */
 export type Channel = "in_app" | "desktop" | "email" | "telegram";
 
+/**
+ * What stands between a notification channel and the next notification besides its being turned off: the interface
+ * names the user's next step by it (ADR-0010).
+ */
+export type ChannelStage = "ready" | "stopped" | "unavailable" | "no_bot" | "token_lost" | "not_paired";
+
 export interface ChannelStateOut {
   channel: Channel;
   on: boolean;
   ready: boolean;
+  stage: ChannelStage;
   note: string;
 }
 

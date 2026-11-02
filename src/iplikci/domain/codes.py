@@ -241,3 +241,15 @@ class DeliveryStatus(StrEnum):
     HELD = "held"  # kept back by the quiet hours or the channel's rate: it goes out in the next digest
     DIGESTED = "digested"  # sent within a digest
     FAILED = "failed"  # every attempt failed: never tried again
+
+
+class ChannelStage(StrEnum):
+    """What stands between a notification channel and the next notification besides its being turned off: the
+    interface names the user's next step by it (ADR-0010)."""
+
+    READY = "ready"  # nothing: it carries the next notification
+    STOPPED = "stopped"  # refused once (a login, a token, a blocked bot): it waits until the user turns it on again
+    UNAVAILABLE = "unavailable"  # this computer or this account has no way: no notify-send, no app password
+    NO_BOT = "no_bot"  # Telegram: no bot's token was entered
+    TOKEN_LOST = "token_lost"  # Telegram: the keyring no longer holds the token
+    NOT_PAIRED = "not_paired"  # Telegram: no chat sent the pairing code yet

@@ -14,7 +14,7 @@ import pytest
 from iplikci import cli, egress
 from iplikci.app import notify, rebuild
 from iplikci.cli import notify as notify_cli
-from iplikci.domain.codes import Actor, Channel, DeliveryStatus, DetailLevel, EventKind
+from iplikci.domain.codes import Actor, Channel, ChannelStage, DeliveryStatus, DetailLevel, EventKind
 from iplikci.notify import channels, content, timing
 from iplikci.notify import rules as alert_rules
 from iplikci.notify.channels import Desktop, Email, SendError, Telegram
@@ -397,7 +397,7 @@ def test_a_refused_login_stops_its_channel_until_the_user_turns_it_on_again(ws, 
     notify.take_events(ws, NOON)
     assert not [n for n in rows(ws) if n.key == "2026-10" and n.channel == Channel.DESKTOP]  # stopped: nothing new
     state = {s.channel: s for s in notify.status(ws).channels}[Channel.DESKTOP]
-    assert not state.ready and state.note.startswith("Durdu")
+    assert not state.ready and state.stage is ChannelStage.STOPPED and state.note.startswith("Durdu")
     notify.set_preferences(ws, "23:00-08:00", {}, [Channel.DESKTOP])
     assert {s.channel: s for s in notify.status(ws).channels}[Channel.DESKTOP].ready
 
@@ -516,6 +516,19 @@ def test_a_bot_is_paired_by_the_code_its_chat_sends(ws, keyring):
     assert state.ready and state.note == "@ornek_bot botuyla eşleşti."
 
 
+def test_the_telegram_channel_names_the_step_its_setup_waits_for(ws, keyring):
+    def stage() -> ChannelStage:
+        return {s.channel: s for s in notify.status(ws).channels}[Channel.TELEGRAM].stage
+
+    assert stage() is ChannelStage.NO_BOT
+    notify.set_telegram_token(ws, TOKEN, Actor.USER, FakeBot().post_for)
+    assert stage() is ChannelStage.NOT_PAIRED
+    config.update(ws.layout.settings, "notify", {"telegram_chat": 42})
+    assert stage() is ChannelStage.READY
+    keyring.clear()  # the keychain entry went missing
+    assert stage() is ChannelStage.TOKEN_LOST
+
+
 def test_a_pairing_code_lasts_ten_minutes(ws, keyring):
     bot = FakeBot()
     notify.set_telegram_token(ws, TOKEN, Actor.USER, bot.post_for)
@@ -549,7 +562,7 @@ def test_a_never_set_up_telegram_never_reads_the_keyring(ws, desk):
 def test_the_email_channel_says_why_an_account_under_advanced_protection_has_none(ws):
     config.update(ws.layout.settings, "mail", {"connector": "browser_bridge"})
     state = {s.channel: s for s in notify.status(ws).channels}[Channel.EMAIL]
-    assert not state.ready and "Gelişmiş Koruma" in state.note
+    assert not state.ready and state.stage is ChannelStage.UNAVAILABLE and "Gelişmiş Koruma" in state.note
 
 
 def test_a_test_notification_goes_to_the_channel_asked_or_says_why_not(ws, desk):
