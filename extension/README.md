@@ -6,9 +6,24 @@ açık Gmail oturumuyla okuyup bu bilgisayardaki İplikçi Nedim servisine taş�
 
 ## Durum
 
+- **Eklentinin penceresi** (0.5.0): araç çubuğundaki düğme küçük bir pencere açar. Üstte logo, ad ve sürüm; altında
+  durum, simgesi ve tek sözcüğüyle: eşleşmedi, çalışıyor (son denetimin saatiyle), dikkat (son denetimin söyledikleri),
+  taranıyor ya da kapalı (İplikçi Nedim bu bilgisayarda çalışmıyor). Sonra "İplikçi Nedim'i aç", "Şimdi denetle" ve
+  "Eşleştirme ve ayarlar" gelir.
+  - Pencere odak dışına çıkınca kapanır. Bu yüzden eşleştirme, Gmail hesabının seçimi ve "Gmail'de eksikleri tara"
+    ayarlar sayfasındadır; "Eşleştirme ve ayarlar" onu açar.
+  - Ayarlar sayfası da durumu, "Şimdi denetle"yi ve "İplikçi Nedim'i aç"ı gösterir; doğrulama sayfasına oradan gidilir.
+    Üç sayfa tek bir stil dosyasını paylaşır, açık ve koyu temayla.
+- **"İplikçi Nedim'i aç"** ([ADR-0019](../docs/adr/0019-bridge-login-link.md)) arayüzü bu tarayıcıda açar:
+  - Arayüzü gösteren bir sekme açıksa onu öne getirir. O sekme zaten öndeyse onu giriş bağlantısıyla yeniden açar:
+    oturumu kapanmış ya da servis kapalıyken açılmış olabilir.
+  - Eşleşmişse servisten önce kanıt, sonra tek kullanımlık bir giriş bağlantısı ister. Bağlantıyı yalnızca
+    `http://127.0.0.1:8643/giris?` ile başlıyorsa, giriş sayfasını gösteren sekmede ya da yeni bir sekmede açar.
+  - Eşleşmemişse ya da servis bağlantı vermezse adresi bağlantısız açar; tarayıcıda oturum olabilir. Servis
+    çalışmıyorsa ya da yerinde başka bir program yanıt veriyorsa hiçbir şey açmaz ve pencere nedenini söyler.
 - **Doğrulama sayfası** (ADR-0016, Aşama 3'ün ilk işi) dört şeyi denetler: gelen kutusu akışını, ham iletiyi ve DMARC'ı,
-  tam taramayı ve platformu. Eklentinin penceresinden açılır.
-- **Eşleştirme:** eklentinin penceresine, İplikçi Nedim'in "Tarayıcı eklentisi" sayfasından alınan tek kullanımlık kod
+  tam taramayı ve platformu. Ayarlar sayfasından açılır.
+- **Eşleştirme:** ayarlar sayfasına, İplikçi Nedim'in "Tarayıcı eklentisi" sayfasından alınan tek kullanımlık kod
   girilir. Eklenti her istekten önce servisten bir kanıt ister (HMAC). Kanıtlayamayan bir programa hiçbir ileti
   gönderilmez.
 - **Yeni iletiler (1. ve 3. katman):** eklenti her dakika ve tarayıcı açılınca gelen kutusu akışına bakar. Listedeki
@@ -19,15 +34,15 @@ açık Gmail oturumuyla okuyup bu bilgisayardaki İplikçi Nedim servisine taş�
 - **Sorunlar:**
   - Tanınmayan bir Gmail sayfası o katmanı durdurur ve servise bir kez bildirilir (biçim alarmı). Düzeltme eklentinin
     yeni sürümüyle gelir.
-  - "Orijinali göster" bir iletinin metnini göstermezse, örneğin büyük bir iletide, o ileti atlanır. Pencere, iletiyi
-    Gmail'den indirip İplikçi Nedim'e yüklemenizi söyler. Art arda üç ileti gösterilmezse sayfa değişmiş sayılır.
-    Alarm sayfanın metnini değil yalnızca özelliklerini taşır.
+  - "Orijinali göster" bir iletinin metnini göstermezse, örneğin büyük bir iletide, o ileti atlanır. Eklentinin
+    penceresi, iletiyi Gmail'den indirip İplikçi Nedim'e yüklemenizi söyler. Art arda üç ileti gösterilmezse sayfa
+    değişmiş sayılır. Alarm sayfanın metnini değil yalnızca özelliklerini taşır.
   - Gmail yavaşlamayı isterse ya da başka bir sorun çıkarsa sonraki deneme her seferinde daha geç yapılır: önce bir
     dakika sonra, en geç bir saat sonra.
 - **Geçmiş ve kaçan iletiler ("Gmail'de eksikleri tara"):** doğrulamada tam tarama (3. madde) tutmadı; Gmail'in konu
   listesi adresi oturum açma sayfasına yönlendiriyor. Bu yüzden ADR-0016'nın yedek yolu kullanılır:
-  - Eklentinin penceresindeki düğme Gmail'i yeni bir sekmede açar ve listedeki bankaların başlangıç gününden beri
-    gelen iletilerini arar.
+  - Ayarlar sayfasındaki düğme Gmail'i yeni bir sekmede açar ve listedeki bankaların başlangıç gününden beri gelen
+    iletilerini arar.
   - Sekmede çalışan küçük bir betik sonuç listesinden yalnızca konuşma kimliklerini okur; konu, adres ya da metin
     okumaz. Sayfalar bitince sekme kapanır.
   - Servis hangi iletilerin eksik olduğunu söyler. Eksikler "Orijinali göster" yoluyla indirilip teslim edilir.
@@ -37,7 +52,8 @@ açık Gmail oturumuyla okuyup bu bilgisayardaki İplikçi Nedim servisine taş�
     yalnızca ekli iletilerin kimlikleri ve göndericilerin alan adları okunur. Okunmamış konuşmaların yazdırma görünümü
     istenmez. Eki olmayan ya da okunmamış konuşmalarda kalan iletilerin sayısı raporda yazar.
   - Tarama eşleşince kendiliğinden başlar. Biten bir tarama neyi aradığını servise bildirir: başlangıç gününü ve banka
-    listesini. İkisinden biri değişince pencere yeniden taramayı ister ve "Şimdi denetle" önce onu yapar.
+    listesini. İkisinden biri değişince eklentinin penceresi ve ayarlar sayfası yeniden taramayı ister; "Şimdi
+    denetle" önce onu yapar.
     Kendiliğinden başka tarama yoktur, çünkü sekmesi o an yapılan işin önüne çıkardı.
 
 ## İlkeler
@@ -45,6 +61,8 @@ açık Gmail oturumuyla okuyup bu bilgisayardaki İplikçi Nedim servisine taş�
 - İzinler yalnızca `alarms`, `scripting` (taramada Gmail sekmesindeki listeyi okumak için) ve `storage`, artı üç
   adres: `https://mail.google.com/*`, Gmail'in ek sunucusu `https://mail-attachment.googleusercontent.com/*` ve
   `http://127.0.0.1:8643/*`.
+- `tabs` izni yoktur. "İplikçi Nedim'i aç" açık sekmelerden yalnızca `http://127.0.0.1:8643/` adresindekilerin adresini
+  ve başlığını görür; bunu adres izni sağlar. Eklenti oturum çerezini okumaz ve servise çerez göndermez.
 - "Orijinali göster" eklerin içeriğini boş verir. Bu yüzden bir dosya adı geçen ileti "Orijinali indir" ile, bayt bayt
   ve tam alınır; Gmail bu indirmeyi ek sunucusuna yönlendirir.
 - Gmail'e yalnızca okuma istekleri gider: okundu işareti, etiket, taşıma ya da silme yoktur.

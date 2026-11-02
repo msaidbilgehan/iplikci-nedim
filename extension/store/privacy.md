@@ -15,6 +15,9 @@ Eklenti, tarayıcıdaki açık Gmail oturumuyla yalnızca şunları okur:
 
 Gmail'de hiçbir şey değişmez: iletiler okundu işaretlenmez, taşınmaz, etiketlenmez ve silinmez.
 
+"İplikçi Nedim'i aç" düğmesine basılınca eklenti, yalnızca bu bilgisayardaki İplikçi Nedim'in adresinde
+(127.0.0.1:8643) açık sekmelerin adresine ve başlığına bakar; başka sekmeleri göremez. Tarayıcının çerezlerini okumaz.
+
 ## Nereye gider
 
 Okunan iletiler yalnızca aynı bilgisayarda çalışan İplikçi Nedim uygulamasına gider (127.0.0.1). Eklenti başka hiçbir
@@ -47,7 +50,9 @@ the "Show original" page of messages from the bank senders the local İplikçi N
 with attachments, the whole message through "Download original", from Gmail's attachment server), and, during a "scan
 Gmail for missing mail", the conversation ids of the search list in a tab it opens, whether each conversation is
 read, and, from the print view of a conversation read throughout, only the ids of its messages with attachments and
-their senders' domains. Nothing in Gmail changes: no message is marked read, moved, labelled or deleted.
+their senders' domains. Nothing in Gmail changes: no message is marked read, moved, labelled or deleted. When "Open
+İplikçi Nedim" is pressed, it looks only at the address and title of tabs open on the local app's address
+(127.0.0.1:8643); it cannot see other tabs and does not read the browser's cookies.
 
 What it reads goes only to the İplikçi Nedim app on the same computer (127.0.0.1). It sends no data to any other
 server, and has no analytics, ads, tracking or remote code. The browser keeps only the pairing token, which Gmail

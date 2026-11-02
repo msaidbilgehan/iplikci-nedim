@@ -23,6 +23,7 @@ iletilerini okur ve bu bilgisayarda çalışan İplikçi Nedim'e taşır.
   İplikçi Nedim'e bağlanır. Şifre istemez, başka bir sunucuya veri göndermez, uzaktan kod yüklemez.
 - İplikçi Nedim ile tek kullanımlık bir kodla eşleşir. Her teslimden önce, karşıdaki programın eşleştiği İplikçi Nedim
   olduğunu doğrular.
+- Araç çubuğundaki düğmesi durumu gösterir ve İplikçi Nedim'in arayüzünü tek tıkla açar.
 - Uygulama şifresi verilemeyen hesaplar için yoldur, örneğin Google'ın Gelişmiş Koruma programındaki hesaplar.
 
 Kullanmak için bu bilgisayarda İplikçi Nedim'in kurulu olması gerekir.
@@ -40,7 +41,7 @@ Gmail'deki banka iletilerini, kullanıcının kendi bilgisayarında çalışan �
 | `storage` | Eşleşmeyi, okunacak Gmail hesabının sırasını ve son denetimin özetini tarayıcıda saklamak. E-posta adresi saklanmaz. |
 | `https://mail.google.com/*` | Gelen kutusu akışını, "Orijinali göster" sayfasını, arama listesini ve baştan sona okunmuş konuşmaların yazdırma görünümünü kullanıcının oturumuyla okumak. Yalnızca okuma (GET) istekleri. |
 | `https://mail-attachment.googleusercontent.com/*` | Eki olan bir iletinin tamamını "Orijinali indir" ile almak: Gmail bu indirmeyi kendi ek sunucusuna yönlendirir, "Orijinali göster" ise eklerin içeriğini boş verir. Yalnızca okuma (GET). |
-| `http://127.0.0.1:8643/*` | İletileri bu bilgisayardaki İplikçi Nedim servisine teslim etmek. |
+| `http://127.0.0.1:8643/*` | İletileri bu bilgisayardaki İplikçi Nedim servisine teslim etmek. "İplikçi Nedim'i aç" ile servisin arayüzünü açmak: bu adreste açık bir sekme varsa onu bulup öne getirmek (yalnızca bu adresteki sekmelerin adresi ve başlığı görülür), yoksa servisten tek kullanımlık bir giriş bağlantısı isteyip açmak. |
 
 Uzaktan kod: yok. Bütün kod pakettedir ve küçültülmemiştir.
 
@@ -65,3 +66,9 @@ Uzaktan kod: yok. Bütün kod pakettedir ve küçültülmemiştir.
 > from the options page) shows how it reads Gmail without changing anything. Pairing uses a one-time code from the
 > local app, and before every delivery the local service proves with an HMAC that it is the app the extension paired
 > with.
+>
+> The toolbar button opens a small window (popup.html) with the bridge's status, "Open İplikçi Nedim", "Check now"
+> and a link to the options page. "Open İplikçi Nedim" brings a tab of the local app's interface to the front; without
+> one, it has the local service prove itself, asks it for a one-time login link on 127.0.0.1 and opens that link in a
+> tab. The host permission for 127.0.0.1:8643 is what lets it see the address and title of tabs on that address
+> only; the extension has no "tabs" permission and never reads cookies.

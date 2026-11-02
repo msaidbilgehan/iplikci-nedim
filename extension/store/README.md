@@ -23,8 +23,9 @@ Simgeler ürünün logosundan `packaging/icons.py` ile çizilir: `uv run python 
 
 1. Geliştirici kaydı: tek seferlik ücret, Google hesabıyla (kullanıcı karar verir).
 2. Gizlilik politikasının herkese açık adresi.
-3. Ekran görüntüleri: eklentinin penceresi ve doğrulama sayfası, 1280×800. Görüntülerde gerçek adres, banka adı ya
-   da tutar olmamalı. Demo veri klasörüyle eşleşmiş bir eklentiden alınır.
+3. Ekran görüntüleri: eklentinin penceresi (araç çubuğundaki düğmeden), ayarlar sayfası ve doğrulama sayfası,
+   1280×800. Görüntülerde gerçek adres, banka adı ya da tutar olmamalı. Demo veri klasörüyle eşleşmiş bir eklentiden
+   alınır.
 4. `npm run package`, ardından paketi geliştirici panosundan yükleme; görünürlük: listelenmemiş.
 5. Yeni geliştiricilerin eklentileri ilk aylarda Gelişmiş Güvenli Tarama'da "dikkatli olun" uyarısı alabilir
    (ADR-0016).
