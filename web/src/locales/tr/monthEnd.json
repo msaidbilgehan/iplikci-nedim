@@ -144,6 +144,7 @@
     "title": "Düzenli ödemeler",
     "say": "{{paid, number}} ödeme yapıldı, {{expected, number}} ödeme bekleniyor.",
     "none": "Bu ay düzenli bir ödeme yok.",
+    "partial": "Ay kapanmadı: belgelerin kapsamadığı günlerdeki ödemeler burada görünmeyebilir.",
     "paid": "Ödendi: {{amount}}",
     "expected": "Bekleniyor: {{day}}",
     "notSeen": "Bu ay görülmedi",

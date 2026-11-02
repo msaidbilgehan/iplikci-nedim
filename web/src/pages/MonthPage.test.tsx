@@ -185,6 +185,17 @@ describe("MonthPage: where the money went and the rows", () => {
     expect(within(regular).getByText("Ödendi: 15.000,00 TL")).toBeInTheDocument();
   });
 
+  it("says a past month not closed may miss a regular payment on the days no document covers", async () => {
+    const caveat = "Ay kapanmadı: belgelerin kapsamadığı günlerdeki ödemeler burada görünmeyebilir.";
+    open("2026-07"); // July misses a list's first days
+    expect(within(await card("Düzenli ödemeler")).getByText(caveat)).toBeInTheDocument();
+  });
+
+  it("says nothing of the kind for a closed month", async () => {
+    open("2026-09");
+    expect(within(await card("Düzenli ödemeler")).queryByText(/^Ay kapanmadı/)).not.toBeInTheDocument();
+  });
+
   it("opens a big purchase's detail at the side", async () => {
     const user = userEvent.setup();
     const view = open("2026-10");

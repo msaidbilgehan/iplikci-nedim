@@ -148,7 +148,11 @@ function Sections({ detail, list, labels }: SectionsProps) {
       <TrendCard detail={detail} />
       <div className={grid}>
         <SpendingCard detail={detail} />
-        <RegularCard regular={detail.regular} rowHref={rowHref} />
+        <RegularCard
+          regular={detail.regular}
+          rowHref={rowHref}
+          partial={detail.month.status !== "closed" && detail.month.status !== "running"}
+        />
       </div>
       <RowsCard
         title={t("rows.big")}

@@ -1,6 +1,6 @@
 // A month's regular payments (F11): those paid this month with what was paid, and those expected and not seen yet
 // with the day they were expected. A paid one leads to its rows; the detailed view lists them all with what each
-// costs a month.
+// costs a month. A past month not closed may miss a payment on the days its documents do not cover: the card says so.
 
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
@@ -17,6 +17,7 @@ import { ROW_LINK, SMALL } from "./parts";
 interface RegularCardProps {
   regular: readonly MonthEndRegular[];
   rowHref: (fingerprint: string) => string;
+  partial?: boolean; // a past month not closed: a document is missing, awaited or to be checked
 }
 
 /** Keys for the payments: two series may share a payee and a category (two shops of one chain). */
@@ -30,12 +31,14 @@ function keyed(regular: readonly MonthEndRegular[]): Array<[string, MonthEndRegu
   });
 }
 
-export function RegularCard({ regular, rowHref }: RegularCardProps) {
+export function RegularCard({ regular, rowHref, partial = false }: RegularCardProps) {
   const { t } = useTranslation("monthEnd");
+  const caveat = partial ? <p className={`mt-2 ${SMALL}`}>{t("regular.partial")}</p> : null;
   if (regular.length === 0) {
     return (
       <Card title={t("regular.title")}>
         <p className="text-sm">{t("regular.none")}</p>
+        {caveat}
       </Card>
     );
   }
@@ -45,6 +48,7 @@ export function RegularCard({ regular, rowHref }: RegularCardProps) {
   return (
     <Card title={t("regular.title")}>
       <Say>{t("regular.say", { paid, expected })}</Say>
+      {caveat}
       <Simple>
         <ul className="flex flex-col divide-y divide-zinc-100 text-sm dark:divide-zinc-800">
           {items.map(([key, r]) => {
