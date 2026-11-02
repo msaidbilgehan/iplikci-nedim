@@ -46,7 +46,7 @@ export const LABELS: Labels = {
     card_due: "Kart son ödemesi",
     bill: "Fatura",
   },
-  Certainty: { confirmed: "Kesin", provisional: "Geçici", excluded: "Toplama girmez", info: "Bilgi" },
+  Certainty: { confirmed: "Kesin", provisional: "Geçici", excluded: "Ekstrede yok", info: "Yalnızca bilgi" },
   InvoiceKind: { bill: "Fatura", receipt: "Makbuz" },
   InvoiceStatus: { matched: "Eşleşti", pending: "Bekliyor", unmatched: "Eşleşmedi" },
   Channel: { in_app: "Uygulama içi", desktop: "Masaüstü", email: "E-posta", telegram: "Telegram" },

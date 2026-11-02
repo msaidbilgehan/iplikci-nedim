@@ -21,6 +21,7 @@ from .codes import (
     DocumentStatus,
     EventKind,
     EvidenceStatus,
+    HabitStatus,
     InvoiceKind,
     InvoiceStatus,
     MonthStatus,
@@ -35,6 +36,7 @@ from .codes import (
     Tone,
     TransactionKind,
     TransferStep,
+    UnusualKind,
 )
 from .money import Money, Unit, round_half_up
 
@@ -97,8 +99,8 @@ EVIDENCE_STATUS: dict[EvidenceStatus, str] = {
 CERTAINTY: dict[Certainty, str] = {
     Certainty.CONFIRMED: "Kesin",
     Certainty.PROVISIONAL: "Geçici",
-    Certainty.EXCLUDED: "Toplama girmez",
-    Certainty.INFO: "Bilgi",
+    Certainty.EXCLUDED: "Ekstrede yok",
+    Certainty.INFO: "Yalnızca bilgi",
 }
 
 DOCUMENT_STATUS: dict[DocumentStatus, str] = {
@@ -299,6 +301,21 @@ TRANSFER_STEP: dict[TransferStep, str] = {
 
 RULE_LAYER: dict[RuleLayer, str] = {RuleLayer.OWN: "Sizin kurallarınız", RuleLayer.SHIPPED: "Hazır kurallar"}
 
+HABIT_STATUS: dict[HabitStatus, str] = {
+    HabitStatus.MONTHLY: "Her ay",
+    HabitStatus.NEW: "Yeni alışkanlık",
+    HabitStatus.OCCASIONAL: "Ara sıra",
+    HabitStatus.STOPPED: "Durdu",
+    HabitStatus.ONE_OFF: "Tek seferlik",
+}
+
+UNUSUAL_KIND: dict[UnusualKind, str] = {
+    UnusualKind.UNUSUAL_AMOUNT: "Alışılmadık tutar",
+    UnusualKind.POSSIBLE_DUPLICATE: "Olası çift çekim",
+    UnusualKind.NEW_LARGE: "Yeni bir yerde büyük tutar",
+    UnusualKind.UNEXPECTED_FEE: "Beklenmedik ücret",
+}
+
 
 def _table[K: StrEnum](labels: Mapping[K, str]) -> dict[StrEnum, str]:
     return {code: text for code, text in labels.items()}
@@ -334,6 +351,8 @@ TABLES: dict[type[StrEnum], dict[StrEnum, str]] = {
     CategoryReason: _table(CATEGORY_REASON),
     TransferStep: _table(TRANSFER_STEP),
     RuleLayer: _table(RULE_LAYER),
+    HabitStatus: _table(HABIT_STATUS),
+    UnusualKind: _table(UNUSUAL_KIND),
 }
 
 # The interface writes the Turkish lira as "TL" (ADR-0006).

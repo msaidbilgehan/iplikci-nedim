@@ -119,11 +119,24 @@ _TENS_POSSESSIVE = {
 }
 
 
+def possessive(n: int) -> str:
+    """The possessive after a whole number, by its last spoken word: 64 -> "ü" (dört), 100 -> "ü" (yüz),
+    1000 -> "i" (bin), 1000000 -> "u" (milyon)."""
+    digits = str(abs(n))
+    zeros = len(digits) - len(digits.rstrip("0"))
+    if digits == "0":
+        return "ı"
+    if zeros == 0:
+        return _ONES_POSSESSIVE[digits[-1]]
+    if zeros == 1:
+        return _TENS_POSSESSIVE[digits[-2]]
+    return "ü" if zeros == 2 else "i" if zeros < 6 else "u" if zeros < 9 else "ı"
+
+
 def pct(share: Decimal | float) -> str:
     """0.64 -> "%64'ü": a share of something, with the suffix Turkish needs after it."""
-    n = str(round(share * 100))
-    suffix = _ONES_POSSESSIVE.get(n[-1]) or ("ı" if n == "0" else _TENS_POSSESSIVE[n[-2]])
-    return f"%{n}'{suffix}"
+    n = round(share * 100)
+    return f"%{n}'{possessive(n)}"
 
 
 def tl(value: Decimal | float) -> str:

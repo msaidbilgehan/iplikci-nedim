@@ -315,3 +315,22 @@ class RuleLayer(StrEnum):
 
     OWN = "own"
     SHIPPED = "shipped"
+
+
+class HabitStatus(StrEnum):
+    """How a discretionary merchant or an avoidable cost goes over the window (docs/domain/interpretation.md)."""
+
+    MONTHLY = "monthly"  # in most months of the window: costs its last three months' average from now on
+    NEW = "new"  # started inside the window and kept up
+    OCCASIONAL = "occasional"  # now and then: its total spread over the window
+    STOPPED = "stopped"  # nothing for longer than its usual gap: costs nothing from now on
+    ONE_OFF = "one_off"  # once or twice in a month: never projected
+
+
+class UnusualKind(StrEnum):
+    """A movement worth a look (F10). It is only flagged: no row is ever dropped for it."""
+
+    UNUSUAL_AMOUNT = "unusual_amount"  # far above what this merchant usually takes
+    POSSIBLE_DUPLICATE = "possible_duplicate"  # the same amount at the same merchant on the same day, again
+    NEW_LARGE = "new_large"  # a large amount at a merchant never seen before
+    UNEXPECTED_FEE = "unexpected_fee"  # a fee or a due the account did not charge in the months before

@@ -608,6 +608,11 @@ def test_interpretation_prices_the_steps_and_balances_the_budget():
         (0.60, "%60'ı"),
         (0.06, "%6'sı"),
         (1.0, "%100'ü"),
+        (11.0, "%1100'ü"),
+        (10.1, "%1010'u"),
+        (10.0, "%1000'i"),
+        (20.0, "%2000'i"),
+        (0.0, "%0'ı"),
     ],
 )
 def test_percent_takes_the_right_suffix(share, text):
