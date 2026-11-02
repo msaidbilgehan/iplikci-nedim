@@ -206,16 +206,40 @@ def macos(python_root: Path, out: Path, work: Path) -> Path:
 APPRUN = """#!/bin/sh
 # İplikçi Nedim as an AppImage (ADR-0017). The AppImage is mounted somewhere new at every start, and the service
 # starts the Python it was registered with at every login: the Python is copied once per version to a place that
-# lasts, and the program runs from there.
-set -e
+# lasts, and the program runs from there. A problem is said in the desktop's own window, as service/dialog.py says it.
+say() {
+    if command -v zenity >/dev/null 2>&1; then
+        zenity --error --title="İplikçi Nedim" --no-markup --text="$1"
+    elif command -v kdialog >/dev/null 2>&1; then
+        kdialog --title "İplikçi Nedim" --error "$1"
+    elif command -v notify-send >/dev/null 2>&1; then
+        notify-send --urgency=critical "İplikçi Nedim" "$1"
+    else
+        echo "$1" >&2
+    fi
+}
 here="$(dirname "$(readlink -f "$0")")"
-version="$(cat "$here/VERSION")"
+version="$(cat "$here/VERSION" 2>/dev/null)"
+if [ -z "$version" ]; then
+    say "İplikçi Nedim açılamadı: indirilen paket bozuk. Paketi yeniden indirip açın."
+    exit 1
+fi
 target="${XDG_DATA_HOME:-$HOME/.local/share}/iplikci/app/$version"
 if [ ! -x "$target/bin/python3" ]; then
-    rm -rf "$target.yeni"
-    mkdir -p "$target.yeni"
-    cp -a "$here/python/." "$target.yeni/"
-    mv "$target.yeni" "$target"
+    rm -rf "$target"  # a copy without its Python (cut short, or partly removed) is made again whole
+    temp="$target.yeni.$$"  # this start's own: a start beside it copies into a folder of its own
+    if mkdir -p "$temp" && cp -a "$here/python/." "$temp/"; then
+        if [ -x "$target/bin/python3" ]; then
+            rm -rf "$temp"  # a start beside this one was done first
+        else
+            rm -rf "$target" && mv "$temp" "$target"
+        fi
+    fi
+    rm -rf "$temp"
+fi
+if [ ! -x "$target/bin/python3" ]; then
+    say "İplikçi Nedim açılamadı: çalışma ortamı $target klasörüne kopyalanamadı. Diskte yer açıp yeniden deneyin."
+    exit 1
 fi
 exec "$target/bin/python3" LAUNCH
 """
@@ -231,14 +255,19 @@ Terminal=false
 """
 
 
+def apprun() -> str:
+    """The AppImage's own executable: it copies the Python once per version and runs the program from the copy."""
+    return APPRUN.replace("LAUNCH", " ".join(LAUNCH))
+
+
 def linux(python_root: Path, out: Path, work: Path) -> Path:
     appdir = work / "AppDir"
     appdir.mkdir()
     shutil.copytree(python_root, appdir / "python", symlinks=True)
     (appdir / "VERSION").write_text(version(), encoding="utf-8")
-    apprun = appdir / "AppRun"
-    apprun.write_text(APPRUN.replace("LAUNCH", " ".join(LAUNCH)), encoding="utf-8")
-    apprun.chmod(0o755)
+    executable = appdir / "AppRun"
+    executable.write_text(apprun(), encoding="utf-8")
+    executable.chmod(0o755)
     (appdir / f"{SLUG}.desktop").write_text(DESKTOP, encoding="utf-8")
     shutil.copy2(ASSETS / "iplikci.png", appdir / f"{SLUG}.png")
     tool = os.environ.get("APPIMAGETOOL") or shutil.which("appimagetool")

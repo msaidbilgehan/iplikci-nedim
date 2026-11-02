@@ -120,6 +120,8 @@ parçasıdır.
   - Windows: Inno Setup kurulum programı, `%LOCALAPPDATA%\Programs\İplikçi Nedim` klasörüne, yönetici izni
     olmadan; Başlat menüsü uygulamayı `pythonw` ile açar.
   - Linux: AppImage. AppRun, Python'u sürüm başına bir kez `~/.local/share/iplikci/app/<sürüm>` klasörüne kopyalar.
+    Kopya önce o açılışın kendi geçici klasörüne yapılır ve bitince yerine konur; Python'u olmayan bir sürüm klasörü
+    (yarım kalmış ya da kısmen silinmiş) yeniden yapılır. Kopya yapılamazsa sorun masaüstünün penceresinde söylenir.
 - **Açılış** (`iplikci uygulama`, `service/launcher`):
   - Kayıt bu kopyanın ve bu veri klasörünün değilse servis yeniden kaydedilir ve başlatılır.
   - Servis çalışmıyorsa ya da eski bir sürümse yeniden başlatılır.

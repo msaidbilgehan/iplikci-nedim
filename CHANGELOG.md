@@ -173,6 +173,10 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
 - Linux'ta zenity ya da kdialog olmayan bir masaüstünde, uygulamanın açılırken söylediği sorun ve tarayıcı
   açılamayınca verdiği bağlantı hiç görünmüyordu; artık kapatılana dek kalan bir bildirimle söylenir.
 - Başka bir diskin Uygulamalar klasörüne konan Mac uygulaması da "önce Uygulamalar klasörüne taşıyın" diyordu.
+- Linux'ta Python'u olmayan bir sürüm kopyası (yarım kalmış ya da kısmen silinmiş) AppImage'ın her açılışını sessizce
+  bozuyordu; aynı anda iki açılış birbirinin kopyasını silebiliyordu. Kopya artık her açılışın kendi klasörüne yapılıp
+  bitince yerine konur, Python'u olmayan kopya yeniden yapılır, kopyalanamazsa sorun masaüstünün penceresinde
+  söylenir.
 
 ## [0.6.0] — 2026-11-02 — Aşama 5: Bildirimler
 

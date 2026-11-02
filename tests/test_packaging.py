@@ -2,6 +2,7 @@
 script. Nothing here builds a package; the app's executable runs against a stand-in for its Python."""
 
 import importlib.util
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -80,6 +81,69 @@ def test_the_mac_app_takes_the_download_mark_off_its_own_files_and_runs_its_pyth
     ]  # fmt: skip
     assert not _marked(python) and not _marked(library)
     assert _marked(beside)  # only the app's own files
+
+
+def appimage(tmp_path: Path) -> tuple[Path, dict[str, str]]:
+    """The AppImage as it is mounted, on stand-ins: AppRun, the version and a Python that only says it ran; the
+    desktop's window programs write down what they would show; a home of its own."""
+    mount = tmp_path / "mount"
+    python = mount / "python" / "bin" / "python3"
+    python.parent.mkdir(parents=True)
+    (mount / "python" / "lib").mkdir()
+    (mount / "python" / "lib" / "os.py").write_text("# standart kütüphanenin yerine\n", encoding="utf-8")
+    python.write_text('#!/bin/sh\necho "çalıştı: $0 $*"\n', encoding="utf-8")
+    python.chmod(0o755)
+    (mount / "VERSION").write_text("9.9.9", encoding="utf-8")
+    script = mount / "AppRun"
+    script.write_text(build_script().apprun(), encoding="utf-8")
+    script.chmod(0o755)
+    desktop = tmp_path / "masaustu"
+    desktop.mkdir()
+    for name in ("zenity", "kdialog", "notify-send"):
+        (desktop / name).write_text(f'#!/bin/sh\nprintf "%s\\n" "$@" > "$(dirname "$0")/{name}.gosterdi"\n')
+        (desktop / name).chmod(0o755)
+    return script, {"PATH": f"{desktop}:/usr/bin:/bin", "HOME": str(tmp_path / "ev")}
+
+
+def start(script: Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run([str(script)], env=env, capture_output=True, text=True, check=False, timeout=60)
+
+
+POSIX = pytest.mark.skipif(sys.platform == "win32", reason="AppRun is a shell script for Linux")
+
+
+@POSIX
+def test_the_appimage_copies_its_python_once_and_runs_the_program_from_the_copy(tmp_path):
+    script, env = appimage(tmp_path)
+    target = tmp_path / "ev" / ".local" / "share" / "iplikci" / "app" / "9.9.9"
+    for _ in range(2):  # the second start finds the copy whole
+        done = start(script, env)
+        assert done.returncode == 0, done.stderr
+        assert done.stdout.strip() == f"çalıştı: {target}/bin/python3 -I -X utf8 -m iplikci uygulama"
+    assert sorted(p.name for p in target.parent.iterdir()) == ["9.9.9"]  # no copy half made beside it
+
+
+@POSIX
+def test_a_version_folder_left_without_its_python_is_made_again_whole(tmp_path):
+    script, env = appimage(tmp_path)
+    target = tmp_path / "ev" / ".local" / "share" / "iplikci" / "app" / "9.9.9"
+    (target / "lib").mkdir(parents=True)  # a copy cut short, or partly removed
+    for _ in range(2):  # it used to fail at every start from then on
+        done = start(script, env)
+        assert done.returncode == 0, done.stderr
+    assert sorted(p.name for p in target.iterdir()) == ["bin", "lib"]
+    assert sorted(p.name for p in target.parent.iterdir()) == ["9.9.9"]
+
+
+@POSIX
+def test_an_appimage_that_cannot_copy_its_python_says_so_in_the_desktops_window(tmp_path):
+    script, env = appimage(tmp_path)
+    shutil.rmtree(tmp_path / "mount" / "python")  # nothing to copy
+    done = start(script, env)
+    assert done.returncode == 1
+    shown = (tmp_path / "masaustu" / "zenity.gosterdi").read_text(encoding="utf-8")
+    assert "--error" in shown and "İplikçi Nedim açılamadı: çalışma ortamı" in shown
+    assert not list((tmp_path / "ev" / ".local" / "share" / "iplikci" / "app").iterdir())  # nothing half made stays
 
 
 def test_a_windows_update_takes_the_service_off_and_replaces_the_whole_python():
