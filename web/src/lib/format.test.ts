@@ -3,9 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   formatCode,
   formatDay,
+  formatDayShort,
   formatFlow,
   formatMoney,
+  formatMoneyShort,
   formatMonth,
+  formatMonthShort,
   formatPeriod,
   formatSize,
   formatTime,
@@ -53,5 +56,19 @@ describe("format", () => {
   it("names a month in Turkish", () => {
     expect(formatMonth("2026-04")).toBe("Nisan 2026");
     expect(formatMonth("2026-12")).toBe("Aralık 2026");
+  });
+
+  it("rounds amounts for a chart's axis as Turkish says them", () => {
+    expect(formatMoneyShort({ minor: 1200000, currency: "TRY" })).toBe("12 bin TL");
+    expect(formatMoneyShort({ minor: 125000000, currency: "TRY" })).toBe("1,3 milyon TL");
+    expect(formatMoneyShort({ minor: 45000, currency: "TRY" })).toBe("450 TL");
+    expect(formatMoneyShort({ minor: -4500000, currency: "TRY" })).toBe("−45 bin TL");
+    expect(formatMoneyShort({ minor: 0, currency: "EUR" })).toBe("0 EUR");
+  });
+
+  it("names months and days briefly for a chart's axis", () => {
+    expect(formatMonthShort("2026-04")).toBe("Nis 26");
+    expect(formatMonthShort("2026-08")).toBe("Ağu 26");
+    expect(formatDayShort("2026-11-15")).toBe("15 Kas");
   });
 });

@@ -87,3 +87,25 @@ export function formatMonth(month: string): string {
   const [year, number] = month.split("-").map(Number);
   return year && number ? MONTH.format(new Date(year, number - 1, 1)) : month;
 }
+
+const COMPACT = new Intl.NumberFormat("tr-TR", { notation: "compact", compactDisplay: "long", maximumFractionDigits: 1 });
+const MONTH_SHORT = new Intl.DateTimeFormat("tr-TR", { month: "short", year: "2-digit", timeZone: "UTC" });
+const DAY_SHORT = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "short", timeZone: "UTC" });
+
+/** An amount rounded for a chart's axis or label, as Turkish says it: "12 bin TL", "1,3 milyon TL", "−450 TL". */
+export function formatMoneyShort(money: MoneyOut): string {
+  const text = COMPACT.format(money.minor / 100).replace("-", "−");
+  return `${text} ${CURRENCIES[money.currency] ?? money.currency}`;
+}
+
+/** "2026-04" → "Nis 26", for a chart's axis. */
+export function formatMonthShort(month: string): string {
+  const [year, number] = month.split("-").map(Number);
+  return year && number ? MONTH_SHORT.format(new Date(Date.UTC(year, number - 1, 1))) : month;
+}
+
+/** "2026-11-15" → "15 Kas", for a chart's axis. */
+export function formatDayShort(iso: string): string {
+  const [year, month, day] = iso.slice(0, 10).split("-").map(Number);
+  return year && month && day ? DAY_SHORT.format(new Date(Date.UTC(year, month - 1, day))) : iso;
+}
