@@ -34,9 +34,11 @@ import type {
   ExportsQueued,
   ExtensionFolder,
   ExtensionInfo,
+  FxRates,
   FeedPage,
   Flows,
   Forecast,
+  Holdings,
   Insights,
   Invoices,
   Labels,
@@ -95,6 +97,8 @@ export const keys = {
   subscriptions: ["subscriptions"] as const,
   calendar: ["calendar"] as const,
   forecast: ["forecast"] as const,
+  holdings: ["holdings"] as const,
+  fx: ["fx"] as const,
   invoices: ["invoices"] as const,
   otherSenders: ["settings", "mail", "other-senders"] as const,
   notifications: ["notifications"] as const, // the box and the history both
@@ -546,6 +550,16 @@ export function useSetOtherSenders() {
       void client.invalidateQueries({ queryKey: keys.system });
     },
   });
+}
+
+/** The net worth in TL and the other units, every asset and debt with its value and cost, the currencies' shares. */
+export function useHoldings() {
+  return useQuery({ queryKey: keys.holdings, queryFn: () => api.get<Holdings>("/api/holdings") });
+}
+
+/** The TL rates the documents print, by currency; nothing is fetched from the network (F12, Phase 6). */
+export function useFxRates() {
+  return useQuery({ queryKey: keys.fx, queryFn: () => api.get<FxRates>("/api/fx") });
 }
 
 /** The extension the program carries, and its folder in the data folder that the browser loads it from (K20). */

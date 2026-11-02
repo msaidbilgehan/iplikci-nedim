@@ -27,6 +27,8 @@ import type {
   FeedPage,
   Flows,
   Forecast,
+  FxRates,
+  Holdings,
   Insights,
   InvoiceItem,
   Invoices,
@@ -130,6 +132,7 @@ export const LABELS: Labels = {
     brokerage: "Yatırım",
     loan: "Krediler",
   },
+  RateSource: { document: "Belgedeki kur" },
   PaidStatus: {
     full: "Tamamı ödendi",
     minimum: "Asgarisi ödendi",
@@ -149,7 +152,6 @@ export const LABELS: Labels = {
     elsewhere: "Başka bir yer",
   },
   StatementCheck: { verified: "Tutarlı", failed: "Tutmuyor", nothing: "Denetlenecek satır yok" },
-  RateSource: { document: "Belgedeki kur" },
   TodoKind: { missing_documents: "Eksik belge", unprocessed_document: "İşlenmeyen belge" },
   MonthStatus: {
     closed: "Kapandı",
@@ -406,6 +408,120 @@ function item(overrides: Partial<CalendarItem>): CalendarItem {
     ...overrides,
   };
 }
+
+const TL_ACCOUNT = { id: "teb-1", label: "TEB Vadesiz TL" };
+const EUR_ACCOUNT = { id: "garanti-eur", label: "Garanti BBVA Döviz EUR" };
+const GOLD_ACCOUNT = { id: "vakif-altin", label: "VakıfBank Altın" };
+const CARD_DEBT = { id: "teb-kart", label: "TEB Bonus ••4321" };
+
+export const HOLDINGS: Holdings = {
+  today: "2026-11-02",
+  worth: {
+    total: { minor: 23800000, currency: "TRY" },
+    assets: { minor: 25000000, currency: "TRY" },
+    debts: { minor: 1200000, currency: "TRY" },
+    certainty: "provisional",
+    parts: [
+      { account: TL_ACCOUNT, value: { minor: 17700000, currency: "TRY" }, certainty: "confirmed" },
+      { account: EUR_ACCOUNT, value: { minor: 7300000, currency: "TRY" }, certainty: "confirmed" },
+      { account: CARD_DEBT, value: { minor: -1200000, currency: "TRY" }, certainty: "provisional" },
+    ],
+    left_out: [{ account: { id: "garanti-1", label: "Garanti BBVA Vadesiz TL" }, reason: "bakiyesi hiçbir belgede yazmıyor" }],
+    currencies: [
+      { currency: "EUR", amount: { minor: 652055, currency: "EUR" }, rate: "36.50", rate_day: "2026-10-30", note: "" },
+      { currency: "USD", amount: null, rate: null, rate_day: null, note: "belgelerde USD kuru yok" },
+      { currency: "GR", amount: null, rate: null, rate_day: null, note: "gram altının TL fiyatı belgelerde yok" },
+    ],
+    note: "Hesapların son belgelerindeki bakiyeler; değeri bilinmeyenler toplama girmedi.",
+  },
+  holdings: [
+    {
+      account: TL_ACCOUNT,
+      group: "current",
+      amount: { minor: 17700000, currency: "TRY" },
+      value: { minor: 17700000, currency: "TRY" },
+      rate: null,
+      rate_day: null,
+      cost: null,
+      gain: null,
+      day: "2026-10-31",
+      certainty: "confirmed",
+      note: "31.10.2026 dökümünde 177.000,00 TL",
+    },
+    {
+      account: EUR_ACCOUNT,
+      group: "fx",
+      amount: { minor: 200000, currency: "EUR" },
+      value: { minor: 7300000, currency: "TRY" },
+      rate: "36.50",
+      rate_day: "2026-10-30",
+      cost: { minor: 7000000, currency: "TRY" },
+      gain: { minor: 300000, currency: "TRY" },
+      day: "2026-10-30",
+      certainty: "confirmed",
+      note: "30.10.2026 dökümünde 2.000,00 EUR",
+    },
+    {
+      account: GOLD_ACCOUNT,
+      group: "gold",
+      amount: { minor: 1250, currency: "GR" },
+      value: null,
+      rate: null,
+      rate_day: null,
+      cost: null,
+      gain: null,
+      day: "2026-10-28",
+      certainty: "confirmed",
+      note: "28.10.2026 cüzdanında 12,50 gr",
+    },
+    {
+      account: CARD_DEBT,
+      group: "cards",
+      amount: { minor: -1200000, currency: "TRY" },
+      value: { minor: -1200000, currency: "TRY" },
+      rate: null,
+      rate_day: null,
+      cost: null,
+      gain: null,
+      day: "2026-10-18",
+      certainty: "provisional",
+      note: "son ekstrenin borcu, kesimden sonraki ödemeler düşülerek",
+    },
+  ],
+  spread: [
+    {
+      currency: "TRY",
+      amount: { minor: 17700000, currency: "TRY" },
+      value: { minor: 17700000, currency: "TRY" },
+      share: 0.708,
+      accounts: [TL_ACCOUNT],
+    },
+    {
+      currency: "EUR",
+      amount: { minor: 200000, currency: "EUR" },
+      value: { minor: 7300000, currency: "TRY" },
+      share: 0.292,
+      accounts: [EUR_ACCOUNT],
+    },
+    { currency: "GR", amount: { minor: 1250, currency: "GR" }, value: null, share: null, accounts: [GOLD_ACCOUNT] },
+  ],
+  note: "Kurlar belgelerdeki döviz işlemlerinden, en yenisiyle; ağdan kur alınmıyor.",
+};
+
+export const FX_RATES: FxRates = {
+  currencies: [
+    {
+      currency: "EUR",
+      newest: { day: "2026-10-30", rate: "36.50", source: "document" },
+      history: [
+        { day: "2026-09-15", rate: "35.8012", source: "document" },
+        { day: "2026-10-30", rate: "36.50", source: "document" },
+      ],
+    },
+  ],
+  missing: ["GR"],
+  note: "Kurlar bankaların belgelerindeki döviz alım-satım satırlarından. TCMB ve ECB kurları henüz alınmıyor.",
+};
 
 export const CALENDAR: Calendar = {
   today: "2026-11-15",
@@ -2607,6 +2723,8 @@ export const handlers = [
   http.get("/api/subscriptions", () => HttpResponse.json(SUBSCRIPTIONS)),
   http.get("/api/calendar", () => HttpResponse.json(CALENDAR)),
   http.get("/api/forecast", () => HttpResponse.json(FORECAST)),
+  http.get("/api/holdings", () => HttpResponse.json(HOLDINGS)),
+  http.get("/api/fx", () => HttpResponse.json(FX_RATES)),
   http.get("/api/invoices", () => HttpResponse.json(INVOICES)),
   http.get("/api/settings/mail/other-senders", () => HttpResponse.json(OTHER_SENDERS)),
   http.get("/api/system", () => HttpResponse.json(systemStatus())),

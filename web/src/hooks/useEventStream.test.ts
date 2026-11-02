@@ -17,6 +17,8 @@ describe("staleBy", () => {
       keys.accounts,
       keys.allSpending,
       keys.insights,
+      keys.holdings,
+      keys.fx,
     ];
     const every = [keys.feedAll, keys.dashboard, keys.system];
     expect(staleBy("document.received")).toEqual([keys.allDocuments, ...analysis, ...every]);

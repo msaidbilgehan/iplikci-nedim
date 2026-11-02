@@ -18,6 +18,7 @@ const DocumentPage = lazy(() => import("./pages/DocumentPage"));
 const SubscriptionsPage = lazy(() => import("./pages/SubscriptionsPage"));
 const CalendarPage = lazy(() => import("./pages/CalendarPage"));
 const InsightsPage = lazy(() => import("./pages/InsightsPage"));
+const FxPage = lazy(() => import("./pages/FxPage"));
 const InvoicesPage = lazy(() => import("./pages/InvoicesPage"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 const ExtensionPage = lazy(() => import("./pages/ExtensionPage"));
@@ -44,6 +45,7 @@ export const routes: RouteObject[] = [
       { path: "abonelikler", element: screen(<SubscriptionsPage />) },
       { path: "takvim", element: screen(<CalendarPage />) },
       { path: "degerlendirme", element: screen(<InsightsPage />) },
+      { path: "doviz", element: screen(<FxPage />) },
       { path: "faturalar", element: screen(<InvoicesPage />) },
       { path: "bildirimler", element: screen(<NotificationsPage />) },
       { path: "kurulum/eklenti", element: screen(<ExtensionPage />) },

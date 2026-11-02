@@ -48,6 +48,7 @@ import type {
   AlertRuleModel,
   AlertRulesOut,
   AppliedOut,
+  AssetOut,
   ArrivalOut,
   BridgeOut,
   BulkOut,
@@ -55,6 +56,7 @@ import type {
   CalendarOut,
   CategoryOut,
   CategoryRulesOut,
+  CurrencyShareOut,
   Certainty,
   Channel,
   ChannelStage,
@@ -84,6 +86,10 @@ import type {
   FeedOut,
   ForecastOut,
   FreshnessOut,
+  FxCurrencyOut,
+  FxOut,
+  FxRateOut,
+  HoldingsOut,
   InstallmentOut,
   InvoiceOut,
   InvoicesOut,
@@ -293,6 +299,14 @@ export type { ForecastPart, HabitStatus, Tone, UnusualKind };
 // The dashboard (F06): every card with its plain-view sentence (`say`) and the screen it leads to (`link`).
 export type Dashboard = DashboardOut;
 export type NetWorth = NetWorthOut;
+// Döviz (F12, its Phase 6 part): the net worth in TL and the other units, every asset and debt, the currencies' shares
+// and the rates the documents print.
+export type Holdings = HoldingsOut;
+export type Asset = AssetOut; // an asset or a debt, with its value and cost where known
+export type CurrencyShare = CurrencyShareOut;
+export type FxRates = FxOut;
+export type CurrencyRates = FxCurrencyOut;
+export type FxRate = FxRateOut;
 export type OpenAlert = AlertOut;
 export type MonthClosing = ClosingOut;
 export type Freshness = FreshnessOut;

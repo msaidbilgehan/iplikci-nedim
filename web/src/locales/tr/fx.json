@@ -1,0 +1,67 @@
+{
+  "title": "Döviz",
+  "description": "Varlıklarınız ve borçlarınız TL'de, euro, dolar ve gram altın karşılıklarıyla. Değerler belgelerin yazdığı kurlarla bulunur; ağdan kur alınmaz.",
+  "empty": "Henüz bir varlık ya da borç yok",
+  "emptyText": "Hesaplarınızın belgeleri geldikçe varlıklarınız ve borçlarınız burada görünür.",
+  "emptyNext": "Belgeleri aç",
+  "say": "Net varlığınız {{total}}.",
+  "sayShare": "Değeri bilinen varlıklarınızın {{share, percentPossessive}} {{currency}} cinsinden.",
+  "next": "Hesapları aç",
+  "summary": {
+    "label": "Toplamlar",
+    "total": "Net varlık",
+    "assets": "Varlıklar",
+    "debts": "Borçlar"
+  },
+  "inOther": "Diğer birimlerde",
+  "noValue": "Kuru belgelerde yok",
+  "leftOut": "Toplama girmeyenler",
+  "currency": {
+    "TRY": "Türk lirası",
+    "EUR": "Euro",
+    "USD": "ABD doları",
+    "GR": "Gram altın"
+  },
+  "spread": {
+    "title": "Para birimlerine göre",
+    "chart": "Varlıkların para birimlerine dağılımı, TL değeriyle",
+    "itemName": "Para birimi",
+    "summary": "Değeri bilinen varlıklar {{total}}; en büyük pay {{currency}}, {{share, percent}}.",
+    "unvalued": "TL değeri bilinmeyenler",
+    "unvaluedText": "Kuru belgelerde olmadığı için bu varlıklar dağılıma ve toplama girmedi.",
+    "accounts": "Hesaplar"
+  },
+  "assets": {
+    "title": "Varlıklar ve borçlar",
+    "caption": "Varlıklar ve borçlar, kendi birimlerinde ve TL karşılıklarıyla",
+    "account": "Hesap",
+    "group": "Tür",
+    "amount": "Miktar",
+    "value": "TL karşılığı",
+    "rate": "Kur",
+    "rateText": "{{rate}} TL",
+    "rateDay": "{{day}} belgesindeki kur",
+    "cost": "Maliyet",
+    "gain": "Kur farkı",
+    "noValue": "Kuru belgelerde yok",
+    "unknown": "Bilinmiyor",
+    "inLira": "TL olduğu için yok",
+    "day": "Son belge",
+    "debt": "borç"
+  },
+  "rates": {
+    "title": "Kurlar",
+    "say": "Değerler {{currency}} için {{day}} belgesindeki {{rate}} kuruyla bulunur.",
+    "empty": "Belgelerde döviz kuru yok",
+    "emptyText": "Kurlar bankaların belgelerindeki döviz alım-satım satırlarından okunur. Böyle bir satır geldiğinde burada görünür.",
+    "caption": "Belgelerin yazdığı en yeni kurlar",
+    "currency": "Para birimi",
+    "newest": "En yeni kur",
+    "day": "Belgenin günü",
+    "source": "Kaynak",
+    "history": "{{currency}} kurları, eskiden yeniye",
+    "historyCaption": "{{currency}} için belgelerin yazdığı bütün kurlar",
+    "rate": "Kur",
+    "missing": "Kuru belgelerde olmayanlar: {{currencies}}."
+  }
+}

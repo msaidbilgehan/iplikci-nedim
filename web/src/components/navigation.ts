@@ -35,7 +35,7 @@ export const MENU: readonly ScreenGroup[] = [
       { to: "/islemler", key: "transactions", ready: true },
       { to: "/abonelikler", key: "subscriptions", ready: true },
       { to: "/takvim", key: "calendar", ready: true },
-      { to: "/doviz", key: "fx", ready: false },
+      { to: "/doviz", key: "fx", ready: true },
     ],
   },
   {

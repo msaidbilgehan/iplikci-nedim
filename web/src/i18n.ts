@@ -31,6 +31,7 @@ import dashboard from "./locales/tr/dashboard.json";
 import documents from "./locales/tr/documents.json";
 import extension from "./locales/tr/extension.json";
 import feed from "./locales/tr/feed.json";
+import fx from "./locales/tr/fx.json";
 import glossary from "./locales/tr/glossary.json";
 import insights from "./locales/tr/insights.json";
 import invoices from "./locales/tr/invoices.json";
@@ -57,6 +58,7 @@ export const resources = {
     calendar,
     insights,
     invoices,
+    fx,
     system,
     monthEnd,
   },
