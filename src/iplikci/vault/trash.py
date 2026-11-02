@@ -119,9 +119,11 @@ def _recycle(path: Path) -> Path:
         ]
 
     fo_delete, allow_undo, silent, no_confirmation, no_error_ui = 3, 0x40, 0x4, 0x10, 0x400
-    op = _FileOp(
-        None, fo_delete, str(path.resolve()) + "\0", None, allow_undo | silent | no_confirmation | no_error_ui, 0
-    )
+    # What the Recycle Bin cannot take (too big, a bin set to delete at once, a drive without one) Windows would delete
+    # for good without a word under no_confirmation; this flag makes it ask first, and a no keeps the file (ADR-0003).
+    want_nuke_warning = 0x4000
+    flags = allow_undo | silent | no_confirmation | no_error_ui | want_nuke_warning
+    op = _FileOp(None, fo_delete, str(path.resolve()) + "\0", None, flags, 0)
     shell: Any = getattr(ctypes, "windll").shell32  # noqa: B009 - windll exists only on Windows
     if shell.SHFileOperationW(ctypes.byref(op)) == 0 and not path.exists():
         return Path("$Recycle.Bin") / path.name  # the Recycle Bin keeps it under a name of its own

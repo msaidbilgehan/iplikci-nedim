@@ -19,12 +19,22 @@ READ = [Depends(only(Principal.BROWSER, Principal.CLIENT))]
 WRITE = [Depends(only(Principal.BROWSER))]
 
 
+class RestoreOutcomeOut(BaseModel):
+    """How the last restore went, as the start that tried it wrote it."""
+
+    backup: str
+    ok: bool
+    error: str  # why it could not be done; "" when it was. Its data stayed as it was before
+    at: str
+
+
 class ServiceStateOut(BaseModel):
     version: str
     started_at: str
     registered: bool  # the computer starts this data folder's service at login; a restart needs it
     manager: str  # launchd, systemd, Görev Zamanlayıcı; "" on a system with none this program knows
     can_end: bool  # this service can end itself here (false only where the API runs without the service)
+    restore: RestoreOutcomeOut | None  # the last restore's outcome; null before any
 
 
 class ServiceEndingOut(BaseModel):
@@ -46,12 +56,16 @@ def _life(context: Context) -> lifecycle.Lifecycle:
 def service_state(request: Request) -> ServiceStateOut:
     context = context_of(request)
     found = lifecycle.registration(context.ws)
+    restored = lifecycle.last_restore(context.ws)
     return ServiceStateOut(
         version=__version__,
         started_at=context.started_at,
         registered=found.registered,
         manager=found.manager,
         can_end=context.lifecycle is not None,
+        restore=None
+        if restored is None
+        else RestoreOutcomeOut(backup=restored.backup, ok=restored.ok, error=restored.error, at=restored.at),
     )
 
 

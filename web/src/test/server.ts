@@ -2923,6 +2923,7 @@ export function serviceState(overrides: Partial<ServiceState> = {}): ServiceStat
     registered: true,
     manager: "launchd",
     can_end: true,
+    restore: null,
     ...overrides,
   };
 }

@@ -400,6 +400,33 @@ describe("SettingsPage: the service's own life", () => {
     expect(screen.queryByText("Oturum kapandı")).not.toBeInTheDocument(); // the session was not lost by mistake
   });
 
+  it("says when the new service could not put the backup back, and that the data stayed as it was", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    serve();
+    // The start gave up on the backup: the data and its sessions stayed, so the same session reads why.
+    const outcome = { backup: "2026-11-14 18.30.00", ok: false, error: "yedek bozuk: 1 belgenin aslı yok", at: LATER };
+    const state = serviceAnswers(() => HttpResponse.json(serviceState({ started_at: LATER, restore: outcome })));
+    server.use(
+      http.post("/api/backups/:name/restore", ({ params }) => {
+        state.ended = true;
+        return HttpResponse.json({ backup: String(params["name"]), restarts: true }, { status: 202 });
+      }),
+    );
+    renderScreen(<SettingsPage />, { path: "/ayarlar" });
+    const backup = await card("Yedekler");
+    const list = await within(backup).findByRole("list", { name: "Yedekler, en yenisi önce" });
+    const [, manual] = within(list).getAllByRole("listitem");
+    await user.click(within(manual!).getByRole("button", { name: /yedeğini geri yükle$/ }));
+    const asked = await screen.findByRole("alertdialog", { name: /yedeği geri yüklensin mi\?$/ });
+    await user.click(within(asked).getByRole("button", { name: "Geri yükle" }));
+    await nextQuestion(state);
+    const failed = await screen.findByRole("region", { name: "Yedek geri yüklenemedi" });
+    expect(within(failed).getByText("yedek bozuk: 1 belgenin aslı yok")).toBeInTheDocument();
+    expect(within(failed).getByText(/^Veriler geri yüklemeden önceki hâliyle duruyor/)).toBeInTheDocument();
+    expect(screen.queryByText("Geri yükleme bitti; uygulamayı yeniden açın.")).not.toBeInTheDocument();
+  });
+
   it("says why a backup could not be put back, and the cards stay", async () => {
     serve();
     const why = "2026-11-14 18.30.00 yedeği bozuk: iplikci.db";

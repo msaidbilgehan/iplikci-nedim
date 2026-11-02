@@ -927,11 +927,14 @@ export function useRestoreBackup() {
  * when one answers but does not know this session (a backup put back brings its own), "old" while the one that ended
  * still does, "down" while none does. The health check could not tell the old service from the new one.
  */
-export async function serviceAnswer(before: string): Promise<"new" | "signedOut" | "old" | "down"> {
+export async function serviceAnswer(before: string): Promise<ServiceAnswer> {
   try {
     const state = await api.get<ServiceState>(SERVICE);
-    return state.started_at === before ? "old" : "new";
+    return state.started_at === before ? { kind: "old" } : { kind: "new", state };
   } catch (error) {
-    return error instanceof ApiError && error.signedOut ? "signedOut" : "down";
+    return { kind: error instanceof ApiError && error.signedOut ? "signedOut" : "down" };
   }
 }
+
+/** Which service answers after a restart or a restore; the new one says how its restore went. */
+export type ServiceAnswer = { kind: "new"; state: ServiceState } | { kind: "signedOut" | "old" | "down" };

@@ -372,10 +372,18 @@ def restore(ws: Workspace, backup: Backup, target: Path | None = None, actor: Ac
         )
     store = _store(backup.path.parent)  # a backup copied elsewhere brings its store along
     if target is None:
-        layout, safety = ws.layout, take(ws, BackupReason.BEFORE_RESTORE).name
+        before = take(ws, BackupReason.BEFORE_RESTORE)
+        layout, safety = ws.layout, before.name
         with ws.lock():
-            _put_back(backup, layout)
-            copied = _originals_back(store, backup, Vault(layout))
+            try:
+                _put_back(backup, layout)
+                copied = _originals_back(store, backup, Vault(layout))
+            except (VaultError, OSError) as exc:  # a damaged original, a full disk, a file another program holds
+                # What was there goes back whole; the originals copied meanwhile are only more of the same archive.
+                _put_back(before, layout)
+                raise BackupError(
+                    f"{backup.name} geri yüklenemedi ({exc}); veri klasörü geri yüklemeden önceki hâline döndü"
+                ) from exc
     else:
         if target.exists() and any(target.iterdir()):
             raise BackupError(f"{target} boş değil; yedek boş ya da yeni bir klasöre geri yüklenir")

@@ -125,6 +125,22 @@ def test_a_restore_in_place_can_be_undone(kept):
     assert notes(kept) == [] and config.load(kept.layout.settings).server.port == 9000
 
 
+def test_a_restore_stopped_half_way_puts_back_what_was_there(kept):
+    made = backup.take(kept, now=NOW)
+    [sha] = made.objects
+    for path in (kept.vault.path(sha), kept.layout.backups / "vault" / "objects" / sha[:2] / sha[2:4] / sha):
+        os.chmod(path, 0o600)
+    kept.vault.path(sha).unlink()  # the archive lost the original, and the backups' copy of it is damaged
+    (kept.layout.backups / "vault" / "objects" / sha[:2] / sha[2:4] / sha).write_bytes(b"bozuk")
+    with kept.db() as database:
+        database.execute("DELETE FROM annotations")
+    config.update(kept.layout.settings, "server", {"port": 9000})
+    with pytest.raises(backup.BackupError, match="geri yüklenemedi .* önceki hâline döndü"):
+        backup.restore(kept, made)
+    # Not the backup's note and port, nor half of them: the database and the settings as they were before.
+    assert notes(kept) == [] and config.load(kept.layout.settings).server.port == 9000
+
+
 def test_a_backup_is_restored_into_a_new_folder_whole(kept, tmp_path):
     made = backup.take(kept, now=NOW)
     done = backup.restore(kept, made, tmp_path / "yeni")

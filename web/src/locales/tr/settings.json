@@ -76,6 +76,8 @@
     "restoring": "Yedek geri yükleniyor; servis yeniden başlıyor…",
     "restored": "Geri yükleme bitti; uygulamayı yeniden açın.",
     "restoredText": "Geri yüklenen veriyle yeni bir oturum açılır: İplikçi Nedim'i açın.",
+    "notRestored": "Yedek geri yüklenemedi",
+    "notRestoredText": "Veriler geri yüklemeden önceki hâliyle duruyor; başka bir yedeği deneyebilirsiniz.",
     "notRegistered": "Bir yedek, servis bu bilgisayara bu veri klasörü için kayıtlıyken geri yüklenir; Servis kartı nedenini söyler."
   },
   "service": {

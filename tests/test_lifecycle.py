@@ -121,13 +121,74 @@ def test_a_service_run_by_hand_never_removes_the_one_the_computer_starts(client,
         assert [e for e in audit.entries(db) if e.action == lifecycle.REMOVED] == []
 
 
-def test_the_data_folder_goes_to_the_trash_only_at_the_end_and_only_when_asked(ws, monkeypatch):
+def _serving(code: int, *, remove: bool = False):
+    """A stand-in for the service's serving, ended with code; a removal asked for while it ran when remove."""
+
+    def serve(ws: Workspace, announce) -> int:
+        if remove:  # what lifecycle.remove leaves for the end of the run
+            (ws.run / lifecycle.REMOVAL_REQUEST).write_text('{"data_to_trash": true}', encoding="utf-8")
+        return code
+
+    return serve
+
+
+def test_the_data_folder_goes_to_the_trash_at_the_stop_and_only_once_the_service_let_go_of_it(ws, monkeypatch):
+    seen: list[tuple[Path, object]] = []
+
+    def to_trash(path: Path) -> Path:
+        seen.append((path, runner.instance.current(ws.run)))  # None: no process holds the data folder any more
+        return path.parent / "çöp kutusu" / path.name
+
+    monkeypatch.setattr(lifecycle, "move_to_system_trash", to_trash)
+    monkeypatch.setattr(runner, "_serve", _serving(lifecycle.STOP, remove=True))
+    said: list[str] = []
+    assert runner.run(ws, said.append) == lifecycle.STOP
+    assert seen == [(ws.home, None)] and said[-1].startswith("Veri klasörü çöp kutusuna taşındı")
+    assert not (ws.run / lifecycle.REMOVAL_REQUEST).exists()
+
+
+def test_a_restart_never_takes_the_data_folder_to_the_trash(ws, monkeypatch):
     moved: list[Path] = []
     monkeypatch.setattr(lifecycle, "move_to_system_trash", lambda path: moved.append(path) or path)
-    assert lifecycle.finish_removal(ws) is None and moved == []
-    (ws.run / lifecycle.REMOVAL_REQUEST).write_text('{"data_to_trash": true}', encoding="utf-8")
-    assert lifecycle.finish_removal(ws) == ws.home and moved == [ws.home]
-    assert not (ws.run / lifecycle.REMOVAL_REQUEST).exists()
+    monkeypatch.setattr(runner, "_serve", _serving(lifecycle.RESTART, remove=True))
+    assert runner.run(ws, lambda _: None) == lifecycle.RESTART
+    assert moved == [] and not (ws.run / lifecycle.REMOVAL_REQUEST).exists()
+
+
+def test_a_removal_an_earlier_run_left_behind_is_dropped_and_the_data_stays(ws, monkeypatch):
+    moved: list[Path] = []
+    monkeypatch.setattr(lifecycle, "move_to_system_trash", lambda path: moved.append(path) or path)
+    ws.run.mkdir(parents=True, exist_ok=True)
+    (ws.run / lifecycle.REMOVAL_REQUEST).write_text('{"data_to_trash": true}', encoding="utf-8")  # it crashed then
+    monkeypatch.setattr(runner, "_serve", _serving(lifecycle.STOP))
+    assert runner.run(ws, lambda _: None) == lifecycle.STOP
+    assert moved == [] and not (ws.run / lifecycle.REMOVAL_REQUEST).exists()
+
+
+def test_a_data_folder_that_cannot_be_moved_is_said_to_stay(ws, monkeypatch):
+    monkeypatch.setattr(lifecycle, "move_to_system_trash", lambda path: path)  # the Trash refused it
+    monkeypatch.setattr(runner, "_serve", _serving(lifecycle.STOP, remove=True))
+    said: list[str] = []
+    runner.run(ws, said.append)
+    assert said[-1] == f"Veri klasörü taşınamadı: {ws.home}"
+
+
+def test_a_backup_put_back_at_the_start_brings_its_own_settings(ws, monkeypatch):
+    def put_back(found: Workspace) -> object:
+        (found.home / "settings.toml").write_text("[server]\nport = 8702\n", encoding="utf-8")  # the backup's
+        return object()
+
+    seen: dict[str, object] = {}
+
+    def serve(found: Workspace, announce) -> int:
+        seen["port"] = found.port
+        seen["said"] = json.loads((found.run / runner.instance.HOLDER_NAME).read_text(encoding="utf-8"))["port"]
+        return lifecycle.STOP
+
+    monkeypatch.setattr(lifecycle, "apply_pending_restore", put_back)
+    monkeypatch.setattr(runner, "_serve", serve)
+    runner.run(ws, lambda _: None)
+    assert seen == {"port": 8702, "said": 8702}  # the service and what it says of itself both take the new port
 
 
 @pytest.fixture
@@ -149,6 +210,8 @@ def test_a_backup_is_checked_now_and_put_back_as_the_service_starts_again(demo_w
     assert config.load(demo_ws.layout.settings).backup.keep_days != 30
     assert not (demo_ws.run / lifecycle.RESTORE_REQUEST).exists()
     assert lifecycle.apply_pending_restore(demo_ws) is None  # once
+    said = found.get("/api/service", headers=bearer()).json()["restore"]  # what the interface waiting for it reads
+    assert (said["backup"], said["ok"], said["error"]) == (taken.name, True, "")
 
 
 @pytest.mark.parametrize("name", ["yok boyle bir yedek", "..%2F..%2Fbaska", "..%5Cbaska"])
@@ -158,8 +221,11 @@ def test_only_a_backup_of_the_backups_folder_can_be_put_back(client, life, regis
 
 
 def test_a_restore_that_cannot_be_done_at_the_start_is_dropped_and_the_data_stays(ws):
+    assert lifecycle.last_restore(ws) is None
     (ws.run / lifecycle.RESTORE_REQUEST).write_text('{"backup": "yok"}', encoding="utf-8")
     assert lifecycle.apply_pending_restore(ws) is None and not (ws.run / lifecycle.RESTORE_REQUEST).exists()
+    outcome = lifecycle.last_restore(ws)  # said for the interface that asked: it waits for the service, not for this
+    assert outcome is not None and (outcome.backup, outcome.ok) == ("yok", False) and "yedek yok" in outcome.error
     (ws.run / lifecycle.RESTORE_REQUEST).write_text("bozuk", encoding="utf-8")
     assert lifecycle.apply_pending_restore(ws) is None and not (ws.run / lifecycle.RESTORE_REQUEST).exists()
 

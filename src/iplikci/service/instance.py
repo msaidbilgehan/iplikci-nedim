@@ -53,6 +53,11 @@ def held(run: Path, holder: Holder, wait: float | None = None) -> Generator[None
             record.unlink(missing_ok=True)  # what this process wrote about itself
 
 
+def say(run: Path, holder: Holder) -> None:
+    """Say again who holds the lock, from inside `held`: a backup put back at the start brings its own port."""
+    write_private(run / HOLDER_NAME, json.dumps(asdict(holder)))
+
+
 def wait_stopped(run: Path, seconds: float) -> Holder | None:
     """Wait up to `seconds` for the process serving this data folder to end; the one still serving it, or None. A
     service told to stop finishes its requests first, and a program replaced under it would lose its files."""

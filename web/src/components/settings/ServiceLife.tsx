@@ -10,6 +10,7 @@ import { type ReactNode, useEffect, useEffectEvent, useId, useRef, useState } fr
 import { useTranslation } from "react-i18next";
 
 import {
+  type ServiceAnswer,
   serviceAnswer,
   useBackups,
   useLabels,
@@ -44,7 +45,8 @@ export type Ending =
   | { kind: "removed"; dataToTrash: boolean; home: string; manager: string }
   | { kind: "waiting"; why: Why; before: string } // before: when the service that ended had started
   | { kind: "slow"; why: Why; before: string }
-  | { kind: "back"; why: Why; signedOut: boolean };
+  | { kind: "back"; why: Why; signedOut: boolean }
+  | { kind: "notRestored"; error: string }; // the new service could not put the backup back: the data stayed
 
 /** Whether the page shows its cards: not while the service is gone, nor when a new session is needed. */
 export function showsCards(ending: Ending | null): boolean {
@@ -100,6 +102,13 @@ export function EndingState({ ending, onChange }: { ending: Ending; onChange: (n
           </Button>
         </Outcome>
       );
+    case "notRestored":
+      return (
+        <Outcome tone="critical" title={t("backup.notRestored")}>
+          <p>{ending.error}</p>
+          <p>{t("backup.notRestoredText")}</p>
+        </Outcome>
+      );
     case "back":
       if (ending.why === "restore") {
         return (
@@ -117,7 +126,15 @@ export function EndingState({ ending, onChange }: { ending: Ending; onChange: (n
  * this session) ends the wait; none within a minute and a half says so.
  */
 function useServiceReturn(ending: Ending, onChange: (next: Ending) => void, onRestarted: () => void): void {
-  const answered = useEffectEvent((why: Why, signedOut: boolean) => {
+  const answered = useEffectEvent((why: Why, answer: ServiceAnswer) => {
+    const signedOut = answer.kind === "signedOut";
+    // A restore the start could not do keeps the data and its sessions: the same session reads why.
+    const failed = why === "restore" && answer.kind === "new" ? answer.state.restore : null;
+    if (failed && !failed.ok) {
+      onRestarted();
+      onChange({ kind: "notRestored", error: failed.error });
+      return;
+    }
     if (why === "restart" && !signedOut) {
       onRestarted(); // the same session goes on: everything is asked again of the new service
     }
@@ -137,8 +154,8 @@ function useServiceReturn(ending: Ending, onChange: (next: Ending) => void, onRe
       if (stopped) {
         return;
       }
-      if (answer === "new" || answer === "signedOut") {
-        answered(waiting.why, answer === "signedOut");
+      if (answer.kind === "new" || answer.kind === "signedOut") {
+        answered(waiting.why, answer);
         return;
       }
       if (Date.now() >= until) {

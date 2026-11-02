@@ -1631,6 +1631,14 @@ export interface ReparsedOut {
   status: string;
 }
 
+/** How the last restore went, as the start that tried it wrote it. */
+export interface RestoreOutcomeOut {
+  backup: string;
+  ok: boolean;
+  error: string;
+  at: string;
+}
+
 export interface RestoringOut {
   backup: string;
   restarts: boolean;
@@ -1764,6 +1772,7 @@ export interface ServiceStateOut {
   registered: boolean;
   manager: string;
   can_end: boolean;
+  restore: RestoreOutcomeOut | null;
 }
 
 export interface SettingsOut {

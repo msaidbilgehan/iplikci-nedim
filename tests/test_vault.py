@@ -182,3 +182,34 @@ def test_linux_trash_notes_where_the_folder_came_from(tmp_path, monkeypatch):
     (first / "b.pdf").write_text("b")
     assert trash.freedesktop_trash(first) == bin_ / "files" / f"{first.name} 2"
     assert (put_back / "a.pdf").exists()  # the first one was not replaced
+
+
+class FakeShell:
+    """Windows' shell32 as the Recycle Bin call sees it: it records the flags and answers as asked."""
+
+    def __init__(self, take: bool) -> None:
+        self.take = take
+        self.flags: list[int] = []
+
+    def SHFileOperationW(self, op) -> int:  # the Windows function's own name
+        self.flags.append(op._obj.fFlags)
+        if self.take:
+            os.rename(op._obj.pFrom.rstrip("\0"), op._obj.pFrom.rstrip("\0") + ".geri-donusum")
+        return 0
+
+
+@pytest.mark.parametrize("take", [True, False])
+def test_windows_asks_before_deleting_what_the_recycle_bin_cannot_take(tmp_path, monkeypatch, take):
+    import ctypes
+
+    shell = FakeShell(take)
+    monkeypatch.setattr(ctypes, "windll", type("windll", (), {"shell32": shell}), raising=False)
+    kept = tmp_path / "belge.pdf"
+    kept.write_text("asıl")
+    found = trash._recycle(kept)
+    nuke_warning = 0x4000  # FOF_WANTNUKEWARNING: no file is deleted for good without the user's yes (ADR-0003)
+    assert shell.flags and shell.flags[0] & nuke_warning
+    if take:
+        assert found.parts[0] == "$Recycle.Bin" and not kept.exists()
+    else:  # the user said no to deleting it for good: it stays where it was
+        assert found == kept and kept.read_text() == "asıl"

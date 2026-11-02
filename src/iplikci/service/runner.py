@@ -6,7 +6,9 @@ import os
 import signal
 import sys
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import UTC, datetime
+from typing import TextIO
 
 import uvicorn
 
@@ -77,16 +79,22 @@ def run(ws: Workspace, announce: Callable[[str], None] = _say) -> int:
     launchd and systemd send) ends the service as Ctrl+C does: the worker finishes its job first. Uvicorn would
     otherwise raise the signal again after its own shutdown and end the process before that. What the service
     creates is the user's alone, and its log goes to logs/ (architecture §22). A backup a restore asked for is put
-    back first, before anything opens the database, and the browser extension's folder, once made, is brought up to
-    date with the program; a removal that asked for it moves the data folder to the Trash last."""
-    _console_to_file(ws)
+    back first, before anything opens the database, and the service goes on with the backup's settings; the browser
+    extension's folder, once made, is brought up to date with the program. A removal that asked for it moves the data
+    folder to the Trash last, once the lock, the log and the output file have let go of it."""
+    output = _console_to_file(ws)
     holder = instance.Holder(os.getpid(), ws.port, datetime.now(UTC).isoformat(timespec="seconds"), __version__)
     umask = os.umask(0o077)
     on_term = signal.signal(signal.SIGTERM, signal.default_int_handler)
+    to_trash = False
     try:
         with instance.held(ws.run, holder), logs.kept(ws.logs):
             log.info("service %s starting on port %d", __version__, ws.port)
-            lifecycle.apply_pending_restore(ws)
+            lifecycle.drop_stale_removal(ws)
+            if lifecycle.apply_pending_restore(ws) is not None:
+                ws = Workspace.load(ws.home)  # the backup's settings: its port, its e-mail way, its names
+                holder = replace(holder, port=ws.port)
+                instance.say(ws.run, holder)
             extension.refresh(ws)
             try:
                 code = _serve(ws, announce)
@@ -97,10 +105,16 @@ def run(ws: Workspace, announce: Callable[[str], None] = _say) -> int:
                 log.info("service stopped")
                 raise
             log.info("service stopped%s", " to start again" if code == lifecycle.RESTART else "")
-            lifecycle.finish_removal(ws)
+            to_trash = lifecycle.removal_asked(ws, code)
+            if to_trash:
+                log.info("the data folder goes to the Trash as the service ends")
     finally:
         signal.signal(signal.SIGTERM, on_term)
         os.umask(umask)
+    if to_trash:
+        _close(output)
+        moved = lifecycle.move_data_to_trash(ws)
+        announce(f"Veri klasörü çöp kutusuna taşındı: {moved}" if moved else f"Veri klasörü taşınamadı: {ws.home}")
     return code
 
 
@@ -144,12 +158,25 @@ def _serve(ws: Workspace, announce: Callable[[str], None]) -> int:
     return life.code
 
 
-def _console_to_file(ws: Workspace) -> None:
+def _console_to_file(ws: Workspace) -> TextIO | None:
     """pythonw, which the Windows task runs, has no console: what the service prints goes to the file where launchd
-    and systemd send it on the other systems. The file stays open for the life of the process."""
+    and systemd send it on the other systems. The file stays open for the life of the process, unless the data
+    folder goes to the Trash; the file opened here, or None."""
     if sys.stdout is not None and sys.stderr is not None:
-        return
+        return None
     ws.logs.mkdir(parents=True, exist_ok=True)
     output = open(ws.logs / logs.OUTPUT_NAME, "a", encoding="utf-8", buffering=1)  # noqa: SIM115
     sys.stdout = sys.stdout or output
     sys.stderr = sys.stderr or output
+    return output
+
+
+def _close(output: TextIO | None) -> None:
+    """Close the output file of a process without a console, so that Windows can move the folder it is in."""
+    if output is None:
+        return
+    if sys.stdout is output:
+        sys.stdout = None  # pythonw's own value: no console
+    if sys.stderr is output:
+        sys.stderr = None
+    output.close()
