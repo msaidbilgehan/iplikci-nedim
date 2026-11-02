@@ -6,10 +6,16 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 | Revizyon | Konu | Durum | Belge |
 |---|---|---|---|
 | V0 | MVP `gider-analizi`: banka belgelerini okuyan, doğrulayan, yorumlayan yerel komut satırı programı, web paneli ve MCP sunucusu | 2026-10-31'de emekliye ayrıldı (K17) | Depo dışında, veri klasöründeki arşivde: `archive/mvp/CLAUDE.md` ve `README.md` |
-| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–6 (v0.1.0–v0.7.0) ve arayüzün sadeleşmesi (v0.7.1) uygulandı; sırada Aşama 7 var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
+| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–6 (v0.1.0–v0.7.0), arayüzün sadeleşmesi (v0.7.1) ve resimlerle anlatan Pano (v0.7.2) uygulandı; sırada Aşama 7 var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
 | V2 | Finansal strateji uzmanları ve yapay zekâ asistanı | Gelecek (V1'den sonra) | [`v2/requirements.md`](v2/requirements.md) |
 
 ## Değişiklik kaydı
+
+- 2026-11-03 (23) — Pano'nun sade görünümü resimlerle anlatır (`arayuz` dalı, v0.7.2); belgeler kodla uyumlu
+  hâle getirildi:
+  - [Özellikler](v1/features.md#f06--pano): F06 sade görünümün hikâyesini (son kapanan ay, aylar, paranın nereye
+    gittiği, önümüzdeki 30 gün, ne yapmalı) ve iki görünümün menüsünü anlatır.
+  - README'nin durum bölümü güncellendi; `CHANGELOG.md`'ye 0.7.2 eklendi.
 
 - 2026-11-02 (22) — Aşama 6'nın ardından arayüz sadeleşti (`arayuz` dalı, v0.7.1); belgeler kodla uyumlu hâle
   getirildi:

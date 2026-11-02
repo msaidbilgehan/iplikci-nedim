@@ -4,7 +4,10 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
-## [Yayımlanmamış]
+## [0.7.2] — 2026-11-03 — Pano resimlerle anlatır
+
+Arayüz hâlâ karışık bulundu ve paranın grafiklerle okunması istendi. Sade görünümde Pano finans bilgisi
+gerektirmeden, resimlerle ve bir sonraki adımla anlatır; menü sık kullanılan ekranlara indi.
 
 ### Eklenenler
 
