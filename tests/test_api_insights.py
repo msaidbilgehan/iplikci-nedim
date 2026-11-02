@@ -42,7 +42,7 @@ def test_the_interpretation_names_its_window_of_complete_months(found):
 
 def test_findings_say_their_tone_and_lead_to_the_rows_they_rest_on(found):
     fees = next(f for f in found["findings"] if f["link"]["query"].get("kind") == "interest_fee")
-    assert fees["tone"] == "attention" and "9 ayda" in fees["text"]
+    assert fees["tone"] == "attention" and fees["text"].startswith("Ocak 2026 – Ekim 2026 arasındaki 9 tam ayda")
     assert {f["tone"] for f in found["findings"]} <= {"attention", "info", "good"}
     assert all(f["link"]["screen"] in ("transactions", "insights") for f in found["findings"])
 

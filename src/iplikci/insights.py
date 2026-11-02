@@ -1283,6 +1283,24 @@ def _habit_finding(c: _Context) -> None:
     c.ins.findings.append(Finding("dikkat", "En büyük alışkanlık", text + ".", {"merchant": top.name}))
 
 
+# How each kind of interest and fee is avoided: paying the debt in full avoids interest, not a transfer's fee.
+_AVOIDED_BY = {
+    "Kredi Kartı Faizi": "kart faizi, ekstre her ay tamamen ödenince önlenir",
+    "Ek Hesap (KMH) Faizi": "ek hesap faizi, hesap eksiye düşürülmeyince önlenir",
+    "Kredi Faizi": "kredi faizi, kredi erken kapatılınca azalır",
+    CARD_FEES: "kart aidatı, aidatsız bir karta geçerek ya da iadesi istenerek önlenir",
+    "Transfer & İşlem Ücretleri": "transfer ücretleri, ücretsiz transfer hakkı olan bir hesap ya da kanalla önlenir",
+}
+# The budget's word for the same, after "öneri:".
+_AVOID_NOTE = {
+    "Kredi Kartı Faizi": "borcu tam ödeyerek",
+    "Ek Hesap (KMH) Faizi": "borcu tam ödeyerek",
+    "Kredi Faizi": "krediyi erken kapatarak",
+    CARD_FEES: "aidatsız kartla",
+    "Transfer & İşlem Ücretleri": "ücretsiz transfer kanalıyla",
+}
+
+
 def _fees_finding(c: _Context) -> None:
     by_category: dict[str, Decimal] = defaultdict(Decimal)
     for t in c.expenses:
@@ -1291,16 +1309,16 @@ def _fees_finding(c: _Context) -> None:
     total = sum(by_category.values(), ZERO)
     if total < 1:
         return
-    parts = ", ".join(f"{cat} {tl(v)}" for cat, v in sorted(by_category.items(), key=lambda kv: -kv[1]) if v >= 1)
-    c.ins.findings.append(
-        Finding(
-            "dikkat",
-            "Faiz ve banka ücretleri",
-            f"{len(c.window)} ayda {tl(total)}, ayda {tl(total / len(c.window))}: {parts}. "
-            "Borç zamanında ve tam ödenince bunların hepsi önlenebilir.",
-            {"kind": TransactionKind.INTEREST_FEE},
-        )
+    ranked = [cat for cat, v in sorted(by_category.items(), key=lambda kv: -kv[1]) if v >= 1]
+    parts = ", ".join(f"{cat} {tl(by_category[cat])}" for cat in ranked)
+    text = (
+        f"{_window_text(c.window)} arasındaki {len(c.window)} tam ayda {tl(total)}, ayda "
+        f"{tl(total / len(c.window))}: {parts}."
     )
+    if ways := [_AVOIDED_BY[cat] for cat in ranked if cat in _AVOIDED_BY]:
+        advice = "; ".join(ways)
+        text += f" {advice[0].upper()}{advice[1:]}."
+    c.ins.findings.append(Finding("dikkat", "Faiz ve banka ücretleri", text, {"kind": TransactionKind.INTEREST_FEE}))
 
 
 def _overdraft_finding(c: _Context) -> None:
@@ -1366,8 +1384,8 @@ def _regular_findings(c: _Context) -> None:
         text = (
             "Bir süredir hiçbir belgede görünmeyen düzenli ödemeler: "
             + ", ".join(f"{s.merchant} (son {_day(s.last.date)}, {tl(s.monthly)})" for s in missing)
-            + ". Başka bir hesaptan ödeniyorsa o hesabın dökümünü de ekleyin; bittiyse kişisel kurallarınızda "
-            "_biten listesine ekleyin."
+            + ". Başka bir hesaptan ödeniyorsa o hesabın dökümünü de ekleyin; bittiyse Abonelikler ekranında "
+            "“İptal ettim” ile işaretleyin."
         )
         ins.findings.append(Finding("bilgi", "Görünmeyen faturalar", text))
     for s in (s for s in ins.series if s.status == "iptal_sonrasi"):
@@ -1533,7 +1551,7 @@ def _write_steps(c: _Context) -> None:
             Step(
                 "Abonelikleri gözden geçirin",
                 f"İsteğe bağlı abonelikler ayda {tl(sum((s.monthly for s in subs), ZERO))}: {_payee_list(subs)}. "
-                "İptal ettiklerinizi kişisel kurallarınızda _biten listesine ekleyin; tahmin ona göre düşer.",
+                "İptal ettiklerinizi Abonelikler ekranında “İptal ettim” ile işaretleyin; tahmin ona göre düşer.",
             )
         )
 
@@ -1564,11 +1582,19 @@ def _write_steps(c: _Context) -> None:
     big = [t for t in (ins.trend.big if ins.trend else []) if t.necessity != NEEDED]
     if big:
         total = sum((t.amount for t in big), ZERO)
+        on_card = sum(1 for t in big if c.ds.accounts[t.account].type == AccountType.CREDIT_CARD)
+        # Only a credit card turns a large purchase into card debt: one paid from an account takes the month's money.
+        if on_card == len(big):
+            paid, spared = "tek seferde karttan ödendi", "kart borcunu ve faizi önler"
+        elif on_card:
+            paid, spared = f"tek seferde ödendi ({on_card} tanesi karttan)", "kart borcunu ve faizi önler"
+        else:
+            paid, spared = "tek seferde hesaptan ödendi", "o ayın bütçesinin bir anda açık vermesini önler"
         steps.append(
             Step(
                 "Büyük alışverişler için önceden biriktirin",
-                f"{len(window)} ayda {len(big)} büyük alışveriş ({tl(total)}) tek seferde karttan ödendi. "
-                f"Bunlar için her ay {tl(total / len(window))} ayırmak kart borcunu ve faizi önler.",
+                f"{len(window)} ayda {len(big)} büyük alışveriş ({tl(total)}) {paid}. "
+                f"Bunlar için her ay {tl(total / len(window))} ayırmak {spared}.",
             )
         )
 
@@ -1596,6 +1622,11 @@ def _write_budget(c: _Context) -> None:
     needed = c.level(NEEDED)
     unsure = c.level(Necessity.UNKNOWN, work=True)
     fees = c.typical(lambda t: t.necessity == AVOIDABLE)
+    base = set(c.base)
+    ways = {
+        _AVOID_NOTE.get(t.category, "") for t in c.expenses if t.necessity == AVOIDABLE and month_of(t.date) in base
+    }
+    avoid = ", ".join(sorted(w for w in ways if w))
     work = c.typical(lambda t: t.category in WORK_CATEGORIES and id(t) not in c.in_series)
     optional, cut = _optional_cut(c)
     saving = sum((s.monthly for s in ins.series if s.running and s.last.kind == TransactionKind.INVESTMENT), ZERO)
@@ -1615,7 +1646,9 @@ def _write_budget(c: _Context) -> None:
         BudgetLine("İsteğe bağlı harcamalar", optional, optional - cut, "öneri: aylık sınır"),
         BudgetLine("Yazılım, bulut ve muhasebe (abonelik dışı)", work, work, "işinizse şirkete taşınabilir"),
         BudgetLine("Sınıflanmamış harcamalar", unsure, unsure, "kişisel kurallarla netleşir"),
-        BudgetLine("Faiz ve banka ücretleri", fees, ZERO, "öneri: borcu tam ödeyerek sıfırlayın"),
+        BudgetLine(
+            "Faiz ve banka ücretleri", fees, ZERO, f"öneri: {avoid} sıfırlayın" if avoid else "öneri: sıfırlayın"
+        ),
         BudgetLine("BES ve düzenli birikim", saving, saving, "düzenli ödemelerden"),
     ]
     if ins.flow:

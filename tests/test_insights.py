@@ -594,6 +594,71 @@ def test_interpretation_prices_the_steps_and_balances_the_budget():
     assert left.plan - left.now == pytest.approx(sum(line.now - line.plan for line in spent))
 
 
+def _account_months(extra: list[Transaction]) -> Dataset:
+    """A current account listed from January to June 2026 with a salary, and extra rows."""
+    statements = [
+        Statement(
+            account="cash",
+            cut_date=date(2026, 6, 30),
+            currency="TRY",
+            source="v.xls",
+            previous=Decimal(0),
+            total=Decimal(50000),
+            start=date(2026, 1, 1),
+        )
+    ]
+    salary = [
+        tx(d, "Örnek İşveren", Decimal(-40000), "Maaş", None, TransactionKind.INCOME, "cash")
+        for d in monthly(date(2026, 1, 1), 6)
+    ]
+    return dataset(salary + extra, statements, coverage={"cash": full_coverage("cash", "2026-01", "2026-06")})
+
+
+def test_fees_are_advised_on_by_their_kind_and_a_purchase_from_an_account_is_no_card_debt():
+    fee = (TransactionKind.INTEREST_FEE, "cash")
+    fees = [
+        tx(d, "TEB faiz & ücretleri", Decimal(8), "Transfer & İşlem Ücretleri", Necessity.UNNECESSARY, *fee)
+        for d in monthly(date(2026, 1, 3), 6)
+    ]
+    laptop = tx(date(2026, 4, 25), "Örnek Elektronik", Decimal(8500), "Elektronik", account="cash")
+    music = [tx(d, "Örnek Müzik", Decimal("99.99"), account="cash") for d in monthly(date(2026, 1, 9), 6)]
+    ins = interpret(_account_months([*fees, laptop, *music]))
+    step = next(s for s in ins.steps if s.title == "Abonelikleri gözden geçirin")
+    assert step.text.endswith(
+        "İptal ettiklerinizi Abonelikler ekranında “İptal ettim” ile işaretleyin; tahmin ona göre düşer."
+    )
+    found = next(f for f in ins.findings if f.title == "Faiz ve banka ücretleri")
+    # A transfer's fee is not avoided by paying a debt on time.
+    assert found.text == (
+        "Ocak 2026 – Haziran 2026 arasındaki 6 tam ayda 48 TL, ayda 8 TL: Transfer & İşlem Ücretleri 48 TL. Transfer "
+        "ücretleri, ücretsiz transfer hakkı olan bir hesap ya da kanalla önlenir."
+    )
+    fee_line = next(line for line in ins.budget if line.label == "Faiz ve banka ücretleri")
+    assert (fee_line.now, fee_line.note) == (Decimal(8), "öneri: ücretsiz transfer kanalıyla sıfırlayın")
+    step = next(s for s in ins.steps if s.title == "Büyük alışverişler için önceden biriktirin")
+    assert step.text == (
+        "6 ayda 1 büyük alışveriş (8.500 TL) tek seferde hesaptan ödendi. Bunlar için her ay 1.417 TL ayırmak o ayın "
+        "bütçesinin bir anda açık vermesini önler."
+    )
+    # Card interest is: on a card, the same purchase is card debt.
+    interest = tx(
+        date(2026, 5, 14), "Kart faizi", Decimal(300), "Kredi Kartı Faizi", Necessity.UNNECESSARY, fee[0], "card"
+    )
+    on_card = tx(date(2026, 4, 25), "Örnek Elektronik", Decimal(8500), "Elektronik")
+    statements = card_statements(date(2026, 1, 14), 6)
+    ds = _account_months([*fees, interest, on_card])
+    ds.statements += statements
+    ds.coverage["card"] = full_coverage("card", "2026-01", "2026-06")
+    ins = interpret(ds)
+    found = next(f for f in ins.findings if f.title == "Faiz ve banka ücretleri")
+    assert found.text.endswith(
+        ": Kredi Kartı Faizi 300 TL, Transfer & İşlem Ücretleri 48 TL. Kart faizi, ekstre her ay tamamen ödenince "
+        "önlenir; transfer ücretleri, ücretsiz transfer hakkı olan bir hesap ya da kanalla önlenir."
+    )
+    step = next(s for s in ins.steps if s.title == "Büyük alışverişler için önceden biriktirin")
+    assert "tek seferde karttan ödendi" in step.text and step.text.endswith("kart borcunu ve faizi önler.")
+
+
 # --- Turkish ----------------------------------------------------------------------------------
 
 
