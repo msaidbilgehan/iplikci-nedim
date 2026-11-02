@@ -6,10 +6,21 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 | Revizyon | Konu | Durum | Belge |
 |---|---|---|---|
 | V0 | MVP `gider-analizi`: banka belgelerini okuyan, doğrulayan, yorumlayan yerel komut satırı programı, web paneli ve MCP sunucusu | 2026-10-31'de emekliye ayrıldı (K17) | Depo dışında, veri klasöründeki arşivde: `archive/mvp/CLAUDE.md` ve `README.md` |
-| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–4 (v0.1.0–v0.5.0) uygulandı; sırada Aşama 5 var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
+| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–5 (v0.1.0–v0.6.0) uygulandı; sırada Aşama 6 var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
 | V2 | Finansal strateji uzmanları ve yapay zekâ asistanı | Gelecek (V1'den sonra) | [`v2/requirements.md`](v2/requirements.md) |
 
 ## Değişiklik kaydı
+
+- 2026-11-02 (16) — Aşama 5 uygulandı (`asama-5` dalı); belgeler kodla uyumlu hâle getirildi:
+  - README'nin durum bölümü güncellendi; `CHANGELOG.md`'ye 0.6.0 eklendi.
+  - [ADR-0010](adr/0010-notification-channels.md)'a uygulama notu: kurallar, kanallar, tekrar engeli, sessiz saat ve
+    özet, yeniden deneme, duran kanal, Telegram eşleştirmesi ve `[notify]` ayarları.
+  - [Yol haritası](v1/roadmap.md#aşama-5--bildirimler): Aşama 5'in durumu.
+  - [Özellikler](v1/features.md#f13--bildirimler): F13'te Aşama 5'te uygulananlar.
+  - [Mimari](v1/architecture.md): akış olaylarının hedefleri ve ayrıntıları, bildirimlerin uygulanışı, API tablosunda
+    bildirimler, uyarı kuralları, Telegram ve olay akışının `notifications` olayı, MCP'de `alerts`, `[notify]`
+    ayarları.
+  - [Yorum](domain/interpretation.md#akış-olayları): akış olayları ve onları söyleyen kurallar.
 
 - 2026-11-02 (15) — Aşama 4 uygulandı (`asama-4` dalı); belgeler kodla uyumlu hâle getirildi:
   - README'nin durum bölümü güncellendi; `CHANGELOG.md`'ye 0.5.0 eklendi.

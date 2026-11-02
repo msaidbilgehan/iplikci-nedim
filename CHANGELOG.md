@@ -4,7 +4,13 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
-## [Yayımlanmamış] — Aşama 5: Bildirimler
+## [0.6.0] — 2026-11-02 — Aşama 5: Bildirimler
+
+Akışın olayları kurallara göre bildirime dönüşür ve uygulama içi kutuya, masaüstüne, Telegram'a ya da kişinin kendi
+adresine gider. Her uyarı kanal başına bir kez gider; sessiz saatte ve sıklık sınırının üstünde gelenler özetle gider,
+başarısız teslim yeniden denenir (F13). Akış yaklaşan son ödemeleri, eksiye düşecek bakiyeyi, gelmeyen ödemeleri,
+geciken geliri, abonelik zamlarını ve büyük harcamaları da söyler. Kurallar, kanallar, Telegram eşleştirmesi ve teslim
+kaydı Bildirimler ekranındadır.
 
 ### Eklenenler
 
