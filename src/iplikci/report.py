@@ -386,7 +386,7 @@ def _as_text(wb: Workbook) -> None:
 
 _HEADER_FONT = Font(bold=True, color="FFFFFF")
 _HEADER_FILL = PatternFill("solid", fgColor="2A78D6")
-_MONEY = '#,##0.00 "₺";[Red]-#,##0.00 "₺"'
+_MONEY = '#,##0.00 "TL";[Red]-#,##0.00 "TL"'
 
 
 def _sheet_header(ws, headers: list[str], widths: list[int]) -> None:

@@ -230,7 +230,7 @@ def test_a_payment_after_the_cut_lowers_the_card_debt_until_the_next_statement(c
     # The card's statements show its purchases: the payment is not spending on an unseen card.
     assert (payment.kind, payment.provisional) == (TransactionKind.CARD_PAYMENT, True)
     [card] = interpret(ds).holdings
-    assert card.amount == Decimal(-2500) and "sonra ₺1.500 ödendi" in card.note
+    assert card.amount == Decimal(-2500) and "sonra 1.500 TL ödendi" in card.note
 
 
 def test_the_paying_accounts_list_confirms_a_card_payment_receipt(cat):
@@ -299,9 +299,9 @@ def test_provisional_receipts_move_the_balance_their_list_closed_with(cat):
     ins = interpret(ds)
     [cash] = ins.holdings
     assert (cash.amount, cash.as_of) == (Decimal(7495), date(2026, 11, 3))
-    assert "31.10.2026 dökümünde ₺10.000; sonraki 2 dekontla −₺2.505 (geçici" in cash.note
+    assert "31.10.2026 dökümünde 10.000 TL; sonraki 2 dekontla −2.505 TL (geçici" in cash.note
     finding = next(f for f in ins.findings if f.title == "Ekstre gelmeden işlenen dekontlar")
-    assert "2 işlem" in finding.text and "kişilere giden ₺2.500" in finding.text
+    assert "2 işlem" in finding.text and "kişilere giden 2.500 TL" in finding.text
     assert finding.filter == {"provisional": True}
 
 

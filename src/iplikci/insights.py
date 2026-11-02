@@ -140,9 +140,9 @@ def pct(share: Decimal | float) -> str:
 
 
 def tl(value: Decimal | float) -> str:
-    """1234.5 -> '₺1.235', -50 -> '−₺50': whole liras, halves rounded up."""
+    """1234.5 -> '1.235 TL', -50 -> '−50 TL': whole liras, halves rounded up, written as the interface writes amounts."""
     whole = round_half_up(to_decimal(value), 0)
-    return ("−" if whole < 0 else "") + "₺" + f"{abs(whole):,.0f}".replace(",", ".")
+    return ("−" if whole < 0 else "") + f"{abs(whole):,.0f}".replace(",", ".") + " TL"
 
 
 def _day(d: date) -> str:

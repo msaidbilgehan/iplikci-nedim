@@ -44,9 +44,9 @@
   const nfc = new Intl.NumberFormat("tr-TR", { notation: "compact", maximumFractionDigits: 1 });
   const nfp = new Intl.NumberFormat("tr-TR", { style: "percent", maximumFractionDigits: 1 });
   const minus = (v) => (v < 0 ? "−" : "");
-  const tl = (v) => minus(Math.round(v)) + "₺" + nf0.format(Math.abs(v));
-  const tl2 = (v) => minus(v) + "₺" + nf2.format(Math.abs(v));
-  const tlc = (v) => minus(v) + "₺" + nfc.format(Math.abs(v));
+  const tl = (v) => minus(Math.round(v)) + nf0.format(Math.abs(v)) + " TL";
+  const tl2 = (v) => minus(v) + nf2.format(Math.abs(v)) + " TL";
+  const tlc = (v) => minus(v) + nfc.format(Math.abs(v)) + " TL";
   const MON = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
   const MONL = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
   const mShort = (m) => `${MON[+m.slice(5) - 1]} ${m.slice(2, 4)}`;
