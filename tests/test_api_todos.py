@@ -49,6 +49,17 @@ def test_the_list_names_each_item_with_its_steps_and_where_it_is_shown(demo_ws):
     assert found["counts"]["unprocessed_document"] == 1 and found["ignored"] == 0
 
 
+def test_an_item_names_the_account_as_the_user_named_it_and_keeps_its_key(demo_ws):
+    client = client_for(demo_ws)
+    gap = client.get("/api/todos", headers=bearer()).json()["items"][0]
+    account = next(a for a in analyze(demo_ws).dataset.accounts.values() if a.label == gap["title"])
+    url = client.post("/api/login-links", headers=bearer()).json()["url"]
+    client.get(url, follow_redirects=False)
+    assert client.put(f"/api/accounts/{account.id}/alias", json={"alias": "Maaş hesabı"}, headers=OWN_PAGE).is_success
+    named = client.get("/api/todos", headers=bearer()).json()["items"][0]
+    assert (named["title"], named["key"]) == ("Maaş hesabı", gap["key"])  # taken off the list, it would stay off
+
+
 def test_an_item_taken_off_the_list_stays_off_and_comes_back_on_request(demo_ws):
     client = client_for(demo_ws)
     key = client.get("/api/todos", headers=bearer()).json()["items"][1]["key"]

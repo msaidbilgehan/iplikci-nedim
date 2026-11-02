@@ -6,6 +6,7 @@ an account's gap a new item, a merchant's rows stay one item however many come. 
 the feed's state; rebuilding the database from the primary data forgets it, and the items come back once."""
 
 from collections import defaultdict
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -24,7 +25,7 @@ from ..parsers.messages import ATTACHED, NO_MONEY
 from ..storage import audit, documents, feed_state
 from ..storage.annotations import Annotation
 from ..storage.db import Database
-from .analysis import Analysis, document_gaps
+from .analysis import Analysis, account_labels, document_gaps
 from .annotate import Unsplit
 from .bridge import INCOMPLETE_REASON
 from .links import Link, Screen
@@ -94,20 +95,19 @@ def _uncategorized(ds: Dataset) -> list[Todo]:
     return sorted(found, key=lambda t: (-t.count, -abs(t.amount or 0), t.title))
 
 
-def _evidence(ds: Dataset) -> list[Todo]:
+def _evidence(ds: Dataset, names: Mapping[str, str]) -> list[Todo]:
     found: list[Todo] = []
     for line in ds.receipts:
         if line.status is not NOT_ON_STATEMENT:
             continue
         t = line.txn
-        account = ds.accounts.get(t.account)
         found.append(
             Todo(
                 key=f"evidence:{t.fingerprint}",
                 kind=TodoKind.UNMATCHED_EVIDENCE,
                 title=t.description,
                 detail=(
-                    f"{_day(t.date)} günlü {_tl(t.amount)}; {account.label if account else t.account} ekstresi o "
+                    f"{_day(t.date)} günlü {_tl(t.amount)}; {names.get(t.account, t.account)} ekstresi o "
                     "günleri kapsıyor ama bu hareketi göstermiyor. Toplamlara girmez."
                 ),
                 count=1,
@@ -144,13 +144,12 @@ def _invoices(ds: Dataset) -> list[Todo]:
     ]
 
 
-def _statements(ds: Dataset) -> list[Todo]:
+def _statements(ds: Dataset, names: Mapping[str, str]) -> list[Todo]:
     found: list[Todo] = []
     for s in ds.statements:
         if s.verified:
             continue
-        account = ds.accounts.get(s.account)
-        label = account.label if account else s.account
+        label = names.get(s.account, s.account)
         if s.is_account:
             why = f"bakiye denetimlerinin {s.checks_ok}/{s.checks_total} tanesi tutuyor"
         else:
@@ -175,16 +174,16 @@ def _statements(ds: Dataset) -> list[Todo]:
     return found
 
 
-def _gaps(ds: Dataset, today: date) -> list[Todo]:
+def _gaps(ds: Dataset, today: date, names: Mapping[str, str]) -> list[Todo]:
     found: list[Todo] = []
     for gap in document_gaps(ds, today):
         what = "ekstresi" if gap.kind == "ekstre" else "hesap hareketleri"
         months = f"; eksik aylar: {', '.join(month_name(m) for m in gap.months)}" if gap.months else ""
         found.append(
             Todo(
-                key=f"gap:{gap.account}:{gap.last.isoformat()}:{','.join(gap.months)}",
+                key=f"gap:{gap.account}:{gap.last.isoformat()}:{','.join(gap.months)}",  # the bank's label: it lasts
                 kind=TodoKind.MISSING_DOCUMENTS,
-                title=gap.account,
+                title=names.get(gap.id, gap.account),
                 detail=f"Son {what} {_day(gap.last)} tarihli, {gap.behind} gün önce{months}.",
                 count=len(gap.months) or 1,
                 amount=None,
@@ -321,15 +320,16 @@ def _ignored(db: Database) -> dict[str, str]:
 def items(ws: Workspace, analysis: Analysis, today: date, with_ignored: bool = False) -> list[Todo]:
     """The to-do list, by kind in F19's order; what the user took off is left out unless with_ignored."""
     ds = analysis.dataset
+    names = account_labels(analysis)  # as the screens name the accounts: the user's names first
     with ws.db() as db:
         stored = _documents(db) + _alarms(db)
         ignored = _ignored(db)
     found = (
         _uncategorized(ds)
-        + _evidence(ds)
+        + _evidence(ds, names)
         + _invoices(ds)
-        + _statements(ds)
-        + _gaps(ds, today)
+        + _statements(ds, names)
+        + _gaps(ds, today, names)
         + stored
         + _orphans(analysis.orphans)
         + _unsplit(analysis.unsplit)
