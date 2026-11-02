@@ -99,6 +99,9 @@ Aşama 6 (Arayüz, v0.7.0) uygulamayı terminal açmadan kurulan ve kullanılan 
 - Servis Ayarlar'dan durdurulur, yeniden başlatılır, bir yedekten geri yüklenir ve bilgisayardan kaldırılır; veri
   klasörü yalnızca istenirse çöp kutusuna taşınır.
 - Uçtan uca testler demo çalışma alanında koşar: her ekran iki temada, telefon genişliğinde ve axe denetimiyle.
+- macOS'ta temiz kurulum 2026-11-02'de denendi. Paketten kurulan uygulama servisi kaydetti ve
+  sihirbazı açtı; sihirbaz eklentinin klasörünü hazırladı, eklenti eşleşti ve Gmail'deki geçmişi getirdi; Pano ve
+  Değerlendirme ilk raporu gösterdi. Ayarlar'dan yeniden başlatma ve veri klasörüyle birlikte kaldırma da çalıştı.
 
 Açık kalanlar: Windows'ta temiz kurulum denemesi (kullanıcı yapacak) ve servisin yedi gün kendi başına çalışması
 (K19).

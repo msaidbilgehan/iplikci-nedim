@@ -13,8 +13,10 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 
 - 2026-11-02 (20) — Aşama 6 uygulandı (`asama-6` dalı); belgeler kodla uyumlu hâle getirildi:
   - README'nin durum bölümü ve `web/README.md` güncellendi; `CHANGELOG.md`'ye 0.7.0 eklendi.
-  - [Yol haritası](v1/roadmap.md#aşama-6--arayüz): Aşama 6'nın durumu ve açık kalanlar (Windows'ta temiz kurulum,
-    yedi günlük çalışma).
+  - [Yol haritası](v1/roadmap.md#aşama-6--arayüz): Aşama 6'nın durumu, macOS'ta temiz kurulumun sonucu ve açık
+    kalanlar (Windows'ta temiz kurulum ve orada bakılacaklar, yedi günlük çalışma).
+  - [ADR-0010](adr/0010-notification-channels.md) ve [F13](v1/features.md#f13--bildirimler): e-posta geçmişi baştan
+    okunurken bildirimler yalnızca uygulamanın kutusuna düşer.
   - [Özellikler](v1/features.md#mvp-eşitlik-listesi): MVP eşitlik listesinde rapor bölümleri, ay sonu ve çıktılar
     işaretlendi; bilerek farklı olanlar yazıldı.
   - [Mimari](v1/architecture.md): API tablosunda hesapların ay ay kapsamı.

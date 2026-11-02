@@ -261,6 +261,19 @@ Durum: 2026-11-02'de `asama-6` dalında uygulandı, `v0.7.0` ([değişiklik gün
   yapılır.
 - Uçtan uca testler demo çalışma alanında, her ekran açık ve koyu temada, telefon genişliğinde ve axe ile; ilk açılış
   boş bir veri klasöründe ayrıca sınanır.
+- macOS'ta temiz kurulum 2026-11-02'de yapıldı; veri klasörü yanına taşındı, sonra geri kondu:
+  - `.dmg`'den Uygulamalar'a kopyalanan uygulama açılınca servisi beş saniyede kaydetti ve sihirbazı açtı.
+  - Sihirbazda şirket adları ve okumaya başlama günü girildi. Eklenti sihirbazın hazırladığı klasörden yüklendi,
+    kodla eşleşti ve Gmail taramasını kendisi başlattı; bulunan iletilerin hepsi teslim edildi, hiçbir iş başarısız
+    olmadı.
+  - Pano ve Değerlendirme ilk raporu bütün bölümleriyle gösterdi. Ayarlar'dan yeniden başlatma bir saniyede döndü;
+    veri klasörüyle kaldırma kaydı sildi ve klasörü çöp kutusuna taşıdı.
+  - Bulunan iki hata düzeltildi: ilk taramanın ortasında geçmişin bir parçasından çıkan uyarılar masaüstüne
+    gidiyordu (artık ilk okuma bitene dek yalnızca uygulamanın kutusuna düşer, F13), servis dururken açık olay akışı
+    kesilip günlüğe hata yazılıyordu.
+  - Denenmeyen: indirilmiş paketin Gatekeeper uyarısı (paket aynı bilgisayarda üretildi, indirme işareti taşımıyordu).
+    Programın anahtar zincirindeki API belirteci denemeden önce silindi: başka bir Python'un yazdığı kaydı okumak
+    macOS'ta parola sorar; temiz bir bilgisayarda böyle bir kayıt yoktur.
 - Açık kalanlar:
   - Windows'ta temiz kurulum (kullanıcı yapacak). O denemede bakılacaklar:
     - Ayarlar'dan "Yeniden başlat": servis yaklaşık 20 saniyede geri gelmeli. Servisi yeniden çalıştıran yardımcı,
