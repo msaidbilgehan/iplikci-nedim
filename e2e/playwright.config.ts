@@ -13,6 +13,10 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0, // a flaky test is fixed, not retried
+  // A test that opens a panel and checks a long page twice with axe takes 15–20 seconds on a quiet machine. While a
+  // test beside it changes the rules the service rebuilds its analysis and every page waits for it, and a busy
+  // machine or a shared CI runner is slower again: the default 30 seconds failed tests that pass.
+  timeout: 90_000,
   reporter: process.env.CI ? "github" : "list",
   use: {
     baseURL: BASE_URL,
