@@ -156,7 +156,9 @@ describe("InsightsPage", () => {
   it("says in the simple view what the budget's plan leaves at the month's end", async () => {
     renderScreen(<InsightsPage />, { path: "/degerlendirme" });
     expect(
-      await screen.findByText("Önerilen bütçeyle ayın sonunda 21.200,00 TL kalır; bugün 21.184,00 TL."),
+      await screen.findByText(
+        "Bugünkü harcamanızla tipik bir ayın sonunda 21.184,00 TL kalıyor; önerilen bütçeyle 21.200,00 TL kalır.",
+      ),
     ).toBeInTheDocument();
   });
 

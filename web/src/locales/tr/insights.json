@@ -72,7 +72,7 @@
     "plan": "Öneri",
     "diff": "Fark",
     "note": "Not",
-    "sayBudget": "Önerilen bütçeyle ayın sonunda {{plan}} kalır; bugün {{now}}."
+    "sayBudget": "Bugünkü harcamanızla tipik bir ayın sonunda {{now}} kalıyor; önerilen bütçeyle {{plan}} kalır."
   },
   "monthly": {
     "title": "Aylık giderler",
