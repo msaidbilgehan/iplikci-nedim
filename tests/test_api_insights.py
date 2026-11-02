@@ -82,11 +82,11 @@ def flagged(*rows: Transaction) -> list[tuple[UnusualKind, str]]:
 
 
 def test_an_amount_far_above_what_the_merchant_usually_takes_is_flagged_once_it_has_a_history():
-    usual = [row(date(2026, m, 5), "ORNEKMARKET", "100") for m in range(4, 8)]
+    usual = [row(date(2026, m, 5), "ORNEKMARKET", "100") for m in range(5, 8)]  # three payments: a history
     assert flagged(*usual, row(date(2026, 10, 20), "ORNEKMARKET", "900")) == [
         (UnusualKind.UNUSUAL_AMOUNT, "ORNEKMARKET")
     ]
-    assert flagged(*usual[:3], row(date(2026, 10, 20), "ORNEKMARKET", "900")) == []  # three are no history yet
+    assert flagged(*usual[:2], row(date(2026, 10, 20), "ORNEKMARKET", "900")) == []  # two are no history yet
     assert flagged(*usual, row(date(2026, 10, 20), "ORNEKMARKET", "550")) == []  # not 500 TL above the usual
 
 
@@ -97,12 +97,31 @@ def test_the_same_amount_at_the_same_merchant_on_the_same_day_is_a_possible_dupl
     assert flagged(*old) == []  # older than the last three months: history
 
 
-def test_a_large_amount_at_a_new_merchant_and_an_unexpected_fee_are_flagged():
-    assert flagged(row(date(2026, 10, 3), "ORNEK MOBILYA", "6500")) == [(UnusualKind.NEW_LARGE, "ORNEK MOBILYA")]
+CARD_FEE = "Kart Aidatı & Ücretleri"
+
+
+def fee(day: date, amount: str = "600", category: str = CARD_FEE, text: str = "YILLIK UYELIK") -> Transaction:
+    return row(day, text, amount, kind=TransactionKind.INTEREST_FEE, category=category)
+
+
+def test_a_large_amount_at_a_new_merchant_is_flagged_once_the_rows_go_back_far_enough_to_tell():
     history = row(date(2026, 5, 1), "ORNEKMARKET", "100")
-    fee = row(date(2026, 10, 10), "YILLIK UYELIK", "600", kind=TransactionKind.INTEREST_FEE, category="Kart Aidatı")
-    small = row(date(2026, 10, 11), "FAST UCRETI", "4.43", kind=TransactionKind.INTEREST_FEE, category="Transfer")
-    assert flagged(history, fee, small) == [(UnusualKind.UNEXPECTED_FEE, "YILLIK UYELIK")]
-    again = row(date(2026, 6, 10), "YILLIK UYELIK", "600", kind=TransactionKind.INTEREST_FEE, category="Kart Aidatı")
-    assert flagged(history, again, fee) == []  # charged within the half year before: expected
-    assert flagged(fee) == []  # no history on the account: nothing to compare with
+    large = row(date(2026, 10, 3), "ORNEK MOBILYA", "6500")
+    assert flagged(history, large) == [(UnusualKind.NEW_LARGE, "ORNEK MOBILYA")]
+    assert flagged(large) == []  # the first weeks of data: every merchant is new
+
+
+def test_a_fee_the_account_did_not_charge_in_twelve_months_is_flagged_and_a_card_fee_may_be_refunded():
+    history = row(date(2026, 5, 1), "ORNEKMARKET", "100")
+    small = fee(date(2026, 10, 11), "4.43", "Transfer & İşlem Ücretleri", "FAST UCRETI")
+    [found] = assessment.unusual(
+        Dataset({}, [], [history, fee(date(2026, 10, 10)), small], [], [], {}),
+        cast(Insights, SimpleNamespace(timeline=SimpleNamespace(window=[]))),
+        TODAY,
+    )
+    assert (found.kind, found.row.title) == (UnusualKind.UNEXPECTED_FEE, "YILLIK UYELIK")
+    assert "son 12 ayda" in found.text and "iadesini isteyebilirsiniz" in found.text
+    assert flagged(history, fee(date(2026, 1, 10)), fee(date(2026, 10, 10))) == []  # charged within the year
+    year_ago = fee(date(2025, 9, 10))  # last year's: the yearly fee again, which may be refunded again
+    assert flagged(year_ago, fee(date(2026, 10, 10))) == [(UnusualKind.UNEXPECTED_FEE, "YILLIK UYELIK")]
+    assert flagged(fee(date(2026, 10, 10))) == []  # no history on the account: nothing to compare with

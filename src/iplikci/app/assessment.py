@@ -10,6 +10,7 @@ from decimal import Decimal
 from statistics import median
 
 from ..analysis import Dataset, payments
+from ..categorize import FEE_CATEGORIES
 from ..domain.codes import Certainty, HabitStatus, Necessity, SeriesStatus, Tone, TransactionKind, UnusualKind
 from ..domain.labels import format_amount
 from ..domain.models import Transaction
@@ -38,13 +39,14 @@ _HABITS = {
     "durdu": HabitStatus.STOPPED,
     "tek": HabitStatus.ONE_OFF,
 }
+# The rules of docs/domain/interpretation.md, "Olağan dışı hareketler".
 UNUSUAL_DAYS = 90  # the unusual movements of the last three months: older ones are history
-USUAL_COUNT = 4  # earlier purchases a merchant needs before an amount can be unusual for it
-UNUSUAL_TIMES = Decimal(3)  # an amount this many times the merchant's median of earlier purchases …
-UNUSUAL_GAP = Decimal(500)  # … and this many TL above it
-FEE_QUIET_DAYS = 180  # a fee the account charged none of in this long is unexpected …
-FEE_HISTORY_DAYS = 90  # … when the account's rows go back at least this far before it …
-FEE_MINIMUM = Decimal(50)  # … and it is this many TL at least: a few liras of a transfer fee are no news
+USUAL_COUNT = 3  # earlier purchases a merchant needs before an amount can be unusual for it
+UNUSUAL_TIMES = Decimal(3)  # an amount more than this many times the merchant's median of earlier purchases …
+UNUSUAL_GAP = Decimal(500)  # … and this many TL above it: a few liras more at a café are no news
+HISTORY_DAYS = 90  # rows going back this far before a movement, so "never seen before" means something
+FEE_QUIET_DAYS = 365  # a fee of a kind the account charged none of in the last twelve months is unexpected …
+FEE_MINIMUM = Decimal(50)  # … when it is this many TL at least: a few liras of a transfer fee are no news
 
 
 @dataclass(frozen=True, slots=True)
@@ -281,7 +283,7 @@ def _amounts(rows: list[Transaction], since: date) -> list[Unusual]:
         seen = earlier[key]
         if t.date >= since and len(seen) >= USUAL_COUNT and not t.installment:
             usual = Decimal(median(seen))
-            if t.amount >= UNUSUAL_TIMES * usual and t.amount - usual >= UNUSUAL_GAP:
+            if t.amount > UNUSUAL_TIMES * usual and t.amount - usual >= UNUSUAL_GAP:
                 text = f"{_tl(t.amount)}; bu işyerinde önceki {len(seen)} alışverişin ortası {_tl(usual)}."
                 found.append(_flag(UnusualKind.UNUSUAL_AMOUNT, t, text))
         seen.append(t.amount)
@@ -302,11 +304,14 @@ def _twice(rows: list[Transaction], since: date) -> list[Unusual]:
 
 
 def _new_large(rows: list[Transaction], since: date, threshold: Decimal) -> list[Unusual]:
+    """A large purchase at a merchant never seen before, once the rows go back far enough to tell."""
     known: set[str] = set()
     found: list[Unusual] = []
+    first = min((t.date for t in rows), default=None)
     for t in _purchases(rows):
         key = fold(t.merchant)
-        if key not in known and t.date >= since and t.amount >= threshold:
+        history = first is not None and (t.date - first).days >= HISTORY_DAYS
+        if key not in known and t.date >= since and history and t.amount >= threshold:
             text = f"{_tl(t.amount)}; bu işyerinde ilk alışveriş (büyük tutar sınırı {_tl(threshold)})."
             found.append(_flag(UnusualKind.NEW_LARGE, t, text))
         known.add(key)
@@ -323,10 +328,12 @@ def _fees(rows: list[Transaction], since: date) -> list[Unusual]:
             continue
         key = (t.account, t.category)
         before = last_fee.get(key)
-        history = (t.date - first_seen[t.account]).days >= FEE_HISTORY_DAYS
+        history = (t.date - first_seen[t.account]).days >= HISTORY_DAYS
         quiet = before is None or (t.date - before).days > FEE_QUIET_DAYS
         if t.date >= since and history and quiet and t.amount >= FEE_MINIMUM:
-            text = f"{_tl(t.amount)} ({t.category}); hesap önceki aylarda bu tür bir ücret almamıştı."
+            text = f"{_tl(t.amount)} ({t.category}); hesap son 12 ayda bu tür bir ücret almamıştı."
+            if t.category == FEE_CATEGORIES["card_fee"]:
+                text += " Kart aidatıysa bankanızdan iadesini isteyebilirsiniz."
             found.append(_flag(UnusualKind.UNEXPECTED_FEE, t, text))
         last_fee[key] = t.date
     return found

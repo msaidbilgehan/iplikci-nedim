@@ -153,11 +153,15 @@ nedenleri arasında sayılmaz.
   - KMH faizi yalnızca belgede yazan aylık oranla hesaplanır; oran yoksa faiz tahmin edilmez (oranı okuyan bir okuyucu
     henüz yok).
   - Öngörü her zaman "tahmin" diye işaretlenir. Eksiye düştüğü gün `balance.forecast_negative` olayı üretilir.
-- **Olağan dışı hareketler** (yalnızca işaret, satır silinmez)
-  - Geçmişte en az 3 ödemesi olan bir işyerinde, medyanının 3 katından büyük bir çekim.
+- **Olağan dışı hareketler** (yalnızca işaret, satır silinmez; son 90 günün hareketleri)
+  - Geçmişte en az 3 ödemesi olan bir işyerinde, medyanının 3 katından büyük ve medyanından en az 500 TL fazla bir
+    çekim. Kafede birkaç lira fazlası haber değildir.
   - Aynı gün, aynı işyerinde, aynı tutarlı birden çok satır: olası çift çekim.
-  - İlk kez görülen bir işyerinde büyük harcama eşiğini geçen tutar.
-  - Son 12 ayda görülmemiş bir banka ücreti ya da kart aidatı; kart aidatı için iade talebi adımı önerilir.
+  - İlk kez görülen bir işyerinde büyük harcama eşiğini geçen tutar. Satırlar en az üç ay geriye gitmelidir: ilk
+    haftalarda her işyeri yenidir.
+  - Son 12 ayda görülmemiş, en az 50 TL tutarında bir banka ücreti ya da kart aidatı. Hesabın satırları en az üç ay
+    geriye gitmelidir. Kart aidatı için iade talebi adımı önerilir; yıllık aidat her yıl yeniden işaretlenir.
+  - Bölünmüş bir satır tek ödemedir: işyeri ve tutar karşılaştırmaları satırın bütününe bakar.
 - **Kur makası**
   - Kendi hesapları arasındaki her döviz alım ve satımında, bankanın kuru ile aynı günün yönüne uygun TCMB kuru
     arasındaki fark döviz tutarıyla çarpılır. Bu, TL cinsinden makas maliyetidir.
