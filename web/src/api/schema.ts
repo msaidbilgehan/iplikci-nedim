@@ -184,6 +184,13 @@ export interface BridgeOut {
   active: boolean;
 }
 
+export interface BudgetLineOut {
+  label: string;
+  now: MoneyOut;
+  plan: MoneyOut;
+  note: string;
+}
+
 export interface BulkIn {
   fingerprints: string[];
   category?: string | null;
@@ -252,6 +259,12 @@ export interface CategoryRulesOut {
 
 /** How sure a row or a total is, and whether it counts (architecture §8). */
 export type Certainty = "confirmed" | "provisional" | "excluded" | "info";
+
+export interface ChangeOut {
+  category: string;
+  before: MoneyOut;
+  recent: MoneyOut;
+}
 
 export interface ChangedRowOut {
   fingerprint: string;
@@ -547,6 +560,29 @@ export interface FetchQueuedOut {
   queued: boolean;
 }
 
+export interface FindingOut {
+  tone: Tone;
+  title: string;
+  text: string;
+  link: LinkOut;
+}
+
+/** Each a monthly average over the window's months. */
+export interface FlowOut {
+  months: string[];
+  income: MoneyOut;
+  expense: MoneyOut;
+  people: MoneyOut;
+  unnamed_people: MoneyOut;
+  debt: MoneyOut;
+  saving: MoneyOut;
+  fx: MoneyOut;
+  left: MoneyOut;
+  debt_start: MoneyOut;
+  debt_end: MoneyOut;
+  other_typical: MoneyOut;
+}
+
 export interface ForecastOut {
   label: string;
   today: string;
@@ -574,6 +610,26 @@ export interface HTTPValidationError {
   detail?: ValidationError[];
 }
 
+export interface HabitOut {
+  name: string;
+  category: string;
+  necessity: Necessity | null;
+  by_category: boolean;
+  status: HabitStatus;
+  pattern: string;
+  count: number;
+  months: number;
+  span: number;
+  total: MoneyOut;
+  recent: MoneyOut;
+  monthly: MoneyOut;
+  last: string;
+  link: LinkOut;
+}
+
+/** How a discretionary merchant or an avoidable cost goes over the window (docs/domain/interpretation.md). */
+export type HabitStatus = "monthly" | "new" | "occasional" | "stopped" | "one_off";
+
 export interface IdentityIn {
   names: string[];
   business_names: string[];
@@ -598,6 +654,25 @@ export interface InCurrencyOut {
   rate: string | null;
   rate_day: string | null;
   note: string;
+}
+
+export interface IncomeOut {
+  name: string;
+  monthly: MoneyOut;
+  last: string;
+  status: SeriesStatus;
+}
+
+export interface InsightsOut {
+  window: iplikci__api__routes__insights__WindowOut;
+  findings: FindingOut[];
+  steps: StepOut[];
+  budget: BudgetLineOut[];
+  habits: HabitOut[];
+  flow: FlowOut | null;
+  trend: TrendOut | null;
+  income: IncomeOut[];
+  unusual: UnusualOut[];
 }
 
 /** A card purchase in installments with some still to come: the card's newest statement billed `number`. */
@@ -643,7 +718,7 @@ export interface InvoiceOut {
   due: string | null;
   total: MoneyOut;
   lines: InvoiceLineOut[];
-  window: WindowOut;
+  window: iplikci__api__models__WindowOut;
   document: string;
   sha256: string;
   row: BankRowOut | null;
@@ -1203,6 +1278,12 @@ export interface StatementCheckOut {
   rows: number;
 }
 
+export interface StepOut {
+  title: string;
+  text: string;
+  monthly: MoneyOut | null;
+}
+
 export interface SubscriptionsOut {
   window: string[];
   as_of: string;
@@ -1306,6 +1387,9 @@ export interface ToldOut {
   printed: PrintedOut | null;
 }
 
+/** How a finding reads. */
+export type Tone = "attention" | "info" | "good";
+
 export interface TotalsOut {
   count: number;
   counted: number;
@@ -1345,6 +1429,18 @@ export interface TransactionsOut {
  */
 export type TransferStep = "own_name" | "own_account" | "rule" | "like_named" | "paired" | "uncovered_bank" | "person" | "income";
 
+export interface TrendOut {
+  before: string[];
+  recent: string[];
+  before_average: MoneyOut;
+  recent_average: MoneyOut;
+  usual_before: MoneyOut;
+  usual_recent: MoneyOut;
+  changes: ChangeOut[];
+  large: RowOut[];
+  threshold: MoneyOut;
+}
+
 export interface UnknownMailOut {
   domain: string;
   template: string;
@@ -1355,6 +1451,16 @@ export interface UnknownMailOut {
 export interface UnknownOut {
   account: AccountRefOut;
   reason: string;
+}
+
+/** A movement worth a look (F10). It is only flagged: no row is ever dropped for it. */
+export type UnusualKind = "unusual_amount" | "possible_duplicate" | "new_large" | "unexpected_fee";
+
+export interface UnusualOut {
+  kind: UnusualKind;
+  row: RowOut;
+  text: string;
+  link: LinkOut;
 }
 
 export interface UploadOut {
@@ -1396,12 +1502,6 @@ export interface WhyOut {
   rate_day: string | null;
 }
 
-/** The days a document's bank row is looked for in. */
-export interface WindowOut {
-  start: string;
-  end: string;
-}
-
 /** The whole rule file, as the user edited it. */
 export interface WriteRulesIn {
   action: "write";
@@ -1420,10 +1520,22 @@ export interface iplikci__api__models__MailOut {
   coverage: MailCoverageOut;
 }
 
+/** The days a document's bank row is looked for in. */
+export interface iplikci__api__models__WindowOut {
+  start: string;
+  end: string;
+}
+
 export interface iplikci__api__routes__documents__MailOut {
   subject: string;
   sender: string;
   sent: string;
   lines: string[];
   text: string;
+}
+
+export interface iplikci__api__routes__insights__WindowOut {
+  months: string[];
+  as_of: string;
+  last_complete: string;
 }

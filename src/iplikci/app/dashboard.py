@@ -29,7 +29,7 @@ from ..upcoming import Due, add_months
 from . import accounts, backup, now, outlook, system, todos
 from .analysis import Analysis, account_labels, document_gaps
 from .bridge import SILENCE
-from .links import Link, Screen
+from .links import Link, Screen, finding_link
 from .mail import BRIDGE, IMAP
 from .todos import Todo, TodoKind
 from .workspace import Workspace
@@ -347,17 +347,6 @@ def due_soon(a: Analysis, today: date) -> DueSoon:
 # --- the alerts ------------------------------------------------------------------------------------------------------
 
 
-def _finding_link(found: dict[str, object]) -> Link:
-    """A finding leads to the rows it rests on when it names them (its filter), else to the interpretation."""
-    query: list[tuple[str, str]] = []
-    for key in ("merchant", "category", "kind"):
-        if isinstance(value := found.get(key), str) and value:
-            query.append((key, value))
-    if found.get("provisional"):
-        query.append(("certainty", Certainty.PROVISIONAL.value))
-    return Link(Screen.TRANSACTIONS, query=tuple(query)) if query else Link(Screen.INSIGHTS)
-
-
 def _negatives(a: Analysis, today: date) -> list[Alert]:
     labels = account_labels(a)
     found: list[Alert] = []
@@ -445,7 +434,7 @@ def alerts(ws: Workspace, a: Analysis, today: date, listed: list[Todo], at: date
     extension, a failed backup or rehearsal. The critical first."""
     at = at or datetime.now(UTC)
     found = [
-        Alert(AlertKind.FINDING, AlertLevel.WARNING, f.title, f.text, 1, "", _finding_link(f.filter))
+        Alert(AlertKind.FINDING, AlertLevel.WARNING, f.title, f.text, 1, "", finding_link(f.filter))
         for f in a.insights.findings
         if f.tone == "dikkat"
     ]

@@ -2,6 +2,7 @@
 on, every row to its document. The service names the place, a screen and what to open there; the interface knows
 the screens' addresses."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -38,3 +39,15 @@ class Link:
     screen: Screen
     id: str = ""
     query: tuple[tuple[str, str], ...] = ()  # filters the list screen opens with, as its address's query
+
+
+def finding_link(found: Mapping[str, object]) -> Link:
+    """A finding of the interpretation leads to the rows it rests on when it names them (its filter: merchant,
+    category, kind, provisional), else to the Değerlendirme screen."""
+    query: list[tuple[str, str]] = []
+    for key in ("merchant", "category", "kind"):
+        if isinstance(value := found.get(key), str) and value:
+            query.append((key, value))
+    if found.get("provisional"):
+        query.append(("certainty", "provisional"))
+    return Link(Screen.TRANSACTIONS, query=tuple(query)) if query else Link(Screen.INSIGHTS)
