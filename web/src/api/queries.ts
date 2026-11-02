@@ -27,6 +27,8 @@ import type {
   DocumentDetail,
   DocumentPage,
   DocumentView,
+  ExportItem,
+  ExportsQueued,
   FeedPage,
   Forecast,
   Invoices,
@@ -54,6 +56,7 @@ import type {
 
 export const keys = {
   system: ["system"] as const,
+  exports: ["system", "exports"] as const, // under the System screen's key: every event refreshes it too
   labels: ["labels"] as const,
   feedAll: ["feed"] as const, // the events and what stands now: every event of the stream refreshes them
   feed: (filter: FeedFilter) => ["feed", "events", filter] as const,
@@ -407,6 +410,24 @@ export function useRevokeBridge() {
 
 export function useBackupNow() {
   return useMutation({ mutationFn: () => api.post<Queued>("/api/backups") });
+}
+
+/** What the last analysis wrote to download (F20): the report, the rows as CSV and Excel, the month-end pages. */
+export function useExports() {
+  return useQuery({ queryKey: keys.exports, queryFn: () => api.get<ExportItem[]>("/api/exports") });
+}
+
+/** The analysis and its exports made again now; the list is asked again as the service writes them. */
+export function useExportsAgain() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<ExportsQueued>("/api/exports"),
+    onSuccess: () => {
+      for (const after of SETTLING_MS) {
+        setTimeout(() => void client.invalidateQueries({ queryKey: keys.exports }), after);
+      }
+    },
+  });
 }
 
 // --- notifications (F13, ADR-0010) ---------------------------------------------------------------------------------

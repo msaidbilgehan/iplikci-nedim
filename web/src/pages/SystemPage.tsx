@@ -1,10 +1,20 @@
-// The System screen (F18): the service, the e-mail intake and its non-bank senders, the queue, the backups, the disk
-// and how each reader is doing. Every number comes from /api/system; the event stream keeps it current.
+// The System screen (F18): the service and its log, the e-mail intake and its non-bank senders, the queue, the
+// backups, the exports, the disk and how each reader is doing. Every number comes from /api/system; the event stream
+// keeps it current.
 
 import { type FormEvent, useId, useState } from "react";
 
-import { useBackupNow, useBridges, useLabels, useOtherSenders, useSetOtherSenders, useSystem } from "../api/queries";
-import type { Bridge, Labels, MailCoverage, RefusedMail, SystemStatus } from "../api/types";
+import {
+  useBackupNow,
+  useBridges,
+  useExports,
+  useExportsAgain,
+  useLabels,
+  useOtherSenders,
+  useSetOtherSenders,
+  useSystem,
+} from "../api/queries";
+import type { Bridge, ExportKind, Labels, MailCoverage, RefusedMail, SystemStatus } from "../api/types";
 import { HistoryDue } from "../components/HistoryDue";
 import { Failure, Loading } from "../components/QueryState";
 import { Alert } from "../components/ui/Alert";
@@ -12,7 +22,22 @@ import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card, Facts } from "../components/ui/Card";
 import { Table, Td, Th } from "../components/ui/Table";
+import { cn } from "../lib/cn";
 import { formatDay, formatSize, formatTime } from "../lib/format";
+
+const LINK_BUTTON = cn(
+  "inline-flex min-h-11 items-center rounded-md border px-3 text-sm font-medium",
+  "border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50",
+  "dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700",
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600",
+);
+const SMALL = "text-sm text-zinc-600 dark:text-zinc-300";
+const EXPORT_NAMES: Record<ExportKind, string> = {
+  report: "Rapor (tek dosya, HTML)",
+  csv: "İşlemler (CSV)",
+  xlsx: "İşlemler (Excel)",
+  month_end: "Ay sonu sayfaları (zip)",
+};
 
 export default function SystemPage() {
   const system = useSystem();
@@ -31,20 +56,34 @@ function SystemCards({ status, labels }: { status: SystemStatus; labels: Labels 
   const documentLabels = labels["DocumentStatus"] ?? {};
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      <Card title="Servis">
-        <Facts
-          items={[
-            ["Sürüm", status.service.version],
-            ["Başlangıç", formatTime(status.service.started_at)],
-            ["Süreç", String(status.service.pid)],
-            ["Veri klasörü", <code key="home">{status.service.home}</code>],
-          ]}
-        />
+      <Card
+        title="Servis"
+        action={
+          <a href="/api/system/log" download className={LINK_BUTTON}>
+            Günlüğü indir
+          </a>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <Facts
+            items={[
+              ["Sürüm", status.service.version],
+              ["Başlangıç", formatTime(status.service.started_at)],
+              ["Süreç", String(status.service.pid)],
+              ["Veri klasörü", <code key="home">{status.service.home}</code>],
+            ]}
+          />
+          <p className={SMALL}>
+            Bir sorun olduğunda günlüğü gönderebilirsiniz: kişisel olabilecek yollar, adlar, adresler, IBAN&apos;lar
+            ve uzun numaralar indirilen dosyadan çıkarılır.
+          </p>
+        </div>
       </Card>
       <MailCard status={status} />
       <OtherSendersCard />
       <QueueCard status={status} jobKinds={labels["JobKind"] ?? {}} />
       <BackupCard status={status} />
+      <ExportsCard />
       <Card title="Belgeler">
         <Facts
           items={Object.entries(status.documents)
@@ -349,6 +388,61 @@ function BackupCard({ status }: { status: SystemStatus }) {
         {now.isError ? (
           <Alert tone="critical" title="Yedek istenemedi" live>
             <p>{now.error.message}</p>
+          </Alert>
+        ) : null}
+      </div>
+    </Card>
+  );
+}
+
+function ExportsCard() {
+  const exports = useExports();
+  const again = useExportsAgain();
+  return (
+    <Card
+      title="Dışa aktarımlar"
+      action={
+        <Button variant="secondary" onClick={() => again.mutate()} disabled={again.isPending}>
+          {again.isPending ? "İsteniyor…" : "Yeniden yaz"}
+        </Button>
+      }
+    >
+      <div className="flex flex-col gap-3">
+        {exports.isPending ? <Loading /> : null}
+        {exports.isError ? <Failure error={exports.error} onRetry={() => void exports.refetch()} /> : null}
+        {exports.data?.length === 0 ? (
+          <p className={SMALL}>Henüz dışa aktarım yok; servis ilk analizini yapınca yazar.</p>
+        ) : null}
+        {exports.data?.length ? (
+          <ul className="flex flex-col gap-3">
+            {exports.data.map((item) => (
+              <li key={item.kind} className="flex flex-wrap items-center justify-between gap-2">
+                <span>
+                  <span className="block font-medium">{EXPORT_NAMES[item.kind]}</span>
+                  <span className={SMALL}>
+                    {formatTime(item.made_at)} · {formatSize(item.size)}
+                  </span>
+                </span>
+                <a
+                  href={`/api/exports/${item.kind}`}
+                  download
+                  className={LINK_BUTTON}
+                  aria-label={`İndir: ${EXPORT_NAMES[item.kind]}`}
+                >
+                  İndir
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {again.isSuccess ? (
+          <Alert tone="good" title="İstek alındı" live>
+            <p>Analiz ve dışa aktarımlar birkaç saniye içinde yeniden yazılır; liste kendiliğinden güncellenir.</p>
+          </Alert>
+        ) : null}
+        {again.isError ? (
+          <Alert tone="critical" title="İstenemedi" live>
+            <p>{again.error.message}</p>
           </Alert>
         ) : null}
       </div>

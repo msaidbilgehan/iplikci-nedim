@@ -19,6 +19,7 @@ import type {
   DocumentDetail,
   DocumentPage,
   DocumentView,
+  ExportItem,
   FeedDetail,
   FeedItem,
   FeedPage,
@@ -715,6 +716,13 @@ export const ACCOUNTS: Accounts = {
   total: tl(1250000),
   note: "",
 };
+
+/** What the last analysis wrote: the report and the rows; the month-end pages wait for a closed month. */
+export const EXPORTS: ExportItem[] = [
+  { kind: "report", name: "iplikci-rapor-2026-11-15.html", size: 412_000, made_at: "2026-11-15T06:00:00+00:00" },
+  { kind: "csv", name: "iplikci-islemler-2026-11-15.csv", size: 18_500, made_at: "2026-11-15T06:00:00+00:00" },
+  { kind: "xlsx", name: "iplikci-islemler-2026-11-15.xlsx", size: 52_300, made_at: "2026-11-15T06:00:00+00:00" },
+];
 
 export function systemStatus(overrides: Partial<SystemStatus> = {}): SystemStatus {
   return {
@@ -1466,6 +1474,7 @@ export const handlers = [
   http.get("/api/invoices", () => HttpResponse.json(INVOICES)),
   http.get("/api/settings/mail/other-senders", () => HttpResponse.json(OTHER_SENDERS)),
   http.get("/api/system", () => HttpResponse.json(systemStatus())),
+  http.get("/api/exports", () => HttpResponse.json(EXPORTS)),
   http.get("/api/bridge", () => HttpResponse.json(BRIDGES)),
   http.get("/api/notifications", ({ request }) =>
     HttpResponse.json(new URL(request.url).searchParams.get("channel") === "in_app" ? BOX : LOG),

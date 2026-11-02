@@ -35,6 +35,9 @@ import type {
   EventInfoOut,
   EventKind,
   EventOut,
+  ExportKind,
+  ExportOut,
+  ExportsQueuedOut,
   FeedDetailOut,
   FeedItemOut,
   FeedOut,
@@ -83,6 +86,9 @@ import type {
 } from "./schema";
 
 export type SystemStatus = SystemOut;
+export type { ExportKind }; // the report, the rows as CSV and as Excel, the month-end pages (F20)
+export type ExportItem = ExportOut;
+export type ExportsQueued = ExportsQueuedOut;
 export type DocumentItem = DocumentOut;
 export type DocumentPage = DocumentPageOut;
 export type Labels = LabelsOut;

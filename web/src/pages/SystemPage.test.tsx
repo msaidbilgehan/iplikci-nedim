@@ -8,6 +8,38 @@ import { renderScreen } from "../test/render";
 import SystemPage from "./SystemPage";
 
 describe("SystemPage", () => {
+  it("offers the exports the last analysis wrote, each to download, and makes them again on request", async () => {
+    const user = userEvent.setup();
+    let asked = 0;
+    server.use(
+      http.post("/api/exports", () => {
+        asked += 1;
+        return HttpResponse.json({ queued: true }, { status: 202 });
+      }),
+    );
+    renderScreen(<SystemPage />);
+    const card = await screen.findByRole("region", { name: "Dışa aktarımlar" });
+    const report = await within(card).findByRole("link", { name: "İndir: Rapor (tek dosya, HTML)" });
+    expect(report).toHaveAttribute("href", "/api/exports/report");
+    expect(within(card).getByRole("link", { name: "İndir: İşlemler (Excel)" })).toHaveAttribute(
+      "href",
+      "/api/exports/xlsx",
+    );
+    expect(within(card).queryByText("Ay sonu sayfaları (zip)")).not.toBeInTheDocument(); // not written yet
+    await user.click(within(card).getByRole("button", { name: "Yeniden yaz" }));
+    expect(await within(card).findByText("İstek alındı")).toBeInTheDocument();
+    expect(asked).toBe(1);
+  });
+
+  it("says when nothing was exported yet, and offers the log without personal values", async () => {
+    server.use(http.get("/api/exports", () => HttpResponse.json([])));
+    renderScreen(<SystemPage />);
+    const card = await screen.findByRole("region", { name: "Dışa aktarımlar" });
+    expect(await within(card).findByText(/Henüz dışa aktarım yok/)).toBeInTheDocument();
+    const service = screen.getByRole("region", { name: "Servis" });
+    expect(within(service).getByRole("link", { name: "Günlüğü indir" })).toHaveAttribute("href", "/api/system/log");
+  });
+
   it("shows the service, the mail, the queue, the backups and the readers", async () => {
     renderScreen(<SystemPage />);
     const service = await screen.findByRole("region", { name: "Servis" });
