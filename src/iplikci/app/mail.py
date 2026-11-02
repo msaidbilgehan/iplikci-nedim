@@ -35,9 +35,9 @@ from ..ingest.mail.imap import (
 from ..ingest.mail.trust import MAX_MESSAGE_BYTES, listed, message_name, trust_problem
 from ..parsers.common import is_business
 from ..settings import config, secrets
-from ..storage import audit, events, jobs
+from ..storage import audit, bridges, events, feed_state, jobs
 from ..storage import mail as mail_store
-from ..storage.db import now
+from ..storage.db import Database, now
 from ..storage.documents import Source
 from ..vault.store import sha256_of
 from . import intake, kinds
@@ -134,6 +134,7 @@ IMAP, BRIDGE = "imap", "browser_bridge"
 AUTH_FAILED = "mail.auth_failed"
 NOT_SET_UP = "E-posta bağlantısı kurulmadı."
 MAX_MESSAGES = 300  # per fetch; the next one continues where this one stopped
+READ_THROUGH = "mail.imap_read_through"  # feed_state: the scan key of the IMAP account's history once read through
 _LOCK_NAME = ".eposta.kilit"
 _ADDRESS = re.compile(r"[^@\s\"\\]+@[a-z0-9.-]+\.[a-z]{2,}", re.IGNORECASE)
 
@@ -272,7 +273,22 @@ def fetch(ws: Workspace, wait: float = 120.0, progress: Callable[[int, int], Non
             state.count(name, getattr(out, name))
         with ws.db() as db:
             mail_store.save(db, state)
+            if not out.more:
+                feed_state.save(db, READ_THROUGH, acc.scan_key())
     return out
+
+
+def first_read(db: Database, settings: config.Settings) -> bool:
+    """Whether the mailbox's history is being read from the start: the browser extension is paired and its first
+    scan of Gmail has not finished, or the IMAP account's history has not been read through since the account was set
+    up or what it searches changed. Until then the documents arriving are the history, and what the feed tells from a
+    part of it (a forecast without the income not read yet, a payment whose paying row has not come) is no news."""
+    if settings.mail.connector == BRIDGE:
+        return any(b.active for b in bridges.every(db)) and not mail_store.load(db, BRIDGE).scan_key
+    if not settings.mail.address:
+        return False
+    searched = _account(settings, settings.mail.address, settings.mail.start_day).scan_key()
+    return feed_state.load(db, READ_THROUGH) != searched
 
 
 def _download(

@@ -12,7 +12,7 @@ from decimal import Decimal
 import pytest
 
 from iplikci import cli, egress
-from iplikci.app import notify, rebuild
+from iplikci.app import bridge, notify, rebuild
 from iplikci.cli import notify as notify_cli
 from iplikci.domain.codes import Actor, Channel, ChannelStage, DeliveryStatus, DetailLevel, EventKind
 from iplikci.notify import channels, content, timing
@@ -21,7 +21,7 @@ from iplikci.notify.channels import Desktop, Email, SendError, Telegram
 from iplikci.notify.content import Message
 from iplikci.notify.rules import DEFAULTS, AlertRule, Condition, RulesError, Seen
 from iplikci.settings import config, secrets
-from iplikci.storage import audit, events
+from iplikci.storage import audit, bridges, events
 from iplikci.storage import notifications as stored
 
 TZ = timezone(timedelta(hours=3))
@@ -331,6 +331,27 @@ def test_the_history_before_the_first_run_is_no_news(ws, desk):
     assert {(n.key, n.channel, n.status) for n in rows(ws)} == {
         ("2026-10", Channel.IN_APP, DeliveryStatus.SENT),
         ("2026-10", Channel.DESKTOP, DeliveryStatus.PENDING),
+    }
+
+
+def test_while_the_mailbox_is_read_from_the_start_the_news_stays_in_the_box(ws, desk):
+    # A paired extension's first scan of Gmail brings the history: what the feed tells from a part of it (a forecast
+    # without the income not read yet) may be gone once the rest has come. Until the scan has finished, the events go
+    # only to the interface's box.
+    config.update(ws.layout.settings, "mail", {"connector": "browser_bridge"})
+    with ws.db() as db:
+        bridges.add(db, "b" * 12, "c" * 64, "Chrome, macOS")
+    started(ws)
+    happen(ws, E.MONTH_CLOSED, "2026-09")
+    assert notify.take_events(ws, NOON) == 1
+    where = bridge.cursor(ws)
+    bridge.scanned(ws, where.start_day, where.senders)
+    happen(ws, E.MONTH_CLOSED, "2026-10")
+    assert notify.take_events(ws, NOON) == 2
+    assert {(n.key, n.channel) for n in rows(ws)} == {
+        ("2026-09", Channel.IN_APP),
+        ("2026-10", Channel.IN_APP),
+        ("2026-10", Channel.DESKTOP),
     }
 
 

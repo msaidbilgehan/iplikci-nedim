@@ -338,6 +338,9 @@ G12, K10 · Çekirdek
     bildirim doğurmaz.
   - Sessiz saatte ve sıklık sınırının üstünde gelenler kanal başına saatte en çok bir özetle gider.
   - Reddedilen giriş ya da belirteç kanalı durdurur; kanal yeniden açılana dek denenmez.
+- **İlk okuma (Aşama 6, 2026-11-02):** e-posta geçmişi baştan okunurken bildirimler yalnızca uygulamanın kutusuna
+  düşer: eklentide ilk tarama bitene, IMAP'te geçmiş sonuna dek okunana kadar. Geçmişin bir parçasından çıkan uyarılar
+  masaüstüne, Telegram'a ve e-postaya gitmez (test edilir). Taramanın ortasında doğan geçici bir "Hesap eksiye düşecek" uyarısı, tarama bitince geçersiz kalabilir.
 
 ## F14 — Banka dışı e-postalar
 

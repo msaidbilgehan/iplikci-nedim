@@ -151,13 +151,23 @@ def test_zip_attachments_are_opened_in_memory(ws, mail):
     assert names(ws) == ["E-posta 2026-02-02 teb.com.tr.eml", "HesapHareketleri.xls"]  # the zip itself is not kept
 
 
+def reading_from_start(ws: Workspace) -> bool:
+    with ws.db() as db:
+        return mail_app.first_read(db, config.load(ws.layout.settings))
+
+
 def test_a_large_backlog_is_read_in_parts(ws, mail, monkeypatch):
     monkeypatch.setattr(mail_app, "MAX_MESSAGES", 1)
     mail.messages |= {101: bank_mail(teb.account_export(JANUARY)), 102: bank_mail(FEBRUARY)}
+    assert reading_from_start(ws)  # set up, nothing read yet
     first = mail_app.fetch(ws)
     assert first.more and first.stored == 1 and "sonraki alımda sürecek" in first.message
+    assert reading_from_start(ws)  # the history is still coming: what the feed tells from it is held back
     second = mail_app.fetch(ws)
     assert not second.more and second.stored == 1 and bodies_fetched(mail) == ["101", "102"]
+    assert not reading_from_start(ws)
+    config.update(ws.layout.settings, "mail", {"start_day": date(2025, 6, 1)})
+    assert reading_from_start(ws)  # another start day: the mailbox is read again from the start
 
 
 def test_fetching_needs_an_account(ws):

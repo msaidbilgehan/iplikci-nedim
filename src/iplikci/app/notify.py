@@ -4,7 +4,9 @@ attempt and never sent twice. The interface's box reads them from the database, 
 history.
 
 The events are read in order from where the last run stopped; a first run starts at the newest, so the history
-before it is no news. A refused login (SMTP) or token (Telegram) stops its channel until the user sets it up anew:
+before it is no news. While the mailbox's history is read from the start (mail.first_read), the events go only to the
+interface's box: told from a part of the history, a forecast or a missing payment may be gone once the rest has come.
+A refused login (SMTP) or token (Telegram) stops its channel until the user sets it up anew:
 trying again from a program may get an account locked.
 """
 
@@ -387,7 +389,11 @@ def take_events(ws: Workspace, at: datetime | None = None) -> int:
         if not found:
             return 0
         rules = load_rules(ws).rules
-        ready = [s.channel for s in channel_states(ws, db, settings) if s.ready and s.channel is not Channel.IN_APP]
+        ready = (
+            []
+            if mail.first_read(db, settings)
+            else [s.channel for s in channel_states(ws, db, settings) if s.ready and s.channel is not Channel.IN_APP]
+        )
         quiet = timing.quiet(settings.notify.quiet_hours, at)
         made = 0
         with db.transaction():

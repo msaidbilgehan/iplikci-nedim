@@ -185,6 +185,9 @@ genişliğinde ve axe denetimiyle uçtan uca sınanır.
   `~/.local/lib/iplikci/<sürüm>` klasöründedir; eski yerdekiler yeni sürüm ilk açıldığında kaldırılır.
 - Windows güncellemesi, arka plan servisi durmasa da sürüyor ve çalışan programın dosyalarını değiştirmeye
   kalkışıyordu; artık durur ve nedenini söyler.
+- İlk Gmail taraması sürerken akışın geçmişin bir parçasından çıkardığı uyarılar masaüstüne gidiyordu: henüz okunmamış
+  gelirsiz bir tahmin "Hesap eksiye düşecek" diyordu. E-posta geçmişi baştan okunurken bildirimler artık yalnızca
+  uygulamanın kutusuna düşer; eklentide ilk tarama bitene, IMAP'te geçmiş sonuna dek okunana kadar.
 - Yarıda kalan bir eklenti derlemesi programın taşıdığı eklentiyi yarım bırakabiliyor, paket yalnızca bildirgeye
   bakıp yine de üretiliyordu. Derleme artık kendi klasöründe yapılıp bütün olarak yerine konur; paket eklentinin her
   dosyasını derlemeden önce ve kurulan kopyada denetler.

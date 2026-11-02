@@ -64,6 +64,10 @@ Telegram kanalının ayrıntıları:
   - Birincil veridir: dökümün 3. sürümü onu da taşır.
 - **Sıra:** servis olayları kaldığı yerden okur. İlk çalıştırma en yeni olaydan başlar, öncesi haber sayılmaz. İş
   beş dakikada bir ve her analizden hemen sonra çalışır.
+- **İlk okuma** (Aşama 6, temiz kurulum denemesinden): e-posta geçmişi baştan okunurken olaylar yalnızca uygulama içi
+  kutuya düşer. Eklentide ilk tarama bitene, IMAP'te geçmiş sonuna dek okunana kadar sürer; IMAP'te başlangıç günü ya
+  da göndericiler değişince kutu yeniden baştan okunur. Geçmişin bir parçasından çıkan tahmin ve uyarılar (henüz
+  okunmamış gelirsiz bir tahmin, ödeyen satırı gelmemiş bir ödeme) geçmişin geri kalanı gelince kaybolabilir.
 - **Uygulama içi kutu** her bildirimi hemen ve tam ayrıntıyla alır. Diğer kanallar kuralın ya da kanalın ayrıntı
   düzeyini kullanır.
 - **Yeniden deneme:** başarısız deneme bir dakika, sonra her seferinde iki katı (en çok bir saat) bekler. Sekizinci
