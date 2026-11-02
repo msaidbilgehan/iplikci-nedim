@@ -143,6 +143,10 @@ describe("RowPanel: what the row is and why", () => {
       "href",
       `/api/documents/${STATEMENT}/download`,
     );
+    expect(within(printed).getByRole("link", { name: "Belgede aç" })).toHaveAttribute(
+      "href",
+      `/belgeler/${STATEMENT}?satir=${PURCHASE.fingerprint}`,
+    );
   });
 
   it("shows the page's text with the row's line marked when the row has no box", async () => {

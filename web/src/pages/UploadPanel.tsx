@@ -4,6 +4,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { type DragEvent, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { ApiError, api } from "../api/client";
 import { keys } from "../api/queries";
@@ -13,6 +14,7 @@ import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { UploadIcon } from "../components/ui/Icons";
 import { Table, Td, Th } from "../components/ui/Table";
+import { cn } from "../lib/cn";
 import { formatPeriod } from "../lib/format";
 
 const ACCEPTED = ".pdf,.xls,.xlsx,.html,.htm,.zip,.mbox,.eml";
@@ -26,11 +28,14 @@ type Step =
   | { kind: "failed"; message: string };
 
 export function UploadPanel() {
+  const { t } = useTranslation("documents");
+  const { t: tc } = useTranslation();
   const [step, setStep] = useState<Step>({ kind: "idle" });
   const [over, setOver] = useState(false);
   const files = useRef<HTMLInputElement>(null);
   const folder = useRef<HTMLInputElement>(null);
   const client = useQueryClient();
+  const messageOf = (error: unknown) => (error instanceof Error ? error.message : tc("unexpected"));
 
   async function send(chosen: File[]) {
     if (chosen.length === 0) {
@@ -77,7 +82,7 @@ export function UploadPanel() {
 
   const busy = step.kind === "uploading" || step.kind === "applying";
   return (
-    <Card title="Belge ekle">
+    <Card title={t("upload.title")}>
       <div className="flex flex-col gap-3">
         <div
           onDragOver={(e) => {
@@ -86,21 +91,19 @@ export function UploadPanel() {
           }}
           onDragLeave={() => setOver(false)}
           onDrop={dropped}
-          className={`flex flex-col items-center gap-3 rounded-md border-2 border-dashed p-6 text-center ${
-            over ? "border-teal-600 bg-teal-50 dark:bg-teal-950" : "border-zinc-300 dark:border-zinc-600"
-          }`}
+          className={cn(
+            "flex flex-col items-center gap-3 rounded-md border-2 border-dashed p-6 text-center",
+            over ? "border-teal-600 bg-teal-50 dark:bg-teal-950" : "border-zinc-300 dark:border-zinc-600",
+          )}
         >
           <UploadIcon className="size-6 text-zinc-500" />
-          <p className="text-sm">
-            Banka belgelerini buraya bırakın ya da seçin: PDF, Excel, HTML, ZIP, MBOX ve EML. Önce ne olacağı
-            gösterilir; onaylamadan hiçbir şey arşive girmez.
-          </p>
+          <p className="text-sm">{t("upload.text")}</p>
           <div className="flex flex-wrap justify-center gap-2">
             <Button variant="secondary" onClick={() => files.current?.click()} disabled={busy}>
-              Dosya seç
+              {t("upload.files")}
             </Button>
             <Button variant="secondary" onClick={() => folder.current?.click()} disabled={busy}>
-              Klasör seç
+              {t("upload.folder")}
             </Button>
           </div>
           <input
@@ -109,7 +112,7 @@ export function UploadPanel() {
             multiple
             accept={ACCEPTED}
             className="hidden"
-            aria-label="Dosya seç"
+            aria-label={t("upload.files")}
             onChange={(e) => void send(Array.from(e.target.files ?? []))}
           />
           <input
@@ -119,7 +122,7 @@ export function UploadPanel() {
             // A whole folder: the browser hands over every file in it with its path.
             {...{ webkitdirectory: "" }}
             className="hidden"
-            aria-label="Klasör seç"
+            aria-label={t("upload.folder")}
             onChange={(e) => void send(Array.from(e.target.files ?? []))}
           />
         </div>
@@ -138,33 +141,34 @@ function StepView({
   onApply: (batch: string, plan: Plan, refused: Uploaded[]) => Promise<void>;
   onReset: () => void;
 }) {
+  const { t } = useTranslation("documents");
   switch (step.kind) {
     case "idle":
       return null;
     case "uploading":
       return (
         <p role="status" className="text-sm">
-          Dosyalar yükleniyor: {step.done}/{step.total}
+          {t("upload.uploading", { done: step.done, total: step.total })}
         </p>
       );
     case "failed":
       return (
-        <Alert tone="critical" title="Belgeler eklenemedi" live>
+        <Alert tone="critical" title={t("upload.failed")} live>
           <p>{step.message}</p>
           <Button variant="secondary" className="mt-2" onClick={onReset}>
-            Yeniden başla
+            {t("upload.restart")}
           </Button>
         </Alert>
       );
     case "applied":
       return (
         <div className="flex flex-col gap-2">
-          <Alert tone="good" title={`${step.applied.stored} belge arşive alındı`} live>
-            {step.applied.trash ? <p>Çöp kutusuna taşınanlar geri alınabilir.</p> : null}
+          <Alert tone="good" title={t("upload.applied", { count: step.applied.stored })} live>
+            {step.applied.trash ? <p>{t("upload.trash")}</p> : null}
           </Alert>
           <Refused refused={step.refused} />
           <Button variant="secondary" className="self-start" onClick={onReset}>
-            Başka belge ekle
+            {t("upload.another")}
           </Button>
         </div>
       );
@@ -193,28 +197,30 @@ interface PlanViewProps {
 }
 
 function PlanView({ plan, refused, renewed, applying, onApply, onReset }: PlanViewProps) {
+  const { t } = useTranslation("documents");
+  const actions = Object.entries(plan.by_action)
+    .map(([label, count]) => t("upload.planAction", { label, count }))
+    .join(" · ");
   return (
     <div className="flex flex-col gap-3">
       {renewed ? (
-        <Alert tone="warning" title="Plan yenilendi" live>
-          <p>Planı gösterdikten sonra bir dosya değişti; yeni plan aşağıda. Uygun görürseniz yeniden onaylayın.</p>
+        <Alert tone="warning" title={t("upload.renewed")} live>
+          <p>{t("upload.renewedText")}</p>
         </Alert>
       ) : null}
       <Refused refused={refused} />
       {plan.changes === 0 ? (
-        <Alert tone="neutral" title="Alınacak belge yok" />
+        <Alert tone="neutral" title={t("upload.nothing")} />
       ) : (
         <>
-          <p className="text-sm font-medium">
-            Plan: {Object.entries(plan.by_action).map(([label, n]) => `${label}: ${n}`).join(" · ")}
-          </p>
+          <p className="text-sm font-medium">{t("upload.plan", { actions })}</p>
           <Table>
-            <caption className="sr-only">Her dosyaya ne olacağı</caption>
+            <caption className="sr-only">{t("upload.caption")}</caption>
             <thead>
               <tr>
-                <Th>Dosya</Th>
-                <Th>Ne olacak</Th>
-                <Th>Belge</Th>
+                <Th>{t("upload.file")}</Th>
+                <Th>{t("upload.action")}</Th>
+                <Th>{t("upload.document")}</Th>
               </tr>
             </thead>
             <tbody>
@@ -240,11 +246,11 @@ function PlanView({ plan, refused, renewed, applying, onApply, onReset }: PlanVi
       <div className="flex flex-wrap gap-2">
         {plan.changes > 0 ? (
           <Button onClick={() => void onApply()} disabled={applying}>
-            {applying ? "Uygulanıyor…" : "Planı uygula"}
+            {applying ? t("upload.applying") : t("upload.apply")}
           </Button>
         ) : null}
         <Button variant="secondary" onClick={onReset} disabled={applying}>
-          Vazgeç
+          {t("upload.cancel")}
         </Button>
       </div>
     </div>
@@ -252,16 +258,15 @@ function PlanView({ plan, refused, renewed, applying, onApply, onReset }: PlanVi
 }
 
 function Refused({ refused }: { refused: Uploaded[] }) {
+  const { t } = useTranslation("documents");
   if (refused.length === 0) {
     return null;
   }
   return (
-    <Alert tone="warning" title={`${refused.length} dosya alınmadı`}>
+    <Alert tone="warning" title={t("upload.refused", { count: refused.length })}>
       <ul>
         {refused.map((r) => (
-          <li key={r.name}>
-            {r.name}: {r.reason}
-          </li>
+          <li key={r.name}>{t("upload.refusedItem", { name: r.name, reason: r.reason })}</li>
         ))}
       </ul>
     </Alert>
@@ -288,8 +293,4 @@ async function uploadAll(
     progress(i + 1);
   }
   return { batch, refused };
-}
-
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : "Beklenmeyen bir hata oldu.";
 }

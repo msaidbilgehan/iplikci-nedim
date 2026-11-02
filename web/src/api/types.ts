@@ -32,6 +32,7 @@ import type {
   AlertRuleModel,
   AlertRulesOut,
   AppliedOut,
+  ArrivalOut,
   BridgeOut,
   BulkOut,
   CalendarItemOut,
@@ -50,6 +51,7 @@ import type {
   DocumentDetailOut,
   DocumentOut,
   DocumentPageOut,
+  DocumentRowOut,
   DocumentViewOut,
   EventInfoOut,
   EventKind,
@@ -88,9 +90,13 @@ import type {
   PrintedOut,
   QueuedOut,
   RefusedMailOut,
+  RemovedOut,
+  ReparsedOut,
   RowOut,
   RuleChangeOut,
   SeriesOut,
+  SourceRefOut,
+  StatementCheckOut,
   SubscriptionsOut,
   SystemOut,
   TelegramCheckOut,
@@ -101,6 +107,7 @@ import type {
   TransactionDetailOut,
   TransactionsOut,
   UploadOut,
+  ViewKind,
   ViewModel,
 } from "./schema";
 
@@ -205,8 +212,15 @@ export type { Necessity };
 // A document as the viewer shows it, and where its rows are printed (F03).
 export type DocumentDetail = DocumentDetailOut;
 export type DocumentView = DocumentViewOut;
+export type DocumentRow = DocumentRowOut;
+export type DocumentCheck = StatementCheckOut;
+export type Arrival = ArrivalOut;
+export type SourceRef = SourceRefOut;
 export type PageLines = PageLinesOut;
 export type Printed = PrintedOut;
+export type Reparsed = ReparsedOut;
+export type Removed = RemovedOut;
+export type { ViewKind };
 
 // The dashboard (F06): every card with its plain-view sentence (`say`) and the screen it leads to (`link`).
 export type Dashboard = DashboardOut;

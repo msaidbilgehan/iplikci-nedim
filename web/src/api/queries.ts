@@ -46,6 +46,8 @@ import type {
   PageLines,
   Pairing,
   Queued,
+  Removed,
+  Reparsed,
   RuleChange,
   SavedView,
   Subscriptions,
@@ -76,8 +78,8 @@ export const keys = {
   documentDetail: (sha256: string) => ["documents", sha256, "detail"] as const,
   documentView: (sha256: string) => ["documents", sha256, "view"] as const,
   pageLines: (sha256: string, page: number) => ["documents", sha256, "lines", page] as const,
-  documents: (filter: DocumentFilter) => ["documents", filter] as const,
-  allDocuments: ["documents"] as const,
+  documents: (query: string) => ["documents", "list", query] as const,
+  allDocuments: ["documents"] as const, // the lists and every document's detail: a reading or an analysis moves them
   bridges: ["bridges"] as const,
   subscriptions: ["subscriptions"] as const,
   calendar: ["calendar"] as const,
@@ -92,13 +94,6 @@ export const keys = {
 };
 
 const OTHER_SENDERS = "/api/settings/mail/other-senders";
-
-export type DocumentFilter = "all" | "unprocessed";
-
-const FILTER_STATUSES: Record<DocumentFilter, string[]> = {
-  all: [],
-  unprocessed: ["unprocessed", "unreadable"],
-};
 
 export function useSystem() {
   return useQuery({
@@ -117,14 +112,15 @@ export function useLabels() {
   });
 }
 
-export function useDocuments(filter: DocumentFilter) {
+/**
+ * The kept documents a query keeps (the filters in the API's names and the page's size), newest first, a page at a
+ * time by the service's cursor; nothing is asked while a filter chooses none.
+ */
+export function useDocuments(query: string, enabled = true) {
   return useInfiniteQuery({
-    queryKey: keys.documents(filter),
+    queryKey: keys.documents(query),
     queryFn: ({ pageParam }) => {
-      const params = new URLSearchParams({ limit: "50" });
-      for (const status of FILTER_STATUSES[filter]) {
-        params.append("status", status);
-      }
+      const params = new URLSearchParams(query);
       if (pageParam) {
         params.set("cursor", pageParam);
       }
@@ -132,6 +128,8 @@ export function useDocuments(filter: DocumentFilter) {
     },
     initialPageParam: "",
     getNextPageParam: (last) => last.next || undefined,
+    placeholderData: keepPreviousData, // another filter's documents stay, dimmed, until its own arrive
+    enabled,
   });
 }
 
@@ -405,6 +403,33 @@ export function usePageLines(sha256: string, page: number, enabled = true) {
     queryKey: keys.pageLines(sha256, page),
     queryFn: () => api.get<PageLines>(`${DOCUMENTS}/${sha256}/pages/${page}/lines`),
     enabled: enabled && sha256 !== "" && page > 0,
+  });
+}
+
+/**
+ * Read a document again now: the status it has after; "removed" when it turned out to be a company's (ADR-0003). The
+ * analysis follows in the background and the event stream says when it is done.
+ */
+export function useReparse() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (sha256: string) => api.post<Reparsed>(`${DOCUMENTS}/${sha256}/reparse`),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: keys.allDocuments });
+      void client.invalidateQueries({ queryKey: keys.system });
+    },
+  });
+}
+
+/** Move a document to the system Trash once the user confirmed it (F03, ADR-0003); its rows leave the ledger. */
+export function useRemoveDocument() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (sha256: string) => api.post<Removed>(`${DOCUMENTS}/${sha256}/remove`),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: keys.allDocuments });
+      void client.invalidateQueries({ queryKey: keys.system });
+    },
   });
 }
 

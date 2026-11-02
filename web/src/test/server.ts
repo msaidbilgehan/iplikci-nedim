@@ -46,7 +46,13 @@ import type {
 
 export const LABELS: Labels = {
   DocumentStatus: { processed: "İşlendi", unprocessed: "İşlenmedi", unreadable: "Okunamadı", removed: "Kaldırıldı" },
-  DocumentKind: { account_statement: "Hesap dökümü", card_statement: "Kart ekstresi", receipt: "Dekont" },
+  DocumentKind: {
+    account_statement: "Hesap dökümü",
+    card_statement: "Kart ekstresi",
+    receipt: "Dekont",
+    notice: "Banka bildirimi",
+    invoice: "Fatura ya da makbuz",
+  },
   SourceKind: { email: "E-posta", upload: "Yükleme", inbox: "Gelen klasörü", import: "İçe aktarma" },
   SeriesStatus: {
     active: "Devam ediyor",
@@ -157,7 +163,11 @@ export const LABELS: Labels = {
   },
   RuleLayer: { own: "Sizin kurallarınız", shipped: "Hazır kurallar" },
   TransferStep: { paired: "Başka bir hesabınızda karşılığı var" },
-  EvidenceStatus: { matched: "Ekstreyle eşleşti", provisional: "Geçici — ekstre bekleniyor" },
+  EvidenceStatus: {
+    matched: "Ekstreyle eşleşti",
+    provisional: "Geçici — ekstre bekleniyor",
+    unmatched: "Ekstrede görünmüyor",
+  },
 };
 
 /** An amount in TL from its kuruş. */
@@ -1544,7 +1554,7 @@ export const STATEMENT_DETAIL: DocumentDetail = {
       description: PURCHASE.description,
       amount: PURCHASE.amount,
       kind: "purchase",
-      account: CARD.id,
+      account: CARD.label, // the account as the screens name it
       category: "Market",
       provisional: false,
       counted: true,
@@ -1555,6 +1565,174 @@ export const STATEMENT_DETAIL: DocumentDetail = {
   more_rows: false,
   parent: "",
   attachments: [],
+};
+
+// --- the Belgeler screens (F03) -------------------------------------------------------------------------------------
+
+export const ACCOUNT_LIST = "a".repeat(64); // FIRST_PAGE's account list, a sheet
+export const LOCKED = "b".repeat(64); // FIRST_PAGE's encrypted PDF, which no reader could open
+
+/** The account list's sheet as the viewer shows it: row 3 is the salary's. */
+export const LIST_VIEW: DocumentView = {
+  kind: "table",
+  pages: [],
+  table: {
+    name: "Hesap Hareketleri",
+    rows: [
+      ["Tarih", "Açıklama", "Tutar", "Bakiye"],
+      ["01.02.2026", "DEVIR", "", "1.000,00"],
+      ["05.02.2026", "MAAS ODEMESI ORNEK ISVEREN", "40.000,00", "41.000,00"],
+    ],
+    more: false,
+  },
+  mail: null,
+  text: "",
+  has_html: false,
+};
+
+export const LIST_DETAIL: DocumentDetail = {
+  document: FIRST_PAGE.items[0]!,
+  parser_version: "2.1",
+  view: "table",
+  arrivals: [
+    {
+      kind: "upload",
+      name: "subat.xls",
+      origin: "",
+      sender: "",
+      subject: "",
+      sent_at: "",
+      received_at: "2026-11-01T07:31:00+00:00",
+      gmail: "",
+    },
+  ],
+  checks: [
+    {
+      account: "TEB Vadesiz TL 123456789",
+      start: "2026-02-01",
+      cut: "2026-02-28",
+      printed: tl(4100000),
+      counted: tl(4100000),
+      verified: true,
+      balance_checks: [12, 12],
+      rows: 12,
+    },
+  ],
+  rows: [
+    {
+      fingerprint: INCOME.fingerprint,
+      day: "2026-02-05",
+      description: INCOME.description,
+      amount: tl(-4000000),
+      kind: "income",
+      account: "TEB Vadesiz TL 123456789",
+      category: "Maaş",
+      provisional: false,
+      counted: true,
+      evidence: null,
+      ref: { page: null, box: null, line: null, sheet: "Hesap Hareketleri", row: 3, span: null },
+    },
+  ],
+  more_rows: false,
+  parent: "",
+  attachments: [],
+};
+
+// The receipt as an e-mail: its body as a browser breaks it, the same text collapsed (a row's span counts in it) and
+// an HTML part shown only in a sandbox.
+const RECEIPT_TEXT = "Sayın Müşterimiz, 03.11.2026 tarihli işleminiz: ORNEK KAFE 90,00 TL. Bilgilerinize sunarız.";
+const KAFE = RECEIPT_TEXT.indexOf("ORNEK KAFE 90,00 TL");
+
+export const RECEIPT_VIEW: DocumentView = {
+  kind: "mail",
+  pages: [],
+  table: null,
+  mail: {
+    subject: "İşlem bildirimi",
+    sender: "ornekbanka.example",
+    sent: "2026-11-03T06:15:00+00:00",
+    lines: ["Sayın Müşterimiz,", "03.11.2026 tarihli işleminiz: ORNEK KAFE 90,00 TL.", "Bilgilerinize sunarız."],
+    text: RECEIPT_TEXT,
+  },
+  text: "",
+  has_html: true,
+};
+
+export const RECEIPT_DETAIL: DocumentDetail = {
+  document: {
+    sha256: RECEIPT,
+    name: "Örnek Banka dekontu",
+    file: "dekont.eml",
+    kind: "receipt",
+    parser: "ornek.receipt_mail",
+    reader: "Örnek banka dekontu",
+    status: "processed",
+    reason: "",
+    verified: null,
+    period_start: "2026-11-03",
+    period_end: "2026-11-03",
+    sources: ["email"],
+    added_at: "2026-11-03T06:20:00+00:00",
+    size: 6144,
+    accounts: [{ id: CARD.id, label: CARD.label, bank: "Örnek Bank" }],
+  },
+  parser_version: "1.2",
+  view: "mail",
+  arrivals: [
+    {
+      kind: "email",
+      name: "dekont.eml",
+      origin: "INBOX",
+      sender: "bildirim@ornekbanka.example",
+      subject: "İşlem bildirimi",
+      sent_at: "2026-11-03T06:15:00+00:00",
+      received_at: "2026-11-03T06:20:00+00:00",
+      gmail: "https://mail.google.com/mail/u/0/#search/rfc822msgid%3Aornek-1%40ornekbanka.example",
+    },
+  ],
+  checks: [],
+  rows: [
+    {
+      fingerprint: EXCLUDED.fingerprint,
+      day: "2026-11-03",
+      description: "ORNEK KAFE",
+      amount: tl(9000),
+      kind: "purchase",
+      account: CARD.label,
+      category: "Kafe",
+      provisional: false,
+      counted: false,
+      evidence: "unmatched",
+      ref: { page: null, box: null, line: null, sheet: null, row: null, span: [KAFE, KAFE + 19] },
+    },
+  ],
+  more_rows: false,
+  parent: "",
+  attachments: [{ sha256: "9".repeat(64), name: "dekont.pdf" }],
+};
+
+export const LOCKED_DETAIL: DocumentDetail = {
+  document: FIRST_PAGE.items[1]!,
+  parser_version: "",
+  view: "pdf",
+  arrivals: [],
+  checks: [],
+  rows: [],
+  more_rows: false,
+  parent: "",
+  attachments: [],
+};
+
+const DOCUMENT_DETAILS: Record<string, DocumentDetail> = {
+  [STATEMENT]: STATEMENT_DETAIL,
+  [ACCOUNT_LIST]: LIST_DETAIL,
+  [RECEIPT]: RECEIPT_DETAIL,
+  [LOCKED]: LOCKED_DETAIL,
+};
+const DOCUMENT_VIEWS: Record<string, DocumentView> = {
+  [STATEMENT]: STATEMENT_VIEW,
+  [ACCOUNT_LIST]: LIST_VIEW,
+  [RECEIPT]: RECEIPT_VIEW,
 };
 
 // --- the Hesaplar screens (F07) -------------------------------------------------------------------------------------
@@ -1777,9 +1955,15 @@ export const handlers = [
     HttpResponse.json(String(params["fingerprint"]).startsWith(WHOLE) ? SPLIT_DETAIL : transactionDetail()),
   ),
   http.get("/api/rules/categories", () => HttpResponse.json(CATEGORY_RULES)),
-  http.get("/api/documents/:sha256/view", () => HttpResponse.json(STATEMENT_VIEW)),
+  http.get("/api/documents/:sha256/view", ({ params }) =>
+    String(params["sha256"]) === LOCKED
+      ? HttpResponse.json({ code: "document_unshown", title: "Belge gösterilemiyor: PDF şifreli" }, { status: 422 })
+      : HttpResponse.json(DOCUMENT_VIEWS[String(params["sha256"])] ?? STATEMENT_VIEW),
+  ),
   http.get("/api/documents/:sha256/pages/:page/lines", () => HttpResponse.json({ lines: STATEMENT_LINES })),
-  http.get("/api/documents/:sha256", () => HttpResponse.json(STATEMENT_DETAIL)),
+  http.get("/api/documents/:sha256", ({ params }) =>
+    HttpResponse.json(DOCUMENT_DETAILS[String(params["sha256"])] ?? STATEMENT_DETAIL),
+  ),
   http.get("/api/subscriptions", () => HttpResponse.json(SUBSCRIPTIONS)),
   http.get("/api/calendar", () => HttpResponse.json(CALENDAR)),
   http.get("/api/forecast", () => HttpResponse.json(FORECAST)),

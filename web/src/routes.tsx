@@ -14,6 +14,7 @@ const AccountsPage = lazy(() => import("./pages/AccountsPage"));
 const AccountPage = lazy(() => import("./pages/AccountPage"));
 const SystemPage = lazy(() => import("./pages/SystemPage"));
 const DocumentsPage = lazy(() => import("./pages/DocumentsPage"));
+const DocumentPage = lazy(() => import("./pages/DocumentPage"));
 const SubscriptionsPage = lazy(() => import("./pages/SubscriptionsPage"));
 const CalendarPage = lazy(() => import("./pages/CalendarPage"));
 const InvoicesPage = lazy(() => import("./pages/InvoicesPage"));
@@ -36,6 +37,7 @@ export const routes: RouteObject[] = [
       { path: "islemler", element: screen(<TransactionsPage />) },
       { path: "sistem", element: screen(<SystemPage />) },
       { path: "belgeler", element: screen(<DocumentsPage />) },
+      { path: "belgeler/:id", element: screen(<DocumentPage />) },
       { path: "abonelikler", element: screen(<SubscriptionsPage />) },
       { path: "takvim", element: screen(<CalendarPage />) },
       { path: "faturalar", element: screen(<InvoicesPage />) },

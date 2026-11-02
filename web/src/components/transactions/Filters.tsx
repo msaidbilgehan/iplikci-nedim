@@ -2,7 +2,7 @@
 // the certainty, tags and a text search, each kept in the address in the API's names. A merchant or a group comes
 // with a link from another screen and shows as a chip; every filter that is set has a chip that takes it off.
 
-import { type FormEvent, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { type FormEvent, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { CategoryRules, Labels } from "../../api/types";
@@ -21,6 +21,7 @@ import {
   type Selection,
   useSelectionSummary,
 } from "../ui/FilterPopover";
+import { SearchInput } from "../ui/SearchInput";
 import { filtered, MANY, ONE } from "./query";
 
 const INPUT = [
@@ -43,7 +44,6 @@ const KINDS = [
   "transfer_candidate",
 ];
 const NECESSITIES = ["required", "optional", "unnecessary", "unknown"];
-const SEARCH_MS = 300; // the search waits for a pause in the typing
 const SWATCH = "inline-block size-3 shrink-0 rounded-sm"; // a category's group colour beside its name
 
 interface FiltersProps {
@@ -143,7 +143,12 @@ export function Filters({ params, onChange, labels, accounts, rules }: FiltersPr
       <div className="flex flex-wrap items-start gap-2">
         <DateInput label={t("filters.from")} value={from} onChange={(day) => setOne("from", day)} />
         <DateInput label={t("filters.to")} value={to} onChange={(day) => setOne("to", day)} />
-        <SearchInput value={params.get("q") ?? ""} onChange={(q) => setOne("q", q, true)} />
+        <SearchInput
+          label={t("filters.q")}
+          hint={t("filters.qHint")}
+          value={params.get("q") ?? ""}
+          onChange={(q) => setOne("q", q, true)}
+        />
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {popovers
@@ -186,53 +191,6 @@ function DateInput({ label, value, onChange }: { label: string; value: string; o
     <div className="flex flex-col gap-1 text-sm">
       <label htmlFor={id}>{label}</label>
       <input id={id} type="date" value={value} onChange={(event) => onChange(event.target.value)} className={INPUT} />
-    </div>
-  );
-}
-
-/** The text search, sent once the typing pauses; the address keeps one entry for it, not one per letter. */
-function SearchInput({ value, onChange }: { value: string; onChange: (q: string) => void }) {
-  const { t } = useTranslation("transactions");
-  const id = useId();
-  const hint = useId();
-  const [text, setText] = useState(value);
-  const latest = useRef(onChange);
-  const sent = useRef(value);
-  useLayoutEffect(() => {
-    latest.current = onChange;
-  });
-  useEffect(() => {
-    // The address changed from elsewhere (a chip took the search off): the box follows it.
-    if (value !== sent.current) {
-      sent.current = value;
-      setText(value);
-    }
-  }, [value]);
-  useEffect(() => {
-    if (text.trim() === sent.current.trim()) {
-      return undefined;
-    }
-    const timer = setTimeout(() => {
-      sent.current = text.trim();
-      latest.current(text);
-    }, SEARCH_MS);
-    return () => clearTimeout(timer);
-  }, [text]);
-  return (
-    // Wide enough to type in, or on a line of its own on a phone's screen.
-    <div className="flex min-w-60 flex-1 flex-col gap-1 text-sm">
-      <label htmlFor={id}>{t("filters.q")}</label>
-      <input
-        id={id}
-        type="search"
-        value={text}
-        aria-describedby={hint}
-        onChange={(event) => setText(event.target.value)}
-        className={`${INPUT} w-full`}
-      />
-      <span id={hint} className="text-xs text-zinc-600 dark:text-zinc-300">
-        {t("filters.qHint")}
-      </span>
     </div>
   );
 }

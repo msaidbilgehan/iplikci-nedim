@@ -87,7 +87,7 @@ export function isReady(key: ScreenKey): boolean {
 // The pages under a screen's address that open one thing (architecture §18); each comes with or after its list. Set
 // one when its route lands, as `ready` above.
 export const DETAILS: Readonly<Record<"document" | "account" | "month", boolean>> = {
-  document: false, // /belgeler/:id, the viewer: ?satir=<fingerprint> opens it at a row
+  document: true, // /belgeler/:id, the viewer: ?satir=<fingerprint> opens it at a row
   account: true, // /hesaplar/:id
   month: false, // /ay-sonu/:ay
 };
