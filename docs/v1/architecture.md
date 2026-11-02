@@ -575,7 +575,9 @@ Ayrıntılar [ADR-0010](../adr/0010-notification-channels.md)'un uygulama notund
 | `GET/PUT /api/settings/mail/other-senders` | banka dışı göndericiler (F14); yalnızca arayüz değiştirir. Banka alan adı (altı ya da üstü dahil), iki kez yazılan ve alan adı olmayan değer reddedilir, hiçbir şey yazılmaz |
 | `GET /api/setup` | kurulum sihirbazının adımları, her birinin durumu ve ilk açılış mı olduğu |
 | `GET /api/system`, `GET /api/system/log` | sağlık, işler, okuyucu sağlığı, e-posta, yedekler; servisin günlüğü, kişisel olabilecek yollar, adlar, adresler ve numaralar çıkarılmış |
-| `GET /api/backups`, `POST /api/backups` | yedekler; şimdi yedek al |
+| `GET /api/backups`, `POST /api/backups`, `POST /api/backups/{ad}/restore` | yedekler; şimdi yedek al; bir yedeği geri yükleme: yedek hemen denetlenir, servis yeniden başlarken veritabanı açılmadan yerine konur |
+| `GET /api/service`, `POST /api/service/stop`, `POST /api/service/restart`, `POST /api/service/remove` | servisin kendisi (ADR-0017): bilgisayar onu başlatıyor mu; durdurma, yeniden başlatma (yalnızca kayıtlı servis), bilgisayardan kaldırma (veri klasörü istenirse sonunda çöp kutusuna); önce yanıt verilir, servis sonra biter; yalnızca arayüz |
+| `GET /api/extension`, `POST /api/extension/folder` | tarayıcı eklentisinin klasörü (K20): program eklentiyi taşıyor mu, klasör güncel mi; klasörü yapma ya da yenileme ve dosya yöneticisinde gösterme |
 | `GET /api/exports`, `POST /api/exports`, `GET /api/exports/{tür}` | CSV, XLSX, tek dosyalık rapor, ay sonu sayfaları: üretme ve indirme |
 | `/mcp` | MCP Streamable HTTP (Aşama 7) |
 
@@ -663,6 +665,25 @@ Teknoloji ADR-0008'dedir. Ekranlar ve davranışları [features.md](features.md)
 - Güncellemek için yeni paket açılır; servis yeni sürümle yeniden başlar.
 - Geliştiriciler servisi `uv run iplikci servis calistir` ile ön planda çalıştırır.
 - Tek kopya kilidi veri klasöründedir.
+- **Paket:** `packaging/build.py` her sistemin paketini o sistemin kendi makinesinde üretir; CI'da "Paketler" iş akışı
+  bir sürüm etiketinde ya da istenince çalışır. Pakette taşınabilir CPython ve içine kurulmuş program vardır;
+  derlenmiş arayüz ve tarayıcı eklentisi de içindedir (ADR-0017, "Paketleme biçimi").
+- **Uygulamanın açılışı:** uygulama `python -I -X utf8 -m iplikci uygulama` çalıştırır (`service/launcher`).
+  - Kayıt bu kopyanın değilse servisi yeniden kaydeder ve başlatır.
+  - Çalışan servisin sürümü farklıysa servisi yeniden başlatır.
+  - Servis sağlık denetiminden geçince arayüzü tek kullanımlık giriş bağlantısıyla açar.
+  - Disk görüntüsünden ya da macOS'un geçici yerinden (App Translocation) açılan uygulama önce Uygulamalar klasörüne
+    taşınmasını ister.
+  - Sorunlar sistemin kendi penceresinde söylenir (`service/dialog`); geliştirme kopyası kaydedilmez.
+- **Servisin kendi hayatı** (`app/lifecycle`): servis kendi sürecini bitirir.
+  - Temiz çıkış (0) durmadır: servis bir sonraki oturum açılışında ya da uygulama açılınca başlar.
+  - 75 çıkış kodu yeniden başlatmadır. launchd (`KeepAlive`, `SuccessfulExit: false`), systemd
+    (`Restart=on-failure`) ve Windows görevi başarısız çıkışı servisi yeniden başlatarak karşılar.
+  - Veritabanı kapalıyken yapılacak işler `run/`'da bekler. Geri yüklenecek yedek (`geri-yukle.json`) bir sonraki
+    açılışta, veritabanı açılmadan yerine konur. Kaldırma veri klasörünü de istediyse klasör (`kaldir.json`)
+    çalışmanın sonunda çöp kutusuna taşınır.
+- **Eklentinin klasörü** (`app/extension`, K20): servis açılırken veri klasöründeki `extension/` klasörünü programın
+  taşıdığı eklentiyle karşılaştırır ve farklıysa yeniler; kullanıcının istemediği klasörü yapmaz.
 
 **Komutlar**
 
@@ -673,6 +694,7 @@ Kullanıcı komutları Türkçedir; geliştirici komutları `dev` altında İngi
 |---|---|
 | `iplikci kur` | kurulum sihirbazını açar |
 | `iplikci ac` | arayüzü tek kullanımlık giriş bağlantısıyla açar |
+| `iplikci uygulama` | kurulan uygulamanın açılışta çalıştırdığı: servis kaydı, sürüm denetimi, arayüz; geliştirme kopyasında çalışmaz |
 | `iplikci servis kur \| kaldir \| durum \| yeniden-baslat \| calistir` | arka plan servisi (`calistir` ön planda çalıştırır) |
 | `iplikci eposta kur \| durum \| kaldir` | e-posta bağlantısı; şifre gizli istemle girilir, hiçbir yere yazılmaz |
 | `iplikci telegram kur \| kaldir` | bot belirteci ve sohbet eşleştirmesi |
