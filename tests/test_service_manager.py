@@ -146,23 +146,24 @@ def test_the_windows_task_is_created_from_a_definition_that_does_not_stay_behind
     assert not list((program.home / "run").iterdir())
 
 
-def test_each_service_manager_says_which_data_folder_its_service_runs_for(tmp_path, program):
+def test_each_service_manager_says_what_its_registration_runs(tmp_path, program):
     launchd = manager.Launchd(tmp_path, run=Tools({("launchctl", "print"): 113}), uid=501)
-    assert launchd.home() is None  # nothing registered
+    assert launchd.registered() is None  # nothing registered
     launchd.install(program)
-    assert launchd.home() == program.home
+    assert launchd.registered() == program
     systemd = manager.Systemd(tmp_path, run=Tools(), env={"XDG_CONFIG_HOME": str(tmp_path / "ayar")})
-    assert systemd.home() is None
-    systemd.install(manager.Program(program.python, tmp_path / "%100 veri"))  # systemd's %-specifiers are escaped
-    assert systemd.home() == tmp_path / "%100 veri"
+    assert systemd.registered() is None
+    spaced = manager.Program(tmp_path / "araç kutusu" / "python", tmp_path / "%100 veri")  # quoted and %-escaped
+    systemd.install(spaced)
+    assert systemd.registered() == spaced
     scheduler = manager.TaskScheduler(run=Tools(), env={"USERNAME": "deneme"})
     xml = scheduler.task_xml(manager.Program(program.python, tmp_path / "Ali & Ayşe"))  # & is escaped in the XML
 
     def schtasks(args: Sequence[str]) -> manager.Completed:
         return manager.Completed(0, xml if "/XML" in args else "", "")
 
-    assert manager.TaskScheduler(run=schtasks).home() == tmp_path / "Ali & Ayşe"
-    assert manager.TaskScheduler(run=Tools({("schtasks", "/Query"): 1})).home() is None
+    assert manager.TaskScheduler(run=schtasks).registered() == manager.Program(program.python, tmp_path / "Ali & Ayşe")
+    assert manager.TaskScheduler(run=Tools({("schtasks", "/Query"): 1})).registered() is None
 
 
 def test_each_system_has_its_service_manager():

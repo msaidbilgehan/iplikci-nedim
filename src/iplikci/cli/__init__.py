@@ -14,6 +14,7 @@ iplikci mcp                     Claude için MCP sunucusu (istemci başlatır)
 iplikci servis calistir         servisi ön planda çalıştır (API, 127.0.0.1)
 iplikci servis kur|kaldir|durum|yeniden-baslat   arka plan servisi (launchd, systemd, Görev Zamanlayıcı)
 iplikci ac                      arayüzü tek kullanımlık giriş bağlantısıyla aç (servis çalışıyor olmalı)
+iplikci uygulama                uygulamayı aç: servisi kaydet ve başlat, arayüzü aç (kurulum paketinin başlatıcısı)
 iplikci yedek al|liste|geri-yukle|prova   yedek al, listele, geri yükle; geri yüklemenin provası
 iplikci dogrula --taban         doğrulama tabanını al, öncekiyle karşılaştır (gerilemede çıkış kodu 1)
 iplikci dev demo [KLASÖR]       sahte belgelerle demo veri klasörü kur
@@ -32,7 +33,7 @@ from .mail import mail_command
 from .mcp import mcp_command
 from .notify import notify_command, telegram_command
 from .report import month_end_command, report
-from .service import open_command, service_command
+from .service import app_command, open_command, service_command
 from .transactions import transaction_command
 from .verify import verify_command
 
@@ -47,6 +48,7 @@ COMMANDS: dict[str, Callable[[list[str]], int]] = {
     "dogrula": verify_command,
     "servis": service_command,
     "ac": open_command,
+    "uygulama": app_command,
     "yedek": backup_command,
     "dev": dev_command,
 }

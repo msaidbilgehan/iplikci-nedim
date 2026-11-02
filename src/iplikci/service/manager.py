@@ -10,6 +10,7 @@ import getpass
 import os
 import plistlib
 import re
+import shlex
 import subprocess
 import sys
 from collections.abc import Callable, Mapping, Sequence
@@ -125,19 +126,20 @@ class ServiceManager(Protocol):
 
     def installed(self) -> bool: ...
 
-    def home(self) -> Path | None:
-        """The data folder the registered service runs for; None when none is registered or it cannot be read."""
+    def registered(self) -> Program | None:
+        """What the registration runs: the Python and the data folder; None when none is registered or it cannot be
+        read."""
         ...
 
     def restart(self) -> None: ...
 
 
-def _home_in(arguments: Sequence[str]) -> Path | None:
-    """The data folder a registered command line runs the service for: the value after --ev."""
+def _program_in(arguments: Sequence[str]) -> Program | None:
+    """The Python and the data folder of a registered command line: its first word and the value after --ev."""
     found = list(arguments)
-    if "--ev" in found[:-1]:
-        return Path(found[found.index("--ev") + 1])
-    return None
+    if not found or "--ev" not in found[:-1]:
+        return None
+    return Program(Path(found[0]), Path(found[found.index("--ev") + 1]))
 
 
 class Launchd:
@@ -188,7 +190,7 @@ class Launchd:
     def installed(self) -> bool:
         return self.path.exists()
 
-    def home(self) -> Path | None:
+    def registered(self) -> Program | None:
         try:
             agent: object = plistlib.loads(self.path.read_bytes())
         except (OSError, plistlib.InvalidFileException, ValueError):  # none, or not one this program wrote
@@ -196,7 +198,7 @@ class Launchd:
         if not isinstance(agent, dict):
             return None
         arguments = cast(dict[str, object], agent).get("ProgramArguments")
-        return _home_in([str(a) for a in cast(list[object], arguments)]) if isinstance(arguments, list) else None
+        return _program_in([str(a) for a in cast(list[object], arguments)]) if isinstance(arguments, list) else None
 
     def restart(self) -> None:
         if not self._loaded():  # stopped for this session: load it again
@@ -278,14 +280,17 @@ class Systemd:
     def installed(self) -> bool:
         return self.path.exists()
 
-    def home(self) -> Path | None:
+    def registered(self) -> Program | None:
         try:
             text = self.path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             return None
         for line in text.splitlines():
-            if line.startswith("WorkingDirectory="):  # the data folder, as unit() writes it
-                return Path(line.removeprefix("WorkingDirectory=").replace("%%", "%"))
+            if line.startswith("ExecStart="):  # the command line, as unit() quotes it
+                try:
+                    return _program_in([a.replace("%%", "%") for a in shlex.split(line.removeprefix("ExecStart="))])
+                except ValueError:  # quoting this program did not write
+                    return None
         return None
 
     def restart(self) -> None:
@@ -386,12 +391,16 @@ class TaskScheduler:
     def installed(self) -> bool:
         return self._run(["schtasks", "/Query", "/TN", UNIT]).code == 0
 
-    def home(self) -> Path | None:
+    def registered(self) -> Program | None:
         done = self._run(["schtasks", "/Query", "/TN", UNIT, "/XML"])
         if done.code != 0:
             return None
-        found = re.search(r"<WorkingDirectory>([^<]*)</WorkingDirectory>", done.out)  # the task task_xml() wrote
-        return Path(unescape(found.group(1))) if found else None
+        # The task task_xml() wrote: the Python (pythonw where there is one) and the data folder it works in.
+        command = re.search(r"<Command>([^<]*)</Command>", done.out)
+        home = re.search(r"<WorkingDirectory>([^<]*)</WorkingDirectory>", done.out)
+        if command is None or home is None:
+            return None
+        return Program(Path(unescape(command.group(1))), Path(unescape(home.group(1))))
 
     def restart(self) -> None:
         self._run(["schtasks", "/End", "/TN", UNIT])  # fails harmlessly when it is not running

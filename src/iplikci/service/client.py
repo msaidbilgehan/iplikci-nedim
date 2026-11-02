@@ -41,6 +41,15 @@ def call(ws: Workspace, method: str, path: str, body: dict[str, Any] | None = No
     return cast(dict[str, Any], json.loads(text)) if text else {}
 
 
+def healthy(port: int) -> bool:
+    """The service on this port answers its health check, which needs no token."""
+    try:
+        with _OPENER.open(f"http://127.0.0.1:{port}/healthz", timeout=2.0) as response:
+            return response.status == 200
+    except (urllib.error.URLError, TimeoutError, ConnectionError, OSError):
+        return False
+
+
 def _problem_title(exc: urllib.error.HTTPError) -> str:
     try:
         found = json.loads(exc.read().decode("utf-8"))

@@ -200,9 +200,10 @@ def registered_home() -> Path | None:
     """The data folder the service registered with this computer's service manager (launchd, systemd or Task
     Scheduler) runs for; None when none is registered."""
     try:
-        return manager.for_platform().home()
+        found = manager.for_platform().registered()
     except manager.ManagerError:  # a system with no service manager this program knows
         return None
+    return found.home if found is not None else None
 
 
 def _service_step(ws: Workspace) -> StepState:

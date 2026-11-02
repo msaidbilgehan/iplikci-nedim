@@ -1,5 +1,6 @@
-"""`iplikci servis` and `iplikci ac`: the service in the foreground or in the system's service manager, its status
-as the running service reports it (/api/system), and a login link from it."""
+"""`iplikci servis`, `iplikci ac` and `iplikci uygulama`: the service in the foreground or in the system's service
+manager, its status as the running service reports it (/api/system), a login link from it, and what opening the
+installed app does (ADR-0017)."""
 
 import argparse
 import sys
@@ -13,6 +14,7 @@ from ..domain.codes import Channel, DeliveryStatus, DocumentStatus
 from ..domain.labels import CHANNEL, DELIVERY_STATUS, DOCUMENT_STATUS
 from ..insights import pct
 from ..service import instance, logs, manager
+from ..settings.config import SettingsError
 from .common import human_size, local_time, open_workspace
 
 STOP_SECONDS = 30.0  # how long removing the service waits for it to finish its requests and end
@@ -290,4 +292,29 @@ def open_command(argv: list[str]) -> int:
         return 1
     if args.yazdir or not webbrowser.open(url):
         print(url)
+    return 0
+
+
+def app_command(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="iplikci uygulama",
+        description="Uygulamayı açar: arka plan servisini bu kopya için kaydeder, çalışmıyorsa başlatır, eski bir "
+        "sürüm çalışıyorsa yeniden başlatır ve arayüzü tarayıcıda tek kullanımlık bir giriş bağlantısıyla açar; ilk "
+        "açılışta kurulum sihirbazı açılır. Kurulum paketinin başlatıcısı bunu çalıştırır ve sorunları bir pencerede "
+        "söyler.",
+    )
+    parser.parse_args(argv)
+    from ..service import dialog, launcher
+
+    try:
+        ws = Workspace.load()
+        opened = launcher.open_app(ws, manager.for_platform(), sys.platform, Path(sys.executable))
+    except (OSError, SettingsError) as exc:
+        dialog.say(f"Veri klasörü açılamadı: {exc}")
+        return 1
+    except (launcher.LaunchError, manager.ManagerError) as exc:  # a development copy is refused here too
+        dialog.say(str(exc))
+        return 1
+    if not webbrowser.open(opened.url):
+        dialog.say(f"Tarayıcı açılamadı. Arayüzü açmak için bu adresi tarayıcınıza yapıştırın:\n{opened.url}")
     return 0
