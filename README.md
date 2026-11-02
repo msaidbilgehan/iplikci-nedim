@@ -84,8 +84,24 @@ Aşama 5 (Bildirimler, v0.6.0) önemli olayları kullanıcıya ulaştırır:
 - Bir olay için her kanala tek bildirim gider. Gönderilemeyen bildirim yeniden denenir; sessiz saatte gelenler sabah
   tek bir özetle gider. Gönderilen her bildirim teslim kaydında görünür.
 
-Aşama 6 (Arayüz) sürüyor: ekranlar, kurulum sihirbazı ve kurulum paketleri bu aşamada geliyor. Aşama bitene dek
-uygulama son kullanıcıya hazır sayılmaz.
+Aşama 6 (Arayüz, v0.7.0) uygulamayı terminal açmadan kurulan ve kullanılan bir programa çevirdi:
+
+- Arayüzün bütün ekranları geldi: Pano, Akış, Hesaplar, İşlemler, Abonelikler, Takvim, Döviz, Değerlendirme, Ay sonu,
+  Belgeler, Faturalar, Bildirimler, Kurallar, Yapılacaklar, Sistem, Kurulum sihirbazı, Ayarlar ve Tarayıcı eklentisi.
+  MVP raporunun bütün bölümleri Değerlendirme'de ve ilgili ekranlarda; her ayın sayfası uygulamanın içinde.
+- Her ekranın sade (bir cümle ve sonraki adım) ve ayrıntılı (tablolar) görünümü, açık ve koyu teması vardır. Her
+  grafiğin bir tablo görünümü vardır. Arayüz telefonda da yana taşmadan açılır ve uygulama gibi kurulabilir (PWA).
+- Her rakamdan dayandığı satırlara, her satırdan belgesine gidilir. Belge görüntüleyici PDF'te satırın kutusunu,
+  tabloda satırını, e-postada satırın sözcüklerini işaretler.
+- Kurulum paketleri: macOS'ta `.dmg`, Windows'ta kurulum programı, Linux'ta AppImage; şimdilik imzasız (K22). Uygulama
+  açılınca servisi kaydeder ve ilk açılışta kurulum sihirbazına götürür. Tarayıcı eklentisi programla gelir; sihirbaz
+  eklentinin klasörünü açar ve tarayıcıya yüklenişini adım adım anlatır.
+- Servis Ayarlar'dan durdurulur, yeniden başlatılır, bir yedekten geri yüklenir ve bilgisayardan kaldırılır; veri
+  klasörü yalnızca istenirse çöp kutusuna taşınır.
+- Uçtan uca testler demo çalışma alanında koşar: her ekran iki temada, telefon genişliğinde ve axe denetimiyle.
+
+Açık kalanlar: Windows'ta temiz kurulum denemesi (kullanıcı yapacak) ve servisin yedi gün kendi başına çalışması
+(K19).
 
 MVP 2026-10-31'de emekliye ayrıldı. İplikçi Nedim onun kodundan başlar ama verisini devralmaz; belgeleri kendisi toplar.
 

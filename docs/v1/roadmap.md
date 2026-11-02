@@ -245,6 +245,25 @@ Durum: 2026-11-02'de `asama-5` dalında uygulandı, `v0.6.0` ([değişiklik gün
 
 ## Aşama 6 — Arayüz
 
+Durum: 2026-11-02'de `asama-6` dalında uygulandı, `v0.7.0` ([değişiklik günlüğü](../../CHANGELOG.md)).
+
+- On beş ekran sırayla geldi; Faturalar, Sistem ve Tarayıcı eklentisi ekranları da aynı düzene getirildi. Her ekranın
+  metinleri kendi çeviri dosyasında, sade görünümü bir cümle ve sonraki adımla, ayrıntılı görünümü tablolarla.
+- MVP raporunun bölümleri Değerlendirme'de, varlık tablosu Döviz'de, hesap türlerinin toplamları Hesaplar'da; ayların
+  sayfaları `/ay-sonu/:ay`'da. MVP'nin kapsam ızgarası da geri geldi (`GET /api/accounts/coverage`).
+  [Özellikler](features.md#mvp-eşitlik-listesi)'deki rapor maddeleri işaretlendi; bilerek farklı olanlar orada yazılı.
+- Kurulum paketleri [ADR-0017](../adr/0017-no-terminal-install.md)'deki gibi: taşınabilir CPython 3.13 ve içine
+  kurulmuş program, derlenmiş arayüz ve tarayıcı eklentisiyle; imzasız (K22). Paketler sürüm etiketinde ya da istenince
+  CI'ın "Paketler" iş akışında, her sistemin kendi makinesinde üretilir.
+- Uygulama açılınca servisi kendi kopyası için kaydeder, eski sürümü yeniden başlatır ve arayüzü açar; hiçbir şey
+  kurulmamışsa arayüz kurulum sihirbazıyla açılır. Servis Ayarlar'dan durdurulur, yeniden başlatılır, geri yüklenir ve
+  kaldırılır; yeniden başlatma, geri yükleme ve kaldırma yalnızca bilgisayarın bu veri klasörü için kaydettiği serviste
+  yapılır.
+- Uçtan uca testler demo çalışma alanında, her ekran açık ve koyu temada, telefon genişliğinde ve axe ile; ilk açılış
+  boş bir veri klasöründe ayrıca sınanır.
+- Açık kalanlar: Windows'ta temiz kurulum (kullanıcı yapacak) ve Aşama 3'ten kalan yedi günlük çalışma (K19). Uzak
+  erişim (Tailscale, ADR-0012) sihirbazda "sonra gelecek" diye yazılıdır.
+
 **Teslimler**
 
 - Ekranlar, bu sırayla:

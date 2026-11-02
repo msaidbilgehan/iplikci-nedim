@@ -122,8 +122,9 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
   kendi penceresinde söyler (`iplikci uygulama`).
 - Servis arayüzden durdurulur, yeniden başlatılır ve bilgisayardan kaldırılır; veri klasörü yalnızca istenirse çöp
   kutusuna taşınır. Bir yedek arayüzden geri yüklenir: yedek hemen denetlenir, servis yeniden başlarken veritabanı
-  açılmadan yerine konur, öncesi ayrı bir yedekte kalır. API: `GET /api/service`,
-  `POST /api/service/stop|restart|remove`, `POST /api/backups/{ad}/restore`.
+  açılmadan yerine konur, öncesi ayrı bir yedekte kalır. Yeniden başlatma, geri yükleme ve kaldırma yalnızca
+  bilgisayarın bu veri klasörü için kaydettiği serviste yapılır: elle çalıştırılan bir servis başka bir klasörün
+  kaydını silemez. API: `GET /api/service`, `POST /api/service/stop|restart|remove`, `POST /api/backups/{ad}/restore`.
 - Tarayıcı eklentisi programla gelir; mağazaya çıkana dek paketlenmemiş yüklenir (K20):
   - Tarayıcı eklentisi ekranındaki "Eklenti klasörünü aç" eklentiyi veri klasörünün `extension/` klasörüne kopyalar
     ve dosya yöneticisinde gösterir.

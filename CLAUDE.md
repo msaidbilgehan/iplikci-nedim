@@ -6,8 +6,7 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-02): Phases 0–5 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.6.0); Phase 6 (the interface) is
-next, on `asama-6`.
+Status (2026-11-02): Phases 0–6 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.7.0); Phase 7 (MCP) is next.
 - Phase 0 brought the MVP's code in as the `iplikci` package, cleaned of personal traces, with the shipped default
   rules, the verification baseline and the demo workspace.
 - Phase 1 (data core) moved everything into the data dir: `settings.toml`, the content-addressed vault, SQLite with the
@@ -43,6 +42,17 @@ next, on `asama-6`.
   - Each alert goes once per channel. Quiet hours and the rate limits fold the rest into an hourly digest; a refused
     channel stops until the user turns it on again.
   - Tests never reach the network: `tests/conftest.py` refuses SMTP, HTTPS posts and the desktop program.
+- Phase 6 (the interface) brought every screen, in order, each in its own i18n namespace with a simple view (a
+  sentence and the next step) and a detailed one, both themes, a table view for every chart and no sideways scroll at
+  390 px; the MVP report's parts live on Değerlendirme and the screens beside it (features.md's parity list says where
+  and what differs on purpose).
+  - The installers (ADR-0017, unsigned per K22) carry a portable CPython with the program installed into it, the
+    built interface and the browser extension; the app registers the service for its own copy and a first run opens
+    the setup wizard. The extension is installed from the data dir's `extension/` folder the service keeps (K20).
+  - Restarting, restoring and removing the service from Ayarlar work only for the service registered for this data
+    folder; a service run by hand refuses them.
+  - The e2e tests run every screen in both themes with axe and at phone width; `e2e/tests/firstRun.spec.ts` starts its
+    own service on an empty data folder. Never confirm a step that ends the service in a test.
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 

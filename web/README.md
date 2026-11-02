@@ -6,9 +6,16 @@ Servisin `127.0.0.1`'de sunduğu tek sayfalık uygulama: React, TypeScript (kat�
 
 ## Durum
 
-Aşama 3'ün iskeleti: Sistem ekranı, Belgeler listesi (belge ekleme, plan ve onayla) ve tarayıcı eklentisinin
-eşleştirilmesi. Giriş, servisin açtığı tek kullanımlık bağlantıyla olur; oturum çerezi tarayıcıda kalır. Ekranların
-geri kalanı, PWA, çeviri altyapısı ve sade/ayrıntılı görünüm Aşama 6'da gelir.
+Aşama 6'yla arayüz tamamlandı (v0.7.0): Pano, Akış, Hesaplar, İşlemler, Abonelikler, Takvim, Döviz, Değerlendirme,
+Ay sonu, Belgeler ve görüntüleyici, Faturalar, Bildirimler, Kurallar, Yapılacaklar, Sistem, Kurulum sihirbazı, Ayarlar
+ve Tarayıcı eklentisi. Giriş, servisin açtığı tek kullanımlık bağlantıyla olur; oturum çerezi tarayıcıda kalır.
+Hiçbir şey kurulmamışsa arayüz kurulum sihirbazıyla açılır.
+
+- Metinler react-i18next ile ekran başına bir ad alanındadır (`src/locales/tr/`); sayılardan ve yıllardan sonraki
+  ekler `src/lib/turkish.ts`'teki yardımcılarla kurulur.
+- Açık, koyu ya da sistemin teması ve sade ya da ayrıntılı görünüm tarayıcıda hatırlanır.
+- PWA: servis çalışanı yalnızca uygulamanın kabuğunu saklar; API yanıtları hiç saklanmaz.
+- Her ekran 390 px genişlikte yana taşmaz; uçtan uca testler bunu iki görünümde de denetler.
 
 ## İlkeler
 
