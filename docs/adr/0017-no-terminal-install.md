@@ -124,6 +124,8 @@ parçasıdır.
   - Servis çalışmıyorsa ya da eski bir sürümse yeniden başlatılır.
   - Eski bir kopya, daha yeni bir sürümün servisi çalışırken ya da veri klasörünü daha yeni bir sürüm açmışken servisi
     kaydetmez; yeni sürümün açılmasını ister. Sürümler sayı olarak karşılaştırılır (0.10, 0.9'dan yenidir).
+  - Aynı anda iki açılış sırayla yürür (`run/uygulama.kilit`): ikincisi birincinin servisi kaydedip başlatmasını
+    bekler, sonra servisi hazır bulur.
   - Giriş bağlantısı ancak yeni servis yanıt verince alınır: biten eski servisin verdiği bağlantı onunla ölürdü.
   - Disk görüntüsünden ya da macOS'un geçici yerinden açılan uygulama önce taşınmasını ister.
   - Geliştirme kopyası servisi hiçbir zaman kaydetmez. Sorunlar sistemin kendi penceresinde söylenir.

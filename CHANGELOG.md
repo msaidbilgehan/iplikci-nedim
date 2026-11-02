@@ -168,6 +168,8 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
 - Eski bir kopya açılınca, daha yeni bir sürümün servisi çalışsa ya da veri klasörünü daha yeni bir sürüm açmış olsa
   da servisi kendine kaydediyor, Linux'ta yeni sürümün kopyasını da siliyordu. Artık yeni sürümün açılmasını ister ve
   yalnızca daha eski sürümlerin kopyalarını kaldırır; sürümler sayı olarak karşılaştırılır.
+- Uygulamaya art arda iki kez tıklanınca iki açılış servisi aynı anda kaydedip başlatabiliyordu; Windows'ta ikincisi
+  birincinin başlattığı servisi durduruyordu. Açılışlar artık sırayla yürür.
 
 ## [0.6.0] — 2026-11-02 — Aşama 5: Bildirimler
 

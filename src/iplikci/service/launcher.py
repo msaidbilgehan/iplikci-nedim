@@ -6,17 +6,21 @@ needs a terminal: a problem is said in the system's own window (dialog.py)."""
 import re
 import shutil
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Generator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
 from .. import __version__
 from ..app.workspace import Workspace
+from ..settings import locks
 from ..storage import db as database
 from . import client, instance
 from .manager import Program, ServiceManager, installed_program
 
 WAIT_SECONDS = 45.0  # how long the service may take to answer after it was started: its first start makes the folder
+LOCK_NAME = "uygulama.kilit"  # in run/: one opening of the app at a time for a data folder
+LOCK_MARGIN = 15.0  # an opening waits for the one before it as long as that may take, and this much longer
 _PAUSE = 0.25
 
 
@@ -65,32 +69,45 @@ def open_app(
 ) -> Opened:
     """Make sure the service of this data folder runs this copy, then a login link. LaunchError, ManagerError (the
     service manager refused) and DevelopmentCopy say why it could not. An older copy never takes over from a newer
-    one. Once this copy's service answers, the copies of older versions an AppImage left behind go."""
+    one, and a second opening waits until the first one is done. Once this copy's service answers, the copies of
+    older versions an AppImage left behind go."""
     why = misplaced(executable, platform)
     if why is not None:
         raise LaunchError(why)
     program = installed_program(ws.home)  # DevelopmentCopy from a development folder: it never registers
-    before = serving(ws.run)
-    _refuse_older(ws, before)
-    registered = not _same_copy(service.registered(), program)
-    restarted = False
-    if registered:
-        service.install(program)  # replaces an older registration and starts the service
-        restarted = True
-    elif before is None or (before.version and before.version != __version__):
-        service.restart()  # not running (stopped, or not started at this login), or an older version still runs
-        restarted = True
-    deadline = time.monotonic() + wait
-    while not (healthy(ws.port) and (not restarted or _replaced(serving(ws.run), before))):
-        if time.monotonic() > deadline:
-            raise LaunchError(
-                "Arka plan servisi başlatıldı ama yanıt vermedi. Birkaç saniye sonra uygulamayı yeniden açın; "
-                f"sorun sürerse günlüğe bakın: {ws.layout.logs}"
-            )
-        sleep(_PAUSE)
-    for older in older_copies(executable, platform):
-        shutil.rmtree(older, ignore_errors=True)  # a Python this program copied for an older version, no document
-    return Opened((login or _login_link)(ws), registered, restarted)
+    with _one_opening(ws.run, wait + LOCK_MARGIN):
+        before = serving(ws.run)
+        _refuse_older(ws, before)
+        registered = not _same_copy(service.registered(), program)
+        restarted = False
+        if registered:
+            service.install(program)  # replaces an older registration and starts the service
+            restarted = True
+        elif before is None or (before.version and before.version != __version__):
+            service.restart()  # not running (stopped, or not started at this login), or an older version still runs
+            restarted = True
+        deadline = time.monotonic() + wait
+        while not (healthy(ws.port) and (not restarted or _replaced(serving(ws.run), before))):
+            if time.monotonic() > deadline:
+                raise LaunchError(
+                    "Arka plan servisi başlatıldı ama yanıt vermedi. Birkaç saniye sonra uygulamayı yeniden açın; "
+                    f"sorun sürerse günlüğe bakın: {ws.layout.logs}"
+                )
+            sleep(_PAUSE)
+        for older in older_copies(executable, platform):
+            shutil.rmtree(older, ignore_errors=True)  # a Python this program copied for an older version, no document
+        return Opened((login or _login_link)(ws), registered, restarted)
+
+
+@contextmanager
+def _one_opening(run: Path, seconds: float) -> Generator[None]:
+    """One opening of the app at a time for a data folder: a second one, started while the first registers or starts
+    the service (a double click, two clicks on a menu item), waits for it and then finds the service ready."""
+    try:
+        with locks.held(run / LOCK_NAME, seconds):
+            yield
+    except locks.LockTimeout:
+        raise LaunchError("İplikçi Nedim zaten açılıyor; açılınca tarayıcıda görünecek.") from None
 
 
 def _refuse_older(ws: Workspace, running: instance.Holder | None) -> None:

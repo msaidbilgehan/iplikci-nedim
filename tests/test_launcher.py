@@ -3,6 +3,8 @@ as needed, a login link for the browser, and every problem said in the system's 
 health check and the windows are stand-ins; nothing reaches launchd, the network or the screen."""
 
 import subprocess
+import threading
+import time
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -11,6 +13,7 @@ import pytest
 from iplikci import __version__
 from iplikci.cli import main
 from iplikci.service import dialog, instance, launcher, manager
+from iplikci.settings import locks
 from iplikci.storage import db
 
 APP = Path("/Applications/İplikçi Nedim.app/Contents/Resources/python/bin/python3")
@@ -175,6 +178,33 @@ def test_a_service_registered_from_another_copy_or_folder_is_registered_again_fr
     for other in (manager.Program(tmp_path / "eski" / "python", ws.home), manager.Program(APP, tmp_path / "baska")):
         service = FakeService(other)
         assert opened(ws, service).registered and service.program == this_copy(ws)
+
+
+def test_a_second_opening_waits_until_the_first_one_is_done(ws, installed):
+    service = FakeService()
+    holding = threading.Event()
+
+    def first_opening() -> None:
+        with locks.held(ws.run / launcher.LOCK_NAME, 1.0):
+            holding.set()
+            time.sleep(0.3)  # registering and starting the service
+
+    first = threading.Thread(target=first_opening)
+    first.start()
+    holding.wait()
+    started = time.monotonic()
+    found = opened(ws, service)
+    first.join()
+    assert found.registered and time.monotonic() - started >= 0.25 and service.calls == ["install"]
+
+
+def test_an_opening_that_waits_too_long_for_the_one_before_it_says_so(ws, installed, monkeypatch):
+    monkeypatch.setattr(launcher, "LOCK_MARGIN", 0.2)
+    service = FakeService()
+    with locks.held(ws.run / launcher.LOCK_NAME, 1.0), pytest.raises(launcher.LaunchError, match="zaten açılıyor"):
+        opened(ws, service, wait=0.0)
+    assert service.calls == []
+    assert opened(ws, service).registered  # and once that one is done, the next one goes through
 
 
 def test_a_service_that_never_answers_is_said_with_where_its_log_is(ws, installed):
