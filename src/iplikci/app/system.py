@@ -3,6 +3,7 @@ how each reader is doing, the job queue, the e-mail intake, the backups and how 
 adds its own process details.
 """
 
+import json
 import re
 import shutil
 import sqlite3
@@ -11,6 +12,7 @@ from pathlib import Path
 
 from .. import __version__
 from ..domain.codes import DocumentStatus
+from ..domain.text import fold
 from ..parsers import registry
 from ..service.logs import LOG_NAME, OUTPUT_NAME
 from ..settings import config
@@ -224,15 +226,50 @@ def disk(ws: Workspace) -> Disk:
 
 LOG_TAIL = 1024 * 1024  # bytes kept of each file: the newest part
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
-_IBAN = re.compile(r"\bTR\d{2}(?:\s?\d{4}){5}\s?\d{2}\b", re.IGNORECASE)
+# Any country's IBAN, in groups or not; the country code in capitals, so a hexadecimal id is never taken for one.
+_IBAN = re.compile(r"\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){2,7}(?: ?[A-Z0-9]{1,3})?\b")
 _LONG_NUMBER = re.compile(r"\d{8,}")  # an account's or a card's number; times and counts are shorter
+# A home folder's account name in any path, a JSON line's doubled backslashes too: /Users/<name>, /home/<name>,
+# C:\Users\<name>. A Windows account name may have spaces: it runs to the next separator.
+_HOME_FOLDER = re.compile(r"(/Users/|/home/|[A-Za-z]:(?:\\\\|\\)Users(?:\\\\|\\))([^\\/\"'\n]+)")
+_NAME_WORD = 4  # letters from which a word of a name is taken out on its own; shorter ones are common words
+
+
+def _written(path: str) -> list[str]:
+    """A path as the log may write it: as it is, and in a JSON line (backslashes doubled, other letters escaped)."""
+    return list(dict.fromkeys((path, json.dumps(path)[1:-1], json.dumps(path, ensure_ascii=False)[1:-1])))
+
+
+def _names(ws: Workspace) -> re.Pattern[str] | None:
+    """The user's own and company names as settings.toml gives them, written as typed or folded as banks print
+    them, whole and word by word; None when there are none or the file cannot be read."""
+    try:
+        identity = config.load(ws.layout.settings).identity
+    except config.SettingsError:
+        return None
+    found: set[str] = set()
+    for name in (*identity.names, *identity.business_names):
+        for words in (name.split(), fold(name).split()):
+            found.add(" ".join(words))
+            found |= {w for w in words if len(w) >= _NAME_WORD}
+    found = {n for n in found if len(n) >= _NAME_WORD}
+    if not found:
+        return None
+    alternatives = "|".join(re.escape(n) for n in sorted(found, key=len, reverse=True))
+    return re.compile(rf"(?<!\w)(?:{alternatives})(?!\w)", re.IGNORECASE)
 
 
 def _scrubbed(text: str, ws: Workspace) -> str:
-    """The text with what could be personal taken out: the data folder's and the home folder's paths (they hold the
-    user's account name), e-mail addresses, IBANs and long numbers. The log writes ids and counts only; a traceback
-    or a library's message may still carry such a value."""
-    text = text.replace(str(ws.home), "<veri klasörü>").replace(str(Path.home()), "~")
+    """The text with what could be personal taken out: the data folder's and the home folder's paths and any home
+    folder's account name, the user's own and company names, e-mail addresses, IBANs and long numbers. The log
+    writes ids and counts only; a traceback or a library's message may still carry such a value."""
+    for path, mark in ((str(ws.home), "<veri klasörü>"), (str(Path.home()), "~")):
+        for written in _written(path):
+            text = text.replace(written, mark)
+    text = _HOME_FOLDER.sub(r"\1<kullanıcı>", text)
+    names = _names(ws)
+    if names is not None:
+        text = names.sub("<ad>", text)
     text = _EMAIL.sub("<e-posta>", text)
     text = _IBAN.sub("<IBAN>", text)
     return _LONG_NUMBER.sub("<sayı>", text)

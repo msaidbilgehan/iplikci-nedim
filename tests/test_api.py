@@ -1,8 +1,11 @@
 """The HTTP API (ADR-0007): the gate (Host, session or token, and a browser's writes from the service's own pages),
 the login link, the System screen's data and the event stream."""
 
+import json
+import logging
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from pathlib import PureWindowsPath
 
 import pytest
 from fastapi.testclient import TestClient
@@ -19,6 +22,7 @@ from iplikci.fakes import teb
 from iplikci.fakes.files import text_pdf
 from iplikci.invoices import UNMATCHED_REASONS, UNPAID_REASON, match
 from iplikci.parsers import registry
+from iplikci.service.logs import JsonLines
 from iplikci.settings import config
 from iplikci.storage import audit, events
 
@@ -618,3 +622,26 @@ def test_the_log_downloads_without_paths_addresses_or_numbers_that_could_be_pers
     assert str(ws.home) not in text and "kisi@example.com" not in text and "1234567890123456" not in text
     assert "2026-11-02T01:05:02.416" in text and "süreç 4242" in text  # times and short numbers stay
     assert text.index("# servis.log") < text.index("# servis-cikti.log")
+
+
+def test_the_log_leaves_out_windows_paths_in_json_any_home_folder_and_the_users_own_names(client, ws, monkeypatch):
+    windows = PureWindowsPath(r"C:\Users\Ayse Yilmaz")
+    monkeypatch.setattr(system, "Path", type("WindowsHome", (), {"home": staticmethod(lambda: windows)}))
+    ws.layout.settings.write_text(
+        '[identity]\nnames = ["Ayşe Yılmaz"]\nbusiness_names = ["Örnek Teknoloji"]\n', encoding="utf-8"
+    )
+    record = logging.LogRecord(
+        "iplikci.jobs", logging.ERROR, __file__, 1, rf"{windows}\AppData\Roaming\iplikci\inbox\ekstre.pdf", None, None
+    )
+    lines = [
+        JsonLines().format(record),
+        json.dumps({"message": "/home/digeri/.local/share/iplikci and /Users/baska/Library failed"}),
+        json.dumps({"message": "FAST AYSE YILMAZ, ÖRNEK TEKNOLOJİ A.Ş. maaşı NL91ABNA0417164300 ab12cdef3456"}),
+    ]
+    ws.logs.mkdir(parents=True, exist_ok=True)
+    (ws.logs / "servis.log").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    text = client.get("/api/system/log", headers=bearer()).text
+    for personal in ("Ayse", "Yilmaz", "AYSE", "YILMAZ", "digeri", "baska", "ÖRNEK", "TEKNOLOJİ", "NL91"):
+        assert personal not in text, personal
+    assert r"~\\AppData" in text and "/home/<kullanıcı>/" in text and "<ad>" in text and "<IBAN>" in text
+    assert "ab12cdef3456" in text  # a document's id stays
