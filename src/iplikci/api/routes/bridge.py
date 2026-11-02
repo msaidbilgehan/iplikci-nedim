@@ -1,5 +1,6 @@
 """The browser extension's endpoints (ADR-0016): its folder for the browser to load (K20), pairing, the proof that
-this is the paired service, the list of paired extensions, and the mail intake that only a bridge's token opens."""
+this is the paired service, the list of paired extensions, and what only a bridge's token opens: the mail intake and
+the login link of its "İplikçi Nedim'i aç" (ADR-0019)."""
 
 from typing import Annotated
 
@@ -12,6 +13,7 @@ from ...app import bridge, extension
 from ...app.bridge import MAX_MESSAGE_BYTES
 from ..context import context_of
 from ..guard import Principal
+from ..models import LoginLink
 from ..problems import Problem
 from .deps import only
 
@@ -170,6 +172,14 @@ def hello(
     if found is None:
         raise Problem(404, "bridge_unknown", "Bu eklenti bu servisle eşleşmemiş ya da eşleşmesi iptal edilmiş.")
     return ProofOut(proof=found)
+
+
+@router.post("/api/bridge/login-link", dependencies=[Depends(only(Principal.BRIDGE))])
+def bridge_login_link(request: Request) -> LoginLink:
+    """A one-time login link for the browser the paired extension runs in, as the command line gets one: its
+    "İplikçi Nedim'i aç" opens the interface with it (ADR-0019). Two minutes, one use, on 127.0.0.1 only."""
+    context = context_of(request)
+    return LoginLink(url=context.login_url(context.keys.issue()))
 
 
 @router.get("/api/bridge", dependencies=[Depends(only(Principal.BROWSER, Principal.CLIENT))])

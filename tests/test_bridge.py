@@ -1,5 +1,6 @@
 """The browser extension's side of the service (ADR-0016): pairing with a code, the proof of the paired service, a
-token that opens only the mail intake, revocation, and the messages it delivers."""
+token that opens only the mail intake and the login link of "İplikçi Nedim'i aç" (ADR-0019), revocation, and the
+messages it delivers."""
 
 import email
 import email.policy
@@ -10,6 +11,7 @@ from datetime import UTC, date, datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
+from iplikci.api import pages
 from iplikci.api.app import create_app
 from iplikci.api.context import Context
 from iplikci.app import bridge
@@ -121,13 +123,46 @@ def test_the_service_proves_it_is_the_one_the_extension_paired_with(client):
     assert client.get("/api/bridge/hello", params={"id": found["id"], "nonce": "kisa"}).status_code == 422
 
 
-def test_a_bridges_token_opens_the_mail_intake_and_nothing_else(client):
+def test_a_bridges_token_opens_the_mail_intake_and_its_login_link_and_nothing_else(client):
     found = paired(client)
     other = TestClient(client.app, base_url=BASE)
     assert other.get("/api/system", headers=bearer(found["token"])).json()["code"] == "forbidden"
     assert other.get("/api/ingest/mail/cursor", headers=bearer(found["token"])).status_code == 200
     assert other.get("/api/ingest/mail/cursor", headers=bearer(TOKEN)).status_code == 403  # the CLI's token
     assert other.get("/api/ingest/mail/cursor").status_code == 401
+    assert other.post("/api/login-links", headers=bearer(found["token"])).json()["code"] == "forbidden"  # the CLI's
+
+
+def test_a_paired_extension_gets_a_login_link_that_opens_one_browser_session_once(client):
+    found = paired(client)
+    extension = TestClient(client.app, base_url=BASE)  # its service worker: no cookie, its own origin
+    answer = extension.post("/api/bridge/login-link", headers=bearer(found["token"]) | EXTENSION)
+    assert answer.status_code == 200, answer.text
+    url = answer.json()["url"]
+    assert url.startswith(f"{BASE}/giris?anahtar=")  # the only links the extension opens
+    tab = TestClient(client.app, base_url=BASE)  # the browser tab the extension opens the link in
+    entered = tab.get(url, follow_redirects=False)
+    assert (entered.status_code, entered.headers["location"]) == (303, "/")
+    assert entered.headers["set-cookie"].startswith("iplikci_oturum_8643=")
+    assert tab.get("/api/system").status_code == 200  # a browser session like the command line's links open
+    again = TestClient(client.app, base_url=BASE).get(url, follow_redirects=False)
+    assert again.status_code == 403 and f"<title>{pages.SIGN_IN_TITLE}</title>" in again.text
+    second = extension.post("/api/bridge/login-link", headers=bearer(found["token"])).json()["url"]
+    assert second != url  # a new key each time
+
+
+def test_only_an_active_extensions_token_gets_a_login_link_from_the_bridges_endpoint(client):
+    found = paired(client)
+    other = TestClient(client.app, base_url=BASE)
+    assert other.post("/api/bridge/login-link").status_code == 401
+    cli = other.post("/api/bridge/login-link", headers=bearer(TOKEN))
+    assert (cli.status_code, cli.json()["code"]) == (403, "forbidden")  # the command line has its own
+    browser = client.post("/api/bridge/login-link", headers=OWN_PAGE)  # signed in while pairing
+    assert (browser.status_code, browser.json()["code"]) == (403, "forbidden")
+    assert other.post("/api/bridge/login-link", headers=bearer("baska-bir-belirtec")).status_code == 401
+    assert client.delete(f"/api/bridge/{found['id']}", headers=OWN_PAGE).status_code == 204
+    revoked = other.post("/api/bridge/login-link", headers=bearer(found["token"]))
+    assert (revoked.status_code, revoked.json()["code"]) == (401, "unauthenticated")
 
 
 def test_delivered_messages_go_through_the_trust_rule_and_move_the_cursor(client, ws):

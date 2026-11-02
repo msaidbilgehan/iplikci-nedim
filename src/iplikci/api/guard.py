@@ -42,7 +42,8 @@ OPEN_PATHS = frozenset(
         "/pwa-maskable-512x512.png",
     }
 )
-# A bridge's token opens the mail intake and nothing else.
+# A bridge's token opens the mail intake and the login link its "İplikçi Nedim'i aç" asks for (ADR-0019), nothing
+# else; no other sender reaches these.
 BRIDGE_PATHS = frozenset(
     {
         "/api/ingest/mail",
@@ -50,6 +51,7 @@ BRIDGE_PATHS = frozenset(
         "/api/ingest/mail/known",
         "/api/ingest/mail/scanned",
         "/api/ingest/mail/alarm",
+        "/api/bridge/login-link",
     }
 )
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
@@ -70,7 +72,7 @@ SECURITY_HEADERS = (
 class Principal(StrEnum):
     BROWSER = "browser"  # a session cookie
     CLIENT = "client"  # the API token: the command line, the MCP bridge
-    BRIDGE = "bridge"  # a paired browser extension's token: the mail intake only
+    BRIDGE = "bridge"  # a paired browser extension's token: the mail intake and login links only
 
 
 def session_cookie(context: Context, token: str) -> str:
