@@ -61,8 +61,9 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
   tarayıcı eklentisi de içindedir. Kullanıcıda Python ya da uv gerekmez. Paketler bir sürüm etiketinde ya da
   istenince CI'da, her sistemin kendi makinesinde üretilir ve iki hafta saklanır; şimdilik imzasızdır (K22).
 - Kurulan uygulama açılınca servisi kendi kopyası için kaydeder ve başlatır. Eski bir sürüm çalışıyorsa yeniden
-  başlatır, sonra arayüzü tek kullanımlık giriş bağlantısıyla açar. Disk görüntüsünden açılırsa önce Uygulamalar
-  klasörüne taşınmasını ister. Sorunları sistemin kendi penceresinde söyler (`iplikci uygulama`).
+  başlatır ve yeni servis yanıt verince arayüzü tek kullanımlık giriş bağlantısıyla açar; Linux'ta eski sürümlerin
+  kopyalarını kaldırır. Disk görüntüsünden açılırsa önce Uygulamalar klasörüne taşınmasını ister. Sorunları sistemin
+  kendi penceresinde söyler (`iplikci uygulama`).
 - Servis arayüzden durdurulur, yeniden başlatılır ve bilgisayardan kaldırılır; veri klasörü yalnızca istenirse çöp
   kutusuna taşınır. Bir yedek arayüzden geri yüklenir: yedek hemen denetlenir, servis yeniden başlarken veritabanı
   açılmadan yerine konur, öncesi ayrı bir yedekte kalır. API: `GET /api/service`,
