@@ -53,6 +53,10 @@ Status (2026-11-02): Phases 0–6 of `docs/v1/roadmap.md` are done (v0.1.0 … v
     folder; a service run by hand refuses them.
   - The e2e tests run every screen in both themes with axe and at phone width; `e2e/tests/firstRun.spec.ts` starts its
     own service on an empty data folder. Never confirm a step that ends the service in a test.
+  - The macOS clean install was tried on 2026-11-02 (data folder moved aside and back, a keychain entry another Python wrote makes macOS ask for the password, so the app renews its API token). The Windows one is the
+    user's; the roadmap lists what it has to confirm.
+  - While the mailbox's history is read from the start (the extension's first scan, an IMAP account's first read),
+    notifications go only to the in-app box.
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 
