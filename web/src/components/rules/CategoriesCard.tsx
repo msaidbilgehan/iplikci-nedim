@@ -56,7 +56,7 @@ export function CategoriesCard({ categories, labels }: CategoriesCardProps) {
     return (
       <Button
         variant="secondary"
-        className="px-3"
+        className="shrink-0 px-3"
         aria-label={`${label}: ${category.name}`}
         onClick={() => toggle(category)}
       >
@@ -85,11 +85,12 @@ export function CategoriesCard({ categories, labels }: CategoriesCardProps) {
                     <li
                       key={category.name}
                       className={cn(
-                        "flex flex-wrap items-center justify-between gap-2 py-1.5 text-sm",
+                        "flex items-center justify-between gap-3 py-1.5 text-sm",
                         "border-b border-zinc-100 last:border-b-0 dark:border-zinc-800",
                       )}
                     >
-                      <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                      {/* The name wraps, never the button: each keeps its row's end, so the buttons line up. */}
+                      <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
                         <span className="break-words">{category.name}</span>
                         <span className="text-xs text-zinc-600 dark:text-zinc-300">{necessityOf(category)}</span>
                         {category.regular ? <Badge tone="neutral">{t("categories.isCommitment")}</Badge> : null}

@@ -88,17 +88,18 @@ function Cards({ settings, onEnding }: { settings: Settings; onEnding: (ending: 
   const service = <ServiceCard home={settings.home} onEnding={onEnding} />;
   const more = <MoreCard />;
   if (view === "simple") {
-    // Two columns that do not move as a card grows: the short cards on one side, e-mail and the service on the other.
+    // Two columns that do not move as a card grows: the names and e-mail on one side, the backups, the service and the
+    // other screens on the other. A phone stacks them in the detailed view's order.
     return (
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-4">
           {names}
-          {backup}
-          {more}
+          {mail}
         </div>
         <div className="flex min-w-0 flex-col gap-4">
-          {mail}
+          {backup}
           {service}
+          {more}
         </div>
       </div>
     );

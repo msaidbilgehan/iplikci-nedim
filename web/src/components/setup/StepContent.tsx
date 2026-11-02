@@ -1,7 +1,7 @@
 // What each step of the setup wizard asks (F17). The settings' own fields are the Settings screen's too
 // (components/settings); installing and pairing the extension, the non-bank senders, the upload panel and the
-// notification channels are the parts their screens show. No step needs a terminal (K14); the service's step and the remote access
-// only say where they stand.
+// notification channels are the parts their screens show. No step needs a terminal (K14); the service's step and the
+// remote access only say where they stand.
 
 import { useTranslation } from "react-i18next";
 

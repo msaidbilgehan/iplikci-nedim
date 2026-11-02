@@ -474,7 +474,7 @@ describe("SettingsPage: the service's own life", () => {
     expect(screen.queryByText(/^Windows'ta/)).not.toBeInTheDocument();
   });
 
-  it("moves the data folder to the Trash only when ticked, and names every system's way when it cannot tell", async () => {
+  it("moves the data folder to the Trash only when ticked, naming every system's way when it cannot tell", async () => {
     serve();
     const sent: unknown[] = [];
     server.use(
