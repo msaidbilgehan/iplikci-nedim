@@ -6,7 +6,8 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-02): Phases 0–6 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.7.0); Phase 7 (MCP) is next.
+Status (2026-11-02): Phases 0–6 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.7.0), then the interface's
+simplification (v0.7.1); Phase 7 (MCP) is next.
 - Phase 0 brought the MVP's code in as the `iplikci` package, cleaned of personal traces, with the shipped default
   rules, the verification baseline and the demo workspace.
 - Phase 1 (data core) moved everything into the data dir: `settings.toml`, the content-addressed vault, SQLite with the
@@ -57,10 +58,12 @@ Status (2026-11-02): Phases 0–6 of `docs/v1/roadmap.md` are done (v0.1.0 … v
     user's; the roadmap lists what it has to confirm.
   - While the mailbox's history is read from the start (the extension's first scan, an IMAP account's first read),
     notifications go only to the in-app box.
-- After Phase 6 (2026-11-02, branch `arayuz`) the interface was simplified at the user's request: icons drawn from the
-  logo, a grouped menu with icons, the long screens split into parts (`?bolum=`), "Nasıl hesaplandı?" folds, partial
-  months and left-out accounts said in words, and Abonelikler renamed "Düzenli ödemeler". The extension's toolbar
-  button opens a window whose "İplikçi Nedim'i aç" asks the service for a login link with its token (ADR-0019).
+- After Phase 6 (2026-11-02, branch `arayuz`, v0.7.1) the interface was simplified at the user's request: icons drawn
+  from the logo, a grouped menu with icons, the long screens split into parts (`?bolum=`), "Nasıl hesaplandı?" folds,
+  partial months and left-out accounts said in words, and Abonelikler renamed "Düzenli ödemeler". The extension's
+  toolbar button opens a window whose "İplikçi Nedim'i aç" asks the service for a login link with its token
+  (ADR-0019). An audit of the demo's numbers fixed the forecast's days before today, a waiting bill counted twice, the
+  fee advice and the budget's double count.
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 

@@ -4,7 +4,7 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
-## [Yayımlanmadı]
+## [0.7.1] — 2026-11-02 — Arayüzün sadeleşmesi
 
 Aşama 6'nın ardından arayüz sadeleşti, hesap kitabı daha açık anlatır oldu ve bütün ekranlar demo çalışma alanında
 elle yeniden denendi. Tarayıcı eklentisinin araç çubuğundaki düğmesi arayüzü tek tıkla açıyor.

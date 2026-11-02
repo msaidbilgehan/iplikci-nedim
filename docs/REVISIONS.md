@@ -6,10 +6,21 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 | Revizyon | Konu | Durum | Belge |
 |---|---|---|---|
 | V0 | MVP `gider-analizi`: banka belgelerini okuyan, doğrulayan, yorumlayan yerel komut satırı programı, web paneli ve MCP sunucusu | 2026-10-31'de emekliye ayrıldı (K17) | Depo dışında, veri klasöründeki arşivde: `archive/mvp/CLAUDE.md` ve `README.md` |
-| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–6 (v0.1.0–v0.7.0) uygulandı; sırada Aşama 7 var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
+| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–6 (v0.1.0–v0.7.0) ve arayüzün sadeleşmesi (v0.7.1) uygulandı; sırada Aşama 7 var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
 | V2 | Finansal strateji uzmanları ve yapay zekâ asistanı | Gelecek (V1'den sonra) | [`v2/requirements.md`](v2/requirements.md) |
 
 ## Değişiklik kaydı
+
+- 2026-11-02 (22) — Aşama 6'nın ardından arayüz sadeleşti (`arayuz` dalı, v0.7.1); belgeler kodla uyumlu hâle
+  getirildi:
+  - README'nin durum bölümü güncellendi; `CHANGELOG.md`'ye 0.7.1 eklendi.
+  - [ADR-0019](adr/0019-bridge-login-link.md) kabul edildi: eşleşmiş tarayıcı eklentisi arayüzü tek kullanımlık giriş
+    bağlantısıyla açar; [ADR-0007](adr/0007-api-and-auth.md) ve [ADR-0016](adr/0016-mail-connectors.md)'ya notlar.
+  - [Özellikler](v1/features.md#ortak-kurallar): ekranların bölümleri, "Nasıl hesaplandı?", kapanmamış ayların ve
+    toplama girmeyen hesapların anlatımı, eklentinin penceresi; ekranın adı "Düzenli ödemeler".
+  - [Mimari](v1/architecture.md): `POST /api/bridge/login-link` ve eklenti belirtecinin yeni kapsamı.
+  - [Yorumlama](domain/interpretation.md) ve [defter](domain/ledger.md): öngörünün belgelerin henüz ulaşmadığı
+    günleri sayması, bütçenin her harcamayı tek satırda sayması, bekleyen faturanın satıcının düzenli ödemesi olması.
 
 - 2026-11-02 (21) — Aşama 7'ye hazırlık: [yol haritası](v1/roadmap.md#aşama-7--mcp)'na Aşama 7'nin başlangıçtaki
   durumu (MCP sunucusunun bugünkü hâli, 21 araç) ve ayrıntılı teslimleri, Aşama 8'in başlangıçtaki durumu yazıldı.
