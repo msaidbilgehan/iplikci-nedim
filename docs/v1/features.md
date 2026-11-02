@@ -470,8 +470,8 @@ yaptığı her şeyin V1'de de olmasını güvenceye alır.
   saklanır ve defterde birleşir.)
 - [x] **E-posta:** kutu salt okunur; DMARC; okuma konumu; partiler. (Aşama 3: IMAP `EXAMINE` ve `BODY.PEEK[]` ile;
   konum veritabanında; bir alım en çok 300 ileti. Tarayıcı eklentisi de aynı güven kuralından geçer.)
-- [ ] **Otomatik çalışma:** e-posta, gelen klasörü ve bildirim (artık servisin içinde). (Aşama 3: e-posta ve gelen
-  klasörü servisin içinde; bildirimler Aşama 5'te.)
+- [x] **Otomatik çalışma:** e-posta, gelen klasörü ve bildirim (artık servisin içinde). (Aşama 3: e-posta ve gelen
+  klasörü servisin içinde. Aşama 5: bildirimler de servisin işi; her yenilemeden sonra ve beş dakikada bir gider.)
 - [ ] **Rapor bölümleri**
   - süzgeçler; özet kutuları;
   - değerlendirme ve strateji (öne çıkanlar, adımlar, bütçe);

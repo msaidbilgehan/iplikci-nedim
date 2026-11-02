@@ -213,6 +213,28 @@ Durum: 2026-11-02'de `asama-4` dalında uygulandı, `v0.5.0` ([değişiklik gün
 
 ## Aşama 5 — Bildirimler
 
+Durum: 2026-11-02'de `asama-5` dalında uygulandı, `v0.6.0` ([değişiklik günlüğü](../../CHANGELOG.md)).
+
+- Kural motoru ve `rules/alerts.yaml`: kullanıcının kural dosyası yoksa uygulamayla gelen 16 kural geçerlidir. Bir
+  kural bir olaya bakar; gün, tutar ve metin koşulu, kanalları, ayrıntı düzeyi ve sessiz saate uyup uymadığı
+  seçilir. Kurallar Bildirimler ekranında düzenlenir ve son 30 güne göre önizlenir; MCP'nin `alerts` aracı da kural
+  ekler, kapatır ve açar.
+- Akış, kuralların baktığı yeni olayları kaydeder: yaklaşan son ödemeler (7, 3, 1 ve 0 gün kala), eksiye düşecek
+  bakiye, gelmeyen beklenen ödeme ve geciken gelir, abonelik zammı, iptalden sonra ödeme, gelen gelir ve büyük
+  harcama.
+- Kanallar:
+  - uygulama içi kutu, her zaman açık;
+  - masaüstü: macOS'ta bildirim merkezi, Linux'ta `notify-send`; Windows'ta Windows denemesiyle (K19) gelecek;
+  - Telegram: kullanıcının BotFather'da oluşturduğu bot; belirteç anahtar zincirinde durur, sohbet kodla eşleşir;
+  - e-posta: yalnızca uygulama şifresiyle bağlı bir hesapla, kullanıcının kendi adresine.
+
+  Gelişmiş Koruma'daki hesapta varsayılan kanallar masaüstü ve Telegram'dır.
+- Her uyarı kanal başına bir kez gider. Sessiz saatte bekleyenler ve saatlik sınırı aşanlar sonra tek bir özetle
+  gider. Başarısız gönderim artan aralıklarla yeniden denenir; reddeden kanal, kullanıcı yeniden açana dek durur.
+  Teslim kaydı Bildirimler ekranında ve `iplikci bildirim gecmis`'te görünür, yedeğe de girer.
+- Telegram kanalı, kullanıcı botunu oluşturup belirtecini girdiğinde gerçek bir sohbetle denenecek. Testler ağa
+  çıkmaz, kanalları sahte nesnelerle sınar.
+
 **Teslimler**
 
 - Kural motoru ve `rules/alerts.yaml`; hazır kurallar.

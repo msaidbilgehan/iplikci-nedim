@@ -6,8 +6,8 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-02): Phases 0–4 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.5.0); Phase 5 (notifications) is
-next, on `asama-5`.
+Status (2026-11-02): Phases 0–5 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.6.0); Phase 6 (the interface) is
+next, on `asama-6`.
 - Phase 0 brought the MVP's code in as the `iplikci` package, cleaned of personal traces, with the shipped default
   rules, the verification baseline and the demo workspace.
 - Phase 1 (data core) moved everything into the data dir: `settings.toml`, the content-addressed vault, SQLite with the
@@ -34,6 +34,15 @@ next, on `asama-5`.
     and the cash-flow forecast are built on the ledger.
   - Non-bank bills and receipts (UBL-TR e-invoices so far) are kept and matched to the bank's rows, never counted
     (F14); the user adds non-bank senders on the System screen.
+- Phase 5 (notifications) turns the feed's events into notifications by the rules of `rules/alerts.yaml` (16 shipped
+  rules while the user has none of their own); the feed now also tells payments due soon, a balance going below zero,
+  missing payments, late income, price changes and large spending.
+  - Channels: the in-app box, desktop (macOS and Linux; Windows comes with its check), Telegram (the user's own bot,
+    its token only in the keychain and typed by the user) and e-mail to the user's own address (only with an IMAP
+    app-password account).
+  - Each alert goes once per channel. Quiet hours and the rate limits fold the rest into an hourly digest; a refused
+    channel stops until the user turns it on again.
+  - Tests never reach the network: `tests/conftest.py` refuses SMTP, HTTPS posts and the desktop program.
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 
