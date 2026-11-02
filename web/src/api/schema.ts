@@ -409,6 +409,7 @@ export interface ClosingOut {
   expense: MoneyOut;
   income: MoneyOut | null;
   left: MoneyOut | null;
+  income_note?: string;
   provisional: number;
   unmatched: number;
   waiting: WaitingOut[];

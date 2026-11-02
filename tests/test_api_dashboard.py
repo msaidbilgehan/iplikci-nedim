@@ -317,6 +317,13 @@ def test_the_last_seven_months_closing_leads_to_the_oldest_month_still_open(demo
             "waiting_for": "1–4 Temmuz hesap dökümü eksik",
         }
     ]
+    # July's income is what its list shows, not a certain figure: the salary of the 1st is in the days it misses.
+    assert (july["income"], july["left"]) == (tl(0), tl(-903999))
+    assert july["income_note"] == (
+        "gelir eksik olabilir: TEB Vadesiz TL 123456789 dökümü ayın tamamını kapsamıyor; maaş bu ay görünmüyor: "
+        "dökümün kapsamadığı günlerde yatmış olabilir"
+    )
+    assert months[-2]["income_note"] == "hesap dökümlerindeki gelen para"
     assert (months[-1]["income"], months[-1]["link"]) == (None, link("month", "2026-11"))
     assert closing["say"] == "Temmuz 2026'da belge eksik; diğer 5 ay kapandı."
     assert closing["link"] == link("month", "2026-07")

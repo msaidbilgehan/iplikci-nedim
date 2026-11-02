@@ -140,6 +140,7 @@ class Closing:
     expense: Decimal
     income: Decimal | None  # None when no account list covers enough of the month
     left: Decimal | None
+    income_note: str  # where the income comes from, or why it may be short (MonthEnd.income_note)
     provisional: int  # rows only receipts and notices show
     unmatched: int  # receipt and notice rows the statements do not show
     waiting: list[tuple[str, str]]  # (account, what closes its month) of the accounts that hold the month open
@@ -427,6 +428,7 @@ def closing(a: Analysis, today: date) -> LastMonths:
                 expense=me.totals.expense,
                 income=me.totals.income,
                 left=me.totals.left,
+                income_note=me.income_note,
                 provisional=len(me.provisional),
                 unmatched=len(me.unmatched),
                 waiting=[(ac.account.id, ac.waiting_for) for ac in me.open],

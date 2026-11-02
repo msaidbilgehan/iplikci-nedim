@@ -110,6 +110,9 @@ class ClosingOut(BaseModel):
     expense: MoneyOut
     income: MoneyOut | None  # null when no account list covers enough of the month to know it
     left: MoneyOut | None  # the income less what went out; below zero when more went out
+    # Where the income comes from, or why it may be short ("gelir eksik olabilir: …"): a month a list covers only in
+    # part has an income, but not a certain one. Always sent; its default keeps the interface's older mocks whole.
+    income_note: str = ""
     provisional: int  # rows only receipts and notices show
     unmatched: int  # receipt and notice rows the statements covering their days do not show
     waiting: list[WaitingOut]  # the accounts that hold the month open
@@ -220,6 +223,7 @@ def _closing(c: dashboard.Closing, labels: dict[str, str]) -> ClosingOut:
         expense=money(c.expense),
         income=None if c.income is None else money(c.income),
         left=None if c.left is None else money(c.left),
+        income_note=c.income_note,
         provisional=c.provisional,
         unmatched=c.unmatched,
         waiting=[WaitingOut(account=account_ref(a, labels), waiting_for=why) for a, why in c.waiting],
