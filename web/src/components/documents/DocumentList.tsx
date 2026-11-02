@@ -12,6 +12,7 @@ import { labelOf } from "../../lib/labels";
 import { Detailed, Simple } from "../Preferences";
 import { Badge, type Tone } from "../ui/Badge";
 import { Button } from "../ui/Button";
+import { DownloadLink } from "../ui/LinkButton";
 import { ScreenLink } from "../ui/Say";
 import { Table, Td, Th } from "../ui/Table";
 
@@ -19,12 +20,6 @@ const SMALL = "text-xs text-zinc-600 dark:text-zinc-300";
 const CARD = cn(
   "flex flex-col gap-1 rounded-lg border border-zinc-200 bg-white p-3 text-sm",
   "dark:border-zinc-700 dark:bg-zinc-900",
-);
-export const LINK_BUTTON = cn(
-  "inline-flex min-h-11 items-center rounded-md border px-4 text-sm font-medium",
-  "border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50",
-  "dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700",
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600",
 );
 export const STATUS_TONES: Record<DocumentItem["status"], Tone> = {
   processed: "good",
@@ -127,14 +122,12 @@ function Unread({ document, reparsing }: { document: DocumentItem; reparsing: Re
     <div className="mt-1 flex flex-col gap-2 text-sm">
       <p>{document.reason ? t("unread.reason", { reason: document.reason }) : t("unread.noReason")}</p>
       <div className="flex flex-wrap items-center gap-2">
-        <a
+        <DownloadLink
           href={`/api/documents/${document.sha256}/download`}
-          download
           aria-label={t("unread.downloadOf", { name: document.name })}
-          className={LINK_BUTTON}
         >
           {t("unread.download")}
-        </a>
+        </DownloadLink>
         <Button
           variant="secondary"
           disabled={reparsing.pending !== null}

@@ -10,6 +10,7 @@ import { cn } from "../../lib/cn";
 import { addDays, formatTime } from "../../lib/format";
 import { labelOf } from "../../lib/labels";
 import { MONTH_TONES } from "../dashboard/ClosingCard";
+import { DownloadLink } from "../ui/LinkButton";
 import { Status } from "../ui/Status";
 
 export const SMALL = "text-xs text-zinc-600 dark:text-zinc-300";
@@ -17,13 +18,6 @@ export const SMALL = "text-xs text-zinc-600 dark:text-zinc-300";
 // A link that opens a row's detail at the side of the page.
 export const ROW_LINK = cn(
   "rounded underline decoration-1 underline-offset-2 hover:decoration-2",
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600",
-);
-
-export const LINK_BUTTON = cn(
-  "inline-flex min-h-11 items-center gap-1 rounded-md border px-3 text-sm font-medium",
-  "border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50",
-  "dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700",
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600",
 );
 
@@ -64,9 +58,7 @@ export function ExportLink({ kind, thisMonth = false }: { kind: ExportKind; this
   // Without the list (it could not be read) the download is still offered; the service says if it is missing.
   return (
     <div className="flex flex-col items-start gap-1">
-      <a href={`/api/exports/${kind}`} download className={LINK_BUTTON}>
-        {t("export.download")}
-      </a>
+      <DownloadLink href={`/api/exports/${kind}`}>{t("export.download")}</DownloadLink>
       {found ? (
         <p className={SMALL}>
           {t("export.hint", { time: formatTime(found.made_at) })}

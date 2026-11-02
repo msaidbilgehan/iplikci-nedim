@@ -6,20 +6,13 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 
 import type { Spending } from "../../api/types";
-import { cn } from "../../lib/cn";
 import { formatMoney } from "../../lib/format";
 import { isReady } from "../navigation";
 import { Card } from "../ui/Card";
 import { ArrowRightIcon } from "../ui/Icons";
+import { DownloadLink } from "../ui/LinkButton";
 import { STEP } from "../ui/Say";
 import { rowsFilters } from "./query";
-
-const LINK_BUTTON = cn(
-  "inline-flex min-h-11 items-center rounded-md border px-3 text-sm font-medium",
-  "border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50",
-  "dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700",
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600",
-);
 
 export function RowsCard({ found, params }: { found: Spending; params: URLSearchParams }) {
   const { t } = useTranslation("insights");
@@ -36,9 +29,9 @@ export function RowsCard({ found, params }: { found: Spending; params: URLSearch
             <ArrowRightIcon className="size-4 shrink-0" />
           </Link>
         ) : null}
-        <a href={`/api/transactions.csv?${query}`} download aria-label={t("rows.csvOf")} className={LINK_BUTTON}>
+        <DownloadLink href={`/api/transactions.csv?${query}`} aria-label={t("rows.csvOf")}>
           {t("rows.csv")}
-        </a>
+        </DownloadLink>
       </div>
     </Card>
   );

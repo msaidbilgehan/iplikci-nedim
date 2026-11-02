@@ -11,7 +11,6 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useDocumentDetail, useLabels, useReparse, useRemoveDocument } from "../api/queries";
 import type { DocumentDetail, Labels } from "../api/types";
 import { ArrivalsCard, ChecksCard, FactsCard, RowsCard } from "../components/documents/Detail";
-import { LINK_BUTTON } from "../components/documents/DocumentList";
 import { PAGE, ROW } from "../components/documents/query";
 import { Viewer } from "../components/documents/Viewer";
 import { Detailed } from "../components/Preferences";
@@ -21,6 +20,7 @@ import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { ConfirmDialog } from "../components/ui/Dialog";
 import { ArrowLeftIcon } from "../components/ui/Icons";
+import { DownloadLink } from "../components/ui/LinkButton";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Say } from "../components/ui/Say";
 import { cn } from "../lib/cn";
@@ -83,9 +83,7 @@ export default function DocumentPage() {
         actions={
           document ? (
             <>
-              <a href={`/api/documents/${document.sha256}/download`} download className={LINK_BUTTON}>
-                {t("actions.download")}
-              </a>
+              <DownloadLink href={`/api/documents/${document.sha256}/download`}>{t("actions.download")}</DownloadLink>
               <Button variant="secondary" disabled={reparse.isPending} onClick={readAgain}>
                 {reparse.isPending ? t("actions.reparsing") : t("actions.reparse")}
               </Button>

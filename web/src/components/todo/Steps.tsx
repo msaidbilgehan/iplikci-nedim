@@ -5,7 +5,6 @@
 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router";
 
 import type { Labels, TodoAction, TodoItem } from "../../api/types";
 import { cn } from "../../lib/cn";
@@ -15,6 +14,7 @@ import { UploadPanel } from "../../pages/UploadPanel";
 import { isReady } from "../navigation";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
+import { LinkButton } from "../ui/LinkButton";
 import { SidePanel } from "../ui/SidePanel";
 
 /** What the screen does for an item, and what it is doing or failed to do for it now. */
@@ -26,13 +26,6 @@ export interface TodoHandlers {
   failure: (item: TodoItem) => string; // the service's word on its last step that failed; "" for none
 }
 
-// A step that leads somewhere looks like the steps that act: the secondary button's look.
-const LINK_STEP = cn(
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition-colors",
-  "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50",
-  "dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700",
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600",
-);
 const SHA256 = /^[0-9a-f]{64}$/;
 
 interface StepsProps {
@@ -63,15 +56,15 @@ export function Steps({ item, labels, handlers }: StepsProps) {
   function step(action: TodoAction) {
     switch (action) {
       case "add_rule":
+        // A step that leads somewhere looks like the steps that act.
         return isReady("rules") && item.target ? (
-          <Link
+          <LinkButton
             key={action}
             to={`/kurallar?${new URLSearchParams({ isyeri: item.target }).toString()}`}
             aria-label={about(name(action))}
-            className={LINK_STEP}
           >
             {name(action)}
-          </Link>
+          </LinkButton>
         ) : null;
       case "upload":
         return (
@@ -94,9 +87,9 @@ export function Steps({ item, labels, handlers }: StepsProps) {
       case "open": {
         const href = item.link ? hrefOf(item.link) : null;
         return href ? (
-          <Link key={action} to={href} aria-label={about(name(action))} className={LINK_STEP}>
+          <LinkButton key={action} to={href} aria-label={about(name(action))}>
             {name(action)}
-          </Link>
+          </LinkButton>
         ) : null;
       }
       case "ask_claude":

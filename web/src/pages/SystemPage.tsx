@@ -22,17 +22,11 @@ import { Alert } from "../components/ui/Alert";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card, Facts } from "../components/ui/Card";
+import { DownloadLink } from "../components/ui/LinkButton";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Table, Td, Th } from "../components/ui/Table";
-import { cn } from "../lib/cn";
 import { formatDay, formatSize, formatTime } from "../lib/format";
 
-const LINK_BUTTON = cn(
-  "inline-flex min-h-11 items-center rounded-md border px-3 text-sm font-medium",
-  "border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50",
-  "dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700",
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600",
-);
 const SMALL = "text-sm text-zinc-600 dark:text-zinc-300";
 
 export default function SystemPage() {
@@ -56,11 +50,7 @@ function SystemCards({ status, labels }: { status: SystemStatus; labels: Labels 
     <div className="grid gap-4 md:grid-cols-2">
       <Card
         title={t("service.title")}
-        action={
-          <a href="/api/system/log" download className={LINK_BUTTON}>
-            {t("service.log")}
-          </a>
-        }
+        action={<DownloadLink href="/api/system/log">{t("service.log")}</DownloadLink>}
       >
         <div className="flex flex-col gap-3">
           <Facts
@@ -434,14 +424,12 @@ function ExportsCard() {
                     {t("exports.made", { time: formatTime(item.made_at), size: formatSize(item.size) })}
                   </span>
                 </span>
-                <a
+                <DownloadLink
                   href={`/api/exports/${item.kind}`}
-                  download
-                  className={LINK_BUTTON}
                   aria-label={t("exports.downloadNamed", { name: name(item.kind) })}
                 >
                   {t("exports.download")}
-                </a>
+                </DownloadLink>
               </li>
             ))}
           </ul>

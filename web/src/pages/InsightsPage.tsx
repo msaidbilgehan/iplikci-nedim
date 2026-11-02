@@ -48,17 +48,12 @@ import { choosesNone, filtered, isFiltered, MANY, ONE } from "../components/tran
 import { Alert } from "../components/ui/Alert";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
+import { DownloadLink } from "../components/ui/LinkButton";
 import { PageHeader } from "../components/ui/PageHeader";
 import { NextStep } from "../components/ui/Say";
 import { cn } from "../lib/cn";
 
 const DOCUMENTS = { screen: "documents", id: "", query: {} } as const;
-const LINK_BUTTON = cn(
-  "inline-flex min-h-11 items-center rounded-md border px-3 text-sm font-medium",
-  "border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50",
-  "dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700",
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600",
-);
 
 /** Two cards side by side in the simple view; in the detailed one their tables need the screen's width, as on Pano. */
 function usePair(from: "lg" | "xl" = "lg"): string {
@@ -289,14 +284,14 @@ function Exports() {
   return (
     <>
       {kinds.has("report") ? (
-        <a href="/api/exports/report" download aria-label={t("exports.reportOf")} className={LINK_BUTTON}>
+        <DownloadLink href="/api/exports/report" aria-label={t("exports.reportOf")}>
           {t("exports.report")}
-        </a>
+        </DownloadLink>
       ) : null}
       {kinds.has("xlsx") ? (
-        <a href="/api/exports/xlsx" download aria-label={t("exports.excelOf")} className={LINK_BUTTON}>
+        <DownloadLink href="/api/exports/xlsx" aria-label={t("exports.excelOf")}>
           {t("exports.excel")}
-        </a>
+        </DownloadLink>
       ) : null}
     </>
   );

@@ -32,17 +32,12 @@ import { isCorrectable, Pager, RowsTable } from "../components/transactions/Rows
 import { Totals } from "../components/transactions/Totals";
 import { Views } from "../components/transactions/Views";
 import { Button } from "../components/ui/Button";
+import { DownloadLink } from "../components/ui/LinkButton";
 import { PageHeader } from "../components/ui/PageHeader";
 import { NextStep } from "../components/ui/Say";
 import { cn } from "../lib/cn";
 
 const DOCUMENTS = { screen: "documents", id: "", query: {} } as const;
-const LINK_BUTTON = cn(
-  "inline-flex min-h-11 items-center rounded-md border px-3 text-sm font-medium",
-  "border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50",
-  "dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700",
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600",
-);
 
 interface Chosen {
   query: string; // the list it was chosen in: another filter, order or page starts with none chosen
@@ -104,9 +99,7 @@ export default function TransactionsPage() {
         actions={
           <>
             <Views params={params} onOpen={(next) => setParams(next)} />
-            <a href={`/api/transactions.csv?${filtersOf(params, true).toString()}`} download className={LINK_BUTTON}>
-              {t("csv")}
-            </a>
+            <DownloadLink href={`/api/transactions.csv?${filtersOf(params, true).toString()}`}>{t("csv")}</DownloadLink>
           </>
         }
       />

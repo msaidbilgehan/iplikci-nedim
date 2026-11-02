@@ -10,7 +10,7 @@ import { Link, useParams, useSearchParams } from "react-router";
 import { useLabels, useMonthEnd, useMonthEnds } from "../api/queries";
 import type { Labels, MonthEndDetail, MonthEndList } from "../api/types";
 import { AccountsCard } from "../components/monthEnd/AccountsCard";
-import { ExportLink, isMonth, LINK_BUTTON, MonthStatusMark } from "../components/monthEnd/parts";
+import { ExportLink, isMonth, MonthStatusMark } from "../components/monthEnd/parts";
 import { RegularCard } from "../components/monthEnd/RegularCard";
 import { RowsCard, useBigSay } from "../components/monthEnd/RowsCard";
 import { SpendingCard } from "../components/monthEnd/SpendingCard";
@@ -22,6 +22,7 @@ import { ROW, withRow } from "../components/transactions/query";
 import { RowPanel } from "../components/transactions/RowPanel";
 import { Card } from "../components/ui/Card";
 import { ArrowLeftIcon, ArrowRightIcon } from "../components/ui/Icons";
+import { LinkButton } from "../components/ui/LinkButton";
 import { PageHeader } from "../components/ui/PageHeader";
 import { cn } from "../lib/cn";
 import { formatMonth } from "../lib/format";
@@ -101,23 +102,21 @@ function Neighbours({ detail, today }: { detail: MonthEndDetail; today: string |
   const hasNext = last !== undefined && detail.next_month <= last;
   return (
     <nav aria-label={t("page.months")} className="flex flex-wrap gap-2">
-      <Link
+      <LinkButton
         to={`/ay-sonu/${detail.previous_month}`}
-        className={LINK_BUTTON}
         aria-label={t("page.previous", { month: formatMonth(detail.previous_month) })}
       >
         <ArrowLeftIcon className="size-4" />
         {formatMonth(detail.previous_month)}
-      </Link>
+      </LinkButton>
       {hasNext ? (
-        <Link
+        <LinkButton
           to={`/ay-sonu/${detail.next_month}`}
-          className={LINK_BUTTON}
           aria-label={t("page.next", { month: formatMonth(detail.next_month) })}
         >
           {formatMonth(detail.next_month)}
           <ArrowRightIcon className="size-4" />
-        </Link>
+        </LinkButton>
       ) : null}
     </nav>
   );
