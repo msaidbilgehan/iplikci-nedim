@@ -62,6 +62,7 @@ describe("Layout", () => {
       "/takvim",
       "/degerlendirme",
       "/yapilacaklar",
+      "/belge-ekle",
     ]);
     const rules = within(menu()).getByRole("link", { name: "Kurallar" });
     expect(rules).not.toBeVisible();
@@ -103,7 +104,7 @@ describe("Layout", () => {
       Bugün: ["/", "/akis", "/yapilacaklar"],
       Para: ["/hesaplar", "/islemler", "/abonelikler", "/takvim", "/doviz"],
       Analiz: ["/degerlendirme", "/ay-sonu"],
-      Arşiv: ["/belgeler", "/faturalar"],
+      Arşiv: ["/belge-ekle", "/belgeler", "/faturalar"],
       Uygulama: ["/bildirimler", "/kurallar", "/ayarlar", "/sistem"],
       Kurulum: ["/kurulum", "/kurulum/eklenti"],
     };
@@ -131,7 +132,7 @@ describe("Layout", () => {
       [...MENU, SETUP].map((group) => ({ ...group, screens: group.screens.map((s) => ({ ...s, ready: true })) })),
     );
     expect(all.map((group) => group.key)).toEqual(["today", "money", "analysis", "archive", "app", "setup"]);
-    expect(all.flatMap((group) => group.screens).length).toBe(18);
+    expect(all.flatMap((group) => group.screens).length).toBe(19);
   });
 
   it("marks the current screen for screen readers and with a bar", () => {

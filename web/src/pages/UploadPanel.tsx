@@ -1,6 +1,7 @@
 // Adding documents by hand (F02): the files go up into a batch the service keeps aside, the plan shows what would
 // happen to each, and only the plan the user confirms is applied. A file that changed since the plan makes the
-// service refuse; the plan is then made again and shown.
+// service refuse; the plan is then made again and shown. A folder comes whole, chosen or dropped, its hidden files
+// (.DS_Store and the like) left out; what each file is the service reads from its content, never its name (K24).
 
 import { useQueryClient } from "@tanstack/react-query";
 import { type DragEvent, useRef, useState } from "react";
@@ -13,20 +14,31 @@ import { Alert } from "../components/ui/Alert";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { UploadIcon } from "../components/ui/Icons";
+import { AddressStep } from "../components/ui/Say";
 import { Table, Td, Th } from "../components/ui/Table";
 import { cn } from "../lib/cn";
 import { formatPeriod } from "../lib/format";
 
+/** A file to send, with its place in the folder it came in (or its name alone). */
+interface Picked {
+  file: File;
+  path: string;
+}
 
 type Step =
   | { kind: "idle" }
   | { kind: "uploading"; done: number; total: number }
+  | { kind: "reading"; total: number } // the service reads every file to tell what it is: a folder takes a while
   | { kind: "planned"; batch: string; plan: Plan; refused: Uploaded[]; renewed: boolean }
   | { kind: "applying"; batch: string; plan: Plan; refused: Uploaded[] }
   | { kind: "applied"; applied: Applied; refused: Uploaded[] }
   | { kind: "failed"; message: string };
 
-export function UploadPanel() {
+interface UploadPanelProps {
+  title?: string; // the card's title where the screen's own already says "Belge ekle"
+}
+
+export function UploadPanel({ title }: UploadPanelProps) {
   const { t } = useTranslation("documents");
   const { t: tc } = useTranslation();
   const [step, setStep] = useState<Step>({ kind: "idle" });
@@ -36,8 +48,12 @@ export function UploadPanel() {
   const client = useQueryClient();
   const messageOf = (error: unknown) => (error instanceof Error ? error.message : tc("unexpected"));
 
-  async function send(chosen: File[]) {
+  async function send(picked: Picked[]) {
+    const chosen = picked.filter(({ path }) => !path.split("/").some((part) => part.startsWith(".")));
     if (chosen.length === 0) {
+      if (picked.length > 0) {
+        setStep({ kind: "failed", message: t("upload.empty") });
+      }
       return;
     }
     try {
@@ -45,6 +61,7 @@ export function UploadPanel() {
       const { batch, refused } = await uploadAll(chosen, (done) =>
         setStep({ kind: "uploading", done, total: chosen.length }),
       );
+      setStep({ kind: "reading", total: chosen.length - refused.length });
       const plan = await api.post<Plan>("/api/inbox/plan", { upload: batch });
       setStep({ kind: "planned", batch, plan, refused, renewed: false });
     } catch (error) {
@@ -76,12 +93,23 @@ export function UploadPanel() {
   function dropped(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
     setOver(false);
-    void send(Array.from(event.dataTransfer.files));
+    // A dropped folder is an entry, not a file: its files are read from it. The entries are taken while the event
+    // lasts; the browser empties the dropped items after it.
+    const entries = Array.from(event.dataTransfer.items ?? [])
+      .map((item) => item.webkitGetAsEntry?.() ?? null)
+      .filter((entry): entry is FileSystemEntry => entry !== null);
+    if (entries.length === 0) {
+      void send(fromList(event.dataTransfer.files));
+      return;
+    }
+    void filesOf(entries)
+      .then(send)
+      .catch((error: unknown) => setStep({ kind: "failed", message: messageOf(error) }));
   }
 
-  const busy = step.kind === "uploading" || step.kind === "applying";
+  const busy = step.kind === "uploading" || step.kind === "reading" || step.kind === "applying";
   return (
-    <Card title={t("upload.title")}>
+    <Card title={title ?? t("upload.title")}>
       <div className="flex flex-col gap-3">
         <div
           onDragOver={(e) => {
@@ -114,7 +142,7 @@ export function UploadPanel() {
             // Any file: what a document is comes from its content, never its name or extension (the service tells).
             className="hidden"
             aria-label={t("upload.files")}
-            onChange={(e) => void send(Array.from(e.target.files ?? []))}
+            onChange={(e) => void send(fromList(e.target.files))}
           />
           <input
             ref={folder}
@@ -124,7 +152,7 @@ export function UploadPanel() {
             {...{ webkitdirectory: "" }}
             className="hidden"
             aria-label={t("upload.folder")}
-            onChange={(e) => void send(Array.from(e.target.files ?? []))}
+            onChange={(e) => void send(fromList(e.target.files))}
           />
         </div>
         <StepView step={step} onApply={apply} onReset={() => setStep({ kind: "idle" })} />
@@ -152,6 +180,12 @@ function StepView({
           {t("upload.uploading", { done: step.done, total: step.total })}
         </p>
       );
+    case "reading":
+      return (
+        <p role="status" className="text-sm">
+          {t("upload.reading", { count: step.total })}
+        </p>
+      );
     case "failed":
       return (
         <Alert tone="critical" title={t("upload.failed")} live>
@@ -161,18 +195,25 @@ function StepView({
           </Button>
         </Alert>
       );
-    case "applied":
+    case "applied": {
+      const known = step.applied.counts.known ?? 0;
       return (
         <div className="flex flex-col gap-2">
           <Alert tone="good" title={t("upload.applied", { count: step.applied.stored })} live>
+            {known > 0 ? <p>{t("upload.known", { count: known })}</p> : null}
             {step.applied.trash ? <p>{t("upload.trash")}</p> : null}
           </Alert>
           <Refused refused={step.refused} />
-          <Button variant="secondary" className="self-start" onClick={onReset}>
-            {t("upload.another")}
-          </Button>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Button variant="secondary" onClick={onReset}>
+              {t("upload.another")}
+            </Button>
+            <AddressStep to="/belgeler" label={t("upload.documents")} />
+            <AddressStep to="/" label={t("upload.home")} />
+          </div>
         </div>
       );
+    }
     case "planned":
     case "applying":
       return (
@@ -274,18 +315,61 @@ function Refused({ refused }: { refused: Uploaded[] }) {
   );
 }
 
+/** The files a file picker gave, each with its place in the folder chosen (the browser keeps it beside the file). */
+function fromList(list: FileList | null): Picked[] {
+  return Array.from(list ?? []).map((file) => ({ file, path: file.webkitRelativePath || file.name }));
+}
+
+/** Every file in the dropped entries, the folders' files with their places in them. */
+async function filesOf(entries: FileSystemEntry[]): Promise<Picked[]> {
+  const found: Picked[] = [];
+  for (const entry of entries) {
+    await collect(entry, found);
+  }
+  return found;
+}
+
+async function collect(entry: FileSystemEntry, found: Picked[]): Promise<void> {
+  if (isFileEntry(entry)) {
+    const file = await new Promise<File>((resolve, reject) => entry.file(resolve, reject));
+    found.push({ file, path: entry.fullPath.replace(/^\//, "") });
+    return;
+  }
+  if (!isFolderEntry(entry)) {
+    return;
+  }
+  const reader = entry.createReader();
+  // A folder's entries come a part at a time: read until a part is empty.
+  for (;;) {
+    const part = await new Promise<FileSystemEntry[]>((resolve, reject) => reader.readEntries(resolve, reject));
+    if (part.length === 0) {
+      return;
+    }
+    for (const child of part) {
+      await collect(child, found);
+    }
+  }
+}
+
+function isFileEntry(entry: FileSystemEntry): entry is FileSystemFileEntry {
+  return entry.isFile;
+}
+
+function isFolderEntry(entry: FileSystemEntry): entry is FileSystemDirectoryEntry {
+  return entry.isDirectory;
+}
+
 async function uploadAll(
-  chosen: File[],
+  chosen: Picked[],
   progress: (done: number) => void,
 ): Promise<{ batch: string; refused: Uploaded[] }> {
   let batch = "";
   const refused: Uploaded[] = [];
-  for (const [i, file] of chosen.entries()) {
-    const name = file.webkitRelativePath || file.name;
+  for (const [i, { file, path }] of chosen.entries()) {
     const where = batch ? `/api/uploads?batch=${encodeURIComponent(batch)}` : "/api/uploads";
     const result = await api.send<Uploaded>(where, file, {
       "Content-Type": "application/octet-stream",
-      "X-Filename": encodeURIComponent(name),
+      "X-Filename": encodeURIComponent(path),
     });
     batch = result.batch;
     if (result.status === "reddedildi") {

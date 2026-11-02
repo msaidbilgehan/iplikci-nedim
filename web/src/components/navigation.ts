@@ -24,6 +24,7 @@ import {
   SlidersIcon,
   SwapIcon,
   TagIcon,
+  UploadIcon,
   WandIcon,
 } from "./ui/Icons";
 
@@ -75,6 +76,8 @@ export const MENU: readonly ScreenGroup[] = [
   {
     key: "archive", // the documents kept and the non-bank bills matched to the bank's rows
     screens: [
+      // Where the documents downloaded by hand come in, a folder of them at once (F02, K24).
+      { to: "/belge-ekle", key: "addDocuments", icon: UploadIcon, ready: true, everyday: true },
       { to: "/belgeler", key: "documents", icon: FileIcon, ready: true },
       { to: "/faturalar", key: "invoices", icon: ReceiptIcon, ready: true },
     ],
@@ -116,6 +119,7 @@ const EVERYDAY_ORDER: readonly ScreenKey[] = [
   "calendar",
   "insights",
   "todo",
+  "addDocuments",
 ];
 
 /** The simple view's first menu: the everyday screens built so far. */

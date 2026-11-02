@@ -273,7 +273,7 @@ describe("DocumentsPage: adding documents", () => {
     expect(await screen.findByText("Plan: arşive alınacak: 1")).toBeInTheDocument();
     expect(screen.getByText("subat.xls → TEB Hesap Dökümü Şubat 2026")).toBeInTheDocument();
     expect(applied).toBe(0); // nothing goes in before the plan is confirmed
-    await userEvent.click(screen.getByRole("button", { name: "Planı uygula" }));
+    await userEvent.click(screen.getByRole("button", { name: "Arşive al" }));
     expect(await screen.findByText("1 belge arşive alındı")).toBeInTheDocument();
     expect(sent).toEqual(["şubat ekstresi.xls"]);
     expect(applied).toBe(1);
@@ -295,7 +295,7 @@ describe("DocumentsPage: adding documents", () => {
     );
     open();
     await userEvent.upload(screen.getByLabelText("Dosya seç", { selector: "input" }), new File(["x"], "a.xls"));
-    await userEvent.click(await screen.findByRole("button", { name: "Planı uygula" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Arşive al" }));
     expect(await screen.findByText("Plan yenilendi")).toBeInTheDocument();
     expect(plans).toBe(2);
   });

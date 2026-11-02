@@ -189,11 +189,17 @@
     "files": "Dosya seç",
     "folder": "Klasör seç",
     "uploading": "Dosyalar yükleniyor: {{done}}/{{total}}",
+    "reading_one": "Belge okunuyor: ne olduğu içeriğinden anlaşılıyor…",
+    "reading_other": "{{count}} dosya okunuyor: her birinin ne olduğu içeriğinden anlaşılıyor…",
     "failed": "Belgeler eklenemedi",
     "restart": "Yeniden başla",
     "applied": "{{count}} belge arşive alındı",
+    "known_one": "{{count}} belge zaten arşivdeydi; yeni bir kez sayılmadı.",
+    "known_other": "{{count}} belge zaten arşivdeydi; hiçbiri ikinci kez sayılmadı.",
     "trash": "Çöp kutusuna taşınanlar geri alınabilir.",
     "another": "Başka belge ekle",
+    "documents": "Belgelere bak",
+    "home": "Pano'ya dön",
     "renewed": "Plan yenilendi",
     "renewedText": "Planı gösterdikten sonra bir dosya değişti; yeni plan aşağıda. Uygun görürseniz yeniden onaylayın.",
     "nothing": "Alınacak belge yok",
@@ -203,10 +209,25 @@
     "file": "Dosya",
     "action": "Ne olacak",
     "document": "Belge",
-    "apply": "Planı uygula",
-    "applying": "Uygulanıyor…",
+    "apply": "Arşive al",
+    "applying": "Arşive alınıyor…",
     "cancel": "Vazgeç",
     "refused": "{{count}} dosya alınmadı",
-    "refusedItem": "{{name}}: {{reason}}"
+    "refusedItem": "{{name}}: {{reason}}",
+    "empty": "Seçilen yerde belge yok: yalnızca gizli dosyalar var."
+  },
+  "add": {
+    "title": "Belge ekle",
+    "description": "Bankadan indirdiğiniz kart ekstrelerini ve hesap hareketlerini buradan ekleyin; bir klasörün tamamını da seçebilirsiniz.",
+    "panel": "Klasör ya da dosya seçin",
+    "how": "Nasıl?",
+    "steps": {
+      "download": "Bankanızın internet şubesinden kart ekstrelerini ve hesap hareketlerini indirin (PDF ya da Excel).",
+      "gather": "İndirdiklerinizi bir klasörde toplayın; İndirilenler'de de kalabilirler. Dosya adlarını değiştirmeniz gerekmez.",
+      "choose": "Yukarıda “Klasör seç”e basıp klasörü seçin ya da klasörü kutuya sürükleyin.",
+      "check": "Her dosyanın ne olduğunu listede görün ve “Arşive al”a basın. Arşivde olanlar eşleşir, yenileri eklenir; dosyalarınız yerinde kalır."
+    },
+    "mail": "E-postayla gelen belgeler tarayıcı eklentisiyle kendiliğinden gelir; burası elle indirdikleriniz için.",
+    "mailLink": "Tarayıcı eklentisi"
   }
 }

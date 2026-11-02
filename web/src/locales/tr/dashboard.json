@@ -172,7 +172,9 @@
       "open": "Göster",
       "more": "Ayrıntısı",
       "data": "Bilgilerin tam olması için {{count}} iş bekliyor (eksik ya da okunamayan belgeler gibi).",
-      "dataNext": "Yapılacaklara bak"
+      "dataNext": "Yapılacaklara bak",
+      "addText": "Bankadan indirdiğiniz ekstreleri ve hesap hareketlerini de ekleyebilirsiniz.",
+      "add": "Belge ekle"
     }
   }
 }

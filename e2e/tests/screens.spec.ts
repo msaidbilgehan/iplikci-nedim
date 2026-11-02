@@ -13,6 +13,7 @@ const SCREENS = [
   { path: "/hesaplar", heading: "Hesaplar" },
   { path: "/hesaplar/teb-123456789", heading: "TEB Vadesiz TL 123456789" }, // the demo's TL account
   { path: "/sistem", heading: "Sistem" },
+  { path: "/belge-ekle", heading: "Belge ekle" },
   { path: "/belgeler", heading: "Belgeler" },
   { path: "/abonelikler", heading: "Düzenli ödemeler" },
   { path: "/takvim", heading: "Takvim" },

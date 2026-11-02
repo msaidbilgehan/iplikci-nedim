@@ -14,6 +14,7 @@ const AccountsPage = lazy(() => import("./pages/AccountsPage"));
 const AccountPage = lazy(() => import("./pages/AccountPage"));
 const SystemPage = lazy(() => import("./pages/SystemPage"));
 const DocumentsPage = lazy(() => import("./pages/DocumentsPage"));
+const AddDocumentsPage = lazy(() => import("./pages/AddDocumentsPage"));
 const DocumentPage = lazy(() => import("./pages/DocumentPage"));
 const SubscriptionsPage = lazy(() => import("./pages/SubscriptionsPage"));
 const CalendarPage = lazy(() => import("./pages/CalendarPage"));
@@ -44,6 +45,7 @@ export const routes: RouteObject[] = [
       { path: "hesaplar/:id", element: screen(<AccountPage />) },
       { path: "islemler", element: screen(<TransactionsPage />) },
       { path: "sistem", element: screen(<SystemPage />) },
+      { path: "belge-ekle", element: screen(<AddDocumentsPage />) },
       { path: "belgeler", element: screen(<DocumentsPage />) },
       { path: "belgeler/:id", element: screen(<DocumentPage />) },
       { path: "abonelikler", element: screen(<SubscriptionsPage />) },

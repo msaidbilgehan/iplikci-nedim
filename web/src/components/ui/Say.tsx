@@ -91,3 +91,19 @@ export function NextStep({ step, context, className }: NextStepProps) {
     </Link>
   );
 }
+
+interface AddressStepProps {
+  to: string;
+  label: string;
+  className?: string;
+}
+
+/** A next step to a screen of the interface the service never names (Belge ekle), styled as NextStep. */
+export function AddressStep({ to, label, className }: AddressStepProps) {
+  return (
+    <Link to={to} className={cn(STEP, className)}>
+      {label}
+      <ArrowRightIcon className="size-4 shrink-0" />
+    </Link>
+  );
+}

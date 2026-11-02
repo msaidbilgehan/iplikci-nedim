@@ -18,9 +18,9 @@ import { SLOT_BG } from "../charts/palette";
 import { StackedBars } from "../charts/StackedBars";
 import { Failure, Loading } from "../QueryState";
 import { Card } from "../ui/Card";
-import { ArrowRightIcon, BankIcon, ChecklistIcon, ExclamationIcon, LightbulbIcon } from "../ui/Icons";
+import { ArrowRightIcon, BankIcon, ChecklistIcon, ExclamationIcon, LightbulbIcon, UploadIcon } from "../ui/Icons";
 import { INCOMING } from "../ui/Money";
-import { NextStep, ScreenLink } from "../ui/Say";
+import { AddressStep, NextStep, ScreenLink } from "../ui/Say";
 
 const SMALL = "text-xs text-zinc-600 dark:text-zinc-300";
 const HOW = "text-sm text-zinc-700 dark:text-zinc-300";
@@ -504,6 +504,11 @@ function WhatToDo({ found }: { found: Dashboard }) {
             </ScreenLink>
           </p>
         ) : null}
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+          <UploadIcon className="size-4 shrink-0 text-teal-800 dark:text-teal-300" />
+          <span>{t("overview.todo.addText")}</span>
+          <AddressStep to="/belge-ekle" label={t("overview.todo.add")} />
+        </p>
       </div>
     </Card>
   );

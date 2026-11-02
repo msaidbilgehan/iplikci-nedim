@@ -174,6 +174,7 @@ describe("Overview", () => {
       within(todo).getByText("Bilgilerin tam olması için 3 iş bekliyor (eksik ya da okunamayan belgeler gibi)."),
     ).toBeInTheDocument();
     expect(within(todo).getByRole("link", { name: "Yapılacaklara bak" })).toHaveAttribute("href", "/yapilacaklar");
+    expect(within(todo).getByRole("link", { name: "Belge ekle" })).toHaveAttribute("href", "/belge-ekle");
   });
 
   it("says there is nothing to do when no alert, advice or work is open", async () => {
