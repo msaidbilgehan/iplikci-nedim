@@ -61,6 +61,7 @@ __all__ = [
 DUE_DAYS = 7  # the payments due within a week, today the first day (F06)
 COMPARABLE = 0.5  # the month so far is compared with the typical month once documents cover this share of its days
 NEAR = Decimal("0.1")  # within this share of the typical month's same days, the month is "near" it
+NOT_COVERED = "; ayın günlerini kapsayan ekstre ya da döküm henüz gelmedi, karşılaştırmak için erken."
 ZERO = Decimal(0)
 
 
@@ -232,11 +233,16 @@ def net_worth(a: Analysis, found: now.Now) -> NetWorth:
 
 
 def _say_month(p: now.Pace) -> str:
-    said = f"Gelen belgelere göre bu ay {_amount(p.spent)} harcandı"
+    if p.covered or p.spent:
+        said = f"Gelen belgelere göre bu ay {_amount(p.spent)} harcandı"
+    else:  # no document reaches the month yet: that nothing was spent is not known
+        said = "Bu ayın günlerini kapsayan ekstre ya da döküm henüz gelmedi"
     if p.provisional:
         said += f" ({_amount(p.provisional)} geçici)"
     if p.by_day is None:
         return said + "; tipik ayla karşılaştırmak için en az 3 tam ay gerekiyor."
+    if not p.covered:
+        return said + (", karşılaştırmak için erken." if not p.spent else NOT_COVERED)
     if p.covered < COMPARABLE:  # the documents of the month mostly still to come: a comparison would mislead
         covered = pct(p.covered)
         return said + f"; bugüne kadarki günlerin yalnızca {covered} belgelerle kapsandı, karşılaştırmak için erken."

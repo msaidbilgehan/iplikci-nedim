@@ -16,7 +16,7 @@ from iplikci.app.mail import IMAP
 from iplikci.app.reading import FORMAT_ALARM
 from iplikci.app.workspace import Busy, Workspace
 from iplikci.domain.codes import Actor, DocumentStatus
-from iplikci.fakes import Move, garanti, teb
+from iplikci.fakes import HOLDER, Move, garanti, teb
 from iplikci.parsers import registry
 from iplikci.storage import events
 from iplikci.storage import mail as mail_store
@@ -190,13 +190,28 @@ def test_this_month_is_compared_with_the_same_days_of_the_typical_month(ws):
 
 
 def test_this_month_is_not_compared_before_its_documents_or_three_complete_months(ws, demo_board):
+    # No document reaches November yet: that nothing was spent is not known, so no amount is said.
     assert demo_board["month"]["say"] == (
-        "Gelen belgelere göre bu ay 0,00 TL harcandı; bugüne kadarki günlerin yalnızca %0'ı belgelerle kapsandı, "
-        "karşılaştırmak için erken."
+        "Bu ayın günlerini kapsayan ekstre ya da döküm henüz gelmedi, karşılaştırmak için erken."
+    )
+    assert demo_board["month"]["pace"]["note"].endswith(
+        "sonra eklenir. Bu ayın günlerini kapsayan ekstre ya da döküm henüz gelmedi. Tipik ay: Nisan 2026 – Ekim 2026 "
+        "arasındaki 6 tam ayın medyanı."
     )
     add(ws, "liste.xls", _monthly_list(range(1, 3), date(2026, 3, 10)))
     assert board(ws, date(2026, 3, 10))["month"]["say"] == (
         "Gelen belgelere göre bu ay 150,00 TL harcandı; tipik ayla karşılaştırmak için en az 3 tam ay gerekiyor."
+    )
+
+
+def test_this_months_spending_a_receipt_tells_before_any_list_is_not_compared(ws):
+    add(ws, "liste.xls", _monthly_list(range(1, 7), date(2026, 6, 30)))
+    dues = garanti.fast_body("TEMMUZ AİDAT ÖDEMESİ", "ÖRNEK SİTE YÖNETİMİ")
+    paid = garanti.receipt("HESAPTAN FAST", "106/1234567", HOLDER, dues, "- 1.250,00 TL", date(2026, 7, 5))
+    add(ws, "dekont.pdf", paid)
+    assert board(ws, date(2026, 7, 10))["month"]["say"] == (
+        "Gelen belgelere göre bu ay 1.254,43 TL harcandı; ayın günlerini kapsayan ekstre ya da döküm henüz gelmedi, "
+        "karşılaştırmak için erken."
     )
 
 

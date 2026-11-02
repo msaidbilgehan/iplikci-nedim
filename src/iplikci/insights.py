@@ -134,8 +134,13 @@ def possessive(n: int) -> str:
 
 
 def pct(share: Decimal | float) -> str:
-    """0.64 -> "%64'ü": a share of something, with the suffix Turkish needs after it."""
+    """0.64 -> "%64'ü": a share of something, with the suffix Turkish needs after it. A share that rounds to none or
+    to the whole without being so reads "%1'den azı" or "%99'dan fazlası": never nothing or all when it is not."""
     n = round(share * 100)
+    if n == 0 and share > 0:
+        return f"%1{year_suffix('1', True)} azı"  # the ablative goes by the number's last word, as a year's does
+    if n == 100 and share < 1:
+        return f"%99{year_suffix('99', True)} fazlası"
     return f"%{n}'{possessive(n)}"
 
 

@@ -613,6 +613,8 @@ def test_interpretation_prices_the_steps_and_balances_the_budget():
         (10.0, "%1000'i"),
         (20.0, "%2000'i"),
         (0.0, "%0'ı"),
+        (0.004, "%1'den azı"),  # not nothing
+        (Decimal("0.996"), "%99'dan fazlası"),  # not all
     ],
 )
 def test_percent_takes_the_right_suffix(share, text):

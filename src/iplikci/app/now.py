@@ -346,9 +346,14 @@ def pace(a: Analysis, today: date) -> Pace:
     by_day = median(_expense_until(by_month.get(m, []), m, today.day) for m in prior) if enough else None
     needed = sum(ac.needed for ac in current.accounts if ac.blocking)
     covered = sum(ac.covered for ac in current.accounts if ac.blocking) / needed if needed else 0.0
+    so_far = (
+        f"Bugüne kadarki günlerin {pct(covered)} belgelerle kapsandı."
+        if covered
+        else "Bu ayın günlerini kapsayan ekstre ya da döküm henüz gelmedi."
+    )
     note = (
         f"{month_name(month)} sürüyor: rakamlar bugüne kadar gelen belgelerden; kart harcamaları ekstre kesiminden "
-        f"sonra eklenir. Bugüne kadarki günlerin {pct(covered)} belgelerle kapsandı."
+        f"sonra eklenir. {so_far}"
     )
     if enough:
         window = month_name(prior[0]) if len(prior) == 1 else f"{month_name(prior[0])} – {month_name(prior[-1])}"
