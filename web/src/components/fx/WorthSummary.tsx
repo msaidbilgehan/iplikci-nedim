@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 
 import type { Holdings } from "../../api/types";
 import { formatMoney } from "../../lib/format";
+import { Explain } from "../ui/Explain";
 import { Money } from "../ui/Money";
 import { currencyName } from "./currency";
 
@@ -66,7 +67,11 @@ export function WorthSummary({ found }: { found: Holdings }) {
           </ul>
         </div>
       ) : null}
-      {worth.note ? <p className={SMALL}>{worth.note}</p> : null}
+      {worth.note ? (
+        <Explain>
+          <p>{worth.note}</p>
+        </Explain>
+      ) : null}
     </section>
   );
 }

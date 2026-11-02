@@ -2,7 +2,11 @@
   "title": "Hesaplar",
   "description": "Hesaplarınız gruplarıyla: bakiyeleri, belgelerinin ulaştığı gün, bu ayki giriş ve çıkışları; aralarındaki para akışı.",
   "say": "Varlıklar {{assets}}, borçlar {{debts}}; net {{total}}.",
-  "sayUnvalued": "{{count}} hesabın TL değeri bilinmediği için toplamlara girmedi.",
+  "leftOut": {
+    "noBalance": "Bakiyesi belgelerde olmayan {{count}} hesap toplamlara girmedi.",
+    "noValue": "TL karşılığı bilinmeyen {{count}} hesap toplamlara girmedi.",
+    "both": "Bakiyesi belgelerde olmayan {{noBalance}} hesap ve TL karşılığı bilinmeyen {{noValue}} hesap toplamlara girmedi."
+  },
   "empty": "Henüz hesap yok",
   "emptyText": "Ekstreler, dökümler ve dekontlar geldikçe hesaplar burada görünür.",
   "emptyNext": "Belgeleri göster",
@@ -15,7 +19,6 @@
   },
   "group": {
     "figures": "Varlık {{assets}} · Borç {{debts}}",
-    "unvalued": "{{count}} hesabın TL değeri bilinmiyor; toplama girmedi.",
     "caption": "{{group}} grubundaki hesaplar"
   },
   "closed": {
@@ -24,6 +27,7 @@
   },
   "account": {
     "select": "Birlikte göster: {{name}}",
+    "selectShort": "Birlikte göster",
     "balanceUnknown": "Bakiyesi belgelerde yok",
     "asOf": "{{day}} itibarıyla",
     "inTl": "TL karşılığı {{value}}",

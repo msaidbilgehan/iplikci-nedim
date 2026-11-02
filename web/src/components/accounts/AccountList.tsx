@@ -37,16 +37,25 @@ export function AccountList({ accounts, caption, labels, selected, onSelect }: A
           {accounts.map((item) => (
             <li
               key={item.account.id}
-              className="flex gap-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-700"
+              className={cn(
+                "flex flex-col gap-2 rounded-xl border p-4",
+                selected.has(item.account.id)
+                  ? "border-teal-600 bg-teal-50/40 dark:border-teal-500 dark:bg-teal-950/40"
+                  : "border-zinc-200 dark:border-zinc-800",
+              )}
             >
-              <input
-                type="checkbox"
-                aria-label={t("account.select", { name: item.account.label })}
-                checked={selected.has(item.account.id)}
-                onChange={(event) => onSelect(item.account.id, event.target.checked)}
-                className={cn(CHECKBOX, "mt-1 shrink-0")}
-              />
               <AccountCard item={item} labels={labels} />
+              {/* Said in words beside the box, so what it does is plain: several chosen accounts are summed above. */}
+              <label className="flex min-h-8 cursor-pointer items-center gap-2 self-start text-xs text-zinc-700 dark:text-zinc-200">
+                <input
+                  type="checkbox"
+                  aria-label={t("account.select", { name: item.account.label })}
+                  checked={selected.has(item.account.id)}
+                  onChange={(event) => onSelect(item.account.id, event.target.checked)}
+                  className={cn(CHECKBOX, "shrink-0")}
+                />
+                {t("account.selectShort")}
+              </label>
             </li>
           ))}
         </ul>
@@ -104,7 +113,7 @@ function Freshness({ item }: { item: AccountItem }) {
     return null;
   }
   return (
-    <div className={SMALL}>
+    <div className={cn("flex flex-col items-start gap-1", SMALL)}>
       <p>
         {[f.note, f.behind === 0 ? t("account.today") : t("account.behind", { count: f.behind })]
           .filter(Boolean)
@@ -112,7 +121,7 @@ function Freshness({ item }: { item: AccountItem }) {
       </p>
       {f.late ? <Status tone="warning">{t("account.late")}</Status> : null}
       {f.missing.length > 0 ? (
-        <p>{t("account.missing", { months: f.missing.map(formatMonth).join(", ") })}</p>
+        <Status tone="warning">{t("account.missing", { months: f.missing.map(formatMonth).join(", ") })}</Status>
       ) : null}
     </div>
   );

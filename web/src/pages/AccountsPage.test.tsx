@@ -12,12 +12,12 @@ afterEach(() => localStorage.clear());
 const group = (name: string) => screen.findByRole("region", { name });
 
 describe("AccountsPage: the account map", () => {
-  it("says what the accounts are worth, leaving out those without a TL value", async () => {
+  it("says what the accounts are worth, and which are left out and why", async () => {
     renderScreen(<AccountsPage />, { path: "/hesaplar" });
     expect(await screen.findByRole("heading", { level: 1, name: "Hesaplar" })).toBeInTheDocument();
     expect(
       await screen.findByText(
-        "Varlıklar 19.500,00 TL, borçlar 7.000,00 TL; net 12.500,00 TL. 1 hesabın TL değeri bilinmediği için " +
+        "Varlıklar 19.500,00 TL, borçlar 7.000,00 TL; net 12.500,00 TL. Bakiyesi belgelerde olmayan 1 hesap " +
           "toplamlara girmedi.",
       ),
     ).toBeInTheDocument();
@@ -31,7 +31,7 @@ describe("AccountsPage: the account map", () => {
     expect(within(cards).getByText("−7.000,00 TL", { selector: "span.font-semibold" })).toBeInTheDocument();
     expect(within(cards).getByText("Varlık 0,00 TL · Borç 7.000,00 TL")).toBeInTheDocument();
     const current = await group("Vadesiz");
-    expect(within(current).getByText(/1 hesabın TL değeri bilinmiyor/)).toBeInTheDocument();
+    expect(within(current).getByText("Bakiyesi belgelerde olmayan 1 hesap toplamlara girmedi.")).toBeInTheDocument();
     expect(await group("Döviz")).toBeInTheDocument();
     const closed = await group("Kapanmış hesaplar");
     expect(within(closed).getByText("Belgeleri en yeni belgeden 180 günden eski; hiçbir toplama girmez.")).toBeInTheDocument();

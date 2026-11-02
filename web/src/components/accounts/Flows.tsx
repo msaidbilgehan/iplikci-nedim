@@ -15,6 +15,7 @@ import { slotOf } from "../charts/palette";
 import { Sankey } from "../charts/Sankey";
 import type { FlowBand, FlowPoint } from "../charts/flowLayout";
 import { Failure, Loading } from "../QueryState";
+import { Explain } from "../ui/Explain";
 import { Card } from "../ui/Card";
 import { NextStep } from "../ui/Say";
 import { Table, Td, Th } from "../ui/Table";
@@ -172,7 +173,11 @@ function FlowChart({ flows, labels, categories }: FlowChartProps) {
         bands={bands}
         table={table}
       />
-      {flows.note ? <p className="text-xs text-zinc-600 dark:text-zinc-300">{flows.note}</p> : null}
+      {flows.note ? (
+        <Explain>
+          <p>{flows.note}</p>
+        </Explain>
+      ) : null}
     </>
   );
 }
