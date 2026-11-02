@@ -221,6 +221,26 @@ def test_the_current_month_knows_its_income_from_a_list_of_its_days_so_far(cat):
     assert (me.status, me.totals.income, me.income_note) == (month_end.RUNNING, Decimal(1000), month_end.INCOME_NOTE)
 
 
+def salary(d: date) -> Transaction:
+    return Transaction(d, "ORNEK ISVEREN MAAS", Decimal(-40000), TransactionKind.INCOME, CHECKING.id, source="belge")
+
+
+def test_a_salary_missing_from_a_month_its_list_covers_only_partly_is_not_put_down_to_its_payment_day(cat):
+    # The salary comes on the 1st; 1–4 July were never downloaded, so July's may be on a day no list covers.
+    first = listing(date(2026, 5, 1), date(2026, 6, 30), salary(date(2026, 5, 1)), salary(date(2026, 6, 1)))
+    later = listing(date(2026, 7, 5), date(2026, 9, 30), salary(date(2026, 8, 1)), salary(date(2026, 9, 1)))
+    me = month(cat, date(2026, 10, 15), "2026-07", first, later)
+    assert (me.status, me.totals.income) == (month_end.MISSING, Decimal(0))
+    assert me.income_note == (
+        "gelir eksik olabilir: TEB Vadesiz TL 123456789 dökümü ayın tamamını kapsamıyor; maaş bu ay görünmüyor: "
+        "dökümün kapsamadığı günlerde yatmış olabilir"
+    )
+    # A month the list covers in full: the salary came on the last day of the month before.
+    days = (date(2026, 5, 1), date(2026, 6, 1), date(2026, 7, 1), date(2026, 7, 31), date(2026, 9, 1))
+    me = month(cat, date(2026, 10, 15), "2026-08", listing(date(2026, 5, 1), date(2026, 9, 30), *map(salary, days)))
+    assert me.income_note == "maaş bu ay görünmüyor: ödeme günü bir önceki ya da sonraki aya denk geldi"
+
+
 def test_a_month_end_balance_is_the_one_the_list_printed(cat):
     me = month(cat, date(2026, 11, 25), "2026-10", *autumn())
     assert by_label(me)["TEB Vadesiz TL 123456789"].balance == Decimal(4600)

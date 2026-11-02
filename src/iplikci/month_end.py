@@ -539,7 +539,19 @@ class _Shared:
         if status != RUNNING:
             missing, double = salary_timing(self.ins.income, [month])
             if missing:
-                notes.append("maaş bu ay görünmüyor: ödeme günü bir önceki ya da sonraki aya denk geldi")
+                # Its day fell in the month before or after only when the account it comes into covers the whole
+                # month; otherwise it may be on a day no document covers yet.
+                main = next(s for s in self.ins.income if s.running)  # salary_timing's salary
+                into = {t.account for t in main.payments}
+                gap = any(a.account.id in into and a.status in (WAITING, MISSING) for a in accounts)
+                notes.append(
+                    "maaş bu ay görünmüyor: "
+                    + (
+                        "dökümün kapsamadığı günlerde yatmış olabilir"
+                        if gap
+                        else "ödeme günü bir önceki ya da sonraki aya denk geldi"
+                    )
+                )
             if double:
                 notes.append("bu ay iki maaş var: ödeme günleri ayın başına ve sonuna denk geldi")
         return "; ".join(notes) or INCOME_NOTE
