@@ -19,6 +19,8 @@ const SCREENS = [
   { path: "/faturalar", heading: "Faturalar" },
   { path: "/bildirimler", heading: "Bildirimler" },
   { path: "/kurulum/eklenti", heading: "Tarayıcı eklentisi" },
+  { path: "/ay-sonu", heading: "Ay sonu" },
+  { path: "/ay-sonu/2026-10", heading: "Ekim 2026" }, // a closed month of the demo
 ] as const;
 
 for (const screen of SCREENS) {

@@ -163,8 +163,10 @@ describe("FeedPage: the events", () => {
       "href",
       "/takvim?gun=2026-11-25",
     );
-    // The month's page and the document viewer come later: no link leads nowhere meanwhile.
-    expect(within(screen.getByRole("article", { name: "Ay kapandı" })).queryByRole("link")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("article", { name: "Ay kapandı" })).getByRole("link")).toHaveAttribute(
+      "href",
+      "/ay-sonu/2026-10",
+    );
   });
 
   it("shows every value an event carries in the detailed view", async () => {

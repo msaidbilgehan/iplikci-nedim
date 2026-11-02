@@ -40,6 +40,8 @@ import type {
   Insights,
   Invoices,
   Labels,
+  MonthEndDetail,
+  MonthEndList,
   Notifications,
   NotificationsMarked,
   NotifyPreferences,
@@ -730,5 +732,25 @@ export function useSetAlertRules() {
 export function usePreviewAlertRule() {
   return useMutation({
     mutationFn: (rule: AlertRule) => api.post<AlertPreview>(`${ALERT_RULES}/preview`, { rule }),
+  });
+}
+
+// --- the month-end closing (F11) ------------------------------------------------------------------------------------
+
+// Under the dashboard's key, as the dashboard's closing card shows the same months: every event of the stream and
+// every change that refreshes the dashboard (a rule, a correction) refreshes them too.
+const monthEndKey = [...keys.dashboard, "month-end"] as const;
+
+/** The current month and the twelve before it with documents, the newest first, each with its status. */
+export function useMonthEnds() {
+  return useQuery({ queryKey: monthEndKey, queryFn: () => api.get<MonthEndList>("/api/month-end") });
+}
+
+/** One month in full; nothing is asked for an address that names no month. */
+export function useMonthEnd(month: string, enabled = true) {
+  return useQuery({
+    queryKey: [...monthEndKey, month],
+    queryFn: () => api.get<MonthEndDetail>(`/api/month-end/${month}`),
+    enabled,
   });
 }

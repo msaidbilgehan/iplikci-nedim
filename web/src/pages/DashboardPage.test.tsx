@@ -43,8 +43,9 @@ describe("DashboardPage", () => {
       "href",
       "/hesaplar",
     );
-    // The months' pages come later: the closing card leads nowhere meanwhile.
-    expect(within(await card("Son 7 ayın kapanışı")).queryByRole("link")).not.toBeInTheDocument();
+    const closing = await card("Son 7 ayın kapanışı");
+    expect(within(closing).getByRole("link", { name: "Ay sonunu aç" })).toHaveAttribute("href", "/ay-sonu/2026-07");
+    expect(within(closing).getByRole("link", { name: "Ekim 2026" })).toHaveAttribute("href", "/ay-sonu/2026-10");
   });
 
   it("shows the net worth in TL and in other units, a missing rate as the documents not having one", async () => {

@@ -47,7 +47,7 @@ describe("Layout", () => {
     const expected: Record<string, string[]> = {
       Bugün: ["/", "/akis"],
       Para: ["/hesaplar", "/islemler", "/abonelikler", "/takvim"],
-      Analiz: ["/degerlendirme"],
+      Analiz: ["/degerlendirme", "/ay-sonu"],
       Arşiv: ["/belgeler", "/faturalar"],
       Uygulama: ["/bildirimler", "/sistem"],
       Kurulum: ["/kurulum/eklenti"],

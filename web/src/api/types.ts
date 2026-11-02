@@ -92,6 +92,14 @@ import type {
   MailCoverageOut,
   MerchantRuleIn,
   MoneyOut,
+  MonthEndAccountOut,
+  MonthEndDetailOut,
+  MonthEndListOut,
+  MonthEndOut,
+  MonthEndRegularOut,
+  MonthEndShareOut,
+  MonthEndTotalsOut,
+  MonthStatus,
   Necessity,
   NetWorthOut,
   NotEndedIn,
@@ -289,3 +297,14 @@ export type OpenAlert = AlertOut;
 export type MonthClosing = ClosingOut;
 export type Freshness = FreshnessOut;
 export type TodoSummary = TodoSummaryOut;
+
+// The month-end closing (F11): the months with their statuses, and one month in full — each account's closing and what
+// it waits for, the totals, where the money went, the regular payments and the rows receipts and notices show.
+export type { MonthStatus };
+export type MonthEndList = MonthEndListOut;
+export type MonthEnd = MonthEndOut;
+export type MonthEndDetail = MonthEndDetailOut;
+export type MonthEndAccount = MonthEndAccountOut;
+export type MonthEndTotals = MonthEndTotalsOut;
+export type MonthEndShare = MonthEndShareOut;
+export type MonthEndRegular = MonthEndRegularOut;

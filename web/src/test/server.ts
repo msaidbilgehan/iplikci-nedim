@@ -33,6 +33,11 @@ import type {
   Labels,
   Money,
   MonthClosing,
+  MonthEnd,
+  MonthEndAccount,
+  MonthEndDetail,
+  MonthEndList,
+  MonthStatus,
   NotificationItem,
   Notifications,
   NotifySettings,
@@ -143,8 +148,16 @@ export const LABELS: Labels = {
     cash: "Nakit",
     elsewhere: "Başka bir yer",
   },
+  StatementCheck: { verified: "Tutarlı", failed: "Tutmuyor", nothing: "Denetlenecek satır yok" },
+  RateSource: { document: "Belgedeki kur" },
   TodoKind: { missing_documents: "Eksik belge", unprocessed_document: "İşlenmeyen belge" },
-  MonthStatus: { closed: "Kapandı", waiting: "Ekstre bekleniyor", missing: "Belge eksik", running: "Ay sürüyor" },
+  MonthStatus: {
+    closed: "Kapandı",
+    waiting: "Ekstre bekleniyor",
+    missing: "Belge eksik",
+    check: "Kontrol gerekli",
+    running: "Ay sürüyor",
+  },
   TransactionKind: {
     purchase: "Harcama",
     refund: "İade / indirim",
@@ -2320,6 +2333,245 @@ function edge(source: string, target: string, minor: number, rows: number, kinds
   return { source, target, amount: tl(minor), rows, kinds, link };
 }
 
+// --- the month-end closing (F11) --------------------------------------------------------------------------------------
+
+const MONTH_NAMES = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım"];
+const BROKER = { id: "ornek-yatirim-1", label: "Örnek Yatırım Hesabı" };
+
+/** "2026-10" moved by some months: ("2026-01", -1) → "2025-12". */
+function shiftMonth(month: string, by: number): string {
+  const [year = 2026, number = 1] = month.split("-").map(Number);
+  const index = year * 12 + number - 1 + by;
+  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, "0")}`;
+}
+
+function monthEnd(month: string, status: MonthStatus, overrides: Partial<MonthEnd> = {}): MonthEnd {
+  const [year, number = 1] = month.split("-");
+  return {
+    month,
+    name: `${MONTH_NAMES[Number(number) - 1] ?? "Aralık"} ${year}`,
+    status,
+    summary: "Bütün hesapların belgeleri ayın tamamını kapsıyor ve tutarlı.",
+    totals: {
+      expense: tl(2032799),
+      income: tl(4000000),
+      people: tl(0),
+      debt: tl(0),
+      saving: tl(0),
+      fees: tl(800),
+      left: tl(1967201),
+    },
+    provisional: 0,
+    unmatched: 0,
+    income_note: "hesap dökümlerindeki gelen para",
+    link: { screen: "month", id: month, query: {} },
+    ...overrides,
+  };
+}
+
+// On 15 November: November runs, October waits for a card's statement, September and August closed, July misses a
+// list's first days and June has a statement that does not add up.
+export const MONTH_ENDS: MonthEndList = {
+  today: "2026-11-15",
+  months: [
+    monthEnd("2026-11", "running", {
+      summary: "Rakamlar şimdiye kadar gelen ekstre ve dökümlerden.",
+      totals: { ...monthEnd("2026-11", "running").totals, expense: tl(84050), income: null, left: null },
+      provisional: 2,
+      income_note: "bu ay için hesap dökümü yok: gelir bilinmiyor",
+    }),
+    monthEnd("2026-10", "waiting", {
+      summary: "Ekstresi beklenen hesap var: Örnek Kart •1234 (19–31 Ekim ekstresi, kesim ~18.11).",
+      provisional: 2,
+      unmatched: 1,
+    }),
+    monthEnd("2026-09", "closed", { totals: { ...monthEnd("2026-09", "closed").totals, expense: tl(2118242) } }),
+    monthEnd("2026-08", "closed"),
+    monthEnd("2026-07", "missing", {
+      summary: "Kapanması için eksik belge var: Örnek Vadesiz TL (1–4 Temmuz hesap dökümü eksik).",
+    }),
+    monthEnd("2026-06", "check", { summary: "Kontrol edilecek belge var: Örnek Kart •1234 ekstresi tutmuyor." }),
+  ],
+  export: "month_end",
+};
+
+const RENT = row({
+  fingerprint: "c1c1c1c1c1c1c1c1c1c1",
+  day: "2026-10-03",
+  account: CASH,
+  title: "Örnek Ev Sahibi",
+  description: "KIRA ODEMESI ORNEK",
+  merchant: "Örnek Ev Sahibi",
+  amount: tl(1500000),
+  category: "Kira",
+  group: "Ev",
+  necessity: "required",
+  certainty: "confirmed",
+});
+const MARKET = row({
+  fingerprint: "c2c2c2c2c2c2c2c2c2c2",
+  day: "2026-10-12",
+  title: "Örnek Market",
+  description: "ORNEK MARKET KADIKOY",
+  merchant: "Örnek Market",
+  amount: tl(215000),
+  category: "Market",
+  group: "Gıda",
+  necessity: "required",
+  certainty: "confirmed",
+});
+const CAFE = row({
+  fingerprint: "c3c3c3c3c3c3c3c3c3c3",
+  day: "2026-10-25",
+  title: "Örnek Kafe",
+  description: "ORNEK KAFE MODA",
+  merchant: "Örnek Kafe",
+  amount: tl(9000),
+  category: "Kafe",
+  group: "Gıda",
+  necessity: "optional",
+  certainty: "provisional",
+  document: RECEIPT,
+});
+const UNSEEN = row({
+  fingerprint: "c4c4c4c4c4c4c4c4c4c4",
+  day: "2026-10-09",
+  title: "Örnek Kitapçı",
+  description: "ORNEK KITAPCI",
+  merchant: "Örnek Kitapçı",
+  amount: tl(32000),
+  category: "Kitap",
+  group: "Eğlence",
+  necessity: "optional",
+  counted: false,
+  certainty: "excluded",
+  document: RECEIPT,
+});
+
+function closedAccount(account: { id: string; label: string }, overrides: Partial<MonthEndAccount> = {}) {
+  return {
+    account,
+    status: "closed" as const,
+    label: "Kapandı",
+    blocking: true,
+    needed: 31,
+    covered: 31,
+    open: [],
+    statements: [
+      {
+        start: "2026-10-01",
+        end: "2026-10-31",
+        cut: "2026-10-31",
+        card: false,
+        check: "verified",
+        document: ACCOUNT_LIST,
+      },
+    ],
+    receipts: { matched: 0, provisional: 0, unmatched: 0, no_statement: 0 },
+    balance: tl(18438010),
+    last: "2026-10-31",
+    next_cut: null,
+    late: false,
+    untracked: false,
+    waiting_for: "",
+    note: "ayın tamamı belgelerle kapsandı ve tutarlı",
+    ...overrides,
+  } satisfies MonthEndAccount;
+}
+
+function regular(payee: string, category: string, paid: Row[], expected: string | null, now: number, monthly: number) {
+  return { payee, category, paid, expected, this_month: tl(now), monthly: tl(monthly) };
+}
+
+/** A month in full, October by default: a list closes it, a card waits for its statement, a brokerage never holds
+ * it. */
+export function monthEndDetail(month = "2026-10", overrides: Partial<MonthEndDetail> = {}): MonthEndDetail {
+  const listed = MONTH_ENDS.months.find((m) => m.month === month) ?? monthEnd(month, "closed");
+  const before = MONTH_ENDS.months.find((m) => m.month === shiftMonth(month, -1));
+  return {
+    month: listed,
+    previous: before ? before.totals : monthEnd(month, "closed").totals,
+    typical: tl(2030299),
+    typical_months: 6,
+    accounts: [
+      closedAccount(CARD, {
+        status: "waiting",
+        label: "Bekleniyor",
+        covered: 18,
+        open: [{ start: "2026-10-19", end: "2026-10-31" }],
+        statements: [
+          {
+            start: "2026-10-01",
+            end: "2026-10-18",
+            cut: "2026-10-18",
+            card: true,
+            check: "verified",
+            document: STATEMENT,
+          },
+        ],
+        receipts: { matched: 3, provisional: 2, unmatched: 1, no_statement: 0 },
+        balance: null,
+        last: "2026-10-18",
+        next_cut: "2026-11-18",
+        late: true,
+        waiting_for: "19–31 Ekim ekstresi, kesim ~18.11",
+        note: "19–31 Ekim ekstresi e-postayla bekleniyor",
+      }),
+      closedAccount(CASH),
+      closedAccount(BROKER, { blocking: false, balance: tl(134200) }),
+    ],
+    groups: [
+      { name: "Ev", slot: 3, amount: tl(1605000), count: null, code: "" },
+      { name: "Gıda", slot: 1, amount: tl(417000), count: null, code: "" },
+      { name: "Abonelikler", slot: 4, amount: tl(9999), count: null, code: "" },
+      { name: "Banka", slot: 8, amount: tl(800), count: null, code: "" },
+    ],
+    levels: [
+      { name: "Gerekli", slot: 1, amount: tl(2004000), count: null, code: "required" },
+      { name: "İsteğe bağlı", slot: 4, amount: tl(27999), count: null, code: "optional" },
+      { name: "Gereksiz", slot: 5, amount: tl(800), count: null, code: "unnecessary" },
+    ],
+    categories: [
+      { name: "Kira", slot: 3, amount: tl(1500000), count: 1, code: "" },
+      { name: "Market", slot: 1, amount: tl(399000), count: 2, code: "" },
+      { name: "Faturalar", slot: 3, amount: tl(105000), count: 2, code: "" },
+      { name: "Kafe", slot: 1, amount: tl(18000), count: 2, code: "" },
+      { name: "Dijital Abonelikler", slot: 4, amount: tl(9999), count: 1, code: "" },
+      { name: "Banka ücretleri", slot: 8, amount: tl(800), count: 1, code: "" },
+    ],
+    merchants: [
+      { name: "Örnek Ev Sahibi", slot: 3, amount: tl(1500000), count: 1, code: "" },
+      { name: "Örnek Market", slot: 1, amount: tl(399000), count: 2, code: "" },
+      { name: "Örnek Enerji", slot: 3, amount: tl(60000), count: 1, code: "" },
+      { name: "Örnek İletişim", slot: 3, amount: tl(45000), count: 1, code: "" },
+      { name: "Örnek Kafe", slot: 1, amount: tl(18000), count: 2, code: "" },
+      { name: "Örnek Müzik", slot: 4, amount: tl(9999), count: 1, code: "" },
+    ],
+    regular: [
+      regular("Örnek Ev Sahibi", "Kira", [RENT], null, 1500000, 1500000),
+      regular("Örnek Market", "Market", [MARKET], null, 215000, 215000),
+      regular("Örnek Market", "Market", [], "2026-10-22", 0, 184000), // the chain's other shop: not seen yet
+    ],
+    big: [RENT],
+    provisional: [CAFE],
+    unmatched: [UNSEEN],
+    count: 8,
+    trend: [
+      { month: "2025-11", expense: tl(0) },
+      { month: "2025-12", expense: tl(0) },
+      ...[2122799, 2228242, 2062799, 2872799, 1997799, 1987799, 903999, 1984799, 2118242, 2032799].map((minor, i) => ({
+        month: `2026-${String(i + 1).padStart(2, "0")}`,
+        expense: tl(minor),
+      })),
+    ],
+    debt_end: tl(84050),
+    previous_month: shiftMonth(month, -1),
+    next_month: shiftMonth(month, 1),
+    export: "month_end",
+    ...overrides,
+  };
+}
+
 export const handlers = [
   http.get("/api/labels", () => HttpResponse.json(LABELS)),
   http.get("/api/dashboard", () => HttpResponse.json(DASHBOARD)),
@@ -2376,6 +2628,9 @@ export const handlers = [
     }
     return HttpResponse.json(FIRST_PAGE);
   }),
+  // the month-end closing (F11)
+  http.get("/api/month-end", () => HttpResponse.json(MONTH_ENDS)),
+  http.get("/api/month-end/:month", ({ params }) => HttpResponse.json(monthEndDetail(String(params["month"])))),
 ];
 
 export const server = setupServer(...handlers);

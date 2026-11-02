@@ -21,6 +21,8 @@ const InsightsPage = lazy(() => import("./pages/InsightsPage"));
 const InvoicesPage = lazy(() => import("./pages/InvoicesPage"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 const ExtensionPage = lazy(() => import("./pages/ExtensionPage"));
+const MonthEndPage = lazy(() => import("./pages/MonthEndPage"));
+const MonthPage = lazy(() => import("./pages/MonthPage"));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
 
 function screen(page: ReactNode): ReactNode {
@@ -45,6 +47,8 @@ export const routes: RouteObject[] = [
       { path: "faturalar", element: screen(<InvoicesPage />) },
       { path: "bildirimler", element: screen(<NotificationsPage />) },
       { path: "kurulum/eklenti", element: screen(<ExtensionPage />) },
+      { path: "ay-sonu", element: screen(<MonthEndPage />) },
+      { path: "ay-sonu/:ay", element: screen(<MonthPage />) },
       { path: "*", element: screen(<NotFoundPage />) },
     ],
   },

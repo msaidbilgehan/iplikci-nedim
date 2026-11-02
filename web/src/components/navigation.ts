@@ -42,7 +42,7 @@ export const MENU: readonly ScreenGroup[] = [
     key: "analysis", // what the numbers mean: the assessment and each month's closing
     screens: [
       { to: "/degerlendirme", key: "insights", ready: true },
-      { to: "/ay-sonu", key: "monthEnd", ready: false },
+      { to: "/ay-sonu", key: "monthEnd", ready: true },
     ],
   },
   {
@@ -89,5 +89,5 @@ export function isReady(key: ScreenKey): boolean {
 export const DETAILS: Readonly<Record<"document" | "account" | "month", boolean>> = {
   document: true, // /belgeler/:id, the viewer: ?satir=<fingerprint> opens it at a row
   account: true, // /hesaplar/:id
-  month: false, // /ay-sonu/:ay
+  month: true, // /ay-sonu/:ay
 };
