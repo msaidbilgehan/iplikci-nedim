@@ -181,23 +181,26 @@ function UnreadCount({ count }: { count: number }) {
 function Bell({ unread }: { unread: number }) {
   const { t } = useTranslation("shell");
   return (
-    <Link
-      to="/bildirimler"
-      aria-label={unread > 0 ? `${t("bell")} ${t("unread", { count: unread })}` : t("bell")}
-      title={t("bell")}
-      className={cn(HEADER_BUTTON, "relative")}
-    >
+    // Named by its own words, hidden but read, not by an aria-label: the count on the bell is text one sees, and a
+    // name given apart from the visible text is to contain it (WCAG 2.5.3), which "99+" or a lone digit cannot be.
+    <Link to="/bildirimler" title={t("bell")} className={cn(HEADER_BUTTON, "relative")}>
       <BellIcon className="size-5" />
+      <span className="sr-only">{t("bell")}</span>
       {unread > 0 ? (
-        <span
-          aria-hidden="true"
-          className={cn(
-            "absolute right-1 top-1.5 inline-flex min-w-4 items-center justify-center rounded-full px-1",
-            "text-[0.6875rem] font-semibold leading-4 bg-teal-700 text-white dark:bg-teal-400 dark:text-zinc-950",
-          )}
-        >
-          {unread > 99 ? "99+" : unread}
-        </span>
+        <>
+          <span
+            aria-hidden="true"
+            className={cn(
+              "absolute right-1 top-1.5 inline-flex min-w-4 items-center justify-center rounded-full px-1",
+              "text-[0.6875rem] font-semibold leading-4 bg-teal-700 text-white dark:bg-teal-400 dark:text-zinc-950",
+            )}
+          >
+            {unread > 99 ? "99+" : unread}
+          </span>
+          {/* The space, a text of its own, keeps the count a word apart in the name: "Bildirim kutusu (3 okunmamış)". */}
+          {" "}
+          <span className="sr-only">{t("unread", { count: unread })}</span>
+        </>
       ) : null}
     </Link>
   );
