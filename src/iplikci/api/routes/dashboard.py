@@ -111,8 +111,8 @@ class ClosingOut(BaseModel):
     income: MoneyOut | None  # null when no account list covers enough of the month to know it
     left: MoneyOut | None  # the income less what went out; below zero when more went out
     # Where the income comes from, or why it may be short ("gelir eksik olabilir: …"): a month a list covers only in
-    # part has an income, but not a certain one. Always sent; its default keeps the interface's older mocks whole.
-    income_note: str = ""
+    # part has an income, but not a certain one.
+    income_note: str
     provisional: int  # rows only receipts and notices show
     unmatched: int  # receipt and notice rows the statements covering their days do not show
     waiting: list[WaitingOut]  # the accounts that hold the month open

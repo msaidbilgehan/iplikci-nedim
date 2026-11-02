@@ -1395,6 +1395,7 @@ function closing(month: string, status: MonthClosing["status"], overrides: Parti
     expense: tl(1997799),
     income: tl(4000000),
     left: tl(2002201),
+    income_note: "hesap dökümlerindeki gelen para",
     provisional: 0,
     unmatched: 0,
     waiting: [],
@@ -1492,6 +1493,9 @@ export const DASHBOARD: Dashboard = {
         expense: tl(903999),
         income: tl(0),
         left: tl(-903999),
+        income_note:
+          "gelir eksik olabilir: Örnek Vadesiz TL dökümü ayın tamamını kapsamıyor; maaş bu ay görünmüyor: dökümün " +
+          "kapsamadığı günlerde yatmış olabilir",
         waiting: [{ account: CASH, waiting_for: "1–4 Temmuz hesap dökümü eksik" }],
       }),
       closing("2026-08", "closed"),
@@ -1502,6 +1506,7 @@ export const DASHBOARD: Dashboard = {
         expense: tl(420000),
         income: null,
         left: null,
+        income_note: "bu ay için hesap dökümü yok: gelir bilinmiyor",
         provisional: 2,
       }),
     ],
@@ -1743,7 +1748,12 @@ export const INSIGHTS: Insights = {
   budget: [
     { label: "Düzenli gelir", now: tl(4000000), plan: tl(4000000), note: "son maaş (Örnek İşveren A.Ş.)" },
     { label: "Sabit ödemeler", now: tl(1880000), plan: tl(1880000), note: "4 düzenli ödeme, son tutarlarıyla" },
-    { label: "Faiz ve banka ücretleri", now: tl(1600), plan: tl(0), note: "öneri: borcu tam ödeyerek sıfırlayın" },
+    {
+      label: "Gereksiz harcamalar (faiz, banka ücretleri…)",
+      now: tl(1600),
+      plan: tl(0),
+      note: "öneri: borcu tam ödeyerek sıfırlayın",
+    },
     { label: "Ay sonunda kalan", now: tl(2118400), plan: tl(2120000), note: "birikime ve acil durum fonuna" },
   ],
   habits: [

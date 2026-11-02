@@ -1,6 +1,6 @@
 // The dashboard's closing card (F06, F11): the current month and the six before it with documents, oldest first, each
-// with its status (an icon and its name, never the colour alone), and in the detailed view the totals, the rows only
-// receipts and notices show, and the documents each open month still waits for.
+// with its status (an icon and its name, never the colour alone), and in the detailed view the totals, why a month
+// not closed may lack income, the rows only receipts and notices show, and the documents each open month waits for.
 
 import { useTranslation } from "react-i18next";
 
@@ -78,6 +78,10 @@ export function ClosingCard({ months, say, next, labels }: ClosingCardProps) {
                 <Td className="whitespace-nowrap text-right tabular-nums">{formatMoney(month.expense)}</Td>
                 <Td className="whitespace-nowrap text-right tabular-nums">
                   {month.income ? formatMoney(month.income) : t("closing.unknown")}
+                  {/* A month not closed may lack income: the service's note says why (a list's days missing). */}
+                  {month.status !== "closed" && month.income_note ? (
+                    <span className={`block whitespace-normal ${SMALL}`}>{month.income_note}</span>
+                  ) : null}
                 </Td>
                 <Td className="whitespace-nowrap text-right tabular-nums">
                   {month.left ? formatMoney(month.left) : t("closing.unknown")}
