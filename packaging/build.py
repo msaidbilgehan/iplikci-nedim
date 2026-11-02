@@ -101,8 +101,10 @@ PRUNED = (
 
 
 def prune(root: Path) -> None:
+    """Leave out what PRUNED names, its letters' case kept: on Windows a pattern would otherwise match without it,
+    and lib/thread* (Tcl's thread package) would take Lib/threading.py."""
     for pattern in PRUNED:
-        for found in root.glob(pattern):
+        for found in root.glob(pattern, case_sensitive=True):
             if found.is_dir() and not found.is_symlink():
                 shutil.rmtree(found)
             else:

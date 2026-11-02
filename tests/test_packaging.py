@@ -76,3 +76,26 @@ def test_a_windows_update_takes_the_service_off_and_replaces_the_whole_python():
     assert "Exec(Python, '-I -X utf8 -m iplikci servis kaldir'" in script
     run = script[script.index("[Run]") : script.index("[UninstallRun]")]
     assert "postinstall" not in run and "-m iplikci uygulama" in run  # the app always opens and registers the service
+
+
+def test_leaving_out_what_the_program_never_uses_keeps_the_standard_library_on_every_system(tmp_path):
+    build = build_script()
+    windows = tmp_path / "windows"  # python-build-standalone's Windows layout
+    for name in (
+        "Lib/threading.py",
+        "Lib/tkinter/__init__.py",
+        "Lib/site-packages/pip/__init__.py",
+        "tcl/tk8.6/tk.tcl",
+    ):
+        (windows / name).parent.mkdir(parents=True, exist_ok=True)
+        (windows / name).write_text("", encoding="utf-8")
+    build.prune(windows)
+    assert (windows / "Lib" / "threading.py").is_file()  # lib/thread* is Tcl's, never the standard library's
+    assert not any((windows / name).exists() for name in ("Lib/tkinter", "Lib/site-packages/pip", "tcl"))
+    unix = tmp_path / "unix"
+    for name in ("lib/thread2.8.9/pkgIndex.tcl", "lib/python3.13/threading.py", "lib/python3.13/idlelib/run.py"):
+        (unix / name).parent.mkdir(parents=True, exist_ok=True)
+        (unix / name).write_text("", encoding="utf-8")
+    build.prune(unix)
+    assert (unix / "lib" / "python3.13" / "threading.py").is_file()
+    assert not (unix / "lib" / "thread2.8.9").exists() and not (unix / "lib" / "python3.13" / "idlelib").exists()
