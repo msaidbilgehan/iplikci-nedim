@@ -597,11 +597,15 @@ def build(
         if result.holder:
             holders.add(result.holder)
         for s in result.statements:
+            for t in s.transactions:
+                t.document = doc.sha256
             key = (s.account, s.cut_date, s.currency, s.start)
             # The same statement can arrive as different files (re-sent e-mail, archive copy).
             if key not in statements or len(s.transactions) > len(statements[key].transactions):
                 statements[key] = s
         if result.transactions:
+            for t in result.transactions:
+                t.document = doc.sha256
             key = result.receipt_key or doc.sha256
             receipts.setdefault(key, result.transactions)
             if document_type(result.parser) is DocumentKind.NOTICE:

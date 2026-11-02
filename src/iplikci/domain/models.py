@@ -65,6 +65,9 @@ class Transaction:
     tags: tuple[str, ...] = ()
     # Set by analysis.py: the non-bank bill or receipt matched to the row (F14), as "<sha256>:<position>".
     invoice: str = ""
+    # Set by analysis.py: the sha256 of the document the row is printed in. `source` is the file's name as its reader
+    # saw it, and many documents share one ("HesapOzeti.pdf"); this names the very one.
+    document: str = ""
 
 
 @dataclass

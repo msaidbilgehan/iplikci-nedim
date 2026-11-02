@@ -171,3 +171,12 @@ def test_the_demo_command_refuses_a_folder_in_use(demo_home):
     with pytest.raises(SystemExit) as stop:
         main(["dev", "demo", str(demo_home)])
     assert stop.value.code == 2
+
+
+def test_every_row_names_the_very_document_it_is_printed_in(tmp_path):
+    ws = Workspace.load(demo.build(tmp_path / "demo"))
+    rows = analyze(ws, today=demo.AS_OF).dataset.transactions
+    with ws.db() as db:
+        processed = {d.sha256 for d in documents.every(db) if d.status is DocumentStatus.PROCESSED}
+    assert rows and {t.document for t in rows} <= processed
+    assert all(ws.vault.has(t.document) for t in rows)
