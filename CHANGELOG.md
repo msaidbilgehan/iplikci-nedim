@@ -38,6 +38,9 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
   durumu, tutarı, son ve sonraki ödemesi ve fiyat değişimi. Serinin paneli dayandığı ödemeleri satırlarına
   bağlantılarıyla listeler. "İptal ettim" ayı seçtirir, kural dosyasının farkını gösterdikten sonra `_biten`'e yazar;
   "Yeniden bekle" bunu geri alır. İptalden sonra gelen ödeme ekranın başında uyarı olur.
+- Takvim ekranı (`/takvim`): önümüzdeki 60 günde beklenen ödemeler ve gelirler, her biri serisine, faturalara ya da
+  hesabına giden bağlantısıyla; her TL hesabın gün gün bakiye tahmini çizgi grafik ve tablo olarak, eksiye düştüğü gün
+  işaretli; varsayımlar, hiçbir hesaba düşülmeyen kalemler ve öngörüye girmeyen hesaplar. İkisi de "Tahmin" etiketli.
 - API: akışın sayfaları ve "Şu an" (`GET /api/feed`, `GET /api/feed/now`), pano kartları (`GET /api/dashboard`),
   hesap grupları, hesap sayfası, hesaplar arası akış ve hesaba verilen ad (`GET /api/accounts…`,
   `PUT /api/accounts/{id}/alias`).
