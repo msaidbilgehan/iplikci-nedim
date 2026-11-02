@@ -11,6 +11,12 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 
 ## Değişiklik kaydı
 
+- 2026-11-03 (28) — Aşama 7 başladı (`asama-7`):
+  - [Gereksinimler](v1/requirements.md): K23, Claude'u claude-SAK ile terminalsiz bağlamak; bağlantı bilgisi ve
+    belirteç arayüzde gösterilir ve kopyalanır.
+  - [Yol haritası](v1/roadmap.md#aşama-7--mcp): Aşama 7'nin teslimlerine Claude bağlantısı ekranı, başlık yardımcısı
+    ve SAK ile ekleme.
+
 - 2026-11-03 (27) — Bildirimler belgelerle denetlendi (v0.7.6):
   - [Yorum kuralları](domain/interpretation.md): aylık serilerin fiyat değişimi kuralı yazıldı; dövizle faturalanan
     ödemeler döviz tutarıyla karşılaştırılır. Zam, yeni fiyatı kesinleştiren ödeme 45 günden eski değilse haberdir.

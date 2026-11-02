@@ -316,7 +316,7 @@ Durum: 2026-11-02'de `asama-6` dalında uygulandı, `v0.7.0` ([değişiklik gün
 
 ## Aşama 7 — MCP
 
-Durum: sırada; Aşama 6 2026-11-02'de `v0.7.0` ile bitti.
+Durum: sürüyor (`asama-7`, 2026-11-03'te başladı); Aşama 6 2026-11-02'de `v0.7.0` ile bitti.
 
 **Başlangıçtaki durum (2026-11-02)**
 
@@ -350,9 +350,15 @@ Durum: sırada; Aşama 6 2026-11-02'de `v0.7.0` ile bitti.
   - Ayarlardaki maskeleme seçeneği hesap numaralarını, IBAN'ları ve kişi adlarını gizler.
   - Her araç çağrısı denetim kaydına yazılır.
 - Testler: araç listesinin, şemaların ve ek açıklamaların anlık görüntüsü; maskeleme; salt okunur köprü.
-- Deponun `.mcp.json`'u: belirteç ortam değişkeninden okunur, depoya yazılmaz. Kullanıcının Claude'u terminal açmadan
-  bağlayabileceği bir arayüz yolu da gerekir (K14). Belirtecin arayüzde gösterilip gösterilmeyeceği kullanıcıya
-  sorulur.
+- Deponun `.mcp.json`'u: belirteç ortam değişkeninden okunur, depoya yazılmaz.
+- Claude bağlantısı (K23, K14): arayüzde, Claude'u terminal açmadan bağlamak için:
+  - MCP adresi, "Göster" düğmesinin arkasında API belirteci, kopyala düğmeleri ve hazır yapılandırma. Yapılandırma
+    claude-SAK'ın "MCP JSON" içe aktarmasına, Claude Code'a ve Claude Desktop'a uyar.
+  - claude-SAK ile ekleme adımları, sade sözcüklerle. Claude'un ayar dosyasını İplikçi Nedim yazmaz.
+  - Belirteci Claude'un ayar dosyasına yazdırmayan bir başlık yardımcısı (`iplikci mcp baslik`) belirteci anahtar
+    zincirinden okur. Komutun yolu çalışan kopyadan yazılır: uv aracı ya da kurulum paketinin Python'u.
+- Aşama sonunda İplikçi Nedim claude-SAK üzerinden kullanıcının Claude'una eklenir ve gerçek veride bir okuma
+  denenir (K23).
 
 **Çıkış koşulu**
 
