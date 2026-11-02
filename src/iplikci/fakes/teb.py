@@ -16,14 +16,16 @@ def account_export(
     number: str = "123456789",
     holder: str = HOLDER,
     period: str = "01/01/2026 - 31/01/2026",
+    kind: str = "Vadesiz TL",
 ) -> bytes:
     """A CEPTETEB "Hesap Hareketlerim" export (HTML saved as .xls), rows newest first:
-    (date, description, amount, balance)."""
+    (date, description, amount, balance). kind is the account's type as the export prints it: "Altın GR" makes a gold
+    account, its amounts grams."""
     info = [
         ("Şube", "999-DENEME"),
         ("Hesap", number),
         ("IBAN", f"TR00000320000000000{number[-7:]}"),
-        ("Hesap Türü", "Vadesiz TL"),
+        ("Hesap Türü", kind),
         ("Hesap Sahibi", holder),
         ("Bakiye", "0,00"),
     ]

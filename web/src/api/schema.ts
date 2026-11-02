@@ -187,6 +187,21 @@ export interface ArrivalOut {
   gmail: string;
 }
 
+/** An asset or a debt. */
+export interface AssetOut {
+  account: AccountRefOut;
+  group: AccountGroup;
+  amount: MoneyOut;
+  value: MoneyOut | null;
+  rate: string | null;
+  rate_day: string | null;
+  cost: MoneyOut | null;
+  gain: MoneyOut | null;
+  day: string;
+  certainty: Certainty;
+  note: string;
+}
+
 export interface AttachmentOut {
   sha256: string;
   name: string;
@@ -412,6 +427,15 @@ export interface CorrectionIn {
   tags?: string[] | null;
   category?: string | null;
   necessity?: Necessity | "" | null;
+}
+
+/** The assets held in one currency. */
+export interface CurrencyShareOut {
+  currency: string;
+  amount: MoneyOut;
+  value: MoneyOut | null;
+  share: number | null;
+  accounts: AccountRefOut[];
 }
 
 export interface CursorOut {
@@ -779,6 +803,24 @@ export interface FreshnessOut {
   link: LinkOut;
 }
 
+export interface FxCurrencyOut {
+  currency: string;
+  newest: FxRateOut;
+  history: FxRateOut[];
+}
+
+export interface FxOut {
+  currencies: FxCurrencyOut[];
+  missing: string[];
+  note: string;
+}
+
+export interface FxRateOut {
+  day: string;
+  rate: string;
+  source: RateSource;
+}
+
 export interface GroupOut {
   group: AccountGroup;
   assets: MoneyOut;
@@ -820,6 +862,14 @@ export interface HoldingOut {
   rate_day: string | null;
   cost: MoneyOut | null;
   gain: MoneyOut | null;
+  note: string;
+}
+
+export interface HoldingsOut {
+  today: string;
+  worth: WorthOut;
+  holdings: AssetOut[];
+  spread: CurrencyShareOut[];
   note: string;
 }
 
@@ -1507,6 +1557,12 @@ export interface QueuedOut {
   queued: boolean;
 }
 
+/**
+ * Where a TL rate comes from (F12). Without the network the documents' own rates are used; the rate services come with
+ * Phase 8.
+ */
+export type RateSource = "document";
+
 export interface ReaderHealthOut {
   parser: string;
   name: string;
@@ -2027,6 +2083,18 @@ export interface WhyOut {
 export interface WindowOut {
   start: string;
   end: string;
+}
+
+/** The assets less the debts, of what has a TL value: the dashboard's net worth. */
+export interface WorthOut {
+  total: MoneyOut;
+  assets: MoneyOut;
+  debts: MoneyOut;
+  certainty: Certainty;
+  parts: PartOut[];
+  left_out: UnknownOut[];
+  currencies: InCurrencyOut[];
+  note: string;
 }
 
 /** The whole rule file, as the user edited it. */

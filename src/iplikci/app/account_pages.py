@@ -370,7 +370,7 @@ def deposit_page(balance: Decimal | None) -> DepositPage:
     return DepositPage(balance, None, None, None, note)
 
 
-def _gold_cost(ds: Dataset, account: str) -> Decimal | None:
+def gold_cost(ds: Dataset, account: str) -> Decimal | None:
     """TL paid for gold (the MVP's rule, docs/domain/interpretation.md "Varlıklar ve borçlar"): the trades in gold of
     the TL accounts of the same bank, net of what selling brought back."""
     bank = ds.accounts[account].bank
@@ -392,7 +392,7 @@ def _gold_cost(ds: Dataset, account: str) -> Decimal | None:
 def holding_page(ds: Dataset, account: str, balance: now.Balance | None) -> HoldingPage:
     found = ds.accounts[account]
     gold = found.type == AccountType.GOLD
-    cost = _gold_cost(ds, account) if gold else None
+    cost = gold_cost(ds, account) if gold else None
     value = balance.value if balance is not None else None
     gain = value - cost if value is not None and cost is not None else None
     if gold:

@@ -32,6 +32,7 @@ from .codes import (
     NecessityReason,
     PaidStatus,
     PaymentKind,
+    RateSource,
     RuleLayer,
     SeriesPeriod,
     SeriesStatus,
@@ -368,6 +369,8 @@ SETUP_STEP: dict[SetupStep, str] = {
     SetupStep.REMOTE: "Uzaktan erişim",
 }
 
+RATE_SOURCE: dict[RateSource, str] = {RateSource.DOCUMENT: "Belgedeki kur"}
+
 STATEMENT_CHECK: dict[StatementCheck, str] = {
     StatementCheck.VERIFIED: "Tutarlı",
     StatementCheck.FAILED: "Tutmuyor",
@@ -421,6 +424,7 @@ TABLES: dict[type[StrEnum], dict[StrEnum, str]] = {
     PaidStatus: _table(PAID_STATUS),
     FlowKind: _table(FLOW_KIND),
     StatementCheck: _table(STATEMENT_CHECK),
+    RateSource: _table(RATE_SOURCE),
     CategoryReason: _table(CATEGORY_REASON),
     TransferStep: _table(TRANSFER_STEP),
     RuleLayer: _table(RULE_LAYER),

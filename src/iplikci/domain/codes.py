@@ -413,3 +413,10 @@ class StatementCheck(StrEnum):
     VERIFIED = "verified"  # its rows add up to its total, its running balances agree
     FAILED = "failed"  # they do not: it holds the month open for a check
     NOTHING = "nothing"  # nothing to check: a list without movements, a statement printing no total
+
+
+class RateSource(StrEnum):
+    """Where a TL rate comes from (F12). Without the network the documents' own rates are used; the rate services
+    come with Phase 8."""
+
+    DOCUMENT = "document"  # a row of a bank's document prints it: a foreign currency bought or sold

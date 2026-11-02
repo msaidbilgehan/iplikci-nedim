@@ -15,21 +15,20 @@ from decimal import Decimal
 from enum import StrEnum
 
 from .. import month_end
-from ..analysis import Dataset
 from ..domain.codes import CARD_TYPES, Certainty, DocumentKind, DocumentStatus, MonthStatus, PaymentKind
 from ..domain.labels import TODO_KIND, format_amount
 from ..domain.models import TRY
-from ..domain.money import round_half_up
 from ..feed.news import TO_PAY
 from ..insights import month_of, months_in, pct
 from ..report import CLOSING_MONTHS
 from ..storage import bridges, documents, events
 from ..storage.db import Database
 from ..upcoming import Due
-from . import accounts, backup, now, outlook, system, todos
+from . import accounts, backup, holdings, now, outlook, system, todos
 from .accounts import Freshness
 from .analysis import Analysis, account_labels
 from .bridge import SILENCE
+from .holdings import InCurrency, Part
 from .links import Link, Screen, finding_link
 from .mail import BRIDGE, IMAP
 from .todos import Todo, TodoKind
@@ -60,7 +59,6 @@ __all__ = [
 ]
 
 DUE_DAYS = 7  # the payments due within a week, today the first day (F06)
-CURRENCIES = ("EUR", "USD", now.GOLD)  # the net worth in other units besides TL (F12): gram gold last
 COMPARABLE = 0.5  # the month so far is compared with the typical month once documents cover this share of its days
 NEAR = Decimal("0.1")  # within this share of the typical month's same days, the month is "near" it
 ZERO = Decimal(0)
@@ -81,26 +79,6 @@ class AlertKind(StrEnum):
 class AlertLevel(StrEnum):
     WARNING = "warning"  # worth a look
     CRITICAL = "critical"  # something stopped working, or money runs short within a week
-
-
-@dataclass(frozen=True, slots=True)
-class Part:
-    """An account's share of the net worth."""
-
-    account: str
-    value: Decimal  # in TL; below zero for a debt (a card's, an overdraft)
-    certainty: Certainty
-
-
-@dataclass(frozen=True, slots=True)
-class InCurrency:
-    """The net worth in another unit, at the newest rate the documents print."""
-
-    currency: str  # EUR, USD, or GR: grams of gold
-    amount: Decimal | None  # None without a rate
-    rate: Decimal | None  # TL for one unit
-    rate_day: date | None  # the day of the row that printed it
-    note: str  # where the rate comes from, or why there is none
 
 
 @dataclass(frozen=True, slots=True)
@@ -221,16 +199,6 @@ def _day(d: date) -> str:
 # --- the net worth ---------------------------------------------------------------------------------------------------
 
 
-def _in_currency(ds: Dataset, total: Decimal, currency: str) -> InCurrency:
-    if currency == now.GOLD:
-        return InCurrency(currency, None, None, None, "gram altının TL fiyatı belgelerde yok")
-    found = now.newest_rate(ds, currency)
-    if found is None:
-        return InCurrency(currency, None, None, None, f"belgelerde {currency} kuru yok")
-    day, rate = found
-    return InCurrency(currency, round_half_up(total / rate), rate, day, f"{_day(day)} belgesindeki kurla")
-
-
 def _say_net_worth(total: Decimal, provisional: bool, parts: list[Part], left: int) -> str:
     if not parts:
         return "Henüz bakiyesi bilinen bir hesap yok; ekstre ve dökümler geldikçe burada görünür."
@@ -243,36 +211,19 @@ def _say_net_worth(total: Decimal, provisional: bool, parts: list[Part], left: i
 
 
 def net_worth(a: Analysis, found: now.Now) -> NetWorth:
-    """The balances and the cards' debts of "Şu an", added up in TL."""
-    parts: list[Part] = []
-    left: list[now.Unknown] = []
-    for b in found.balances:
-        if b.value is not None:
-            parts.append(Part(b.account, b.value, b.certainty))
-            continue
-        why = "güncel altın fiyatı belgelerde yok" if b.currency == now.GOLD else f"belgelerde {b.currency} kuru yok"
-        left.append(now.Unknown(b.account, f"{_amount(b.balance, b.currency)}; {why}"))
-    parts += [Part(c.account, -c.debt, c.certainty) for c in found.cards if c.debt is not None]
-    parts.sort(key=lambda p: -abs(p.value))
-    assets = sum((p.value for p in parts if p.value > 0), ZERO)
-    debts = -sum((p.value for p in parts if p.value < 0), ZERO)
-    total = assets - debts
-    provisional = any(p.certainty == Certainty.PROVISIONAL for p in parts)
-    note = (
-        "Hesapların son belgelerindeki bakiyeler, sonraki dekont ve bildirimlerle; kart borçları son ekstreden, "
-        "kesimden sonraki ödemeler düşülerek. Değeri bilinmeyenler toplama girmedi."
-    )
-    left_out = left + found.unknown
+    """The balances and the cards' debts of "Şu an", added up in TL (app.holdings.worth)."""
+    w = holdings.worth(a.dataset, found.balances, found.cards, found.unknown)
+    provisional = w.certainty is Certainty.PROVISIONAL
     return NetWorth(
-        total=total,
-        assets=assets,
-        debts=debts,
-        certainty=Certainty.PROVISIONAL if provisional else Certainty.CONFIRMED,
-        parts=parts,
-        left_out=left_out,
-        currencies=[_in_currency(a.dataset, total, c) for c in CURRENCIES],
-        note=note,
-        say=_say_net_worth(total, provisional, parts, len(left_out)),
+        total=w.total,
+        assets=w.assets,
+        debts=w.debts,
+        certainty=w.certainty,
+        parts=w.parts,
+        left_out=w.left_out,
+        currencies=w.currencies,
+        note=w.note,
+        say=_say_net_worth(w.total, provisional, w.parts, len(w.left_out)),
         link=Link(Screen.ACCOUNTS),
     )
 
