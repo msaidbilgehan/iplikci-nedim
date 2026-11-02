@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Request
 from starlette.concurrency import run_in_threadpool
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 
 from ...app import system
 from ..context import context_of
@@ -30,4 +30,17 @@ def system_status(request: Request) -> SystemOut:
         queue=QueueOut.model_validate(found.queue, from_attributes=True),
         mail=MailOut.model_validate(found.mail, from_attributes=True),
         backup=BackupHealthOut.model_validate(found.backup, from_attributes=True),
+    )
+
+
+@router.get("/api/system/log", response_class=Response)
+def system_log(request: Request) -> Response:
+    """The service's log to send on when something goes wrong, without the paths, addresses and numbers that could
+    be personal."""
+    context = context_of(request)
+    name = f"iplikci-gunluk-{context.today().isoformat()}.log"
+    return Response(
+        system.log_text(context.ws).encode("utf-8"),
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{name}"'},
     )

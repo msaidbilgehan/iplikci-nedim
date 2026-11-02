@@ -3,13 +3,16 @@ how each reader is doing, the job queue, the e-mail intake, the backups and how 
 adds its own process details.
 """
 
+import re
 import shutil
 import sqlite3
 from dataclasses import dataclass
+from pathlib import Path
 
 from .. import __version__
 from ..domain.codes import DocumentStatus
 from ..parsers import registry
+from ..service.logs import LOG_NAME, OUTPUT_NAME
 from ..settings import config
 from ..storage import bridges, jobs
 from ..storage import mail as mail_store
@@ -215,3 +218,44 @@ def disk(ws: Workspace) -> Disk:
         if path.exists()
     )
     return Disk(vault=vault, database=database, free=shutil.disk_usage(ws.home).free)
+
+
+# --- the log the user may send on (F18) -----------------------------------------------------------------------
+
+LOG_TAIL = 1024 * 1024  # bytes kept of each file: the newest part
+_EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+_IBAN = re.compile(r"\bTR\d{2}(?:\s?\d{4}){5}\s?\d{2}\b", re.IGNORECASE)
+_LONG_NUMBER = re.compile(r"\d{8,}")  # an account's or a card's number; times and counts are shorter
+
+
+def _scrubbed(text: str, ws: Workspace) -> str:
+    """The text with what could be personal taken out: the data folder's and the home folder's paths (they hold the
+    user's account name), e-mail addresses, IBANs and long numbers. The log writes ids and counts only; a traceback
+    or a library's message may still carry such a value."""
+    text = text.replace(str(ws.home), "<veri klasörü>").replace(str(Path.home()), "~")
+    text = _EMAIL.sub("<e-posta>", text)
+    text = _IBAN.sub("<IBAN>", text)
+    return _LONG_NUMBER.sub("<sayı>", text)
+
+
+def _tail(path: Path) -> str:
+    try:
+        with path.open("rb") as f:
+            size = f.seek(0, 2)
+            f.seek(max(0, size - LOG_TAIL))
+            data = f.read()
+    except FileNotFoundError:
+        return ""
+    text = data.decode("utf-8", errors="replace")
+    return text if len(data) < LOG_TAIL else text.partition("\n")[2]  # a cut first line is dropped
+
+
+def log_text(ws: Workspace) -> str:
+    """The service's log to download and send on: its previous and current file, oldest first, then what the process
+    printed itself (its start line, a crash before its log opened), each scrubbed of what could be personal."""
+    parts: list[str] = []
+    for name in (f"{LOG_NAME}.1", LOG_NAME, OUTPUT_NAME):
+        text = _tail(ws.logs / name)
+        if text:
+            parts.append(f"# {name}\n{_scrubbed(text, ws)}")
+    return "\n".join(parts) if parts else "# Günlük boş.\n"

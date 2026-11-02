@@ -597,3 +597,20 @@ def test_a_new_sender_list_makes_the_extension_read_the_history_again(client, co
     cursor = extension.get("/api/ingest/mail/cursor", headers=bearer(token)).json()
     assert cursor["history_due"] and "fatura.example" in cursor["senders"]
     assert client.get("/api/system").json()["mail"]["history_due"]
+
+
+def test_the_log_downloads_without_paths_addresses_or_numbers_that_could_be_personal(client, ws):
+    ws.logs.mkdir(parents=True, exist_ok=True)
+    line = (
+        '{"time": "2026-11-02T01:05:02.416+00:00", "level": "error", "logger": "iplikci.jobs", "message": '
+        f'"{ws.home}/vault/x.pdf failed for kisi@example.com, TR00 0001 0000 0000 0000 0000 01, 1234567890123456"}}\n'
+    )
+    (ws.logs / "servis.log").write_text(line, encoding="utf-8")
+    (ws.logs / "servis-cikti.log").write_text("İplikçi Nedim servisi başladı (süreç 4242)\n", encoding="utf-8")
+    response = client.get("/api/system/log", headers=bearer())
+    assert response.headers["content-disposition"].startswith('attachment; filename="iplikci-gunluk-')
+    text = response.text
+    assert "<veri klasörü>/vault/x.pdf" in text and "<e-posta>" in text and "<IBAN>" in text and "<sayı>" in text
+    assert str(ws.home) not in text and "kisi@example.com" not in text and "1234567890123456" not in text
+    assert "2026-11-02T01:05:02.416" in text and "süreç 4242" in text  # times and short numbers stay
+    assert text.index("# servis.log") < text.index("# servis-cikti.log")
