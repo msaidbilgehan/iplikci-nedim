@@ -218,6 +218,7 @@ uv run iplikci bildirim durum | kurallar | gecmis | dene <kanal>   # notificatio
 uv run iplikci telegram kur | eslestir | kaldir   # the bot's token in a hidden prompt (the user types it), pairing
 (cd web && npm ci && npm run typecheck && npm test && npm run build)         # the interface, built into the package
 (cd e2e && npm ci && npx playwright test)      # end-to-end on a demo data folder, both themes, axe; build web/ first
+uv run python packaging/build.py               # this system's installer into dist/paket/ (ADR-0017); build web/ first
 uv run iplikci dev api-tipleri web/src/api/schema.ts   # the interface's API types from the OpenAPI document (ADR-0007)
 (cd extension && npm ci && npm run typecheck && npm test && npm run build)   # the extension; load extension/dist
 ```

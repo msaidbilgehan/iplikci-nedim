@@ -1,0 +1,312 @@
+"""Build this system's installer (ADR-0017, "Paketleme biçimi"): a portable CPython (python-build-standalone, as uv
+installs it and checks it), İplikçi Nedim and its locked dependencies installed into it, and a launcher that runs
+`python -I -X utf8 -m iplikci uygulama`. Nothing is frozen: the reading and viewer processes and the service run
+exactly as an installed copy runs them.
+
+    uv run python packaging/build.py        # into dist/paket/
+
+- macOS: "İplikçi Nedim.app" (ad-hoc signed, not notarized: K22) in a disk image.
+- Linux: an AppImage; appimagetool on the PATH or in APPIMAGETOOL.
+- Windows: the program's folder and an Inno Setup script, compiled into a setup program when ISCC is found.
+
+The web interface must be built first (`npm run build` in web/). This is a development tool: it runs uv, the
+system's packaging tools and, for the interpreter, uv's download; it never touches the data folder."""
+
+import argparse
+import os
+import platform
+import plistlib
+import shutil
+import subprocess
+import sys
+import tempfile
+import tomllib
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+ASSETS = ROOT / "packaging" / "assets"
+UI = ROOT / "src" / "iplikci" / "api" / "ui" / "index.html"
+NAME = "İplikçi Nedim"
+SLUG = "iplikci-nedim"
+BUNDLE_ID = "com.iplikci.app"
+LAUNCH = ("-I", "-X", "utf8", "-m", "iplikci", "uygulama")
+
+
+def run(*args: str | Path, cwd: Path = ROOT) -> None:
+    print("+", " ".join(str(a) for a in args), flush=True)
+    subprocess.run([str(a) for a in args], cwd=cwd, check=True)
+
+
+def version() -> str:
+    with (ROOT / "pyproject.toml").open("rb") as f:
+        return str(tomllib.load(f)["project"]["version"])
+
+
+def arch() -> str:
+    machine = platform.machine().lower()
+    return {"amd64": "x86_64", "arm64": "aarch64"}.get(machine, machine)
+
+
+def interpreter(root: Path) -> Path:
+    """The Python of a standalone install: python.exe on Windows, bin/python3 elsewhere."""
+    return root / "python.exe" if sys.platform == "win32" else root / "bin" / "python3"
+
+
+def standalone_python(work: Path) -> Path:
+    """A portable CPython of the version .python-version pins, the folder it lives in. It is ours alone, so the
+    marker that keeps package installers out of a system's Python goes."""
+    pinned = (ROOT / ".python-version").read_text(encoding="utf-8").strip()
+    installs = work / "pythons"
+    run("uv", "python", "install", pinned, "--install-dir", installs, "--no-bin")
+    # uv also links the minor version's name to the install: the folder itself is the one that is no link.
+    [root] = [p for p in installs.iterdir() if p.is_dir() and not p.is_symlink() and p.name.startswith("cpython-")]
+    for marker in root.rglob("EXTERNALLY-MANAGED"):
+        marker.unlink()
+    return root
+
+
+# What the program never uses and the package need not carry: the package installer, test suites, the Tk GUI toolkit,
+# IDLE and the C headers.
+PRUNED = (
+    "include",
+    "share",
+    "lib/tcl*",
+    "lib/tk*",
+    "lib/itcl*",
+    "lib/thread*",
+    "lib/libtcl*",
+    "lib/libtk*",
+    "lib/python3.*/ensurepip",
+    "lib/python3.*/idlelib",
+    "lib/python3.*/tkinter",
+    "lib/python3.*/turtledemo",
+    "lib/python3.*/test",
+    "lib/python3.*/site-packages/pip",
+    "lib/python3.*/site-packages/pip-*",
+    "lib/python3.*/site-packages/PyObjCTest",
+    "Lib/ensurepip",
+    "Lib/idlelib",
+    "Lib/tkinter",
+    "Lib/turtledemo",
+    "Lib/test",
+    "Lib/site-packages/pip",
+    "Lib/site-packages/pip-*",
+    "tcl",
+)
+
+
+def prune(root: Path) -> None:
+    for pattern in PRUNED:
+        for found in root.glob(pattern):
+            if found.is_dir() and not found.is_symlink():
+                shutil.rmtree(found)
+            else:
+                found.unlink()
+
+
+def install_program(python: Path, work: Path) -> None:
+    """The locked dependencies with their hashes, then the program's wheel, the built interface inside it."""
+    if not UI.is_file():
+        sys.exit(f"Arayüz derlenmemiş ({UI} yok): önce web/ klasöründe npm ci && npm run build")
+    wheels = work / "wheel"
+    run("uv", "build", "--wheel", "--out-dir", wheels)
+    requirements = work / "requirements.txt"
+    export = ("uv", "export", "--quiet", "--frozen", "--no-dev", "--no-emit-project", "--format", "requirements-txt")
+    run(*export, "-o", requirements)
+    run("uv", "pip", "install", "--python", python, "--require-hashes", "--compile-bytecode", "-r", requirements)
+    [wheel] = wheels.glob("*.whl")
+    run("uv", "pip", "install", "--python", python, "--no-deps", "--compile-bytecode", wheel)
+    run(python, "-I", "-c", "import iplikci.api.app, iplikci.parsers.registry; print('iplikci', iplikci.__version__)")
+
+
+def macos(python_root: Path, out: Path, work: Path) -> Path:
+    app = work / f"{NAME}.app"
+    contents = app / "Contents"
+    (contents / "MacOS").mkdir(parents=True)
+    resources = contents / "Resources"
+    shutil.copytree(python_root, resources / "python", symlinks=True)
+    shutil.copy2(ASSETS / "iplikci.icns", resources / "iplikci.icns")
+    launcher = contents / "MacOS" / SLUG
+    launcher.write_text(
+        "#!/bin/sh\n"
+        "# Opens İplikçi Nedim: the Python inside the app runs the program isolated, in UTF-8 (ADR-0017).\n"
+        'here="$(cd "$(dirname "$0")/../Resources" && pwd)"\n'
+        f'exec "$here/python/bin/python3" {" ".join(LAUNCH)}\n',
+        encoding="utf-8",
+    )
+    launcher.chmod(0o755)
+    (contents / "Info.plist").write_bytes(
+        plistlib.dumps(
+            {
+                "CFBundleName": NAME,
+                "CFBundleDisplayName": NAME,
+                "CFBundleIdentifier": BUNDLE_ID,
+                "CFBundleExecutable": SLUG,
+                "CFBundleIconFile": "iplikci.icns",
+                "CFBundlePackageType": "APPL",
+                "CFBundleShortVersionString": version(),
+                "CFBundleVersion": version(),
+                "LSMinimumSystemVersion": "12.0",
+                "NSHighResolutionCapable": True,
+            }
+        )
+    )
+    run("codesign", "--force", "--deep", "--sign", "-", app)  # ad-hoc: no Apple account, nothing notarized (K22)
+    staging = work / "dmg"
+    staging.mkdir()
+    shutil.move(app, staging / app.name)
+    (staging / "Applications").symlink_to("/Applications")
+    image = out / f"{SLUG}-{version()}-macos-{arch()}.dmg"
+    image.unlink(missing_ok=True)
+    run("hdiutil", "create", "-volname", NAME, "-srcfolder", staging, "-format", "UDZO", "-ov", image)
+    return image
+
+
+APPRUN = """#!/bin/sh
+# İplikçi Nedim as an AppImage (ADR-0017). The AppImage is mounted somewhere new at every start, and the service
+# starts the Python it was registered with at every login: the Python is copied once per version to a place that
+# lasts, and the program runs from there.
+set -e
+here="$(dirname "$(readlink -f "$0")")"
+version="$(cat "$here/VERSION")"
+target="${XDG_DATA_HOME:-$HOME/.local/share}/iplikci/app/$version"
+if [ ! -x "$target/bin/python3" ]; then
+    rm -rf "$target.yeni"
+    mkdir -p "$target.yeni"
+    cp -a "$here/python/." "$target.yeni/"
+    mv "$target.yeni" "$target"
+fi
+exec "$target/bin/python3" LAUNCH
+"""
+
+DESKTOP = """[Desktop Entry]
+Type=Application
+Name=İplikçi Nedim
+Comment=Kişisel finans asistanı
+Exec=AppRun
+Icon=iplikci-nedim
+Categories=Office;Finance;
+Terminal=false
+"""
+
+
+def linux(python_root: Path, out: Path, work: Path) -> Path:
+    appdir = work / "AppDir"
+    appdir.mkdir()
+    shutil.copytree(python_root, appdir / "python", symlinks=True)
+    (appdir / "VERSION").write_text(version(), encoding="utf-8")
+    apprun = appdir / "AppRun"
+    apprun.write_text(APPRUN.replace("LAUNCH", " ".join(LAUNCH)), encoding="utf-8")
+    apprun.chmod(0o755)
+    (appdir / f"{SLUG}.desktop").write_text(DESKTOP, encoding="utf-8")
+    shutil.copy2(ASSETS / "iplikci.png", appdir / f"{SLUG}.png")
+    tool = os.environ.get("APPIMAGETOOL") or shutil.which("appimagetool")
+    if tool is None:
+        sys.exit("appimagetool bulunamadı: PATH'e koyun ya da APPIMAGETOOL ile yolunu verin")
+    image = out / f"{SLUG}-{version()}-linux-{arch()}.AppImage"
+    image.unlink(missing_ok=True)
+    os.environ["ARCH"] = arch()
+    run(tool, appdir, image)
+    return image
+
+
+ISS = """; İplikçi Nedim's Windows installer (ADR-0017): into the user's own folder, no administrator rights; the Start
+; menu opens the app, which registers the background service and opens the interface. Removing it removes the
+; service first; the data folder stays.
+[Setup]
+AppName=İplikçi Nedim
+AppVersion={version}
+AppPublisher=İplikçi Nedim
+DefaultDirName={{localappdata}}\\Programs\\İplikçi Nedim
+DisableProgramGroupPage=yes
+PrivilegesRequired=lowest
+OutputDir={out}
+OutputBaseFilename={slug}-{version}-windows-{arch}
+SetupIconFile={icon}
+UninstallDisplayIcon={{app}}\\iplikci.ico
+Compression=lzma2
+SolidCompression=yes
+WizardStyle=modern
+
+[Languages]
+Name: "turkish"; MessagesFile: "compiler:Languages\\Turkish.isl"
+
+[Tasks]
+Name: "desktopicon"; Description: "Masaüstüne kısayol koy"; Flags: unchecked
+
+[Files]
+Source: "{source}\\*"; DestDir: "{{app}}"; Flags: recursesubdirs createallsubdirs ignoreversion
+
+[Icons]
+Name: "{{userprograms}}\\İplikçi Nedim"; Filename: "{{app}}\\python\\pythonw.exe"; Parameters: "{launch}"; \
+IconFilename: "{{app}}\\iplikci.ico"
+Name: "{{userdesktop}}\\İplikçi Nedim"; Filename: "{{app}}\\python\\pythonw.exe"; Parameters: "{launch}"; \
+IconFilename: "{{app}}\\iplikci.ico"; Tasks: desktopicon
+
+[Run]
+Filename: "{{app}}\\python\\pythonw.exe"; Parameters: "{launch}"; Description: "İplikçi Nedim'i aç"; \
+Flags: postinstall nowait skipifsilent
+
+[UninstallRun]
+Filename: "{{app}}\\python\\python.exe"; Parameters: "-I -X utf8 -m iplikci servis kaldir"; Flags: runhidden; \
+RunOnceId: "servis"
+"""
+
+
+def iscc() -> str | None:
+    found = shutil.which("iscc") or shutil.which("ISCC")
+    if found:
+        return found
+    default = Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")) / "Inno Setup 6" / "ISCC.exe"
+    return str(default) if default.is_file() else None
+
+
+def windows(python_root: Path, out: Path, work: Path) -> Path:
+    folder = out / f"{SLUG}-{version()}-windows-{arch()}"
+    shutil.rmtree(folder, ignore_errors=True)
+    shutil.copytree(python_root, folder / "python")
+    shutil.copy2(ASSETS / "iplikci.ico", folder / "iplikci.ico")
+    script = work / "iplikci.iss"
+    text = ISS.format(
+        version=version(),
+        out=out,
+        slug=SLUG,
+        arch=arch(),
+        icon=ASSETS / "iplikci.ico",
+        source=folder,
+        launch=" ".join(LAUNCH),
+    )
+    script.write_text(text, encoding="utf-8-sig")  # Inno Setup reads UTF-8 by its byte order mark
+    compiler = iscc()
+    if compiler is None:
+        print(f"ISCC bulunamadı: kurulum programı derlenmedi; klasör hazır: {folder}")
+        shutil.copy2(script, out / script.name)
+        return folder
+    run(compiler, script)
+    return out / f"{SLUG}-{version()}-windows-{arch()}.exe"
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Bu sistemin kurulum paketini dist/paket/ klasörüne üretir.")
+    parser.add_argument("--cikti", type=Path, default=ROOT / "dist" / "paket", help="paketin yazılacağı klasör")
+    args = parser.parse_args()
+    out = args.cikti.resolve()
+    out.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="iplikci-paket-") as temp:
+        work = Path(temp)
+        python_root = standalone_python(work)
+        install_program(interpreter(python_root), work)
+        prune(python_root)
+        if sys.platform == "darwin":
+            made = macos(python_root, out, work)
+        elif sys.platform.startswith("linux"):
+            made = linux(python_root, out, work)
+        elif sys.platform == "win32":
+            made = windows(python_root, out, work)
+        else:
+            sys.exit(f"bu sistem için paket yok: {sys.platform}")
+    print(f"Paket: {made}")
+
+
+if __name__ == "__main__":
+    main()
