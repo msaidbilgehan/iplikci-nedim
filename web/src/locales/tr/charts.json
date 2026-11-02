@@ -1,0 +1,16 @@
+{
+  "views": "{{title}}: görünüm",
+  "chart": "Grafik",
+  "table": "Tablo",
+  "empty": "Gösterilecek veri yok.",
+  "image": {
+    "stacked": "{{title}}: yığılmış sütun grafiği. Değerler Tablo görünümünde."
+  },
+  "month": "Ay",
+  "total": "Toplam",
+  "none": "–",
+  "forecast": "tahmin",
+  "forecastLegend": "Soluk sütunlar: tahmin",
+  "forecastMonth": "{{month}} (tahmin)",
+  "reference": "{{label}}: {{amount}}"
+}

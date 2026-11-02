@@ -22,12 +22,13 @@ import {
   possessive,
   possessiveLocative,
 } from "./lib/turkish";
+import charts from "./locales/tr/charts.json";
 import common from "./locales/tr/common.json";
 import glossary from "./locales/tr/glossary.json";
 import shell from "./locales/tr/shell.json";
 
 export const defaultNS = "common";
-export const resources = { tr: { common, shell, glossary } } as const;
+export const resources = { tr: { common, shell, glossary, charts } } as const;
 
 const WHOLE = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0, useGrouping: "always" });
 
