@@ -1,8 +1,9 @@
-"""The MCP server (ADR-0011): the SDK's low-level server over the tools, with the instructions the model reads first.
+"""The MCP server (ADR-0011): the SDK's low-level server over the tools, the resources and the ready prompts, with
+the instructions the model reads first.
 
-The tools are synchronous and read the shared analysis, so each call runs in a worker thread: the event loop keeps
-answering while one is busy. The transports (`/mcp` in the service, stdio through `iplikci mcp`) take the server
-build gives.
+The tools and the resources are synchronous and read the shared analysis, so each runs in a worker thread: the event
+loop keeps answering while one is busy. The transports (`/mcp` in the service, stdio through `iplikci mcp`) take the
+server build gives.
 """
 
 from typing import Any
@@ -11,12 +12,16 @@ import anyio.to_thread
 import mcp_types as types
 from mcp.server.context import ServerRequestContext
 from mcp.server.lowlevel import Server
+from mcp.shared.exceptions import MCPError
+from mcp_types.jsonrpc import INVALID_PARAMS
 
 from .. import __version__
+from . import prompts, resources
 from .tools import TOOLS, Session, Tool
 
 NAME = "iplikci"
 TITLE = "İplikçi Nedim"
+RESOURCE_NOT_FOUND = -32002  # the protocol's code for a resource that is not there
 
 INSTRUCTIONS = """\
 İplikçi Nedim: kullanıcının kişisel banka belgelerinden (kart ekstreleri, hesap hareketleri, dekontlar, banka
@@ -56,6 +61,9 @@ bildirimleri) gider, gelir, gereklilik ve tahmin raporu üreten, bu bilgisayarda
   için read_rules ve write_rules. Uygulamayla gelen genel kurallar kişisel kuralların altındadır ve değişmez.
 - Şirket belgeleri (ayarlardaki şirket adları, şirket ve girişimci kartları, ticari hesaplar, bordro) kapsam
   dışıdır.
+- Belgeler kaynak olarak da okunur: iplikci://documents/{id} (metni), …/pages/{n} (sayfa resmi), ay kapanışları
+  iplikci://month-end/{YYYY-AA}, hesaplar iplikci://accounts/{id}. Hazır istemler sık sorulan soruları araçların
+  doğru sırasıyla sorar.
 - Kullanıcıya söylediğiniz her rakam bu araçların sonucundan gelmeli. Kullanıcıya Türkçe yanıt verin."""
 
 
@@ -88,6 +96,41 @@ def build(session: Session) -> Server[Any]:
         outcome = await anyio.to_thread.run_sync(session.call, params.name, params.arguments)
         return types.CallToolResult(content=[types.TextContent(type="text", text=outcome.text)], is_error=outcome.error)
 
+    async def list_resources(
+        ctx: ServerRequestContext[Any], params: types.PaginatedRequestParams | None
+    ) -> types.ListResourcesResult:
+        found = await anyio.to_thread.run_sync(resources.listing, session)
+        return types.ListResourcesResult(
+            resources=[types.Resource(uri=r.uri, name=r.name, title=r.title, mime_type=r.mime) for r in found]
+        )
+
+    async def list_resource_templates(
+        ctx: ServerRequestContext[Any], params: types.PaginatedRequestParams | None
+    ) -> types.ListResourceTemplatesResult:
+        return types.ListResourceTemplatesResult(resource_templates=[_template(t) for t in resources.TEMPLATES])
+
+    async def read_resource(
+        ctx: ServerRequestContext[Any], params: types.ReadResourceRequestParams
+    ) -> types.ReadResourceResult:
+        try:
+            found = await anyio.to_thread.run_sync(resources.read, session, str(params.uri))
+        except resources.ResourceError as exc:
+            raise MCPError(RESOURCE_NOT_FOUND, str(exc)) from exc
+        return types.ReadResourceResult(contents=[_contents(found)])
+
+    async def list_prompts(
+        ctx: ServerRequestContext[Any], params: types.PaginatedRequestParams | None
+    ) -> types.ListPromptsResult:
+        return types.ListPromptsResult(prompts=[_prompt(p) for p in prompts.PROMPTS])
+
+    async def get_prompt(ctx: ServerRequestContext[Any], params: types.GetPromptRequestParams) -> types.GetPromptResult:
+        prompt = prompts.PROMPTS_BY_NAME.get(params.name)
+        if prompt is None:
+            raise MCPError(INVALID_PARAMS, f"bilinmeyen hazır istem: {params.name}")
+        text = prompts.text_for(prompt, params.arguments or {})
+        message = types.PromptMessage(role="user", content=types.TextContent(type="text", text=text))
+        return types.GetPromptResult(description=prompt.description, messages=[message])
+
     return Server(
         NAME,
         version=__version__,
@@ -95,4 +138,26 @@ def build(session: Session) -> Server[Any]:
         instructions=INSTRUCTIONS,
         on_list_tools=list_tools,
         on_call_tool=call_tool,
+        on_list_resources=list_resources,
+        on_list_resource_templates=list_resource_templates,
+        on_read_resource=read_resource,
+        on_list_prompts=list_prompts,
+        on_get_prompt=get_prompt,
     )
+
+
+def _template(t: resources.Template) -> types.ResourceTemplate:
+    return types.ResourceTemplate(
+        uri_template=t.uri, name=t.name, title=t.title, description=t.description, mime_type=t.mime
+    )
+
+
+def _contents(found: resources.Contents) -> types.TextResourceContents | types.BlobResourceContents:
+    if found.blob is not None:
+        return types.BlobResourceContents(uri=found.uri, mime_type=found.mime, blob=found.blob)
+    return types.TextResourceContents(uri=found.uri, mime_type=found.mime, text=found.text or "")
+
+
+def _prompt(p: prompts.Prompt) -> types.Prompt:
+    arguments = [types.PromptArgument(name=a.name, description=a.description, required=a.required) for a in p.arguments]
+    return types.Prompt(name=p.name, title=p.title, description=p.description, arguments=arguments or None)
