@@ -10,7 +10,6 @@ password never passes through the model); what a tool returns becomes part of th
 the model that called it.
 """
 
-import difflib
 import json
 import os
 import re
@@ -24,10 +23,10 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
-from . import __version__, month_end, rulefile
-from .analysis import Dataset
+from . import __version__, month_end
 from .app import accounts, intake, invoices, notify, outlook
 from .app import mail as email
+from .app import rules as category_rules
 from .app.analysis import Current, document_gaps, summary
 from .app.uploads import inbox_files
 from .app.workspace import Busy, StalePlan, Workspace
@@ -841,84 +840,54 @@ def _read_rules(s: Server, args: dict) -> dict:
     }
 
 
-def _effect(before: Dataset, after: Dataset) -> dict:
-    """Transactions whose category, necessity, kind or merchant name the rule change changed."""
+def _rule_labels(found: category_rules.Labels) -> dict:
+    return {"merchant": found.merchant, "category": found.category, "necessity": found.necessity, "kind": found.kind}
 
-    def index(ds: Dataset) -> dict:
-        out = defaultdict(list)
-        for t in ds.transactions:
-            out[(t.source, t.date, t.account, t.amount, t.description)].append(t)
-        return out
 
-    def labels(t) -> dict:
-        return {"merchant": t.merchant, "category": t.category, "necessity": t.necessity, "kind": t.kind}
-
-    old, new = index(before), index(after)
-    moves: Counter = Counter()
-    totals: dict = defaultdict(Decimal)
-    examples = []
-    for key, items in old.items():
-        for x, y in zip(items, new.get(key, [])):
-            if labels(x) == labels(y):
-                continue
-            moves[(x.category, y.category)] += 1
-            totals[(x.category, y.category)] += y.amount
-            if len(examples) < 15:
-                examples.append(
-                    {
-                        "date": y.date,
-                        "description": y.description,
-                        "amount": y.amount,
-                        "before": labels(x),
-                        "after": labels(y),
-                    }
-                )
+def _change_rules(s: Server, edit: Callable[[], str]) -> dict:
+    """Make the change through the rules' use case (app.rules: the history, the audit log, the analysis again) and
+    tell it as the MVP's tools did: the diff, the earlier file kept, which rows moved, the report written."""
+    try:
+        change = category_rules.save(s.ws, s.current, edit(), Actor.MCP, write=True)
+    except category_rules.RulesError as exc:
+        raise ToolError(str(exc)) from exc
+    outputs = s.current.get().outputs
     return {
-        "changed": sum(moves.values()),
-        "examples": examples,
-        "moves": [
-            {"from": f, "to": t, "count": n, "total": round_half_up(totals[(f, t)])}
-            for (f, t), n in moves.most_common(20)
-        ],
-    }
-
-
-def _change_rules(s: Server, new: str) -> dict:
-    old = _personal_text(s)
-    if new == old:
-        raise ToolError("değişiklik yok: kural zaten dosyada")
-    rulefile.validate(new, s.ws.rules.name)
-    before = s.current.get()
-    backup = rulefile.replace(s.ws.rules, new, s.ws.rules_history)
-    after = s.current.refresh(write=True)
-    return {
-        "diff": rulefile.diff(old, new, s.ws.rules.name),
-        "backup": str(backup) if backup else None,
-        "effect": _effect(before.dataset, after.dataset),
-        "report": str(after.outputs.html),
+        "diff": change.diff,
+        "backup": str(s.ws.rules_history / change.backup) if change.backup else None,
+        "effect": {
+            "changed": change.changed,
+            "examples": [
+                {
+                    "date": e.day,
+                    "description": e.description,
+                    "amount": e.amount,
+                    "before": _rule_labels(e.before),
+                    "after": _rule_labels(e.after),
+                }
+                for e in change.examples
+            ],
+            "moves": [{"from": m.before, "to": m.after, "count": m.count, "total": m.total} for m in change.moves],
+        },
+        "report": str(outputs.html) if outputs is not None else None,
     }
 
 
 def _add_rule(s: Server, args: dict) -> dict:
-    homes = Categorizer.layered(s.ws.rules).categories
-    text = rulefile.add_merchant_rule(_personal_text(s), args["category"], args["merchant"], args["patterns"], homes)
-    return _change_rules(s, text)
+    return _change_rules(
+        s, lambda: category_rules.merchant_rule(s.ws, args["category"], args["merchant"], args["patterns"])
+    )
 
 
 def _mark_ended(s: Server, args: dict) -> dict:
-    merchants = {t.merchant for t in s.current.get().dataset.transactions}
-    match = next((m for m in merchants if fold(m) == fold(args["merchant"])), None)
-    if match is None:
-        close = difflib.get_close_matches(args["merchant"], sorted(merchants), n=5, cutoff=0.5)
-        raise ToolError(
-            f"'{args['merchant']}' adlı işyeri işlemlerde yok; raporda göründüğü adı kullanın"
-            + (f" (yakın adlar: {', '.join(close)})" if close else "")
-        )
-    return _change_rules(s, rulefile.add_ended(_personal_text(s), match, args["month"], args.get("note", "")))
+    ds = s.current.get().dataset
+    return _change_rules(
+        s, lambda: category_rules.ended(s.ws, ds, args["merchant"], args["month"], args.get("note", ""))
+    )
 
 
 def _write_rules(s: Server, args: dict) -> dict:
-    return _change_rules(s, args["content"])
+    return _change_rules(s, lambda: args["content"])
 
 
 def _alert_view(rule: notify.AlertRule) -> dict:

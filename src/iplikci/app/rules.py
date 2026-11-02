@@ -4,6 +4,7 @@ Every change is checked by building the rules from it and previewed against the 
 which category to which — before the file is written; the file before it goes to the history and the audit log says
 who changed it."""
 
+import difflib
 from collections import Counter, defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -228,9 +229,10 @@ def preview(ws: Workspace, before: Dataset, text: str) -> Change:
     return Change(text, rulefile.diff(old, text, ws.rules.name), changed, moves, examples, False, "")
 
 
-def save(ws: Workspace, current: Current, text: str, actor: Actor) -> Change:
+def save(ws: Workspace, current: Current, text: str, actor: Actor, write: bool = False) -> Change:
     """Write text as the user's rules, the file before it kept in the history; what it changed. The analysis is made
-    again now and the exports and the feed follow in the background. RulesError for no change or unreadable rules."""
+    again now and the exports and the feed follow in the background; write=True writes the exports at once (the MCP
+    server, which may run with no service to do it). RulesError for no change or unreadable rules."""
     old = _personal(ws)
     if text == old:
         raise RulesError("değişiklik yok: kurallar zaten böyle")
@@ -239,7 +241,7 @@ def save(ws: Workspace, current: Current, text: str, actor: Actor) -> Change:
     backup = rulefile.replace(ws.rules, text, ws.rules_history)
     with ws.db() as db:
         audit.record(db, actor, RULES_CHANGED, ws.rules.name, backup=backup.name if backup else "")
-    changed, moves, examples = _effect(before, current.refresh(write=False).dataset)
+    changed, moves, examples = _effect(before, current.refresh(write=write).dataset)
     background.request_refresh(ws)
     return Change(
         text,
@@ -284,7 +286,9 @@ def ended(ws: Workspace, ds: Dataset, merchant: str, month: str, note: str = "")
     names = {t.merchant for t in ds.transactions if t.merchant}
     match = next((m for m in names if fold(m) == fold(merchant)), None)
     if match is None:
-        raise RulesError(f"'{merchant}' adlı işyeri işlemlerde yok; işlemlerde göründüğü adı kullanın")
+        close = difflib.get_close_matches(merchant, sorted(names), n=5, cutoff=0.5)
+        hint = f" (yakın adlar: {', '.join(close)})" if close else ""
+        raise RulesError(f"'{merchant}' adlı işyeri işlemlerde yok; işlemlerde göründüğü adı kullanın{hint}")
     return _edited(lambda: rulefile.add_ended(_personal(ws), match, month, note))
 
 
