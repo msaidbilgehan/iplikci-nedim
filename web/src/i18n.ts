@@ -35,6 +35,7 @@ import glossary from "./locales/tr/glossary.json";
 import invoices from "./locales/tr/invoices.json";
 import shell from "./locales/tr/shell.json";
 import subscriptions from "./locales/tr/subscriptions.json";
+import system from "./locales/tr/system.json";
 import transactions from "./locales/tr/transactions.json";
 
 export const defaultNS = "common";
@@ -53,6 +54,7 @@ export const resources = {
     subscriptions,
     calendar,
     invoices,
+    system,
   },
 } as const;
 

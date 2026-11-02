@@ -1,0 +1,126 @@
+{
+  "title": "Sistem",
+  "description": "Servisin, e-posta alımının, iş kuyruğunun, yedeklerin, dışa aktarımların, diskin ve okuyucuların durumu.",
+  "service": {
+    "title": "Servis",
+    "log": "Günlüğü indir",
+    "version": "Sürüm",
+    "started": "Başlangıç",
+    "process": "Süreç",
+    "home": "Veri klasörü",
+    "logNote": "Bir sorun olduğunda günlüğü gönderebilirsiniz: kişisel olabilecek yollar, adlar, adresler, IBAN'lar ve uzun numaralar indirilen dosyadan çıkarılır."
+  },
+  "mail": {
+    "title": "E-posta",
+    "connector": "Bağlantı",
+    "byExtension": "Tarayıcı eklentisi",
+    "imap": "IMAP",
+    "state": "Durum",
+    "lastRun": "Son alım",
+    "none": "Henüz yok",
+    "startDay": "Başlangıç günü",
+    "stoppedTitle": "Giriş reddedildi; e-posta alımı durdu",
+    "stoppedText": "Hesabın kilitlenmemesi için yeniden denenmez. E-posta bağlantısını yeniden kurun.",
+    "errorTitle": "Son alımda sorun oldu",
+    "badge": {
+      "stopped": "Durdu",
+      "unconfigured": "Kurulu değil",
+      "troubled": "Sorunlu",
+      "working": "Çalışıyor"
+    },
+    "coverage": "E-posta kapsamı: %{{percent}}",
+    "onTarget": "Hedefte",
+    "belowTarget": "Hedefin altında",
+    "total": "Banka iletisi: {{count}}",
+    "read": "Bildirimi okunan: {{count}}",
+    "attached": "Ekindeki belgeleri okunan: {{count}}",
+    "noMoney": "Para hareketi taşımayan (kampanya, duyuru, güvenlik, kart): {{count}}",
+    "business": "Şirket belgesi: {{count}}",
+    "unknown": "Henüz tanınmayan: {{count}}",
+    "left": "Henüz tanınmayan iletiler",
+    "noSubject": "konusuz",
+    "refused": "Alınmayan e-postalar: {{count}}",
+    "noBridge": "Eşleşmiş bir eklenti yok.",
+    "bridgeName": "Tarayıcı eklentisi",
+    "pairedAt": " (eşleşme {{time}})",
+    "seen": ": son görülme",
+    "notSeen": "henüz yok"
+  },
+  "senders": {
+    "title": "Banka dışı göndericiler",
+    "about": "Fatura, abonelik ve alışveriş e-postalarının geldiği alan adları: gönderen adresinde @ işaretinden sonra gelen kısım. Yalnızca göndereni doğrulanan (DMARC denetiminden geçen) e-postalar alınır; bu adları taklit eden e-postalar alınmaz. Liste değişince tarayıcı eklentisi geçmiş e-postaları yeniden okur.",
+    "empty": "Henüz banka dışı gönderici yok.",
+    "list": "Banka dışı gönderici alan adları",
+    "remove": "Kaldır",
+    "removeNamed": "{{domain}} alan adını kaldır",
+    "domain": "Alan adı",
+    "placeholder": "ör. ornekcell.example",
+    "add": "Ekle",
+    "failed": "Liste kaydedilemedi",
+    "saved": "Liste kaydedildi"
+  },
+  "queue": {
+    "title": "İş kuyruğu",
+    "queued": "Bekleyen",
+    "running": "Çalışan",
+    "failed": "Başarısız",
+    "next": "Sıradaki",
+    "none": "—",
+    "failure": "{{time}} · {{attempts}} deneme · {{error}}"
+  },
+  "backup": {
+    "title": "Yedek",
+    "now": "Şimdi yedek al",
+    "asking": "İsteniyor…",
+    "last": "Son yedek",
+    "none": "Henüz yok",
+    "next": "Sıradaki",
+    "kept": "Saklanan",
+    "keptValue": "{{count}} yedek, {{size}}",
+    "rehearsal": "Geri yükleme provası",
+    "notYet": "Henüz yapılmadı",
+    "passed": "Geçti",
+    "problem": "Sorun buldu",
+    "askedTitle": "Yedek isteği alındı",
+    "askedText": "Yedek birkaç saniye içinde alınır; bu sayfa kendiliğinden güncellenir.",
+    "failed": "Yedek istenemedi"
+  },
+  "exports": {
+    "title": "Dışa aktarımlar",
+    "again": "Yeniden yaz",
+    "asking": "İsteniyor…",
+    "empty": "Henüz dışa aktarım yok; servis ilk analizini yapınca yazar.",
+    "download": "İndir",
+    "downloadNamed": "İndir: {{name}}",
+    "made": "{{time}} · {{size}}",
+    "askedTitle": "İstek alındı",
+    "askedText": "Analiz ve dışa aktarımlar birkaç saniye içinde yeniden yazılır; liste kendiliğinden güncellenir.",
+    "failed": "İstenemedi",
+    "kind": {
+      "report": "Rapor (tek dosya, HTML)",
+      "csv": "İşlemler (CSV)",
+      "xlsx": "İşlemler (Excel)",
+      "month_end": "Ay sonu sayfaları (zip)"
+    }
+  },
+  "documents": {
+    "title": "Belgeler"
+  },
+  "disk": {
+    "title": "Disk",
+    "vault": "Belge asılları",
+    "database": "Veritabanı",
+    "free": "Diskte boş"
+  },
+  "readers": {
+    "title": "Okuyucular",
+    "none": "Henüz okunan belge yok. {{count}} okuyucu hazır.",
+    "reader": "Okuyucu",
+    "version": "Sürüm",
+    "documents": "Belge",
+    "verified": "Doğrulanan",
+    "lastRead": "Son okuma",
+    "alarm": "Alarm",
+    "empty": "—"
+  }
+}

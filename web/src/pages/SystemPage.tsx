@@ -3,6 +3,7 @@
 // keeps it current.
 
 import { type FormEvent, useId, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   useBackupNow,
@@ -21,6 +22,7 @@ import { Alert } from "../components/ui/Alert";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card, Facts } from "../components/ui/Card";
+import { PageHeader } from "../components/ui/PageHeader";
 import { Table, Td, Th } from "../components/ui/Table";
 import { cn } from "../lib/cn";
 import { formatDay, formatSize, formatTime } from "../lib/format";
@@ -32,19 +34,14 @@ const LINK_BUTTON = cn(
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600",
 );
 const SMALL = "text-sm text-zinc-600 dark:text-zinc-300";
-const EXPORT_NAMES: Record<ExportKind, string> = {
-  report: "Rapor (tek dosya, HTML)",
-  csv: "İşlemler (CSV)",
-  xlsx: "İşlemler (Excel)",
-  month_end: "Ay sonu sayfaları (zip)",
-};
 
 export default function SystemPage() {
+  const { t } = useTranslation("system");
   const system = useSystem();
   const labels = useLabels();
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold">Sistem</h1>
+      <PageHeader title={t("title")} description={t("description")} />
       {system.isPending ? <Loading /> : null}
       {system.isError ? <Failure error={system.error} onRetry={() => void system.refetch()} /> : null}
       {system.data ? <SystemCards status={system.data} labels={labels.data ?? {}} /> : null}
@@ -53,30 +50,28 @@ export default function SystemPage() {
 }
 
 function SystemCards({ status, labels }: { status: SystemStatus; labels: Labels }) {
+  const { t } = useTranslation("system");
   const documentLabels = labels["DocumentStatus"] ?? {};
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <Card
-        title="Servis"
+        title={t("service.title")}
         action={
           <a href="/api/system/log" download className={LINK_BUTTON}>
-            Günlüğü indir
+            {t("service.log")}
           </a>
         }
       >
         <div className="flex flex-col gap-3">
           <Facts
             items={[
-              ["Sürüm", status.service.version],
-              ["Başlangıç", formatTime(status.service.started_at)],
-              ["Süreç", String(status.service.pid)],
-              ["Veri klasörü", <code key="home">{status.service.home}</code>],
+              [t("service.version"), status.service.version],
+              [t("service.started"), formatTime(status.service.started_at)],
+              [t("service.process"), String(status.service.pid)],
+              [t("service.home"), <code key="home">{status.service.home}</code>],
             ]}
           />
-          <p className={SMALL}>
-            Bir sorun olduğunda günlüğü gönderebilirsiniz: kişisel olabilecek yollar, adlar, adresler, IBAN&apos;lar
-            ve uzun numaralar indirilen dosyadan çıkarılır.
-          </p>
+          <p className={SMALL}>{t("service.logNote")}</p>
         </div>
       </Card>
       <MailCard status={status} />
@@ -84,19 +79,19 @@ function SystemCards({ status, labels }: { status: SystemStatus; labels: Labels 
       <QueueCard status={status} jobKinds={labels["JobKind"] ?? {}} />
       <BackupCard status={status} />
       <ExportsCard />
-      <Card title="Belgeler">
+      <Card title={t("documents.title")}>
         <Facts
           items={Object.entries(status.documents)
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([code, count]) => [documentLabels[code] ?? code, String(count)])}
         />
       </Card>
-      <Card title="Disk">
+      <Card title={t("disk.title")}>
         <Facts
           items={[
-            ["Belge asılları", formatSize(status.disk.vault)],
-            ["Veritabanı", formatSize(status.disk.database)],
-            ["Diskte boş", formatSize(status.disk.free)],
+            [t("disk.vault"), formatSize(status.disk.vault)],
+            [t("disk.database"), formatSize(status.disk.database)],
+            [t("disk.free"), formatSize(status.disk.free)],
           ]}
         />
       </Card>
@@ -106,30 +101,31 @@ function SystemCards({ status, labels }: { status: SystemStatus; labels: Labels 
 }
 
 function MailCard({ status }: { status: SystemStatus }) {
+  const { t } = useTranslation("system");
   const mail = status.mail;
   const bridges = useBridges();
   const byExtension = mail.connector === "browser_bridge";
   return (
-    <Card title="E-posta">
+    <Card title={t("mail.title")}>
       <div className="flex flex-col gap-3">
         <Facts
           items={[
-            ["Bağlantı", byExtension ? "Tarayıcı eklentisi" : "IMAP"],
-            ["Durum", mailBadge(status)],
-            ["Son alım", mail.last_run ? formatTime(mail.last_run) : "Henüz yok"],
-            ["Başlangıç günü", formatDay(mail.start_day)],
+            [t("mail.connector"), byExtension ? t("mail.byExtension") : t("mail.imap")],
+            [t("mail.state"), <MailBadge key="state" status={status} />],
+            [t("mail.lastRun"), mail.last_run ? formatTime(mail.last_run) : t("mail.none")],
+            [t("mail.startDay"), formatDay(mail.start_day)],
           ]}
         />
         {mail.coverage.total > 0 ? <MailCoverageFacts coverage={mail.coverage} /> : null}
         {mail.history_due ? <HistoryDue startDay={mail.start_day} /> : null}
         {mail.refused.length > 0 ? <RefusedList refused={mail.refused} /> : null}
         {mail.stopped ? (
-          <Alert tone="critical" title="Giriş reddedildi; e-posta alımı durdu">
-            <p>Hesabın kilitlenmemesi için yeniden denenmez. E-posta bağlantısını yeniden kurun.</p>
+          <Alert tone="critical" title={t("mail.stoppedTitle")}>
+            <p>{t("mail.stoppedText")}</p>
           </Alert>
         ) : null}
         {mail.last_error && !mail.stopped ? (
-          <Alert tone="warning" title="Son alımda sorun oldu">
+          <Alert tone="warning" title={t("mail.errorTitle")}>
             <p>{mail.last_error}</p>
           </Alert>
         ) : null}
@@ -139,14 +135,19 @@ function MailCard({ status }: { status: SystemStatus }) {
   );
 }
 
-function mailBadge({ mail }: SystemStatus) {
+function MailBadge({ status: { mail } }: { status: SystemStatus }) {
+  const { t } = useTranslation("system");
   if (mail.stopped) {
-    return <Badge tone="critical">Durdu</Badge>;
+    return <Badge tone="critical">{t("mail.badge.stopped")}</Badge>;
   }
   if (!mail.configured) {
-    return <Badge tone="neutral">Kurulu değil</Badge>;
+    return <Badge tone="neutral">{t("mail.badge.unconfigured")}</Badge>;
   }
-  return mail.last_error ? <Badge tone="warning">Sorunlu</Badge> : <Badge tone="good">Çalışıyor</Badge>;
+  return mail.last_error ? (
+    <Badge tone="warning">{t("mail.badge.troubled")}</Badge>
+  ) : (
+    <Badge tone="good">{t("mail.badge.working")}</Badge>
+  );
 }
 
 // F01: at least this share of the bank messages is read or knowingly classified as moving no money.
@@ -154,30 +155,31 @@ const COVERAGE_TARGET = 0.9;
 
 /** How much of the bank mail was read or knowingly classified (F01), and the kinds of message nothing knows yet. */
 function MailCoverageFacts({ coverage }: { coverage: MailCoverage }) {
+  const { t } = useTranslation("system");
   // Rounded down, so that a share just under the target never shows as the target itself.
   const percent = Math.floor(coverage.share * 100);
   const onTarget = coverage.share >= COVERAGE_TARGET;
   return (
     <div className="flex flex-col gap-1 text-sm">
       <p className="font-medium">
-        E-posta kapsamı: %{percent}{" "}
-        <Badge tone={onTarget ? "good" : "warning"}>{onTarget ? "Hedefte" : "Hedefin altında"}</Badge>
+        {t("mail.coverage", { percent })}{" "}
+        <Badge tone={onTarget ? "good" : "warning"}>{onTarget ? t("mail.onTarget") : t("mail.belowTarget")}</Badge>
       </p>
       <ul className="list-disc pl-5 text-zinc-700 dark:text-zinc-300">
-        <li>Banka iletisi: {coverage.total}</li>
-        <li>Bildirimi okunan: {coverage.read}</li>
-        <li>Ekindeki belgeleri okunan: {coverage.attached}</li>
-        <li>Para hareketi taşımayan (kampanya, duyuru, güvenlik, kart): {coverage.no_money}</li>
-        <li>Şirket belgesi: {coverage.business}</li>
-        <li>Henüz tanınmayan: {coverage.unknown}</li>
+        <li>{t("mail.total", { count: coverage.total })}</li>
+        <li>{t("mail.read", { count: coverage.read })}</li>
+        <li>{t("mail.attached", { count: coverage.attached })}</li>
+        <li>{t("mail.noMoney", { count: coverage.no_money })}</li>
+        <li>{t("mail.business", { count: coverage.business })}</li>
+        <li>{t("mail.unknown", { count: coverage.unknown })}</li>
       </ul>
       {coverage.left.length > 0 ? (
         <details>
-          <summary className="cursor-pointer">Henüz tanınmayan iletiler</summary>
+          <summary className="cursor-pointer">{t("mail.left")}</summary>
           <ul className="list-disc pl-5 text-zinc-700 dark:text-zinc-300">
             {coverage.left.map((kind) => (
               <li key={`${kind.domain}|${kind.template}`}>
-                {kind.domain} · {kind.template || "konusuz"} ({kind.count})
+                {kind.domain} · {kind.template || t("mail.noSubject")} ({kind.count})
               </li>
             ))}
           </ul>
@@ -189,10 +191,11 @@ function MailCoverageFacts({ coverage }: { coverage: MailCoverage }) {
 
 /** The messages the extension delivered that were not kept, by why: the trust rule's findings, never their text. */
 function RefusedList({ refused }: { refused: RefusedMail[] }) {
+  const { t } = useTranslation("system");
   const total = refused.reduce((sum, r) => sum + r.count, 0);
   return (
     <div className="flex flex-col gap-1 text-sm">
-      <p className="font-medium">Alınmayan e-postalar: {total}</p>
+      <p className="font-medium">{t("mail.refused", { count: total })}</p>
       <ul className="list-disc pl-5 text-zinc-700 dark:text-zinc-300">
         {refused.map((r) => (
           <li key={`${r.taken}|${r.reason}|${r.domain}`}>
@@ -206,11 +209,12 @@ function RefusedList({ refused }: { refused: RefusedMail[] }) {
 }
 
 function BridgeSeen({ bridges }: { bridges: Bridge[] }) {
+  const { t } = useTranslation("system");
   const active = bridges.filter((b) => b.active);
   if (active.length === 0) {
-    return <p className="text-sm text-zinc-600 dark:text-zinc-300">Eşleşmiş bir eklenti yok.</p>;
+    return <p className="text-sm text-zinc-600 dark:text-zinc-300">{t("mail.noBridge")}</p>;
   }
-  const name = (b: Bridge): string => b.name || "Tarayıcı eklentisi";
+  const name = (b: Bridge): string => b.name || t("mail.bridgeName");
   // Two browsers of the same kind carry the same name: their pairing time tells them apart.
   const shared = (b: Bridge): boolean => active.filter((other) => name(other) === name(b)).length > 1;
   return (
@@ -218,8 +222,8 @@ function BridgeSeen({ bridges }: { bridges: Bridge[] }) {
       {active.map((b) => (
         <li key={b.id}>
           {name(b)}
-          {shared(b) ? ` (eşleşme ${formatTime(b.created_at)})` : ""}: son görülme{" "}
-          {b.last_seen ? formatTime(b.last_seen) : "henüz yok"}
+          {shared(b) ? t("mail.pairedAt", { time: formatTime(b.created_at) }) : ""}
+          {t("mail.seen")} {b.last_seen ? formatTime(b.last_seen) : t("mail.notSeen")}
         </li>
       ))}
     </ul>
@@ -230,9 +234,10 @@ const FIELD = "min-h-11 rounded-md border border-zinc-300 bg-white px-3 dark:bor
 
 /**
  * The non-bank senders (F14): the domains whose bills and receipts are taken in beside the banks' messages. The
- * service checks each domain and refuses a bank's; its message is shown as it says it.
+ * service checks each domain and refuses a bank's; its message is shown as it says it. The setup wizard shows it too.
  */
-function OtherSendersCard() {
+export function OtherSendersCard() {
+  const { t } = useTranslation("system");
   const senders = useOtherSenders();
   const save = useSetOtherSenders();
   const [draft, setDraft] = useState("");
@@ -251,30 +256,28 @@ function OtherSendersCard() {
   }
 
   return (
-    <Card title="Banka dışı göndericiler">
+    <Card title={t("senders.title")}>
       <div className="flex flex-col gap-3">
         <p id={aboutId} className="text-sm text-zinc-700 dark:text-zinc-300">
-          Fatura, abonelik ve alışveriş e-postalarının geldiği alan adları: gönderen adresinde @ işaretinden sonra
-          gelen kısım. Yalnızca göndereni doğrulanan (DMARC denetiminden geçen) e-postalar alınır; bu adları taklit
-          eden e-postalar alınmaz. Liste değişince tarayıcı eklentisi geçmiş e-postaları yeniden okur.
+          {t("senders.about")}
         </p>
         {senders.isPending ? <Loading /> : null}
         {senders.isError ? <Failure error={senders.error} onRetry={() => void senders.refetch()} /> : null}
         {senders.data && domains.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">Henüz banka dışı gönderici yok.</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-300">{t("senders.empty")}</p>
         ) : null}
         {domains.length > 0 ? (
-          <ul aria-label="Banka dışı gönderici alan adları" className="flex flex-col gap-1">
+          <ul aria-label={t("senders.list")} className="flex flex-col gap-1">
             {domains.map((domain) => (
               <li key={domain} className="flex items-center justify-between gap-2 text-sm">
                 <code className="break-all">{domain}</code>
                 <Button
                   variant="secondary"
-                  aria-label={`${domain} alan adını kaldır`}
+                  aria-label={t("senders.removeNamed", { domain })}
                   disabled={save.isPending}
                   onClick={() => save.mutate(domains.filter((d) => d !== domain))}
                 >
-                  Kaldır
+                  {t("senders.remove")}
                 </Button>
               </li>
             ))}
@@ -283,7 +286,7 @@ function OtherSendersCard() {
         {senders.data ? (
           <form onSubmit={add} className="flex flex-wrap items-end gap-2">
             <label className="flex flex-col gap-1 text-sm">
-              <span>Alan adı</span>
+              <span>{t("senders.domain")}</span>
               <input
                 type="text"
                 value={draft}
@@ -293,7 +296,7 @@ function OtherSendersCard() {
                     save.reset();
                   }
                 }}
-                placeholder="ör. ornekcell.example"
+                placeholder={t("senders.placeholder")}
                 autoComplete="off"
                 spellCheck={false}
                 inputMode="url"
@@ -303,34 +306,35 @@ function OtherSendersCard() {
               />
             </label>
             <Button type="submit" disabled={save.isPending || draft.trim() === ""}>
-              Ekle
+              {t("senders.add")}
             </Button>
           </form>
         ) : null}
         {save.isError ? (
           <div id={errorId}>
-            <Alert tone="critical" title="Liste kaydedilemedi" live>
+            <Alert tone="critical" title={t("senders.failed")} live>
               <p>{save.error.message}</p>
             </Alert>
           </div>
         ) : null}
-        {save.isSuccess ? <Alert tone="good" title="Liste kaydedildi" live /> : null}
+        {save.isSuccess ? <Alert tone="good" title={t("senders.saved")} live /> : null}
       </div>
     </Card>
   );
 }
 
 function QueueCard({ status, jobKinds }: { status: SystemStatus; jobKinds: Record<string, string> }) {
+  const { t } = useTranslation("system");
   const { counts, failures, next_run: nextRun } = status.queue;
   return (
-    <Card title="İş kuyruğu">
+    <Card title={t("queue.title")}>
       <div className="flex flex-col gap-3">
         <Facts
           items={[
-            ["Bekleyen", String(counts["queued"] ?? 0)],
-            ["Çalışan", String(counts["running"] ?? 0)],
-            ["Başarısız", String(counts["failed"] ?? 0)],
-            ["Sıradaki", nextRun ? formatTime(nextRun) : "—"],
+            [t("queue.queued"), String(counts["queued"] ?? 0)],
+            [t("queue.running"), String(counts["running"] ?? 0)],
+            [t("queue.failed"), String(counts["failed"] ?? 0)],
+            [t("queue.next"), nextRun ? formatTime(nextRun) : t("queue.none")],
           ]}
         />
         {failures.length > 0 ? (
@@ -339,7 +343,7 @@ function QueueCard({ status, jobKinds }: { status: SystemStatus; jobKinds: Recor
               <li key={job.id}>
                 <Badge tone="critical">{jobKinds[job.kind] ?? job.kind}</Badge>{" "}
                 <span className="text-zinc-600 dark:text-zinc-300">
-                  {formatTime(job.finished_at)} · {job.attempts} deneme · {job.error}
+                  {t("queue.failure", { time: formatTime(job.finished_at), attempts: job.attempts, error: job.error })}
                 </span>
               </li>
             ))}
@@ -351,42 +355,47 @@ function QueueCard({ status, jobKinds }: { status: SystemStatus; jobKinds: Recor
 }
 
 function BackupCard({ status }: { status: SystemStatus }) {
+  const { t } = useTranslation("system");
   const backup = status.backup;
   const now = useBackupNow();
   const rehearsal =
     backup.rehearsal_ok === null ? (
-      "Henüz yapılmadı"
+      t("backup.notYet")
     ) : (
       <span className="inline-flex flex-wrap items-center gap-2">
         {formatTime(backup.rehearsal)}
-        {backup.rehearsal_ok ? <Badge tone="good">Geçti</Badge> : <Badge tone="critical">Sorun buldu</Badge>}
+        {backup.rehearsal_ok ? (
+          <Badge tone="good">{t("backup.passed")}</Badge>
+        ) : (
+          <Badge tone="critical">{t("backup.problem")}</Badge>
+        )}
       </span>
     );
   return (
     <Card
-      title="Yedek"
+      title={t("backup.title")}
       action={
         <Button variant="secondary" onClick={() => now.mutate()} disabled={now.isPending}>
-          {now.isPending ? "İsteniyor…" : "Şimdi yedek al"}
+          {now.isPending ? t("backup.asking") : t("backup.now")}
         </Button>
       }
     >
       <div className="flex flex-col gap-3">
         <Facts
           items={[
-            ["Son yedek", backup.last ? formatTime(backup.last) : "Henüz yok"],
-            ["Sıradaki", formatTime(backup.next)],
-            ["Saklanan", `${backup.count} yedek, ${formatSize(backup.size)}`],
-            ["Geri yükleme provası", rehearsal],
+            [t("backup.last"), backup.last ? formatTime(backup.last) : t("backup.none")],
+            [t("backup.next"), formatTime(backup.next)],
+            [t("backup.kept"), t("backup.keptValue", { count: backup.count, size: formatSize(backup.size) })],
+            [t("backup.rehearsal"), rehearsal],
           ]}
         />
         {now.isSuccess ? (
-          <Alert tone="good" title="Yedek isteği alındı" live>
-            <p>Yedek birkaç saniye içinde alınır; bu sayfa kendiliğinden güncellenir.</p>
+          <Alert tone="good" title={t("backup.askedTitle")} live>
+            <p>{t("backup.askedText")}</p>
           </Alert>
         ) : null}
         {now.isError ? (
-          <Alert tone="critical" title="Yedek istenemedi" live>
+          <Alert tone="critical" title={t("backup.failed")} live>
             <p>{now.error.message}</p>
           </Alert>
         ) : null}
@@ -396,14 +405,16 @@ function BackupCard({ status }: { status: SystemStatus }) {
 }
 
 function ExportsCard() {
+  const { t } = useTranslation("system");
   const exports = useExports();
   const again = useExportsAgain();
+  const name = (kind: ExportKind): string => t(`exports.kind.${kind}`);
   return (
     <Card
-      title="Dışa aktarımlar"
+      title={t("exports.title")}
       action={
         <Button variant="secondary" onClick={() => again.mutate()} disabled={again.isPending}>
-          {again.isPending ? "İsteniyor…" : "Yeniden yaz"}
+          {again.isPending ? t("exports.asking") : t("exports.again")}
         </Button>
       }
     >
@@ -411,37 +422,37 @@ function ExportsCard() {
         {exports.isPending ? <Loading /> : null}
         {exports.isError ? <Failure error={exports.error} onRetry={() => void exports.refetch()} /> : null}
         {exports.data?.length === 0 ? (
-          <p className={SMALL}>Henüz dışa aktarım yok; servis ilk analizini yapınca yazar.</p>
+          <p className={SMALL}>{t("exports.empty")}</p>
         ) : null}
         {exports.data?.length ? (
           <ul className="flex flex-col gap-3">
             {exports.data.map((item) => (
               <li key={item.kind} className="flex flex-wrap items-center justify-between gap-2">
                 <span>
-                  <span className="block font-medium">{EXPORT_NAMES[item.kind]}</span>
+                  <span className="block font-medium">{name(item.kind)}</span>
                   <span className={SMALL}>
-                    {formatTime(item.made_at)} · {formatSize(item.size)}
+                    {t("exports.made", { time: formatTime(item.made_at), size: formatSize(item.size) })}
                   </span>
                 </span>
                 <a
                   href={`/api/exports/${item.kind}`}
                   download
                   className={LINK_BUTTON}
-                  aria-label={`İndir: ${EXPORT_NAMES[item.kind]}`}
+                  aria-label={t("exports.downloadNamed", { name: name(item.kind) })}
                 >
-                  İndir
+                  {t("exports.download")}
                 </a>
               </li>
             ))}
           </ul>
         ) : null}
         {again.isSuccess ? (
-          <Alert tone="good" title="İstek alındı" live>
-            <p>Analiz ve dışa aktarımlar birkaç saniye içinde yeniden yazılır; liste kendiliğinden güncellenir.</p>
+          <Alert tone="good" title={t("exports.askedTitle")} live>
+            <p>{t("exports.askedText")}</p>
           </Alert>
         ) : null}
         {again.isError ? (
-          <Alert tone="critical" title="İstenemedi" live>
+          <Alert tone="critical" title={t("exports.failed")} live>
             <p>{again.error.message}</p>
           </Alert>
         ) : null}
@@ -451,23 +462,22 @@ function ExportsCard() {
 }
 
 function ReadersCard({ status }: { status: SystemStatus }) {
+  const { t } = useTranslation("system");
   const used = status.readers.filter((r) => r.documents > 0 || r.alarms > 0);
   return (
-    <Card title="Okuyucular" className="md:col-span-2">
+    <Card title={t("readers.title")} className="md:col-span-2">
       {used.length === 0 ? (
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
-          Henüz okunan belge yok. {status.readers.length} okuyucu hazır.
-        </p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-300">{t("readers.none", { count: status.readers.length })}</p>
       ) : (
         <Table>
           <thead>
             <tr>
-              <Th>Okuyucu</Th>
-              <Th>Sürüm</Th>
-              <Th>Belge</Th>
-              <Th>Doğrulanan</Th>
-              <Th>Son okuma</Th>
-              <Th>Alarm</Th>
+              <Th>{t("readers.reader")}</Th>
+              <Th>{t("readers.version")}</Th>
+              <Th>{t("readers.documents")}</Th>
+              <Th>{t("readers.verified")}</Th>
+              <Th>{t("readers.lastRead")}</Th>
+              <Th>{t("readers.alarm")}</Th>
             </tr>
           </thead>
           <tbody>
@@ -476,9 +486,9 @@ function ReadersCard({ status }: { status: SystemStatus }) {
                 <Td>{r.name}</Td>
                 <Td>{r.version}</Td>
                 <Td>{r.documents}</Td>
-                <Td>{r.statements ? `${r.verified}/${r.statements}` : "—"}</Td>
-                <Td>{r.last_read ? formatTime(r.last_read) : "—"}</Td>
-                <Td>{r.alarms ? <Badge tone="warning">{String(r.alarms)}</Badge> : "—"}</Td>
+                <Td>{r.statements ? `${r.verified}/${r.statements}` : t("readers.empty")}</Td>
+                <Td>{r.last_read ? formatTime(r.last_read) : t("readers.empty")}</Td>
+                <Td>{r.alarms ? <Badge tone="warning">{String(r.alarms)}</Badge> : t("readers.empty")}</Td>
               </tr>
             ))}
           </tbody>
