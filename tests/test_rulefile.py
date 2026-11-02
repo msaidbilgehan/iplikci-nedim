@@ -82,3 +82,39 @@ def test_the_first_personal_file_has_nothing_to_keep(tmp_path):
     assert rulefile.replace(rules, RULES, tmp_path / "rules" / "history") is None
     assert rules.read_text(encoding="utf-8") == RULES
     assert not (tmp_path / "rules" / "history").exists()
+
+
+def test_an_ended_payment_is_taken_off_the_list_and_an_unknown_one_is_refused():
+    text = rulefile.remove_ended(RULES, "eski abonelik")
+    assert "Eski Abonelik" not in text and "# Deneme kuralları" in text
+    rulefile.validate(text)
+    with pytest.raises(ValueError, match="bitmiş olarak yazılı değil"):
+        rulefile.remove_ended(RULES, "Örnek Dergi")
+
+
+def test_a_merchants_own_necessity_is_set_changed_and_taken_back():
+    text = rulefile.set_merchant_necessity(RULES, "Örnek Kahve", "Gereksiz")
+    assert yaml.safe_load(text)["_gereklilik_işyeri"] == {"Örnek Kahve": "Gereksiz"}
+    text = rulefile.set_merchant_necessity(text, "örnek kahve", "Gerekli")
+    assert yaml.safe_load(text)["_gereklilik_işyeri"] == {"Örnek Kahve": "Gerekli"}
+    rulefile.validate(text)
+    back = rulefile.remove_merchant_necessity(text, "Örnek Kahve")
+    assert yaml.safe_load(back)["_gereklilik_işyeri"] is None  # the section stays, empty
+    rulefile.validate(back)
+
+
+@pytest.mark.parametrize(
+    "start",
+    [RULES, RULES + "\n_düzenli:\n  - Kira  # ev\n", RULES + "\n_düzenli: [Kira]  # ev\n"],
+    ids=["no list yet", "block list", "flow list"],
+)
+def test_a_commitment_category_is_added_once_and_taken_off_whatever_the_lists_style(start):
+    text = rulefile.add_regular(start, "Dijital Abonelikler")
+    assert rulefile.add_regular(text, "dijital abonelikler") == text  # once
+    assert "Dijital Abonelikler" in yaml.safe_load(text)["_düzenli"]
+    assert "# Deneme kuralları" in text and ("# ev" in text) == ("# ev" in start)
+    rulefile.validate(text)
+    back = rulefile.remove_regular(text, "Dijital Abonelikler")
+    assert "Dijital Abonelikler" not in (yaml.safe_load(back)["_düzenli"] or [])
+    with pytest.raises(ValueError, match="düzenli ödeme kategorisi olarak yazılı değil"):
+        rulefile.remove_regular(back, "Dijital Abonelikler")

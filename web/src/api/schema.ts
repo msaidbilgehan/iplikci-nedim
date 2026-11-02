@@ -164,8 +164,41 @@ export interface CalendarOut {
   items: CalendarItemOut[];
 }
 
+export interface CategoryMoveOut {
+  before: string;
+  after: string;
+  count: number;
+  total: MoneyOut;
+}
+
+export interface CategoryOut {
+  name: string;
+  group: string;
+  slot: number;
+  necessity: Necessity | null;
+  regular: boolean;
+  own: boolean;
+}
+
+export interface CategoryRulesOut {
+  content: string;
+  categories: CategoryOut[];
+  ended: EndedOut[];
+  merchant_necessity: MerchantNecessityOut[];
+  history: string[];
+}
+
 /** How sure a row or a total is, and whether it counts (architecture §8). */
 export type Certainty = "confirmed" | "provisional" | "excluded" | "info";
+
+export interface ChangedRowOut {
+  fingerprint: string;
+  day: string;
+  description: string;
+  amount: MoneyOut;
+  before: RowLabelsOut;
+  after: RowLabelsOut;
+}
 
 /** Where a notification goes (ADR-0010). */
 export type Channel = "in_app" | "desktop" | "email" | "telegram";
@@ -182,6 +215,13 @@ export interface ChannelStateOut {
   ready: boolean;
   stage: ChannelStage;
   note: string;
+}
+
+/** A category of commitments (its payments are regular even when the amount changes), or no longer. */
+export interface CommitmentIn {
+  action: "commitment";
+  category: string;
+  on: boolean;
 }
 
 export interface CursorOut {
@@ -264,6 +304,20 @@ export interface DocumentViewOut {
   mail: iplikci__api__routes__documents__MailOut | null;
   text: string;
   has_html: boolean;
+}
+
+/** A payment the user ended ("İptal ettim"): none is expected after month. */
+export interface EndedIn {
+  action: "ended";
+  merchant: string;
+  month: string;
+  note?: string;
+}
+
+export interface EndedOut {
+  merchant: string;
+  month: string;
+  own: boolean;
 }
 
 /** An event a rule may watch, and the conditions it allows. */
@@ -413,6 +467,27 @@ export interface MailCoverageOut {
   left: UnknownMailOut[];
 }
 
+/** A merchant's own level of necessity; null takes it back to its category's. */
+export interface MerchantNecessityIn {
+  action: "necessity";
+  merchant: string;
+  necessity: Necessity | null;
+}
+
+export interface MerchantNecessityOut {
+  merchant: string;
+  necessity: Necessity;
+}
+
+/** A named merchant under a category: its rows get the category ("bu işyerini her zaman X say"). */
+export interface MerchantRuleIn {
+  action: "merchant";
+  category: string;
+  merchant: string;
+  patterns: string[];
+  necessity?: Necessity | null;
+}
+
 /**
  * An amount in its currency's smallest unit: {"minor": 123456, "currency": "TRY"} is 1.234,56 TL. The interface formats
  * it (architecture §16).
@@ -423,6 +498,12 @@ export interface MoneyOut {
 }
 
 export type Necessity = "required" | "optional" | "unnecessary" | "unknown";
+
+/** A payment expected again. */
+export interface NotEndedIn {
+  action: "not_ended";
+  merchant: string;
+}
 
 /** A notification as it was sent on its channel. */
 export interface NotificationOut {
@@ -609,6 +690,23 @@ export interface ReparsedOut {
   status: string;
 }
 
+export interface RowLabelsOut {
+  merchant: string;
+  category: string;
+  necessity: Necessity | null;
+  kind: TransactionKind;
+}
+
+export interface RuleChangeOut {
+  content: string;
+  diff: string;
+  changed: number;
+  moves: CategoryMoveOut[];
+  examples: ChangedRowOut[];
+  saved: boolean;
+  backup: string;
+}
+
 /** What a finished scan of Gmail searched, as the cursor said when it began. */
 export interface ScannedIn {
   start_day: string;
@@ -774,6 +872,12 @@ export type ViewKind = "pdf" | "table" | "mail" | "html" | "text" | "none";
 export interface WindowOut {
   start: string;
   end: string;
+}
+
+/** The whole rule file, as the user edited it. */
+export interface WriteRulesIn {
+  action: "write";
+  content: string;
 }
 
 export interface iplikci__api__models__MailOut {

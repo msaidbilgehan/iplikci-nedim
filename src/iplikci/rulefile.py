@@ -1,7 +1,8 @@
 """Edit the user's rule file (rules/personal.yaml) as text, so the user's comments and layout survive.
 
-Two narrow edits are automated: a named merchant rule under a category, and an entry in `_biten`. Anything
-else is a whole new text the caller writes. Every change is validated by building the categorizer from it,
+A few narrow edits are automated: a named merchant rule under a category, an entry in `_biten`, a merchant's own
+necessity (`_gereklilik_işyeri`) and the commitment categories (`_düzenli`). Anything else is a whole new text the
+caller writes. Every change is validated by building the categorizer from it,
 over the rules shipped with the app, before the file is replaced; the previous file goes to the history.
 """
 
@@ -253,3 +254,136 @@ def diff(old: str, new: str, name: str, limit: int = 80) -> str:
     if len(lines) > limit:
         lines = lines[:limit] + [f"… {len(lines) - limit} satır daha"]
     return "\n".join(lines)
+
+
+def _top(lines: list[str], folded: str) -> int | None:
+    """The line a top-level key starts (`_biten:`, `_düzenli:`), by its folded name."""
+    return next(
+        (
+            i
+            for i, line in enumerate(lines)
+            if _is_content(line) and _indent(line) == 0 and fold(_key(line) or "") == folded
+        ),
+        None,
+    )
+
+
+def _drop_entry(lines: list[str], start: int, key: str) -> bool:
+    """Remove the one-line `key: value` entry under the block at start; whether there was one."""
+    for j in range(start + 1, _block_end(lines, start)):
+        found = _key(lines[j]) if _is_content(lines[j]) else None
+        if found is not None and fold(found) == fold(key):
+            if lines[j + 1 : j + 2] and _is_content(lines[j + 1]) and _indent(lines[j + 1]) > _indent(lines[j]):
+                raise ValueError(f"'{found}' satırı birden çok satıra yayılmış; dosyayı elle düzenleyin")
+            del lines[j]
+            return True
+    return False
+
+
+def remove_ended(text: str, merchant: str) -> str:
+    """Take a payment off `_biten`: it is expected again."""
+    lines = _lines(text)
+    start = _top(lines, "_BITEN")
+    if start is None or not _drop_entry(lines, start, merchant):
+        raise ValueError(f"'{merchant}' kişisel kurallarda bitmiş olarak yazılı değil")
+    return "".join(lines)
+
+
+def set_merchant_necessity(text: str, merchant: str, level: str) -> str:
+    """How necessary a merchant's spending is, whatever its category says (`_gereklilik_işyeri`); level is the
+    level's label as the file writes it ("Gerekli", "İsteğe bağlı", "Gereksiz")."""
+    if not merchant.strip():
+        raise ValueError("işyeri adı gerekli")
+    lines = _lines(text)
+    entry = f"  {_scalar(merchant.strip(), key=True)}: {_scalar(level, key=True)}\n"
+    start = _top(lines, "_GEREKLILIK_ISYERI")
+    if start is None:
+        gap = "\n" if lines and lines[-1].strip() else ""
+        return "".join(lines) + (
+            f"{gap}# Kategorisinden farklı değerlendirdiğiniz işyerleri: işyeri adı ve gereklilik düzeyi.\n"
+            "_gereklilik_işyeri:\n" + entry
+        )
+    if re.match(r"^[^#]*:\s*\{\}", lines[start]):
+        lines[start] = re.sub(r":\s*\{\}", ":", lines[start], count=1)
+    end = _block_end(lines, start)
+    for j in range(start + 1, end):
+        key = _key(lines[j]) if _is_content(lines[j]) else None
+        if key is not None and fold(key) == fold(merchant):  # the entry keeps its spelling and its comment
+            comment = re.search(r"\s+#.*$", lines[j].rstrip("\n"))
+            lines[j] = f"  {_scalar(key, key=True)}: {_scalar(level, key=True)}{comment[0] if comment else ''}\n"
+            return "".join(lines)
+    lines.insert(end, entry)
+    return "".join(lines)
+
+
+def remove_merchant_necessity(text: str, merchant: str) -> str:
+    """The merchant's spending is as necessary as its category says again."""
+    lines = _lines(text)
+    start = _top(lines, "_GEREKLILIK_ISYERI")
+    if start is None or not _drop_entry(lines, start, merchant):
+        raise ValueError(f"'{merchant}' için kişisel kurallarda ayrı bir gereklilik yazılı değil")
+    return "".join(lines)
+
+
+def _regular_items(lines: list[str], start: int) -> tuple[list[str] | None, list[int]]:
+    """`_düzenli` as a flow list on its own line (its items), or as a block list (the lines of its items)."""
+    head = lines[start].strip()
+    after = head.split(":", 1)[1].split("#", 1)[0].strip() if ":" in head else ""
+    if after.startswith("["):
+        try:
+            loaded = yaml.safe_load(after)
+        except yaml.YAMLError as exc:
+            raise ValueError("_düzenli satırı okunamadı; dosyayı elle düzenleyin") from exc
+        if not isinstance(loaded, list):
+            raise ValueError("_düzenli bir liste olmalı")
+        return [str(item) for item in loaded], []
+    found = [j for j in range(start + 1, _block_end(lines, start)) if lines[j].lstrip().startswith("- ")]
+    return None, found
+
+
+def add_regular(text: str, category: str) -> str:
+    """A category of commitments (`_düzenli`): its payments are regular even when the amount changes."""
+    if not category.strip():
+        raise ValueError("kategori adı gerekli")
+    category = category.strip()
+    lines = _lines(text)
+    start = _top(lines, "_DUZENLI")
+    if start is None:
+        gap = "\n" if lines and lines[-1].strip() else ""
+        return "".join(lines) + (
+            f"{gap}# Taahhüt kategorileri: tutarı değişse de bu kategorilerdeki ödemeler düzenli sayılır.\n"
+            f"_düzenli:\n  - {_scalar(category)}\n"
+        )
+    flow, items = _regular_items(lines, start)
+    if flow is not None:
+        if any(fold(c) == fold(category) for c in flow):
+            return "".join(lines)
+        comment = _trailing_comment(lines[start].strip(), {_key(lines[start]): flow})
+        lines[start] = (
+            f"{lines[start].split(':', 1)[0]}: [{', '.join(_scalar(c) for c in [*flow, category])}]{comment}\n"
+        )
+        return "".join(lines)
+    if any(fold(lines[j].lstrip()[2:].split("#", 1)[0].strip().strip("\"'")) == fold(category) for j in items):
+        return "".join(lines)
+    if re.match(r"^[^#]*:\s*\[\s*\]", lines[start]):  # "_düzenli: []"
+        lines[start] = re.sub(r":\s*\[\s*\]", ":", lines[start], count=1)
+    lines.insert(_block_end(lines, start), f"  - {_scalar(category)}\n")
+    return "".join(lines)
+
+
+def remove_regular(text: str, category: str) -> str:
+    """The category is no longer one of commitments in the user's own rules (one shipped with the app stays)."""
+    lines = _lines(text)
+    start = _top(lines, "_DUZENLI")
+    if start is not None:
+        flow, items = _regular_items(lines, start)
+        if flow is not None and any(fold(c) == fold(category) for c in flow):
+            kept = [c for c in flow if fold(c) != fold(category)]
+            comment = _trailing_comment(lines[start].strip(), {_key(lines[start]): flow})
+            lines[start] = f"{lines[start].split(':', 1)[0]}: [{', '.join(_scalar(c) for c in kept)}]{comment}\n"
+            return "".join(lines)
+        for j in items:
+            if fold(lines[j].lstrip()[2:].split("#", 1)[0].strip().strip("\"'")) == fold(category):
+                del lines[j]
+                return "".join(lines)
+    raise ValueError(f"'{category}' kişisel kurallarda düzenli ödeme kategorisi olarak yazılı değil")

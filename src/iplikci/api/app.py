@@ -19,6 +19,7 @@ from .routes import (
     mail,
     notify,
     outlook,
+    rules,
     settings,
     system,
     uploads,
@@ -39,6 +40,7 @@ ROUTERS = (
     outlook,
     invoices,
     notify,
+    rules,
     pages,
 )
 
