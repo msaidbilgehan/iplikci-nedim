@@ -242,6 +242,17 @@ def test_the_window_gets_the_text_as_an_argument_never_inside_a_script():
     assert dialog.command(text, "linux", which=lambda name: None) is None
 
 
+def test_a_linux_desktop_without_zenity_or_kdialog_gets_a_notification_that_stays():
+    text = "Tarayıcı açılamadı. Bu adresi yapıştırın: <http://127.0.0.1:8643/giris?anahtar=a&b>"
+    notify = dialog.command(text, "linux", which=lambda name: "/usr/bin/notify-send" if name == "notify-send" else None)
+    assert notify == [
+        "notify-send", "--urgency=critical", dialog.TITLE,
+        "Tarayıcı açılamadı. Bu adresi yapıştırın: &lt;http://127.0.0.1:8643/giris?anahtar=a&amp;b&gt;",
+    ]  # fmt: skip
+    found = {"kdialog": "/usr/bin/kdialog", "notify-send": "/usr/bin/notify-send"}
+    assert dialog.command(text, "linux", which=found.get) == ["kdialog", "--title", dialog.TITLE, "--msgbox", text]
+
+
 def test_a_window_that_cannot_be_shown_leaves_the_text_on_stderr(capsys):
     dialog.say("Bir sorun var.", "darwin", run=lambda args: 1)
     assert "Bir sorun var." in capsys.readouterr().err

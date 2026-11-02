@@ -128,7 +128,8 @@ parçasıdır.
     bekler, sonra servisi hazır bulur.
   - Giriş bağlantısı ancak yeni servis yanıt verince alınır: biten eski servisin verdiği bağlantı onunla ölürdü.
   - Disk görüntüsünden ya da macOS'un geçici yerinden açılan uygulama önce taşınmasını ister.
-  - Geliştirme kopyası servisi hiçbir zaman kaydetmez. Sorunlar sistemin kendi penceresinde söylenir.
+  - Geliştirme kopyası servisi hiçbir zaman kaydetmez. Sorunlar sistemin kendi penceresinde söylenir; Linux'ta
+    zenity ya da kdialog olmayan bir masaüstünde kapatılana dek kalan bir bildirimle (notify-send).
   - Windows'ta görevin hangi Python'u hangi veri klasörü için çalıştırdığı uygulamanın kendi dosyasında da tutulur
     (`%LOCALAPPDATA%\iplikci-servis\gorev.json`). schtasks görevi konsolun kod sayfasıyla yazar: İngilizce bir
     Windows'ta "İplikçi"nin İ'si ya da kullanıcı klasörünün adındaki ş başka bir harfe döner. Görev dosyaya uydukça

@@ -1,8 +1,9 @@
 """The system's own windows, for what is done without a terminal (ADR-0017): a message in AppleScript's dialog on
-macOS, the message box on Windows, zenity or kdialog on Linux, and a folder in the system's file manager. The text
-goes as an argument, never into a script, so nothing in it can run. Where no window can be shown a message goes to
-stderr."""
+macOS, the message box on Windows, zenity or kdialog on Linux (a notification where a desktop has neither), and a
+folder in the system's file manager. The text goes as an argument, never into a script, so nothing in it can run.
+Where nothing can be shown a message goes to stderr."""
 
+import html
 import shutil
 import subprocess
 import sys
@@ -34,6 +35,8 @@ def command(text: str, platform: str, which: Callable[[str], str | None] = shuti
             return ["zenity", "--info", f"--title={TITLE}", f"--text={text}", "--no-markup"]
         if which("kdialog"):
             return ["kdialog", "--title", TITLE, "--msgbox", text]
+        if which("notify-send"):  # neither: a notification that stays until it is closed, its body read as markup
+            return ["notify-send", "--urgency=critical", TITLE, html.escape(text, quote=False)]
     return None
 
 
