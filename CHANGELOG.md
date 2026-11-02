@@ -4,6 +4,30 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.7.6] — 2026-11-03 — Bildirimler belgelerle denetlendi
+
+Kutudaki bildirimler gerçek belgelerle tek tek karşılaştırıldı; yanlış çıkanların kuralları düzeltildi.
+
+### Düzeltilenler
+
+- Elle indirilen eski belgeler aylar önceki zamları yeni gibi bildiriyordu. Zam artık yalnızca yeni fiyatı
+  kesinleştiren ödeme son 45 günün içindeyse bildirilir: aylık bir ödemede yeni fiyatın ikinci ödemesi, yıllık ya da
+  altı aylık bir ödemede tek ödemesi. Eski zamlar Düzenli ödemeler ekranında yine görünür.
+- Dolarla ya da avroyla faturalanan bir ödemenin TL tutarı kurla her ay oynar. Bu artık zam sayılmaz: fiyat, kart
+  ekstresinin TL tutarın yanına yazdığı döviz tutarıyla karşılaştırılır.
+- Ek hesap (KMH) eksiye düşünce "Hesap eksiye düşecek" uyarısı gelmez: eksi bakiye kullanılan kredidir.
+- Kendi hesaplarınızdan düzenli para aktardığınız bir hesap için de bu uyarı gelmez. Öngörü bu aktarmaları saymadığından
+  hesap kâğıt üzerinde eksiye iniyordu. İki durumda da öngörünün notu nedenini yazar.
+
+### Eklenenler
+
+- Hesaplarınızın toplamı öngörüde eksiye düşerse "Hesap eksiye düşecek" uyarısı gelir: "Hesaplarınızın toplamı: …".
+
+### Değişenler
+
+- "Abonelik zammı" kuralının adı "Düzenli ödeme zammı" oldu: faturalar ve kira da düzenli ödemedir. Bildirimin metni
+  "Bir düzenli ödeme zamlandı" der.
+
 ## [0.7.5] — 2026-11-03 — Belge ekle ekranı
 
 ### Eklenenler

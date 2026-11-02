@@ -6,10 +6,17 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 | Revizyon | Konu | Durum | Belge |
 |---|---|---|---|
 | V0 | MVP `gider-analizi`: banka belgelerini okuyan, doğrulayan, yorumlayan yerel komut satırı programı, web paneli ve MCP sunucusu | 2026-10-31'de emekliye ayrıldı (K17) | Depo dışında, veri klasöründeki arşivde: `archive/mvp/CLAUDE.md` ve `README.md` |
-| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–6 (v0.1.0–v0.7.0), arayüzün sadeleşmesi (v0.7.1), resimlerle anlatan Pano (v0.7.2), açık sekmeye ulaşan güncellemeler (v0.7.3), içeriğinden tanınan belgeler (v0.7.4) ve Belge ekle ekranı (v0.7.5) uygulandı; sırada Aşama 7 var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
+| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–6 (v0.1.0–v0.7.0), arayüzün sadeleşmesi (v0.7.1), resimlerle anlatan Pano (v0.7.2), açık sekmeye ulaşan güncellemeler (v0.7.3), içeriğinden tanınan belgeler (v0.7.4), Belge ekle ekranı (v0.7.5) ve belgelerle denetlenen bildirimler (v0.7.6) uygulandı; sırada Aşama 7 var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
 | V2 | Finansal strateji uzmanları ve yapay zekâ asistanı | Gelecek (V1'den sonra) | [`v2/requirements.md`](v2/requirements.md) |
 
 ## Değişiklik kaydı
+
+- 2026-11-03 (27) — Bildirimler belgelerle denetlendi (v0.7.6):
+  - [Yorum kuralları](domain/interpretation.md): aylık serilerin fiyat değişimi kuralı yazıldı; dövizle faturalanan
+    ödemeler döviz tutarıyla karşılaştırılır. Zam, yeni fiyatı kesinleştiren ödeme 45 günden eski değilse haberdir.
+    KMH'nin ve kendi hesaplarından para aktarılan hesabın eksi günleri uyarı sayılmaz; hesapların toplamı izlenir.
+  - [Özellikler](v1/features.md): F08'in fiyat değişimi, F09'un uyarısı, F13'ün denetimi.
+  - [Mimari](v1/architecture.md) §14: "Abonelik zammı" kuralının adı "Düzenli ödeme zammı" oldu.
 
 - 2026-11-03 (26) — Belge ekle ekranı (v0.7.5): [özellikler](v1/features.md#f02--elle-ekleme-ve-gelen-klasörü)'de
   F02'nin yolları ve klasörle ekleme, F06'nın sade menüsü.

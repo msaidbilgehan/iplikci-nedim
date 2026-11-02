@@ -8,7 +8,8 @@ or not; it is not an enterprise product.
 
 Status (2026-11-03): Phases 0–6 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.7.0), then the interface's
 simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab (v0.7.3), documents
-known by their content (v0.7.4) and the Belge ekle screen (v0.7.5); Phase 7 (MCP) is next.
+known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked against the documents
+(v0.7.6); Phase 7 (MCP) is next.
 - Phase 0 brought the MVP's code in as the `iplikci` package, cleaned of personal traces, with the shipped default
   rules, the verification baseline and the demo workspace.
 - Phase 1 (data core) moved everything into the data dir: `settings.toml`, the content-addressed vault, SQLite with the
@@ -79,6 +80,13 @@ known by their content (v0.7.4) and the Belge ekle screen (v0.7.5); Phase 7 (MCP
   lists of one account cover is counted from one list (`analysis.one_list_per_day`, fingerprints given after).
   v0.7.5 gave it a screen the user asked for: Belge ekle (`/belge-ekle`, `pages/AddDocumentsPage`, in the simple
   menu), where a chosen or dropped folder comes whole, its hidden files left out.
+- v0.7.6: the user asked whether a price-rise notification was true, and every notification in their box was checked
+  against the documents. A price rise is news only while the payment that made it certain is at most
+  `feed.news.REPRICED_DAYS` (45) old, so an import of old statements tells no old rises. A payee billing in a foreign
+  currency is compared by the amount the card statement prints beside the TL one (`Transaction.original`). An
+  overdraft account and one the user tops up from their own accounts (`forecast.funded_by_own`) warn of no day below
+  zero (`AccountForecast.warning`); the accounts' total does (`Forecast.total_negative`, `warnings`). The rule
+  "Abonelik zammı" is now "Düzenli ödeme zammı".
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 
