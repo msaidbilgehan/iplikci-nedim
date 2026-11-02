@@ -21,6 +21,12 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
   ve olaylar, hesap, olay türü ve kesinlik süzgeciyle; yeni gelen olaylar işaretlenir.
 - Pano ekranı (`/`): net varlık, nakit akışı, yaklaşanlar, tempo, uyarılar, yapılacaklar ve belgelerin tazeliği; her
   kart bir cümle ve ilgili ekranın bağlantısıyla.
+- Hesaplar ekranı (`/hesaplar`): hesaplar gruplarıyla, bakiyeleri, belgelerinin ulaştığı gün ve bu ayki giriş ve
+  çıkışlarıyla; hesaplar arası para akışı diyagram ve tablo olarak, bir akış bandından satırlarına gidilir. Hesap
+  sayfası (`/hesaplar/:id`): durum, türüne göre ayrıntılar (kartın ekstreleri ve taksitleri, ek hesabın maliyeti,
+  mevduatın getirisi, döviz ve altının değeri, portföy, kredi), belgelerin kapsamadığı günleri boş bırakan günlük
+  bakiye, son 12 ay, faiz ve ücretler, hesaptan geçen düzenli ödeme ve gelirler, satırlar; hesaba kendi adınızı
+  verebilirsiniz.
 - API: akışın sayfaları ve "Şu an" (`GET /api/feed`, `GET /api/feed/now`), pano kartları (`GET /api/dashboard`),
   hesap grupları, hesap sayfası, hesaplar arası akış ve hesaba verilen ad (`GET /api/accounts…`,
   `PUT /api/accounts/{id}/alias`).
