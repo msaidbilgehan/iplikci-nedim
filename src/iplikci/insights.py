@@ -1246,16 +1246,21 @@ def _change_finding(c: _Context) -> None:
     if not tr or tr.before_avg <= 0:
         return
     delta = tr.recent_avg / tr.before_avg - 1
+    points = int(f"{abs(delta) * 100:.0f}")
+    # A change that rounds to no point is said as such: "%0 artış" reads as if it were measured to be none.
+    moved = "neredeyse aynı" if points == 0 else f"%{points} {'artış' if delta >= 0 else 'düşüş'}"
     text = (
         f"Son {len(tr.recent)} tam ayda aylık gider ortalaması {tl(tr.recent_avg)}, önceki {len(tr.before)} ayda "
-        f"{tl(tr.before_avg)} (%{abs(delta) * 100:.0f} {'artış' if delta >= 0 else 'düşüş'})."
+        f"{tl(tr.before_avg)} ({moved})."
     )
     big = [t for t in tr.big if month_of(t.date) in tr.recent]
     if big:
+        # Both windows' averages without them, each named: an arrow between two figures left the reader to guess.
         text += (
             " Büyük tek seferlik alışverişler ("
             + ", ".join(f"{t.merchant} {tl(t.amount)}" for t in big[:3])
-            + f") çıkarılınca {tl(tr.usual_before)} → {tl(tr.usual_recent)}."
+            + f") çıkarılınca önceki {len(tr.before)} ay {tl(tr.usual_before)}, son {len(tr.recent)} ay "
+            f"{tl(tr.usual_recent)}."
         )
     ups = [ch for ch in tr.changes if ch.recent - ch.before >= 500][:3]
     if ups:
@@ -1384,8 +1389,8 @@ def _regular_findings(c: _Context) -> None:
         text = (
             "Bir süredir hiçbir belgede görünmeyen düzenli ödemeler: "
             + ", ".join(f"{s.merchant} (son {_day(s.last.date)}, {tl(s.monthly)})" for s in missing)
-            + ". Başka bir hesaptan ödeniyorsa o hesabın dökümünü de ekleyin; bittiyse Abonelikler ekranında "
-            "“İptal ettim” ile işaretleyin."
+            + ". Başka bir hesaptan ödeniyorsa o hesabın dökümünü de ekleyin; bittiyse Düzenli ödemeler ekranında "
+            "“İptal ettim…” ile işaretleyin."
         )
         ins.findings.append(Finding("bilgi", "Görünmeyen faturalar", text))
     for s in (s for s in ins.series if s.status == "iptal_sonrasi"):
@@ -1431,7 +1436,7 @@ def _position_finding(c: _Context) -> None:
             parts.append(f"hisse senedi {tl(h.value)} ({_day(h.as_of)} piyasa değeri)")
     text = (
         f"{_day(c.ins.timeline.as_of)} itibarıyla " + ", ".join(parts) + f"; ek hesap ve kart borcu {tl(c.debts)}. "
-        "Ayrıntılar Varlıklar ve borçlar tablosunda."
+        "Hesap hesap ayrıntılar Döviz ekranındaki Varlıklar ve borçlar tablosunda."
     )
     c.ins.findings.append(Finding("iyi" if c.savings > c.debts else "dikkat", "Birikim ve borç durumu", text))
 
@@ -1551,7 +1556,8 @@ def _write_steps(c: _Context) -> None:
             Step(
                 "Abonelikleri gözden geçirin",
                 f"İsteğe bağlı abonelikler ayda {tl(sum((s.monthly for s in subs), ZERO))}: {_payee_list(subs)}. "
-                "İptal ettiklerinizi Abonelikler ekranında “İptal ettim” ile işaretleyin; tahmin ona göre düşer.",
+                "İptal ettiklerinizi Düzenli ödemeler ekranında “İptal ettim…” ile işaretleyin; tahmin ona göre "
+                "düşer.",
             )
         )
 

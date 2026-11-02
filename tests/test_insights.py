@@ -625,7 +625,7 @@ def test_fees_are_advised_on_by_their_kind_and_a_purchase_from_an_account_is_no_
     ins = interpret(_account_months([*fees, laptop, *music]))
     step = next(s for s in ins.steps if s.title == "Abonelikleri gözden geçirin")
     assert step.text.endswith(
-        "İptal ettiklerinizi Abonelikler ekranında “İptal ettim” ile işaretleyin; tahmin ona göre düşer."
+        "İptal ettiklerinizi Düzenli ödemeler ekranında “İptal ettim…” ile işaretleyin; tahmin ona göre düşer."
     )
     found = next(f for f in ins.findings if f.title == "Faiz ve banka ücretleri")
     # A transfer's fee is not avoided by paying a debt on time.
