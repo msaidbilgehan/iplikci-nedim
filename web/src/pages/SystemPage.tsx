@@ -455,7 +455,9 @@ function ReadersCard({ status }: { status: SystemStatus }) {
   return (
     <Card title={t("readers.title")} className="md:col-span-2">
       {used.length === 0 ? (
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">{t("readers.none", { count: status.readers.length })}</p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          {t("readers.none", { count: status.readers.length })}
+        </p>
       ) : (
         <Table>
           <thead>
