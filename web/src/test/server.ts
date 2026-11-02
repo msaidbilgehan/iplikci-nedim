@@ -16,6 +16,7 @@ import type {
   Category,
   CategoryRules,
   ChannelState,
+  Coverage,
   Dashboard,
   DocumentDetail,
   DocumentPage,
@@ -1591,6 +1592,7 @@ export const SPENDING: Spending = {
     last_total: tl(2120000),
     last_partial: false,
     last_change: "0.06",
+    last_base_months: 3,
   },
   by_group: {
     slices: [
@@ -2419,6 +2421,32 @@ export const FX_PAGE: AccountPage = accountPage({
   },
 });
 
+// January to October 2026: the TL account's lists cover every day but most of July; the card's statements start in
+// March, the first of them in its middle; a closed account's lists stopped in February.
+export const COVERAGE: Coverage = {
+  months: Array.from({ length: 10 }, (_, i) => `2026-${String(i + 1).padStart(2, "0")}`),
+  accounts: [
+    {
+      account: CASH,
+      closed: false,
+      shares: ["1", "1", "1", "1", "1", "1", "0.452", "1", "1", "1"],
+      link: { screen: "account", id: CASH.id, query: {} },
+    },
+    {
+      account: CARD,
+      closed: false,
+      shares: ["0", "0", "0.548", "1", "1", "1", "1", "1", "1", "1"],
+      link: { screen: "account", id: CARD.id, query: {} },
+    },
+    {
+      account: { id: "teb-111111111", label: "Eski Vadesiz TL" },
+      closed: true,
+      shares: ["1", "1", "0", "0", "0", "0", "0", "0", "0", "0"],
+      link: { screen: "account", id: "teb-111111111", query: {} },
+    },
+  ],
+};
+
 // From the salary into the TL account, from there to the card and to spending, and from the card to spending.
 export const FLOWS: Flows = {
   start: "2026-10-01",
@@ -2699,6 +2727,7 @@ export const handlers = [
   http.get("/api/feed/now", () => HttpResponse.json(NOW)),
   http.get("/api/accounts", () => HttpResponse.json(ACCOUNTS)),
   http.get("/api/accounts/flows", () => HttpResponse.json(FLOWS)), // before the pages: "flows" is no account
+  http.get("/api/accounts/coverage", () => HttpResponse.json(COVERAGE)),
   http.get("/api/accounts/:id", ({ params }) => {
     const pages: Record<string, AccountPage> = { [CARD.id]: CARD_PAGE, [FX.id]: FX_PAGE };
     return HttpResponse.json(pages[String(params["id"])] ?? accountPage());

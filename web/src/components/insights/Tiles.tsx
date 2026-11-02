@@ -22,12 +22,10 @@ interface TilesProps {
 export function Tiles({ found, params }: TilesProps) {
   const { t } = useTranslation("insights");
   const { tiles, period } = found;
-  const months = found.by_group.months;
   const kinds = params.getAll("kind").length > 0;
   const total = tiles.total.minor;
-  // The whole months before the last one that its change is measured against, up to three (spending._tiles).
-  const before = months.filter((m) => !m.partial && tiles.last_month !== null && m.month < tiles.last_month).slice(-3);
   const change = tiles.last_change === null ? null : Number(tiles.last_change);
+  const base = tiles.last_base_months; // the whole months before the last one its change is measured against
   return (
     <section
       aria-label={t("tiles.label")}
@@ -90,12 +88,12 @@ export function Tiles({ found, params }: TilesProps) {
                 {formatMonth(tiles.last_month)}
                 {tiles.last_partial ? ` · ${t("tiles.lastPartial")}` : ""}
               </span>
-              {change !== null && before.length > 0 ? (
+              {change !== null && base > 0 ? (
                 <span className="block">
                   <span aria-hidden="true">{change >= 0 ? "▲ " : "▼ "}</span>
                   {change >= 0
-                    ? t("tiles.lastUp", { count: before.length, share: Math.abs(change) })
-                    : t("tiles.lastDown", { count: before.length, share: Math.abs(change) })}
+                    ? t("tiles.lastUp", { count: base, share: Math.abs(change) })
+                    : t("tiles.lastDown", { count: base, share: Math.abs(change) })}
                 </span>
               ) : null}
             </>

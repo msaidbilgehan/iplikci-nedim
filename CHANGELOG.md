@@ -45,9 +45,10 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
   süzgeçler adreste durur. Özet kutuları ve toplama girmeyenler; öne çıkanlar satırlarıyla, aylık etkisiyle adımlar
   ve bütçe; aylık giderler grup ve gereklilik başına ısı tablosuyla; alışkanlıklar; gelir ve gider; üç aylık tahmin
   kalem kalem; kategoriler ve en çok harcanan yerler, her biri satırlarına giderek; büyük tek seferlikler ayrı tutulan
-  eğilim ve olağan dışı hareketler; net varlık, ay sonu, düzenli ödemeler ve verinin kapsamı. Belgelerin yalnızca bir
-  kısmını kapsadığı ay soluk çizilir, "eksik" yazar ve hiçbir ortalamaya girmez; rapor ve Excel dosyası başlıktan
-  indirilir.
+  eğilim ve olağan dışı hareketler; net varlık, ay sonu, kart borcu ile ek hesap kullanımının pencere boyunca nasıl
+  değiştiği, düzenli ödemeler ve verinin kapsamı: her hesabın ekstrelerinin ve hesap dökümlerinin ay ay kapsadığı
+  günler, MVP raporundaki gibi bir ızgara ve tablo olarak. Belgelerin yalnızca bir kısmını kapsadığı ay soluk çizilir,
+  "eksik" yazar ve hiçbir ortalamaya girmez; rapor ve Excel dosyası başlıktan indirilir.
 - Ay sonu ekranları (`/ay-sonu`, `/ay-sonu/:ay`): içinde bulunulan ay ve önceki on iki ay, durumlarıyla (sürüyor,
   eksik, kontrol gerekli, bekleniyor, kapandı) ve kapanışları bir cümleyle. Ayın sayfasında hesap başına kapanış ve
   neyin beklendiği ("19–31 Ekim ekstresi, kesim ~18.11"); iki ay da kapanmışsa önceki ve tipik ayla karşılaştırılan
@@ -78,6 +79,8 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
   satırların kutuları ve e-postanın betiksiz özgün görünümü.
 - Değerlendirme API'si: bulgular ve adımlar penceresiyle, alışkanlıklar, olağan dışı hareketler (`GET /api/insights`)
   ve İşlemler süzgeçleriyle harcama kartları ve üç aylık tahmin (`GET /api/spending`).
+- Hesapların ay ay kapsamı: her hesabın ekstrelerinin ve hesap dökümlerinin her ayın günlerinden ne kadarını
+  kapsadığı (`GET /api/accounts/coverage`); dekont ve bildirimler hiçbir ayı kapsamaz.
 - Ay sonu kapanışı ay ay ve bir ayın tamamı; döviz: belgelerin kendi kurları ve her birimde net varlık.
 - Yapılacaklar listesi, her maddeyi kapatacak adımlarla; kategori kuralları okunur, önizlenir, değiştirilir.
 - Kurulum sihirbazı ve Ayarlar API'si: adlar ve şirket adları, yedeklerin saklanma süresi, e-posta bağlayıcısı, IMAP

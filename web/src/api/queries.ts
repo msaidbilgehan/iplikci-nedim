@@ -26,6 +26,7 @@ import type {
   CategoryRules,
   Channel,
   Correction,
+  Coverage,
   Dashboard,
   DocumentDetail,
   DocumentPage,
@@ -78,6 +79,7 @@ export const keys = {
   accounts: ["accounts"] as const, // the list, every account's page and the flows between them
   account: (id: string, offset: number) => ["accounts", "page", id, offset] as const,
   flows: (from: string, to: string) => ["accounts", "flows", from, to] as const,
+  coverage: ["accounts", "coverage"] as const,
   dashboard: ["dashboard"] as const,
   allTransactions: ["transactions"] as const, // the lists and the rows' details: a new analysis moves them
   transactions: (query: string) => ["transactions", "list", query] as const,
@@ -230,6 +232,11 @@ export function useFlows(from: string, to: string) {
     queryFn: () => api.get<Flows>(`/api/accounts/flows?${params.toString()}`),
     placeholderData: keepPreviousData,
   });
+}
+
+/** How much of each month each account's statements and account lists cover: the MVP report's coverage grid. */
+export function useCoverage() {
+  return useQuery({ queryKey: keys.coverage, queryFn: () => api.get<Coverage>("/api/accounts/coverage") });
 }
 
 /**

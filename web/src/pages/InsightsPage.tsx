@@ -1,8 +1,8 @@
 // The Değerlendirme screen (F10), the MVP report's cards in the interface: the period presets and the İşlemler screen's
 // filters, kept in the address in the API's names; the summary tiles and what the spending leaves out; the
-// interpretation (highlights, steps, budget); the net worth and the months' closing; the months by group and by
-// necessity with the habits; income and spending; the next three months; the categories and merchants; how the
-// spending moved and what is worth a look; the regular payments; the rows as a list and as CSV; and where the data
+// interpretation (highlights, steps, budget); the net worth, the months' closing and how the debts moved; the months by
+// group and by necessity with the habits; income and spending; the next three months; the categories and merchants; how
+// the spending moved and what is worth a look; the regular payments; the rows as a list and as CSV; and where the data
 // comes from. The cards the filters narrow come from /api/spending, the interpretation from /api/insights, which no
 // filter changes; each card says which it is, with its window and numbers.
 
@@ -14,6 +14,7 @@ import { ApiError } from "../api/client";
 import {
   useAccounts,
   useCategoryRules,
+  useCoverage,
   useDashboard,
   useExports,
   useInsights,
@@ -27,6 +28,7 @@ import { ClosingCard } from "../components/dashboard/ClosingCard";
 import { NetWorthCard } from "../components/dashboard/NetWorthCard";
 import { accountOptions } from "../components/filters";
 import { TrendCard, UnusualCard } from "../components/insights/Changes";
+import { DebtCard } from "../components/insights/Debt";
 import { FlowCard } from "../components/insights/Flow";
 import { ForecastCard } from "../components/insights/Forecast";
 import { Interpretation } from "../components/insights/Interpretation";
@@ -82,6 +84,7 @@ export default function InsightsPage() {
   const dashboard = useDashboard();
   const subscriptions = useSubscriptions();
   const system = useSystem();
+  const coverage = useCoverage();
   const change = (next: URLSearchParams, replace = false) => setParams(next, replace ? { replace: true } : undefined);
   const reset = () =>
     setParams((was) =>
@@ -134,7 +137,7 @@ export default function InsightsPage() {
             <p>{t("emptyArchiveText")}</p>
             <NextStep step={{ link: DOCUMENTS, label: t("emptyArchiveNext") }} className="mt-2" />
           </Empty>
-          <SourcesCard dashboard={dashboard} system={system} labels={labels} />
+          <SourcesCard dashboard={dashboard} system={system} coverage={coverage} labels={labels} />
         </>
       ) : (
         <>
@@ -153,6 +156,7 @@ export default function InsightsPage() {
               {(ins) => <Interpretation found={ins} labels={labels} />}
             </InsightsPart>
             <DashboardPart query={dashboard} labels={labels} />
+            {insights.data ? <DebtCard insights={insights.data} /> : null}
             {found ? <SpendingCards found={found} insights={insights.data} labels={labels} params={params} /> : null}
             {insights.data ? (
               <div className={pair}>
@@ -172,7 +176,7 @@ export default function InsightsPage() {
               </Card>
             )}
             {found ? <RowsCard found={found} params={params} /> : null}
-            <SourcesCard dashboard={dashboard} system={system} labels={labels} />
+            <SourcesCard dashboard={dashboard} system={system} coverage={coverage} labels={labels} />
           </div>
         </>
       )}

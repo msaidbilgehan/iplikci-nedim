@@ -95,6 +95,8 @@ import type {
   InvoicesOut,
   LabelsOut,
   LinkOut,
+  CoverageOut,
+  CoverOut,
   MailCoverageOut,
   MerchantRuleIn,
   MoneyOut,
@@ -172,6 +174,8 @@ export type LoggedEvent = EventOut;
 export type Queued = QueuedOut;
 export type RefusedMail = RefusedMailOut;
 export type MailCoverage = MailCoverageOut;
+export type Coverage = CoverageOut;
+export type AccountCover = CoverOut;
 export type Money = MoneyOut;
 export type { Certainty }; // how sure a row or a total is, and whether it counts (architecture §8)
 export type Subscriptions = SubscriptionsOut;

@@ -1,10 +1,11 @@
-// "Veri kaynakları ve kapsam" (the MVP report's sources card): how many documents are kept and how many were read, and
-// how far each account's documents reach — the last day, how long ago, whether a new one is late and the months they
-// leave out — leading to the Belgeler and Hesaplar screens. It is about the archive; no filter changes it.
+// "Veri kaynakları ve kapsam" (the MVP report's sources card): how many documents are kept and how many were read, the
+// months each account's statements cover, and how far each account's documents reach — the last day, how long ago,
+// whether a new one is late and the months they leave out — leading to the Belgeler and Hesaplar screens. It is about
+// the archive; no filter changes it.
 
 import { useTranslation } from "react-i18next";
 
-import type { useDashboard, useSystem } from "../../api/queries";
+import type { useCoverage, useDashboard, useSystem } from "../../api/queries";
 import type { Freshness, Labels } from "../../api/types";
 import { formatDay, formatMonth } from "../../lib/format";
 import { labelOf } from "../../lib/labels";
@@ -14,6 +15,7 @@ import { Card } from "../ui/Card";
 import { NextStep, ScreenLink } from "../ui/Say";
 import { Status } from "../ui/Status";
 import { Table, Td, Th } from "../ui/Table";
+import { CoverageGrid } from "./Coverage";
 
 const SMALL = "text-xs text-zinc-600 dark:text-zinc-300";
 const DOCUMENTS = { screen: "documents", id: "", query: {} } as const;
@@ -23,10 +25,11 @@ const REMOVED = "removed"; // in the Trash: no longer kept (ADR-0003)
 interface SourcesCardProps {
   dashboard: ReturnType<typeof useDashboard>;
   system: ReturnType<typeof useSystem>;
+  coverage: ReturnType<typeof useCoverage>;
   labels: Labels;
 }
 
-export function SourcesCard({ dashboard, system, labels }: SourcesCardProps) {
+export function SourcesCard({ dashboard, system, coverage, labels }: SourcesCardProps) {
   const { t } = useTranslation("insights");
   return (
     <Card title={t("sources.title")}>
@@ -34,6 +37,9 @@ export function SourcesCard({ dashboard, system, labels }: SourcesCardProps) {
         {system.isPending ? <Loading /> : null}
         {system.isError ? <Failure error={system.error} onRetry={() => void system.refetch()} /> : null}
         {system.data ? <Documents counts={system.data.documents} labels={labels} /> : null}
+        {coverage.isPending ? <Loading /> : null}
+        {coverage.isError ? <Failure error={coverage.error} onRetry={() => void coverage.refetch()} /> : null}
+        {coverage.data ? <CoverageGrid coverage={coverage.data} /> : null}
         {dashboard.isPending ? <Loading /> : null}
         {dashboard.isError ? <Failure error={dashboard.error} onRetry={() => void dashboard.refetch()} /> : null}
         {dashboard.data ? <Reach accounts={dashboard.data.freshness.accounts} /> : null}

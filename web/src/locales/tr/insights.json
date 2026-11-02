@@ -256,5 +256,36 @@
     "sayLate": "{{count}} hesabın yeni belgesi gecikti",
     "sayMissing": "{{count}} hesapta eksik ay var",
     "sayAllGood": "{{count}} hesabın belgeleri izleniyor; gecikmiş ya da eksik ay yok."
+  },
+  "coverage": {
+    "title": "Belgelerin kapsadığı aylar",
+    "sayWhole": "{{from}} – {{to}}, {{count}} hesabın ekstreleri ve hesap dökümleri. Her hesabın ilk ve son belgesi arasındaki bütün aylar tam kapsanıyor.",
+    "sayGaps": "{{from}} – {{to}}, {{count}} hesabın ekstreleri ve hesap dökümleri. {{gaps}} hesabın ilk ve son belgesi arasında yarım kapsanan ya da belgesiz ay var.",
+    "legend": "Renklerin anlamı",
+    "whole": "Belge var",
+    "part": "Kısmen",
+    "none": "Belge yok",
+    "closedName": "{{name}} (kapanmış)",
+    "closed": "kapanmış hesap",
+    "caption": "Hesap başına belgelerin kapsadığı aylar",
+    "account": "Hesap",
+    "span": "İlk ve son ay",
+    "wholeMonths": "Tam kapsanan",
+    "partMonths": "Kısmen kapsanan",
+    "noneMonths": "Belgesiz",
+    "period": "{{from}} – {{to}}",
+    "months": "{{count}} ay",
+    "share": "{{month}} ({{share}})",
+    "nothing": "—"
+  },
+  "debt": {
+    "title": "Borç",
+    "up": "Kart ekstre borçları ve ek hesap kullanımı {{from}} sonundan {{to}} sonuna {{amount}} arttı.",
+    "down": "Kart ekstre borçları ve ek hesap kullanımı {{from}} sonundan {{to}} sonuna {{amount}} azaldı.",
+    "same": "Kart ekstre borçları ve ek hesap kullanımı {{from}} sonundan {{to}} sonuna değişmedi.",
+    "none": "{{from}} – {{to}} arasında kart ekstre borcu ya da ek hesap kullanımı yok.",
+    "next": "Hesapları göster",
+    "at": "{{month}} sonunda",
+    "change": "Değişim"
   }
 }

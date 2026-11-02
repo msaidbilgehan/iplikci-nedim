@@ -1,4 +1,4 @@
-import { configure, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it } from "vitest";
@@ -9,10 +9,6 @@ import { renderScreen } from "../test/render";
 import InsightsPage from "./InsightsPage";
 
 afterEach(() => localStorage.clear());
-
-// The screen asks for a dozen cards at once and draws their charts: on a busy machine it takes longer than a
-// lighter screen to show them, so its waits are longer too.
-configure({ asyncUtilTimeout: 5_000 });
 
 const detailed = () => localStorage.setItem("iplikci.view", "detailed");
 
@@ -32,7 +28,7 @@ async function card(name: string): Promise<HTMLElement> {
   return screen.findByRole("region", { name });
 }
 
-describe("InsightsPage", { timeout: 20_000 }, () => {
+describe("InsightsPage", () => {
   it("sums up the period's spending, its whole months' average and the last month against those before", async () => {
     renderScreen(<InsightsPage />, { path: "/degerlendirme" });
     const tiles = await card("Özet");
@@ -373,6 +369,57 @@ describe("InsightsPage", { timeout: 20_000 }, () => {
     ).toBeInTheDocument();
     expect(within(sources).getByRole("link", { name: "Belgeleri göster" })).toHaveAttribute("href", "/belgeler");
     expect(within(sources).getByRole("link", { name: "Hesapları göster" })).toHaveAttribute("href", "/hesaplar");
+  });
+
+  it("draws the months each account's statements cover, and says them per account in its table", async () => {
+    renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    const sources = await card("Veri kaynakları ve kapsam");
+    const grid = await within(sources).findByRole("figure", { name: "Belgelerin kapsadığı aylar" });
+    expect(
+      within(grid).getByText(
+        "Ocak 2026 – Ekim 2026, 3 hesabın ekstreleri ve hesap dökümleri. 2 hesabın ilk ve son belgesi arasında " +
+          "yarım kapsanan ya da belgesiz ay var.",
+      ),
+    ).toBeInTheDocument();
+    expect(within(grid).getByRole("link", { name: "Eski Vadesiz TL (kapanmış)" })).toHaveAttribute(
+      "href",
+      "/hesaplar/teb-111111111",
+    );
+    await userEvent.click(within(grid).getByRole("tab", { name: "Tablo" }));
+    const table = within(grid).getByRole("table", { name: "Hesap başına belgelerin kapsadığı aylar" });
+    const cash = within(table).getByText("Örnek Vadesiz TL").closest("tr")!;
+    expect(within(cash).getByText("Ocak 2026 – Ekim 2026")).toBeInTheDocument();
+    expect(within(cash).getByText("9 ay")).toBeInTheDocument();
+    expect(within(cash).getByText("Temmuz 2026 (%45)")).toBeInTheDocument();
+    const cardRow = within(table).getByText("Örnek Kart •1234").closest("tr")!;
+    expect(within(cardRow).getByText("Mart 2026 – Ekim 2026")).toBeInTheDocument();
+    expect(within(cardRow).getByText("Mart 2026 (%55)")).toBeInTheDocument();
+    const closed = within(table).getByText("Eski Vadesiz TL").closest("tr")!;
+    expect(within(closed).getByText("kapanmış hesap")).toBeInTheDocument();
+  });
+
+  it("says how the debts moved over the window's complete months", async () => {
+    const flow = { ...INSIGHTS.flow!, debt_start: tl(1000000), debt_end: tl(1250000) };
+    server.use(http.get("/api/insights", () => HttpResponse.json({ ...INSIGHTS, flow })));
+    renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    const debt = await card("Borç");
+    expect(
+      await within(debt).findByText(
+        "Kart ekstre borçları ve ek hesap kullanımı Nisan 2026 sonundan Ekim 2026 sonuna 2.500,00 TL arttı.",
+      ),
+    ).toBeInTheDocument();
+    expect(within(debt).getByText("Nisan 2026 sonunda").nextElementSibling).toHaveTextContent("10.000,00 TL");
+    expect(within(debt).getByText("Ekim 2026 sonunda").nextElementSibling).toHaveTextContent("12.500,00 TL");
+    expect(within(debt).getByText("Değişim").nextElementSibling).toHaveTextContent("+2.500,00 TL");
+    expect(within(debt).getByRole("link", { name: /Hesapları göster/ })).toHaveAttribute("href", "/hesaplar");
+  });
+
+  it("says when the window has no card debt and no overdraft used", async () => {
+    renderScreen(<InsightsPage />, { path: "/degerlendirme" });
+    const debt = await card("Borç");
+    expect(
+      within(debt).getByText("Mayıs 2026 – Ekim 2026 arasında kart ekstre borcu ya da ek hesap kullanımı yok."),
+    ).toBeInTheDocument();
   });
 
   it("offers the report and the Excel file the last analysis wrote", async () => {
