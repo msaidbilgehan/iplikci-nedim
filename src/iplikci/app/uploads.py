@@ -19,7 +19,7 @@ from pathlib import Path, PurePosixPath
 from typing import BinaryIO, Literal
 
 from ..domain.text import nfc
-from ..ingest.archives import DOCUMENT_EXTENSIONS
+from ..ingest.archives import DOCUMENT_EXTENSIONS, HEAD_BYTES, sniffed_extension
 from .workspace import Workspace
 
 UPLOAD_EXTENSIONS = frozenset(DOCUMENT_EXTENSIONS | {".zip", ".mbox"})
@@ -200,9 +200,15 @@ def finish_upload(folder: Path, name: str, partial: Path, size: int) -> Upload:
     """Give an arrived upload its name in the batch, or refuse it; the partial file never stays."""
     try:
         rel = safe_upload_path(name)
-        if rel is None or rel.suffix.lower() not in BATCH_EXTENSIONS:
-            kinds = ", ".join(sorted(e.lstrip(".").upper() for e in BATCH_EXTENSIONS))
-            return Upload("reddedildi", name, f"desteklenmeyen dosya türü (kabul edilenler: {kinds})")
+        if rel is None:
+            return Upload("reddedildi", name, "gizli dosya; belge değil")
+        if rel.suffix.lower() not in BATCH_EXTENSIONS:
+            # What a file is comes from its bytes: a download without an extension, or with a wrong one, is taken in
+            # with the extension its content says.
+            found = _sniffed(partial)
+            if found is None:
+                return Upload("reddedildi", name, "belge değil: içeriği PDF, Excel, HTML, XML, ZIP ya da e-posta değil")
+            rel = rel.with_name(f"{rel.name}{found}")
         if size > MAX_UPLOAD_BYTES:
             return Upload("reddedildi", name, f"dosya {MAX_UPLOAD_BYTES >> 20} MB sınırından büyük")
         present = [p for p in folder.rglob("*") if p.is_file() and not p.name.startswith(".")]
@@ -219,6 +225,12 @@ def finish_upload(folder: Path, name: str, partial: Path, size: int) -> Upload:
         return Upload("eklendi", str(final.relative_to(folder)))
     finally:
         partial.unlink(missing_ok=True)  # our own partial file, never a document
+
+
+def _sniffed(path: Path) -> str | None:
+    with path.open("rb") as f:
+        head = f.read(HEAD_BYTES)
+    return sniffed_extension(head, whole=False) and sniffed_extension(path.read_bytes())
 
 
 def abandoned_batches(ws: Workspace, older_than: float) -> list[Path]:

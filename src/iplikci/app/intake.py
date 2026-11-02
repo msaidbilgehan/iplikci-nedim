@@ -23,7 +23,16 @@ from ..domain.codes import Actor, DocumentKind, DocumentStatus, SourceKind
 from ..domain.models import ParseResult
 from ..domain.text import nfc
 from ..ingest import archives
-from ..ingest.archives import DOCUMENT_EXTENSIONS, UnreadableArchive, from_mbox, from_zip, is_mbox
+from ..ingest.archives import (
+    DOCUMENT_EXTENSIONS,
+    HEAD_BYTES,
+    UnreadableArchive,
+    from_mbox,
+    from_zip,
+    is_mbox,
+    may_be_document,
+    sniffed_extension,
+)
 from ..storage import audit, documents, events, jobs, readings
 from ..storage.db import Database
 from ..storage.documents import Source
@@ -200,13 +209,28 @@ def _walk(path: Path, kind: SourceKind, root: Path | None, in_inbox: bool) -> It
                 nfc(path.name), "", Source(kind, nfc(path.name), shown), b"", loose, verdict=Verdict.ARCHIVE
             )
         return
-    ext = path.suffix.lower()
-    if ext in DOCUMENT_EXTENSIONS or ext in (".zip", ".eml"):
-        yield from _expand(nfc(path.name), path.read_bytes(), Source(kind, nfc(path.name), nfc(shown)), loose)
+    name = nfc(path.name)
+    readable = _readable_name(path, name)
+    if readable is not None:
+        yield from _expand(readable, path.read_bytes(), Source(kind, name, nfc(shown)), loose)
     elif loose is not None:
         yield Candidate(
             nfc(path.name), "", Source(kind, nfc(path.name), shown), b"", loose, verdict=Verdict.NOT_DOCUMENT
         )
+
+
+def _readable_name(path: Path, name: str) -> str | None:
+    """The name a file is read by: its own when its extension is a document's; else its own with the extension its
+    bytes say (a bank's download without one, or with a wrong one); None for a file that is no document. What the
+    document is comes from its content alone, never its name."""
+    if path.suffix.lower() in DOCUMENT_EXTENSIONS or path.suffix.lower() in (".zip", ".eml"):
+        return name
+    with path.open("rb") as f:
+        head = f.read(HEAD_BYTES)
+    if not may_be_document(head):
+        return None
+    found = sniffed_extension(path.read_bytes())
+    return f"{name}{found}" if found else None
 
 
 def _decide(db: Database, items: list[Candidate]) -> None:

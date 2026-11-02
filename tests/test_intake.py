@@ -9,8 +9,9 @@ import pytest
 from iplikci.app import intake
 from iplikci.app.workspace import StalePlan, Workspace
 from iplikci.domain.codes import DocumentKind, DocumentStatus, SourceKind
-from iplikci.fakes import teb
+from iplikci.fakes import teb, vakifbank
 from iplikci.fakes.files import text_pdf
+from iplikci.ingest import archives
 from iplikci.storage import audit, documents
 
 from conftest import FEBRUARY, JANUARY, put
@@ -182,3 +183,39 @@ def test_a_plan_item_says_what_it_is_and_where_it_goes(ws):
         "check": "bakiye 1/1 satır tutarlı",
     }
     assert str(item["target"]).startswith("2026-01-01 - 2026-01-31 TEB Vadesiz TL 123456789")
+
+
+def test_a_document_is_known_by_its_content_whatever_its_name_says(ws, tmp_path):
+    # A bank's download without an extension, one with a wrong one, and a file that is no document.
+    folder = tmp_path / "indirilenler"
+    put(folder / "Belge-2026-10-31", vakifbank.account_xlsx())
+    put(folder / "alt" / "rapor.dat", vakifbank.passbook())
+    put(folder / "notlar.txt", "alışveriş listesi")
+    found = by_name(intake.plan_paths(ws, [folder]))
+    assert sorted(found) == ["Belge-2026-10-31.xlsx", "rapor.dat.pdf"]
+    assert all(c.status is DocumentStatus.PROCESSED for c in found.values())
+    assert found["Belge-2026-10-31.xlsx"].outcome.kind is DocumentKind.ACCOUNT_STATEMENT
+    assert found["Belge-2026-10-31.xlsx"].source.original == "Belge-2026-10-31"  # its own name is kept beside it
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"),
+    [
+        (b"%PDF-1.7\n", ".pdf"),
+        (b"\r\n%PDF-1.4\n", ".pdf"),  # a few bytes before the header
+        (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + bytes(504), ".xls"),
+        (zipped(**{"belge.pdf": b"%PDF-1.4"}), ".zip"),
+        (b"\xef\xbb\xbf<html><body><table></table></body></html>", ".html"),
+        (b'<?xml version="1.0"?><Invoice xmlns="urn:oasis"/>', ".xml"),
+        (b"Received: from mail.example.com\r\nSubject: Ekstre\r\n\r\n", ".eml"),
+        (b"merhaba", None),
+        (b"\x89PNG\r\n\x1a\n", None),
+    ],
+)
+def test_a_file_s_format_comes_from_its_bytes(data, expected):
+    assert archives.sniffed_extension(data) == expected
+
+
+def test_a_workbook_is_told_from_a_zip_by_what_it_holds():
+    assert archives.sniffed_extension(vakifbank.account_xlsx()) == ".xlsx"
+    assert archives.sniffed_extension(vakifbank.account_xlsx(), whole=False) == ".zip"  # the start alone cannot tell

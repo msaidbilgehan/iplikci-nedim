@@ -12,6 +12,7 @@ from iplikci.api.app import create_app
 from iplikci.api.context import Context
 from iplikci.app import background, uploads
 from iplikci.domain.codes import SourceKind
+from iplikci.fakes import vakifbank
 from iplikci.ingest.inbox import InboxWatcher
 from iplikci.storage import audit, documents, events
 
@@ -69,8 +70,13 @@ def test_the_same_file_twice_in_a_batch_is_one_file(client):
 
 def test_a_file_that_is_no_document_is_refused_with_the_reason(client, ws):
     refused = upload(client, "notlar.txt", b"merhaba")
-    assert refused["status"] == "reddedildi" and "desteklenmeyen dosya türü" in refused["reason"]
+    assert refused["status"] == "reddedildi" and "belge değil" in refused["reason"]
     assert not any((ws.layout.staging / uploads.UPLOADS / refused["batch"]).iterdir())
+
+
+def test_a_download_without_an_extension_is_taken_in_by_its_content(client):
+    taken = upload(client, "Belge-2026-10-31", vakifbank.account_xlsx())
+    assert (taken["status"], taken["name"]) == ("eklendi", "Belge-2026-10-31.xlsx")
 
 
 def test_a_plan_is_applied_only_as_it_was_shown(client, ws):

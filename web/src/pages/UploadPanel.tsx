@@ -17,7 +17,6 @@ import { Table, Td, Th } from "../components/ui/Table";
 import { cn } from "../lib/cn";
 import { formatPeriod } from "../lib/format";
 
-const ACCEPTED = ".pdf,.xls,.xlsx,.html,.htm,.zip,.mbox,.eml";
 
 type Step =
   | { kind: "idle" }
@@ -112,7 +111,7 @@ export function UploadPanel() {
             ref={files}
             type="file"
             multiple
-            accept={ACCEPTED}
+            // Any file: what a document is comes from its content, never its name or extension (the service tells).
             className="hidden"
             aria-label={t("upload.files")}
             onChange={(e) => void send(Array.from(e.target.files ?? []))}

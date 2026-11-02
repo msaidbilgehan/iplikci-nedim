@@ -6,6 +6,7 @@ Everything is read into memory; nothing from an archive or an e-mail is ever wri
 import io
 import mailbox
 import os
+import re
 import zipfile
 import zlib
 from collections.abc import Iterator
@@ -132,3 +133,51 @@ def is_mbox(path: Path) -> bool:
         return False
     with open(path, "rb") as f:
         return f.read(5) == b"From "
+
+
+# --- what a file is by its bytes -------------------------------------------------------------------------------
+
+HEAD_BYTES = 4096  # enough of a file to tell what it is
+_OLE = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"  # the container of old Excel files
+_MAIL_HEADER = re.compile(
+    rb"(?:Received|Return-Path|Delivered-To|From|To|Subject|Date|Message-ID|MIME-Version|DKIM-Signature|"
+    rb"Authentication-Results|ARC-[A-Za-z-]+|X-[A-Za-z0-9-]+):",
+    re.IGNORECASE,
+)
+
+
+def may_be_document(head: bytes) -> bool:
+    """Whether a file starting with head may be a document (sniffed_extension tells which); a picture, a text or a
+    program never is."""
+    return sniffed_extension(head, whole=False) is not None
+
+
+def sniffed_extension(data: bytes, whole: bool = True) -> str | None:
+    """The extension a file's bytes say it has, whatever its name says: a PDF, an Excel workbook (old or new), a zip,
+    an HTML page or table, an XML document or an e-mail; None for anything else. A bank's download may come without
+    an extension or with a wrong one. With whole=False data is only the file's start: a zip is then not told from a
+    workbook (".zip")."""
+    head = data[:HEAD_BYTES]
+    # The containers first: a zip holding an uncompressed PDF shows the PDF's header too.
+    if head.startswith(_OLE):
+        return ".xls"
+    if head.startswith(b"PK\x03\x04"):
+        return ".xlsx" if whole and _is_workbook(data) else ".zip"
+    if b"%PDF-" in head[:1024]:  # a PDF may carry a few bytes before its header
+        return ".pdf"
+    text = head.lstrip(b"\xef\xbb\xbf \t\r\n").lower()
+    if text.startswith((b"<!doctype html", b"<html", b"<table", b"<meta")):
+        return ".html"
+    if text.startswith(b"<?xml"):
+        return ".html" if b"<html" in text else ".xml"
+    if _MAIL_HEADER.match(head.lstrip()):
+        return ".eml"
+    return None
+
+
+def _is_workbook(data: bytes) -> bool:
+    try:
+        with zipfile.ZipFile(io.BytesIO(data)) as found:
+            return "xl/workbook.xml" in found.namelist()
+    except (zipfile.BadZipFile, ValueError):  # a damaged zip: still a zip, read as one
+        return False

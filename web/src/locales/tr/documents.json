@@ -185,7 +185,7 @@
   },
   "upload": {
     "title": "Belge ekle",
-    "text": "Banka belgelerini buraya bırakın ya da seçin: PDF, Excel, HTML, ZIP, MBOX ve EML. Önce ne olacağı gösterilir; onaylamadan hiçbir şey arşive girmez.",
+    "text": "Bankadan indirdiğiniz belgeleri buraya bırakın ya da bir klasör seçin. Dosya ve klasör adları önemli değil: her belge içeriğinden tanınır, arşivdekilerle eşleşir. Önce ne olacağı gösterilir; onaylamadan hiçbir şey arşive girmez.",
     "files": "Dosya seç",
     "folder": "Klasör seç",
     "uploading": "Dosyalar yükleniyor: {{done}}/{{total}}",
