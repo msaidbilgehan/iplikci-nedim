@@ -380,31 +380,35 @@ def bill_items(ds: Dataset, start: date, end: date) -> list[Due]:
 def billed(
     items: Sequence[Due], series: Iterable[Series], bills: Sequence[tuple[InvoiceMatch, Due]]
 ) -> tuple[list[Due], list[Due]]:
-    """(the series' items, the bills' items) with each pending bill standing for the payment of its seller's series
-    it is the bill of: the first item of a series whose payee is like the seller (as the ledger matches a bill's row)
-    falling in the bill's days. That payment is the bill's: counting both would pay it twice. The bill keeps its own
-    amount and due date, and takes the series' account when no earlier bill of its seller told one."""
+    """(the series' items, the bills' items) with each pending bill told as the payment of its seller's series it is
+    the bill of: the first item of a series whose payee is like the seller (as the ledger matches a bill's row)
+    falling in the bill's days. Counting both would pay it twice. That item takes the bill's amount, the bill's own
+    number and due date in its basis, and keeps its day, account and kind: the series' day is when the bank has paid
+    the seller so far, and a payment a card makes stays the card's."""
     by_id = {series_id(s): s for s in series}
     left = sorted(items, key=lambda d: (d.day, d.title))
+    taken: set[int] = set()  # a payment pays one bill
     told: list[Due] = []
-    for waiting, bill in bills:
+    for waiting, bill in sorted(bills, key=lambda pair: pair[0].invoice.issued):
         start, end = waiting.window
-        paid = next(
+        found = next(
             (
-                d
-                for d in left
-                if start <= d.day <= end and d.series in by_id and similar(waiting.invoice.seller, by_id[d.series].last)
+                i
+                for i, d in enumerate(left)
+                if i not in taken
+                and start <= d.day <= end
+                and d.series in by_id
+                and similar(waiting.invoice.seller, by_id[d.series].last)
             ),
             None,
         )
-        if paid is not None:
-            left.remove(paid)
-            basis = (
-                f"{bill.basis}; {paid.title} düzenli ödemesinin faturası: {_day(paid.day)} günü beklenen ödeme "
-                "yerine bu sayıldı"
-            )
-            bill = replace(bill, account=bill.account or paid.account, basis=basis, series=paid.series)
-        told.append(bill)
+        if found is None:
+            told.append(bill)
+            continue
+        taken.add(found)
+        paid = left[found]
+        basis = f"{paid.basis}; bu dönemin faturası: {bill.basis}, {_tl(bill.amount)}"
+        left[found] = replace(paid, amount=bill.amount, basis=basis)
     return left, told
 
 

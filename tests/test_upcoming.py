@@ -401,7 +401,8 @@ def test_a_bill_not_paid_yet_is_its_sellers_regular_payment_not_a_second_one():
         )
     ]
     seller = "ÖRNEKCELL İLETİŞİM HİZMETLERİ A.Ş."
-    november = Invoice(InvoiceKind.BILL, seller, date(2026, 11, 1), Decimal(450), number="B2", due=date(2026, 11, 20))
+    amount = Decimal("462.30")
+    november = Invoice(InvoiceKind.BILL, seller, date(2026, 11, 1), amount, number="B2", due=date(2026, 11, 20))
     other = Invoice(InvoiceKind.BILL, "ÖRNEK ENERJİ A.Ş.", date(2026, 11, 1), Decimal(450), due=date(2026, 11, 20))
     window = (date(2026, 11, 1), date(2026, 11, 23))
     pending = [
@@ -412,17 +413,17 @@ def test_a_bill_not_paid_yet_is_its_sellers_regular_payment_not_a_second_one():
     ins = interpret(ds)
     (series,) = ins.series
     found = upcoming(ds, ins, date(2026, 11, 2))
-    # November's payment is the bill's: once, with the bill's amount and due date, from the series' account.
+    # November's payment is the bill's, once: on the day the bank pays the seller, at the bill's amount.
     assert [(d.day, d.kind, d.title, d.account, d.amount) for d in found] == [
+        (date(2026, 11, 8), PaymentKind.REGULAR, "Örnekcell", "cash", amount),
         (date(2026, 11, 20), PaymentKind.BILL, "ÖRNEK ENERJİ A.Ş.", "", Decimal(450)),
-        (date(2026, 11, 20), PaymentKind.BILL, seller, "cash", Decimal(450)),
         (date(2026, 12, 8), PaymentKind.REGULAR, "Örnekcell", "cash", Decimal(450)),
     ]
-    bill = found[1]
-    assert bill.series == series_id(series)
-    assert bill.basis == (
-        "B2 numaralı fatura, 01.11.2026 tarihli; son ödeme 20.11.2026; Örnekcell düzenli ödemesinin faturası: "
-        "08.11.2026 günü beklenen ödeme yerine bu sayıldı"
+    paid = found[0]
+    assert paid.series == series_id(series)
+    assert paid.basis == (
+        "son ödeme 08.10.2026: 450,00 TL; bu dönemin faturası: B2 numaralı fatura, 01.11.2026 tarihli; son ödeme "
+        "20.11.2026, 462,30 TL"
     )
 
 
