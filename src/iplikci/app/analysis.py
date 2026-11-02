@@ -131,7 +131,8 @@ def analyze(
         files = ws.file_stamps()  # before the files are read: a change from here on leaves this analysis stale
         settings = ws.fresh_settings()  # the company names the documents are read with, as the file says now
         with ws.db() as db:
-            reading.read_pending(ws, db, progress, every=reread)
+            if not ws.offline:  # offline, the stored readings as they are
+                reading.read_pending(ws, db, progress, every=reread)
             # Taken before what the analysis reads, never after: a change in between makes it stale (Current.get).
             signature = ws.signature(files)
             found, stats = ledger_input(db)

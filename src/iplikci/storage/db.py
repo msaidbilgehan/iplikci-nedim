@@ -194,6 +194,29 @@ def backup(db: Database, target: Path) -> Path:
     return target
 
 
+class SchemaMismatch(Exception):
+    """A database opened only to read is at another schema than this program's: it cannot be migrated then."""
+
+
+def open_read_only(path: Path) -> Database:
+    """The database at path opened only to read, while no service writes it: never migrated, nothing written. Its
+    schema must be this program's own (SchemaMismatch otherwise: the service migrates it when it starts)."""
+    if not path.is_file():
+        raise SchemaMismatch(f"veritabanı yok: {path.name}")
+    connection = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True, timeout=BUSY_TIMEOUT_MS / 1000)
+    connection.row_factory = sqlite3.Row
+    database = Database(connection, path)
+    try:
+        newest = connection.execute("SELECT max(version) FROM schema_migrations").fetchone()[0]
+    except sqlite3.Error as exc:
+        connection.close()
+        raise SchemaMismatch("veritabanı okunamadı") from exc
+    if newest != schema_version():
+        connection.close()
+        raise SchemaMismatch(f"veritabanı {newest} sürümünde, program {schema_version()} sürümünü bekliyor")
+    return database
+
+
 def open_copy(path: Path) -> Database:
     """A copy of the database (a backup's) opened read-only, as it is: no migration, nothing written."""
     connection = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)

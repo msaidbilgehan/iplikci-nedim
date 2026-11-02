@@ -24,7 +24,7 @@ from ..app import mail as email
 from ..app import rules as category_rules
 from ..app.analysis import Current, document_gaps, summary
 from ..app.uploads import inbox_files
-from ..app.workspace import Busy, StalePlan, Workspace
+from ..app.workspace import Busy, SchemaMismatch, StalePlan, Workspace
 from ..categorize import Categorizer
 from ..domain.codes import Actor, EventKind, InvoiceStatus, Necessity, SeriesPeriod, TransactionKind
 from ..domain.labels import (
@@ -74,11 +74,17 @@ class Tool:
     read_only: bool = True
     destructive: bool = False  # what it changes it may take away (files moved to the system's Trash)
     open_world: bool = False  # reaches outside this computer (the mail server)
+    # Whether a call with these arguments changes something; None: every call of a tool that is not read-only.
+    writes: Callable[[Args], bool] | None = None
 
     @property
     def idempotent(self) -> bool:
         """Asking again changes nothing more: true of every tool that only reads."""
         return self.read_only
+
+    def changes(self, args: Args) -> bool:
+        """Whether this call would change something: refused while the service is down (Session.offline)."""
+        return self.writes(args) if self.writes is not None else not self.read_only
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,14 +95,24 @@ class Outcome:
     error: bool = False
 
 
-class Session:
-    """What the tools of one server share: the workspace, its analysis and the plans shown but not applied."""
+# What a tool that changes something says while the service is down: the bridge then reads the database alone.
+OFFLINE = (
+    "İplikçi Nedim'in servisi çalışmıyor: servis kapalıyken yalnızca okuyan araçlar çalışır ve bu araç bir şeyi "
+    "değiştirir. İplikçi Nedim uygulamasını açın (servis kendiliğinden başlar), sonra yeniden deneyin."
+)
+CANNOT_READ = "İplikçi Nedim'in servisi çalışmıyor ve veritabanı okunamadı"
 
-    def __init__(self, ws: Workspace, current: Current | None = None) -> None:
+
+class Session:
+    """What the tools of one server share: the workspace, its analysis and the plans shown but not applied. offline:
+    the service is down and the database is only read (ADR-0011); a call that would change something is refused."""
+
+    def __init__(self, ws: Workspace, current: Current | None = None, offline: bool = False) -> None:
         self.ws = ws
         self.current = current or Current(ws, write=False)
         self.plans: dict[str, intake.Plan] = {}
         self.today: Callable[[], date] = date.today  # the day the calendar and the forecast start from
+        self.offline = offline
 
     def call(self, name: str, arguments: Args | None) -> Outcome:
         """Run the tool called name: its answer as JSON text, or the reason it could not, for the model."""
@@ -104,9 +120,16 @@ class Session:
         if tool is None:
             return Outcome(f"bilinmeyen araç: {name}", error=True)
         try:
-            value = tool.run(self, _check(tool.schema, arguments or {}))
+            args = _check(tool.schema, arguments or {})
+            if self.offline and tool.changes(args):
+                return Outcome(OFFLINE, error=True)
+            value = tool.run(self, args)
         except (ToolError, Busy, StalePlan, ValueError, FileNotFoundError, email.MailError) as exc:
             return Outcome(str(exc), error=True)
+        except SchemaMismatch as exc:
+            return Outcome(
+                f"{CANNOT_READ}: {exc}. İplikçi Nedim uygulamasını açın, servis veritabanını hazırlar.", True
+            )
         except Exception as exc:  # told to the model, the details logged; the server keeps running  # noqa: BLE001
             _log.exception("tool %s failed", name)
             return Outcome(f"beklenmeyen hata: {type(exc).__name__}: {exc}", error=True)
@@ -1065,6 +1088,7 @@ TOOLS = (
         ),
         _alerts,
         read_only=False,
+        writes=lambda args: args.get("action", "list") != "list",
     ),
     Tool(
         "habits",

@@ -25,6 +25,10 @@ class Busy(Exception):
     """Another process is taking in or reading the documents right now."""
 
 
+# An offline workspace's database at another schema than this program's: it cannot be read alone (Workspace.offline).
+SchemaMismatch = db.SchemaMismatch
+
+
 class StalePlan(Exception):
     """Something the plan covers changed after it was shown: show a fresh plan instead of applying."""
 
@@ -53,6 +57,9 @@ class Workspace:
     # one and must never change the vault.
     database: Path | None = None
     read_only: bool = False
+    # The database only read, as it is: never migrated, no document read into it (the MCP bridge while the service is
+    # down, ADR-0011). What would write refuses before it starts.
+    offline: bool = False
 
     @classmethod
     def load(cls, home: Path | None = None) -> "Workspace":
@@ -109,6 +116,8 @@ class Workspace:
         return Vault(self.layout)
 
     def connect(self) -> db.Database:
+        if self.offline:
+            return db.open_read_only(self.database or self.layout.database)
         if self.database is not None:
             return db.connect(self.database, self.database.parent)
         return db.connect(self.layout.database, self.layout.backups)
