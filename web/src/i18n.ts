@@ -32,6 +32,7 @@ import documents from "./locales/tr/documents.json";
 import extension from "./locales/tr/extension.json";
 import feed from "./locales/tr/feed.json";
 import glossary from "./locales/tr/glossary.json";
+import invoices from "./locales/tr/invoices.json";
 import shell from "./locales/tr/shell.json";
 import subscriptions from "./locales/tr/subscriptions.json";
 import transactions from "./locales/tr/transactions.json";
@@ -51,6 +52,7 @@ export const resources = {
     extension,
     subscriptions,
     calendar,
+    invoices,
   },
 } as const;
 

@@ -1,11 +1,13 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { server } from "../test/server";
 import { renderScreen } from "../test/render";
 import InvoicesPage from "./InvoicesPage";
+
+afterEach(() => localStorage.clear());
 
 describe("InvoicesPage", () => {
   it("groups the bills and receipts by status, the pending ones first by when their row is due", async () => {
@@ -48,6 +50,33 @@ describe("InvoicesPage", () => {
     expect(within(receipt).getByText("Örnek Kart •1234")).toBeInTheDocument();
     expect(within(receipt).getByText("ORNEKUYGULAMA.COM/BILL")).toBeInTheDocument();
     expect(within(receipt).getByText("—")).toBeInTheDocument(); // a receipt has no due date
+  });
+
+  it("names the pending bill due soonest and leads to the calendar", async () => {
+    renderScreen(<InvoicesPage />);
+    const sentence = "En yakın son ödeme 25.11.2026'da: Örnekenerji Elektrik Perakende Satış A.Ş., 642,50 TL.";
+    expect(await screen.findByText(sentence)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Takvimi aç/ })).toHaveAttribute("href", "/takvim");
+  });
+
+  it("opens each bill in the viewer and a matched one's bank row in İşlemler", async () => {
+    renderScreen(<InvoicesPage />);
+    const matched = await screen.findByRole("region", { name: "Eşleşti" });
+    const receipt = within(matched).getByText("Örnek Uygulama Mağazası").closest("tr")!;
+    expect(within(receipt).getByRole("link", { name: "Örnek Uygulama Mağazası" })).toHaveAttribute(
+      "href",
+      expect.stringMatching(/^\/belgeler\/[0-9a-f]{64}$/),
+    );
+    expect(within(receipt).getByRole("link", { name: "11.10.2026 · 59,99 TL" })).toHaveAttribute(
+      "href",
+      expect.stringMatching(/^\/islemler\?satir=/),
+    );
+  });
+
+  it("names each bill's file in the detailed view", async () => {
+    localStorage.setItem("iplikci.view", "detailed");
+    renderScreen(<InvoicesPage />);
+    expect(await screen.findByText("Örnekenerji faturası.xml")).toBeInTheDocument();
   });
 
   it("opens the items a bill prints", async () => {

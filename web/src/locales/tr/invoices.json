@@ -1,0 +1,43 @@
+{
+  "title": "Faturalar",
+  "description": "Banka dışı göndericilerin e-postayla gelen faturaları ve makbuzları. Hiçbiri toplamlara girmez: harcama, onu ödeyen banka satırıyla sayılır.",
+  "counts": "{{total}} belge: {{pending}} bekliyor, {{unmatched}} eşleşmedi, {{matched}} eşleşti.",
+  "sayDue": "En yakın son ödeme {{day, onDay}}: {{seller}}, {{amount}}.",
+  "sayNone": "Bekleyen bir fatura yok; gelen her fatura ve makbuz onu ödeyen banka satırıyla eşleşti ya da bilgi olarak duruyor.",
+  "next": "Takvimi aç",
+  "empty": "Henüz fatura ya da makbuz yok",
+  "emptyBefore": "Banka dışı göndericileri (telefon, internet, enerji, abonelik)",
+  "emptyLink": "Sistem",
+  "emptyAfter": "sayfasından ekleyin; e-postayla gelen faturalar ve makbuzlar burada, onları ödeyen banka satırlarıyla görünür.",
+  "infoOnly": "Bilgi — toplamlara girmez",
+  "infoOnlyRow": "bilgi — toplamlara girmez",
+  "group": {
+    "pending": {
+      "title": "Bekliyor",
+      "about": "Ödeme günü gelmedi ya da banka belgeleri bu günlere henüz ulaşmadı; onu ödeyen satır gelince eşleşir. Son ödeme günü gelmemiş faturalar takvimde de görünür.",
+      "outcome": "Banka satırının arandığı günler",
+      "caption": "Bekleyen faturalar ve makbuzlar, ödeme gününe göre"
+    },
+    "unmatched": {
+      "title": "Eşleşmedi",
+      "about": "Aranan günler geçti ve banka belgeleri o günleri kapsıyor, ama onu ödeyen satır yok. Bunlar yalnızca bilgidir; hiçbir toplamı değiştirmez.",
+      "outcome": "Olası nedenler",
+      "caption": "Eşleşmeyen faturalar ve makbuzlar, en yenisi önce"
+    },
+    "matched": {
+      "title": "Eşleşti",
+      "about": "Her biri onu ödeyen banka satırıyla birlikte; harcama o satırla sayılır.",
+      "outcome": "Ödeyen banka satırı",
+      "caption": "Eşleşen faturalar ve makbuzlar, en yenisi önce"
+    }
+  },
+  "seller": "Satıcı",
+  "kind": "Tür",
+  "issued": "Tarih",
+  "due": "Son ödeme",
+  "amount": "Tutar",
+  "number": "No: {{number}}",
+  "noDue": "—",
+  "row": "{{day}} · {{amount}}",
+  "lines": "{{count}} kalem"
+}
