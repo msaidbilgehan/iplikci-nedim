@@ -5,6 +5,7 @@ commands. A secret is only taken in, never given back, and the e-mail address is
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
+from pathlib import Path
 
 from ..domain.codes import Actor, Channel, DocumentStatus, SetupStep
 from ..domain.labels import CHANNEL
@@ -195,9 +196,24 @@ class Progress:
     first_run: bool  # nothing set up yet: no name, no e-mail, no document; the interface opens the wizard
 
 
-def service_installed() -> bool:
-    """The service is registered with this computer's service manager (launchd, systemd or Task Scheduler)."""
-    return manager.for_platform().installed()
+def registered_home() -> Path | None:
+    """The data folder the service registered with this computer's service manager (launchd, systemd or Task
+    Scheduler) runs for; None when none is registered."""
+    try:
+        return manager.for_platform().home()
+    except manager.ManagerError:  # a system with no service manager this program knows
+        return None
+
+
+def _service_step(ws: Workspace) -> StepState:
+    """Registered for this data folder: one registered for another (a demo, a second folder) does not start this
+    one."""
+    registered = registered_home()
+    if registered is None:
+        return StepState(SetupStep.SERVICE, False, False, "Bu bilgisayara kayıtlı değil.")
+    if registered.resolve() != ws.home.resolve():
+        return StepState(SetupStep.SERVICE, False, False, "Bu bilgisayarda başka bir veri klasörü için kayıtlı.")
+    return StepState(SetupStep.SERVICE, True, False, "Bilgisayar açılınca kendiliğinden başlar.")
 
 
 def _mail_step(ws: Workspace, settings: config.Settings) -> StepState:
@@ -220,7 +236,6 @@ def progress(ws: Workspace) -> Progress:
     with ws.db() as db:
         kept = sum(d.status is not DocumentStatus.REMOVED for d in documents.every(db))
     ready = [c for c in notify.status(ws).channels if c.ready and c.channel is not Channel.IN_APP]
-    registered = service_installed()
     names, companies = settings.identity.names, settings.identity.business_names
     others = settings.mail.other_senders
     steps = [
@@ -243,12 +258,7 @@ def progress(ws: Workspace) -> Progress:
             True,
             "Hazır: " + ", ".join(CHANNEL[c.channel] for c in ready) if ready else "Yalnızca uygulama içi.",
         ),
-        StepState(
-            SetupStep.SERVICE,
-            registered,
-            False,
-            "Bilgisayar açılınca kendiliğinden başlar." if registered else "Bu bilgisayara kayıtlı değil.",
-        ),
+        _service_step(ws),
         StepState(
             SetupStep.REMOTE,
             settings.server.remote == "tailscale",

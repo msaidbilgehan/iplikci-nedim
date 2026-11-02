@@ -168,7 +168,7 @@ def test_backups_are_kept_for_one_day_to_a_year(client, ws):
 
 
 def test_the_wizard_says_where_each_step_stands_and_opens_on_the_first_run(client, ws, mail, monkeypatch):
-    monkeypatch.setattr(setup, "service_installed", lambda: False)
+    monkeypatch.setattr(setup, "registered_home", lambda: None)
     first = client.get("/api/setup", headers=bearer()).json()
     steps = {s["step"]: s for s in first["steps"]}
     assert list(steps)[:2] == ["data_folder", "names"] and steps["data_folder"]["note"] == str(ws.home)
@@ -179,8 +179,14 @@ def test_the_wizard_says_where_each_step_stands_and_opens_on_the_first_run(clien
 
 
 def test_without_anything_set_up_it_is_the_first_run(client, ws, monkeypatch):
-    monkeypatch.setattr(setup, "service_installed", lambda: True)
+    monkeypatch.setattr(setup, "registered_home", lambda: ws.home)
     found = client.get("/api/setup", headers=bearer()).json()
     assert found["first_run"]
     assert next(s for s in found["steps"] if s["step"] == "service")["done"]
+
+
+def test_a_service_registered_for_another_data_folder_does_not_count_for_this_one(client, ws, tmp_path, monkeypatch):
+    monkeypatch.setattr(setup, "registered_home", lambda: tmp_path / "baska-bir-klasor")
+    service = next(s for s in client.get("/api/setup", headers=bearer()).json()["steps"] if s["step"] == "service")
+    assert (service["done"], service["note"]) == (False, "Bu bilgisayarda başka bir veri klasörü için kayıtlı.")
     assert client.get("/api/settings", headers=bearer()).json()["bank_senders"]  # the shipped banks

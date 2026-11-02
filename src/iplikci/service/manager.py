@@ -15,8 +15,8 @@ import sys
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
-from xml.sax.saxutils import escape
+from typing import Protocol, cast
+from xml.sax.saxutils import escape, unescape
 
 from ..settings.paths import Layout
 from .logs import OUTPUT_NAME
@@ -125,7 +125,19 @@ class ServiceManager(Protocol):
 
     def installed(self) -> bool: ...
 
+    def home(self) -> Path | None:
+        """The data folder the registered service runs for; None when none is registered or it cannot be read."""
+        ...
+
     def restart(self) -> None: ...
+
+
+def _home_in(arguments: Sequence[str]) -> Path | None:
+    """The data folder a registered command line runs the service for: the value after --ev."""
+    found = list(arguments)
+    if "--ev" in found[:-1]:
+        return Path(found[found.index("--ev") + 1])
+    return None
 
 
 class Launchd:
@@ -175,6 +187,16 @@ class Launchd:
 
     def installed(self) -> bool:
         return self.path.exists()
+
+    def home(self) -> Path | None:
+        try:
+            agent: object = plistlib.loads(self.path.read_bytes())
+        except (OSError, plistlib.InvalidFileException, ValueError):  # none, or not one this program wrote
+            return None
+        if not isinstance(agent, dict):
+            return None
+        arguments = cast(dict[str, object], agent).get("ProgramArguments")
+        return _home_in([str(a) for a in cast(list[object], arguments)]) if isinstance(arguments, list) else None
 
     def restart(self) -> None:
         if not self._loaded():  # stopped for this session: load it again
@@ -255,6 +277,16 @@ class Systemd:
 
     def installed(self) -> bool:
         return self.path.exists()
+
+    def home(self) -> Path | None:
+        try:
+            text = self.path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            return None
+        for line in text.splitlines():
+            if line.startswith("WorkingDirectory="):  # the data folder, as unit() writes it
+                return Path(line.removeprefix("WorkingDirectory=").replace("%%", "%"))
+        return None
 
     def restart(self) -> None:
         self._systemctl("restart", f"{UNIT}.service")
@@ -353,6 +385,13 @@ class TaskScheduler:
 
     def installed(self) -> bool:
         return self._run(["schtasks", "/Query", "/TN", UNIT]).code == 0
+
+    def home(self) -> Path | None:
+        done = self._run(["schtasks", "/Query", "/TN", UNIT, "/XML"])
+        if done.code != 0:
+            return None
+        found = re.search(r"<WorkingDirectory>([^<]*)</WorkingDirectory>", done.out)  # the task task_xml() wrote
+        return Path(unescape(found.group(1))) if found else None
 
     def restart(self) -> None:
         self._run(["schtasks", "/End", "/TN", UNIT])  # fails harmlessly when it is not running

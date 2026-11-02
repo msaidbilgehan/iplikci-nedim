@@ -146,6 +146,25 @@ def test_the_windows_task_is_created_from_a_definition_that_does_not_stay_behind
     assert not list((program.home / "run").iterdir())
 
 
+def test_each_service_manager_says_which_data_folder_its_service_runs_for(tmp_path, program):
+    launchd = manager.Launchd(tmp_path, run=Tools({("launchctl", "print"): 113}), uid=501)
+    assert launchd.home() is None  # nothing registered
+    launchd.install(program)
+    assert launchd.home() == program.home
+    systemd = manager.Systemd(tmp_path, run=Tools(), env={"XDG_CONFIG_HOME": str(tmp_path / "ayar")})
+    assert systemd.home() is None
+    systemd.install(manager.Program(program.python, tmp_path / "%100 veri"))  # systemd's %-specifiers are escaped
+    assert systemd.home() == tmp_path / "%100 veri"
+    scheduler = manager.TaskScheduler(run=Tools(), env={"USERNAME": "deneme"})
+    xml = scheduler.task_xml(manager.Program(program.python, tmp_path / "Ali & Ayşe"))  # & is escaped in the XML
+
+    def schtasks(args: Sequence[str]) -> manager.Completed:
+        return manager.Completed(0, xml if "/XML" in args else "", "")
+
+    assert manager.TaskScheduler(run=schtasks).home() == tmp_path / "Ali & Ayşe"
+    assert manager.TaskScheduler(run=Tools({("schtasks", "/Query"): 1})).home() is None
+
+
 def test_each_system_has_its_service_manager():
     assert isinstance(manager.for_platform("darwin"), manager.Launchd)
     assert isinstance(manager.for_platform("linux"), manager.Systemd)
