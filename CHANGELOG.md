@@ -41,10 +41,28 @@ uygulama (PWA). Her ekran demo çalışma alanında, iki temada ve axe denetimiy
 - Takvim ekranı (`/takvim`): önümüzdeki 60 günde beklenen ödemeler ve gelirler, her biri serisine, faturalara ya da
   hesabına giden bağlantısıyla; her TL hesabın gün gün bakiye tahmini çizgi grafik ve tablo olarak, eksiye düştüğü gün
   işaretli; varsayımlar, hiçbir hesaba düşülmeyen kalemler ve öngörüye girmeyen hesaplar. İkisi de "Tahmin" etiketli.
+- Değerlendirme ekranı (`/degerlendirme`): MVP raporunun kartları, dönem seçenekleri ve İşlemler süzgeçleriyle;
+  süzgeçler adreste durur. Özet kutuları ve toplama girmeyenler; öne çıkanlar satırlarıyla, aylık etkisiyle adımlar
+  ve bütçe; aylık giderler grup ve gereklilik başına ısı tablosuyla; alışkanlıklar; gelir ve gider; üç aylık tahmin
+  kalem kalem; kategoriler ve en çok harcanan yerler, her biri satırlarına giderek; büyük tek seferlikler ayrı tutulan
+  eğilim ve olağan dışı hareketler; net varlık, ay sonu, düzenli ödemeler ve verinin kapsamı. Belgelerin yalnızca bir
+  kısmını kapsadığı ay soluk çizilir, "eksik" yazar ve hiçbir ortalamaya girmez; rapor ve Excel dosyası başlıktan
+  indirilir.
+- Ay sonu ekranları (`/ay-sonu`, `/ay-sonu/:ay`): içinde bulunulan ay ve önceki on iki ay, durumlarıyla (sürüyor,
+  eksik, kontrol gerekli, bekleniyor, kapandı) ve kapanışları bir cümleyle. Ayın sayfasında hesap başına kapanış ve
+  neyin beklendiği ("19–31 Ekim ekstresi, kesim ~18.11"); iki ay da kapanmışsa önceki ve tipik ayla karşılaştırılan
+  toplamlar; son on iki ayın harcaması; paranın gittiği gruplar ve en çok harcanan yerler, ayrıntılı görünümde
+  gereklilik düzeyleri, bütün kategoriler ve yerler, her biri ayın satırlarına giderek; ödenen ve beklenen düzenli
+  ödemeler, büyük alışverişler, geçici kayıtlar ve ekstrede görünmeyen dekontlar; ayların betiksiz sayfaları. Pano'nun
+  kapanış kartı ve akışın ay olayları ayın sayfasına gider.
 - Döviz ekranı (`/doviz`): net varlık TL, euro, dolar ve gram altın cinsinden, belgelerin kendi kurlarıyla; kuru
   belgelerde olmayan birim sıfır gösterilmez, nedeni yazar. Varlıkların para birimlerine dağılımı grafik ve tablo
   olarak; her varlık ve borç kendi biriminde ve TL karşılığıyla, ayrıntılı görünümde kuru, maliyeti ve kur farkıyla;
   belgelerin yazdığı kurlar, her birimin en yenisi ve hepsi.
+- Bildirimler ekranı yeni düzende: sade görünümde her kart ne tuttuğunu bir cümleyle söyler (görülmemiş bildirimler,
+  bildirimlerin gittiği yerler ve sessiz saat, Telegram'ın beklediği adım, açık kurallar, gidenler ve bekleyenler);
+  ayrıntılı görünüm teslim kaydının tablosunu, her bildirimin olayını ve ilgili sayfasını, kanalların durumunu ve
+  kuralların olay kodunu ekler. Telegram'ı kaldırmak ve kural silmek uygulamanın kendi onay penceresiyle sorulur.
 - API: akışın sayfaları ve "Şu an" (`GET /api/feed`, `GET /api/feed/now`), pano kartları (`GET /api/dashboard`),
   hesap grupları, hesap sayfası, hesaplar arası akış ve hesaba verilen ad (`GET /api/accounts…`,
   `PUT /api/accounts/{id}/alias`).
