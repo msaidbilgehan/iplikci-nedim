@@ -15,6 +15,7 @@ const SCREENS = [
   { path: "/belgeler", heading: "Belgeler" },
   { path: "/abonelikler", heading: "Abonelikler" },
   { path: "/takvim", heading: "Takvim" },
+  { path: "/degerlendirme", heading: "Değerlendirme" },
   { path: "/faturalar", heading: "Faturalar" },
   { path: "/bildirimler", heading: "Bildirimler" },
   { path: "/kurulum/eklenti", heading: "Tarayıcı eklentisi" },

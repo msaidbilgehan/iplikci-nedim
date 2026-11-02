@@ -27,9 +27,10 @@ interface HBarsProps {
   itemName: string; // what the rows are, the table's first column: "Kategori", "İşyeri"
   items: readonly BarItem[]; // in the order to show, the largest first
   currency?: string;
+  table?: ReactNode; // the table view, when the caller's says more (each row's average, count and rows)
 }
 
-export function HBars({ title, summary, itemName, items, currency = "TRY" }: HBarsProps) {
+export function HBars({ title, summary, itemName, items, currency = "TRY", table: ownTable }: HBarsProps) {
   const { t } = useTranslation("charts");
   const summaryId = useId();
   const shares = barShares(items.map((item) => item.value));
@@ -65,7 +66,7 @@ export function HBars({ title, summary, itemName, items, currency = "TRY" }: HBa
     </ol>
   );
 
-  const table = (
+  const table = ownTable ?? (
     <Table>
       <caption className="sr-only">{title}</caption>
       <thead>

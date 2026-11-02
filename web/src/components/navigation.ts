@@ -41,7 +41,7 @@ export const MENU: readonly ScreenGroup[] = [
   {
     key: "analysis", // what the numbers mean: the assessment and each month's closing
     screens: [
-      { to: "/degerlendirme", key: "insights", ready: false },
+      { to: "/degerlendirme", key: "insights", ready: true },
       { to: "/ay-sonu", key: "monthEnd", ready: false },
     ],
   },

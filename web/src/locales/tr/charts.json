@@ -17,6 +17,15 @@
   "forecast": "tahmin",
   "forecastLegend": "Soluk sütunlar: tahmin",
   "forecastMonth": "{{month}} (tahmin)",
+  "partial": "eksik",
+  "partialLegend": "Soluk sütunlar: eksik aylar, ortalamaya girmez",
+  "partialMonth": "{{month}} (eksik ay)",
+  "heat": {
+    "average": "Aylık ortalama ({{count}} tam ay)",
+    "noAverage": "Aylık ortalama: tam ay yok",
+    "scaleLow": "Az",
+    "scaleHigh": "Çok — renk koyuluğu her sütunun kendi en yüksek ayına göredir; eksik aylar ortalamaya girmez."
+  },
   "reference": "{{label}}: {{amount}}",
   "belowZero": "Sıfırın altı: eksi bakiye",
   "sankeyUnavailable": "Bu akış diyagram olarak çizilemiyor; Tablo görünümü her akışı gösterir.",

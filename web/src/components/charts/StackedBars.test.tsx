@@ -85,6 +85,24 @@ describe("StackedBars", () => {
     expect(screen.getByRole("cell", { name: "Ekim 2026 (tahmin)" })).toBeInTheDocument();
   });
 
+  it("marks a month the documents cover only partly: lighter, its word above it, named so in the table", async () => {
+    const { container } = renderChart({ partial: ["2026-09"] });
+    expect(within(screen.getByRole("img")).getByText("eksik")).toBeInTheDocument();
+    expect(screen.getByText("Soluk sütunlar: eksik aylar, ortalamaya girmez")).toBeInTheDocument();
+    expect(container.querySelectorAll("path[fill-opacity='0.55']")).toHaveLength(3);
+    await userEvent.click(screen.getByRole("tab", { name: "Tablo" }));
+    expect(screen.getByRole("cell", { name: "Eylül 2026 (eksik ay)" })).toBeInTheDocument();
+  });
+
+  it("names a column's sum as the caller says, and shows the caller's table instead of its own", async () => {
+    const { container } = renderChart({ totalLabel: "Net", table: <p>Isı tablosu</p> });
+    fireEvent.pointerEnter(container.querySelectorAll("rect[fill='transparent']")[2] as Element);
+    expect(screen.getByText("Net")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("tab", { name: "Tablo" }));
+    expect(screen.getByText("Isı tablosu")).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
   it("draws the reference line the caller gives, and no average of its own", () => {
     renderChart({ reference: { label: "Tipik ay", value: 480_000 } });
     expect(within(screen.getByRole("img")).getByText("Tipik ay: 4,8 bin TL")).toBeInTheDocument();

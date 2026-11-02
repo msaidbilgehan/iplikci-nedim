@@ -16,7 +16,15 @@ function link(screen: Destination["screen"], id = "", query: Record<string, stri
 
 describe("hrefOf", () => {
   beforeEach(() => {
-    built.screens = new Set(["transactions", "calendar", "documents", "subscriptions", "invoices", "system"]);
+    built.screens = new Set([
+      "transactions",
+      "calendar",
+      "documents",
+      "subscriptions",
+      "invoices",
+      "system",
+      "insights",
+    ]);
     Object.assign(built.details, { document: true, account: false, month: false });
   });
 
@@ -33,6 +41,7 @@ describe("hrefOf", () => {
     );
     expect(hrefOf(link("documents", "", { status: "unreadable" }))).toBe("/belgeler?status=unreadable");
     expect(hrefOf(link("system"))).toBe("/sistem");
+    expect(hrefOf(link("insights"))).toBe("/degerlendirme");
   });
 
   it("opens one item of a list screen by its id", () => {
@@ -52,7 +61,7 @@ describe("hrefOf", () => {
     expect(hrefOf(link("account", "teb-123456789"))).toBeNull(); // the account's page
     expect(hrefOf(link("month", "2026-10"))).toBeNull();
     expect(hrefOf(link("todo", "missing_documents"))).toBeNull();
-    expect(hrefOf(link("insights"))).toBeNull();
+    expect(hrefOf(link("fx"))).toBeNull();
     built.details.document = false;
     expect(hrefOf(link("document", "a".repeat(64)))).toBeNull();
   });

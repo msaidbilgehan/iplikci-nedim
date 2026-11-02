@@ -27,6 +27,7 @@ import type {
   FeedPage,
   Flows,
   Forecast,
+  Insights,
   InvoiceItem,
   Invoices,
   Labels,
@@ -39,6 +40,7 @@ import type {
   OtherSenders,
   Row,
   Series,
+  Spending,
   Subscriptions,
   SystemStatus,
   TransactionDetail,
@@ -145,11 +147,31 @@ export const LABELS: Labels = {
   MonthStatus: { closed: "Kapandı", waiting: "Ekstre bekleniyor", missing: "Belge eksik", running: "Ay sürüyor" },
   TransactionKind: {
     purchase: "Harcama",
+    refund: "İade / indirim",
     income: "Gelir",
     interest_fee: "Faiz & banka ücreti",
     own_transfer: "Kendi hesapları arası",
+    p2p_transfer: "Kişilere gönderilen para",
+    loan_principal: "Kredi & borç anapara ödemesi",
+    cash_advance: "Nakit avans / çekim",
+    card_payment_no_statement: "Ekstresi olmayan kart ödemesi",
   },
   Necessity: { required: "Gerekli", optional: "İsteğe bağlı", unnecessary: "Gereksiz", unknown: "Belirsiz" },
+  Tone: { attention: "Dikkat", info: "Bilgi", good: "İyi" },
+  HabitStatus: {
+    monthly: "Her ay",
+    new: "Yeni alışkanlık",
+    occasional: "Ara sıra",
+    stopped: "Durdu",
+    one_off: "Tek seferlik",
+  },
+  UnusualKind: {
+    unusual_amount: "Alışılmadık tutar",
+    possible_duplicate: "Olası çift çekim",
+    new_large: "Yeni bir yerde büyük tutar",
+    unexpected_fee: "Beklenmedik ücret",
+  },
+  ForecastPart: { regular: "Düzenli ödemeler", installments: "Kalan taksitler", variable: "Değişken harcamalar" },
   CategoryReason: {
     rule: "Kategori kuralı",
     own_transfer: "Kendi hesaplarınız arası",
@@ -1380,6 +1402,293 @@ export const DASHBOARD: Dashboard = {
   },
 };
 
+// --- the Değerlendirme screen (F10) ---------------------------------------------------------------------------------
+
+/** A month table's row: its values in kuruş, one per slice. */
+function monthRow(month: string, values: number[], partial = false) {
+  return { month, values: values.map(tl), partial };
+}
+
+const rowsOf = (query: Record<string, string>) => ({ screen: "transactions" as const, id: "", query });
+const SIX = ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10"];
+const WHOLE_MONTHS = SIX.filter((month) => month !== "2026-07");
+const AHEAD = ["2026-11", "2026-12", "2027-01"];
+// The spending by necessity level, July covered only partly: the same months for the period and the forecast.
+const LEVEL_MONTHS = [
+  monthRow("2026-05", [1800000, 199000, 1000]),
+  monthRow("2026-06", [1800000, 199000, 1000]),
+  monthRow("2026-07", [100000, 850000, 0], true),
+  monthRow("2026-08", [1800000, 199000, 1000]),
+  monthRow("2026-09", [1800000, 199000, 1000]),
+  monthRow("2026-10", [1900000, 216000, 4000]),
+];
+const LEVELS = [
+  { key: "required", slot: 1 },
+  { key: "optional", slot: 4 },
+  { key: "unnecessary", slot: 5 },
+];
+
+function flowMonth(month: string, income: number, expense: number, rest: { people?: number; debt?: number } = {}) {
+  const people = rest.people ?? 0;
+  const debt = rest.debt ?? 0;
+  return {
+    month,
+    partial: month === "2026-07",
+    income: tl(income),
+    expense: tl(expense),
+    net: tl(income - expense),
+    people: tl(people),
+    debt: tl(debt),
+    saving: tl(0),
+    left: tl(income - expense - people - debt),
+  };
+}
+
+// May to October 2026 with July covered only partly: 110.700,00 TL over 60 rows, 20.240,00 TL a whole month; the
+// income known from account lists; four categories and merchants; a forecast whose two market lines share a payee.
+export const SPENDING: Spending = {
+  period: { start: "2026-05", end: "2026-10", first: "2026-01", last: "2026-10" },
+  tiles: {
+    total: tl(11070000),
+    count: 60,
+    average: tl(2024000),
+    average_months: 5,
+    partial_months: 1,
+    income_average: tl(4000000),
+    income_months: 5,
+    income_share: "0.506",
+    unnecessary: tl(8000),
+    last_month: "2026-10",
+    last_total: tl(2120000),
+    last_partial: false,
+    last_change: "0.06",
+  },
+  by_group: {
+    slices: [
+      { key: "Yeme & İçme", slot: 1 },
+      { key: "Ev & Faturalar", slot: 3 },
+      { key: "Alışveriş", slot: 5 },
+    ],
+    months: [
+      monthRow("2026-05", [400000, 1600000, 0]),
+      monthRow("2026-06", [420000, 1580000, 0]),
+      monthRow("2026-07", [100000, 0, 850000], true),
+      monthRow("2026-08", [400000, 1600000, 0]),
+      monthRow("2026-09", [380000, 1620000, 0]),
+      monthRow("2026-10", [410000, 1610000, 100000]),
+    ],
+  },
+  by_level: { slices: LEVELS, months: LEVEL_MONTHS },
+  categories: [
+    { category: "Kira", group: "Ev & Faturalar", slot: 3, total: tl(7500000), share: "0.6775", count: 5 },
+    { category: "Market & Gıda", group: "Yeme & İçme", slot: 1, total: tl(2110000), share: "0.1906", count: 40 },
+    { category: "Elektronik", group: "Alışveriş", slot: 5, total: tl(950000), share: "0.0858", count: 2 },
+    { category: "Elektrik", group: "Ev & Faturalar", slot: 3, total: tl(510000), share: "0.0461", count: 5 },
+  ].map((line) => ({
+    ...line,
+    average: tl(Math.round(line.total.minor / 5)),
+    link: rowsOf({ category: line.category }),
+  })),
+  merchants: [
+    ["Ev Sahibi Örnek", "Kira", "Ev & Faturalar", 3, 5, 7500000, "2026-10-03"],
+    ["Örnek Market", "Market & Gıda", "Yeme & İçme", 1, 40, 2110000, "2026-10-28"],
+    ["Örnek Teknoloji", "Elektronik", "Alışveriş", 5, 2, 950000, "2026-10-12"],
+    ["Örnek Elektrik", "Elektrik", "Ev & Faturalar", 3, 5, 510000, "2026-10-20"],
+  ].map(([merchant, category, group, slot, count, total, last]) => ({
+    merchant: String(merchant),
+    category: String(category),
+    group: String(group),
+    slot: Number(slot),
+    count: Number(count),
+    last: String(last),
+    total: tl(Number(total)),
+    per_row: tl(Math.round(Number(total) / Number(count))),
+    link: rowsOf({ merchant: String(merchant) }),
+  })),
+  flow: [
+    flowMonth("2026-05", 4000000, 2000000),
+    flowMonth("2026-06", 4000000, 2000000, { people: 50000 }),
+    flowMonth("2026-07", 0, 950000),
+    flowMonth("2026-08", 4000000, 2000000),
+    flowMonth("2026-09", 4000000, 2000000, { debt: 100000 }),
+    flowMonth("2026-10", 4000000, 2120000),
+  ],
+  forecast: {
+    base: WHOLE_MONTHS,
+    months: AHEAD,
+    lines: [
+      ["regular", "Ev kirası", "Kira · son ödeme 03.10.2026", "required", "Ev & Faturalar", 3, 1500000],
+      ["regular", "Örnek Market", "Market & Gıda · son ödeme 12.10.2026", "required", "Yeme & İçme", 1, 200000],
+      ["regular", "Örnek Market", "Market & Gıda · son ödeme 28.10.2026", "required", "Yeme & İçme", 1, 180000],
+      ["installments", "Örnek Elektronik", "Örnek Kart •1234 · 12 taksit", "optional", "Alışveriş", 5, 50000],
+      ["variable", "Gereksiz", "aylık 10,00 TL ile 40,00 TL arasında", "unnecessary", "", 5, 1000],
+    ].map(([part, label, note, necessity, group, slot, amount]) => ({
+      part: part as "regular" | "installments" | "variable",
+      label: String(label),
+      note: String(note),
+      necessity: necessity as "required" | "optional" | "unnecessary",
+      group: String(group),
+      slot: Number(slot),
+      amounts: AHEAD.map(() => tl(Number(amount))),
+      link: group ? rowsOf({ merchant: String(label) }) : rowsOf({ necessity: String(necessity) }),
+    })),
+    totals: AHEAD.map(() => tl(1931000)),
+    by_level: { slices: LEVELS, months: AHEAD.map((month) => monthRow(month, [1880000, 50000, 1000])) },
+    actual: { slices: LEVELS, months: LEVEL_MONTHS },
+    income: tl(4000000),
+    income_names: ["Örnek İşveren A.Ş."],
+    saving: tl(0),
+    saving_names: [],
+    other: tl(25000),
+    left: tl(2044000),
+  },
+};
+
+const DUPLICATE = "c2c2c2c2c2c2c2c2c2c2";
+const LARGE_ROW = "b1b1b1b1b1b1b1b1b1b1";
+
+// The interpretation over the five whole months: two highlights (one about the whole picture), a priced and an unpriced
+// step, a short budget, three habits (one a one-off), the trend with a large purchase, and a possible double charge.
+export const INSIGHTS: Insights = {
+  window: { months: WHOLE_MONTHS, as_of: "2026-10-31", last_complete: "2026-10" },
+  findings: [
+    {
+      tone: "attention",
+      title: "Faiz ve banka ücretleri",
+      text: "5 ayda 80 TL, ayda 16 TL: Kart ücretleri 80 TL. Borç zamanında ve tam ödenince bunların hepsi sıfırlanır.",
+      link: rowsOf({ kind: "interest_fee" }),
+    },
+    {
+      tone: "good",
+      title: "Gelir ve gider dengesi",
+      text: "Mayıs 2026 – Ekim 2026 arasındaki 5 tam ayda ortalama gelir 40.000 TL, gider 20.240 TL (gelirin %51'i).",
+      link: { screen: "insights", id: "", query: {} },
+    },
+  ],
+  steps: [
+    {
+      title: "Abonelikleri gözden geçirin",
+      text: "İsteğe bağlı abonelikler ayda 100 TL: Örnek Müzik 100 TL. Kullanmadığınızı iptal edin.",
+      monthly: tl(9999),
+    },
+    {
+      title: "Acil durum fonu",
+      text: "Zorunlu giderler ayda yaklaşık 18.800 TL; 3 aylık tampon 56.400 TL eder.",
+      monthly: null,
+    },
+  ],
+  budget: [
+    { label: "Düzenli gelir", now: tl(4000000), plan: tl(4000000), note: "son maaş (Örnek İşveren A.Ş.)" },
+    { label: "Sabit ödemeler", now: tl(1880000), plan: tl(1880000), note: "4 düzenli ödeme, son tutarlarıyla" },
+    { label: "Faiz ve banka ücretleri", now: tl(1600), plan: tl(0), note: "öneri: borcu tam ödeyerek sıfırlayın" },
+    { label: "Ay sonunda kalan", now: tl(2118400), plan: tl(2120000), note: "birikime ve acil durum fonuna" },
+  ],
+  habits: [
+    {
+      name: "Kart ücretleri",
+      category: "Kart ücretleri",
+      necessity: "unnecessary",
+      by_category: true,
+      status: "monthly",
+      pattern: "5 ayın 5 ayında, 5 işlem",
+      count: 5,
+      months: 5,
+      span: 5,
+      total: tl(8000),
+      recent: tl(1600),
+      monthly: tl(1600),
+      last: "2026-10-05",
+      link: rowsOf({ category: "Kart ücretleri" }),
+    },
+    {
+      name: "Örnek Kahve",
+      category: "Kafe & Kahve",
+      necessity: "optional",
+      by_category: false,
+      status: "occasional",
+      pattern: "5 ayın 3 ayında, 4 işlem",
+      count: 4,
+      months: 3,
+      span: 5,
+      total: tl(60000),
+      recent: tl(10000),
+      monthly: tl(12000),
+      last: "2026-10-18",
+      link: rowsOf({ merchant: "Örnek Kahve" }),
+    },
+    {
+      name: "Örnek Teknoloji",
+      category: "Elektronik",
+      necessity: "optional",
+      by_category: false,
+      status: "one_off",
+      pattern: "1 alışveriş, 15.07.2026",
+      count: 1,
+      months: 1,
+      span: 5,
+      total: tl(850000),
+      recent: tl(0),
+      monthly: tl(0),
+      last: "2026-07-15",
+      link: rowsOf({ merchant: "Örnek Teknoloji" }),
+    },
+  ],
+  flow: {
+    months: WHOLE_MONTHS,
+    income: tl(4000000),
+    expense: tl(2024000),
+    people: tl(10000),
+    unnamed_people: tl(0),
+    debt: tl(20000),
+    saving: tl(0),
+    fx: tl(0),
+    left: tl(1946000),
+    debt_start: tl(0),
+    debt_end: tl(0),
+    other_typical: tl(25000),
+  },
+  trend: {
+    before: ["2026-05", "2026-06"],
+    recent: ["2026-08", "2026-09", "2026-10"],
+    before_average: tl(2000000),
+    recent_average: tl(2040000),
+    usual_before: tl(2000000),
+    usual_recent: tl(1823333),
+    changes: [
+      { category: "Kira", before: tl(1500000), recent: tl(1500000) },
+      { category: "Market & Gıda", before: tl(410000), recent: tl(396667) },
+      { category: "Elektrik", before: tl(90000), recent: tl(104000) },
+    ],
+    large: [
+      row({
+        fingerprint: LARGE_ROW,
+        day: "2026-09-21",
+        title: "Örnek Mobilya",
+        merchant: "Örnek Mobilya",
+        amount: tl(650000),
+        category: "Mobilya",
+        certainty: "confirmed",
+      }),
+    ],
+    threshold: tl(500000),
+  },
+  income: [{ name: "Örnek İşveren A.Ş.", monthly: tl(4000000), last: "2026-10-01", status: "active" }],
+  unusual: [
+    {
+      kind: "possible_duplicate",
+      row: row({
+        fingerprint: DUPLICATE,
+        day: "2026-10-14",
+        title: "Örnek Kafe",
+        merchant: "Örnek Kafe",
+        amount: tl(9000),
+      }),
+      text: "Aynı gün aynı tutarda iki çekim: 14.10.2026, 90,00 TL. Biri iade edilmediyse bankaya sorun.",
+      link: { screen: "transaction", id: DUPLICATE, query: {} },
+    },
+  ],
+};
+
 // --- the Transactions screen (F04) ----------------------------------------------------------------------------------
 
 export const STATEMENT = "d".repeat(64); // a card statement, a PDF
@@ -2014,6 +2323,8 @@ function edge(source: string, target: string, minor: number, rows: number, kinds
 export const handlers = [
   http.get("/api/labels", () => HttpResponse.json(LABELS)),
   http.get("/api/dashboard", () => HttpResponse.json(DASHBOARD)),
+  http.get("/api/spending", () => HttpResponse.json(SPENDING)),
+  http.get("/api/insights", () => HttpResponse.json(INSIGHTS)),
   http.get("/api/feed", ({ request }) =>
     HttpResponse.json(new URL(request.url).searchParams.get("before") === "27" ? FEED_OLDER : FEED_FIRST),
   ),

@@ -47,6 +47,7 @@ describe("Layout", () => {
     const expected: Record<string, string[]> = {
       Bugün: ["/", "/akis"],
       Para: ["/hesaplar", "/islemler", "/abonelikler", "/takvim"],
+      Analiz: ["/degerlendirme"],
       Arşiv: ["/belgeler", "/faturalar"],
       Uygulama: ["/bildirimler", "/sistem"],
       Kurulum: ["/kurulum/eklenti"],
@@ -57,9 +58,8 @@ describe("Layout", () => {
       const links = within(within(menu()).getByRole("list", { name })).getAllByRole("link");
       expect(links.map((link) => link.getAttribute("href"))).toEqual(addresses);
     }
-    // A screen that is not built yet has no way in, nor does a group without one.
+    // A screen that is not built yet has no way in.
     expect(within(menu()).queryByRole("link", { name: "Döviz" })).not.toBeInTheDocument();
-    expect(within(menu()).queryByText("Analiz")).not.toBeInTheDocument();
   });
 
   it("shows every screen of a group once it is built", () => {

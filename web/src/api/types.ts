@@ -11,20 +11,36 @@ import type {
   AccountsOut,
   AliasOut,
   BrokerageOut,
+  BudgetLineOut,
   CardPageOut,
+  CategoryLineOut,
   CurvePointOut,
   DepositOut,
   FeesOut,
+  FindingOut,
   FlowEdgeOut,
   FlowKind,
+  FlowMonthOut,
   FlowNodeOut,
+  FlowOut,
   FlowsOut,
+  ForecastPart,
   GroupOut,
+  HabitOut,
+  HabitStatus,
   HoldingOut,
+  InsightsOut,
   LoanOut,
+  MerchantLineOut,
+  MonthRowOut,
+  MonthTableOut,
   MonthTotalsOut,
   OverdraftOut,
   PaidStatus,
+  PeriodOut,
+  SpendingForecastLineOut,
+  SpendingForecastOut,
+  SpendingOut,
   StatementOut,
   AlertOut,
   AnnotationOut,
@@ -104,15 +120,21 @@ import type {
   SeriesStatus,
   SourceRefOut,
   StatementCheckOut,
+  StepOut,
   SubscriptionsOut,
   SystemOut,
   TelegramCheckOut,
   TelegramPairingOut,
   TelegramTokenOut,
+  TilesOut,
   TodoSummaryOut,
+  Tone,
   TotalsOut,
   TransactionDetailOut,
   TransactionsOut,
+  TrendOut,
+  UnusualKind,
+  UnusualOut,
   UploadOut,
   ViewKind,
   ViewModel,
@@ -237,6 +259,28 @@ export type Printed = PrintedOut;
 export type Reparsed = ReparsedOut;
 export type Removed = RemovedOut;
 export type { ViewKind };
+
+// The Değerlendirme screen (F10): the spending the filters keep, card by card, and the interpretation no filter
+// changes, each part with its window and numbers.
+export type Spending = SpendingOut;
+export type SpendingTiles = TilesOut;
+export type SpendingPeriod = PeriodOut;
+export type MonthTable = MonthTableOut;
+export type MonthRow = MonthRowOut;
+export type CategoryLine = CategoryLineOut;
+export type MerchantLine = MerchantLineOut;
+export type FlowMonth = FlowMonthOut;
+export type SpendingForecast = SpendingForecastOut;
+export type ForecastLine = SpendingForecastLineOut;
+export type Insights = InsightsOut;
+export type Finding = FindingOut;
+export type InsightStep = StepOut;
+export type BudgetLine = BudgetLineOut;
+export type Habit = HabitOut;
+export type MoneyFlow = FlowOut;
+export type Trend = TrendOut;
+export type Unusual = UnusualOut;
+export type { ForecastPart, HabitStatus, Tone, UnusualKind };
 
 // The dashboard (F06): every card with its plain-view sentence (`say`) and the screen it leads to (`link`).
 export type Dashboard = DashboardOut;

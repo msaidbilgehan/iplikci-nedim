@@ -6,6 +6,7 @@ import {
   type QueryClient,
   useInfiniteQuery,
   useMutation,
+  useQueries,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
@@ -36,6 +37,7 @@ import type {
   FeedPage,
   Flows,
   Forecast,
+  Insights,
   Invoices,
   Labels,
   Notifications,
@@ -52,6 +54,7 @@ import type {
   RuleChange,
   RuleEdit,
   SavedView,
+  Spending,
   Subscriptions,
   SystemStatus,
   TelegramBot,
@@ -76,6 +79,9 @@ export const keys = {
   transactions: (query: string) => ["transactions", "list", query] as const,
   transaction: (fingerprint: string) => ["transactions", "row", fingerprint] as const,
   views: ["views", "transactions"] as const, // the user's own, which no analysis moves
+  allSpending: ["spending"] as const, // the Değerlendirme screen's cards, every filter's: a new analysis moves them
+  spending: (query: string) => ["spending", query] as const,
+  insights: ["insights"] as const,
   categoryRules: ["rules", "categories"] as const,
   documentDetail: (sha256: string) => ["documents", sha256, "detail"] as const,
   documentView: (sha256: string) => ["documents", sha256, "view"] as const,
@@ -387,12 +393,62 @@ export function useSaveRule() {
 
 /**
  * What a new analysis moves beyond the rows: the regular payments, the days ahead and the balances they expect, what
- * stands now, the dashboard and the accounts' pages (which list the payments made from them).
+ * stands now, the dashboard, the accounts' pages (which list the payments made from them) and the assessment.
  */
 export function refreshOutlook(client: QueryClient): void {
-  for (const key of [keys.subscriptions, keys.calendar, keys.forecast, keys.feedAll, keys.dashboard, keys.accounts]) {
+  for (const key of [
+    keys.subscriptions,
+    keys.calendar,
+    keys.forecast,
+    keys.feedAll,
+    keys.dashboard,
+    keys.accounts,
+    keys.allSpending,
+    keys.insights,
+  ]) {
     void client.invalidateQueries({ queryKey: key });
   }
+}
+
+// --- the Değerlendirme screen (F10) ---------------------------------------------------------------------------------
+
+/**
+ * The spending the filters keep, card by card (query is the Transactions screen's filters, in the API's names). The
+ * cards keep showing while another filter's arrive.
+ */
+export function useSpending(query: string, enabled = true) {
+  return useQuery({
+    queryKey: keys.spending(query),
+    queryFn: () => api.get<Spending>(`/api/spending?${query}`),
+    placeholderData: keepPreviousData,
+    enabled,
+  });
+}
+
+/** The interpretation over the complete months, which no filter changes. */
+export function useInsights() {
+  return useQuery({ queryKey: keys.insights, queryFn: () => api.get<Insights>("/api/insights") });
+}
+
+/**
+ * The totals of the rows of each kind the spending leaves out, as the Transactions screen counts them with the same
+ * filters (query, without a kind) and one kind each: what "Toplama dahil değil" offers to add.
+ */
+export function useKindTotals(query: string, kinds: readonly string[], enabled = true) {
+  return useQueries({
+    queries: kinds.map((kind) => {
+      const params = new URLSearchParams(query);
+      params.set("kind", kind);
+      params.set("limit", "1");
+      const asked = params.toString();
+      return {
+        queryKey: keys.transactions(asked),
+        queryFn: () => api.get<TransactionPage>(`${TRANSACTIONS}?${asked}`),
+        placeholderData: keepPreviousData,
+        enabled,
+      };
+    }),
+  });
 }
 
 // --- a document as the viewer shows it (F03) ------------------------------------------------------------------------

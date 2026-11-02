@@ -1,9 +1,10 @@
 // Monthly stacks — by group or by necessity level — as the MVP report drew them (rapor.js stackedChart): each series in
 // its fixed colour slot, 2 px of the card between stacked segments, the data end rounded by 4 px; what is below zero
 // hangs under the axis, so its sign shows in its place and not in its colour alone. Months from `forecastFrom` on are
-// a forecast: lighter, after a dashed line marked "tahmin". A reference line (the typical month, from complete months
-// only) is the caller's to give; the chart computes no average of its own. The pointer shows a month's values; the
-// table view shows them all.
+// a forecast: lighter, after a dashed line marked "tahmin". A month the documents cover only partly is lighter too and
+// marked "eksik". A reference line (the typical month, from complete months only) is the caller's to give; the chart
+// computes no average of its own. The pointer shows a month's values; the table view shows them all, or what the
+// caller gives instead (a heat table).
 
 import { type ReactNode, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -30,7 +31,12 @@ interface StackedBarsProps {
   months: readonly MonthValues[];
   currency?: string;
   forecastFrom?: string; // the first month that is a forecast
+  // Months the documents cover only partly (or a period cuts): drawn lighter and marked "eksik"; an average the
+  // caller gives leaves them out.
+  partial?: readonly string[];
   reference?: { label: string; value: number }; // a line across the chart, minor units
+  totalLabel?: string; // what a column's sum is called: "Toplam", or "Net" for money in above and out below
+  table?: ReactNode; // the table view, when the caller's says more than the months' values (a heat table)
   height?: number;
 }
 
@@ -44,7 +50,10 @@ export function StackedBars({
   months,
   currency = "TRY",
   forecastFrom,
+  partial = [],
   reference,
+  totalLabel,
+  table: ownTable,
   height = 280,
 }: StackedBarsProps) {
   const { t } = useTranslation("charts");
@@ -55,10 +64,15 @@ export function StackedBars({
   const shown = series.filter((s) => months.some((m) => (m.values[s.key] ?? 0) !== 0));
   const forecastIndex = forecastFrom ? months.findIndex((m) => m.month >= forecastFrom) : -1;
   const isForecast = (index: number) => forecastIndex >= 0 && index >= forecastIndex;
+  const isPartial = (index: number) => partial.includes(months[index]?.month ?? "");
   const monthName = (index: number) => {
     const name = formatMonth(months[index]?.month ?? "");
-    return isForecast(index) ? t("forecastMonth", { month: name }) : name;
+    if (isForecast(index)) {
+      return t("forecastMonth", { month: name });
+    }
+    return isPartial(index) ? t("partialMonth", { month: name }) : name;
   };
+  const sumName = totalLabel ?? t("total");
 
   const size = { width: Math.max(280, width), height };
   const layout = stackLayout(
@@ -117,11 +131,26 @@ export function StackedBars({
                 key={segment.series.key}
                 d={segment.d}
                 className={SLOT_FILL[segment.series.slot]}
-                fillOpacity={isForecast(column.index) ? 0.42 : undefined}
+                fillOpacity={isForecast(column.index) ? 0.42 : isPartial(column.index) ? 0.55 : undefined}
               />
             ))}
           </g>
         ))}
+        {layout.band >= 26
+          ? layout.columns
+              .filter((column) => isPartial(column.index) && !isForecast(column.index))
+              .map((column) => (
+                <text
+                  key={column.key}
+                  x={column.center}
+                  y={plot.top - 12}
+                  textAnchor="middle"
+                  className={cn("fill-chart-ink-2 text-[11px] font-semibold", HALO)}
+                >
+                  {t("partial")}
+                </text>
+              ))
+          : null}
         {forecastIndex > 0 ? (
           <g>
             <line
@@ -220,22 +249,24 @@ export function StackedBars({
               value: formatMoney(money(value)),
               swatch: <span className={cn("size-2.5 shrink-0 rounded-sm", SLOT_BG[s.slot])} />,
             }))}
-          total={{ label: t("total"), value: formatMoney(money(activeColumn.total)) }}
+          total={{ label: sumName, value: formatMoney(money(activeColumn.total)) }}
         />
       ) : null}
     </div>
   );
 
+  const marked = months.some((_, index) => isPartial(index) && !isForecast(index));
   const legend = (
     <Legend
       items={[
         ...shown.map((s) => ({ key: s.key, label: s.label, swatch: SLOT_BG[s.slot] })),
         ...(forecastIndex >= 0 ? [{ key: "forecast", label: t("forecastLegend"), swatch: "bg-chart-ink-2 opacity-40" }] : []),
+        ...(marked ? [{ key: "partial", label: t("partialLegend"), swatch: "bg-chart-ink-2 opacity-55" }] : []),
       ]}
     />
   );
 
-  const table = (
+  const table = ownTable ?? (
     <Table>
       <caption className="sr-only">{title}</caption>
       <thead>
@@ -249,7 +280,7 @@ export function StackedBars({
               </span>
             </Th>
           ))}
-          <Th className="text-right">{t("total")}</Th>
+          <Th className="text-right">{sumName}</Th>
         </tr>
       </thead>
       <tbody>
