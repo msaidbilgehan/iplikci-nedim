@@ -11,7 +11,7 @@ and what it asks come from its statement; the caller reads them (CardDue).
 from calendar import monthrange
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from decimal import Decimal
 from statistics import median
@@ -22,6 +22,7 @@ from .domain.labels import SERIES_PERIOD, format_amount
 from .domain.models import TRY, Statement, Transaction
 from .domain.text import fold
 from .insights import Insights, PeriodicSeries, Series, Timeline, month_name, month_of, settle, shift
+from .invoices import InvoiceMatch, similar
 
 HORIZON = 60  # days the calendar and the cash-flow forecast look ahead, today the first of them (F09)
 # A monthly payment comes again at least this many days after its last one, the shortest gap of a monthly series: a
@@ -349,16 +350,14 @@ def card_due_items(ds: Dataset, dues: Iterable[CardDue], start: date, end: date)
     return found
 
 
-def bill_items(ds: Dataset, start: date, end: date) -> list[Due]:
-    """The non-bank bills not paid yet that fall due from start to end (F14), from the account that paid the seller's
-    bill last; on no account when none did. A bill in another currency stays on the Bills screen only: what it costs
-    in TL is known when the bank charges it, and the calendar and the forecast count in TL."""
+def _bills(ds: Dataset, start: date, end: date) -> list[tuple[InvoiceMatch, Due]]:
+    """The pending TL bills falling due from start to end, each with its calendar item (bill_items)."""
     paid_from = {
         fold(found.invoice.seller): found.row.account
         for found in sorted(ds.invoices, key=lambda f: f.invoice.issued)
         if found.status == InvoiceStatus.MATCHED and found.row is not None
     }
-    found: list[Due] = []
+    found: list[tuple[InvoiceMatch, Due]] = []
     for waiting in ds.invoices:
         invoice = waiting.invoice
         if waiting.status != InvoiceStatus.PENDING or invoice.kind != InvoiceKind.BILL or invoice.due is None:
@@ -367,8 +366,46 @@ def bill_items(ds: Dataset, start: date, end: date) -> list[Due]:
             number = f"{invoice.number} numaralı " if invoice.number else ""
             basis = f"{number}fatura, {_day(invoice.issued)} tarihli; son ödeme {_day(invoice.due)}"
             account = paid_from.get(fold(invoice.seller), "")
-            found.append(Due(invoice.due, PaymentKind.BILL, invoice.seller, account, invoice.total, basis))
+            found.append((waiting, Due(invoice.due, PaymentKind.BILL, invoice.seller, account, invoice.total, basis)))
     return found
+
+
+def bill_items(ds: Dataset, start: date, end: date) -> list[Due]:
+    """The non-bank bills not paid yet that fall due from start to end (F14), from the account that paid the seller's
+    bill last; on no account when none did. A bill in another currency stays on the Bills screen only: what it costs
+    in TL is known when the bank charges it, and the calendar and the forecast count in TL."""
+    return [item for _, item in _bills(ds, start, end)]
+
+
+def billed(
+    items: Sequence[Due], series: Iterable[Series], bills: Sequence[tuple[InvoiceMatch, Due]]
+) -> tuple[list[Due], list[Due]]:
+    """(the series' items, the bills' items) with each pending bill standing for the payment of its seller's series
+    it is the bill of: the first item of a series whose payee is like the seller (as the ledger matches a bill's row)
+    falling in the bill's days. That payment is the bill's: counting both would pay it twice. The bill keeps its own
+    amount and due date, and takes the series' account when no earlier bill of its seller told one."""
+    by_id = {series_id(s): s for s in series}
+    left = sorted(items, key=lambda d: (d.day, d.title))
+    told: list[Due] = []
+    for waiting, bill in bills:
+        start, end = waiting.window
+        paid = next(
+            (
+                d
+                for d in left
+                if start <= d.day <= end and d.series in by_id and similar(waiting.invoice.seller, by_id[d.series].last)
+            ),
+            None,
+        )
+        if paid is not None:
+            left.remove(paid)
+            basis = (
+                f"{bill.basis}; {paid.title} düzenli ödemesinin faturası: {_day(paid.day)} günü beklenen ödeme "
+                "yerine bu sayıldı"
+            )
+            bill = replace(bill, account=bill.account or paid.account, basis=basis, series=paid.series)
+        told.append(bill)
+    return left, told
 
 
 def upcoming(
@@ -382,13 +419,17 @@ def upcoming(
     """Every item expected from today on, for days days, by day; from since on when that is earlier (the forecast
     counts the days before today its documents do not reach yet)."""
     start, end = min(since or today, today), horizon_end(today, days)
+    regular, bills = billed(
+        [*series_items(ds, ins.series, start, end), *periodic_items(ins.periodic, start, end)],
+        [*ins.series, *ins.periodic],
+        _bills(ds, start, end),
+    )
     items = [
-        *series_items(ds, ins.series, start, end),
-        *periodic_items(ins.periodic, start, end),
+        *regular,
         *income_items(ins.income, start, end),
         *installment_items(ds, start, end),
         *loan_items(ds, ins.timeline, ins.series, start, end),
         *card_due_items(ds, dues, start, end),
-        *bill_items(ds, start, end),
+        *bills,
     ]
     return sorted(items, key=lambda d: (d.day, d.kind, d.title))

@@ -228,6 +228,10 @@ Uygulama (`invoices.py`):
 - Aynı satıcı, numara, tarih ve tutarla iki kez gelen belge tek belgedir.
 - Bekleyen bir TL faturası, son ödeme tarihi takvime düşer; satıcının bir önceki faturasını ödeyen hesaptan çıkar.
   Yabancı para birimindeki fatura takvime ve öngörüye girmez: TL tutarı banka çekince belli olur.
+- Satıcının süren bir düzenli ya da dönemsel ödemesi varsa (ödeme alanı satıcıya eşleşmedeki gibi benziyorsa) bekleyen
+  fatura o ödemenin kendisidir: faturanın günlerine düşen ilk beklenen ödeme takvimden ve öngörüden çıkar, yerine
+  fatura kendi tutarı ve son ödeme tarihiyle sayılır. Satıcının önceki bir faturası eşleşmediyse fatura serinin
+  hesabından çıkar. Böylece aynı ödeme iki kez düşülmez.
 - Hiçbir kuralın adlandırmadığı ("Diğer Harcamalar") eşleşmiş satır, kategorisini satıcının tam adından alır: kurallar
   "ÖRNEK ECZANESİ"ni tanır, bankanın yazdığı "IYZICO \*ORNEK"i tanımaz. Kategori satırı başka türlü sayacaksa (yatırım,
   borç) alınmaz; satırın türü ve tutarı değişmez. Kullanıcının düzeltmesi bundan sonra uygulanır.

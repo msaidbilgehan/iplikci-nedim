@@ -25,8 +25,9 @@ RULES = {
         "iplikci.upcoming",
         "iplikci.forecast",
     ),
-    # The days ahead are interpretation: the ledger and the insights only, no storage, files or network.
-    "iplikci.upcoming": ("iplikci.domain", "iplikci.analysis", "iplikci.insights"),
+    # The days ahead are interpretation: the ledger and the insights only, no storage, files or network. A bill not
+    # paid yet is told apart from its seller's regular payment as the ledger matches them (invoices).
+    "iplikci.upcoming": ("iplikci.domain", "iplikci.analysis", "iplikci.insights", "iplikci.invoices"),
     "iplikci.forecast": ("iplikci.domain", "iplikci.analysis", "iplikci.insights", "iplikci.upcoming"),
     # Matching non-bank bills to the bank's rows is the ledger's own: the models only.
     "iplikci.invoices": ("iplikci.domain",),

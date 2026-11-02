@@ -387,6 +387,45 @@ def test_a_bill_not_paid_yet_falls_due_from_the_account_that_paid_its_seller_las
     assert due.basis == "B2 numaralı fatura, 03.11.2026 tarihli; son ödeme 20.11.2026"
 
 
+def test_a_bill_not_paid_yet_is_its_sellers_regular_payment_not_a_second_one():
+    phone = [tx(d, "Örnekcell", 450, category="İnternet & Telefon") for d in monthly(date(2026, 5, 8), 6)]
+    statements = [
+        Statement(
+            account="cash",
+            cut_date=date(2026, 10, 31),
+            currency="TRY",
+            source="v.xls",
+            previous=Decimal(0),
+            total=Decimal(50000),
+            start=date(2026, 5, 1),
+        )
+    ]
+    seller = "ÖRNEKCELL İLETİŞİM HİZMETLERİ A.Ş."
+    november = Invoice(InvoiceKind.BILL, seller, date(2026, 11, 1), Decimal(450), number="B2", due=date(2026, 11, 20))
+    other = Invoice(InvoiceKind.BILL, "ÖRNEK ENERJİ A.Ş.", date(2026, 11, 1), Decimal(450), due=date(2026, 11, 20))
+    window = (date(2026, 11, 1), date(2026, 11, 23))
+    pending = [
+        InvoiceMatch("s:0", november, "a.xml", InvoiceStatus.PENDING, window),
+        InvoiceMatch("s:1", other, "b.xml", InvoiceStatus.PENDING, window),  # nobody's series: a bill of its own
+    ]
+    ds = dataset(phone, statements, invoices=pending)
+    ins = interpret(ds)
+    (series,) = ins.series
+    found = upcoming(ds, ins, date(2026, 11, 2))
+    # November's payment is the bill's: once, with the bill's amount and due date, from the series' account.
+    assert [(d.day, d.kind, d.title, d.account, d.amount) for d in found] == [
+        (date(2026, 11, 20), PaymentKind.BILL, "ÖRNEK ENERJİ A.Ş.", "", Decimal(450)),
+        (date(2026, 11, 20), PaymentKind.BILL, seller, "cash", Decimal(450)),
+        (date(2026, 12, 8), PaymentKind.REGULAR, "Örnekcell", "cash", Decimal(450)),
+    ]
+    bill = found[1]
+    assert bill.series == series_id(series)
+    assert bill.basis == (
+        "B2 numaralı fatura, 01.11.2026 tarihli; son ödeme 20.11.2026; Örnekcell düzenli ödemesinin faturası: "
+        "08.11.2026 günü beklenen ödeme yerine bu sayıldı"
+    )
+
+
 def test_a_bill_in_another_currency_is_not_counted_on_the_calendar_as_if_it_were_tl():
     abroad = Invoice(
         InvoiceKind.BILL, "Örnekhost B.V.", date(2026, 11, 3), Decimal("19.99"), "EUR", due=date(2026, 11, 20)
