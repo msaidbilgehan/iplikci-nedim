@@ -37,6 +37,7 @@ from .codes import (
     SeriesStatus,
     SetupStep,
     SourceKind,
+    StatementCheck,
     TodoAction,
     TodoKind,
     Tone,
@@ -367,6 +368,12 @@ SETUP_STEP: dict[SetupStep, str] = {
     SetupStep.REMOTE: "Uzaktan erişim",
 }
 
+STATEMENT_CHECK: dict[StatementCheck, str] = {
+    StatementCheck.VERIFIED: "Tutarlı",
+    StatementCheck.FAILED: "Tutmuyor",
+    StatementCheck.NOTHING: "Denetlenecek satır yok",
+}
+
 FLOW_KIND: dict[FlowKind, str] = {
     FlowKind.ACCOUNT: "Hesap",
     FlowKind.INCOME: "Gelir",
@@ -413,6 +420,7 @@ TABLES: dict[type[StrEnum], dict[StrEnum, str]] = {
     AccountGroup: _table(ACCOUNT_GROUP),
     PaidStatus: _table(PAID_STATUS),
     FlowKind: _table(FLOW_KIND),
+    StatementCheck: _table(STATEMENT_CHECK),
     CategoryReason: _table(CATEGORY_REASON),
     TransferStep: _table(TRANSFER_STEP),
     RuleLayer: _table(RULE_LAYER),

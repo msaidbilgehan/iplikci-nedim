@@ -1057,6 +1057,121 @@ export interface MoneyOut {
   currency: string;
 }
 
+/** One account in one month. */
+export interface MonthEndAccountOut {
+  account: AccountRefOut;
+  status: MonthStatus;
+  label: string;
+  blocking: boolean;
+  needed: number;
+  covered: number;
+  open: MonthEndRangeOut[];
+  statements: MonthEndStatementOut[];
+  receipts: MonthEndReceiptsOut;
+  balance: MoneyOut | null;
+  last: string;
+  next_cut: string | null;
+  late: boolean;
+  untracked: boolean;
+  waiting_for: string;
+  note: string;
+}
+
+export interface MonthEndDetailOut {
+  month: MonthEndOut;
+  previous: MonthEndTotalsOut | null;
+  typical: MoneyOut | null;
+  typical_months: number;
+  accounts: MonthEndAccountOut[];
+  groups: MonthEndShareOut[];
+  levels: MonthEndShareOut[];
+  categories: MonthEndShareOut[];
+  merchants: MonthEndShareOut[];
+  regular: MonthEndRegularOut[];
+  big: RowOut[];
+  provisional: RowOut[];
+  unmatched: RowOut[];
+  count: number;
+  trend: MonthEndTrendOut[];
+  debt_end: MoneyOut | null;
+  previous_month: string;
+  next_month: string;
+  export: ExportKind;
+}
+
+export interface MonthEndListOut {
+  today: string;
+  months: MonthEndOut[];
+  export: ExportKind;
+}
+
+export interface MonthEndOut {
+  month: string;
+  name: string;
+  status: MonthStatus;
+  summary: string;
+  totals: MonthEndTotalsOut;
+  provisional: number;
+  unmatched: number;
+  income_note: string;
+  link: LinkOut;
+}
+
+export interface MonthEndRangeOut {
+  start: string;
+  end: string;
+}
+
+export interface MonthEndReceiptsOut {
+  matched: number;
+  provisional: number;
+  unmatched: number;
+  no_statement: number;
+}
+
+/** A regular payment this month: paid, or expected and not seen yet. */
+export interface MonthEndRegularOut {
+  payee: string;
+  category: string;
+  paid: RowOut[];
+  expected: string | null;
+  this_month: MoneyOut;
+  monthly: MoneyOut;
+}
+
+export interface MonthEndShareOut {
+  name: string;
+  slot: number;
+  amount: MoneyOut;
+  count: number | null;
+}
+
+/** A statement or a list overlapping the month, with the days of the month it covers. */
+export interface MonthEndStatementOut {
+  start: string;
+  end: string;
+  cut: string;
+  card: boolean;
+  check: StatementCheck;
+  document: string;
+}
+
+/** A month's totals by calendar month (docs/domain/interpretation.md, "Ay sonu kapanışı"). */
+export interface MonthEndTotalsOut {
+  expense: MoneyOut;
+  income: MoneyOut | null;
+  people: MoneyOut;
+  debt: MoneyOut;
+  saving: MoneyOut;
+  fees: MoneyOut;
+  left: MoneyOut | null;
+}
+
+export interface MonthEndTrendOut {
+  month: string;
+  expense: MoneyOut;
+}
+
 /** The money in and out of an account in the current month so far, counted rows only, in TL. */
 export interface MonthFlowOut {
   month: string;
@@ -1629,6 +1744,9 @@ export interface StartOut {
   moves: number;
   through: string;
 }
+
+/** A statement's own check on the month-end page (docs/domain/interpretation.md, "Ay sonu kapanışı"). */
+export type StatementCheck = "verified" | "failed" | "nothing";
 
 export interface StatementCheckOut {
   account: string;

@@ -24,7 +24,7 @@ from decimal import Decimal
 from typing import Any
 
 from . import __version__, month_end
-from .app import accounts, intake, invoices, notify, outlook
+from .app import accounts, closing, intake, invoices, notify, outlook
 from .app import mail as email
 from .app import rules as category_rules
 from .app.analysis import Current, document_gaps, summary
@@ -739,7 +739,6 @@ def _totals(t) -> dict:
 
 def _month_end(s: Server, args: dict) -> dict:
     a = s.current.get()
-    months = a.months
     if "month" not in args:
         return {
             "months": [
@@ -752,14 +751,12 @@ def _month_end(s: Server, args: dict) -> dict:
                     "provisional": len(me.provisional),
                     "notOnStatement": len(me.unmatched),
                 }
-                for me in reversed(months)
+                for me in closing.months(a, date.today())
             ],
             "note": "status: closed (bütün belgeler geldi ve tutarlı), waiting, missing, check, running (bu ay). "
             "Ayrıntı için month ile çağırın.",
         }
-    me = next((m for m in months if m.month == args["month"]), None)
-    if me is None:  # older than the months with a page
-        [me] = month_end.build(a.dataset, a.insights, months=[args["month"]])
+    me = closing.month(a, args["month"], date.today())  # an older month than those with a page is built on request
     ds = a.dataset
     return {
         "month": me.month,

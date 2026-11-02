@@ -405,3 +405,11 @@ class SetupStep(StrEnum):
     NOTIFICATIONS = "notifications"  # a channel besides the interface's box (optional)
     SERVICE = "service"  # the service registered to start with the computer (ADR-0017)
     REMOTE = "remote"  # remote access through Tailscale (optional)
+
+
+class StatementCheck(StrEnum):
+    """A statement's own check on the month-end page (docs/domain/interpretation.md, "Ay sonu kapanışı")."""
+
+    VERIFIED = "verified"  # its rows add up to its total, its running balances agree
+    FAILED = "failed"  # they do not: it holds the month open for a check
+    NOTHING = "nothing"  # nothing to check: a list without movements, a statement printing no total
