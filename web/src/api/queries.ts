@@ -5,6 +5,7 @@ import { type QueryClient, useInfiniteQuery, useMutation, useQuery, useQueryClie
 
 import { api } from "./client";
 import type {
+  Accounts,
   AlertPreview,
   AlertRule,
   AlertRules,
@@ -12,6 +13,7 @@ import type {
   Calendar,
   Channel,
   DocumentPage,
+  FeedPage,
   Forecast,
   Invoices,
   Labels,
@@ -19,6 +21,7 @@ import type {
   NotificationsMarked,
   NotifyPreferences,
   NotifySettings,
+  Now,
   OtherSenders,
   Pairing,
   Queued,
@@ -32,6 +35,10 @@ import type {
 export const keys = {
   system: ["system"] as const,
   labels: ["labels"] as const,
+  feedAll: ["feed"] as const, // the events and what stands now: every event of the stream refreshes them
+  feed: (filter: FeedFilter) => ["feed", "events", filter] as const,
+  now: ["feed", "now"] as const,
+  accounts: ["accounts"] as const,
   documents: (filter: DocumentFilter) => ["documents", filter] as const,
   allDocuments: ["documents"] as const,
   bridges: ["bridges"] as const,
@@ -93,6 +100,58 @@ export function useDocuments(filter: DocumentFilter) {
 
 export function useBridges() {
   return useQuery({ queryKey: keys.bridges, queryFn: () => api.get<Bridge[]>("/api/bridge") });
+}
+
+// --- the feed (F05) ----------------------------------------------------------------------------------------------
+
+const FEED_PAGE = 50;
+
+/** What the feed is narrowed to, in the API's names: null for no filter, [] for none chosen (nothing to ask). */
+export type FeedFilter = {
+  account: string[] | null;
+  kind: string[] | null; // event codes ("transaction.created") or families ("document")
+  certainty: string[] | null;
+};
+
+/** Whether filters leave nothing to show: one of them has none of its choices chosen. */
+export function choosesNothing(filters: Record<string, string[] | null>): boolean {
+  return Object.values(filters).some((values) => values !== null && values.length === 0);
+}
+
+/**
+ * The event log newest first, a page at a time; `next` is the next page's `before`. A narrow filter may give a page
+ * shorter than its limit with more still to read: only a null `next` ends the feed. The event stream refreshes every
+ * page as events come (useEventStream), each page found again from the one before it.
+ */
+export function useFeed(filter: FeedFilter) {
+  return useInfiniteQuery({
+    queryKey: keys.feed(filter),
+    queryFn: ({ pageParam }) => {
+      const params = new URLSearchParams({ limit: String(FEED_PAGE) });
+      if (pageParam > 0) {
+        params.set("before", String(pageParam));
+      }
+      for (const [name, values] of Object.entries(filter)) {
+        for (const value of values ?? []) {
+          params.append(name, value);
+        }
+      }
+      return api.get<FeedPage>(`/api/feed?${params.toString()}`);
+    },
+    initialPageParam: 0,
+    getNextPageParam: (last) => (last.next !== null && last.next > 0 ? last.next : undefined),
+    enabled: !choosesNothing(filter),
+  });
+}
+
+/** What stands now: the balances as far as the documents tell, the cards, the month's pace and the next 14 days. */
+export function useNow() {
+  return useQuery({ queryKey: keys.now, queryFn: () => api.get<Now>("/api/feed/now") });
+}
+
+/** The accounts in their groups with their balances and freshness, and the closed ones apart (F07). */
+export function useAccounts() {
+  return useQuery({ queryKey: keys.accounts, queryFn: () => api.get<Accounts>("/api/accounts") });
 }
 
 /** The monthly and periodic payments, the regular income and the installments left (F08). */

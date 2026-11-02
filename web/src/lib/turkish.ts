@@ -3,7 +3,7 @@
 // spoken form asks for: the last word decides the vowel (harmony) and whether d hardens to t. The suffix follows an
 // apostrophe, as Turkish writes it after digits: 2026'da, %64'ü, ayın 3'ünde.
 
-import { formatMonth } from "./format";
+import { formatDay, formatMonth } from "./format";
 
 const ONES = ["", "bir", "iki", "üç", "dört", "beş", "altı", "yedi", "sekiz", "dokuz"] as const;
 const TENS = ["", "on", "yirmi", "otuz", "kırk", "elli", "altmış", "yetmiş", "seksen", "doksan"] as const;
@@ -107,6 +107,11 @@ export function percent(share: number): string {
 /** A share with the possessive Turkish needs after it, as insights.pct: 0.64 → "%64'ü", 0.06 → "%6'sı". */
 export function percentPossessive(share: number): string {
   return `${percent(share)}${possessive(roundHalfEven(share * 100))}`;
+}
+
+/** A calendar day with the locative its year asks for: "2026-11-06" → "06.11.2026'da", "2025-12-31" → "31.12.2025'te". */
+export function onDay(day: string): string {
+  return `${formatDay(day)}${yearSuffix(day.slice(0, 4), false)}`;
 }
 
 /** "2026-03" → "Mart 2026'da". */

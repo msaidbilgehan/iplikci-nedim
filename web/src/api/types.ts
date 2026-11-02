@@ -4,6 +4,9 @@
 
 import type {
   AccountForecastOut,
+  AccountOut,
+  AccountRefOut,
+  AccountsOut,
   AlertPreviewOut,
   AlertRuleModel,
   AlertRulesOut,
@@ -22,11 +25,15 @@ import type {
   EventInfoOut,
   EventKind,
   EventOut,
+  FeedDetailOut,
+  FeedItemOut,
+  FeedOut,
   ForecastOut,
   InstallmentOut,
   InvoiceOut,
   InvoicesOut,
   LabelsOut,
+  LinkOut,
   MailCoverageOut,
   MoneyOut,
   NotificationOut,
@@ -34,11 +41,16 @@ import type {
   NotificationsReadOut,
   NotifySettingsIn,
   NotifySettingsOut,
+  NowBalanceOut,
+  NowCardOut,
+  NowOut,
   OtherSendersOut,
+  PaceOut,
   PairingOut,
   PlanOut,
   QueuedOut,
   RefusedMailOut,
+  RowOut,
   SeriesOut,
   SubscriptionsOut,
   SystemOut,
@@ -89,3 +101,21 @@ export type AlertPreview = AlertPreviewOut;
 export type TelegramBot = TelegramTokenOut;
 export type TelegramPairing = TelegramPairingOut;
 export type TelegramCheck = TelegramCheckOut;
+
+// Where an item leads (app/links.py): lib/links.ts turns it into an address of the interface.
+export type Destination = LinkOut;
+export type AccountRef = AccountRefOut;
+export type Row = RowOut;
+export type Pace = PaceOut;
+
+// The feed (F05): the event log a page at a time, and what stands now.
+export type FeedPage = FeedOut;
+export type FeedItem = FeedItemOut;
+export type FeedDetail = FeedDetailOut;
+export type Now = NowOut;
+export type NowBalance = NowBalanceOut;
+export type NowCard = NowCardOut;
+
+// The accounts in their groups (F07).
+export type Accounts = AccountsOut;
+export type AccountItem = AccountOut;

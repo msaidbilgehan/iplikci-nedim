@@ -4,6 +4,8 @@ import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 
 import type {
+  AccountItem,
+  Accounts,
   AlertEvent,
   AlertRule,
   AlertRules,
@@ -12,6 +14,9 @@ import type {
   CalendarItem,
   ChannelState,
   DocumentPage,
+  FeedDetail,
+  FeedItem,
+  FeedPage,
   Forecast,
   InvoiceItem,
   Invoices,
@@ -20,7 +25,9 @@ import type {
   NotificationItem,
   Notifications,
   NotifySettings,
+  Now,
   OtherSenders,
+  Row,
   Series,
   Subscriptions,
   SystemStatus,
@@ -67,13 +74,19 @@ export const LABELS: Labels = {
     not_paired: "Eşleşmedi",
   },
   EventKind: {
+    "document.received": "Belge geldi",
+    "document.processed": "Belge okundu",
     "document.unreadable": "Belge okunamadı",
     "transaction.large": "Büyük harcama",
     "invoice.unmatched": "Fatura eşleşmedi",
     "payment.due_soon": "Son ödeme yaklaşıyor",
     "balance.forecast_negative": "Hesap eksiye düşecek",
     "month.closed": "Ay kapandı",
+    "backup.failed": "Yedek alınamadı",
   },
+  AccountType: { credit_card: "Kredi kartı", current: "Vadesiz hesap", fx: "Döviz hesabı" },
+  MonthStatus: { closed: "Kapandı", waiting: "Ekstre bekleniyor", missing: "Belge eksik", running: "Ay sürüyor" },
+  TransactionKind: { purchase: "Harcama", income: "Gelir", interest_fee: "Faiz & banka ücreti" },
 };
 
 /** An amount in TL from its kuruş. */
@@ -363,6 +376,314 @@ export const INVOICES: Invoices = {
 
 export const OTHER_SENDERS: OtherSenders = { domains: ["ornekcell.example", "fatura.example"] };
 
+// --- what stands now and the feed (F05) -----------------------------------------------------------------------------
+
+const FX = { id: "teb-eur-1", label: "Örnek Döviz EUR" };
+const UNKNOWN = { id: "garanti-1234567", label: "Garanti Vadesiz TL" };
+
+export function row(overrides: Partial<Row> = {}): Row {
+  return {
+    fingerprint: "0123456789abcdef0123",
+    day: "2026-11-15",
+    account: CARD,
+    title: "Örnek Elektronik",
+    description: "ORNEK ELEKTRONIK ISTANBUL",
+    merchant: "Örnek Elektronik",
+    counterparty: "",
+    amount: tl(1250000),
+    direction: "out",
+    kind: "purchase",
+    category: "Elektronik",
+    group: "Alışveriş",
+    necessity: "optional",
+    counted: true,
+    expense: true,
+    certainty: "provisional",
+    original: "",
+    installment: "",
+    note: "",
+    tags: [],
+    invoice: "",
+    document: "e".repeat(64),
+    ...overrides,
+  };
+}
+
+// From 15 November: two balances (one moved by receipts since its statement, one in euros), one account no document
+// gives a balance for, a card with its statement and its period, the month's pace and the next 14 days.
+export const NOW: Now = {
+  today: "2026-11-15",
+  balances: [
+    {
+      account: CASH,
+      type: "current",
+      balance: tl(100000),
+      value: tl(100000),
+      rate: null,
+      rate_day: null,
+      stated: tl(250000),
+      on: "2026-10-31",
+      source: "statement",
+      moves: 2,
+      through: "2026-11-04",
+      certainty: "provisional",
+      note: "31.10.2026 dökümünde 2.500,00 TL; sonraki 2 dekont ve bildirimle −1.500,00 TL",
+    },
+    {
+      account: FX,
+      type: "fx",
+      balance: { minor: 50000, currency: "EUR" },
+      value: tl(1850000),
+      rate: "37.0000",
+      rate_day: "2026-10-31",
+      stated: { minor: 50000, currency: "EUR" },
+      on: "2026-10-31",
+      source: "statement",
+      moves: 0,
+      through: "2026-10-31",
+      certainty: "confirmed",
+      note: "31.10.2026 dökümünde 500,00 EUR",
+    },
+  ],
+  unknown: [{ account: UNKNOWN, reason: "bakiyesi hiçbir belgede yazmıyor" }],
+  cards: [
+    {
+      account: CARD,
+      type: "credit_card",
+      cut: "2026-10-28",
+      total: tl(900000),
+      due: "2026-11-25",
+      minimum: tl(180000),
+      limit: tl(5000000),
+      paid: tl(200000),
+      debt: tl(700000),
+      last: { start: "2026-09-29", end: "2026-10-28", spent: tl(900000), rows: 14 },
+      current: { start: "2026-10-29", end: "2026-11-28", spent: tl(320000), rows: 5 },
+      certainty: "provisional",
+      note: "28.10.2026 ekstresi; kesimden sonra 2.000,00 TL ödendi",
+    },
+  ],
+  pace: {
+    month: "2026-11",
+    partial: true,
+    day: 15,
+    days: 30,
+    spent: tl(420000),
+    provisional: tl(120000),
+    typical: tl(2015299),
+    by_day: tl(980000),
+    months: ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10"],
+    covered: 0.6,
+    note: "Kasım 2026 sürüyor: rakamlar bugüne kadar gelen belgelerden. Tipik ay: Mayıs 2026 – Ekim 2026 arasındaki 6 tam ayın medyanı.",
+  },
+  upcoming: [
+    item({ day: "2026-11-15", title: "Örnek Müzik", account: CARD, amount: tl(9999), series: "fp-muzik" }),
+    item({
+      day: "2026-11-16",
+      kind: "income",
+      title: "Örnek İşveren A.Ş.",
+      direction: "in",
+      amount: tl(4000000),
+      basis: "son üç tutarın medyanı (Ağustos 2026 – Ekim 2026)",
+      series: "fp-maas",
+    }),
+    CALENDAR.items[0]!,
+  ],
+  end: "2026-11-28",
+};
+
+const NO_DETAIL: FeedDetail = {
+  title: "",
+  amount: null,
+  minimum: null,
+  balance: null,
+  old: null,
+  new: null,
+  day: null,
+  days: null,
+  payment: null,
+  period: null,
+  cancelled: "",
+  status: null,
+  count: null,
+  first: null,
+  last: null,
+  provisional: null,
+  source: null,
+  document_kind: null,
+  parser: "",
+  reader: "",
+  version: "",
+  reason: "",
+  stage: "",
+  unverified: [],
+};
+
+export function feedItem(overrides: Omit<Partial<FeedItem>, "detail"> & { detail?: Partial<FeedDetail> } = {}): FeedItem {
+  const { detail, ...rest } = overrides;
+  return {
+    id: 1,
+    at: "2026-11-15T12:00:00+00:00",
+    kind: "document.received",
+    label: "Belge geldi",
+    text: "Yeni bir belge geldi.",
+    target: "",
+    account: null,
+    certainty: null,
+    row: null,
+    document: null,
+    link: null,
+    ...rest,
+    detail: { ...NO_DETAIL, ...detail },
+  };
+}
+
+// The newest page of the log: a large purchase and an unreadable document today, a month closed and a due date
+// coming yesterday, a statement read five days ago; one older page holds a failed backup.
+export const FEED_FIRST: FeedPage = {
+  items: [
+    feedItem({
+      id: 31,
+      at: "2026-11-15T12:30:00+00:00",
+      kind: "transaction.large",
+      label: "Büyük harcama",
+      text: "Örnek Elektronik: 12.500,00 TL (•1234, 15.11.2026).",
+      target: "0123456789abcdef0123",
+      account: CARD,
+      certainty: "provisional",
+      row: row(),
+      link: { screen: "transaction", id: "0123456789abcdef0123", query: {} },
+      detail: { title: "Örnek Elektronik", amount: tl(1250000), day: "2026-11-15" },
+    }),
+    feedItem({
+      id: 30,
+      at: "2026-11-15T11:00:00+00:00",
+      kind: "document.unreadable",
+      label: "Belge okunamadı",
+      text: "Bir belge okunamadı; Belgeler ekranına bakın.",
+      target: "b".repeat(64),
+      document: { sha256: "b".repeat(64), name: "sifreli.pdf", kind: null, status: "unreadable" },
+      link: { screen: "document", id: "b".repeat(64), query: {} },
+      detail: { reason: "PDF şifreli" },
+    }),
+    feedItem({
+      id: 29,
+      at: "2026-11-14T12:00:00+00:00",
+      kind: "month.closed",
+      label: "Ay kapandı",
+      text: "Ekim 2026 kapandı: bütün belgeleri geldi ve doğrulandı.",
+      target: "2026-10",
+      link: { screen: "month", id: "2026-10", query: {} },
+      detail: { status: "closed" },
+    }),
+    feedItem({
+      id: 28,
+      at: "2026-11-14T11:00:00+00:00",
+      kind: "payment.due_soon",
+      label: "Son ödeme yaklaşıyor",
+      text: "Örnek Kart •1234 · Kart son ödemesi: 10 gün sonra (25.11.2026), 9.000,00 TL.",
+      target: "card_due|teb-1234|Örnek Kart •1234|2026-11-25",
+      account: CARD,
+      link: { screen: "calendar", id: "2026-11-25", query: {} },
+      detail: {
+        title: "Örnek Kart •1234",
+        amount: tl(900000),
+        minimum: tl(180000),
+        day: "2026-11-25",
+        days: 10,
+        payment: "card_due",
+      },
+    }),
+    feedItem({
+      id: 27,
+      at: "2026-11-10T12:00:00+00:00",
+      kind: "document.processed",
+      label: "Belge okundu",
+      text: "Bir belge okundu.",
+      target: "e".repeat(64),
+      account: CARD,
+      document: { sha256: "e".repeat(64), name: "Örnek Kart Ekstresi Ekim 2026.pdf", kind: "card_statement", status: "processed" },
+      link: { screen: "document", id: "e".repeat(64), query: {} },
+      detail: { document_kind: "card_statement", parser: "ornek.card", reader: "Örnek kart ekstresi", version: "1.2" },
+    }),
+  ],
+  next: 27,
+};
+
+export const FEED_OLDER: FeedPage = {
+  items: [
+    feedItem({
+      id: 12,
+      at: "2026-11-01T12:00:00+00:00",
+      kind: "backup.failed",
+      label: "Yedek alınamadı",
+      text: "Gece yedeği alınamadı: disk dolu.",
+      link: { screen: "system", id: "", query: {} },
+      detail: { stage: "backup", reason: "disk dolu" },
+    }),
+  ],
+  next: null,
+};
+
+function accountItem(overrides: Partial<AccountItem> = {}): AccountItem {
+  return {
+    account: CASH,
+    label: CASH.label,
+    alias: "",
+    bank: "Örnek Bank",
+    type: "current",
+    group: "current",
+    balance: tl(100000),
+    value: tl(100000),
+    day: "2026-11-04",
+    certainty: "provisional",
+    note: "",
+    freshness: null,
+    month: { month: "2026-11", money_in: tl(0), money_out: tl(150000), rows: 2, provisional: 2, note: "" },
+    closed: false,
+    link: { screen: "account", id: CASH.id, query: {} },
+    ...overrides,
+  };
+}
+
+export const ACCOUNTS: Accounts = {
+  today: "2026-11-15",
+  groups: [
+    {
+      group: "cards",
+      assets: tl(0),
+      debts: tl(700000),
+      total: tl(-700000),
+      unvalued: 0,
+      accounts: [accountItem({ account: CARD, label: CARD.label, type: "credit_card", group: "cards" })],
+    },
+    {
+      group: "current",
+      assets: tl(100000),
+      debts: tl(0),
+      total: tl(100000),
+      unvalued: 1,
+      accounts: [
+        accountItem(),
+        accountItem({ account: UNKNOWN, label: UNKNOWN.label, bank: "Garanti BBVA", balance: null, value: null }),
+      ],
+    },
+    {
+      group: "fx",
+      assets: tl(1850000),
+      debts: tl(0),
+      total: tl(1850000),
+      unvalued: 0,
+      accounts: [accountItem({ account: FX, label: FX.label, type: "fx", group: "fx" })],
+    },
+  ],
+  closed: [],
+  assets: tl(1950000),
+  debts: tl(700000),
+  total: tl(1250000),
+  note: "",
+};
+
 export function systemStatus(overrides: Partial<SystemStatus> = {}): SystemStatus {
   return {
     service: { version: "0.4.0", started_at: "2026-11-01T07:30:00+00:00", pid: 4242, home: "/veri/iplikci" },
@@ -651,6 +972,11 @@ export const ALERT_RULES: AlertRules = {
 
 export const handlers = [
   http.get("/api/labels", () => HttpResponse.json(LABELS)),
+  http.get("/api/feed", ({ request }) =>
+    HttpResponse.json(new URL(request.url).searchParams.get("before") === "27" ? FEED_OLDER : FEED_FIRST),
+  ),
+  http.get("/api/feed/now", () => HttpResponse.json(NOW)),
+  http.get("/api/accounts", () => HttpResponse.json(ACCOUNTS)),
   http.get("/api/subscriptions", () => HttpResponse.json(SUBSCRIPTIONS)),
   http.get("/api/calendar", () => HttpResponse.json(CALENDAR)),
   http.get("/api/forecast", () => HttpResponse.json(FORECAST)),

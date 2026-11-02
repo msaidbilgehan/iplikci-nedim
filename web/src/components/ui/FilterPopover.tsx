@@ -42,19 +42,34 @@ export function toggled(selected: Selection, all: readonly string[], values: rea
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600";
 
+/** What a filter is set to, in a word: "Tümü", "Hiçbiri", the one option's name, or how many of how many. */
+export function useSelectionSummary(): (selected: Selection, options: readonly FilterOption[]) => string {
+  const { t } = useTranslation();
+  return (selected, options) => {
+    if (selected === null) {
+      return t("filter.all");
+    }
+    if (selected.size === 0) {
+      return t("filter.none");
+    }
+    const [only] = selected;
+    if (selected.size === 1 && only !== undefined) {
+      // A value the options do not name (they are still loading, or a link chose it) stands as it is.
+      return options.find((option) => option.value === only)?.label ?? only;
+    }
+    if (options.length > 0 && options.every((option) => selected.has(option.value))) {
+      return t("filter.all");
+    }
+    return t("filter.count", { count: selected.size, total: options.length });
+  };
+}
+
 export function FilterPopover({ label, options, selected, onChange }: FilterPopoverProps) {
   const { t } = useTranslation();
+  const summarize = useSelectionSummary();
   const all = options.map((option) => option.value);
   const isOn = (value: string) => selected === null || selected.has(value);
-  const chosen = all.filter(isOn);
-  const summary =
-    chosen.length === all.length
-      ? t("filter.all")
-      : chosen.length === 0
-        ? t("filter.none")
-        : chosen.length === 1
-          ? (options.find((option) => option.value === chosen[0])?.label ?? "")
-          : t("filter.count", { count: chosen.length, total: all.length });
+  const summary = summarize(selected, options);
   const groups = groupOf(options);
   const toggle = (value: string, on: boolean) => onChange(toggled(selected, all, [value], on));
   return (

@@ -6,6 +6,7 @@ import { expect, test } from "@playwright/test";
 
 // The screens and their main headings; each new screen joins this list.
 const SCREENS = [
+  { path: "/akis", heading: "Akış" },
   { path: "/sistem", heading: "Sistem" },
   { path: "/belgeler", heading: "Belgeler" },
   { path: "/abonelikler", heading: "Abonelikler" },

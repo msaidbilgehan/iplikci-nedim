@@ -24,7 +24,7 @@ export const MENU: readonly ScreenGroup[] = [
     key: "today", // what to look at first: where things stand, what happened, what needs the user
     screens: [
       { to: "/", key: "dashboard", ready: false, end: true },
-      { to: "/akis", key: "feed", ready: false },
+      { to: "/akis", key: "feed", ready: true },
       { to: "/yapilacaklar", key: "todo", ready: false },
     ],
   },
@@ -78,3 +78,16 @@ export function builtGroups(groups: readonly ScreenGroup[]): ScreenGroup[] {
     .map((group) => ({ ...group, screens: group.screens.filter((screen) => screen.ready) }))
     .filter((group) => group.screens.length > 0);
 }
+
+/** Whether a screen of the menu is built, so a link may lead to it (lib/links.ts). */
+export function isReady(key: ScreenKey): boolean {
+  return [...MENU, SETUP].some((group) => group.screens.some((screen) => screen.key === key && screen.ready));
+}
+
+// The pages under a screen's address that open one thing (architecture §18); each comes with or after its list. Set
+// one when its route lands, as `ready` above.
+export const DETAILS: Readonly<Record<"document" | "account" | "month", boolean>> = {
+  document: false, // /belgeler/:id, the viewer: ?satir=<fingerprint> opens it at a row
+  account: false, // /hesaplar/:id
+  month: false, // /ay-sonu/:ay
+};

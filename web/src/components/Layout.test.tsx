@@ -45,6 +45,7 @@ describe("Layout", () => {
   it("lists the screens built so far in their groups, setting up apart", () => {
     renderScreen(<Layout />);
     const expected: Record<string, string[]> = {
+      Bugün: ["/akis"],
       Para: ["/abonelikler", "/takvim"],
       Arşiv: ["/belgeler", "/faturalar"],
       Uygulama: ["/bildirimler", "/sistem"],
@@ -58,7 +59,7 @@ describe("Layout", () => {
     }
     // A screen that is not built yet has no way in, nor does a group without one.
     expect(within(menu()).queryByRole("link", { name: "Pano" })).not.toBeInTheDocument();
-    expect(within(menu()).queryByText("Bugün")).not.toBeInTheDocument();
+    expect(within(menu()).queryByText("Analiz")).not.toBeInTheDocument();
   });
 
   it("shows every screen of a group once it is built", () => {

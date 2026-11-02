@@ -7,6 +7,7 @@ import { Navigate, type RouteObject } from "react-router";
 import { Layout } from "./components/Layout";
 import { Loading } from "./components/QueryState";
 
+const FeedPage = lazy(() => import("./pages/FeedPage"));
 const SystemPage = lazy(() => import("./pages/SystemPage"));
 const DocumentsPage = lazy(() => import("./pages/DocumentsPage"));
 const SubscriptionsPage = lazy(() => import("./pages/SubscriptionsPage"));
@@ -25,6 +26,7 @@ export const routes: RouteObject[] = [
     element: <Layout />,
     children: [
       { index: true, element: <Navigate to="/sistem" replace /> },
+      { path: "akis", element: screen(<FeedPage />) },
       { path: "sistem", element: screen(<SystemPage />) },
       { path: "belgeler", element: screen(<DocumentsPage />) },
       { path: "abonelikler", element: screen(<SubscriptionsPage />) },

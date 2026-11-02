@@ -6,12 +6,14 @@ interface CardProps {
   title: string;
   action?: ReactNode;
   className?: string;
+  level?: 2 | 3; // 3 for a card inside a section that has its own heading
   children: ReactNode;
 }
 
 /** A titled section of a screen; its title is the section's heading for screen readers too. */
-export function Card({ title, action, className, children }: CardProps) {
+export function Card({ title, action, className, level = 2, children }: CardProps) {
   const heading = useId();
+  const Heading = level === 2 ? "h2" : "h3";
   return (
     <section
       aria-labelledby={heading}
@@ -21,9 +23,9 @@ export function Card({ title, action, className, children }: CardProps) {
       )}
     >
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 id={heading} className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+        <Heading id={heading} className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
           {title}
-        </h2>
+        </Heading>
         {action}
       </div>
       {children}

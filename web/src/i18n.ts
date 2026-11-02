@@ -17,6 +17,7 @@ import {
   fromMonth,
   inMonth,
   locative,
+  onDay,
   percent,
   percentPossessive,
   possessive,
@@ -24,11 +25,12 @@ import {
 } from "./lib/turkish";
 import charts from "./locales/tr/charts.json";
 import common from "./locales/tr/common.json";
+import feed from "./locales/tr/feed.json";
 import glossary from "./locales/tr/glossary.json";
 import shell from "./locales/tr/shell.json";
 
 export const defaultNS = "common";
-export const resources = { tr: { common, shell, glossary, charts } } as const;
+export const resources = { tr: { common, shell, glossary, charts, feed } } as const;
 
 const WHOLE = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0, useGrouping: "always" });
 
@@ -70,6 +72,7 @@ const FORMATTERS: Record<string, (value: unknown) => string> = {
   money: (value) => formatMoney(value as Money),
   day: (value) => formatDay(String(value)),
   month: (value) => formatMonth(String(value)),
+  onDay: (value) => onDay(String(value)),
   inMonth: (value) => inMonth(String(value)),
   fromMonth: (value) => fromMonth(String(value)),
 };

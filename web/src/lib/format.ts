@@ -41,6 +41,51 @@ export function formatDate(iso: string): string {
   return Number.isNaN(at.getTime()) ? iso : DAY.format(at);
 }
 
+const CLOCK = new Intl.DateTimeFormat("tr-TR", { hour: "2-digit", minute: "2-digit" });
+const WEEKDAY = new Intl.DateTimeFormat("tr-TR", { weekday: "long", timeZone: "UTC" });
+
+/** An ISO time → its local hour and minute, "14:03", for a list whose headings name the day. */
+export function formatClock(iso: string): string {
+  const at = new Date(iso);
+  return Number.isNaN(at.getTime()) ? iso : CLOCK.format(at);
+}
+
+/** An ISO time → the calendar day it falls on in the local time zone, "2026-10-31"; "" for no time. */
+export function localDay(iso: string): string {
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) {
+    return "";
+  }
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
+}
+
+/** A calendar day the given number of days after another: ("2026-10-31", 1) → "2026-11-01". */
+export function addDays(day: string, days: number): string {
+  const [year, month, date] = day.split("-").map(Number);
+  if (!year || !month || !date) {
+    return day;
+  }
+  return new Date(Date.UTC(year, month - 1, date + days)).toISOString().slice(0, 10);
+}
+
+/** The days from one calendar day to another: ("2026-11-02", "2026-11-15") → 13. */
+export function daysBetween(from: string, to: string): number {
+  const start = Date.parse(`${from.slice(0, 10)}T00:00:00Z`);
+  const end = Date.parse(`${to.slice(0, 10)}T00:00:00Z`);
+  return Number.isNaN(start) || Number.isNaN(end) ? 0 : Math.round((end - start) / 86_400_000);
+}
+
+/** "2026-10-31" → "Cumartesi, 31.10.2026". */
+export function formatWeekday(day: string): string {
+  const [year, month, date] = day.split("-").map(Number);
+  if (!year || !month || !date) {
+    return day;
+  }
+  const name = WEEKDAY.format(new Date(Date.UTC(year, month - 1, date)));
+  return `${name.charAt(0).toLocaleUpperCase("tr-TR")}${name.slice(1)}, ${formatDay(day)}`;
+}
+
 /** Bytes in the largest unit under 1024 of it: 1536 → "1,5 KB". */
 export function formatSize(bytes: number): string {
   let value = bytes;
@@ -75,6 +120,13 @@ export function formatMoney(money: MoneyOut): string {
   const sign = money.minor < 0 ? "−" : "";
   const cents = String(units % 100).padStart(2, "0");
   return `${sign}${WHOLE.format(Math.trunc(units / 100))},${cents} ${CURRENCIES[money.currency] ?? money.currency}`;
+}
+
+/** A rate as the service sends it, a decimal number in a string, with its digits kept: "34.5012" → "34,5012". */
+export function formatRate(rate: string): string {
+  const [whole = "", fraction] = rate.split(".");
+  const grouped = /^\d+$/.test(whole) ? WHOLE.format(Number(whole)) : whole;
+  return fraction === undefined ? grouped : `${grouped},${fraction}`;
 }
 
 /** An amount with the way it goes: "+40.000,00 TL" in, "−15.000,00 TL" out. */

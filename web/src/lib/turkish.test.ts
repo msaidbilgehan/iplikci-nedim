@@ -7,6 +7,7 @@ import {
   lastWord,
   locative,
   monthsIn,
+  onDay,
   percent,
   percentPossessive,
   possessive,
@@ -63,6 +64,12 @@ describe("year suffixes", () => {
   it("joins three months of a year as Turkish lists them", () => {
     expect(monthsIn(["2026-01", "2026-02", "2026-04"])).toBe("Ocak, Şubat ve Nisan 2026'da");
     expect(monthsIn(["2023-06"])).toBe("Haziran 2023'te");
+  });
+
+  it("puts a day's locative after its year", () => {
+    expect(onDay("2026-11-06")).toBe("06.11.2026'da");
+    expect(onDay("2025-12-31")).toBe("31.12.2025'te");
+    expect(onDay("2030-01-02")).toBe("02.01.2030'da");
   });
 });
 
