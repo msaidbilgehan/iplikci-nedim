@@ -66,6 +66,7 @@ __all__ = [
     "TokenSet",
     "channel_states",
     "check_pairing",
+    "check_rules",
     "deliver",
     "event_catalog",
     "event_target",
@@ -145,11 +146,18 @@ def load_rules(ws: Workspace) -> Rules:
         return Rules(list(DEFAULTS), own=True, problem=str(exc))
 
 
-def save_rules(ws: Workspace, found: Sequence[AlertRule], actor: Actor) -> Path | None:
-    """Write the rules to rules/alerts.yaml, checked first (a name twice, a condition its event has not), the file
-    before kept in the history; returns that copy (None for a first file)."""
+def check_rules(ws: Workspace, found: Sequence[AlertRule]) -> str:
+    """rules/alerts.yaml as it would hold the rules, nothing written: RulesError when the program would not read it
+    (a name twice, a condition its event has not). The MCP server shows a change before the user approves it."""
     text = alert_rules.dump(found)
     alert_rules.parse(text, ws.layout.alert_rules.name)
+    return text
+
+
+def save_rules(ws: Workspace, found: Sequence[AlertRule], actor: Actor) -> Path | None:
+    """Write the rules to rules/alerts.yaml, checked first (check_rules), the file before kept in the history;
+    returns that copy (None for a first file)."""
+    text = check_rules(ws, found)
     previous = rulefile.replace(ws.layout.alert_rules, text, ws.layout.rules_history)
     with ws.db() as db:
         audit.record(db, actor, RULES_CHANGED, ws.layout.alert_rules.name, rules=len(found))

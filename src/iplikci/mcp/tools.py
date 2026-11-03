@@ -4,16 +4,18 @@ yet applied. The protocol is the SDK's (`server`); this module knows nothing of 
 
 What a tool returns becomes part of the conversation with the model that called it. Amounts are exact in the ledger
 and numbers in the answers; a tool that changes something shows its plan first and applies it when asked again with
-the plan's id.
+the plan's id (Proposal, Session.carry_out).
 """
 
 import json
 import logging
 import re
+import secrets
+import threading
 from calendar import monthrange
 from collections import Counter, defaultdict
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any, cast
@@ -102,6 +104,29 @@ OFFLINE = (
     "değiştirir. İplikçi Nedim uygulamasını açın (servis kendiliğinden başlar), sonra yeniden deneyin."
 )
 CANNOT_READ = "İplikçi Nedim'in servisi çalışmıyor ve veritabanı okunamadı"
+# What a tool that changes something says with its plan (ADR-0011: plan → the user's approval → apply).
+PLANNED = "Hiçbir şey değişmedi. Kullanıcı onaylarsa aynı aracı plan_id ile çağırın."
+NO_PLAN = "bu plan yok ya da kullanıldı: aracı plan_id olmadan yeniden çağırıp yeni bir plan alın"
+_PENDING = 16  # the plans a session keeps for the user to approve; a newer one pushes the oldest out
+
+
+@dataclass(frozen=True)
+class Proposal:
+    """What a call would change, shown before anything changes, and how the change is made once the user approves
+    it: apply raises StalePlan when what the plan rests on changed since it was shown."""
+
+    shown: Json
+    apply: Callable[["Session"], Json]
+
+
+@dataclass(frozen=True)
+class Pending:
+    """A plan shown and not applied yet: the tool that showed it and the arguments it was shown for."""
+
+    id: str
+    tool: str
+    args: Args
+    apply: Callable[["Session"], Json]
 
 
 class Session:
@@ -111,7 +136,9 @@ class Session:
     def __init__(self, ws: Workspace, current: Current | None = None, offline: bool = False) -> None:
         self.ws = ws
         self.current = current or Current(ws, write=False)
-        self.plans: dict[str, intake.Plan] = {}
+        self.plans: dict[str, intake.Plan] = {}  # the inbox's and the imports' plans (apply_inbox)
+        self.pending: dict[str, Pending] = {}  # the other tools' plans, by id
+        self._pending_lock = threading.Lock()  # the server runs each call in a thread of its own
         self.today: Callable[[], date] = date.today  # the day the calendar and the forecast start from
         self.offline = offline
 
@@ -154,6 +181,67 @@ class Session:
         while len(self.plans) > 8:
             self.plans.pop(next(iter(self.plans)))
 
+    def propose(self, tool: str, args: Args, proposal: Proposal) -> Json:
+        """Keep a plan until the user approves it; what the model reads: its id, what would change, that nothing did."""
+        plan = Pending(secrets.token_hex(8), tool, dict(args), proposal.apply)
+        with self._pending_lock:
+            self.pending[plan.id] = plan
+            while len(self.pending) > _PENDING:
+                del self.pending[next(iter(self.pending))]
+        more = proposal.shown.get("note")
+        return {"plan_id": plan.id, **proposal.shown, "note": f"{PLANNED} {more}" if more else PLANNED}
+
+    def carry_out(self, tool: str, args: Args) -> Json:
+        """Apply the plan args["plan_id"] names, exactly as it was shown and once: a second call finds no plan.
+        Arguments given beside the plan's id must be those it was shown for. A plan the busy documents kept from
+        applying may be tried again: nothing changed yet, or its own checks refuse what did (StalePlan)."""
+        plan_id = args["plan_id"]
+        with self._pending_lock:
+            plan = self.pending.get(plan_id)
+            if plan is None:
+                raise ToolError(NO_PLAN)
+            if plan.tool != tool:
+                raise ToolError(f"bu plan {plan.tool} aracının: onu plan_id ile çağırın")
+            differ = sorted(k for k, v in args.items() if k != "plan_id" and plan.args.get(k) != v)
+            if differ:
+                raise ToolError(
+                    f"{', '.join(differ)} plandakinden farklı: ya yalnızca plan_id verin ya da yeni bir plan alın"
+                )
+            del self.pending[plan_id]
+        try:
+            return plan.apply(self)
+        except Busy:
+            with self._pending_lock:
+                self.pending.setdefault(plan_id, plan)
+            raise
+
+
+def _two_step(name: str, plan: Callable[[Session, Args], Proposal | Json]) -> Callable[[Session, Args], Json]:
+    """The run of a tool that changes something (ADR-0011): without plan_id it changes nothing and shows its plan;
+    with the plan's id it applies that plan. A planner may answer a call that only reads with its JSON (alerts'
+    list)."""
+
+    def run(s: Session, args: Args) -> Json:
+        if "plan_id" in args:
+            return s.carry_out(name, args)
+        found = plan(s, args)
+        return s.propose(name, args, found) if isinstance(found, Proposal) else found
+
+    return run
+
+
+def _applies(args: Args) -> bool:
+    """A two-step tool changes something only when it is called with a plan's id: planning works while the service
+    is down, applying does not (Session.offline)."""
+    return "plan_id" in args
+
+
+def _needs(args: Args, *names: str) -> None:
+    """The arguments a plan needs: optional in the schema, as the call that applies it needs only its plan_id."""
+    missing = [n for n in names if n not in args]
+    if missing:
+        raise ToolError(f"gerekli parametre eksik: {', '.join(missing)}")
+
 
 # --- argument checks (the subset of JSON Schema the tools use) --------------------------------------
 
@@ -166,6 +254,12 @@ _TYPES: dict[str, Callable[[Any], bool]] = {
 }
 
 
+def _bounds(low: object, high: object, unit: str = "") -> str:
+    if low is not None and high is not None:
+        return f"{low}–{high}{unit} arasında"
+    return f"en az {low}{unit}" if low is not None else f"en çok {high}{unit}"
+
+
 def _check_value(name: str, spec: Json, value: Any) -> None:
     if not _TYPES[spec["type"]](value):
         raise ToolError(f"'{name}' {spec['type']} olmalı")
@@ -173,11 +267,17 @@ def _check_value(name: str, spec: Json, value: Any) -> None:
         raise ToolError(f"'{name}' şunlardan biri olmalı: {', '.join(map(str, spec['enum']))}")
     if "pattern" in spec and not re.fullmatch(spec["pattern"], value):
         raise ToolError(f"'{name}' biçimi uygun değil ({spec.get('description', spec['pattern'])})")
-    if "minimum" in spec and value < spec["minimum"] or "maximum" in spec and value > spec["maximum"]:
-        raise ToolError(f"'{name}' {spec.get('minimum')}–{spec.get('maximum')} arasında olmalı")
+    low, high = spec.get("minimum"), spec.get("maximum")
+    if low is not None and value < low or high is not None and value > high:
+        raise ToolError(f"'{name}' {_bounds(low, high)} olmalı")
+    shortest, longest = spec.get("minLength"), spec.get("maxLength")
+    if shortest is not None and len(value) < shortest or longest is not None and len(value) > longest:
+        raise ToolError(f"'{name}' {_bounds(shortest, longest, ' karakter')} olmalı")
     if spec["type"] == "array":
         if len(value) < spec.get("minItems", 0):
             raise ToolError(f"'{name}' en az {spec['minItems']} öğe içermeli")
+        if "maxItems" in spec and len(value) > spec["maxItems"]:
+            raise ToolError(f"'{name}' en çok {spec['maxItems']} öğe içermeli")
         for item in value:
             _check_value(f"{name}[]", spec["items"], item)
 
@@ -792,6 +892,24 @@ def _rule_labels(found: category_rules.Labels) -> Json:
     return {"merchant": found.merchant, "category": found.category, "necessity": found.necessity, "kind": found.kind}
 
 
+def _rule_effect(change: category_rules.Change) -> Json:
+    """Which rows a change of the rules moves, from which category to which."""
+    return {
+        "changed": change.changed,
+        "examples": [
+            {
+                "date": e.day,
+                "description": e.description,
+                "amount": e.amount,
+                "before": _rule_labels(e.before),
+                "after": _rule_labels(e.after),
+            }
+            for e in change.examples
+        ],
+        "moves": [{"from": m.before, "to": m.after, "count": m.count, "total": m.total} for m in change.moves],
+    }
+
+
 def _change_rules(s: Session, edit: Callable[[], str]) -> Json:
     """Make the change through the rules' use case (app.rules: the history, the audit log, the analysis again) and
     tell it as the MVP's tools did: the diff, the earlier file kept, which rows moved, the report written."""
@@ -803,39 +921,51 @@ def _change_rules(s: Session, edit: Callable[[], str]) -> Json:
     return {
         "diff": change.diff,
         "backup": str(s.ws.rules_history / change.backup) if change.backup else None,
-        "effect": {
-            "changed": change.changed,
-            "examples": [
-                {
-                    "date": e.day,
-                    "description": e.description,
-                    "amount": e.amount,
-                    "before": _rule_labels(e.before),
-                    "after": _rule_labels(e.after),
-                }
-                for e in change.examples
-            ],
-            "moves": [{"from": m.before, "to": m.after, "count": m.count, "total": m.total} for m in change.moves],
-        },
+        "effect": _rule_effect(change),
         "report": str(outputs.html) if outputs is not None else None,
     }
 
 
-def _add_rule(s: Session, args: Args) -> Json:
-    return _change_rules(
+STALE_RULES = "kural dosyası plan gösterildikten sonra değişti: aracı plan_id olmadan yeniden çağırıp yeni plan alın"
+
+
+def _rules_plan(s: Session, make: Callable[[], str]) -> Proposal:
+    """A change of the user's rule file shown before it is made, as the Rules screen previews it: its diff and the
+    rows it would move, against the ledger now. Applied, it writes exactly the file shown, unless the file changed
+    in between (the check runs once the change's turn comes, app.rules.save)."""
+    base = _personal_text(s)
+    try:
+        text = make()
+        if text == base:
+            raise ToolError("değişiklik yok: kurallar zaten böyle")
+        change = category_rules.preview(s.ws, s.current.get().dataset, text)
+    except category_rules.RulesError as exc:
+        raise ToolError(str(exc)) from exc
+
+    def edit() -> str:
+        if _personal_text(s) != base:
+            raise StalePlan(STALE_RULES)
+        return text
+
+    return Proposal({"diff": change.diff, "effect": _rule_effect(change)}, lambda s: _change_rules(s, edit))
+
+
+def _add_rule(s: Session, args: Args) -> Proposal:
+    _needs(args, "category", "merchant", "patterns")
+    return _rules_plan(
         s, lambda: category_rules.merchant_rule(s.ws, args["category"], args["merchant"], args["patterns"])
     )
 
 
-def _mark_ended(s: Session, args: Args) -> Json:
+def _mark_ended(s: Session, args: Args) -> Proposal:
+    _needs(args, "merchant", "month")
     ds = s.current.get().dataset
-    return _change_rules(
-        s, lambda: category_rules.ended(s.ws, ds, args["merchant"], args["month"], args.get("note", ""))
-    )
+    return _rules_plan(s, lambda: category_rules.ended(s.ws, ds, args["merchant"], args["month"], args.get("note", "")))
 
 
-def _write_rules(s: Session, args: Args) -> Json:
-    return _change_rules(s, lambda: args["content"])
+def _write_rules(s: Session, args: Args) -> Proposal:
+    _needs(args, "content")
+    return _rules_plan(s, lambda: args["content"])
 
 
 def _alert_view(rule: notify.AlertRule) -> Json:
@@ -870,33 +1000,7 @@ def _alert_from(args: Args) -> notify.AlertRule:
     )
 
 
-def _alerts(s: Session, args: Args) -> Json:
-    found = notify.load_rules(s.ws)
-    rules = list(found.rules)
-    action = args.get("action", "list")
-    if action != "list":
-        if action == "add":
-            rule = _alert_from(args)
-            if any(r.key == rule.key for r in rules):
-                raise ToolError(f"'{rule.name}' adında bir kural zaten var")
-            rules.append(rule)
-        else:
-            name = fold(str(args.get("name", "")))
-            if not any(r.key == name for r in rules):
-                raise ToolError(
-                    f"'{args.get('name', '')}' adında bir kural yok (alerts action=list kuralları listeler)"
-                )
-            rules = [
-                notify.AlertRule(r.name, r.event, r.condition, r.channels, r.detail, action == "open", r.quiet)
-                if r.key == name
-                else r
-                for r in rules
-            ]
-        try:
-            notify.save_rules(s.ws, rules, Actor.MCP)
-        except notify.RulesError as exc:
-            raise ToolError(str(exc)) from exc
-        found = notify.load_rules(s.ws)
+def _alerts_view(s: Session, found: notify.Rules, listing: bool) -> Json:
     state = notify.status(s.ws)
     return {
         "rules": [_alert_view(r) for r in found.rules],
@@ -909,12 +1013,79 @@ def _alerts(s: Session, args: Args) -> Json:
             {"event": e.kind, "label": e.label, "days": e.days, "amount": e.amount, "text": e.text}
             for e in notify.event_catalog()
         ]
-        if action == "list"
+        if listing
         else None,
         "note": "Her kural bir olayı izler; olay olunca uygulama içi kutuya ve kuralın kanallarına bildirim gider, "
         "bir olay için her kanala bir kez. days: en çok kaç gün kala, amount: en az kaç TL, text: başlığında geçen "
         "yazı (yalnızca olayın izin verdiği koşullar). Sessiz saatte gelenler özetle gider.",
     }
+
+
+def _alerts_changed(
+    found: notify.Rules, action: str, args: Args
+) -> tuple[list[notify.AlertRule], notify.AlertRule, notify.AlertRule | None]:
+    """The rules after the change, the rule it adds or changes, and that rule before."""
+    rules = list(found.rules)
+    if action == "add":
+        _needs(args, "name", "event")
+        rule = _alert_from(args)
+        if any(r.key == rule.key for r in rules):
+            raise ToolError(f"'{rule.name}' adında bir kural zaten var")
+        return [*rules, rule], rule, None
+    _needs(args, "name")
+    name = fold(str(args["name"]))
+    old = next((r for r in rules if r.key == name), None)
+    if old is None:
+        raise ToolError(f"'{args['name']}' adında bir kural yok (alerts action=list kuralları listeler)")
+    if old.enabled == (action == "open"):
+        raise ToolError(f"değişiklik yok: '{old.name}' zaten {'açık' if old.enabled else 'kapalı'}")
+    rule = replace(old, enabled=action == "open")
+    return [rule if r.key == name else r for r in rules], rule, old
+
+
+STALE_ALERTS = (
+    "bildirim kuralları plan gösterildikten sonra değişti: aracı plan_id olmadan yeniden çağırıp yeni plan alın"
+)
+
+
+def _alerts(s: Session, args: Args) -> Proposal | Json:
+    """The alert rules listed; or a rule added, closed or opened again, shown first with how often it would have
+    spoken in the last days, and written to rules/alerts.yaml once the user approves it."""
+    found = notify.load_rules(s.ws)
+    action = args.get("action", "list")
+    if action == "list":
+        return _alerts_view(s, found, listing=True)
+    rules, rule, before = _alerts_changed(found, action, args)
+    try:
+        notify.check_rules(s.ws, rules)
+    except notify.RulesError as exc:
+        raise ToolError(str(exc)) from exc
+    shown: Json = {"action": action, "rule": _alert_view(rule), "before": before and _alert_view(before)}
+    if rule.enabled:
+        heard = notify.preview(s.ws, rule)
+        shown["lastDays"] = {
+            "days": heard.days,
+            "notifications": heard.count,
+            "examples": [{"title": m.title, "body": m.body} for m in heard.examples],
+        }
+    if not found.own:
+        shown["note"] = (
+            "Kullanıcının kendi bildirim kuralı dosyası yok: onaylanınca uygulamayla gelen kurallar da bu "
+            "değişiklikle rules/alerts.yaml'a yazılır."
+        )
+    base = (found.rules, found.own, found.problem)
+
+    def apply(s: Session) -> Json:
+        now = notify.load_rules(s.ws)
+        if (now.rules, now.own, now.problem) != base:
+            raise StalePlan(STALE_ALERTS)
+        try:
+            notify.save_rules(s.ws, rules, Actor.MCP)
+        except notify.RulesError as exc:
+            raise ToolError(str(exc)) from exc
+        return _alerts_view(s, notify.load_rules(s.ws), listing=False)
+
+    return Proposal(shown, apply)
 
 
 def _schema(required: tuple[str, ...] = (), **properties: Json) -> Json:
@@ -923,6 +1094,18 @@ def _schema(required: tuple[str, ...] = (), **properties: Json) -> Json:
 
 _TEXT = {"type": "string"}
 _MONTH_OR_DAY = {"type": "string", "pattern": r"\d{4}-\d{2}(-\d{2})?", "description": "YYYY-AA ya da YYYY-AA-GG"}
+_PLAN_ID = {
+    "type": "string",
+    "description": "bu aracın plan_id olmadan verdiği planın kimliği; kullanıcı planı onayladıysa yalnızca bununla "
+    "çağırın",
+}
+# What every tool that changes something in two steps says of it (ADR-0011).
+_TWO_STEPS = (
+    "İki adımlıdır: plan_id olmadan çağrılınca hiçbir şey değişmez, ne değişeceği bir plan_id ile döner; planı "
+    "kullanıcıya gösterin. Kullanıcı onaylarsa aynı aracı yalnızca plan_id ile çağırın: plan bir kez ve gösterildiği "
+    "gibi uygulanır; dayandığı şey o arada değiştiyse uygulanmaz ve yeni plan gerekir. Servis kapalıyken plan "
+    "alınabilir, uygulanamaz."
+)
 _GROUP_BY = ["month", "category", "group", "merchant", "kind", "account", "necessity"]
 # The kinds a ledger row can have: transfer candidates are resolved before.
 _KINDS = [k.value for k in TransactionKind if k is not TransactionKind.TRANSFER_CANDIDATE]
@@ -1086,9 +1269,11 @@ TOOLS = (
         "alerts",
         "Bildirim kuralları",
         "Bildirim kurallarını listeler (action=list; olaylar, koşulları ve kanalların durumu ile), yeni kural ekler "
-        "(action=add: name, event, isteğe bağlı days, amount, text, channels, detail, quiet_hours) ya da bir kuralı kapatır "
-        "(action=close) veya yeniden açar (action=open; name ile). Değişiklik rules/alerts.yaml'a yazılır, önceki "
-        "dosya kural geçmişinde saklanır; okunamayacak bir kural yazılmaz.",
+        "(action=add: name, event, isteğe bağlı days, amount, text, channels, detail, quiet_hours) ya da bir kuralı "
+        "kapatır (action=close) veya yeniden açar (action=open; name ile). Ekleme, kapatma ve açma için verilen plan "
+        "kuralı ve (açık bir kuralda) son 30 günün olaylarından kaç bildirim çıkacağını içerir; onaylanınca "
+        "değişiklik rules/alerts.yaml'a yazılır, önceki dosya kural geçmişinde saklanır. Okunamayacak bir kural için "
+        "plan verilmez; listelemek yalnızca okur. " + _TWO_STEPS,
         _schema(
             action={"type": "string", "enum": ["list", "add", "close", "open"]},
             name=_TEXT,
@@ -1099,10 +1284,11 @@ TOOLS = (
             channels={"type": "array", "items": {"type": "string", "enum": ["desktop", "telegram", "email"]}},
             detail={"type": "string", "enum": ["full", "summary", "minimal"]},
             quiet_hours={"type": "boolean", "description": "false: sessiz saatte de hemen gider"},
+            plan_id=_PLAN_ID,
         ),
-        _alerts,
+        _two_step("alerts", _alerts),
         read_only=False,
-        writes=lambda args: args.get("action", "list") != "list",
+        writes=_applies,
     ),
     Tool(
         "habits",
@@ -1147,40 +1333,47 @@ TOOLS = (
         "Bir işyerini bir kategoriye bağlayan isimli kural ekler (işyeri varsa desenlerini genişletir). İsimli "
         "kurallar bütün anahtar kelimelerden önce denenir. Desenler büyük/küçük harf ve Türkçe karakter "
         "duyarsızdır; 're:' ile başlayan desen ASCII büyük harfe çevrilmiş açıklamaya uygulanan düzenli ifadedir. "
-        "Değişikliğin hangi işlemleri taşıdığını döndürür; dosyanın yedeği alınır.",
+        "Plan, kural dosyasının farkını ve hangi işlemleri hangi kategoriden hangisine taşıyacağını gösterir; "
+        "uygulanınca dosyanın yedeği alınır. Planlarken category, merchant ve patterns gerekir. " + _TWO_STEPS,
         _schema(
-            ("category", "merchant", "patterns"),
+            (),
             category={"type": "string", "description": "var olan kategori (read_rules → categories)"},
             merchant={"type": "string", "description": "raporda görünecek işyeri adı"},
             patterns={"type": "array", "minItems": 1, "items": _TEXT},
+            plan_id=_PLAN_ID,
         ),
-        _add_rule,
+        _two_step("add_rule", _add_rule),
         read_only=False,
+        writes=_applies,
     ),
     Tool(
         "mark_ended",
         "Bitti olarak işaretle",
         "Kullanıcının bittiğini ya da iptal ettiğini söylediği bir ödemeyi veya bıraktığı bir alışkanlığı `_biten` "
         "bölümüne yazar: işyeri adı raporda göründüğü gibi, son ödemenin ayı. Tahmine ve alışkanlıklara girmez; o "
-        "aydan sonra ödeme görünürse rapor uyarır.",
+        "aydan sonra ödeme görünürse rapor uyarır. Planlarken merchant ve month gerekir. " + _TWO_STEPS,
         _schema(
-            ("merchant", "month"),
+            (),
             merchant=_TEXT,
             month={"type": "string", "pattern": r"\d{4}-\d{2}", "description": "YYYY-AA"},
             note={"type": "string", "description": "kısa not (ör. kullanıcının söylediği)"},
+            plan_id=_PLAN_ID,
         ),
-        _mark_ended,
+        _two_step("mark_ended", _mark_ended),
         read_only=False,
+        writes=_applies,
     ),
     Tool(
         "write_rules",
         "Kategori kurallarını yaz",
         "Kişisel kural dosyasının tamamını verilen metinle değiştirir (önce read_rules ile okuyun, yorumları "
-        "koruyun). Metin programın okuyabileceği kurallar değilse hiçbir şey yazılmaz. Eski dosyanın kopyası "
-        "kural geçmişine alınır; değişikliğin farkı ve etkilediği işlemler döner.",
-        _schema(("content",), content=_TEXT),
-        _write_rules,
+        "koruyun). Metin programın okuyabileceği kurallar değilse plan verilmez. Plan, değişikliğin farkını ve "
+        "etkilediği işlemleri gösterir; uygulanınca eski dosyanın kopyası kural geçmişine alınır. Planlarken content "
+        "gerekir; uygularken yalnızca plan_id yeter. " + _TWO_STEPS,
+        _schema((), content=_TEXT, plan_id=_PLAN_ID),
+        _two_step("write_rules", _write_rules),
         read_only=False,
+        writes=_applies,
     ),
 )
 TOOLS_BY_NAME = {t.name: t for t in TOOLS}

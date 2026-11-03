@@ -11,13 +11,14 @@ import pytest
 from mcp import Client
 
 from iplikci import demo
-from iplikci.app.workspace import Workspace
+from iplikci.app import rules
+from iplikci.app.workspace import BUSY, Busy, Workspace
 from iplikci.domain.codes import InvoiceKind
 from iplikci.domain.models import Invoice, InvoiceLine
 from iplikci.fakes import Move, teb
 from iplikci.invoices import UNPAID_REASON, match
 from iplikci.mcp.server import build
-from iplikci.mcp.tools import TOOLS, Session
+from iplikci.mcp.tools import NO_PLAN, PLANNED, STALE_RULES, TOOLS, Session
 from iplikci.storage import audit
 
 from conftest import FEBRUARY, JANUARY, add, bank_mail, put
@@ -130,19 +131,40 @@ def test_fetch_email_takes_new_documents_into_the_vault(server, ws, mail):
     assert hints["fetch_email"].open_world and not hints["import_documents"].open_world
 
 
-def test_a_rule_change_reports_what_it_moved(server, ws):
-    effect, failed = call(server, "add_rule", category="Market & Gıda", merchant="Kahveci Dükkan", patterns=["KAHVECI"])
-    assert not failed
-    assert effect["effect"]["moves"] == [{"from": "Kafe & Kahve", "to": "Market & Gıda", "count": 1, "total": 120.0}]
-    assert "+    Kahveci Dükkan: [KAHVECI]" in effect["diff"]
-    assert "Eski Abonelik" in Path(effect["backup"]).read_text(encoding="utf-8")  # the previous file is kept
-    text, failed = call(server, "add_rule", category="Market & Gıda", merchant="Kahveci Dükkan", patterns=["KAHVECI"])
+def approved(session, name, **arguments):
+    """A two-step tool's plan, then the answer to applying it once the user approved it: what the model reads."""
+    plan, failed = call(session, name, **arguments)
+    assert not failed, plan
+    assert plan["note"].startswith(PLANNED) and plan["plan_id"]
+    return plan, call(session, name, plan_id=plan["plan_id"])
+
+
+KAHVECI = {"category": "Market & Gıda", "merchant": "Kahveci Dükkan", "patterns": ["KAHVECI"]}
+MOVED = [{"from": "Kafe & Kahve", "to": "Market & Gıda", "count": 1, "total": 120.0}]
+
+
+def test_a_rule_change_is_shown_with_what_it_would_move_then_made_once_approved(server, ws):
+    before = ws.rules.read_text(encoding="utf-8")
+    plan, failed = call(server, "add_rule", **KAHVECI)
+    assert not failed and plan["note"] == PLANNED
+    assert plan["effect"]["moves"] == MOVED and "+    Kahveci Dükkan: [KAHVECI]" in plan["diff"]
+    assert ws.rules.read_text(encoding="utf-8") == before  # the plan changed nothing
+    rows, _ = call(server, "transactions", text="kahveci")
+    assert rows["rows"][0]["category"] == "Kafe & Kahve"
+    done, failed = call(server, "add_rule", plan_id=plan["plan_id"])
+    assert not failed and done["effect"]["moves"] == MOVED and done["diff"] == plan["diff"]
+    assert "Eski Abonelik" in Path(done["backup"]).read_text(encoding="utf-8")  # the previous file is kept
+    rows, _ = call(server, "transactions", text="kahveci")
+    assert rows["rows"][0]["category"] == "Market & Gıda"
+    text, failed = call(server, "add_rule", **KAHVECI)
     assert failed and "değişiklik yok" in text
 
 
 def test_a_rule_for_a_default_category_lands_in_the_personal_file(server, ws):
-    effect, failed = call(server, "add_rule", category="Restoran & Yemek", merchant="Kahveci", patterns=["KAHVECI"])
-    assert not failed and effect["effect"]["moves"][0]["to"] == "Restoran & Yemek"
+    plan, (done, failed) = approved(
+        server, "add_rule", category="Restoran & Yemek", merchant="Kahveci", patterns=["KAHVECI"]
+    )
+    assert not failed and plan["effect"]["moves"][0]["to"] == done["effect"]["moves"][0]["to"] == "Restoran & Yemek"
     assert "  Restoran & Yemek:\n    Kahveci: [KAHVECI]\n" in ws.rules.read_text(encoding="utf-8")
     rules, _ = call(server, "read_rules")
     assert "Restoran & Yemek" in rules["categories"]["Yeme & İçme"] and "kişisel" in rules["layers"]
@@ -151,7 +173,10 @@ def test_a_rule_for_a_default_category_lands_in_the_personal_file(server, ws):
 def test_mark_ended_needs_a_merchant_from_the_data(server, ws):
     text, failed = call(server, "mark_ended", merchant="Kahveci Dukan", month="2026-01")
     assert failed and "Kahveci Dukkan" in text  # suggests the name the report shows
-    _done, failed = call(server, "mark_ended", merchant="kahveci dukkan", month="2026-01", note="kullanıcı söyledi")
+    plan, (_done, failed) = approved(
+        server, "mark_ended", merchant="kahveci dukkan", month="2026-01", note="kullanıcı söyledi"
+    )
+    assert "+  Kahveci Dukkan: 2026-01  # kullanıcı söyledi" in plan["diff"]
     assert not failed and "Kahveci Dukkan: 2026-01  # kullanıcı söyledi" in ws.rules.read_text(encoding="utf-8")
 
 
@@ -307,28 +332,113 @@ def alerts(server, **arguments):
     return (json.loads(found.text) if not found.error else found.text), found.error
 
 
+def approved_alert(server, **arguments):
+    plan, failed = alerts(server, **arguments)
+    assert not failed and plan["note"].startswith(PLANNED), plan
+    return plan, alerts(server, plan_id=plan["plan_id"])
+
+
 def test_the_alert_rules_are_listed_added_closed_and_opened_again(server, ws):
     found, failed = alerts(server)
     assert not failed and not found["own"] and found["rules"][0]["name"] == "Son ödemeye 3 gün"
     assert {e["event"] for e in found["events"]} >= {"payment.due_soon", "transaction.large"}
-    added, failed = alerts(
+    plan, (added, failed) = approved_alert(
         server, action="add", name="Büyük market", event="transaction.large", amount=7500, text="market"
     )
+    assert (plan["action"], plan["rule"]["amount"], plan["before"]) == ("add", 7500.0, None)
+    assert plan["lastDays"]["days"] == 30 and "rules/alerts.yaml" in plan["note"]  # the shipped rules get written
     assert not failed and added["own"] and added["rules"][-1]["amount"] == 7500.0
-    closed, _ = alerts(server, action="close", name="büyük MARKET")
+    plan, (closed, _) = approved_alert(server, action="close", name="büyük MARKET")
+    assert plan["before"]["enabled"] is True and plan["rule"]["enabled"] is False and "lastDays" not in plan
     assert closed["rules"][-1]["enabled"] is False
-    opened, _ = alerts(server, action="open", name="Büyük market")
+    _, (opened, _) = approved_alert(server, action="open", name="Büyük market")
     assert opened["rules"][-1]["enabled"] is True
     with ws.db() as db:
         assert {e.actor for e in audit.entries(db, "rules.alerts_changed")} == {"mcp"}
 
 
-def test_an_alert_rule_the_program_would_not_read_is_never_written(server, ws):
+def test_an_alert_rule_the_program_would_not_read_is_never_planned(server, ws):
     message, failed = alerts(server, action="add", name="X", event="transaction.large", days=3)
     assert failed and "'gun' koşulu" in message
     message, failed = alerts(server, action="close", name="yok böyle")
     assert failed and "kural yok" in message
+    message, failed = alerts(server, action="open", name="Son ödemeye 3 gün")
+    assert failed and "zaten açık" in message
+    message, failed = alerts(server, action="add", event="transaction.large")
+    assert failed and message == "gerekli parametre eksik: name"
     assert not ws.layout.alert_rules.exists()
+
+
+def test_an_alert_plan_is_not_applied_over_rules_changed_since_it_was_shown(server, ws):
+    plan, _ = alerts(server, action="add", name="Büyük market", event="transaction.large", amount=7500)
+    approved_alert(server, action="close", name="Son ödemeye 3 gün")  # another plan, applied in between
+    text, failed = alerts(server, plan_id=plan["plan_id"])
+    assert failed and text.startswith("bildirim kuralları plan gösterildikten sonra değişti")
+    assert "Büyük market" not in ws.layout.alert_rules.read_text(encoding="utf-8")
+
+
+# --- plan → the user's approval → apply (ADR-0011) -------------------------------------------------------------------
+
+
+def test_planning_writes_nothing_and_applying_writes_the_plan_in_the_audit_log(server, ws):
+    plan, _ = call(server, "add_rule", **KAHVECI)
+    with ws.db() as db:
+        assert audit.entries(db, "rules.categories_changed") == []
+    call(server, "add_rule", plan_id=plan["plan_id"])
+    with ws.db() as db:
+        assert [e.actor for e in audit.entries(db, "rules.categories_changed")] == ["mcp"]
+        calls = [(e.target, e.detail) for e in audit.entries(db, "mcp.tool")]
+    assert calls == [
+        ("add_rule", {"arguments": ["category", "merchant", "patterns"], "ok": True}),
+        ("add_rule", {"arguments": ["plan_id"], "ok": True}),
+    ]
+
+
+def test_a_plan_is_applied_once_and_only_by_the_tool_that_showed_it(server):
+    plan, _ = call(server, "add_rule", **KAHVECI)
+    text, failed = call(server, "mark_ended", plan_id=plan["plan_id"])
+    assert failed and text == "bu plan add_rule aracının: onu plan_id ile çağırın"
+    text, failed = call(server, "add_rule", plan_id=plan["plan_id"], category="Kafe & Kahve")
+    assert failed and text.startswith("category plandakinden farklı")
+    done, failed = call(server, "add_rule", plan_id=plan["plan_id"], **KAHVECI)  # its own arguments may come along
+    assert not failed and done["effect"]["moves"] == MOVED
+    again, failed = call(server, "add_rule", plan_id=plan["plan_id"])
+    assert failed and again == NO_PLAN
+    made_up, failed = call(server, "write_rules", plan_id="uydurma")
+    assert failed and made_up == NO_PLAN
+
+
+def test_planning_asks_for_what_the_plan_needs(server):
+    text, failed = call(server, "add_rule", category="Market & Gıda")
+    assert failed and text == "gerekli parametre eksik: merchant, patterns"
+    text, failed = call(server, "write_rules")
+    assert failed and text == "gerekli parametre eksik: content"
+
+
+def test_a_rules_plan_is_not_applied_over_a_rule_file_changed_since_it_was_shown(server, ws):
+    plan, _ = call(server, "add_rule", **KAHVECI)
+    changed = ws.rules.read_text(encoding="utf-8") + "\n# kullanıcı ekranda değiştirdi\n"
+    ws.rules.write_text(changed, encoding="utf-8")
+    text, failed = call(server, "add_rule", plan_id=plan["plan_id"])
+    assert failed and text == STALE_RULES
+    assert ws.rules.read_text(encoding="utf-8") == changed  # the user's edit stands
+    again, failed = call(server, "add_rule", plan_id=plan["plan_id"])
+    assert failed and again == NO_PLAN  # a stale plan is gone: a new one is needed
+
+
+def test_a_plan_the_busy_documents_kept_from_applying_can_be_applied_later(server, monkeypatch):
+    plan, _ = call(server, "add_rule", **KAHVECI)
+    save = rules.save
+
+    def busy(*args, **kwargs):
+        raise Busy(BUSY)
+
+    monkeypatch.setattr(rules, "save", busy)
+    text, failed = call(server, "add_rule", plan_id=plan["plan_id"])
+    assert failed and text == BUSY
+    monkeypatch.setattr(rules, "save", save)
+    done, failed = call(server, "add_rule", plan_id=plan["plan_id"])
+    assert not failed and done["effect"]["moves"] == MOVED
 
 
 # --- the contract: what a client sees of the tools ---------------------------------------------------------------

@@ -383,7 +383,7 @@
   {
     "name": "alerts",
     "title": "Bildirim kuralları",
-    "description": "Bildirim kurallarını listeler (action=list; olaylar, koşulları ve kanalların durumu ile), yeni kural ekler (action=add: name, event, isteğe bağlı days, amount, text, channels, detail, quiet_hours) ya da bir kuralı kapatır (action=close) veya yeniden açar (action=open; name ile). Değişiklik rules/alerts.yaml'a yazılır, önceki dosya kural geçmişinde saklanır; okunamayacak bir kural yazılmaz.",
+    "description": "Bildirim kurallarını listeler (action=list; olaylar, koşulları ve kanalların durumu ile), yeni kural ekler (action=add: name, event, isteğe bağlı days, amount, text, channels, detail, quiet_hours) ya da bir kuralı kapatır (action=close) veya yeniden açar (action=open; name ile). Ekleme, kapatma ve açma için verilen plan kuralı ve (açık bir kuralda) son 30 günün olaylarından kaç bildirim çıkacağını içerir; onaylanınca değişiklik rules/alerts.yaml'a yazılır, önceki dosya kural geçmişinde saklanır. Okunamayacak bir kural için plan verilmez; listelemek yalnızca okur. İki adımlıdır: plan_id olmadan çağrılınca hiçbir şey değişmez, ne değişeceği bir plan_id ile döner; planı kullanıcıya gösterin. Kullanıcı onaylarsa aynı aracı yalnızca plan_id ile çağırın: plan bir kez ve gösterildiği gibi uygulanır; dayandığı şey o arada değiştiyse uygulanmaz ve yeni plan gerekir. Servis kapalıyken plan alınabilir, uygulanamaz.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -466,6 +466,10 @@
         "quiet_hours": {
           "type": "boolean",
           "description": "false: sessiz saatte de hemen gider"
+        },
+        "plan_id": {
+          "type": "string",
+          "description": "bu aracın plan_id olmadan verdiği planın kimliği; kullanıcı planı onayladıysa yalnızca bununla çağırın"
         }
       },
       "required": [],
@@ -560,7 +564,7 @@
   {
     "name": "add_rule",
     "title": "Kategori kuralı ekle",
-    "description": "Bir işyerini bir kategoriye bağlayan isimli kural ekler (işyeri varsa desenlerini genişletir). İsimli kurallar bütün anahtar kelimelerden önce denenir. Desenler büyük/küçük harf ve Türkçe karakter duyarsızdır; 're:' ile başlayan desen ASCII büyük harfe çevrilmiş açıklamaya uygulanan düzenli ifadedir. Değişikliğin hangi işlemleri taşıdığını döndürür; dosyanın yedeği alınır.",
+    "description": "Bir işyerini bir kategoriye bağlayan isimli kural ekler (işyeri varsa desenlerini genişletir). İsimli kurallar bütün anahtar kelimelerden önce denenir. Desenler büyük/küçük harf ve Türkçe karakter duyarsızdır; 're:' ile başlayan desen ASCII büyük harfe çevrilmiş açıklamaya uygulanan düzenli ifadedir. Plan, kural dosyasının farkını ve hangi işlemleri hangi kategoriden hangisine taşıyacağını gösterir; uygulanınca dosyanın yedeği alınır. Planlarken category, merchant ve patterns gerekir. İki adımlıdır: plan_id olmadan çağrılınca hiçbir şey değişmez, ne değişeceği bir plan_id ile döner; planı kullanıcıya gösterin. Kullanıcı onaylarsa aynı aracı yalnızca plan_id ile çağırın: plan bir kez ve gösterildiği gibi uygulanır; dayandığı şey o arada değiştiyse uygulanmaz ve yeni plan gerekir. Servis kapalıyken plan alınabilir, uygulanamaz.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -578,13 +582,13 @@
           "items": {
             "type": "string"
           }
+        },
+        "plan_id": {
+          "type": "string",
+          "description": "bu aracın plan_id olmadan verdiği planın kimliği; kullanıcı planı onayladıysa yalnızca bununla çağırın"
         }
       },
-      "required": [
-        "category",
-        "merchant",
-        "patterns"
-      ],
+      "required": [],
       "additionalProperties": false
     },
     "annotations": {
@@ -598,7 +602,7 @@
   {
     "name": "mark_ended",
     "title": "Bitti olarak işaretle",
-    "description": "Kullanıcının bittiğini ya da iptal ettiğini söylediği bir ödemeyi veya bıraktığı bir alışkanlığı `_biten` bölümüne yazar: işyeri adı raporda göründüğü gibi, son ödemenin ayı. Tahmine ve alışkanlıklara girmez; o aydan sonra ödeme görünürse rapor uyarır.",
+    "description": "Kullanıcının bittiğini ya da iptal ettiğini söylediği bir ödemeyi veya bıraktığı bir alışkanlığı `_biten` bölümüne yazar: işyeri adı raporda göründüğü gibi, son ödemenin ayı. Tahmine ve alışkanlıklara girmez; o aydan sonra ödeme görünürse rapor uyarır. Planlarken merchant ve month gerekir. İki adımlıdır: plan_id olmadan çağrılınca hiçbir şey değişmez, ne değişeceği bir plan_id ile döner; planı kullanıcıya gösterin. Kullanıcı onaylarsa aynı aracı yalnızca plan_id ile çağırın: plan bir kez ve gösterildiği gibi uygulanır; dayandığı şey o arada değiştiyse uygulanmaz ve yeni plan gerekir. Servis kapalıyken plan alınabilir, uygulanamaz.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -613,12 +617,13 @@
         "note": {
           "type": "string",
           "description": "kısa not (ör. kullanıcının söylediği)"
+        },
+        "plan_id": {
+          "type": "string",
+          "description": "bu aracın plan_id olmadan verdiği planın kimliği; kullanıcı planı onayladıysa yalnızca bununla çağırın"
         }
       },
-      "required": [
-        "merchant",
-        "month"
-      ],
+      "required": [],
       "additionalProperties": false
     },
     "annotations": {
@@ -632,17 +637,19 @@
   {
     "name": "write_rules",
     "title": "Kategori kurallarını yaz",
-    "description": "Kişisel kural dosyasının tamamını verilen metinle değiştirir (önce read_rules ile okuyun, yorumları koruyun). Metin programın okuyabileceği kurallar değilse hiçbir şey yazılmaz. Eski dosyanın kopyası kural geçmişine alınır; değişikliğin farkı ve etkilediği işlemler döner.",
+    "description": "Kişisel kural dosyasının tamamını verilen metinle değiştirir (önce read_rules ile okuyun, yorumları koruyun). Metin programın okuyabileceği kurallar değilse plan verilmez. Plan, değişikliğin farkını ve etkilediği işlemleri gösterir; uygulanınca eski dosyanın kopyası kural geçmişine alınır. Planlarken content gerekir; uygularken yalnızca plan_id yeter. İki adımlıdır: plan_id olmadan çağrılınca hiçbir şey değişmez, ne değişeceği bir plan_id ile döner; planı kullanıcıya gösterin. Kullanıcı onaylarsa aynı aracı yalnızca plan_id ile çağırın: plan bir kez ve gösterildiği gibi uygulanır; dayandığı şey o arada değiştiyse uygulanmaz ve yeni plan gerekir. Servis kapalıyken plan alınabilir, uygulanamaz.",
     "inputSchema": {
       "type": "object",
       "properties": {
         "content": {
           "type": "string"
+        },
+        "plan_id": {
+          "type": "string",
+          "description": "bu aracın plan_id olmadan verdiği planın kimliği; kullanıcı planı onayladıysa yalnızca bununla çağırın"
         }
       },
-      "required": [
-        "content"
-      ],
+      "required": [],
       "additionalProperties": false
     },
     "annotations": {

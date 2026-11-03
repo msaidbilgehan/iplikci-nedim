@@ -18,7 +18,7 @@ from iplikci.app import calls, reading
 from iplikci.app.workspace import Workspace
 from iplikci.fakes import teb
 from iplikci.mcp import bridge
-from iplikci.mcp.tools import CANNOT_READ, OFFLINE, Session
+from iplikci.mcp.tools import CANNOT_READ, OFFLINE, PLANNED, Session
 from iplikci.service import runner
 from iplikci.service.client import ServiceDown
 from iplikci.storage import audit
@@ -58,15 +58,26 @@ def test_while_the_service_is_down_the_tools_that_read_answer_from_the_database(
 def test_while_the_service_is_down_a_tool_that_would_change_something_is_refused(read):
     offline = Session(replace(read, offline=True), offline=True)
     before = (fingerprint(read), read.rules.read_text(encoding="utf-8"))
+    for name in ("build_report", "fetch_email"):
+        found = offline.call(name, {})
+        assert found.error and found.text == OFFLINE, name
+    assert (fingerprint(read), read.rules.read_text(encoding="utf-8")) == before
+
+
+def test_while_the_service_is_down_a_change_is_planned_but_never_applied(read):
+    offline = Session(replace(read, offline=True), offline=True)
+    before = (fingerprint(read), read.rules.read_text(encoding="utf-8"))
     for name, arguments in (
         ("add_rule", {"category": "Market & Gıda", "merchant": "Kahveci", "patterns": ["KAHVECI"]}),
         ("alerts", {"action": "add", "name": "X", "event": "transaction.large", "amount": 1}),
-        ("build_report", {}),
-        ("fetch_email", {}),
     ):
-        found = offline.call(name, arguments)
+        planned = offline.call(name, arguments)
+        plan = json.loads(planned.text)
+        assert not planned.error and plan["note"].startswith(PLANNED), name
+        found = offline.call(name, {"plan_id": plan["plan_id"]})
         assert found.error and found.text == OFFLINE, name
     assert (fingerprint(read), read.rules.read_text(encoding="utf-8")) == before
+    assert not read.layout.alert_rules.exists()
 
 
 def test_while_the_service_is_down_no_document_is_read_again(read, monkeypatch):
