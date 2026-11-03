@@ -36,7 +36,9 @@ import type {
   ExportsQueued,
   ExtensionFolder,
   ExtensionInfo,
+  FxIncome,
   FxRates,
+  FxSpread,
   FeedPage,
   Flows,
   Forecast,
@@ -61,6 +63,7 @@ import type {
   PageLines,
   Pairing,
   Queued,
+  RatesQueued,
   Removed,
   Reparsed,
   Restoring,
@@ -116,7 +119,9 @@ export const keys = {
   calendar: ["calendar"] as const,
   forecast: ["forecast"] as const,
   holdings: ["holdings"] as const,
-  fx: ["fx"] as const,
+  fx: ["fx"] as const, // the rates; and as a prefix, the spread and the foreign income too: an analysis moves them
+  fxSpread: ["fx", "spread"] as const,
+  fxIncome: ["fx", "income"] as const,
   invoices: ["invoices"] as const,
   otherSenders: ["settings", "mail", "other-senders"] as const,
   mcpConnection: ["mcp", "connection"] as const,
@@ -705,11 +710,39 @@ export function useHoldings() {
   });
 }
 
-/** The TL rates the documents print, by currency; nothing is fetched from the network (F12, Phase 6). */
+/** The TL rates by currency: the providers' newest in use, else the documents' newest; with their history (F12). */
 export function useFxRates() {
   return useQuery({
     queryKey: keys.fx,
     queryFn: () => api.get<FxRates>("/api/fx"),
+  });
+}
+
+/** What the banks' rates cost against TCMB's over the last 12 months: currency trades and card purchases abroad. */
+export function useFxSpread() {
+  return useQuery({
+    queryKey: keys.fxSpread,
+    queryFn: () => api.get<FxSpread>("/api/fx/spread"),
+  });
+}
+
+/** The income that comes in a foreign currency: its TL value now, its sales for TL and its sensitivity to the rate. */
+export function useFxIncome() {
+  return useQuery({
+    queryKey: keys.fxIncome,
+    queryFn: () => api.get<FxIncome>("/api/fx/income"),
+  });
+}
+
+/**
+ * Ask the service to fetch the rates now: the day's bulletin and the business days missed since the newest one; with
+ * history, every day of the history not asked for yet. The System screen shows how it went as the service works.
+ */
+export function useFetchRates() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (history: boolean) => api.post<RatesQueued>("/api/fx/fetch", { history }),
+    onSuccess: () => void client.invalidateQueries({ queryKey: keys.system }),
   });
 }
 

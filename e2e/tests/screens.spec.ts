@@ -5,8 +5,9 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
-// The screens and their main headings; each new screen joins this list.
-const SCREENS = [
+// The screens and their main headings; each new screen joins this list. A part of a long screen (?bolum=) that draws
+// what the first part does not is named apart.
+const SCREENS: ReadonlyArray<{ path: string; heading: string; part?: string }> = [
   { path: "/", heading: "Pano" },
   { path: "/akis", heading: "Akış" },
   { path: "/islemler", heading: "İşlemler" },
@@ -19,6 +20,9 @@ const SCREENS = [
   { path: "/takvim", heading: "Takvim" },
   { path: "/degerlendirme", heading: "Değerlendirme" },
   { path: "/doviz", heading: "Döviz" },
+  { path: "/doviz?bolum=kurlar", heading: "Döviz", part: "kurlar" }, // the providers' rates drawn as a chart
+  { path: "/doviz?bolum=kur-makasi", heading: "Döviz", part: "kur makası" },
+  { path: "/doviz?bolum=doviz-geliri", heading: "Döviz", part: "döviz geliri" },
   { path: "/faturalar", heading: "Faturalar" },
   { path: "/bildirimler", heading: "Bildirimler" },
   { path: "/kurulum/eklenti", heading: "Tarayıcı eklentisi" },
@@ -29,10 +33,13 @@ const SCREENS = [
   { path: "/yapilacaklar", heading: "Yapılacaklar" },
   { path: "/kurulum", heading: "Kurulum sihirbazı" },
   { path: "/ayarlar", heading: "Ayarlar" },
-] as const;
+];
+
+const nameOf = (screen: (typeof SCREENS)[number]): string =>
+  screen.part ? `${screen.heading} (${screen.part})` : screen.heading;
 
 for (const screen of SCREENS) {
-  test(`${screen.heading} ekranı yüklenir ve erişilebilirlik denetiminden geçer`, async ({ page }) => {
+  test(`${nameOf(screen)} ekranı yüklenir ve erişilebilirlik denetiminden geçer`, async ({ page }) => {
     await page.goto(screen.path);
     await expect(page.getByRole("heading", { level: 1, name: screen.heading })).toBeVisible();
     // The live event stream keeps a request open, so "network idle" never comes: wait for the loading states.
@@ -54,7 +61,7 @@ for (const screen of SCREENS) {
 
 // On a phone no screen scrolls sideways, in either view: a table wider than the screen scrolls inside its card.
 for (const screen of SCREENS) {
-  test(`${screen.heading} ekranı telefonda iki görünümde de yana taşmaz`, async ({ page }) => {
+  test(`${nameOf(screen)} ekranı telefonda iki görünümde de yana taşmaz`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(screen.path);
     for (const view of ["simple", "detailed"] as const) {

@@ -13,6 +13,7 @@ import type { Labels, Row, TransactionDetail } from "../../api/types";
 import { cn } from "../../lib/cn";
 import { formatDay, formatMoney, formatRate } from "../../lib/format";
 import { labelOf } from "../../lib/labels";
+import { rateOrigin } from "../../lib/rateOrigin";
 import { RowPreview } from "../documents/RowPreview";
 import { useView } from "../Preferences";
 import { Failure, Loading } from "../QueryState";
@@ -215,6 +216,7 @@ interface WhyProps {
 /** Why the row is what it is; the detailed view adds where each rule stands and the evidence behind the row. */
 function Why({ found, labels, rowHref }: WhyProps) {
   const { t } = useTranslation("transactions");
+  const { t: tc } = useTranslation("common");
   const { view } = useView();
   const detailed = view === "detailed";
   const { why, told } = found;
@@ -247,7 +249,7 @@ function Why({ found, labels, rowHref }: WhyProps) {
     facts.push([
       t("why.rate"),
       why.rate_day
-        ? t("why.rateText", { rate: formatRate(why.rate), day: formatDay(why.rate_day) })
+        ? t("why.rateText", { rate: formatRate(why.rate), origin: rateOrigin(tc, why.rate_source, why.rate_day, "by") })
         : t("why.rateOnly", { rate: formatRate(why.rate) }),
     ]);
   }

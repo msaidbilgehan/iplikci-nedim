@@ -1,13 +1,15 @@
 // Every asset and debt on Döviz (F12): its account (leading to the account's page), its kind, the amount in its own
-// unit, and its TL value at the rate the documents print, or "no rate in the documents" — never zero. The detailed
-// view adds the rate and its day, the cost where the documents tell it (gold bought from a TL account of the same
-// bank), the difference the rate made, the day of its newest document and how the service found it.
+// unit, and its TL value at the newest rate — TCMB's, else ECB's, else the documents' — or "no rate known", never
+// zero. The detailed view adds the rate with its day and source, the cost where the documents tell it (gold bought
+// from a TL account of the same bank), the difference the rate made, the day of its newest document and how the
+// service found it.
 
 import { useTranslation } from "react-i18next";
 
 import type { Asset, Labels } from "../../api/types";
 import { formatDay, formatMoney, formatRate } from "../../lib/format";
 import { labelOf } from "../../lib/labels";
+import { rateOrigin } from "../../lib/rateOrigin";
 import { useView } from "../Preferences";
 import { Card } from "../ui/Card";
 import { Money } from "../ui/Money";
@@ -25,6 +27,7 @@ interface AssetTableProps {
 
 export function AssetTable({ assets, labels, note }: AssetTableProps) {
   const { t } = useTranslation("fx");
+  const { t: tc } = useTranslation("common");
   const detailed = useView().view === "detailed";
   return (
     <Card title={t("assets.title")}>
@@ -75,11 +78,13 @@ export function AssetTable({ assets, labels, note }: AssetTableProps) {
                     {asset.rate ? (
                       <>
                         <span className="whitespace-nowrap tabular-nums">
-                          {t("assets.rateText", { rate: formatRate(asset.rate) })}
+                          {t("assets.rateText", {
+                            rate: formatRate(asset.rate),
+                          })}
                         </span>
                         {asset.rate_day ? (
                           <span className={`block ${SMALL}`}>
-                            {t("assets.rateDay", { day: formatDay(asset.rate_day) })}
+                            {rateOrigin(tc, asset.rate_source, asset.rate_day, "of")}
                           </span>
                         ) : null}
                       </>

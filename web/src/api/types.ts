@@ -91,9 +91,16 @@ import type {
   FeedOut,
   ForecastOut,
   FreshnessOut,
+  FxConversionOut,
+  FxCurrencyIncomeOut,
   FxCurrencyOut,
+  FxIncomeOut,
+  FxIncomeRowOut,
   FxOut,
   FxRateOut,
+  FxSensitivityOut,
+  FxSpreadOut,
+  FxSpreadRowOut,
   HoldingsOut,
   ImapOut,
   InstallmentOut,
@@ -137,6 +144,10 @@ import type {
   PlanOut,
   PrintedOut,
   QueuedOut,
+  RateDaysOut,
+  RateSource,
+  RatesOut,
+  RatesQueuedOut,
   RefusedMailOut,
   RemovedOut,
   ReparsedOut,
@@ -345,6 +356,19 @@ export type CurrencyShare = CurrencyShareOut;
 export type FxRates = FxOut;
 export type CurrencyRates = FxCurrencyOut;
 export type FxRate = FxRateOut;
+// Phase 8: where a rate comes from (a row's own document, TCMB, ECB, or Frankfurter's copy of ECB's), what the banks'
+// rates cost against TCMB's, the income that comes in a foreign currency and where the stored rates stand.
+export type { RateSource };
+export type FxSpread = FxSpreadOut;
+export type FxSpreadRow = FxSpreadRowOut;
+export type FxIncome = FxIncomeOut;
+export type CurrencyIncome = FxCurrencyIncomeOut;
+export type IncomeRow = FxIncomeRowOut;
+export type Conversion = FxConversionOut;
+export type Sensitivity = FxSensitivityOut;
+export type RatesState = RatesOut;
+export type RateDays = RateDaysOut;
+export type RatesQueued = RatesQueuedOut;
 export type OpenAlert = AlertOut;
 export type MonthClosing = ClosingOut;
 export type Freshness = FreshnessOut;

@@ -43,9 +43,9 @@ function plotOf(size: Size, margin: Margin): Plot {
 }
 
 /** A value axis that always holds zero, its ends at round numbers. */
-export function valueAxis(low: number, high: number, top: number, bottom: number, count = 5) {
-  const lo = Math.min(0, low);
-  const hi = Math.max(0, high);
+export function valueAxis(low: number, high: number, top: number, bottom: number, count = 5, withZero = true) {
+  const lo = withZero ? Math.min(0, low) : low;
+  const hi = withZero ? Math.max(0, high) : high;
   const scale = scaleLinear()
     .domain(lo === hi ? [0, 1] : [lo, hi])
     .nice(count)
@@ -275,11 +275,18 @@ export function stretches(points: readonly LinePoint[]): LinePoint[][] {
  * Lines of balances over days. A balance holds until the next day's moves, so each line steps rather than slopes; the
  * value axis always holds zero, and the part below it is a band of its own.
  */
-export function lineLayout(series: readonly LineSeries[], size: Size, margin: Margin): LineLayout {
+/**
+ * Where the lines fall. withZero keeps zero on the axis, as balances need (below it is debt); a rate, which never
+ * nears zero, takes an axis around its own values instead, so its moves show.
+ */
+export function lineLayout(series: readonly LineSeries[], size: Size, margin: Margin, withZero = true): LineLayout {
   const plot = plotOf(size, margin);
   const days = [...new Set(series.flatMap((s) => s.points.map((p) => p.day)))].sort();
   const values = series.flatMap((s) => s.points.map((p) => p.value));
-  const { scale: yScale, ticks } = valueAxis(Math.min(0, ...values), Math.max(0, ...values), plot.top, plot.bottom);
+  const [low, high] = values.length ? [Math.min(...values), Math.max(...values)] : [0, 0];
+  const { scale: yScale, ticks } = withZero
+    ? valueAxis(Math.min(0, low), Math.max(0, high), plot.top, plot.bottom)
+    : valueAxis(low === high ? low * 0.99 : low, low === high ? high * 1.01 : high, plot.top, plot.bottom, 5, false);
   const first = days[0] ?? "1970-01-01";
   const lastDay = days[days.length - 1] ?? first;
   // A series with gaps holds its last day to that day's end: the axis reaches the day after.

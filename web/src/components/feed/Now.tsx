@@ -11,6 +11,7 @@ import type { Labels, Now, NowBalance, NowCard, Pace } from "../../api/types";
 import { cn } from "../../lib/cn";
 import { formatDay, formatMoney, formatRate } from "../../lib/format";
 import { labelOf } from "../../lib/labels";
+import { rateOrigin } from "../../lib/rateOrigin";
 import { PaceFigures } from "../Pace";
 import { Detailed, Simple, useView } from "../Preferences";
 import { Empty, Failure, Loading } from "../QueryState";
@@ -114,9 +115,10 @@ function BalanceItem({ balance: b }: { balance: NowBalance }) {
   );
 }
 
-/** A foreign or gold balance's value in TL at the documents' newest rate, or that the documents give none. */
+/** A foreign or gold balance's value in TL at the newest rate with its source and day, or that none is known. */
 function InTl({ balance: b }: { balance: NowBalance }) {
   const { t } = useTranslation("feed");
+  const { t: tc } = useTranslation("common");
   if (b.balance.currency === "TRY") {
     return null;
   }
@@ -131,7 +133,7 @@ function InTl({ balance: b }: { balance: NowBalance }) {
           {t("now.balances.rate", {
             currency: b.balance.currency,
             rate: formatRate(b.rate),
-            day: formatDay(b.rate_day),
+            origin: rateOrigin(tc, b.rate_source, b.rate_day, "by"),
           })}
         </span>
       ) : null}

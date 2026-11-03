@@ -223,6 +223,50 @@ describe("SystemPage", () => {
     expect(asked).toBe(1);
   });
 
+  it("shows where the exchange rates stand: the providers, the newest bulletin, the days kept and missing", async () => {
+    renderScreen(<SystemPage />);
+    const card = await screen.findByRole("region", { name: "Döviz kurları" });
+    expect(within(card).getByText("TCMB, Frankfurter (ECB)")).toBeInTheDocument();
+    expect(within(card).getByText("TCMB son kuru")).toBeInTheDocument();
+    expect(within(card).getByText("30.10.2026 · 210 günün kuru")).toBeInTheDocument();
+    expect(within(card).getByText("210 gün, 02.01.2026 gününden bu yana")).toBeInTheDocument();
+    expect(within(card).getByText("4 iş günü")).toBeInTheDocument();
+  });
+
+  it("asks the service for the day's rates, and for the missing days of the history", async () => {
+    const asked: unknown[] = [];
+    server.use(
+      http.post("/api/fx/fetch", async ({ request }) => {
+        asked.push(await request.json());
+        return HttpResponse.json({ queued: true }, { status: 202 });
+      }),
+    );
+    renderScreen(<SystemPage />);
+    const card = await screen.findByRole("region", { name: "Döviz kurları" });
+    await userEvent.click(within(card).getByRole("button", { name: "Kurları şimdi al" }));
+    expect(await within(card).findByText("Kur isteği alındı")).toBeInTheDocument();
+    await userEvent.click(within(card).getByRole("button", { name: "Eksik günlerin kurlarını al" }));
+    await waitFor(() => expect(asked).toEqual([{ history: false }, { history: true }]));
+  });
+
+  it("says the rates are not fetched while the settings name no provider, and offers no fetch", async () => {
+    const rates = { ...systemStatus().rates!, providers: [], missing: 0, last_run: "" };
+    server.use(http.get("/api/system", () => HttpResponse.json(systemStatus({ rates }))));
+    renderScreen(<SystemPage />);
+    const card = await screen.findByRole("region", { name: "Döviz kurları" });
+    expect(within(card).getByText(/Ayarlarda kur sağlayıcısı yok/)).toBeInTheDocument();
+    expect(within(card).queryByRole("button", { name: "Kurları şimdi al" })).not.toBeInTheDocument();
+  });
+
+  it("says why the last fetch failed and that the documents' rates stand in meanwhile", async () => {
+    const rates = { ...systemStatus().rates!, last_error: "TCMB: bağlantı kurulamadı" };
+    server.use(http.get("/api/system", () => HttpResponse.json(systemStatus({ rates }))));
+    renderScreen(<SystemPage />);
+    const card = await screen.findByRole("region", { name: "Döviz kurları" });
+    expect(within(card).getByText("Son denemede kurlar alınamadı")).toBeInTheDocument();
+    expect(within(card).getByText("TCMB: bağlantı kurulamadı")).toBeInTheDocument();
+  });
+
   it("offers to try again when the service cannot be reached", async () => {
     server.use(http.get("/api/system", () => HttpResponse.error()));
     renderScreen(<SystemPage />);

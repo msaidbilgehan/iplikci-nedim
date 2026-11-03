@@ -31,7 +31,7 @@
     "balanceUnknown": "Bakiyesi belgelerde yok",
     "asOf": "{{day}} itibarıyla",
     "inTl": "TL karşılığı {{value}}",
-    "valueUnknown": "TL karşılığı belgelerde yok",
+    "valueUnknown": "TL karşılığı bilinmiyor",
     "today": "bugün",
     "behind": "{{count}} gün önce",
     "late": "Beklenen belge gecikti",
@@ -202,7 +202,6 @@
     "value": "TL karşılığı",
     "rate": "Kur",
     "rateText": "{{rate}} TL",
-    "rateDay": "{{day}} belgesindeki kur",
     "cost": "Maliyet",
     "gain": "Kur farkı"
   },

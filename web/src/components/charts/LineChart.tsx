@@ -17,6 +17,12 @@ import { Legend } from "./Legend";
 import { SLOT_FILL, SLOT_STROKE } from "./palette";
 import { useWidth } from "./useWidth";
 
+/** How a value is written: on the axis (short) and in the tip and the table (whole). */
+export interface ValueFormat {
+  tick: (value: number) => string;
+  value: (value: number) => string;
+}
+
 interface LineChartProps {
   title: string;
   summary: ReactNode;
@@ -24,6 +30,8 @@ interface LineChartProps {
   currency?: string;
   markers?: ReadonlyArray<{ day: string; label: string }>;
   height?: number;
+  // Values that are no money (a rate): how to write them, with an axis around them rather than from zero.
+  format?: ValueFormat;
 }
 
 const MARGIN = { top: 26, right: 16, bottom: 28, left: 76 };
@@ -49,15 +57,26 @@ function LineSwatch({ series, index }: { series: LineSeries; index: number }) {
   );
 }
 
-export function LineChart({ title, summary, series, currency = "TRY", markers = [], height = 260 }: LineChartProps) {
+export function LineChart({
+  title,
+  summary,
+  series,
+  currency = "TRY",
+  markers = [],
+  height = 260,
+  format,
+}: LineChartProps) {
   const { t } = useTranslation("charts");
   const summaryId = useId();
   const hatchId = useId();
   const [measure, width] = useWidth();
   const [active, setActive] = useState<number | null>(null);
-  const money = (minor: number) => ({ minor, currency });
+  const written: ValueFormat = format ?? {
+    tick: (minor) => formatMoneyShort({ minor, currency }),
+    value: (minor) => formatMoney({ minor, currency }),
+  };
   const size = { width: Math.max(280, width), height };
-  const layout = lineLayout(series, size, MARGIN);
+  const layout = lineLayout(series, size, MARGIN, format === undefined);
   const { plot } = layout;
   const activeDay = active === null ? undefined : layout.days[active];
 
@@ -114,7 +133,7 @@ export function LineChart({ title, summary, series, currency = "TRY", markers = 
               className={tick.value === 0 ? "stroke-chart-ink-2" : "stroke-chart-grid"}
             />
             <text x={plot.left - 8} y={tick.y} dy="0.32em" textAnchor="end" className="fill-chart-ink-2 text-[11px]">
-              {formatMoneyShort(money(tick.value))}
+              {written.tick(tick.value)}
             </text>
           </g>
         ))}
@@ -209,7 +228,7 @@ export function LineChart({ title, summary, series, currency = "TRY", markers = 
                   {
                     key: s.key,
                     label: s.label,
-                    value: formatMoney(money(value)),
+                    value: written.value(value),
                     swatch: <LineSwatch series={s} index={index} />,
                   },
                 ];
@@ -250,7 +269,7 @@ export function LineChart({ title, summary, series, currency = "TRY", markers = 
               const value = valueOn(s, day);
               return (
                 <Td key={s.key} className="whitespace-nowrap text-right tabular-nums">
-                  {value === undefined ? t("none") : formatMoney(money(value))}
+                  {value === undefined ? t("none") : written.value(value)}
                 </Td>
               );
             })}

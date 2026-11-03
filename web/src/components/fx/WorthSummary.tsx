@@ -1,6 +1,6 @@
 // The net worth at the top of Döviz (F12): the assets less the debts in TL, the same in euros, dollars and grams of gold
-// at the documents' newest rates, and the accounts left out of the total because nothing gives them a TL value. A unit
-// without a rate says so; it is never shown as zero.
+// at the newest rate — TCMB's, else ECB's, else the documents' — with that rate's day and source beside it, and the
+// accounts left out of the total because nothing gives them a TL value. A unit without a rate says so; never zero.
 
 import { useTranslation } from "react-i18next";
 
@@ -46,7 +46,10 @@ export function WorthSummary({ found }: { found: Holdings }) {
               <dt className="text-zinc-600 dark:text-zinc-300">{currencyName(t, c.currency)}</dt>
               <dd className="min-w-0">
                 {c.amount ? (
-                  <span className="tabular-nums">{formatMoney(c.amount)}</span>
+                  <>
+                    <span className="tabular-nums">{formatMoney(c.amount)}</span>
+                    {c.note ? <span className={`block ${SMALL}`}>{c.note}</span> : null}
+                  </>
                 ) : (
                   <span className="text-zinc-600 dark:text-zinc-300">{c.note || t("noValue")}</span>
                 )}

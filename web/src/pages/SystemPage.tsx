@@ -17,6 +17,7 @@ import {
   useSystem,
 } from "../api/queries";
 import type { Bridge, ExportKind, Labels, MailCoverage, RefusedMail, SystemStatus } from "../api/types";
+import { RatesStatusCard } from "../components/fx/RatesStatusCard";
 import { HistoryDue } from "../components/HistoryDue";
 import { Failure, Loading } from "../components/QueryState";
 import { Alert } from "../components/ui/Alert";
@@ -71,6 +72,7 @@ function SystemCards({ status, labels }: { status: SystemStatus; labels: Labels 
       <OtherSendersCard />
       <QueueCard status={status} jobKinds={labels["JobKind"] ?? {}} />
       <BackupCard status={status} />
+      {status.rates ? <RatesStatusCard rates={status.rates} labels={labels} /> : null}
       <ExportsCard />
       <Card title={t("documents.title")}>
         <Facts

@@ -20,6 +20,7 @@ import type {
 import { cn } from "../../lib/cn";
 import { formatDay, formatMoney, formatMonth, formatRate } from "../../lib/format";
 import { labelOf } from "../../lib/labels";
+import { rateOrigin } from "../../lib/rateOrigin";
 import { DueTable } from "../DueList";
 import { CardFacts, CardSummary } from "../feed/Now";
 import { Detailed, Simple } from "../Preferences";
@@ -268,6 +269,7 @@ export function DepositDetails({ deposit: d }: { deposit: Deposit }) {
 
 export function HoldingDetails({ holding: h, title }: { holding: Holding; title: string }) {
   const { t } = useTranslation("accounts");
+  const { t: tc } = useTranslation("common");
   return (
     <Card title={title}>
       <Facts
@@ -277,7 +279,10 @@ export function HoldingDetails({ holding: h, title }: { holding: Holding; title:
           [
             t("holding.rate"),
             h.rate
-              ? [t("holding.rateText", { rate: formatRate(h.rate) }), h.rate_day ? t("holding.rateDay", { day: formatDay(h.rate_day) }) : ""]
+              ? [
+                  t("holding.rateText", { rate: formatRate(h.rate) }),
+                  h.rate_day ? rateOrigin(tc, h.rate_source, h.rate_day, "of") : "",
+                ]
                   .filter(Boolean)
                   .join(" · ")
               : t("unknown"),

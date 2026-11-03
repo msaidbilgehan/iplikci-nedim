@@ -69,4 +69,14 @@ describe("LineChart", () => {
     expect(within(table).getAllByRole("row")).toHaveLength(5);
     expect(within(table).getByRole("row", { name: "17.11.2026 −400,00 TL 2.500,00 TL" })).toBeInTheDocument();
   });
+
+  it("writes values that are no money, a rate, as the caller says, on the axis and in the table", async () => {
+    const rate = { key: "eur", label: "Euro döviz alış kuru", slot: 2 as const, points: days([36.31, 36.4205]) };
+    const format = { tick: (v: number) => v.toFixed(2).replace(".", ","), value: (v: number) => `${v} kur` };
+    renderChart({ series: [rate], format });
+    expect(screen.queryByText("Sıfırın altı: eksi bakiye")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("tab", { name: "Tablo" }));
+    const table = screen.getByRole("table", { name: "Bakiye öngörüsü" });
+    expect(within(table).getByRole("row", { name: "16.11.2026 36.4205 kur" })).toBeInTheDocument();
+  });
 });

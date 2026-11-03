@@ -133,7 +133,7 @@
     "transfer": "Transfer",
     "pair": "Eşi",
     "rate": "Kur",
-    "rateText": "{{rate}} TL, {{day}} belgesindeki kurla",
+    "rateText": "{{rate}} TL, {{origin}}",
     "rateOnly": "{{rate}} TL",
     "told": "Dekont ve bildirimler",
     "toldItem": "{{status}}: {{day}}, {{amount}}",

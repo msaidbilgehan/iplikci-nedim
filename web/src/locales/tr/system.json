@@ -1,6 +1,6 @@
 {
   "title": "Sistem",
-  "description": "Servisin, e-posta alımının, iş kuyruğunun, yedeklerin, dışa aktarımların, diskin ve okuyucuların durumu.",
+  "description": "Servisin, e-posta alımının, iş kuyruğunun, yedeklerin, döviz kurlarının, dışa aktarımların, diskin ve okuyucuların durumu.",
   "service": {
     "title": "Servis",
     "log": "Günlüğü indir",
@@ -86,6 +86,31 @@
     "askedTitle": "Yedek isteği alındı",
     "askedText": "Yedek birkaç saniye içinde alınır; bu sayfa kendiliğinden güncellenir.",
     "failed": "Yedek istenemedi"
+  },
+  "rates": {
+    "title": "Döviz kurları",
+    "now": "Kurları şimdi al",
+    "asking": "İsteniyor…",
+    "providers": "Sağlayıcılar",
+    "noProvider": "Yok",
+    "newest": "{{source}} son kuru",
+    "newestValue": "{{day}} · {{count}} günün kuru",
+    "kept": "Saklanan kurlar",
+    "keptValue": "{{count}} gün, {{start}} gününden bu yana",
+    "keptNone": "Henüz yok",
+    "missing": "Geçmişte eksik",
+    "missingValue": "{{count}} iş günü",
+    "complete": "Eksik gün yok",
+    "lastRun": "Son deneme",
+    "never": "Henüz denenmedi",
+    "offline": "Ayarlarda kur sağlayıcısı yok: kurlar ağdan alınmıyor. Değerler saklanan kurlarla, onlar da yoksa belgelerdeki kurlarla bulunuyor.",
+    "history": "Eksik günlerin kurlarını al",
+    "historyText": "Geçmişin eksik iş günleri TCMB'den sırayla alınır; uzun bir geçmiş birkaç turda tamamlanır.",
+    "errorTitle": "Son denemede kurlar alınamadı",
+    "errorText": "Kurlar her gün 16.30'da yeniden denenir; o zamana dek belgelerdeki ve saklanan en yeni kurlar kullanılır.",
+    "askedTitle": "Kur isteği alındı",
+    "askedText": "Kurlar birkaç saniye içinde alınmaya başlar; bu sayfa kendiliğinden güncellenir.",
+    "failed": "Kurlar istenemedi"
   },
   "exports": {
     "title": "Dışa aktarımlar",

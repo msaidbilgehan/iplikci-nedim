@@ -62,5 +62,19 @@
     "named": "Kopyala: {{name}}",
     "done": "Kopyalandı.",
     "failed": "Kopyalanamadı; metni seçip kopyalayın."
+  },
+  "rateOrigin": {
+    "of": {
+      "document": "{{day}} belgesindeki kur",
+      "tcmb": "TCMB'nin {{day}} kuru",
+      "ecb": "ECB'nin {{day}} referans kuru",
+      "frankfurter": "ECB'nin {{day}} referans kuru (Frankfurter'dan)"
+    },
+    "by": {
+      "document": "{{day}} belgesindeki kurla",
+      "tcmb": "TCMB'nin {{day}} kuruyla",
+      "ecb": "ECB'nin {{day}} referans kuruyla",
+      "frankfurter": "ECB'nin {{day}} referans kuruyla (Frankfurter'dan)"
+    }
   }
 }

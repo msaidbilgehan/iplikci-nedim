@@ -29,7 +29,9 @@ import type {
   FeedPage,
   Flows,
   Forecast,
+  FxIncome,
   FxRates,
+  FxSpread,
   Holdings,
   Insights,
   InvoiceItem,
@@ -169,7 +171,8 @@ export const LABELS: Labels = {
     brokerage: "Yatırım",
     loan: "Krediler",
   },
-  RateSource: { document: "Belgedeki kur" },
+  RateSource: { document: "Belgedeki kur", tcmb: "TCMB", ecb: "ECB", frankfurter: "Frankfurter (ECB)" },
+  TradeSide: { buy: "Döviz alımı", sell: "Döviz satışı" },
   PaidStatus: {
     full: "Tamamı ödendi",
     minimum: "Asgarisi ödendi",
@@ -541,9 +544,10 @@ export const HOLDINGS: Holdings = {
       {
         currency: "EUR",
         amount: { minor: 652055, currency: "EUR" },
-        rate: "36.50",
+        rate: "36.5000",
         rate_day: "2026-10-30",
-        note: "",
+        note: "TCMB 30.10.2026 döviz satış kuruyla",
+        rate_source: "tcmb",
       },
       {
         currency: "USD",
@@ -581,8 +585,9 @@ export const HOLDINGS: Holdings = {
       group: "fx",
       amount: { minor: 200000, currency: "EUR" },
       value: { minor: 7300000, currency: "TRY" },
-      rate: "36.50",
+      rate: "36.5000",
       rate_day: "2026-10-30",
+      rate_source: "tcmb",
       cost: { minor: 7000000, currency: "TRY" },
       gain: { minor: 300000, currency: "TRY" },
       day: "2026-10-30",
@@ -642,19 +647,118 @@ export const HOLDINGS: Holdings = {
   note: "Kurlar belgelerdeki döviz işlemlerinden, en yenisiyle; ağdan kur alınmıyor.",
 };
 
+const tcmb = (day: string, buying: string, selling: string) =>
+  ({ day, rate: buying, source: "tcmb", buying, selling }) as const;
+
 export const FX_RATES: FxRates = {
   currencies: [
     {
       currency: "EUR",
-      newest: { day: "2026-10-30", rate: "36.50", source: "document" },
+      newest: tcmb("2026-10-30", "36.5000", "36.5658"),
       history: [
         { day: "2026-09-15", rate: "35.8012", source: "document" },
+        tcmb("2026-10-28", "36.3100", "36.3754"),
+        tcmb("2026-10-29", "36.4205", "36.4861"),
+        tcmb("2026-10-30", "36.5000", "36.5658"),
         { day: "2026-10-30", rate: "36.50", source: "document" },
       ],
     },
+    {
+      currency: "GBP",
+      newest: { day: "2026-10-21", rate: "41.20", source: "document" },
+      history: [{ day: "2026-10-21", rate: "41.20", source: "document" }],
+    },
   ],
   missing: ["GR"],
-  note: "Kurlar bankaların belgelerindeki döviz alım-satım satırlarından. TCMB ve ECB kurları henüz alınmıyor.",
+  note: "Kurlar TCMB'nin günlük kurlarından, TCMB'ye ulaşılamayan günlerde ECB'nin referans kurundan.",
+};
+
+const SPREAD_ROW = {
+  account: { id: "teb-1", label: "TEB Vadesiz TL" },
+  side: "buy",
+  amount: { minor: 100000, currency: "EUR" },
+} as const;
+
+export const FX_SPREAD: FxSpread = {
+  start: "2025-11-03",
+  end: "2026-11-02",
+  total: { minor: 125000, currency: "TRY" },
+  trades: [
+    {
+      ...SPREAD_ROW,
+      fingerprint: "f".repeat(16),
+      day: "2026-10-12",
+      title: "DÖVİZ ALIŞ EUR",
+      tl: { minor: 3700000, currency: "TRY" },
+      rate: "37.00",
+      tcmb_rate: "36.0000",
+      tcmb_day: "2026-10-10",
+      cost: { minor: 100000, currency: "TRY" },
+    },
+  ],
+  trades_total: { minor: 100000, currency: "TRY" },
+  purchases: [
+    {
+      ...SPREAD_ROW,
+      account: { id: "teb-kart", label: "TEB Bonus ••4321" },
+      fingerprint: "e".repeat(16),
+      day: "2026-09-03",
+      title: "Örnek Otel",
+      amount: { minor: 5000, currency: "USD" },
+      tl: { minor: 175000, currency: "TRY" },
+      rate: "35.00",
+      tcmb_rate: "34.5000",
+      tcmb_day: "2026-09-03",
+      cost: { minor: 25000, currency: "TRY" },
+    },
+  ],
+  purchases_total: { minor: 25000, currency: "TRY" },
+  left_out: 1,
+  note: "03.11.2025 – 02.11.2026 arasındaki 2 işlemde bankaların kuruyla aynı günün TCMB kuru arasındaki fark 1.250,00 TL.",
+};
+
+export const FX_INCOME: FxIncome = {
+  start: "2025-11-03",
+  end: "2026-11-02",
+  currencies: [
+    {
+      currency: "EUR",
+      rate: { day: "2026-10-30", rate: "36.5000", source: "tcmb" },
+      rows: [
+        {
+          fingerprint: "d".repeat(16),
+          day: "2026-10-01",
+          account: EUR_ACCOUNT,
+          title: "Örnek Müşteri B.V.",
+          amount: { minor: 200000, currency: "EUR" },
+          counted: { minor: 7200000, currency: "TRY" },
+          worth: { minor: 7300000, currency: "TRY" },
+        },
+      ],
+      received: { minor: 200000, currency: "EUR" },
+      worth: { minor: 7300000, currency: "TRY" },
+      sold: [
+        {
+          fingerprint: "c".repeat(16),
+          day: "2026-10-05",
+          account: TL_ACCOUNT,
+          amount: { minor: 100000, currency: "EUR" },
+          tl: { minor: 3640000, currency: "TRY" },
+          rate: "36.40",
+        },
+      ],
+      sensitivity: {
+        months: ["2026-10"],
+        received: { minor: 200000, currency: "EUR" },
+        monthly: { minor: 200000, currency: "EUR" },
+        monthly_tl: { minor: 7300000, currency: "TRY" },
+        change: { minor: 365000, currency: "TRY" },
+        say: "Aylık ortalama Ekim 2026 (tek tam ay) üzerinden: 2.000,00 EUR, bugünkü kurla 73.000,00 TL. EUR/TRY %5 düşerse aylık gelir 3.650,00 TL azalır; %5 yükselirse o kadar artar.",
+      },
+      note: "03.11.2025 – 02.11.2026 arasında 1 gelir: 2.000,00 EUR, bugünkü kurla 73.000,00 TL.",
+    },
+  ],
+  note: "Döviz hesaplarına gelen gelir, para birimi başına; ortalama yalnızca tam aylardan.",
 };
 
 export const CALENDAR: Calendar = {
@@ -1359,6 +1463,16 @@ export function systemStatus(
       size: 10 * 1024 * 1024,
       rehearsal: "",
       rehearsal_ok: null,
+    },
+    rates: {
+      providers: ["tcmb", "frankfurter"],
+      sources: [{ source: "tcmb", newest: "2026-10-30", days: 210 }],
+      days: 210,
+      start: "2026-01-02",
+      missing: 4,
+      last_run: "2026-11-01T16:30:05+03:00",
+      last_error: "",
+      summary: "TCMB'nin son bülteni 30.10.2026 · 210 günün kurları saklı · 4 iş günü eksik",
     },
     ...overrides,
   };
@@ -3839,6 +3953,9 @@ export const handlers = [
   http.get("/api/forecast", () => HttpResponse.json(FORECAST)),
   http.get("/api/holdings", () => HttpResponse.json(HOLDINGS)),
   http.get("/api/fx", () => HttpResponse.json(FX_RATES)),
+  http.get("/api/fx/spread", () => HttpResponse.json(FX_SPREAD)),
+  http.get("/api/fx/income", () => HttpResponse.json(FX_INCOME)),
+  http.post("/api/fx/fetch", () => HttpResponse.json({ queued: true }, { status: 202 })),
   http.get("/api/invoices", () => HttpResponse.json(INVOICES)),
   http.get("/api/settings/mail/other-senders", () =>
     HttpResponse.json(OTHER_SENDERS),

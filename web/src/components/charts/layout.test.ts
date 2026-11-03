@@ -137,6 +137,24 @@ describe("lineLayout", () => {
     expect(layout.paths[0]?.d.startsWith(`M${MARGIN.left},`)).toBe(true);
   });
 
+  it("fits the axis to the values without zero for a rate, which never nears it", () => {
+    const series = [{ key: "eur", label: "Euro", slot: 2 as const, points: days([54.63, 55.1, 56.27]) }];
+    const layout = lineLayout(series, SIZE, MARGIN, false);
+    const values = layout.ticks.map((tick) => tick.value);
+    expect(Math.min(...values)).toBeGreaterThan(50);
+    expect(Math.min(...values)).toBeLessThanOrEqual(54.63);
+    expect(Math.max(...values)).toBeGreaterThanOrEqual(56.27);
+    expect(layout.belowZero).toBeNull();
+  });
+
+  it("gives one unchanging value an axis around it rather than a flat line on the frame", () => {
+    const series = [{ key: "eur", label: "Euro", slot: 2 as const, points: days([36.5, 36.5]) }];
+    const layout = lineLayout(series, SIZE, MARGIN, false);
+    const y = layout.y(36.5);
+    expect(y).toBeGreaterThan(MARGIN.top);
+    expect(y).toBeLessThan(SIZE.height - MARGIN.bottom);
+  });
+
   it("gives the part below zero a band of its own when a balance goes under it", () => {
     const layout = lineLayout([{ key: "a", label: "Vadesiz", slot: 1, points: days([100_000, -50_000]) }], SIZE, MARGIN);
     expect(layout.belowZero).not.toBeNull();
