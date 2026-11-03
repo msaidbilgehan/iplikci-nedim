@@ -259,3 +259,33 @@ def mail(ws, imap) -> FakeImap:
     mail_app.setup_imap(ws, ADDRESS, APP_PASSWORD, date(2026, 1, 1))
     imap.commands.clear()
     return imap
+
+
+# --- the exchange rate providers ------------------------------------------------------------------------
+
+
+class FakeProviders:
+    """The exchange rate providers as egress.https_get reaches them: an answer by host and path, 404 for any other
+    path, and a host in `down` unreachable. The allowlist still holds; every request is kept in order."""
+
+    def __init__(self) -> None:
+        self.answers: dict[tuple[str, str], tuple[int, bytes]] = {}
+        self.down: set[str] = set()
+        self.asked: list[tuple[str, str]] = []
+
+    def __call__(self, host, path, settings, headers=None, timeout=30.0) -> tuple[int, bytes]:
+        egress.check(host, settings)
+        self.asked.append((host, path))
+        if host in self.down:
+            raise egress.Unreachable(f"{host} adresine ulaşılamadı (URLError)")
+        return self.answers.get((host, path), (404, b"<html><body>Not Found</body></html>"))
+
+    def paths(self, host: str) -> list[str]:
+        return [path for asked, path in self.asked if asked == host]
+
+
+@pytest.fixture
+def providers(monkeypatch) -> FakeProviders:
+    fake = FakeProviders()
+    monkeypatch.setattr(egress, "https_get", fake)
+    return fake
