@@ -507,7 +507,8 @@ sorar:
 - son ödemeye 3 gün,
 - hesap eksiye düşecek,
 - büyük harcama,
-- düzenli ödeme zammı (2026-11-03'e dek adı "abonelik zammı"),
+- düzenli ödeme tutarı değişti (zam ya da düşüş; bildirimin başlığı hangisi olduğunu söyler; v0.9.8'e dek adı
+  "düzenli ödeme zammı", 2026-11-03'e dek "abonelik zammı"),
 - iptalden sonra ödeme,
 - beklenen ödeme gelmedi,
 - maaş gecikti,

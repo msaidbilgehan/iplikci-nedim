@@ -6,7 +6,7 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-03): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.7). Between Phases 6 and 7 came
+Status (2026-11-03): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.8). Between Phases 6 and 7 came
 the interface's simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab
 (v0.7.3), documents known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked
 against the documents (v0.7.6). Next is the 1.0 release, whose conditions are partly time-bound (roadmap "Sürüm 1.0"
@@ -171,6 +171,10 @@ says what the waiting must show; check them once their time has passed).
   the kind a rule naming it would (`annotate.kind_in`, `Categorizer.kind_for`); the categories the program keeps for
   a kind stand for it (`categorize._CATEGORY_KIND`). A card's purchase and a known own transfer keep their kind. The
   MCP plan shows the kind (`Checked.kind`); İşlemler says it by the category picker.
+- v0.9.8: two payments half a year apart, two donations say, could make a half-yearly series and a "zam" notification for a lower amount. Outside the `_düzenli` categories a periodic series takes three payments (`insights._PERIODIC_LEAST`);
+  inside them two still do. A price change is titled by its direction (`notify.content.title`: "Düzenli ödeme
+  zammı" or "Düzenli ödeme ucuzladı", also Akış's label); the rule is "Düzenli ödeme tutarı değişti". Telegram's
+  summary level leaves the payee out on purpose (ADR-0010); the user picks Tam on Bildirimler → Kanallar.
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 

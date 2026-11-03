@@ -60,15 +60,21 @@ Biten bir "Gerekli" fatura "Belgelerde yok" diye gösterilir: belgesi olmayan bi
 
 **Dönemsel seriler (V1 taslak kuralı)**
 
-- Aynı ödeme alanına ~182 gün (160–200) ya da ~365 gün (330–400) arayla en az iki ödeme.
+- Aynı ödeme alanına ~182 gün (160–200) ya da ~365 gün (330–400) arayla ödemeler: `_düzenli` kategorilerinde en az
+  iki, diğerlerinde en az üç.
 - `_düzenli` kategorilerinde tutar serbesttir; diğerlerinde ±%50.
+- Diğer kategorilerde iki ödeme yetmez (v0.9.8, gerçek veriyle): yarım yıl arayla yapılan iki bağış, bir dükkândan
+  yarım yıl arayla yapılan iki alışveriş tesadüfen bir dönem aralıklı olabilir. Dönem bir kez daha gelmeden seri
+  sayılmaz; aylık seri de üç ay ister. Kategorinin `_düzenli`'de olması ödemelerin bir taahhüt olduğunu söyler.
+  Böyle iki ödeme seri sayılsaydı, ikincisinin farklı tutarı yanlış bir zam bildirimi doğururdu.
 - Durum kuralları aynıdır; beklenen tarih dönem uzunluğuyla hesaplanır.
 - Eşikler gerçek veriyle ayarlanır.
 - Uygulama (Aşama 4, `insights.periodic_payments`):
   - Yalnızca aylık serilerin almadığı ödemelere bakılır; aylık seriler ve onlardan beslenen bulgular değişmez.
   - `_düzenli` kategorilerinde her dönem bir kez ödeme alan bir ödeme alanı, tutar ne olursa olsun tek seridir.
   - Diğer durumlarda bir ödeme, kendinden önceki en yeni benzer ödemeden (fark büyük tutarın yarısını geçmez) bir
-    dönem sonra geliyorsa seriyi sürdürür; arada benzer tutarlar ödenen bir işyeri dönemsel ödeme değildir.
+    dönem sonra geliyorsa seriyi sürdürür; arada benzer tutarlar ödenen bir işyeri dönemsel ödeme değildir. Böyle
+    bir zincir `_düzenli` kategorilerinde iki, diğerlerinde üç ödemeyle seri olur (`insights._PERIODIC_LEAST`).
   - Ayda 5'ten fazla ödeme alan bir ödeme alanı burada da alışveriş yeridir.
   - Dönem uzunluğu aralıkların medyanıdır; beklenen tarih son ödemeden bir dönem sonradır. Payı bandın sonuna
     kadardır: ödeme son ödemeden 200 (altı ayda bir) ya da 400 (yılda bir) gün sonrasına kadar gecikebilir, beklenen
@@ -273,8 +279,10 @@ kez söylenir; ilk analiz yalnızca not eder.
     sonradan gelse de söylenmez.
 - **Zam ve iptalden sonra ödeme**
   - `subscription.price_changed`: süren bir serinin yeni fiyatı (fiyat değişimi kuralı yukarıda), yeni fiyatın ilk
-    ödemesinin günüyle. Kuralın adı "Düzenli ödeme zammı"dır: faturalar ve kira da seridir (2026-11-03'e dek
-    "Abonelik zammı").
+    ödemesinin günüyle. Fiyat artmış da olabilir, düşmüş de: bildirimin başlığı "Düzenli ödeme zammı" ya da
+    "Düzenli ödeme ucuzladı" der, özeti "zamlandı" ya da "ucuzladı" (`notify.content.title`); Akış'ın kartı da
+    böyle adlandırılır. Kuralın adı "Düzenli ödeme tutarı değişti"dir (v0.9.8'e dek "Düzenli ödeme zammı",
+    2026-11-03'e dek "Abonelik zammı"): faturalar ve kira da seridir, düşen bir fiyat da haberdir.
     - Yeni fiyatı kesinleştiren ödeme analiz gününden en çok 45 gün önceyse söylenir: aylık seride yeni fiyatın
       ikinci ödemesi, dönemsel seride tek ödemesi. Bir kart ekstresi bir ödemeyi bir aya kadar sonra gösterir ve
       kesimden günler sonra gelir.

@@ -289,7 +289,8 @@ Ekranın adı "Düzenli ödemeler"dir (`/abonelikler`; 2026-11-02'ye dek "Abonel
 - **Aylık seriler** ve durumları MVP kurallarıyla tespit edilir
   ([domain/interpretation.md](../domain/interpretation.md)).
 - **Dönemsel seriler** (V1 taslak kuralı; gerçek veriyle ayarlanır):
-  - Aynı ödeme alanına ~182 gün (160–200) ya da ~365 gün (330–400) arayla en az iki ödeme.
+  - Aynı ödeme alanına ~182 gün (160–200) ya da ~365 gün (330–400) arayla ödemeler: `_düzenli` kategorilerinde en
+    az iki, diğerlerinde en az üç (v0.9.8'e dek yarım yıl arayla yapılan iki ödeme dönemsel ödeme sayılabiliyordu).
   - `_düzenli` kategorilerinde tutar serbesttir; diğerlerinde ±%50 (yıllık fiyat artışı payı).
 - **Her serinin gösterdikleri**
   - durum,
@@ -450,6 +451,9 @@ G12, K10 · Çekirdek
     karşılaştırılır.
   - Ek hesapların (KMH) ve kendi hesaplarından para aktarılan hesapların eksi günleri, hesapların toplamı eksiye düşmese de "Hesap eksiye düşecek" diye bildirilebiliyordu. Artık bu hesaplar uyarmaz; toplam izlenir.
   - Kural "Abonelik zammı" adıyla faturaları ve kirayı da kapsıyordu; adı "Düzenli ödeme zammı" oldu.
+- **Yönüyle fiyat değişimi (v0.9.8, 2026-11-03):** yarım yıl arayla gelen iki ödeme (ör. iki bağış) dönemsel ödeme sayılabiliyor, ikincisinin düşük tutarı "Düzenli ödeme zammı" diye bildirilebiliyordu. Dönemsel seri artık taahhüt kategorileri
+  dışında üç ödeme ister (F08). Fiyatı düşen bir düzenli ödemenin bildirimi "Düzenli ödeme ucuzladı" başlığını
+  taşır, özeti "ucuzladı" der. Kuralın adı "Düzenli ödeme tutarı değişti" oldu.
 
 ## F14 — Banka dışı e-postalar
 
