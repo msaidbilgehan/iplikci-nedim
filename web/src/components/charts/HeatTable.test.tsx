@@ -1,6 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { renderScreen } from "../../test/render";
 import { AppProviders } from "../AppProviders";
 import { HeatTable, heatOf } from "./HeatTable";
 import type { StackSeries } from "./layout";
@@ -90,6 +91,22 @@ describe("HeatTable", () => {
       "15.000,00 TL",
       "20.000,00 TL",
     ]);
+  });
+
+  it("leads from a month and each of its values to their rows, as the chart's columns do", () => {
+    const linkOf = (month: string, series: string | null) =>
+      series === "diger" ? null : { screen: "transactions" as const, id: "", query: { from: month, group: series ?? "" } };
+    renderScreen(<HeatTable caption="Aylık giderler" series={SERIES} months={MONTHS} linkOf={linkOf} />);
+    const october = screen.getByRole("row", { name: /^Ekim 2026/ });
+    expect(within(october).getByRole("link", { name: "Ekim 2026" })).toHaveAttribute(
+      "href",
+      "/islemler?from=2026-10&group=",
+    );
+    expect(within(october).getByRole("link", { name: "15.000,00 TL" })).toHaveAttribute(
+      "href",
+      "/islemler?from=2026-10&group=kira",
+    );
+    expect(within(october).getAllByRole("link")).toHaveLength(3); // no link for nothing, nor for the total
   });
 
   it("shows the ramp's ends in words beside it, and what the shade is measured against", () => {

@@ -1,9 +1,9 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { describe, expect, it } from "vitest";
 
-import { AppProviders } from "../AppProviders";
+import { renderScreen } from "../../test/render";
 import type { LineSeries } from "./layout";
 import { LineChart } from "./LineChart";
 
@@ -14,12 +14,18 @@ const CASH: LineSeries = { key: "vadesiz", label: "Örnek Vadesiz", slot: 1, poi
 const OTHER: LineSeries = { key: "diger", label: "Başka Vadesiz", slot: 2, points: days([300_000, 300_000, 250_000, 250_000]) };
 
 function renderChart(props: Partial<ComponentProps<typeof LineChart>> = {}) {
-  return render(
-    <AppProviders>
-      <LineChart title="Bakiye öngörüsü" summary="15.11.2026 – 18.11.2026, tahmin." series={[CASH, OTHER]} {...props} />
-    </AppProviders>,
+  return renderScreen(
+    <LineChart title="Bakiye öngörüsü" summary="15.11.2026 – 18.11.2026, tahmin." series={[CASH, OTHER]} {...props} />,
+    { path: "/" },
   );
 }
+
+// A day leads to what the calendar expects on it.
+const OPEN = {
+  link: (day: string) => ({ screen: "calendar" as const, id: day, query: {} }),
+  hint: "Bir güne tıklayın: o gün beklenenler Takvim'de açılır.",
+  what: "o gün beklenenler",
+};
 
 describe("LineChart", () => {
   it("draws the balances as an image named after the chart and described by its window", () => {
@@ -60,6 +66,36 @@ describe("LineChart", () => {
     fireEvent.pointerMove(surface, { clientX: 640 });
     expect(screen.getByText("18.11.2026")).toBeInTheDocument();
     expect(screen.getByText("−200,00 TL")).toBeInTheDocument();
+  });
+
+  it("opens the day the pointer rests on with a click, and says so in its tip and under the chart", () => {
+    const { container, location } = renderChart({ open: OPEN });
+    const surface = container.querySelector("rect[fill='transparent']") as Element;
+    expect(surface.getAttribute("class")).toContain("cursor-pointer");
+    fireEvent.pointerMove(surface, { clientX: 640 });
+    expect(screen.getByText("Tıklayın: o gün beklenenler açılır.")).toBeInTheDocument();
+    expect(screen.getByText(OPEN.hint)).toBeInTheDocument();
+    fireEvent.pointerDown(surface, { clientX: 640 });
+    fireEvent.click(surface);
+    expect(location()).toBe("/takvim?gun=2026-11-18");
+  });
+
+  it("shows a touched day first and opens it with the link its tip keeps or a second touch on it", () => {
+    const { container, location } = renderChart({ open: OPEN });
+    const surface = container.querySelector("rect[fill='transparent']") as Element;
+    fireEvent.pointerDown(surface, { pointerType: "touch", clientX: 0 });
+    fireEvent.click(surface);
+    expect(location()).toBe("/");
+    expect(screen.getByText("Aç: o gün beklenenler").closest("a")).toHaveAttribute("href", "/takvim?gun=2026-11-15");
+    fireEvent.pointerDown(surface, { pointerType: "touch", clientX: 0 });
+    fireEvent.click(surface);
+    expect(location()).toBe("/takvim?gun=2026-11-15");
+  });
+
+  it("names the table's days with the same links", async () => {
+    renderChart({ open: OPEN });
+    await userEvent.click(screen.getByRole("tab", { name: "Tablo" }));
+    expect(screen.getByRole("link", { name: "17.11.2026" })).toHaveAttribute("href", "/takvim?gun=2026-11-17");
   });
 
   it("shows the same balances as a table, a day a row", async () => {

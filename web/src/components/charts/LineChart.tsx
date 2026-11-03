@@ -2,18 +2,23 @@
 // from one day's closing balance to the next. Zero is always on the axis and drawn darker than the gridlines; the part
 // below it is hatched and named "eksi bakiye", so a balance under zero shows by its place, a pattern and words rather
 // than by colour alone. Lines after the first are dashed, so they part without colour too. Markers name days, such as
-// the first one under zero. The pointer shows a day's balances; the table view shows them all.
+// the first one under zero. The pointer shows a day's balances; the table view shows them all. A day may lead somewhere
+// (open): its rows, or what the calendar expects on it; a click on the chart opens the day it rests on, and the table's
+// days are the same links.
 
-import { type PointerEvent, type ReactNode, useId, useState } from "react";
+import { type PointerEvent, type ReactNode, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { cn } from "../../lib/cn";
 import { formatDay, formatDayShort, formatMoney, formatMoneyShort } from "../../lib/format";
+import { hrefOf } from "../../lib/links";
+import { ScreenLink } from "../ui/Say";
 import { Table, Td, Th } from "../ui/Table";
 import { ChartFrame } from "./ChartFrame";
-import { ChartTip } from "./ChartTip";
+import { ChartTip, type TipOpen } from "./ChartTip";
 import { type LineSeries, lineLayout, nearestDay } from "./layout";
 import { Legend } from "./Legend";
+import { type ChartOpen, isTouch, useDismiss, useOpener } from "./open";
 import { SLOT_FILL, SLOT_STROKE } from "./palette";
 import { useWidth } from "./useWidth";
 
@@ -32,6 +37,17 @@ interface LineChartProps {
   height?: number;
   // Values that are no money (a rate): how to write them, with an axis around them rather than from zero.
   format?: ValueFormat;
+  open?: LineOpen; // where a day leads
+}
+
+export interface LineOpen extends ChartOpen<string> {
+  what?: string; // what a click on a day opens, in the tip: "o gün beklenenler"; by default the day's rows
+}
+
+/** The day the pointer is on, and whether a touch chose it: then it stays until the next press. */
+interface Aim {
+  index: number;
+  touch: boolean;
 }
 
 const MARGIN = { top: 26, right: 16, bottom: 28, left: 76 };
@@ -65,12 +81,17 @@ export function LineChart({
   markers = [],
   height = 260,
   format,
+  open,
 }: LineChartProps) {
   const { t } = useTranslation("charts");
   const summaryId = useId();
   const hatchId = useId();
-  const [measure, width] = useWidth();
-  const [active, setActive] = useState<number | null>(null);
+  const [measure, width, box] = useWidth();
+  const [aim, setAim] = useState<Aim | null>(null);
+  const pressed = useRef<Aim | null>(null);
+  const opener = useOpener();
+  useDismiss(box, aim?.touch === true, () => setAim(null));
+  const active = aim?.index ?? null;
   const written: ValueFormat = format ?? {
     tick: (minor) => formatMoneyShort({ minor, currency }),
     value: (minor) => formatMoney({ minor, currency }),
@@ -79,16 +100,46 @@ export function LineChart({
   const layout = lineLayout(series, size, MARGIN, format === undefined);
   const { plot } = layout;
   const activeDay = active === null ? undefined : layout.days[active];
+  const linkOf = (index: number | null | undefined) => {
+    const day = index === null || index === undefined ? undefined : layout.days[index];
+    return open && day ? open.link(day) : null;
+  };
+
+  /** The day nearest the pointer, as a touch or a pointer chose it. */
+  function dayAt(event: PointerEvent<SVGRectElement>): Aim {
+    const frame = event.currentTarget.ownerSVGElement?.getBoundingClientRect();
+    return { index: nearestDay(layout.days, layout.x, event.clientX - (frame?.left ?? 0)), touch: isTouch(event) };
+  }
 
   function follow(event: PointerEvent<SVGRectElement>) {
-    const box = event.currentTarget.ownerSVGElement?.getBoundingClientRect();
-    setActive(nearestDay(layout.days, layout.x, event.clientX - (box?.left ?? 0)));
+    if (!isTouch(event)) {
+      const next = dayAt(event);
+      setAim((was) => (was?.index === next.index && !was.touch ? was : next));
+    }
   }
+
+  const tipOpen = ((): TipOpen | null => {
+    const link = linkOf(active);
+    const href = link ? hrefOf(link) : null;
+    if (!open || !href) {
+      return null;
+    }
+    const what = open.what ?? t("open.day");
+    return aim?.touch ? { href, label: t("open.tap", { what }) } : { say: t("open.click", { what }) };
+  })();
 
   const valueOn = (s: LineSeries, day: string) => s.points.find((p) => p.day === day)?.value;
 
   const chart = (
-    <div ref={measure} className="relative" onPointerLeave={() => setActive(null)}>
+    <div
+      ref={measure}
+      className="relative"
+      onPointerLeave={(event) => {
+        if (!isTouch(event)) {
+          setAim(null);
+        }
+      }}
+    >
       <svg
         width={size.width}
         height={size.height}
@@ -210,8 +261,22 @@ export function LineChart({
           width={Math.max(0, plot.right - plot.left)}
           height={Math.max(0, plot.bottom - plot.top)}
           fill="transparent"
+          className={open ? "cursor-pointer" : undefined}
           onPointerMove={follow}
-          onPointerDown={follow}
+          onPointerDown={(event) => {
+            const next = dayAt(event);
+            opener.press(event, aim?.index === next.index);
+            pressed.current = next;
+            setAim(next);
+          }}
+          onPointerCancel={() => {
+            // A finger that scrolls the page over the chart chose nothing.
+            if (pressed.current?.touch) {
+              pressed.current = null;
+              setAim(null);
+            }
+          }}
+          onClick={open ? () => opener.click(linkOf(pressed.current?.index ?? active)) : undefined}
         />
       </svg>
       {activeDay ? (
@@ -220,6 +285,7 @@ export function LineChart({
           width={size.width}
           top={plot.top}
           title={formatDay(activeDay)}
+          open={tipOpen}
           rows={series.flatMap((s, index) => {
             const value = valueOn(s, activeDay);
             return value === undefined
@@ -262,19 +328,24 @@ export function LineChart({
         </tr>
       </thead>
       <tbody>
-        {layout.days.map((day) => (
-          <tr key={day}>
-            <Td className="whitespace-nowrap">{formatDay(day)}</Td>
-            {series.map((s) => {
-              const value = valueOn(s, day);
-              return (
-                <Td key={s.key} className="whitespace-nowrap text-right tabular-nums">
-                  {value === undefined ? t("none") : written.value(value)}
-                </Td>
-              );
-            })}
-          </tr>
-        ))}
+        {layout.days.map((day) => {
+          const link = open?.link(day) ?? null;
+          return (
+            <tr key={day}>
+              <Td className="whitespace-nowrap">
+                {link ? <ScreenLink link={link}>{formatDay(day)}</ScreenLink> : formatDay(day)}
+              </Td>
+              {series.map((s) => {
+                const value = valueOn(s, day);
+                return (
+                  <Td key={s.key} className="whitespace-nowrap text-right tabular-nums">
+                    {value === undefined ? t("none") : written.value(value)}
+                  </Td>
+                );
+              })}
+            </tr>
+          );
+        })}
       </tbody>
     </Table>
   );
@@ -288,6 +359,7 @@ export function LineChart({
       chart={chart}
       table={table}
       empty={layout.days.length === 0}
+      hint={open?.hint}
     />
   );
 }

@@ -4,24 +4,41 @@
 // a forecast: lighter, after a dashed line marked "tahmin". A month the documents cover only partly is lighter too and
 // marked "eksik". A reference line (the typical month, from complete months only) is the caller's to give; the chart
 // computes no average of its own. The pointer shows a month's values; the table view shows them all, or what the
-// caller gives instead (a heat table).
+// caller gives instead (a heat table). A month, or one series of it, may lead to its rows (open): a click on its
+// segment opens that series, a click beside the segments the whole month; the table's months and values are the same
+// links.
 
-import { type ReactNode, useId, useState } from "react";
+import { type PointerEvent, type ReactNode, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { Destination } from "../../api/types";
 import { cn } from "../../lib/cn";
 import { formatMoney, formatMoneyShort, formatMonth } from "../../lib/format";
+import { hrefOf } from "../../lib/links";
+import { ScreenLink } from "../ui/Say";
 import { Table, Td, Th } from "../ui/Table";
 import { ChartFrame } from "./ChartFrame";
-import { ChartTip } from "./ChartTip";
-import { monthLabels, type StackSeries, stackLayout } from "./layout";
+import { ChartTip, type TipOpen } from "./ChartTip";
+import { type Column, monthLabels, type Segment, type StackSeries, stackLayout } from "./layout";
 import { Legend } from "./Legend";
+import { type ChartOpen, isTouch, useDismiss, useOpener } from "./open";
 import { SLOT_BG, SLOT_FILL } from "./palette";
 import { useWidth } from "./useWidth";
 
 export interface MonthValues {
   month: string; // "2026-04"
   values: Readonly<Record<string, number>>; // by series key, minor units
+}
+
+/** A month's column, or one series of it: a part of the chart that may lead to its rows. */
+export interface MonthPart {
+  month: string;
+  series: string | null; // a series' key; null for the whole month
+}
+
+export interface StackedOpen extends ChartOpen<MonthPart> {
+  // What a click opens, in the tip: "bu ayın giderleri"; by default the month's rows, or a series' rows of it.
+  what?: (series: StackSeries | null) => string;
 }
 
 interface StackedBarsProps {
@@ -38,10 +55,20 @@ interface StackedBarsProps {
   totalLabel?: string; // what a column's sum is called: "Toplam", or "Net" for money in above and out below
   table?: ReactNode; // the table view, when the caller's says more than the months' values (a heat table)
   height?: number;
+  open?: StackedOpen; // where the months and their series lead
+}
+
+/** The part the pointer is on, and whether a touch chose it: then it stays until the next press. */
+interface Aim {
+  column: number;
+  series: string | null;
+  touch: boolean;
 }
 
 const MARGIN = { top: 26, right: 12, bottom: 28, left: 76 };
 const HALO = "[paint-order:stroke] stroke-white stroke-[3px] [stroke-linejoin:round] dark:stroke-zinc-900";
+
+const sameAim = (a: Aim | null, b: Aim) => a !== null && a.column === b.column && a.series === b.series;
 
 export function StackedBars({
   title,
@@ -55,11 +82,15 @@ export function StackedBars({
   totalLabel,
   table: ownTable,
   height = 280,
+  open,
 }: StackedBarsProps) {
   const { t } = useTranslation("charts");
   const summaryId = useId();
-  const [measure, width] = useWidth();
-  const [active, setActive] = useState<number | null>(null);
+  const [measure, width, box] = useWidth();
+  const [aim, setAim] = useState<Aim | null>(null);
+  const pressed = useRef<Aim | null>(null);
+  const opener = useOpener();
+  useDismiss(box, aim?.touch === true, () => setAim(null));
   const money = (minor: number) => ({ minor, currency });
   const shown = series.filter((s) => months.some((m) => (m.values[s.key] ?? 0) !== 0));
   const forecastIndex = forecastFrom ? months.findIndex((m) => m.month >= forecastFrom) : -1;
@@ -73,6 +104,7 @@ export function StackedBars({
     return isPartial(index) ? t("partialMonth", { month: name }) : name;
   };
   const sumName = totalLabel ?? t("total");
+  const linkTo = (month: string, key: string | null) => open?.link({ month, series: key }) ?? null;
 
   const size = { width: Math.max(280, width), height };
   const layout = stackLayout(
@@ -94,10 +126,72 @@ export function StackedBars({
       }
     }
   }
-  const activeColumn = active === null ? undefined : layout.columns[active];
+
+  /** Where a part leads: a series' own rows, else its month's; null when neither leads anywhere. */
+  const resolve = (part: Omit<Aim, "touch">): { link: Destination; series: string | null } | null => {
+    const month = months[part.column]?.month ?? "";
+    const own = part.series === null ? null : linkTo(month, part.series);
+    if (own) {
+      return { link: own, series: part.series };
+    }
+    const whole = linkTo(month, null);
+    return whole ? { link: whole, series: null } : null;
+  };
+
+  /**
+   * The part under the pointer: the segment it is on; beside the segments the whole month when the month leads
+   * somewhere, else the nearest segment (above zero what rises, below it what hangs).
+   */
+  const aimAt = (column: Column, event: PointerEvent<SVGRectElement>, touch: boolean): Aim => {
+    const at = { column: column.index, touch };
+    if (!open) {
+      return { ...at, series: null };
+    }
+    const frame = event.currentTarget.ownerSVGElement?.getBoundingClientRect();
+    const y = event.clientY - (frame?.top ?? 0);
+    const on = column.segments.find((s) => y >= s.top - 1 && y <= s.bottom + 1);
+    if (on) {
+      return { ...at, series: on.series.key };
+    }
+    if (linkTo(months[column.index]?.month ?? "", null)) {
+      return { ...at, series: null };
+    }
+    const away = (s: Segment) => (y < s.top ? s.top - y : y > s.bottom ? y - s.bottom : 0);
+    const nearest = column.segments.reduce<Segment | undefined>(
+      (best, s) => (best === undefined || away(s) < away(best) ? s : best),
+      undefined,
+    );
+    return { ...at, series: nearest?.series.key ?? null };
+  };
+  const hover = (column: Column, event: PointerEvent<SVGRectElement>) => {
+    if (!isTouch(event)) {
+      const next = aimAt(column, event, false);
+      setAim((was) => (sameAim(was, next) && was?.touch === false ? was : next));
+    }
+  };
+
+  const activeColumn = aim === null ? undefined : layout.columns[aim.column];
+  const target = aim === null ? null : resolve(aim);
+  const tipOpen = ((): TipOpen | null => {
+    const href = target ? hrefOf(target.link) : null;
+    if (!open || !target || !href) {
+      return null;
+    }
+    const of = target.series === null ? null : (shown.find((s) => s.key === target.series) ?? null);
+    const what = open.what ? open.what(of) : of ? t("open.series", { series: of.label }) : t("open.month");
+    return aim?.touch ? { href, label: t("open.tap", { what }) } : { say: t("open.click", { what }) };
+  })();
 
   const chart = (
-    <div ref={measure} className="relative" onPointerLeave={() => setActive(null)}>
+    <div
+      ref={measure}
+      className="relative"
+      onPointerLeave={(event) => {
+        if (!isTouch(event)) {
+          setAim(null);
+        }
+      }}
+    >
       <svg
         width={size.width}
         height={size.height}
@@ -124,13 +218,21 @@ export function StackedBars({
         {layout.columns.map((column) => (
           <g
             key={column.key}
-            className={cn("transition-opacity", active !== null && active !== column.index && "opacity-45")}
+            className={cn("transition-opacity", aim !== null && aim.column !== column.index && "opacity-45")}
           >
             {column.segments.map((segment) => (
               <path
                 key={segment.series.key}
                 d={segment.d}
-                className={SLOT_FILL[segment.series.slot]}
+                className={cn(
+                  SLOT_FILL[segment.series.slot],
+                  // The series a click opens stands out of its month; the month's others step back.
+                  target !== null &&
+                    target.series !== null &&
+                    aim?.column === column.index &&
+                    segment.series.key !== target.series &&
+                    "opacity-50",
+                )}
                 fillOpacity={isForecast(column.index) ? 0.42 : isPartial(column.index) ? 0.55 : undefined}
               />
             ))}
@@ -228,8 +330,27 @@ export function StackedBars({
             width={column.band.width}
             height={plot.bottom - plot.top}
             fill="transparent"
-            onPointerEnter={() => setActive(column.index)}
-            onPointerDown={() => setActive(column.index)}
+            className={open && resolve({ column: column.index, series: null }) !== null ? "cursor-pointer" : undefined}
+            onPointerEnter={(event) => hover(column, event)}
+            onPointerMove={open ? (event) => hover(column, event) : undefined}
+            onPointerDown={(event) => {
+              const next = aimAt(column, event, isTouch(event));
+              opener.press(event, sameAim(aim, next));
+              pressed.current = next;
+              setAim(next);
+            }}
+            onPointerCancel={() => {
+              // A finger that scrolls the page over the chart chose nothing.
+              if (pressed.current?.touch) {
+                pressed.current = null;
+                setAim(null);
+              }
+            }}
+            onClick={
+              open
+                ? () => opener.click(resolve(pressed.current ?? { column: column.index, series: null })?.link ?? null)
+                : undefined
+            }
           />
         ))}
       </svg>
@@ -250,6 +371,8 @@ export function StackedBars({
               swatch: <span className={cn("size-2.5 shrink-0 rounded-sm", SLOT_BG[s.slot])} />,
             }))}
           total={{ label: sumName, value: formatMoney(money(activeColumn.total)) }}
+          marked={target?.series ?? null}
+          open={tipOpen}
         />
       ) : null}
     </div>
@@ -266,6 +389,8 @@ export function StackedBars({
     />
   );
 
+  const linked = (link: Destination | null, text: string) =>
+    link ? <ScreenLink link={link}>{text}</ScreenLink> : text;
   const table = ownTable ?? (
     <Table>
       <caption className="sr-only">{title}</caption>
@@ -285,14 +410,16 @@ export function StackedBars({
       </thead>
       <tbody>
         {/* The newest month first, as the MVP's table. */}
-        {[...layout.columns].reverse().map((column) => (
+        {[...layout.columns].reverse().map((column) => {
+          const month = months[column.index]?.month ?? "";
+          return (
             <tr key={column.key}>
-              <Td className="whitespace-nowrap">{monthName(column.index)}</Td>
+              <Td className="whitespace-nowrap">{linked(linkTo(month, null), monthName(column.index))}</Td>
               {shown.map((s) => {
                 const value = months[column.index]?.values[s.key] ?? 0;
                 return (
                   <Td key={s.key} className="whitespace-nowrap text-right tabular-nums">
-                    {value === 0 ? t("none") : formatMoney(money(value))}
+                    {value === 0 ? t("none") : linked(linkTo(month, s.key), formatMoney(money(value)))}
                   </Td>
                 );
               })}
@@ -300,7 +427,8 @@ export function StackedBars({
                 {formatMoney(money(column.total))}
               </Td>
             </tr>
-          ))}
+          );
+        })}
       </tbody>
     </Table>
   );
@@ -314,6 +442,7 @@ export function StackedBars({
       chart={chart}
       table={table}
       empty={shown.length === 0}
+      hint={open?.hint}
     />
   );
 }

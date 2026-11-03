@@ -1,11 +1,12 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { describe, expect, it } from "vitest";
 
-import { AppProviders } from "../AppProviders";
+import type { Destination } from "../../api/types";
+import { renderScreen } from "../../test/render";
 import type { StackSeries } from "./layout";
-import { StackedBars } from "./StackedBars";
+import { type MonthPart, StackedBars } from "./StackedBars";
 
 const SERIES: StackSeries[] = [
   { key: "market", label: "Market & Gıda", slot: 1 },
@@ -20,17 +21,30 @@ const MONTHS = [
 ];
 
 function renderChart(props: Partial<ComponentProps<typeof StackedBars>> = {}) {
-  return render(
-    <AppProviders>
-      <StackedBars
-        title="Aylık giderler"
-        summary="Ağustos – Ekim 2026, ana gruplara göre."
-        series={SERIES}
-        months={MONTHS}
-        {...props}
-      />
-    </AppProviders>,
+  return renderScreen(
+    <StackedBars
+      title="Aylık giderler"
+      summary="Ağustos – Ekim 2026, ana gruplara göre."
+      series={SERIES}
+      months={MONTHS}
+      {...props}
+    />,
+    { path: "/degerlendirme" },
   );
+}
+
+/** A month's rows on the İşlemler screen, or one group's of it. */
+function rows({ month, series }: MonthPart): Destination {
+  return { screen: "transactions", id: "", query: { from: `${month}-01`, ...(series ? { group: series } : {}) } };
+}
+
+const OPEN = { link: rows, hint: "Bir aya ya da bir gruba tıklayın: o harcamalar listelenir." };
+
+/** The y a segment's path spans, read from its drawing ("M x,top H … V bottom …" for a segment under another). */
+function middleOf(path: Element): number {
+  const d = path.getAttribute("d") ?? "";
+  const [top = 0, bottom = 0] = [/^M[\d.]+,([\d.]+)/, /V([\d.]+)/].map((r) => Number(r.exec(d)?.[1]));
+  return (top + bottom) / 2;
 }
 
 describe("StackedBars", () => {
@@ -116,6 +130,103 @@ describe("StackedBars", () => {
     expect(screen.getByText("3.500,00 TL")).toBeInTheDocument();
     fireEvent.pointerLeave(container.querySelector("svg")?.parentElement as Element);
     expect(screen.queryByText("Eylül 2026")).not.toBeInTheDocument();
+  });
+
+  it("opens a month's rows with a click beside its segments, and a series' rows with a click on its segment", () => {
+    const { container, location } = renderChart({ open: OPEN });
+    const bands = container.querySelectorAll("rect[fill='transparent']");
+    expect(bands[2]?.getAttribute("class")).toContain("cursor-pointer");
+    fireEvent.pointerDown(bands[2] as Element, { clientY: 0 }); // above the columns: the month
+    fireEvent.click(bands[2] as Element);
+    expect(location()).toBe("/islemler?from=2026-10-01");
+    // October's Market & Gıda lies under its Ulaşım: its segment ends square at both sides.
+    const market = container.querySelectorAll("path.fill-slot-1")[2] as Element;
+    fireEvent.pointerDown(bands[2] as Element, { clientY: middleOf(market) });
+    fireEvent.click(bands[2] as Element);
+    expect(location()).toBe("/islemler?from=2026-10-01&group=market");
+  });
+
+  it("says in the tip what a click opens and sets its series apart, and under the chart what a click does", () => {
+    const { container } = renderChart({ open: OPEN });
+    const bands = container.querySelectorAll("rect[fill='transparent']");
+    const market = container.querySelectorAll("path.fill-slot-1")[2] as Element;
+    fireEvent.pointerMove(bands[2] as Element, { clientY: middleOf(market) });
+    expect(screen.getByText("Tıklayın: bu ayın Market & Gıda işlemleri açılır.")).toBeInTheDocument();
+    expect(market.getAttribute("class")).not.toContain("opacity-50");
+    expect(container.querySelectorAll("path.fill-slot-2")[2]?.getAttribute("class")).toContain("opacity-50");
+    fireEvent.pointerMove(bands[2] as Element, { clientY: 0 });
+    expect(screen.getByText("Tıklayın: bu ayın işlemleri açılır.")).toBeInTheDocument();
+    expect(screen.getByText(OPEN.hint)).toBeInTheDocument();
+  });
+
+  it("shows a touched month first and opens it at a second touch, or with the link its tip keeps", () => {
+    const { container, location } = renderChart({ open: OPEN });
+    const band = container.querySelectorAll("rect[fill='transparent']")[1] as Element;
+    fireEvent.pointerDown(band, { pointerType: "touch", clientY: 0 });
+    fireEvent.click(band);
+    expect(location()).toBe("/degerlendirme"); // the first touch shows the month
+    fireEvent.pointerLeave(container.querySelector("svg")?.parentElement as Element, { pointerType: "touch" });
+    const tip = screen.getByText("Aç: bu ayın işlemleri").closest("a");
+    expect(tip).toHaveAttribute("href", "/islemler?from=2026-09-01"); // the tip stays after the finger lifts
+    fireEvent.pointerDown(band, { pointerType: "touch", clientY: 0 });
+    fireEvent.click(band);
+    expect(location()).toBe("/islemler?from=2026-09-01");
+  });
+
+  it("puts a touched month away at a press outside the chart, and after a finger's scroll over it", () => {
+    const { container } = renderChart({ open: OPEN });
+    const band = container.querySelectorAll("rect[fill='transparent']")[1] as Element;
+    fireEvent.pointerDown(band, { pointerType: "touch", clientY: 0 });
+    expect(screen.getByText("Eylül 2026")).toBeInTheDocument();
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByText("Eylül 2026")).not.toBeInTheDocument();
+    fireEvent.pointerDown(band, { pointerType: "touch", clientY: 0 });
+    fireEvent.pointerCancel(band, { pointerType: "touch" });
+    expect(screen.queryByText("Eylül 2026")).not.toBeInTheDocument();
+  });
+
+  it("opens the series on the pointer's side of zero when a month alone leads nowhere", () => {
+    const money = [
+      { key: "in", label: "Gelen", slot: 3 as const },
+      { key: "out", label: "Giden", slot: 2 as const },
+    ];
+    const kind = (series: string) => (series === "in" ? "income" : "purchase");
+    const open = {
+      link: ({ month, series }: MonthPart): Destination | null =>
+        series ? { screen: "transactions", id: "", query: { from: `${month}-01`, kind: kind(series) } } : null,
+      hint: "Bir ayın gelen ya da giden parasına tıklayın.",
+    };
+    const { container, location } = renderChart({
+      series: money,
+      months: [{ month: "2026-10", values: { in: 500_000, out: -300_000 } }],
+      open,
+    });
+    const band = container.querySelector("rect[fill='transparent']") as Element;
+    expect(band.getAttribute("class")).toBeNull(); // the month alone leads nowhere: no hand over the column
+    fireEvent.pointerDown(band, { clientY: 30 });
+    fireEvent.click(band);
+    expect(location()).toBe("/islemler?from=2026-10-01&kind=income");
+    fireEvent.pointerDown(band, { clientY: 250 });
+    fireEvent.click(band);
+    expect(location()).toBe("/islemler?from=2026-10-01&kind=purchase");
+  });
+
+  it("names the months and the values of the table view with the same links", async () => {
+    renderChart({ open: OPEN });
+    await userEvent.click(screen.getByRole("tab", { name: "Tablo" }));
+    const table = screen.getByRole("table", { name: "Aylık giderler" });
+    expect(within(table).getByRole("link", { name: "Ekim 2026" })).toHaveAttribute("href", "/islemler?from=2026-10-01");
+    expect(within(table).getByRole("link", { name: "1.000,00 TL" })).toHaveAttribute(
+      "href",
+      "/islemler?from=2026-08-01&group=ulasim",
+    );
+  });
+
+  it("draws no hand, no hint and no link without anywhere to lead", async () => {
+    const { container } = renderChart();
+    expect(container.querySelector("rect.cursor-pointer")).toBeNull();
+    await userEvent.click(screen.getByRole("tab", { name: "Tablo" }));
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
   it("says when there is nothing to draw, without a switch", () => {

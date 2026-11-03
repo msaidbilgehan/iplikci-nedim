@@ -29,5 +29,13 @@
   "reference": "{{label}}: {{amount}}",
   "belowZero": "Sıfırın altı: eksi bakiye",
   "sankeyUnavailable": "Bu akış diyagram olarak çizilemiyor; Tablo görünümü her akışı gösterir.",
-  "sankeyScroll": "Diyagram ekrandan geniş: yana kaydırın ya da her akışı Tablo görünümünde görün."
+  "sankeyScroll": "Diyagram ekrandan geniş: yana kaydırın ya da her akışı Tablo görünümünde görün.",
+  "open": {
+    "click": "Tıklayın: {{what}} açılır.",
+    "tap": "Aç: {{what}}",
+    "month": "bu ayın işlemleri",
+    "series": "bu ayın {{series}} işlemleri",
+    "day": "o günün işlemleri",
+    "band": "bu akışın işlemleri"
+  }
 }

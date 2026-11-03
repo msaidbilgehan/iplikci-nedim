@@ -2,12 +2,15 @@
 // series and the month's total, each cell shaded on the sequential ramp by its share of its column's highest month. In
 // the dark theme the low values sit on the dark end, as the MVP had it. Every value is written, so the shade only
 // follows it; a month the documents cover only partly is marked and counted in no average. The foot gives each
-// column's total and its average over the whole months alone.
+// column's total and its average over the whole months alone. A month and each of its values may lead to their rows,
+// as the chart's columns and segments do.
 
 import { useTranslation } from "react-i18next";
 
+import type { Destination } from "../../api/types";
 import { cn } from "../../lib/cn";
 import { formatMoney, formatMonth } from "../../lib/format";
+import { ScreenLink } from "../ui/Say";
 import { Table, Td, Th } from "../ui/Table";
 import type { StackSeries } from "./layout";
 import { SLOT_BG } from "./palette";
@@ -40,11 +43,16 @@ interface HeatTableProps {
   months: readonly MonthValues[]; // oldest first, as the chart has them
   partial?: readonly string[]; // months not whole: marked, and in no average
   currency?: string;
+  linkOf?: (month: string, series: string | null) => Destination | null; // a month's rows, or a series' of it
 }
 
-export function HeatTable({ caption, series, months, partial = [], currency = "TRY" }: HeatTableProps) {
+export function HeatTable({ caption, series, months, partial = [], currency = "TRY", linkOf }: HeatTableProps) {
   const { t } = useTranslation("charts");
   const money = (minor: number) => formatMoney({ minor, currency });
+  const linked = (month: string, key: string | null, text: string) => {
+    const link = linkOf?.(month, key) ?? null;
+    return link ? <ScreenLink link={link}>{text}</ScreenLink> : text;
+  };
   const shown = series.filter((s) => months.some((m) => (m.values[s.key] ?? 0) !== 0));
   const valueOf = (m: MonthValues, key: string) => m.values[key] ?? 0;
   const totalOf = (m: MonthValues) => shown.reduce((sum, s) => sum + valueOf(m, s.key), 0);
@@ -74,7 +82,11 @@ export function HeatTable({ caption, series, months, partial = [], currency = "T
           {[...months].reverse().map((m) => (
             <tr key={m.month}>
               <Th scope="row" className="font-normal whitespace-nowrap text-zinc-900 dark:text-zinc-100">
-                {partial.includes(m.month) ? t("partialMonth", { month: formatMonth(m.month) }) : formatMonth(m.month)}
+                {linked(
+                  m.month,
+                  null,
+                  partial.includes(m.month) ? t("partialMonth", { month: formatMonth(m.month) }) : formatMonth(m.month),
+                )}
               </Th>
               {shown.map((s) => {
                 const value = valueOf(m, s.key);
@@ -86,7 +98,7 @@ export function HeatTable({ caption, series, months, partial = [], currency = "T
                       heatOf(value, highest((row) => valueOf(row, s.key))),
                     )}
                   >
-                    {value === 0 ? "–" : money(value)}
+                    {value === 0 ? "–" : linked(m.month, s.key, money(value))}
                   </Td>
                 );
               })}

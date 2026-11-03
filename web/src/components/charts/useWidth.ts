@@ -1,12 +1,14 @@
 // A chart is drawn at its container's width in pixels, so its text keeps its size on any screen (the MVP report
 // measured its boxes the same way). Until the container is measured — and in tests, where nothing has a size — the
-// fallback width stands.
+// fallback width stands. The container itself is kept too: a touch's tip stays until a press outside it.
 
-import { type RefCallback, useCallback, useState } from "react";
+import { type RefCallback, type RefObject, useCallback, useRef, useState } from "react";
 
-export function useWidth(fallback = 640): [RefCallback<HTMLDivElement>, number] {
+export function useWidth(fallback = 640): [RefCallback<HTMLDivElement>, number, RefObject<HTMLDivElement | null>] {
   const [width, setWidth] = useState(fallback);
+  const box = useRef<HTMLDivElement | null>(null);
   const ref = useCallback<RefCallback<HTMLDivElement>>((node) => {
+    box.current = node;
     if (!node) {
       return undefined;
     }
@@ -24,5 +26,5 @@ export function useWidth(fallback = 640): [RefCallback<HTMLDivElement>, number] 
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
-  return [ref, width];
+  return [ref, width, box];
 }

@@ -1,14 +1,19 @@
 // Where money went, as bands from one place to another (F07's flow between the accounts): each place a bar as tall as
 // what passed through it, each band as wide as its amount. A spending group keeps its colour slot; the accounts and
 // the other places are drawn in the neutral ink, so colour never carries the meaning alone: every place is named
-// beside its bar with its amount. The pointer names a band; the table view lists every band with its numbers.
+// beside its bar with its amount. The pointer names a band; the table view lists every band with its numbers. A band
+// may lead to the rows it adds up (open): a click opens them, and the table's rows carry the same links.
 
-import { type ReactNode, useId, useState } from "react";
+import { type ReactNode, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router";
 
 import { cn } from "../../lib/cn";
 import { formatMoney, formatMoneyShort } from "../../lib/format";
+import { hrefOf } from "../../lib/links";
+import { ArrowRightIcon } from "../ui/Icons";
 import { ChartFrame } from "./ChartFrame";
+import { type ChartOpen, isTouch, useDismiss, useOpener } from "./open";
 import { SLOT_FILL, SLOT_STROKE } from "./palette";
 import { type FlowBand, type FlowPoint, sankeyHeight, sankeyLayout } from "./flowLayout";
 import { useWidth } from "./useWidth";
@@ -20,6 +25,13 @@ interface SankeyProps {
   bands: readonly FlowBand[];
   table: ReactNode; // every band with its numbers, as the caller words them
   currency?: string;
+  open?: ChartOpen<string>; // where a band leads, by its key
+}
+
+/** The band the pointer is on, and whether a touch chose it: then it stays until the next press. */
+interface Aim {
+  key: string;
+  touch: boolean;
 }
 
 const MARGIN = { top: 8, right: 4, bottom: 8, left: 4 };
@@ -27,15 +39,21 @@ const HALO = "[paint-order:stroke] stroke-white stroke-[3px] [stroke-linejoin:ro
 // Narrower, a middle column's labels run into the last column's: a phone's screen scrolls the drawing sideways.
 const LEAST_WIDTH = 720;
 
-export function Sankey({ title, summary, points, bands, table, currency = "TRY" }: SankeyProps) {
+export function Sankey({ title, summary, points, bands, table, currency = "TRY", open }: SankeyProps) {
   const { t } = useTranslation("charts");
   const summaryId = useId();
-  const [measure, width] = useWidth();
-  const [active, setActive] = useState<string | null>(null);
+  const [measure, width, box] = useWidth();
+  const [aim, setAim] = useState<Aim | null>(null);
+  const pressed = useRef<Aim | null>(null);
+  const opener = useOpener();
+  useDismiss(box, aim?.touch === true, () => setAim(null));
   const size = { width: Math.max(LEAST_WIDTH, width), height: sankeyHeight(points, bands) };
   const layout = sankeyLayout(points, bands, size, MARGIN);
   const money = (minor: number) => ({ minor, currency });
+  const active = aim?.key ?? null;
   const shown = layout?.bands.find((band) => band.key === active);
+  const link = active === null ? null : (open?.link(active) ?? null);
+  const href = link ? hrefOf(link) : null;
 
   const chart = layout ? (
     <div className="flex flex-col gap-1">
@@ -68,9 +86,32 @@ export function Sankey({ title, summary, points, bands, table, currency = "TRY" 
                 className={cn(
                   band.target.slot !== null ? SLOT_STROKE[band.target.slot] : "stroke-chart-muted",
                   "transition-[stroke-opacity] motion-reduce:transition-none",
+                  open && open.link(band.key) !== null && "cursor-pointer",
                 )}
-                onPointerEnter={() => setActive(band.key)}
-                onPointerLeave={() => setActive(null)}
+                onPointerEnter={(event) => {
+                  if (!isTouch(event)) {
+                    setAim({ key: band.key, touch: false });
+                  }
+                }}
+                onPointerLeave={(event) => {
+                  if (!isTouch(event)) {
+                    setAim(null);
+                  }
+                }}
+                onPointerDown={(event) => {
+                  const next = { key: band.key, touch: isTouch(event) };
+                  opener.press(event, aim?.key === band.key);
+                  pressed.current = next;
+                  setAim(next);
+                }}
+                onPointerCancel={() => {
+                  // A finger that scrolls the drawing chose nothing.
+                  if (pressed.current?.touch) {
+                    pressed.current = null;
+                    setAim(null);
+                  }
+                }}
+                onClick={open ? () => opener.click(open.link(band.key)) : undefined}
               />
             ))}
           </g>
@@ -98,15 +139,32 @@ export function Sankey({ title, summary, points, bands, table, currency = "TRY" 
           ))}
         </svg>
         {shown ? (
-          <p
+          <div
             aria-hidden="true"
             className={cn(
-              "pointer-events-none absolute left-2 top-2 rounded-md border px-2 py-1 text-xs shadow-sm",
+              "absolute left-2 top-2 rounded-md border px-2 py-1 text-xs shadow-sm",
               "border-zinc-200 bg-white text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100",
+              href && aim?.touch ? "pointer-events-auto" : "pointer-events-none",
             )}
           >
-            {shown.source.label} → {shown.target.label}: {formatMoney(money(shown.value))}
-          </p>
+            <p>
+              {shown.source.label} → {shown.target.label}: {formatMoney(money(shown.value))}
+            </p>
+            {href && !aim?.touch ? (
+              <p className="text-zinc-600 dark:text-zinc-300">{t("open.click", { what: t("open.band") })}</p>
+            ) : null}
+            {href && aim?.touch ? (
+              // A touch's tip stays: its link opens the band, out of the keyboard's way (the table's rows link too).
+              <Link
+                to={href}
+                tabIndex={-1}
+                className="flex min-h-11 items-center gap-2 font-medium text-teal-800 underline dark:text-teal-300"
+              >
+                {t("open.tap", { what: t("open.band") })}
+                <ArrowRightIcon className="size-4 shrink-0" />
+              </Link>
+            ) : null}
+          </div>
         ) : null}
       </div>
       {/* A phone's screen shows the first column only: say there is more to the side, and where the numbers are. */}
@@ -126,6 +184,7 @@ export function Sankey({ title, summary, points, bands, table, currency = "TRY" 
       chart={chart}
       table={table}
       empty={bands.length === 0}
+      hint={open?.hint}
     />
   );
 }

@@ -2,7 +2,8 @@
 // colour with the data end rounded by 4 px, and its amount written beside the bar. The rows are a list in HTML rather
 // than SVG text, so a long name wraps or shortens as text does (the bar widths still come from d3-scale). Nothing
 // below zero has a bar; its amount says so with its sign. The table view adds each row's share of the whole. A row
-// with a destination names it with a link, in the bars and in the table alike.
+// with a destination names it with a link, in the bars and in the table alike; in the bars the whole row is the link's
+// to press, its bar and amount too, while the keyboard stops at its name alone.
 
 import { type ReactNode, useId } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import type { Destination } from "../../api/types";
 import { cn } from "../../lib/cn";
 import { formatMoney } from "../../lib/format";
+import { hrefOf } from "../../lib/links";
 import { percent } from "../../lib/turkish";
 import { ScreenLink } from "../ui/Say";
 import { Table, Td, Th } from "../ui/Table";
@@ -45,12 +47,26 @@ export function HBars({ title, summary, itemName, items, currency = "TRY", table
     <ol aria-label={title} aria-describedby={summaryId} className="flex flex-col gap-1">
       {items.map((item, index) => {
         const share = shares[index] ?? 0;
+        const leads = item.link !== undefined && hrefOf(item.link) !== null;
         return (
-          <li key={item.key} className="grid grid-cols-[minmax(7rem,38%)_1fr] items-center gap-x-3 text-sm">
+          <li
+            key={item.key}
+            className={cn(
+              "-mx-1 grid grid-cols-[minmax(7rem,38%)_1fr] items-center gap-x-3 rounded-md px-1 text-sm",
+              leads && "relative hover:bg-zinc-100 dark:hover:bg-zinc-800",
+            )}
+          >
             <span className="flex min-w-0 items-center gap-2">
               <span aria-hidden="true" className={cn("size-2.5 shrink-0 rounded-sm", SLOT_BG[item.slot])} />
               {item.link ? (
-                <ScreenLink link={item.link} className="min-w-0 [overflow-wrap:anywhere]">
+                // The link's box spreads over its row, so a press on the bar or the amount opens it too.
+                <ScreenLink
+                  link={item.link}
+                  className={cn(
+                    "min-w-0 [overflow-wrap:anywhere]",
+                    leads && "after:absolute after:inset-0 after:rounded-md",
+                  )}
+                >
                   {item.label}
                 </ScreenLink>
               ) : (
