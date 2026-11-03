@@ -2,7 +2,15 @@ from datetime import date
 
 import pytest
 
-from iplikci.categorize import DEFAULT_RULES, OTHER_INCOME, TO_PEOPLE, Categorizer, clean_description, display_name
+from iplikci.categorize import (
+    DEFAULT_RULES,
+    OTHER_INCOME,
+    TO_PEOPLE,
+    Categorizer,
+    RuleSet,
+    clean_description,
+    display_name,
+)
 from iplikci.domain.codes import AccountType, CategoryReason, Necessity, TransactionKind
 from iplikci.domain.models import Account, Transaction
 
@@ -57,9 +65,16 @@ def test_rules(cat, description, category, merchant):
 
 @pytest.mark.parametrize(
     "description",
-    ["ORNEK KISI 2024 SUBAT KIRA ODEMESI", "EV KİRASI ARALIK", "ARALIK AYI KİRAYI GÖNDERDİM", "2 AYLIK KİRALARI"],
+    [
+        "ORNEK KISI 2024 SUBAT KIRA ODEMESI",
+        "EV KİRASI ARALIK",
+        "ARALIK AYI KİRAYI GÖNDERDİM",
+        "2 AYLIK KİRALARI",
+        "KİRADAN KALAN",  # any ending: the rules list the words that are not rent, not the ones that are
+        "KİRALIK DAİRE EKİM KİRASI",  # a later match still counts
+    ],
 )
-def test_rent_is_the_word_kira_and_its_endings(cat, description):
+def test_rent_is_kira_with_any_ending(cat, description):
     assert categorize(cat, description).category == "Kira"
 
 
@@ -69,11 +84,45 @@ def test_rent_is_the_word_kira_and_its_endings(cat, description):
         ("ORNEK KIRAATHANESİ İSTANBUL TR", "Kafe & Kahve"),  # a coffeehouse
         ("KİRALAMA ORNEK FİRMA", "Diğer Harcamalar"),  # renting a car or a thing, not a home
         ("KİRAZ ORNEK BUTİK", "Diğer Harcamalar"),
-        ("KIRAÇ ORNEK ŞUBE", "Diğer Harcamalar"),  # a place in İstanbul
     ],
 )
-def test_words_that_only_begin_with_kira_are_not_rent(cat, description, category):
+def test_words_the_shipped_rules_except_are_not_rent(cat, description, category):
     assert categorize(cat, description).category == category
+
+
+EXCEPT_RULES = """
+Ev:
+  Kira:
+    Ev Sahibi: [ORNEK EMLAK]
+    _: [KIRA]
+    _hariç: [KIRAATHANE, ORNEK EMLAKCI]
+"""
+
+
+@pytest.mark.parametrize(
+    "description, matched",
+    [
+        ("ORNEK KIRAATHANESI", None),
+        ("KIRAATHANE YANI KIRA ODEMESI", "KIRA"),  # the excepted word is passed over, the later KIRA counts
+        ("ORNEK EMLAK EKIM", "ORNEK EMLAK"),
+        ("ORNEK EMLAKCI KOMISYON", None),  # a named rule's match is passed over as well
+        ("ORNEKEMLAKCIKOMISYON", None),  # and a multi-word one's squashed match
+    ],
+)
+def test_an_excepted_word_is_passed_over(description, matched):
+    rules = Categorizer.from_layers(RuleSet.parse(EXCEPT_RULES, "kurallar.yaml"))
+    rule = rules.match(description)
+    assert (rule.pattern if rule else None) == matched
+
+
+def test_a_personal_exception_adds_to_the_shipped_ones(tmp_path, cat):
+    personal = tmp_path / "personal.yaml"
+    personal.write_text("Ev & Faturalar:\n  Kira:\n    _hariç: [KIRAÇ]  # a place in İstanbul\n", encoding="utf-8")
+    layered = Categorizer.layered(personal)
+    assert categorize(cat, "QWERTY LTD KIRAÇ ESENYURT").category == "Kira"
+    assert categorize(layered, "QWERTY LTD KIRAÇ ESENYURT").category == "Diğer Harcamalar"
+    assert categorize(layered, "ORNEK KIRAATHANESİ").category == "Kafe & Kahve"  # the shipped ones still hold
+    assert categorize(layered, "EKİM KİRASI").category == "Kira"
 
 
 def test_bank_category_beats_weak_keyword(cat):

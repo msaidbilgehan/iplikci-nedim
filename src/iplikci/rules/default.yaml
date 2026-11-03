@@ -13,6 +13,10 @@
 #    "_zayıf" en zayıf kelimelerdir; yalnızca başka hiçbir kural tutmazsa denenir.
 #  • Önce isimli kurallar (dosyadaki sırayla), sonra genel kelimeler denenir. Genel kelimelerde
 #    açıklamada en önce geçen kelime kazanır ("ÖRNEK PETROL MARKET" → PETROL → Akaryakıt).
+#  • Bir kategoriye "_hariç" yazılırsa, desenlerinin başladığı ama o kategoriye ait olmayan kelimeler
+#    sayılır: o kelimenin yerindeki eşleşme yok sayılır, açıklamada daha sonra geçen eşleşme yine sayılır
+#      Kira: _: [KIRA], _hariç: [KIRAATHANE] → "ÖRNEK KIRAATHANESİ" kira değildir.
+#    Kişisel dosyanızdaki "_hariç", uygulamayla gelenin üstüne eklenir.
 #  • Hesap hareketlerindeki havale/FAST satırlarında açıklamanın yanında alıcı/gönderen adı da aranır.
 #  • Bir kategoriye "_tür" yazılırsa o kategorideki para hareketinin türü değişir:
 #      gelir   → gelen para gelir sayılır (maaş)
@@ -91,9 +95,9 @@ Ev & Faturalar:
   Kira:
     # Kira, ev sahibine giden havalelerden bulunur: ev sahibinin adını kendi kural dosyanıza yazın. Başka bir
     # hesaptan alıcı adı yazılmadan aynı bankaya giden aynı tutarlı havaleler de buraya eşlenir.
-    # KİRA yalnızca kelime olarak tutar (KİRASI, KİRAYI…): KIRAATHANE kahvehanedir, KİRALAMA araç ya da eşya
-    # kiralamadır, KİRAZ ve KIRAÇ başka şeylerdir.
-    _: ["re:\\bKIRA(SI|SINI|YI|LARI)?\\b"]
+    _: [KIRA]
+    # KİRA ile başlayıp kira olmayan kelimeler: kahvehane, araç ya da eşya kiralama, kiralık kasa, kiraz.
+    _hariç: [KIRAATHANE, KIRALAMA, KIRALIK, KIRAZ]
   Konut & Aidat:
     _: [SITE YONETIM, YONETIM, AIDAT, EMLAK, GAYRIMENKUL]
   Elektrik, Su & Doğalgaz:

@@ -1,6 +1,7 @@
 """Assign merchant, category, group and necessity to transactions using the category rules."""
 
 import re
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from decimal import Decimal
 from pathlib import Path
@@ -71,7 +72,9 @@ _KIND_BY_TYPE = {
 _GENERIC = "_"
 _WEAK = "_ZAYIF"
 _TYPE_KEY = "_TUR"
+_EXCEPT_KEY = "_HARIC"
 _MONTH = re.compile(r"\d{4}-\d{2}")
+_NONE: tuple[str, ...] = ()
 
 
 @dataclass
@@ -84,12 +87,19 @@ class Rule:
     pattern: str = ""  # as the rule file writes it
     layer: str = ""  # the name of the rule file (RuleSet.name)
 
-    def find(self, folded: str, squashed: str) -> int | None:
-        m = self.regex.search(folded)
-        if m:
-            return m.start()
-        if self.squashed and self.squashed in squashed:
-            return squashed.index(self.squashed)
+    def find(self, folded: str, squashed: str, unless: Sequence[str] = _NONE) -> int | None:
+        """Where the pattern first matches, passing over a match that runs into one of `unless`, the words its
+        category's `_hariç` says are not it ("KIRA" in "KIRAATHANESİ"); a later match still counts."""
+        for m in self.regex.finditer(folded):
+            if not any(folded.startswith(word, m.start()) for word in unless):
+                return m.start()
+        if self.squashed:
+            words = [word.replace(" ", "") for word in unless]
+            at = squashed.find(self.squashed)
+            while at != -1:
+                if not any(squashed.startswith(word, at) for word in words):
+                    return at
+                at = squashed.find(self.squashed, at + 1)
         return None
 
 
@@ -122,10 +132,10 @@ def _ended(entries: dict, name: str) -> dict[str, str]:
     return out
 
 
-def _earliest(rules: list[Rule], f: str, sq: str) -> Rule | None:
+def _earliest(rules: list[Rule], f: str, sq: str, unless: Mapping[str, Sequence[str]]) -> Rule | None:
     best, best_pos = None, None
     for rule in rules:
-        pos = rule.find(f, sq)
+        pos = rule.find(f, sq, unless.get(rule.category, _NONE))
         if pos is not None and (best_pos is None or pos < best_pos):
             best, best_pos = rule, pos
     return best
@@ -139,6 +149,7 @@ class RuleSet:
     groups: list[str] = field(default_factory=list)  # in file order
     categories: dict[str, str] = field(default_factory=dict)  # category -> group, in file order
     types: dict[str, str] = field(default_factory=dict)  # category -> `_tür`
+    exceptions: dict[str, list[str]] = field(default_factory=dict)  # category -> `_hariç`, folded
     necessity: dict[str, Necessity] = field(default_factory=dict)  # category -> level
     merchant_necessity: dict[str, Necessity] = field(default_factory=dict)  # folded merchant -> level
     ended: dict[str, str] = field(default_factory=dict)  # folded merchant -> last month with a payment
@@ -189,6 +200,10 @@ class RuleSet:
                     if fold(merchant) == _TYPE_KEY:
                         rules.types[category] = fold(str(patterns)).lower()
                         continue
+                    if fold(merchant) == _EXCEPT_KEY:
+                        words = [patterns] if isinstance(patterns, str) else patterns or []
+                        rules.exceptions[category] = [fold(str(word)) for word in words]
+                        continue
                     if isinstance(patterns, str):
                         patterns = [patterns]
                     target = {_GENERIC: rules.generic, _WEAK: rules.weak}.get(fold(merchant), rules.named)
@@ -198,12 +213,13 @@ class RuleSet:
                         target.append(Rule(group, category, merchant_name, regex, squashed, str(p), name))
         return rules
 
-    def strong(self, f: str, sq: str) -> Rule | None:
-        """Named merchants in file order, then the generic keyword found first in the description."""
+    def strong(self, f: str, sq: str, unless: Mapping[str, Sequence[str]]) -> Rule | None:
+        """Named merchants in file order, then the generic keyword found first in the description; `unless` holds
+        each category's `_hariç`, every layer's together."""
         for rule in self.named:
-            if rule.find(f, sq) is not None:
+            if rule.find(f, sq, unless.get(rule.category, _NONE)) is not None:
                 return rule
-        return _earliest(self.generic, f, sq)
+        return _earliest(self.generic, f, sq, unless)
 
 
 class Categorizer:
@@ -230,16 +246,20 @@ class Categorizer:
         self.groups: list[str] = []
         self.categories: dict[str, str] = {}
         self.types: dict[str, str] = {}
+        self.exceptions: dict[str, tuple[str, ...]] = {}
         self.necessity: dict[str, Necessity] = {}
         self.merchant_necessity: dict[str, Necessity] = {}
         self.ended: dict[str, str] = {}
         self.regular: set[str] = set()
         # From the bottom layer up: an upper layer's value replaces the one below; the defaults' group order (and
-        # so the colours) stays, and groups only an upper layer has come after them.
+        # so the colours) stays, and groups only an upper layer has come after them. A category's `_hariç` adds up:
+        # the user's own file can keep a shipped keyword off a word as well.
         for layer in reversed(layers):
             self.groups += [g for g in layer.groups if g not in self.groups]
             self.categories.update(layer.categories)
             self.types.update(layer.types)
+            for category, words in layer.exceptions.items():
+                self.exceptions[category] = (*self.exceptions.get(category, _NONE), *words)
             self.necessity.update(layer.necessity)
             self.merchant_necessity.update(layer.merchant_necessity)
             self.ended.update(layer.ended)
@@ -260,12 +280,12 @@ class Categorizer:
         f = fold(description)
         sq = f.replace(" ", "")
         for layer in self.layers:
-            rule = layer.strong(f, sq)
+            rule = layer.strong(f, sq, self.exceptions)
             if rule:
                 return rule
         if weak:
             for layer in self.layers:
-                rule = _earliest(layer.weak, f, sq)
+                rule = _earliest(layer.weak, f, sq, self.exceptions)
                 if rule:
                     return rule
         return None

@@ -18,7 +18,7 @@ Kişisel katman önce denenir:
 - Ana grupların sırası, dolayısıyla renkleri, varsayılan dosyadan gelir. Yalnızca kişisel dosyada olan gruplar onlardan
   sonra gelir.
 - Kişisel dosyadaki gereklilik, `_tür`, `_biten`, `_gereklilik_işyeri` ve `_banka_kategorileri` değerleri varsayılanların
-  üstüne yazılır; `_düzenli` listeleri birleşir.
+  üstüne yazılır; `_düzenli` listeleri ve bir kategorinin `_hariç` kelimeleri birleşir.
 - Kişisel dosyada olmayan bir varsayılan kategoriye kural eklenirse kategori, varsayılandaki grubuyla kişisel dosyaya
   eklenir.
 
@@ -35,6 +35,10 @@ Yeme & İçme:                    # ana grup
   Market & Gıda:
     Migros: [MIGROS, MJET]
     _zayıf: [GIDA]                 # başka hiçbir şey tutmazsa
+Ev & Faturalar:
+  Kira:
+    _: [KIRA]
+    _hariç: [KIRAATHANE, KIRALAMA] # desenle başlayıp bu kategoriye ait olmayan kelimeler
 
 _gereklilik:                    # kategorilerin gereklilik düzeyi
   Gerekli: [Market & Gıda, Kira]
@@ -58,6 +62,10 @@ _banka_kategorileri: …          # Garanti'nin ekstrede yazdığı başlıklar�
 - `re:` ile başlayan desen, katlanmış ASCII metin üzerinde çalışan bir düzenli ifadedir.
 - `_tür`, o kategorideki transferlerin türünü belirler: `gelir`, `kişi`, `borç`, `yatırım`
   ([defter kuralları](ledger.md)).
+- `_hariç`, kategorinin desenleri bir kelimenin başında tutsa da o kategoriye ait olmayan kelimelerdir. Açıklamada
+  bu kelimelerden biriyle başlayan yerdeki eşleşme yok sayılır; daha sonra geçen bir eşleşme yine sayılır
+  ("KİRALIK DAİRE EKİM KİRASI" kiradır). Kategorinin bütün desenlerine (isimli, genel, `_zayıf`) uygulanır.
+  Türkçe ekler sayılamayacağı için desenin hangi eklerle tuttuğu yazılmaz; tutmaması gereken kelimeler yazılır.
 - `_biten`: YAML tam tarihleri tarih nesnesine çevirir; yalnızca yıl ve ay kullanılır.
 - Dosya kullanıcıya açık olduğu için anahtarları ve yorumları Türkçedir.
 
