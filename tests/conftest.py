@@ -2,7 +2,8 @@
 IMAP server with synthetic bank e-mails.
 
 Nothing here touches the real data folder, the real Trash, the system keyring, the system's service manager or the
-network: every test gets its own data folder and Trash folder, and the e-mail fetch talks to FakeImap.
+network: every test gets its own data folder and Trash folder, the e-mail fetch talks to FakeImap, and a test that
+fetches exchange rates puts its own provider answers in place of egress.https_get.
 """
 
 import imaplib
@@ -107,6 +108,7 @@ def no_keyring_or_network(monkeypatch, tmp_path_factory):
     monkeypatch.setattr(egress, "imap", refuse)
     monkeypatch.setattr(egress, "smtp", refuse)
     monkeypatch.setattr(egress, "https_post", refuse)
+    monkeypatch.setattr(egress, "https_get", refuse)  # the exchange rate providers
     monkeypatch.setattr(channels, "_run", refuse)  # a desktop notification on the screen
     monkeypatch.setattr(manager, "run_tool", refuse)  # launchctl, systemctl, schtasks
     monkeypatch.setattr(manager, "spawn_detached", refuse)  # the Windows helper that runs the task again

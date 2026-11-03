@@ -1,7 +1,7 @@
 """The only way out (ADR-0009). Every connection the program opens to another computer is made here, to a host on
-the allowlist: the mail servers the user set up, the Telegram Bot API, and the services the ADR names as their
-features arrive (the exchange rates, EVDS). A connection anywhere else is refused before it leaves. 127.0.0.1 is no
-egress: the command line and the browser extension talk to the service there."""
+the allowlist: the mail servers the user set up, the Telegram Bot API, the exchange rate providers, and EVDS when its
+feature arrives. A connection anywhere else is refused before it leaves. 127.0.0.1 is no egress: the command line and
+the browser extension talk to the service there."""
 
 import http.client
 import imaplib
@@ -15,9 +15,14 @@ from collections.abc import Mapping
 from .settings.config import Settings
 
 TELEGRAM = "api.telegram.org"  # the notifications' Telegram channel (ADR-0010)
-# ADR-0009's fixed hosts; the exchange rates and EVDS join with their features.
-FIXED_HOSTS: frozenset[str] = frozenset({TELEGRAM})
-_ANSWER_LIMIT = 1 << 20  # an answer larger than this is cut: the services asked answer in a few kilobytes
+# The exchange rates (architecture §15): asked with a day only, by GET (ADR-0009, its note for Phase 8).
+TCMB = "www.tcmb.gov.tr"  # the Central Bank of Turkey's daily bulletin
+ECB = "www.ecb.europa.eu"  # the euro reference rates, when TCMB cannot be reached
+FRANKFURTER = "api.frankfurter.dev"  # the same reference rates as JSON
+# ADR-0009's fixed hosts; EVDS joins with its feature.
+FIXED_HOSTS: frozenset[str] = frozenset({TELEGRAM, TCMB, ECB, FRANKFURTER})
+# An answer larger than this is cut: the services asked answer in a few kilobytes, ECB's whole history in 642 KB.
+_ANSWER_LIMIT = 1 << 20
 
 
 class Refused(Exception):
@@ -63,7 +68,29 @@ def https_post(
     """A form POSTed over HTTPS to an allowed host (certificate and host name checked, no redirect followed); the
     answer's status and body, an error status too. Unreachable when no answer came."""
     check(host, settings)
-    request = urllib.request.Request(f"https://{host}{path}", data=urllib.parse.urlencode(form).encode(), method="POST")
+    request = urllib.request.Request(_url(host, path), data=urllib.parse.urlencode(form).encode(), method="POST")
+    return _send(host, request, timeout)
+
+
+def https_get(
+    host: str, path: str, settings: Settings, headers: Mapping[str, str] | None = None, timeout: float = 30.0
+) -> tuple[int, bytes]:
+    """A GET over HTTPS to an allowed host (certificate and host name checked, no redirect followed); the answer's
+    status and body, an error status too. Unreachable when no answer came."""
+    check(host, settings)
+    request = urllib.request.Request(_url(host, path), headers=dict(headers or {}), method="GET")
+    return _send(host, request, timeout)
+
+
+def _url(host: str, path: str) -> str:
+    """The address of path on host. A path must begin with a slash: "@other.example/" after the host would make the
+    host a user name and send the request to the other one."""
+    if not path.startswith("/"):
+        raise ValueError(f"yol / ile başlamalı: {path[:40]!r}")
+    return f"https://{host}{path}"
+
+
+def _send(host: str, request: urllib.request.Request, timeout: float) -> tuple[int, bytes]:
     opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ssl.create_default_context()), _NoRedirect)
     try:
         with opener.open(request, timeout=timeout) as answer:
