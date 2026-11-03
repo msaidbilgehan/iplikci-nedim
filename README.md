@@ -150,6 +150,15 @@ Aşama 8 (Döviz, v0.9.0) resmî kurları getirdi:
   harcamanızın gerçekten mi yoksa yalnızca fiyatlar yüzünden mi arttığını da gösterir. Anahtar girilmedikçe özellik
   kapalıdır ve EVDS'ye hiçbir istek gitmez. Anahtar yalnızca bu bilgisayarın anahtar zincirinde saklanır.
 
+İplikçi Nedim kendi sözleriyle de konuşur (v0.9.2):
+
+- Pano'nun en üstünde ve tarayıcı eklentisinin penceresinde İplikçi Nedim'in yüzü ve dizideki sözlerinden biri durur.
+  Söz paranızın durumuna göre seçilir: ay eksiyle kapandıysa başka, iyi geçtiyse başka, hesabınızın eksiye düşeceği
+  öngörülüyorsa başka bir söz. Altında hangi durum için söylendiği yazar; eklentide tutar görünmez.
+- Yüz durumun rengini alır: iyi giderken yeşil, dikkat isteyen durumda turuncu, kötü durumda kırmızı. "Başka bir söz"
+  o gün doğru olan öbür sözleri gösterir. Sözlerin listesi [İplikçi Nedim'in sözleri](docs/İplikçi_Nedim_Sözler.md)
+  belgesindedir.
+
 Açık kalanlar: servisin yedi gün kendi başına çalışması (K19). Windows ve Linux'ta denemeler bekletiliyor (K25).
 
 MVP 2026-10-31'de emekliye ayrıldı. İplikçi Nedim onun kodundan başlar ama verisini devralmaz; belgeleri kendisi toplar.

@@ -14,6 +14,13 @@ açık Gmail oturumuyla okuyup bu bilgisayardaki İplikçi Nedim servisine taş�
     ayarlar sayfasındadır; "Eşleştirme ve ayarlar" onu açar.
   - Ayarlar sayfası da durumu, "Şimdi denetle"yi ve "İplikçi Nedim'i aç"ı gösterir; doğrulama sayfasına oradan gidilir.
     Üç sayfa tek bir stil dosyasını paylaşır, açık ve koyu temayla.
+- **İplikçi Nedim'in sözü** (0.6.0, [ADR-0020](../docs/adr/0020-bridge-sayings.md)): pencerenin başında, logonun
+  altındaki balonda, Pano'daki söz durur; logo paranın durumuna göre renk alır (`icons/face-*.png`). "Başka bir söz"
+  o gün doğru olan öbür sözleri gösterir.
+  - Eklenti önce servisten kanıt, sonra `GET /api/bridge/sayings` ile sözleri ister; sözün cümlesi tutar, hesap ya da
+    ad taşımaz.
+  - Eşleşmemişse, servis çalışmıyorsa, yerinde başka bir program yanıt veriyorsa ya da servis bu uçtan eskiyse söz
+    gösterilmez; durum kartı nedenini söyler.
 - **"İplikçi Nedim'i aç"** ([ADR-0019](../docs/adr/0019-bridge-login-link.md)) arayüzü bu tarayıcıda açar:
   - Arayüzü gösteren bir sekme açıksa onu öne getirir. O sekme zaten öndeyse onu giriş bağlantısıyla yeniden açar:
     oturumu kapanmış ya da servis kapalıyken açılmış olabilir.

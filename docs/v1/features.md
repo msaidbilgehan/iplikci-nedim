@@ -75,6 +75,9 @@ G1, G10, G13 · Çekirdek
   - Araç çubuğundaki düğme eklentinin penceresini açar: durum, "İplikçi Nedim'i aç", "Şimdi denetle" ve "Eşleştirme ve
     ayarlar". "İplikçi Nedim'i aç" açık bir arayüz sekmesini öne getirir; yoksa eşleşmiş eklentinin servisten aldığı
     tek kullanımlık giriş bağlantısını açar ([ADR-0019](../adr/0019-bridge-login-link.md)).
+  - Pencerenin başında Pano'daki söz durur ([F06](#f06--pano), [ADR-0020](../adr/0020-bridge-sayings.md)): başlıktaki
+    logo paranın durumuna göre renk alır, söz altındaki balonda, "Başka bir söz" ile. Eklenti eşleşmemişse ya da servis
+    yanıt vermiyorsa söz gösterilmez.
   - Gmail'i üç katmanla okur. Yeni iletiler gelen kutusu akışından, okunmuş ve arşivlenmiş iletilerle geçmiş tam
     taramadan, iletinin kendisi "Orijinali göster"den alınır. İndirilen ileti okunmamış kalır (test edilir).
   - Tam tarama bozulursa yeni okunmamış iletiler alınmaya devam eder ve kullanıcıya bir kez bildirilir (test edilir).
@@ -194,6 +197,20 @@ G10 · Çekirdek
 
 G7 · Çekirdek
 
+- **İplikçi Nedim'in sözü** ([K26](requirements.md#kararlar)): ekranın en üstünde, sade ve ayrıntılı görünümde,
+  İplikçi Nedim'in yüzü ve konuşma balonunda dizideki sözlerinden biri.
+  - Söz paranın durumuna göre seçilir; her sözün bir durumu vardır
+    ([İplikçi Nedim'in sözleri](../İplikçi_Nedim_Sözler.md)). Durumlar en acilinden başlar: öngörü eksiye düşüyor,
+    ay eksiyle kapandı, borç varlıktan fazla, bu ay tipik aydan fazla harcanıyor, az kaldı, en iyi ay, döviz geliri,
+    bu ay tipik aydan az harcanıyor, birikim, gelir geldi, iyi bir ay, zam, faiz ve ücret, sessiz ay, veri yok.
+  - Ayın hükmü Pano'nunkiyle aynıdır: gelirin bilindiği en yeni kapanmış ay, kalan gelenin %10'undan azsa "az kaldı".
+    Bu ayın tipik ayla karşılaştırması da Pano'nun koşullarıyla yapılır.
+  - Gösterilen söz en acil durumunkidir ve o durumun sözleri arasında günden güne değişir; gün içinde aynı kalır.
+    "Başka bir söz" o gün doğru olan öbür durumların sözlerini sırayla gösterir.
+  - Sözün altında hangi durum için söylendiği bir cümleyle yazar: yalnızca sözcük, gün ve pay, tutar ya da ad yok.
+  - Yüz durumun rengini alır: iyi giderken logonun kendisi (yeşil), dikkat isteyen durumda turuncu, kritik durumda
+    kırmızı, veri yokken gri. Renk tek başına bir şey söylemez; söz ve cümlesi aynı şeyi söyler.
+  - Belge yokken "İsa Muhammed aşkına bilmiyorum." der.
 - **Sade görünüm:** finans bilgisi olmayan biri için resimlerle, yukarıdan aşağı okunan bir hikâye.
   - Son kapanan ayın gelen, giden ve kalan parası; gelenin harcanan ve kalan payını gösteren bir çubuk ve bir cümlelik
     hüküm: iyi gidiyor, az kaldı (kalan gelenin %10'undan az) ya da gelirden fazla harcandı. Süren ay ayrıca söylenir.

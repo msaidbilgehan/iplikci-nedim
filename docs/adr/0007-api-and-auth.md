@@ -72,6 +72,9 @@ modeli işe yaradı:
   127.0.0.1. Bu, bu bilgisayardaki bir saldırganın yapabileceğini genişletmez: bu kullanıcı olarak çalışan her program
   veri klasörünü de tarayıcı profilini de zaten okuyabilir. Servisin giriş sayfalarının başlığı
   "Giriş · İplikçi Nedim"dir; eklenti giriş sayfasını gösteren sekmeyi bundan tanır.
+- **İplikçi Nedim'in sözleri** (2026-11-03, [ADR-0020](0020-bridge-sayings.md)): eklentinin belirteci
+  `GET /api/bridge/sayings` ile Pano'nun sözlerini de alır. Yanıt tutar, hesap ya da ad taşımaz; API belirteci ve
+  tarayıcı oturumu bu uca giremez, onlar Pano'yu okur.
 
 ## Değerlendirilen seçenekler
 

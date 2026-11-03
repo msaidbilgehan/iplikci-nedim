@@ -4,6 +4,27 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.9.2] — 2026-11-03 — İplikçi Nedim'in sözleri
+
+İplikçi Nedim artık paranızın durumunu kendi sözleriyle söylüyor: Pano'nun en üstünde ve tarayıcı eklentisinin
+penceresinde, yüzü paranın durumuna göre renk alarak.
+
+### Eklenenler
+
+- Pano'nun başında, sade ve ayrıntılı görünümde, İplikçi Nedim'in yüzü ve dizideki sözlerinden biri bir konuşma
+  balonunda duruyor. Sözün altında hangi durum için söylendiği yazıyor, ör. "Ekim 2026'da gelen paranın %49'u elde
+  kaldı."
+- Söz paranın durumuna göre seçiliyor. Önce en acil durum geliyor: hesabın eksiye düşeceği öngörülüyorsa, ay eksiyle
+  kapandıysa, borçlar paradan fazlaysa, bu ay her zamankinden fazla harcanıyorsa, az kaldıysa. Ardından iyi haberler
+  ve öbür notlar geliyor: en iyi ay, döviz geliri, tasarruf, gelen maaş, iyi bir ay, zam, faiz ve ücretler.
+- Söz her gün değişiyor. "Başka bir söz" o gün doğru olan öbür durumların sözlerini sırayla gösteriyor.
+- Yüz durumun rengini alıyor: iyi giderken logonun kendisi (yeşil), dikkat isteyen durumda turuncu, kötü durumda
+  kırmızı, henüz bilgi yokken gri. Belge yokken İplikçi Nedim "İsa Muhammed aşkına bilmiyorum." diyor.
+- Tarayıcı eklentisinin penceresinde (eklenti 0.6.0) başlıktaki logo aynı rengi alıyor, söz altındaki balonda
+  duruyor. Sözün cümlesi tutar, hesap ya da ad içermiyor. Eklenti eşleşmemişse ya da İplikçi Nedim çalışmıyorsa söz
+  görünmüyor.
+- Sözlerin listesi ve her birinin hangi durumda söylendiği "İplikçi Nedim'in sözleri" belgesinde.
+
 ## [0.9.1] — 2026-11-03 — Enflasyondan arındırma
 
 Ayarlar'daki EVDS kartı artık özelliğin ne işe yaradığını bir örnekle anlatıyor, açık mı kapalı mı olduğunu söylüyor ve

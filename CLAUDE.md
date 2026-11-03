@@ -6,7 +6,7 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-03): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.1). Between Phases 6 and 7 came
+Status (2026-11-03): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.2). Between Phases 6 and 7 came
 the interface's simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab
 (v0.7.3), documents known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked
 against the documents (v0.7.6). Next is the 1.0 release, whose conditions are partly time-bound (roadmap "Sürüm 1.0"
@@ -130,6 +130,14 @@ says what the waiting must show; check them once their time has passed).
     (`components/settings/EvdsKey`) explains it with an example and links to EVDS's sign-in page and guides.
   - A rate change changes TL totals of foreign-currency rows: that is no regression of `dogrula --taban`, but say why
     when a total moves.
+- v0.9.2 (K26, ADR-0020): İplikçi Nedim's lines from the series, by how the money stands, with his face. `app/sayings`
+  chooses them from the dashboard: 15 situations (most pressing first: the forecast going below zero, a month closed
+  in the red, debts over the money, … down to no data), each with its lines (21, `docs/İplikçi_Nedim_Sözler.md`), a
+  mood (good, warning, critical, neutral) and a sentence of words and shares only, never an amount, an account or a
+  name. The day turns a situation's lines. The Pano shows them first in both views (`components/dashboard/NedimSays`,
+  the dashboard's `sayings`); the extension's window (0.6.0) asks `GET /api/bridge/sayings`, a bridge's token only, and
+  colours the header's logo. The faces are drawn from the logo by `packaging/icons.py` (`face-warning`, `-critical`,
+  `-neutral`; the logo itself is the good one).
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 
@@ -280,6 +288,9 @@ spread and the foreign income, pure over the ledger and the book), `inflation` (
 `storage/fx_rates` and `storage/prices`, `app/fx` (fetching, the status, the requests), `app/prices` (the EVDS key and
 TÜFE), `api/routes/rates` (`POST /api/fx/fetch`) and `cli/rates` (`iplikci kurlar`); in `web/`, `components/fx` holds
 Döviz's parts and the System screen's rates card, and `components/settings/EvdsKey` the key's card.
+v0.9.2 added `app/sayings` (İplikçi Nedim's lines by the money's situation); in `web/`,
+`components/dashboard/NedimSays` shows them, and in `extension/`, `bridge/sayings` asks for them and `ui/nedim` holds
+the faces.
 The rest keeps the MVP's flat layout (`analysis`, `insights`, `month_end`, `report` with its `templates`, …) until the
 phases in the roadmap's MVP module table move it. Next to them: `fakes` (the fake document builders and every
 reader's specimens, shared with the tests and the demo), `demo` (the demo data folder), `baseline` (the verification

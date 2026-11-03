@@ -579,7 +579,7 @@ Ayrıntılar [ADR-0010](../adr/0010-notification-channels.md)'un uygulama notund
 | `GET /giris`, `POST /api/login-links`, `POST /api/logout` | tek kullanımlık giriş bağlantısı, oturum çerezine döner; çıkış (ADR-0007) |
 | `GET /api/labels` | kodların Türkçe adları, tek eşleme modülünden |
 | `GET /api/feed`, `GET /api/feed/now` | akış (sayfalı; hesap, olay türü ve kesinlik süzgeçli); "Şu an" (hesap başına tahmini bakiye, kart dönemleri, ay içi tempo) ve "Yaklaşanlar" (14 gün) |
-| `GET /api/dashboard` | pano kartları: net varlık, nakit akışı, yaklaşanlar, tempo, uyarılar, yapılacaklar, belgelerin tazeliği |
+| `GET /api/dashboard` | pano kartları: net varlık, nakit akışı, yaklaşanlar, tempo, uyarılar, yapılacaklar, belgelerin tazeliği; İplikçi Nedim'in sözleri (`sayings`: durum, renk, durumu tutar ya da ad olmadan söyleyen cümle ve söz; en acil durumunki önce, K26) |
 | `GET /api/accounts`, `GET /api/accounts/{id}`, `GET /api/accounts/flows`, `GET /api/accounts/coverage`, `PUT /api/accounts/{id}/alias` | hesap haritası; hesap ayrıntısı (bakiye eğrisi, ekstreler, türe özel alanlar); hesaplar arası para akışı; her hesabın ekstrelerinin ay ay kapsadığı günler; kullanıcının verdiği hesap adı |
 | `GET /api/transactions`, `GET /api/transactions.csv`, `GET /api/transactions/{fp}` | süzgeçli, sıralı ve sayfalı liste, süzülenlerin toplamlarıyla; CSV; ayrıntı ve "neden?" (bölünmüş satırın parçası satırının ayrıntısını verir) |
 | `PUT /api/transactions/{fp}/annotation`, `POST /api/transactions/bulk` | not, etiket, kategori ve gereklilik düzeltmesi, bölme; seçili satırlara kategori ya da etiket |
@@ -601,7 +601,7 @@ Ayrıntılar [ADR-0010](../adr/0010-notification-channels.md)'un uygulama notund
 | `GET/PUT /api/notify/settings`, `POST /api/notify/test` | sessiz saat, kanal başına ayrıntı düzeyi, açık kanallar ve her kanalın neye ihtiyacı olduğu; bir kanala deneme bildirimi |
 | `POST /api/notify/telegram/token`, `POST /api/notify/telegram/pairing`, `POST /api/notify/telegram/check`, `DELETE /api/notify/telegram` | Telegram botunun belirteci (anahtar zincirine; geri dönmez), eşleştirme kodu, kodun gelip gelmediği, botu unutma (ADR-0010) |
 | `POST /api/mail/fetch` | e-postayı şimdi al; e-postanın durumu `GET /api/system`'dadır |
-| `POST /api/bridge/pairings`, `POST /api/bridge/pair`, `GET /api/bridge/hello`, `GET /api/bridge`, `DELETE /api/bridge/{id}`, `POST /api/bridge/login-link` | tarayıcı eklentisi: eşleştirme kodu, kodun belirtece dönmesi, servisin kanıtı (HMAC), eşleşmeler, iptal (ADR-0016); eklentinin "İplikçi Nedim'i aç" düğmesi için tek kullanımlık giriş bağlantısı, yalnızca etkin bir eklentinin belirteciyle (ADR-0019) |
+| `POST /api/bridge/pairings`, `POST /api/bridge/pair`, `GET /api/bridge/hello`, `GET /api/bridge`, `DELETE /api/bridge/{id}`, `POST /api/bridge/login-link`, `GET /api/bridge/sayings` | tarayıcı eklentisi: eşleştirme kodu, kodun belirtece dönmesi, servisin kanıtı (HMAC), eşleşmeler, iptal (ADR-0016); eklentinin "İplikçi Nedim'i aç" düğmesi için tek kullanımlık giriş bağlantısı (ADR-0019) ve penceresinin gösterdiği, Pano'nunkiyle aynı sözler (ADR-0020), ikisi de yalnızca etkin bir eklentinin belirteciyle |
 | `GET /api/ingest/mail/cursor`, `POST /api/ingest/mail`, `POST /api/ingest/mail/known`, `POST /api/ingest/mail/scanned`, `POST /api/ingest/mail/alarm` | eklentinin konumu ve geçmişin taranması gerekip gerekmediği, ham iletilerin teslimi, taramanın bulduğu iletilerden eksik olanlar, biten bir taramanın neyi aradığı, bir katmanın biçim alarmı; yalnızca eklenti belirteciyle |
 | `GET /api/settings`, `PUT /api/settings/identity`, `PUT /api/settings/backup`, `PUT /api/settings/mail` | ayarlar (sır içermez, adres maskeli): adlar ve şirket adları, yedeklerin saklanma süresi, e-posta bağlayıcısı ve başlangıç günü; yalnızca arayüz değiştirir |
 | `GET/PUT/DELETE /api/settings/evds` | EVDS anahtarı (V1+): anahtar kayıtlı mı, saklanan TÜFE ayları, son deneme, seri durdu mu (`behind`); anahtar bir kez EVDS'de denenip anahtar zincirine yazılır, geri dönmez; unutma. Yalnızca arayüz değiştirir |
@@ -698,6 +698,10 @@ Teknoloji ADR-0008'dedir. Ekranlar ve davranışları [features.md](features.md)
   - Terimler sözlüğü (üzerine gelince açıklama).
   - Durum renkleri her zaman ikon ve etiketle.
   - Klavyeyle kullanım; WCAG AA kontrast.
+- **İplikçi Nedim'in sözü** (K26): sözleri ve durumlarını servis seçer (`app/sayings`), Pano onları kendi yanıtında,
+  eklenti `GET /api/bridge/sayings` ile alır (ADR-0020). Yüzün dört rengi logodan çizilir (`packaging/icons.py`):
+  logonun kendisi, `face-warning.png`, `face-critical.png` ve `face-neutral.png`, arayüzde `web/public`'te, eklentide
+  `extension/static/icons`'ta.
 
 ## 19. Servis ve işletim
 

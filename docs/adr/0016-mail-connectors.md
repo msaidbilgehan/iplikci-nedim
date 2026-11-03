@@ -241,6 +241,10 @@ Sonuca göre:
     127.0.0.1'e gider.
   - İzinler değişmedi. Açık sekmeyi bulmak için `tabs` izni gerekmez: `http://127.0.0.1:8643/*` adres izni o
     adresteki sekmelerin adresini ve başlığını görmeye yeter.
+- **İplikçi Nedim'in sözü** (eklenti 0.6.0, 2026-11-03, [ADR-0020](0020-bridge-sayings.md)): pencere açılınca
+  eklenti servisten kanıt alır, sonra `GET /api/bridge/sayings` ile Pano'nun sözlerini ister. Başlıktaki logo paranın
+  durumuna göre renk alır, söz altındaki balonda durur; "Başka bir söz" o gün doğru olan öbür sözleri gösterir. Söz ve
+  cümlesi tutar, hesap ya da ad taşımaz. İzinler değişmedi.
 
 ## Sonuçlar
 

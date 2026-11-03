@@ -6,10 +6,21 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 | Revizyon | Konu | Durum | Belge |
 |---|---|---|---|
 | V0 | MVP `gider-analizi`: banka belgelerini okuyan, doğrulayan, yorumlayan yerel komut satırı programı, web paneli ve MCP sunucusu | 2026-10-31'de emekliye ayrıldı (K17) | Depo dışında, veri klasöründeki arşivde: `archive/mvp/CLAUDE.md` ve `README.md` |
-| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–6 (v0.1.0–v0.7.0), arayüzün sadeleşmesi (v0.7.1), resimlerle anlatan Pano (v0.7.2), açık sekmeye ulaşan güncellemeler (v0.7.3), içeriğinden tanınan belgeler (v0.7.4), Belge ekle ekranı (v0.7.5), belgelerle denetlenen bildirimler (v0.7.6) ve Aşama 7 (MCP, v0.8.0), Aşama 8 (Döviz, v0.9.0) ve enflasyondan arındırmanın kartı (v0.9.1) uygulandı; sırada sürüm 1.0'ın koşulları var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
+| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–6 (v0.1.0–v0.7.0), arayüzün sadeleşmesi (v0.7.1), resimlerle anlatan Pano (v0.7.2), açık sekmeye ulaşan güncellemeler (v0.7.3), içeriğinden tanınan belgeler (v0.7.4), Belge ekle ekranı (v0.7.5), belgelerle denetlenen bildirimler (v0.7.6) ve Aşama 7 (MCP, v0.8.0), Aşama 8 (Döviz, v0.9.0), enflasyondan arındırmanın kartı (v0.9.1) ve İplikçi Nedim'in sözleri (v0.9.2) uygulandı; sırada sürüm 1.0'ın koşulları var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
 | V2 | Finansal strateji uzmanları ve yapay zekâ asistanı | Gelecek (V1'den sonra) | [`v2/requirements.md`](v2/requirements.md) |
 
 ## Değişiklik kaydı
+
+- 2026-11-03 (32) — İplikçi Nedim'in sözleri (v0.9.2):
+  - [Gereksinimler](v1/requirements.md): K26, İplikçi Nedim'in sözleri paranın durumuna göre ve yüzüyle, arayüzde ve
+    eklentinin penceresinde.
+  - [ADR-0020](adr/0020-bridge-sayings.md) kabul edildi: eşleşmiş eklenti sözleri `GET /api/bridge/sayings` ile alır;
+    yanıt tutar, hesap ya da ad taşımaz. [ADR-0007](adr/0007-api-and-auth.md)'ye ve
+    [ADR-0016](adr/0016-mail-connectors.md)'ya notu.
+  - [İplikçi Nedim'in sözleri](İplikçi_Nedim_Sözler.md): kullanıcının listesi, her sözün durumu, sırası ve rengi.
+  - [Özellikler](v1/features.md#f06--pano): F06'nın sözü; F01'de eklentinin penceresi.
+  - [Mimari](v1/architecture.md) §16: `/api/dashboard`'un `sayings` alanı ve `GET /api/bridge/sayings`; §18: sözü
+    kimin seçtiği, yüzlerin nereden çizildiği.
 
 - 2026-11-03 (31) — Enflasyondan arındırma (v0.9.1):
   - [Gereksinimler](v1/requirements.md): K25, Windows ve Linux denemeleri bekletilir.
