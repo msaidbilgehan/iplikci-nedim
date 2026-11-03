@@ -53,6 +53,16 @@ def test_while_the_service_is_down_the_tools_that_read_answer_from_the_database(
     assert rows["count"] == 1
     rules, failed = answer(offline, "alerts")  # listing the alert rules only reads
     assert not failed and rules["rules"]
+    found, failed = answer(offline, "search", text="kahveci")
+    assert not failed and found["transactions"]["count"] == found["documents"]["count"] == 1
+    [row] = found["transactions"]["rows"]
+    explained, failed = answer(offline, "explain_transaction", fingerprint=row["fingerprint"])
+    assert not failed and explained["category"]["rule"] == "KAHVE"
+    document, failed = answer(offline, "get_document", id=row["document"])
+    assert not failed and "KAHVECI DUKKAN" in document["text"]["pages"][0]["text"]
+    for name in ("unprocessed_documents", "feed", "accounts_overview", "net_worth", "fx_rates"):
+        _, failed = answer(offline, name)
+        assert not failed, name
 
 
 def test_while_the_service_is_down_a_tool_that_would_change_something_is_refused(read):

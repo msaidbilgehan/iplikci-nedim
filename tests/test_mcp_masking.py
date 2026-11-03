@@ -68,6 +68,17 @@ def test_masking_leaves_the_amounts_and_the_fingerprints_exact(session, ws):
     ]
 
 
+def test_a_documents_text_is_masked_as_every_answer_is(session, ws):
+    settings(ws, masking.NAMES)
+    found = json.loads(session.call("search", {"text": "kahveci"}).text)
+    sha = found["transactions"]["rows"][0]["document"]
+    text = session.call("get_document", {"id": sha}).text
+    for secret in (*NUMBERS, *NAMES):
+        assert secret not in text, secret
+    document = json.loads(text)
+    assert document["document"]["id"] == sha and "[IBAN]" in document["text"]["pages"][0]["text"]
+
+
 def test_an_error_the_model_reads_is_masked_too(session, ws):
     settings(ws, masking.NAMES)
     found = session.call("mark_ended", {"merchant": "Ayse Yilmazz", "month": "2026-01"})

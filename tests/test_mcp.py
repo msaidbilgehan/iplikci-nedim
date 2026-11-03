@@ -4,6 +4,7 @@ import json
 import os
 from datetime import date
 from decimal import Decimal
+from email.message import EmailMessage
 from pathlib import Path
 
 import anyio
@@ -11,17 +12,21 @@ import pytest
 from mcp import Client
 
 from iplikci import demo
-from iplikci.app import rules
+from iplikci.app import accounts, rules
 from iplikci.app.workspace import BUSY, Busy, Workspace
-from iplikci.domain.codes import InvoiceKind
+from iplikci.domain.codes import Actor, InvoiceKind
 from iplikci.domain.models import Invoice, InvoiceLine
 from iplikci.fakes import Move, teb
+from iplikci.fakes.files import text_pdf
 from iplikci.invoices import UNPAID_REASON, match
+from iplikci.mcp import tools
 from iplikci.mcp.server import build
-from iplikci.mcp.tools import NO_PLAN, PLANNED, STALE_RULES, TOOLS, Session
-from iplikci.storage import audit
+from iplikci.mcp.tools import DATA_NOTE, NO_DOCUMENT, NO_PLAN, NO_ROW, PLANNED, STALE_RULES, TOOLS, Session
+from iplikci.storage import audit, events
 
 from conftest import FEBRUARY, JANUARY, add, bank_mail, put
+
+TEB = "teb-123456789"  # the account of conftest's TEB lists
 
 
 def call(session, name, **arguments):
@@ -324,6 +329,301 @@ def test_invoices_tell_each_bill_and_receipt_with_its_status_and_the_row_that_pa
     text, failed = call(server, "invoices", status="ödendi")
     assert failed and "'status' şunlardan biri olmalı" in text
     assert next(t for t in TOOLS if t.name == "invoices").read_only
+
+
+# --- search and why a row is what it is (ADR-0011) ---------------------------------------------------------------
+
+
+def test_search_finds_rows_and_documents_with_the_ids_the_other_tools_take(demo_server):
+    found, failed = call(demo_server, "search", text="migros", limit=5)
+    rows, docs = found["transactions"], found["documents"]
+    assert not failed and (rows["count"], rows["spent"], rows["excluded"], rows["nextOffset"]) == (20, 39900.0, 0, 5)
+    days = [r["date"] for r in rows["rows"]]
+    assert len(days) == 5 and days == sorted(days, reverse=True)  # newest first
+    assert {r["merchant"] for r in rows["rows"]} == {"Migros"} and all(r["amount"] > 0 for r in rows["rows"])
+    later, _ = call(demo_server, "search", text="migros", limit=5, offset=5, scope="transactions")
+    assert "documents" not in later and later["transactions"]["offset"] == 5
+    assert not {r["fingerprint"] for r in later["transactions"]["rows"]} & {r["fingerprint"] for r in rows["rows"]}
+    assert docs["count"] == len(docs["items"]) == 2 and docs["countComplete"] and docs["nextOffset"] is None
+    assert {d["kind"] for d in docs["items"]} == {"account_statement"}
+    explained, failed = call(demo_server, "explain_transaction", fingerprint=rows["rows"][0]["fingerprint"])
+    assert not failed and explained["printed"]["document"] in {d["id"] for d in docs["items"]}
+    only_documents, _ = call(demo_server, "search", text="migros", scope="documents")
+    assert "transactions" not in only_documents and only_documents["documents"]["items"] == docs["items"]
+
+
+def test_a_search_needs_words_and_finding_nothing_is_no_error(server):
+    text, failed = call(server, "search", text="   ")
+    assert failed and text == "'text' boş olmamalı"
+    found, failed = call(server, "search", text="hiçyokböyle")
+    assert not failed and found["transactions"]["count"] == found["documents"]["count"] == 0
+
+
+def test_explain_transaction_tells_where_a_row_is_printed_and_which_rule_named_it(server):
+    [row] = call(server, "search", text="kahveci")[0]["transactions"]["rows"]
+    found, failed = call(server, "explain_transaction", fingerprint=row["fingerprint"])
+    assert not failed and found["row"] == row
+    printed = found["printed"]
+    assert printed["document"] == row["document"] and printed["kind"] == "account_statement"
+    assert set(printed["place"]) == {"row"} and printed["resource"] == f"iplikci://documents/{row['document']}"
+    assert (found["category"]["rule"], found["category"]["ruleFile"]) == ("KAHVE", "Sizin kurallarınız")
+    assert (found["necessity"]["reason"], found["necessity"]["ruleFile"]) == ("category", "Sizin kurallarınız")
+    assert found["correctable"] and found["annotation"] is None and found["evidence"] == []
+    text, failed = call(server, "explain_transaction", fingerprint="0" * 20)
+    assert failed and text == NO_ROW
+    text, failed = call(server, "explain_transaction", fingerprint="kahveci")
+    assert failed and "'fingerprint' biçimi uygun değil" in text
+
+
+def test_a_receipts_row_names_the_receipt_and_what_the_statements_say_of_it(demo_server):
+    found, _ = call(demo_server, "search", text="eylül aidat", scope="transactions")
+    [row] = found["transactions"]["rows"]
+    explained, _ = call(demo_server, "explain_transaction", fingerprint=row["fingerprint"])
+    [told] = explained["evidence"]
+    assert (told["status"], told["statusLabel"], told["printed"]["kind"]) == (
+        "no_statement",
+        "Ekstresi olmayan dönem",
+        "receipt",
+    )
+    assert told["printed"]["place"] == {"page": 1}
+
+
+# --- the archive: one document, and the documents not processed (ADR-0011, K11) --------------------------------------
+
+
+def documents_with(session, words: str) -> list[dict]:
+    return call(session, "search", text=words, scope="documents")[0]["documents"]["items"]
+
+
+def test_a_document_comes_as_a_summary_first_and_its_text_or_rows_on_request(demo_server):
+    sha = documents_with(demo_server, "migros")[0]["id"]  # the newest list
+    summary, failed = call(demo_server, "get_document", id=sha)
+    assert not failed and summary["document"]["id"] == sha and summary["note"] == DATA_NOTE
+    assert summary["shownAs"] == "table" and summary["arrivals"][0]["by"] == "İçe aktarma"
+    [statement] = summary["statements"]
+    assert statement["verified"] and statement["balanceChecks"]["held"] == statement["balanceChecks"]["of"] > 0
+    rows = summary["rows"]
+    assert rows["count"] == len(rows["items"]) == statement["rows"] and rows["nextOffset"] is None
+    assert all(r["counted"] and r["place"]["row"] for r in rows["items"])
+    [page] = summary["text"]["pages"]
+    assert "MIGROS ORNEK SUBE ISTANBUL" in page["text"] and summary["text"]["nextPage"] is None
+    only_text, _ = call(demo_server, "get_document", id=sha, page=1)
+    assert set(only_text) == {"document", "text", "note"} and only_text["text"] == summary["text"]
+    only_rows, _ = call(demo_server, "get_document", id=sha, rows_offset=30)
+    assert set(only_rows) == {"document", "rows", "note"} and only_rows["rows"]["items"] == rows["items"][30:]
+    text, failed = call(demo_server, "get_document", id=sha, page=2)
+    assert failed and text == "belgenin metni 1 parça"
+    text, failed = call(demo_server, "get_document", id="0" * 64)
+    assert failed and text == NO_DOCUMENT
+
+
+def test_a_long_text_comes_in_parts_within_the_limit(demo_server, monkeypatch):
+    monkeypatch.setattr(tools, "TEXT_LIMIT", 100)
+    sha = documents_with(demo_server, "migros")[0]["id"]
+    first, _ = call(demo_server, "get_document", id=sha)
+    parts = first["text"]["pageCount"]
+    assert parts > 1 and first["text"]["nextPage"] == 2 and len(first["text"]["pages"][0]["text"]) == 100
+    last, _ = call(demo_server, "get_document", id=sha, page=parts)
+    assert last["text"]["nextPage"] is None and 0 < len(last["text"]["pages"][0]["text"]) <= 100
+
+
+def test_a_pdfs_text_comes_page_by_page_with_the_pages_image(demo_server, monkeypatch):
+    sha = documents_with(demo_server, "eylül aidat")[0]["id"]  # a receipt
+    found, _ = call(demo_server, "get_document", id=sha)
+    assert found["shownAs"] == "pdf" and found["rows"]["items"][0]["place"] == {"page": 1}
+    [page] = found["text"]["pages"]
+    assert "EYLÜL AİDAT ÖDEMESİ" in page["text"] and page["image"] == f"iplikci://documents/{sha}/pages/1"
+    assert (found["text"]["pageCount"], found["text"]["truncated"], found["text"]["nextPage"]) == (1, False, None)
+    text, failed = call(demo_server, "get_document", id=sha, page=3)
+    assert failed and text == "belgenin 1 sayfası var"
+    monkeypatch.setattr(tools, "TEXT_LIMIT", 40)
+    cut, _ = call(demo_server, "get_document", id=sha)
+    assert cut["text"]["truncated"] and len(cut["text"]["pages"][0]["text"]) == 40
+
+
+def bank_message() -> bytes:
+    msg = EmailMessage()
+    msg["From"] = "Örnek Banka <bilgi@ornekbanka.com.tr>"
+    msg["To"] = "kullanici@example.com"
+    msg["Subject"] = "Hesap hareketi bildirimi"
+    msg["Date"] = "Mon, 02 Nov 2026 09:30:00 +0300"
+    msg["Message-ID"] = "<deneme-1@ornekbanka.com.tr>"
+    msg.set_content("Sayın Müşterimiz,\nHesabınıza 1.250,00 TL geldi.")
+    return msg.as_bytes()
+
+
+def test_an_emails_text_names_its_senders_domain_and_never_an_address(ws):
+    [kept] = add(ws, "ileti.eml", bank_message(), folder="Posta").stored
+    found, failed = call(Session(ws), "get_document", id=kept.sha256)
+    assert not failed and found["shownAs"] == "mail"
+    assert found["text"]["mail"] == {
+        "subject": "Hesap hareketi bildirimi",
+        "from": "ornekbanka.com.tr",
+        "sent": "2026-11-02T09:30:00+03:00",
+    }
+    assert found["text"]["pages"][0]["text"] == "Sayın Müşterimiz,\nHesabınıza 1.250,00 TL geldi."
+    [arrival] = found["arrivals"]
+    assert arrival["sender"] == "ornekbanka.com.tr" and arrival["gmail"].endswith("deneme-1%40ornekbanka.com.tr")
+    assert "@" not in json.dumps(found, ensure_ascii=False)
+
+
+def test_unprocessed_documents_are_listed_with_their_reasons_a_page_at_a_time(ws):
+    for n in range(3):
+        add(ws, f"form-{n}.pdf", text_pdf([(70, 100, f"Örnek başvuru formu {n}")]), folder="İndirilenler")
+    add(ws, "bozuk.zip", b"PK\x03\x04yarim kalmis", folder="İndirilenler")
+    session = Session(ws)
+    first, failed = call(session, "unprocessed_documents", limit=2)
+    assert not failed and first["counts"] == {"unprocessed": 3, "unreadable": 1}
+    assert len(first["documents"]) == 2 and first["nextCursor"]
+    rest, _ = call(session, "unprocessed_documents", limit=2, cursor=first["nextCursor"])
+    listed = first["documents"] + rest["documents"]
+    assert rest["nextCursor"] is None and len({d["id"] for d in listed}) == 4
+    assert all(d["reason"] and d["resource"] == f"iplikci://documents/{d['id']}" for d in listed)
+    [broken] = call(session, "unprocessed_documents", status="unreadable")[0]["documents"]
+    assert (broken["name"], broken["statusLabel"]) == ("bozuk.zip", "Okunamadı")
+    form = next(d for d in listed if d["name"] == "form-0.pdf")
+    text, _ = call(session, "get_document", id=form["id"])
+    assert text["text"]["pages"][0]["text"] == "Örnek başvuru formu 0"
+    message, failed = call(session, "unprocessed_documents", cursor="bozuk")
+    assert failed and message.startswith("geçersiz sayfa imleci")
+
+
+# --- the feed, the accounts, the net worth and the rates (ADR-0011) --------------------------------------------------
+
+
+def log(ws, *found):
+    with ws.db() as db:
+        for kind, target, detail in found:
+            events.append(db, kind, target, **detail)
+
+
+DUE = {
+    "payment": "regular",
+    "title": "Kahveci Dükkan",
+    "account": TEB,
+    "due": "2026-02-20",
+    "days": 3,
+    "amount": "120.00",
+}
+
+
+def test_the_feed_comes_newest_first_narrowed_by_kind_and_account(server, ws):
+    log(ws, ("payment.due_soon", f"regular|{TEB}|Kahveci Dükkan|2026-02-20", DUE), ("month.closed", "2026-01", {}))
+    found, failed = call(server, "feed", limit=1)
+    [month] = found["items"]
+    assert not failed and (month["kind"], month["label"]) == ("month.closed", "Ay kapandı") and found["nextBefore"]
+    older, _ = call(server, "feed", limit=1, before=found["nextBefore"])
+    [due] = older["items"]
+    assert (due["kind"], due["account"]) == ("payment.due_soon", "TEB Vadesiz TL 123456789")
+    assert due["detail"] == {
+        "title": "Kahveci Dükkan",
+        "amount": 120.0,
+        "day": "2026-02-20",
+        "days": 3,
+        "payment": "regular",
+    }
+    assert "Kahveci Dükkan" in due["text"]
+    months, _ = call(server, "feed", kinds=["month"])
+    assert [i["kind"] for i in months["items"]] == ["month.closed"]
+    documents, _ = call(server, "feed", kinds=["document"])
+    assert documents["items"] and all(i["document"]["id"] for i in documents["items"])
+    of_teb, _ = call(server, "feed", accounts=["vadesiz"])
+    assert "month.closed" not in {i["kind"] for i in of_teb["items"]} and "payment.due_soon" in {
+        i["kind"] for i in of_teb["items"]
+    }
+    text, failed = call(server, "feed", kinds=["Belge!"])
+    assert failed and text.startswith("olay türü değil")
+    text, failed = call(server, "feed", accounts=["Ziraat"])
+    assert failed and text == "'Ziraat' adında bir hesap yok (accounts_overview hesapları listeler)"
+
+
+def test_an_account_is_named_by_the_users_own_name_or_as_masking_shows_it(server, ws):
+    accounts.rename(ws, server.current.get(), TEB, "Maaş hesabım", Actor.USER)
+    overview, _ = call(server, "accounts_overview")
+    [teb_account] = overview["groups"][0]["accounts"]
+    assert (teb_account["account"], teb_account["alias"]) == ("TEB Vadesiz TL 123456789", "Maaş hesabım")
+    by_alias, failed = call(server, "feed", accounts=["maaş"])
+    assert not failed and by_alias["items"]
+    ws.layout.settings.write_text('[privacy]\nmcp_masking = "accounts"\n', encoding="utf-8")
+    masked, _ = call(server, "accounts_overview")
+    assert masked["groups"][0]["accounts"][0]["account"] == "TEB Vadesiz TL •••A"
+    by_mask, failed = call(server, "feed", accounts=["•••A"])
+    assert not failed and [i["id"] for i in by_mask["items"]] == [i["id"] for i in by_alias["items"]]
+
+
+def test_the_account_map_and_the_net_worth_tell_the_same_totals(demo_server):
+    overview, failed = call(demo_server, "accounts_overview")
+    worth, _ = call(demo_server, "net_worth")
+    assert not failed and overview["today"] == worth["today"] == "2026-11-15"
+    assert overview["total"] == worth["netWorth"]["total"] == 185722.1 and overview["debts"] == 0.0
+    current, brokerage = overview["groups"]
+    assert (current["group"], current["unvalued"], brokerage["group"]) == ("current", 1, "brokerage")
+    teb_account, garanti = current["accounts"]
+    assert (teb_account["balance"], teb_account["day"], teb_account["certainty"]) == (
+        184380.1,
+        "2026-10-31",
+        "confirmed",
+    )
+    assert (
+        teb_account["documents"]["lastDay"] == "2026-10-31"
+        and teb_account["documents"]["newestKind"] == "account_statement"
+    )
+    assert (garanti["valueTL"], garanti["note"]) == (None, "bakiyesi hiçbir belgede yazmıyor")
+    assert worth["netWorth"]["leftOut"] == [
+        {"account": "Garanti BBVA Vadesiz TL 1234567", "reason": "bakiyesi hiçbir belgede yazmıyor"}
+    ]
+    assert [(h["account"], h["valueTL"]) for h in worth["holdings"]] == [
+        ("TEB Vadesiz TL 123456789", 184380.1),
+        ("Garanti BBVA Yatırım 1234567-101", 1342.0),
+    ]
+    [lira] = worth["byCurrency"]
+    assert (lira["currency"], lira["share"]) == ("TRY", 1.0)
+
+
+@pytest.fixture
+def trading(ws):
+    """A TL account that bought euros twice and dollars once in October, each row with its rate, and gold."""
+    october = "01/10/2026 - 31/10/2026"
+    moves = [
+        Move(date(2026, 10, 1), "ÖRNEK İŞVEREN A.Ş. den gelen havale", Decimal(40000)),
+        Move(date(2026, 10, 10), "DÖVİZ ALIŞ EUR: 36,50", Decimal(-3650)),
+        Move(date(2026, 10, 15), "DÖVİZ ALIŞ USD: 34,10", Decimal(-3410)),
+        Move(date(2026, 10, 20), "DÖVİZ ALIŞ EUR: 37,00", Decimal(-3700)),
+        Move(date(2026, 10, 25), "ALTIN ALIŞ 2 GR", Decimal(-6000)),
+    ]
+    add(ws, "teb.xls", teb.account_export(teb.running_rows(moves), period=october))
+    grams = [Move(date(2026, 10, 25), "ALTIN ALIŞ", Decimal(2))]
+    add(
+        ws,
+        "altin.xls",
+        teb.account_export(teb.running_rows(grams), number="987654321", period=october, kind="Altın GR"),
+    )
+    session = Session(ws)
+    session.today = lambda: date(2026, 11, 5)
+    return session
+
+
+def test_the_rates_are_the_documents_own_each_with_its_day(trading):
+    found, failed = call(trading, "fx_rates")
+    euro, dollar = found["currencies"]
+    assert not failed and euro["newest"] == {"day": "2026-10-20", "rate": 37.0, "source": "Belgedeki kur"}
+    assert [r["rate"] for r in euro["history"]] == [36.5, 37.0] and euro["historyCount"] == 2  # the oldest first
+    assert (dollar["currency"], dollar["newest"]["rate"]) == ("USD", 34.1)
+    assert found["missing"] == ["GR"] and "Aşama 8" in found["note"]
+    newest, _ = call(trading, "fx_rates", currency="eur", history=1)
+    [only] = newest["currencies"]
+    assert only["currency"] == "EUR" and [r["rate"] for r in only["history"]] == [37.0] and only["historyCount"] == 2
+
+
+def test_the_net_worth_is_told_in_other_units_and_gold_shows_its_grams_never_a_guessed_value(trading):
+    found, _ = call(trading, "net_worth")
+    euro, dollar, grams = found["netWorth"]["inOtherUnits"]
+    assert (euro["amount"], euro["rate"], euro["rateDay"]) == (628.11, 37.0, "2026-10-20")  # 23.240 TL
+    assert (dollar["amount"], grams["amount"]) == (681.52, None)
+    [left] = found["netWorth"]["leftOut"]
+    assert "altın fiyatı belgelerde yok" in left["reason"]
+    gold = next(h for h in found["holdings"] if h["currency"] == "GR")
+    assert (gold["group"], gold["amount"], gold["valueTL"], gold["cost"]) == ("gold", 2.0, None, 6000.0)
 
 
 def alerts(server, **arguments):
