@@ -6,7 +6,7 @@ from starlette.responses import JSONResponse, Response
 
 from ...app import system
 from ..context import context_of
-from ..models import BackupHealthOut, DiskOut, MailOut, QueueOut, ReaderHealthOut, ServiceOut, SystemOut
+from ..models import BackupHealthOut, DiskOut, MailOut, QueueOut, RatesOut, ReaderHealthOut, ServiceOut, SystemOut
 
 router = APIRouter()
 
@@ -21,7 +21,7 @@ async def healthz(request: Request) -> JSONResponse:
 @router.get("/api/system")
 def system_status(request: Request) -> SystemOut:
     context = context_of(request)
-    found = system.status(context.ws)
+    found = system.status(context.ws, context.today())
     return SystemOut(
         service=ServiceOut(version=found.version, started_at=context.started_at, pid=context.pid, home=found.home),
         documents=found.documents,
@@ -30,6 +30,7 @@ def system_status(request: Request) -> SystemOut:
         queue=QueueOut.model_validate(found.queue, from_attributes=True),
         mail=MailOut.model_validate(found.mail, from_attributes=True),
         backup=BackupHealthOut.model_validate(found.backup, from_attributes=True),
+        rates=RatesOut.model_validate(found.rates, from_attributes=True),
     )
 
 

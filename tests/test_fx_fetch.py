@@ -7,16 +7,21 @@ from datetime import date, datetime, time
 from decimal import Decimal
 
 import pytest
+from fastapi.testclient import TestClient
 
-from iplikci import egress
+from iplikci import cli, egress
+from iplikci.api.app import create_app
+from iplikci.api.context import Context
 from iplikci.app import background, fx, kinds
 from iplikci.app.workspace import Workspace
+from iplikci.cli import service as service_cli
 from iplikci.domain.codes import RateSource
 from iplikci.fakes import Move, teb
 from iplikci.fakes import fx as fake
 from iplikci.fx import ecb, frankfurter, tcmb
 from iplikci.fx.book import RateBook
 from iplikci.fx.provider import weekdays
+from iplikci.service import client, instance
 from iplikci.settings import config
 from iplikci.storage import fx_rates, jobs
 
@@ -302,3 +307,68 @@ def test_the_service_start_queues_the_history_once_and_only_when_days_are_missin
     publish(providers, FRIDAY, MONDAY, today=TUESDAY)
     fx.fetch(covered, history=True, today=TUESDAY)
     assert fx.request_missing(covered, TUESDAY) is False  # nothing is missing any more
+
+
+# --- the System screen, the interface's request and the command line ----------------------------------
+
+
+def test_the_system_status_carries_where_the_rates_stand(covered, providers, pauses):
+    publish(providers, FRIDAY, MONDAY, today=TUESDAY)
+    fx.fetch(covered, history=True, today=TUESDAY)
+    context = Context(ws=covered, token="belirtec", today=lambda: TUESDAY)
+    app = TestClient(create_app(context), base_url="http://127.0.0.1:8643")
+    rates = app.get("/api/system", headers={"Authorization": "Bearer belirtec"}).json()["rates"]
+    assert rates["providers"] == ["tcmb", "ecb"]
+    assert rates["sources"] == [{"source": "tcmb", "newest": "2026-11-03", "days": 3}]
+    assert (rates["start"], rates["missing"], rates["last_error"]) == ("2026-10-29", 0, "") and rates["last_run"]
+    assert rates["summary"] == "TCMB'nin son bülteni 03.11.2026 · 3 günün kurları saklı · geçmiş tamam"
+
+
+def test_the_interface_asks_the_worker_for_a_fetch_the_history_too(ws):
+    app = TestClient(create_app(Context(ws=ws, token="belirtec")), base_url="http://127.0.0.1:8643")
+    bearer = {"Authorization": "Bearer belirtec"}
+    assert app.post("/api/fx/fetch", headers=bearer).status_code == 202
+    assert app.post("/api/fx/fetch", headers=bearer, json={"history": True}).json() == {"queued": True}
+    with ws.db() as db:
+        queued = [j["payload"] for j in db.rows("SELECT payload FROM jobs WHERE kind = ?", (kinds.FX_RATES,))]
+    assert queued == ['{"history": false}', '{"history": true}']
+    providers_are(ws, "document")
+    refused = app.post("/api/fx/fetch", headers=bearer)
+    assert refused.status_code == 409 and refused.json()["code"] == "fx_no_provider"
+
+
+def test_the_command_fetches_itself_when_no_service_runs(covered, providers, pauses, monkeypatch, capsys):
+    monkeypatch.setenv("IPLIKCI_HOME", str(covered.home))
+    today = date.today()  # the command runs on the computer's day
+    publish(providers, *weekdays(REPUBLIC_DAY, today), today=today)
+    assert cli.main(["kur", "al", "--gecmis"]) == 0
+    assert "günün kurları geldi" in capsys.readouterr().out
+    assert cli.main(["kur", "durum"]) == 0
+    out = capsys.readouterr().out
+    assert "Kurlar: TCMB'nin son bülteni" in out and "geçmiş tamam" in out
+    assert "Sağlayıcılar: TCMB; ulaşılamazsa ECB" in out and "Geçmişin ilk günü: 29.10.2026" in out
+    assert "Son çekim: " in out and "henüz yok" not in out
+
+
+def test_the_command_says_when_the_providers_fail(covered, providers, pauses, monkeypatch, capsys):
+    monkeypatch.setenv("IPLIKCI_HOME", str(covered.home))
+    providers.down |= {egress.TCMB, egress.ECB}
+    assert cli.main(["kur", "al", "--gecmis"]) == 1  # the history has days to ask on any day of the week
+    assert "ulaşılamadı" in capsys.readouterr().out
+    assert cli.main(["kur", "durum"]) == 0 and "Son hata: TCMB: www.tcmb.gov.tr" in capsys.readouterr().out
+
+
+def test_the_command_asks_the_running_service_to_fetch(covered, providers, monkeypatch, capsys):
+    monkeypatch.setenv("IPLIKCI_HOME", str(covered.home))
+    asked: list[tuple[str, str, object]] = []
+    monkeypatch.setattr(client, "call", lambda ws, method, path, body=None: asked.append((method, path, body)) or {})
+    with instance.held(covered.run, instance.Holder(111, covered.port, "", "")):
+        assert cli.main(["kur", "al", "--gecmis"]) == 0
+    assert asked == [("POST", "/api/fx/fetch", {"history": True})] and providers.asked == []
+    assert "Servis kurları çekiyor" in capsys.readouterr().out
+
+
+def test_the_service_status_has_a_line_for_the_rates_unless_the_service_is_older(ws):
+    lines = service_cli._system_lines({"rates": {"summary": "TCMB'nin son bülteni 02.11.2026"}}, ws)
+    assert "Kurlar: TCMB'nin son bülteni 02.11.2026" in lines
+    assert not [line for line in service_cli._system_lines({}, ws) if line.startswith("Kurlar")]

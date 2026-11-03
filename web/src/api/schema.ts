@@ -1704,12 +1704,38 @@ export interface QueuedOut {
   queued: boolean;
 }
 
+export interface RateDaysOut {
+  source: RateSource;
+  newest: string;
+  days: number;
+}
+
 /**
  * Where a TL rate comes from (F12, architecture §15). A row's own rate always comes first; then TCMB's bulletin of the
  * day; ECB's reference rate, or Frankfurter's copy of it, when TCMB could not be reached. Without the network the
  * documents' own rates are used.
  */
 export type RateSource = "document" | "tcmb" | "ecb" | "frankfurter";
+
+export interface RatesFetchIn {
+  history?: boolean;
+}
+
+/** Where the exchange rates stand (architecture §15). */
+export interface RatesOut {
+  providers: RateSource[];
+  sources: RateDaysOut[];
+  days: number;
+  start: string | null;
+  missing: number;
+  last_run: string;
+  last_error: string;
+  summary: string;
+}
+
+export interface RatesQueuedOut {
+  queued: boolean;
+}
 
 export interface ReaderHealthOut {
   parser: string;
@@ -2049,6 +2075,7 @@ export interface SystemOut {
   queue: QueueOut;
   mail: MailOut;
   backup: BackupHealthOut;
+  rates?: RatesOut | null;
 }
 
 export interface TableOut {

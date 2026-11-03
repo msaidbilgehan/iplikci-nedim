@@ -7,6 +7,7 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, Field, StringConstraints
 
 from ..app import invoices
+from ..app.fx import RateSource
 from ..app.invoices import InvoiceKind, InvoiceStatus
 from ..app.links import Link, Screen
 from ..app.notify import Channel, ChannelStage, DeliveryStatus, DetailLevel, EventKind
@@ -237,6 +238,25 @@ class BackupHealthOut(BaseModel):
     rehearsal_ok: bool | None
 
 
+class RateDaysOut(BaseModel):
+    source: RateSource
+    newest: date  # the newest day of its rates
+    days: int  # days of its rates kept
+
+
+class RatesOut(BaseModel):
+    """Where the exchange rates stand (architecture §15)."""
+
+    providers: list[RateSource]  # the providers the settings let the program ask, in that order; empty: none
+    sources: list[RateDaysOut]  # those whose rates are kept, TCMB first
+    days: int  # days with any provider's rates
+    start: date | None  # the history's first day: the oldest the data covers; null without documents
+    missing: int  # business days of the history the first provider was not asked for yet
+    last_run: str  # the last fetch that asked anything; "" if none yet
+    last_error: str  # what went wrong in it, in Turkish
+    summary: str  # all of it in a line, in Turkish
+
+
 class SystemOut(BaseModel):
     service: ServiceOut
     documents: dict[str, int]
@@ -245,6 +265,7 @@ class SystemOut(BaseModel):
     queue: QueueOut
     mail: MailOut
     backup: BackupHealthOut
+    rates: RatesOut | None = None  # the service always gives it; null only from one older than Phase 8
 
 
 class BackupOut(BaseModel):

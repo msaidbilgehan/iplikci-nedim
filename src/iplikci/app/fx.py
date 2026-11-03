@@ -35,6 +35,23 @@ from ..storage.db import Database, now
 from . import kinds
 from .workspace import Workspace, file_lock
 
+# What the API names from here: the use cases, their records and the codes they carry.
+__all__ = [
+    "Fetched",
+    "Pace",
+    "RateSource",
+    "RatesStatus",
+    "SourceDays",
+    "describe",
+    "fetch",
+    "providers",
+    "providers_of",
+    "request",
+    "request_missing",
+    "status",
+    "status_of",
+]
+
 FETCH_JOB = kinds.FX_RATES
 DAILY_AT = clock(16, 30)  # local time: TCMB publishes at 15:30 Istanbul time
 RUN_LIMIT = 400  # days a run asks TCMB for at most
@@ -122,6 +139,11 @@ def providers(settings: config.Settings) -> tuple[RateSource, ...]:
     asked = [RateSource.TCMB] if "tcmb" in names else []
     asked += [RateSource(name) for name in names if name in ("ecb", "frankfurter")][:1]
     return tuple(asked)
+
+
+def providers_of(ws: Workspace) -> tuple[RateSource, ...]:
+    """providers() of ws's settings as the file says now."""
+    return providers(config.load(ws.layout.settings))
 
 
 def first_day(db: Database) -> date | None:

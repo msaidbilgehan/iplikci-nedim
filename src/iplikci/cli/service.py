@@ -43,9 +43,9 @@ def service_command(argv: list[str]) -> int:
     )
     commands.add_parser(
         "durum",
-        help="servis çalışıyor mu; kuyruk, e-posta ve disk",
-        description="Servisin çalışıp çalışmadığını, kaydını, kuyruğunu, e-posta alımını ve disk kullanımını yazar. "
-        "Servis çalışmıyorsa 1 ile biter.",
+        help="servis çalışıyor mu; kuyruk, e-posta, kurlar ve disk",
+        description="Servisin çalışıp çalışmadığını, kaydını, kuyruğunu, e-posta alımını, yedekleri, döviz kurlarını "
+        "ve disk kullanımını yazar. Servis çalışmıyorsa 1 ile biter.",
     )
     commands.add_parser(
         "yeniden-baslat",
@@ -211,6 +211,8 @@ def _system_lines(found: dict[str, Any], ws: Workspace) -> list[str]:
             lines.append(_coverage_line(covered))
     if backups := found.get("backup"):
         lines.append(_backups_line(backups))
+    if (rates := found.get("rates")) and rates.get("summary"):  # one older than Phase 8 has none
+        lines.append(f"Kurlar: {rates['summary']}")
     if disk := found.get("disk"):
         lines.append(
             f"Disk: arşiv {human_size(disk.get('vault', 0))} · veritabanı {human_size(disk.get('database', 0))} · "

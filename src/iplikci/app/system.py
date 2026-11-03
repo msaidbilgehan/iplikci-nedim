@@ -1,6 +1,6 @@
 """The service's health for the System screen and /api/system (architecture §22, F18): what the data folder holds,
-how each reader is doing, the job queue, the e-mail intake, the backups and how much disk it all takes. The service
-adds its own process details.
+how each reader is doing, the job queue, the e-mail intake, the backups, the exchange rates and how much disk it all
+takes. The service adds its own process details.
 """
 
 import json
@@ -8,6 +8,7 @@ import re
 import shutil
 import sqlite3
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
 from .. import __version__
@@ -19,7 +20,7 @@ from ..settings import config
 from ..storage import bridges, jobs
 from ..storage import mail as mail_store
 from ..storage.db import Database
-from . import bridge
+from . import bridge, fx
 from .backup import Health as BackupHealth
 from .backup import health as backup_health
 from .inventory import mail_coverage
@@ -118,6 +119,7 @@ class SystemStatus:
     queue: Queue
     mail: MailHealth
     backup: BackupHealth
+    rates: fx.RatesStatus
 
 
 def healthy(ws: Workspace) -> bool:
@@ -129,7 +131,7 @@ def healthy(ws: Workspace) -> bool:
         return False
 
 
-def status(ws: Workspace) -> SystemStatus:
+def status(ws: Workspace, today: date | None = None) -> SystemStatus:
     with ws.db() as db:
         rows = db.rows("SELECT status, count(*) AS n FROM documents GROUP BY status")
         documents = {str(row["status"]): int(row["n"]) for row in rows}
@@ -140,7 +142,8 @@ def status(ws: Workspace) -> SystemStatus:
             [FailedJob(j.id, j.kind, j.attempts, j.finished_at, j.last_error) for j in jobs.failures(db)],
         )
         mail = mail_health(ws, db)
-    return SystemStatus(__version__, str(ws.home), documents, readers, disk(ws), queue, mail, backup_health(ws))
+        rates = fx.status_of(db, config.load(ws.layout.settings), today or date.today())
+    return SystemStatus(__version__, str(ws.home), documents, readers, disk(ws), queue, mail, backup_health(ws), rates)
 
 
 def mail_health(ws: Workspace, db: Database) -> MailHealth:

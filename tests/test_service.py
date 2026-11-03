@@ -62,6 +62,7 @@ def test_the_status_reads_the_running_service(served, monkeypatch, capsys):
     assert "Arka plan servisi: kurulu değil" in out
     assert "Kuyruk: 0 bekleyen, 0 başarısız iş" in out and "E-posta (IMAP): kurulu değil" in out
     assert "E-posta kapsamı: henüz banka iletisi yok" in out
+    assert "Kurlar: henüz kur yok · geçmiş kurlar ilk belge gelince çekilir" in out
     assert "Disk: arşiv 0 B" in out and "Dikkat" not in out  # the service of this very data folder
     assert "Bildirimler: Masaüstü " in out and "Telegram açık, hazır değil" in out and "henüz bildirim yok" in out
 
