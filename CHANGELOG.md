@@ -4,6 +4,49 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.8.0] — 2026-11-03 — Aşama 7: MCP
+
+Claude, paranıza dair sorularınızı İplikçi Nedim'deki verilere ve belgelere bakarak yanıtlar. Bağlantı bu bilgisayarda
+kalır: Claude yalnızca bu bilgisayardaki servise bağlanır.
+
+### Eklenenler
+
+- "Claude bağlantısı" ekranı (Kurulum altında), Claude'u terminal açmadan bağlamak için:
+  - Claude Code'a claude-SAK'ın web panelinden eklemenin üç adımı ve kopyalanacak yapılandırma. Komut satırı
+    kullananlar için claude-SAK'ın ve Claude Code'un komutları da orada.
+  - Claude Desktop'ın ayar dosyasına eklenecek bölüm.
+  - MCP adresi ve "Göster" düğmesinin arkasında API belirteci, başka bir MCP istemcisi için.
+  - Claude'a giden yanıtlarda neyin gizleneceği: hiçbir şey, hesap numaraları ya da hesap numaralarıyla birlikte kişi
+    adları. Tutarlar ve tarihler her zaman görünür.
+- Claude Code'un yapılandırmasında belirteç yoktur: Claude her bağlantıda onu İplikçi Nedim'in başlık yardımcısıyla
+  anahtar zincirinden okur.
+- Claude Desktop İplikçi Nedim'i kendisi başlatır. Servis çalışıyorsa sorular servise gider. Servis kapalıyken yalnızca
+  okuyan araçlar çalışır; servis açılınca sorular yine ona gider.
+- Yeni araçlar: işlemlerde ve belgelerin metninde arama; bir işlemin belgesi, belgedeki yeri, kuralı ve eşleşmeleri;
+  bir belgenin bilgileri ve metni; işlenmeyen belgeler ve nedenleri; bir belgeyi yeniden okutma; anlık akış; hesap
+  haritası ve türlere göre toplamlar; net varlık; belgelerdeki kurlar; bir işleme not, etiket ya da düzeltme.
+- Claude'un okuyup dayanabileceği kaynaklar: belgeler (metinleriyle; PDF'lerin sayfaları resim olarak), ay
+  kapanışları ve hesap sayfaları.
+- Hazır istemler: Aylık değerlendirme, Abonelik denetimi, Bu ay neden fazla harcadım?, Ay kapanışı, İşlenmeyen belgeyi
+  incele.
+- Claude'un her araç çağrısı ve kaynak okuması denetim kaydına yazılır: neyi çağırdığı ve sonucu; verdiği değerler
+  yazılmaz.
+
+### Değişenler
+
+- Bir şeyi değiştiren araçlar önce planı gösterir ve hiçbir şeyi değiştirmez: kural eklemek, bir ödemeyi bitti saymak,
+  kural dosyasını yazmak, bildirim kuralları, bir işleme not ve bir belgeyi yeniden okutmak. Siz onaylayınca Claude aynı
+  aracı planın numarasıyla çağırır; plan bir kez uygulanır, o arada değişen bir şeyin üstüne uygulanmaz.
+- MCP sunucusu resmî MCP SDK'sıyla yeniden yazıldı ve servisin içinde, `/mcp` adresinde çalışır. MVP'nin 16 aracı ve
+  Aşama 4–5'te gelenler aynı adlarla kalır. Her aracın Türkçe adı ve bir şeyi değiştirip değiştirmediğini söyleyen
+  işaretleri var.
+
+### Güvenlik
+
+- Servisin talimatları ve her belge metninin başı, belgelerdeki yazının veri olduğunu, talimat olmadığını söyler.
+- MCP'ye yalnızca API belirteciyle girilir; tarayıcının oturumu oraya geçmez.
+- Maskeleme açıkken PDF sayfalarının resmi verilmez: resimdeki numara gizlenemez.
+
 ## [0.7.6] — 2026-11-03 — Bildirimler belgelerle denetlendi
 
 Kutudaki bildirimler gerçek belgelerle tek tek karşılaştırıldı; yanlış çıkanların kuralları düzeltildi.

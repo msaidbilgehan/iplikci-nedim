@@ -586,30 +586,44 @@ birimiyle döner, biçimlendirme arayüzdedir.
 
 ## 17. MCP
 
-Taşıma, kaynaklar ve hazır istemler ADR-0011'dedir. Araçlar:
+Taşıma, kaynaklar ve hazır istemler ADR-0011'dedir; Aşama 7'de nasıl uygulandıkları oradaki uygulama notundadır.
+Araçlar ekranların kullandığı `app` kullanım durumlarını çağırır: aynı soruya ekranla MCP aynı cevabı verir.
+
+"Plan" yazan araçlar `plan_id` olmadan çağrılınca hiçbir şeyi değiştirmez; ne değişeceğini ve bir `plan_id`
+döndürür. Değişiklik, kullanıcı onaylayınca aynı aracın o `plan_id`'yle çağrılmasıyla yapılır; plan bir kez
+uygulanır.
 
 | Araç | Yazar mı? | İş |
 |---|---|---|
 | `status` | – | durum, eksik belgeler, e-posta |
-| `import_documents` | plan | verilen yollardan belge ekleme planı |
+| `import_documents` | plan | verilen yollardan belge ekleme planı; `apply_inbox` uygular |
 | `fetch_email` | evet | e-postayı şimdi al |
 | `plan_inbox`, `apply_inbox` | plan / evet | gelen klasörü planı ve uygulaması |
 | `build_report` | evet | dışa aktarımları üret |
 | `insights`, `regular_payments`, `habits`, `accounts`, `month_end`, `transactions` | – | MVP araçları (yeni yapıyla) |
-| `read_rules`, `add_rule`, `mark_ended`, `write_rules` | evet (kurallar) | kategori kuralları; fark ve etkilenen işlemler döner |
+| `read_rules` | – | kategori kuralları |
+| `add_rule`, `mark_ended`, `write_rules` | plan | kategori kuralları; plan kural dosyasının farkını ve kategorisi değişecek işlemleri gösterir, uygulanınca önceki dosya geçmişe alınır |
 | `search` | – | işlemlerde ve belge metninde tam metin arama |
-| `explain_transaction` | – | işlemin belgesi, sayfası, kuralı, eşleşmeleri, kuru |
-| `get_document` | – | belge üst verisi, metni, sayfa bağlantıları |
+| `explain_transaction` | – | işlemin belgesi ve belgedeki yeri, kuralı, eşleşmeleri, kuru, düzeltmeleri |
+| `get_document` | – | belgenin özeti, satırları, sayfa sayfa metni ve kaynak adresleri |
 | `unprocessed_documents` | – | işlenmeyen ve okunamayan belgeler, nedenleriyle |
-| `reparse_document` | evet | bir belgeyi yeniden okut |
+| `reparse_document` | plan | bir belgeyi yeniden okut |
 | `feed` | – | anlık akış |
 | `accounts_overview` | – | hesap haritası, türe göre toplamlar |
 | `upcoming_payments`, `cash_flow_forecast` | – | takvim; hesap başına bakiye öngörüsü |
 | `subscriptions` | – | abonelikler, düzenli ve dönemsel ödemeler |
 | `invoices` | – | banka dışı faturalar ve makbuzlar: durumu, ödeyen banka satırı ya da olası nedenler |
-| `net_worth`, `fx_rates` | – | varlıklar (TL, EUR, USD, altın); kurlar |
-| `alerts` | evet | bildirim kurallarını listele, ekle, kapat ya da yeniden aç; kanalların durumu |
-| `annotate_transaction` | evet | not, etiket, düzeltme |
+| `net_worth`, `fx_rates` | – | varlıklar (TL, EUR, USD, altın); belgelerdeki kurlar (kur sağlayıcıları Aşama 8'de) |
+| `alerts` | plan | bildirim kurallarını listele (yalnızca okur), ekle, kapat ya da yeniden aç; kanalların durumu |
+| `annotate_transaction` | plan | not, etiket, kategori ya da gereklilik düzeltmesi |
+
+- Her araç ek açıklamalar taşır: okuyanlarda `readOnlyHint`; yazanlarda `destructiveHint` (bir şeyi geri alınamaz
+  biçimde kaldırabiliyorsa) ve `idempotentHint`. Şemaların ve ek açıklamaların anlık görüntüsü
+  `tests/golden/mcp_tools.json`'dadır; değişiklik bilerek yapılır.
+- Uzun çıktılar sayfa sayfa gelir: `limit` ve `offset` alınır, yanıt sonraki sayfanın yerini söyler. Belge metni
+  yaklaşık 20 000 karakterle sınırlıdır; istenen sayfa ayrıca alınır.
+- Yanıtlar ayarlardaki maskelemeden geçer; her çağrı ve kaynak okuması denetim kaydına yazılır.
+- Servis kapalıyken stdio köprüsünün yerel sunucusu yalnızca okuyan çağrıları yanıtlar; plan yapılır ama uygulanmaz.
 
 ## 18. Ön yüz
 

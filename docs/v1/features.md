@@ -448,6 +448,32 @@ G9, K9 · Çekirdek
   - Claude Code HTTP ile bağlanır; araç listesi, bir okuma ve bir plan → uygula akışı uçtan uca çalışır.
   - Servis kapalıyken stdio köprüsü salt okunur çalışır.
   - Servis talimatları belge metninin veri olduğunu söyler.
+- **Aşama 7'de uygulanan (2026-11-03)**
+  - 31 araç: MVP'nin 16'sı aynı adlarla, Aşama 4–5'in 5'i ve ADR-0011'in 10 yenisi
+    ([mimari §17](architecture.md#17-mcp)). Araçlar ekranların kullandığı `app` kullanım durumlarını çağırır.
+  - Yazan araçlar iki adımlıdır: `plan_id`'siz çağrı planı gösterir, `plan_id`'li çağrı onu bir kez uygular. Planın
+    dayandığı şey o arada değiştiyse plan reddedilir.
+  - Kaynaklar: belgeler (metinleriyle; PDF sayfaları resim olarak), ay kapanışları ve hesap sayfaları. Beş hazır istem.
+  - Maskeleme Claude bağlantısı ekranında seçilir (`[privacy] mcp_masking`). Maskeleme açıkken hiçbir araç çıktısında
+    hesap numarası, IBAN ya da kişi adı görünmez (test edilir); tutarlar, tarihler, parmak izleri ve belge kimlikleri
+    olduğu gibi kalır.
+  - Her araç çağrısı ve kaynak okuması denetim kaydındadır: aracın adı, argümanların adları ve sonucun başarısı.
+  - Claude bağlantısı ekranı (`/kurulum/claude`): claude-SAK'ın "MCP JSON" içe aktarmasına uyan yapılandırma ve
+    panelin adlarıyla adımları, Claude Desktop'ın yapılandırması, MCP adresi ve "Göster"in arkasında belirteç.
+    Başlık yardımcısı `iplikci mcp baslik` belirteci anahtar zincirinden okur; Claude'un ayar dosyasında belirteç
+    olmaz.
+  - Ölçütlerin denenmesi:
+    - Claude Code (2.1.316) demo servisine HTTP ve başlık yardımcısıyla bağlandı. `status` ve `search` ile okudu,
+      `annotate_transaction` ile bir işleme not için plan aldı, planı `plan_id` ile uyguladı ve `explain_transaction`
+      ile doğruladı. Denetim kaydı her çağrıyı argüman adlarıyla gösterdi.
+    - Servis kapalıyken köprünün yerel sunucusu okuyan araçları yanıtladı, yazanları reddetti. Servis yeniden
+      açılınca iletiler yine servise gitti: bu her ileti için yeniden seçilir (test edilir; demo serviste de
+      denendi).
+    - Talimatlar da, her belge metninin başı da belgenin veri olduğunu, talimat olmadığını söyler (test edilir).
+    - İplikçi Nedim claude-SAK ile kullanıcının Claude'una eklendi: kullanıcı kapsamında `~/.claude`'a. SAK'ın hesap
+      profilleri onu varsayılan profilden alır. `claude mcp list` bağlı gösterdi. Kullanıcının Claude'u gerçek veride
+      `status`'u okudu: arşivde 1481 belge, 50 hesap ekstresi, 10 tam ay. Bu sayılar aracın doğrudan çağrısıyla aynı
+      çıktı.
 
 ## F17 — Kurulum sihirbazı ve ayarlar
 
@@ -543,8 +569,12 @@ yaptığı her şeyin V1'de de olmasını güvenceye alır.
   Aşama 5'te geldi.)
 - [x] **Çıktılar:** CSV, XLSX sayfaları, tek dosyalık HTML. (Aşama 3 ve 6: rapor, CSV, Excel ve ay sonu sayfaları
   Sistem ekranında indirilir; İşlemler ve Değerlendirme süzdüklerini CSV olarak verir.)
-- [ ] **Kurallar:** `kategoriler.yaml` yapısı ve bölümleri; MCP ile düzenleme, yedek, fark ve etkilenen işlemler.
-- [ ] **MCP:** MVP'nin 16 aracı.
+- [x] **Kurallar:** `kategoriler.yaml` yapısı ve bölümleri; MCP ile düzenleme, yedek, fark ve etkilenen işlemler.
+  (Aşama 6: Kurallar ekranı aynı yapı ve bölümlerle. Aşama 7: `add_rule`, `mark_ended` ve `write_rules` önce kural
+  dosyasının farkını ve kategorisi değişecek işlemleri gösterir; onaylanan plan uygulanınca önceki dosya geçmişe
+  alınır, yanıt yedeğin adını verir.)
+- [x] **MCP:** MVP'nin 16 aracı. (Aşama 7: aynı adlarla, resmî SDK'yla; yanlarında Aşama 4–5'in 5 aracı ve
+  ADR-0011'in 10 yeni aracı.)
 - [x] **Güvenlik:** CSP; çerez akışı; Host ve Origin denetimleri; salt okunur e-posta; şifre yalnızca anahtar
   zincirinde. (Aşama 3: servisin kapısı ADR-0007'deki gibi; testleri var.)
 - [ ] **Diğer sistemler:** Linux ve Windows'ta çalışma (OCR hariç); çöp kutusu davranışı.

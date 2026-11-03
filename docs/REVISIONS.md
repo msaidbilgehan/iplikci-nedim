@@ -6,10 +6,18 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 | Revizyon | Konu | Durum | Belge |
 |---|---|---|---|
 | V0 | MVP `gider-analizi`: banka belgelerini okuyan, doğrulayan, yorumlayan yerel komut satırı programı, web paneli ve MCP sunucusu | 2026-10-31'de emekliye ayrıldı (K17) | Depo dışında, veri klasöründeki arşivde: `archive/mvp/CLAUDE.md` ve `README.md` |
-| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–6 (v0.1.0–v0.7.0), arayüzün sadeleşmesi (v0.7.1), resimlerle anlatan Pano (v0.7.2), açık sekmeye ulaşan güncellemeler (v0.7.3), içeriğinden tanınan belgeler (v0.7.4), Belge ekle ekranı (v0.7.5) ve belgelerle denetlenen bildirimler (v0.7.6) uygulandı; sırada Aşama 7 var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
+| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–6 (v0.1.0–v0.7.0), arayüzün sadeleşmesi (v0.7.1), resimlerle anlatan Pano (v0.7.2), açık sekmeye ulaşan güncellemeler (v0.7.3), içeriğinden tanınan belgeler (v0.7.4), Belge ekle ekranı (v0.7.5), belgelerle denetlenen bildirimler (v0.7.6) ve Aşama 7 (MCP, v0.8.0) uygulandı; sırada Aşama 8 var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
 | V2 | Finansal strateji uzmanları ve yapay zekâ asistanı | Gelecek (V1'den sonra) | [`v2/requirements.md`](v2/requirements.md) |
 
 ## Değişiklik kaydı
+
+- 2026-11-03 (29) — Aşama 7: MCP (v0.8.0):
+  - [ADR-0011](adr/0011-mcp.md)'e uygulama notu: SDK, durumsuz `/mcp`, başlık yardımcısı, her iletide servisi ya da
+    veritabanını seçen stdio köprüsü, plan → onay → uygula, maskeleme düzeyleri ve denetim kaydı.
+  - [Mimari](v1/architecture.md#17-mcp) §17: 31 aracın tablosu, hangilerinin iki adımlı olduğu, sayfalama.
+  - [Özellikler](v1/features.md#f16--mcp): F16'nın uygulananları ve ölçütlerin denenmesi; MVP eşitlik listesinin
+    Kurallar ve MCP maddeleri işaretlendi.
+  - [Yol haritası](v1/roadmap.md#aşama-7--mcp): Aşama 7'nin durumu.
 
 - 2026-11-03 (28) — Aşama 7 başladı (`asama-7`):
   - [Gereksinimler](v1/requirements.md): K23, Claude'u claude-SAK ile terminalsiz bağlamak; bağlantı bilgisi ve

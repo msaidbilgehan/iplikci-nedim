@@ -121,6 +121,20 @@ Aşama 6'nın ardından arayüz sadeleşti ve hesap kitabı daha açık anlatır
 - Tarayıcı eklentisinin araç çubuğundaki düğmesi küçük bir pencere açar. Penceredeki "İplikçi Nedim'i aç" arayüzü tek
   tıkla, oturum açılmış olarak açar.
 
+Aşama 7 (MCP, v0.8.0) Claude'u İplikçi Nedim'e bağlar:
+
+- Claude, paranıza dair sorularınızı İplikçi Nedim'deki verilere ve belgelere bakarak yanıtlar. Hesaplara, işlemlere,
+  düzenli ödemelere, takvime, değerlendirmeye, ay sonuna ve bildirimlere bakar; belgeleri okuyup onlara dayanır. Hazır
+  istemler en sık sorulanları sorar: aylık değerlendirme, abonelik denetimi, bu ay neden fazla harcandığı, ay kapanışı
+  ve işlenmeyen bir belge.
+- Bağlantı bu bilgisayarda kalır: Claude yalnızca bu bilgisayardaki servise, API belirteciyle bağlanır.
+- Bir şeyi değiştiren araçlar (kategori ve bildirim kuralları, bir işleme not, bir belgeyi yeniden okutmak) önce ne
+  değişeceğini gösterir; değişiklik ancak siz onaylayınca yapılır.
+- Claude'a giden yanıtlarda hesap numaraları ve IBAN'lar, isterseniz kişi adları da gizlenir. Claude'un her çağrısı
+  denetim kaydına yazılır.
+- Claude terminal açmadan bağlanır. "Claude bağlantısı" ekranı claude-SAK'a ya da Claude Desktop'a yapıştırılacak
+  yapılandırmayı verir. Belirteç Claude'un ayar dosyasına yazılmaz.
+
 Açık kalanlar: Windows'ta temiz kurulum denemesi (kullanıcı yapacak) ve servisin yedi gün kendi başına çalışması
 (K19).
 
@@ -146,6 +160,9 @@ iş akışı üretir.
 3. Sihirbaz adlarınızı, e-postanın nasıl geleceğini, bankaları ve bildirimleri sorar. Gmail hesabınız uygulama
    şifresine izin vermiyorsa (örneğin Gelişmiş Koruma'daysa) e-postalar tarayıcı eklentisiyle gelir. Eklenti
    programla gelir: sihirbaz eklentinin klasörünü açar ve tarayıcıya nasıl yükleneceğini adım adım gösterir.
+4. Claude'la kullanmak isterseniz Kurulum → Claude bağlantısı ekranını açın. Ekran, İplikçi Nedim'in Claude Code'a
+   claude-SAK ile, Claude Desktop'a ise ayar dosyası yoluyla nasıl ekleneceğini adım adım gösterir. Yapılandırmayı
+   kopyalayıp yapıştırmanız yeter.
 
 Güncellemek için yeni paketi aynı yoldan açın; verileriniz yerinde kalır. Kaldırmak için önce Ayarlar'daki "Kaldır"
 servisi bilgisayardan kaldırır; veri klasörü yalnızca siz isterseniz çöp kutusuna taşınır. Sonra uygulamayı sisteminizin
@@ -194,6 +211,8 @@ uv run iplikci ac                                # arayüzü tek kullanımlık g
 uv run iplikci servis durum                      # servis çalışıyor mu; kuyruk, e-posta ve kapsamı, yedek ve disk
 uv run iplikci yedek al | liste | geri-yukle | prova
 uv run iplikci eposta kur | durum | kaldir | al  # IMAP hesabı; şifre yalnızca anahtar zincirinde
+uv run iplikci mcp                               # MCP'nin stdio köprüsü: servis çalışıyorsa ona, değilse salt okunur
+uv run iplikci mcp baslik                        # Claude Code'un başlık yardımcısı: belirteçli Authorization başlığı
 (cd extension && npm ci && npm test && npm run build)   # eklenti; extension/dist ve pakete giren kopyası
 uv run python packaging/build.py                 # bu sistemin kurulum paketi dist/paket/'e; önce web/ ve extension/
 ```
@@ -201,7 +220,8 @@ uv run python packaging/build.py                 # bu sistemin kurulum paketi di
 `iplikci servis kur | kaldir | yeniden-baslat` servisi sistemin servis yöneticisine kaydeder. `kur` geliştirme
 klasöründen çalışmaz: servis, `uv tool install` ile kurulmuş sabit bir kopyayı çalıştırır. Böylece bir dal değişince ya
 da bir dosya yarım kalınca o kod gerçek veriyle çalışmaz. Eklentinin geliştirme ve doğrulama adımları
-[`extension/README.md`](extension/README.md)'dedir.
+[`extension/README.md`](extension/README.md)'dedir. Deponun `.mcp.json`'u bu klasörde açılan Claude Code'u servisin
+`/mcp` adresine bağlar; belirteci `IPLIKCI_API_TOKEN` ortam değişkeninden okur.
 
 Veri klasörü macOS'ta `~/Library/Application Support/iplikci/`'dir; `IPLIKCI_HOME` onu değiştirir. Gerçek belgeler
 depoya hiç girmez: testler ve demo, kodla üretilen sahte belgelerle ve kendi klasörlerinde çalışır.

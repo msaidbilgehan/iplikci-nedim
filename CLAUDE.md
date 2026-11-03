@@ -6,10 +6,10 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-03): Phases 0–6 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.7.0), then the interface's
-simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab (v0.7.3), documents
-known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked against the documents
-(v0.7.6); Phase 7 (MCP) is next.
+Status (2026-11-03): Phases 0–7 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.8.0). Between Phases 6 and 7 came
+the interface's simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab
+(v0.7.3), documents known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked
+against the documents (v0.7.6). Phase 8 (Döviz) is next.
 - Phase 0 brought the MVP's code in as the `iplikci` package, cleaned of personal traces, with the shipped default
   rules, the verification baseline and the demo workspace.
 - Phase 1 (data core) moved everything into the data dir: `settings.toml`, the content-addressed vault, SQLite with the
@@ -87,6 +87,21 @@ known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notification
   overdraft account and one the user tops up from their own accounts (`forecast.funded_by_own`) warn of no day below
   zero (`AccountForecast.warning`); the accounts' total does (`Forecast.total_negative`, `warnings`). The rule
   "Abonelik zammı" is now "Düzenli ödeme zammı".
+- Phase 7 (MCP, v0.8.0) put the MCP server on the official SDK (`mcp==2.3.0`) in the `mcp` package.
+  - The service answers MCP at `/mcp` (Streamable HTTP, stateless, JSON answers) for the API token alone.
+    `iplikci mcp` is the stdio bridge: it chooses for every message, so the service may start after it or stop for an
+    update. Each message goes to the service, or, while the service does not answer, to a local server on the
+    database opened read-only, which refuses what would change something.
+  - Claude Code's configuration carries no token: its `headersHelper` runs `iplikci mcp baslik`, which reads the
+    keyring. The commands are written for the copy that runs (its own Python), so the keyring entry is read by the
+    program that wrote it.
+  - 31 tools: the MVP's 16 with the same names, Phases 4–5's 5 and ADR-0011's 10. The writing ones plan first and
+    apply only with the `plan_id` the plan gave, once. There are also resources (documents with their text and page
+    images, month-end closings, accounts) and five ready prompts.
+  - Every call and read goes into the audit log. Masking (`[privacy] mcp_masking`) hides account numbers, IBANs and
+    people's names, never amounts, dates, fingerprints or document ids.
+  - The Claude bağlantısı screen (`/kurulum/claude`) gives the configuration for claude-SAK's MCP JSON import (with
+    its panel's own steps), Claude Desktop's part, the address, the token behind Göster and the masking choice.
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 
@@ -226,11 +241,17 @@ restores and removes the service from the interface, and `app/extension` keeps t
 data dir (K20: loaded unpacked). `packaging/build.py` builds the installers (ADR-0017) and `packaging/icons.py` draws
 every icon (the interface's, the extension's, the installers') from the logo, `packaging/logo/white.png` (its lines in
 white on a transparent ground; `black.png` beside it has them in black); in `web/`, `components/ui/SectionTabs` splits
-a long screen into parts. The rest keeps the MVP's flat
-layout (`analysis`, `insights`, `month_end`, `report` with its `templates`, `mcp_server`, …) until the phases in the
-roadmap's MVP module table move it. Next to them: `fakes` (the fake document builders and every reader's specimens,
-shared with the tests and the demo), `demo` (the demo data folder), `baseline` (the verification baseline) and
-`mvp_codes` (the MVP codes the report's script and baseline v1 still speak). `web/` builds into `src/iplikci/api/ui`;
+a long screen into parts. Phase 7 moved the MCP server into `mcp`, on the official SDK: `tools` (the registry and the
+session that checks the arguments, keeps the plans, masks the answers and records every call), `server` (the SDK's
+low-level server with the Turkish instructions), `resources`, `prompts`, `masking`, `http` (Streamable HTTP at `/mcp`
+inside the service) and `stdio` with `bridge` (`iplikci mcp`: through the service, or the database read-only while it
+is down); `app/calls` records the calls (waiting in `run/` while the service is down), `app/connection` says what
+connects Claude, `api/routes/claude` gives it to the Claude bağlantısı screen and `cli/mcp` holds the headers helper.
+The rest keeps the MVP's flat layout (`analysis`, `insights`, `month_end`, `report` with its `templates`, …) until the
+phases in the roadmap's MVP module table move it. Next to them: `fakes` (the fake document builders and every
+reader's specimens, shared with the tests and the demo), `demo` (the demo data folder), `baseline` (the verification
+baseline) and `mvp_codes` (the MVP codes the report's script and baseline v1 still speak). `web/` builds into
+`src/iplikci/api/ui`;
 `extension/` builds into `extension/dist` and the program's copy `src/iplikci/browser_extension`; `e2e/` holds the
 Playwright tests, which run the service on a demo data folder with the built interface, every test in the light and the
 dark theme, with axe.
@@ -268,6 +289,8 @@ uv run iplikci yedek al | liste | prova        # backups; geri-yukle restores (-
 uv run iplikci eposta kur | durum | kaldir | al   # the IMAP account; al asks the running service when there is one
 uv run iplikci bildirim durum | kurallar | gecmis | dene <kanal>   # notification channels, rules, history, a test
 uv run iplikci telegram kur | eslestir | kaldir   # the bot's token in a hidden prompt (the user types it), pairing
+uv run iplikci mcp                             # MCP over stdio: through the service, or read-only while it is down
+uv run iplikci mcp baslik                      # Claude Code's headers helper: the Authorization header as JSON
 (cd web && npm ci && npm run typecheck && npm test && npm run build)         # the interface, built into the package
 (cd e2e && npm ci && npx playwright test)      # end-to-end on a demo data folder, both themes, axe; build web/ first
 uv run python packaging/build.py               # this system's installer into dist/paket/; build web/, extension/ first

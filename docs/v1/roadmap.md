@@ -316,7 +316,24 @@ Durum: 2026-11-02'de `asama-6` dalında uygulandı, `v0.7.0` ([değişiklik gün
 
 ## Aşama 7 — MCP
 
-Durum: sürüyor (`asama-7`, 2026-11-03'te başladı); Aşama 6 2026-11-02'de `v0.7.0` ile bitti.
+Durum: 2026-11-03'te `asama-7` dalında uygulandı, `v0.8.0` ([değişiklik günlüğü](../../CHANGELOG.md)).
+
+- MCP sunucusu resmî SDK'yla (`mcp==2.3.0`) `src/iplikci/mcp/` paketinde. Servis MCP'yi `/mcp`'de sunar: durumsuz,
+  JSON yanıtlı, kapının arkasında yalnızca API belirteciyle. `iplikci mcp` stdio köprüsüdür. Her iletiyi servise
+  iletir; servis yanıt vermiyorsa iletiyi, veritabanını salt okunur açan yerel sunucu yanıtlar ve yazan araçlar
+  reddedilir. Bu seçim her ileti için yeniden yapılır.
+- 31 araç: MVP'nin 16'sı aynı adlarla, Aşama 4–5'in 5'i ve ADR-0011'in 10 yenisi. Yazanlar önce planı gösterir;
+  plan, aynı araç `plan_id`'yle çağrılınca bir kez uygulanır. Uzun çıktılar sayfa sayfa gelir.
+- Kaynaklar (belgeler metinleri ve PDF sayfalarıyla, ay kapanışları, hesaplar) ve beş hazır istem.
+- Maskeleme `[privacy] mcp_masking`; her çağrı denetim kaydında; talimatlar ve belge metinleri belgenin veri olduğunu
+  söyler.
+- Arayüzde Claude bağlantısı ekranı (`/kurulum/claude`), Ayarlar'dan da açılır. Başlık yardımcısı
+  `iplikci mcp baslik`; deponun `.mcp.json`'u.
+- Uçtan uca denemeler ([F16](features.md#f16--mcp)):
+  - Claude Code demo servisine HTTP ile bağlandı. Araç listesi, bir okuma ve bir plan → uygula akışı çalıştı.
+  - Köprü servis dururken veritabanıyla, servis açılınca yine servisle yanıt verdi.
+  - İplikçi Nedim claude-SAK ile kullanıcının Claude'una eklendi ve gerçek veride okundu.
+- Kurulu servis 0.8.0'a güncellendi; gerçek belgelerin tabanı kayıtlı olanla aynı.
 
 **Başlangıçtaki durum (2026-11-02)**
 
