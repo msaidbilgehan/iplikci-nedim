@@ -49,6 +49,10 @@ RULES = {
     # The exchange rates: the domain's codes and money; the providers leave only through egress (ADR-0009), and what
     # they fetch is stored by the use cases, not here.
     "iplikci.fx": ("iplikci.domain", "iplikci.egress", "iplikci.settings"),
+    # What the banks' rates cost and what a foreign income is worth are interpretation, like the days ahead: the ledger,
+    # the insights' months and valuation, and the rate book the dataset carries. It needs the book apart from the
+    # providers, which is why it stands outside fx (that reaches the network); the use cases read the stored rates.
+    "iplikci.exchange": ("iplikci.domain", "iplikci.analysis", "iplikci.insights", "iplikci.fx.book"),
     # Showing a document: the readers' own helpers in a process of its own; no storage, no vault, no network.
     "iplikci.viewer": ("iplikci.parsers",),
 }

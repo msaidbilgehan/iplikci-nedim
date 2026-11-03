@@ -42,6 +42,7 @@ from .codes import (
     TodoAction,
     TodoKind,
     Tone,
+    TradeSide,
     TransactionKind,
     TransferStep,
     UnusualKind,
@@ -378,6 +379,11 @@ RATE_SOURCE: dict[RateSource, str] = {
     RateSource.FRANKFURTER: "Frankfurter (ECB)",
 }
 
+TRADE_SIDE: dict[TradeSide, str] = {
+    TradeSide.BUY: "Döviz alımı",
+    TradeSide.SELL: "Döviz satışı",
+}
+
 STATEMENT_CHECK: dict[StatementCheck, str] = {
     StatementCheck.VERIFIED: "Tutarlı",
     StatementCheck.FAILED: "Tutmuyor",
@@ -432,6 +438,7 @@ TABLES: dict[type[StrEnum], dict[StrEnum, str]] = {
     FlowKind: _table(FLOW_KIND),
     StatementCheck: _table(STATEMENT_CHECK),
     RateSource: _table(RATE_SOURCE),
+    TradeSide: _table(TRADE_SIDE),
     CategoryReason: _table(CATEGORY_REASON),
     TransferStep: _table(TRANSFER_STEP),
     RuleLayer: _table(RULE_LAYER),

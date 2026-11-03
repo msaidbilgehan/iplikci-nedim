@@ -187,12 +187,31 @@ nedenleri arasında sayılmaz.
   - Son 12 ayda görülmemiş, en az 50 TL tutarında bir banka ücreti ya da kart aidatı. Hesabın satırları en az üç ay
     geriye gitmelidir. Kart aidatı için iade talebi adımı önerilir; yıllık aidat her yıl yeniden işaretlenir.
   - Bölünmüş bir satır tek ödemedir: işyeri ve tutar karşılaştırmaları satırın bütününe bakar.
-- **Kur makası**
+- **Kur makası** (`exchange.spread`)
   - Kendi hesapları arasındaki her döviz alım ve satımında, bankanın kuru ile aynı günün yönüne uygun TCMB kuru
     arasındaki fark döviz tutarıyla çarpılır. Bu, TL cinsinden makas maliyetidir.
-  - Son 12 ayın toplamı ve işlem listesi gösterilir.
-- **Döviz geliri:** döviz cinsinden gelen gelir serisinin güncel kurla TL karşılığı gösterilir. Kurun ±%5 değişmesinin
-  aylık bütçeye etkisi hesaplanır.
+    - Alımda (TL hesaptan TL çıkar) TCMB'nin döviz satış kuru: (banka − TCMB satış) × tutar.
+    - Satışta (TL hesaba TL girer) TCMB'nin döviz alış kuru: (TCMB alış − banka) × tutar.
+    - Bankanın kuru, TL hesabının satırının yazdığı kurdur (`EUR: 36,50`, Vakıfbank'ın `İşlem Kuru`). Döviz tutarı
+      Vakıfbank'ta yazılıdır; yazmayan satırda TL tutarı kura bölünür.
+  - Yurt dışı kart harcamaları ikinci bir gruptur: TL ekstrede döviz tutarı TL tutarının yanında yazar ("19,99 USD").
+    Kartın kuru TL ÷ döviz tutarıdır; harcama gününün TCMB döviz satış kuruyla karşılaştırılır. Taksitli bir harcamanın
+    taksidi bütünün bir parçasıdır, kur söylemez.
+  - Yalnızca TCMB'nin kuruyla karşılaştırılır: ECB'nin günde tek referans kuru alış ve satışı ayırmaz. Hafta sonu ve
+    tatilde önceki iş gününün bülteni geçerlidir (en çok bir hafta geriye). O gün için TCMB kuru olmayan satırlar
+    toplama girmez; sayıları yazılır.
+  - Son 12 ayın (bugünden geriye bir yılın) toplamı, pencerenin tarihleri ve işlem listesi gösterilir: her satırın
+    parmak izi, günü, tutarı, bankanın kuru, TCMB kuru ve farkı. Eksi bir fark bankanın kurunun TCMB'ninkinden iyi
+    olduğunu söyler.
+- **Döviz geliri** (`exchange.foreign_income`): döviz hesaplarına giren gelir, para birimi başına.
+  - Son 12 ayın gelir satırları döviz tutarlarıyla, defterin o günün kuruyla saydığı TL ve güncel kurla (kur
+    sağlayıcısının en yeni döviz alış kuru; yoksa belgelerin en yeni kuru) TL karşılıklarıyla gösterilir.
+  - Bozdurma zamanları: aynı pencerede dövizin TL'ye çevrildiği satırlar, günü, döviz ve TL tutarı ve bankanın
+    kuruyla.
+  - Kur duyarlılığı: aylık ortalama döviz geliri yalnızca tam aylardan hesaplanır (değerlendirmenin penceresindeki
+    tam aylar; içinde bulunulan ay sayılmaz) ve cümle hangi aylardan, kaç tam aydan hesaplandığını söyler. Ortalama
+    güncel kurla TL'ye çevrilir ve %5'i verilir: "EUR/TRY %5 düşerse aylık gelir X TL azalır".
+  - Döviz geliri yoksa hiçbir şey hesaplanmaz; not bunu söyler. Kur yoksa TL karşılığı ve duyarlılık verilmez.
 - **Borç görünümü**
   - Kart borçları; kalan taksitler (n/m etiketinden kalan × tutar); KMH (eksi bakiye) gösterilir.
   - Krediler, e-dekontlardaki taksit bilgisinden gösterilir; kalan anapara bilinmiyorsa "bilinmiyor" yazar.

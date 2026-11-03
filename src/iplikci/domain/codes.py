@@ -434,3 +434,11 @@ class RateSource(StrEnum):
     TCMB = "tcmb"  # the Central Bank of Turkey's daily bulletin: forex buying and selling
     ECB = "ecb"  # the European Central Bank's euro reference rates: one rate for both sides
     FRANKFURTER = "frankfurter"  # the same ECB rates, from frankfurter.dev
+
+
+class TradeSide(StrEnum):
+    """Which way a currency changed hands for TL (docs/domain/interpretation.md, "Kur makası"): it decides which of
+    TCMB's two rates the bank's rate is compared with."""
+
+    BUY = "buy"  # the user bought the currency (a card purchase abroad too): against TCMB's forex selling rate
+    SELL = "sell"  # the user sold it for TL: against TCMB's forex buying rate

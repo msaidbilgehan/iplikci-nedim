@@ -1,5 +1,6 @@
-"""The assets and debts (F12): the net worth in TL, EUR, USD and gram gold, each holding with its value and, where the
-documents tell, what was paid for it, how the assets spread over currencies, and the TL rates.
+"""The assets and debts and the foreign currency (F12): the net worth in TL, EUR, USD and gram gold, each holding with
+its value and, where the documents tell, what was paid for it, how the assets spread over currencies, the TL rates,
+the spread the banks' rates cost and the income that comes in a foreign currency (exchange).
 
 The MVP's rules hold (docs/domain/interpretation.md, "Varlıklar ve borçlar"), on the balances "Şu an" shows
 (app.now), so the dashboard's net worth, the Accounts screen's totals and this screen tell the same numbers. A foreign
@@ -14,11 +15,13 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
+from .. import exchange
 from ..analysis import Dataset, DatedRate
-from ..domain.codes import AccountGroup, Certainty, RateSource
+from ..domain.codes import AccountGroup, Certainty, RateSource, TradeSide
 from ..domain.labels import format_amount
 from ..domain.models import TRY
 from ..domain.money import round_half_up
+from ..exchange import Conversion, CurrencyIncome, ForeignIncome, IncomeRow, Sensitivity, Spread, SpreadRow
 from ..fx.book import Quote, from_tl
 from ..insights import billed, provider_rate_said
 from . import now
@@ -30,18 +33,28 @@ from .analysis import Analysis
 __all__ = [
     "AccountGroup",
     "Certainty",
+    "Conversion",
+    "CurrencyIncome",
     "CurrencyRates",
     "CurrencyShare",
+    "ForeignIncome",
     "Holding",
     "Holdings",
     "InCurrency",
+    "IncomeRow",
     "Part",
     "Rate",
     "RateSource",
     "Rates",
+    "Sensitivity",
+    "Spread",
+    "SpreadRow",
+    "TradeSide",
     "Worth",
+    "foreign_income",
     "holdings",
     "rates",
+    "spread",
     "worth",
 ]
 
@@ -345,3 +358,17 @@ def rates(a: Analysis) -> Rates:
             "bağlantısı olmadan belgelerdeki kurlar kullanılır."
         )
     return Rates(found, missing, note)
+
+
+# --- the spread and the foreign income -------------------------------------------------------------------------------
+
+
+def spread(a: Analysis, today: date) -> Spread:
+    """What the banks' rates cost against TCMB's in the last 12 months (exchange.spread)."""
+    return exchange.spread(a.dataset, today)
+
+
+def foreign_income(a: Analysis, today: date) -> ForeignIncome:
+    """The income that comes in a foreign currency, at the current rate, its sales for TL and the sensitivity of the
+    monthly income to the rate (exchange.foreign_income)."""
+    return exchange.foreign_income(a.dataset, today)
