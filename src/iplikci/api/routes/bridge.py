@@ -1,6 +1,6 @@
 """The browser extension's endpoints (ADR-0016): its folder for the browser to load (K20), pairing, the proof that
-this is the paired service, the list of paired extensions, and what only a bridge's token opens: the mail intake and
-the login link of its "İplikçi Nedim'i aç" (ADR-0019)."""
+this is the paired service, the list of paired extensions, and what only a bridge's token opens: the mail intake, the
+login link of its "İplikçi Nedim'i aç" (ADR-0019) and İplikçi Nedim's lines its window shows (ADR-0020)."""
 
 from typing import Annotated
 
@@ -9,11 +9,12 @@ from pydantic import BaseModel, Field, StringConstraints
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import Response
 
-from ...app import bridge, extension
+from ...app import bridge, dashboard, extension, sayings
 from ...app.bridge import MAX_MESSAGE_BYTES
+from ...app.workspace import Busy
 from ..context import context_of
 from ..guard import Principal
-from ..models import LoginLink
+from ..models import LoginLink, SayingOut, saying_out
 from ..problems import Problem
 from .deps import only
 
@@ -119,6 +120,10 @@ class ExtensionFolderOut(BaseModel):
     opened: bool  # the system's file manager shows the folder; otherwise the page gives its path
 
 
+class SayingsOut(BaseModel):
+    items: list[SayingOut]  # the one to show first, the rest for "Başka bir söz"
+
+
 @router.get("/api/extension", dependencies=[Depends(only(Principal.BROWSER, Principal.CLIENT))])
 def extension_state(request: Request) -> ExtensionOut:
     """The extension the program carries, and its folder in the data folder (K20: loaded unpacked)."""
@@ -180,6 +185,20 @@ def bridge_login_link(request: Request) -> LoginLink:
     "İplikçi Nedim'i aç" opens the interface with it (ADR-0019). Two minutes, one use, on 127.0.0.1 only."""
     context = context_of(request)
     return LoginLink(url=context.login_url(context.keys.issue()))
+
+
+@router.get("/api/bridge/sayings", dependencies=[Depends(only(Principal.BRIDGE))])
+def bridge_sayings(request: Request) -> SayingsOut:
+    """İplikçi Nedim's lines on the money as the Pano has them, for the paired extension's window (ADR-0020): words
+    and shares only, never an amount, an account or a name."""
+    context = context_of(request)
+    try:
+        a = context.analysis.get()
+    except Busy as exc:
+        raise Problem(503, "busy", str(exc)) from exc
+    today = context.today()
+    found = sayings.sayings(a, dashboard.dashboard(context.ws, a, today), today)
+    return SayingsOut(items=[saying_out(s) for s in found])
 
 
 @router.get("/api/bridge", dependencies=[Depends(only(Principal.BROWSER, Principal.CLIENT))])

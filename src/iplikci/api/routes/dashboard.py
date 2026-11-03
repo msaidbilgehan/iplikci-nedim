@@ -1,14 +1,15 @@
 """The dashboard (F06) for the Pano screen: the net worth, this month against the typical month, the payments due
 within a week, the open alerts, the last seven months' closing, how fresh each account's documents are and how much
 there is to see to. Every card says what it shows in one Turkish sentence (`say`, the plain view's comment) and where
-it leads (`link`). Amounts are minor units with their currency (architecture §16)."""
+it leads (`link`), and İplikçi Nedim has his say on it all (`sayings`, app.sayings). Amounts are minor units with
+their currency (architecture §16)."""
 
 from datetime import date
 
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 
-from ...app import dashboard
+from ...app import dashboard, sayings
 from ...app.analysis import Analysis, account_labels
 from ...app.dashboard import AlertKind, AlertLevel, MonthStatus, TodoKind
 from ...app.links import Link
@@ -16,7 +17,18 @@ from ...app.now import Certainty, RateSource
 from ...app.workspace import Busy
 from ..context import Context, context_of
 from ..guard import Principal
-from ..models import AccountRefOut, LinkOut, MoneyOut, PaceOut, account_ref, link_out, money, pace_out
+from ..models import (
+    AccountRefOut,
+    LinkOut,
+    MoneyOut,
+    PaceOut,
+    SayingOut,
+    account_ref,
+    link_out,
+    money,
+    pace_out,
+    saying_out,
+)
 from ..problems import Problem
 from .accounts import FreshnessOut, freshness_out
 from .deps import only
@@ -156,6 +168,8 @@ class DashboardOut(BaseModel):
     closing: LastMonthsOut
     freshness: DataFreshnessOut
     todo: TodoSummaryOut
+    # İplikçi Nedim's lines on what the cards show: the first is the one to show, the rest follow for "Başka bir söz".
+    sayings: list[SayingOut]
 
 
 def _analysis(context: Context) -> Analysis:
@@ -267,4 +281,5 @@ def dashboard_now(request: Request) -> DashboardOut:
             say=todo.say,
             link=_link(todo.link),
         ),
+        sayings=[saying_out(s) for s in sayings.sayings(a, found, found.today)],
     )

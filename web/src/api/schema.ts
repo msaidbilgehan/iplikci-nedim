@@ -497,6 +497,7 @@ export interface DashboardOut {
   closing: LastMonthsOut;
   freshness: DataFreshnessOut;
   todo: TodoSummaryOut;
+  sayings: SayingOut[];
 }
 
 export interface DataFreshnessOut {
@@ -1409,6 +1410,9 @@ export interface MonthTotalsOut {
   complete: boolean;
 }
 
+/** How the situation stands, as the Pano's verdicts colour it; the face takes its colour. */
+export type Mood = "good" | "warning" | "critical" | "neutral";
+
 export interface NamedAccountOut {
   id: string;
   label: string;
@@ -1720,6 +1724,12 @@ export interface QueuedOut {
   queued: boolean;
 }
 
+/** A line of İplikçi Nedim's; a dialogue's lines in turn, his first. */
+export interface QuoteOut {
+  id: string;
+  lines: string[];
+}
+
 export interface RateDaysOut {
   source: RateSource;
   newest: string;
@@ -1857,6 +1867,21 @@ export interface RuleChangeOut {
 /** The rule file a category rule is in (docs/domain/categorization.md): the user's own goes above the shipped. */
 export type RuleLayer = "own" | "shipped";
 
+/**
+ * İplikçi Nedim's word on the money (F06): a line of his, the situation it is said about and how that stands. The
+ * browser extension shows it too, so it carries no amount, account or name (ADR-0020).
+ */
+export interface SayingOut {
+  situation: Situation;
+  mood: Mood;
+  reason: string;
+  quote: QuoteOut;
+}
+
+export interface SayingsOut {
+  items: SayingOut[];
+}
+
 /** What a finished scan of Gmail searched, as the cursor said when it began. */
 export interface ScannedIn {
   start_day: string;
@@ -1964,6 +1989,9 @@ export interface SetupStepOut {
   optional: boolean;
   note: string;
 }
+
+/** What a line is said about; listed most pressing first. */
+export type Situation = "going_negative" | "overspent" | "in_debt" | "spending_more" | "thin" | "best_month" | "foreign_income" | "spending_less" | "saving" | "income_arrived" | "good" | "price_rise" | "fees" | "quiet" | "no_data";
 
 export interface SkippedOut {
   account: AccountRefOut;

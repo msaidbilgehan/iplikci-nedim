@@ -43,8 +43,8 @@ OPEN_PATHS = frozenset(
         "/pwa-maskable-512x512.png",
     }
 )
-# A bridge's token opens the mail intake and the login link its "İplikçi Nedim'i aç" asks for (ADR-0019), nothing
-# else; no other sender reaches these.
+# A bridge's token opens the mail intake, the login link its "İplikçi Nedim'i aç" asks for (ADR-0019) and İplikçi
+# Nedim's lines its window shows (ADR-0020), nothing else; no other sender reaches these.
 BRIDGE_PATHS = frozenset(
     {
         "/api/ingest/mail",
@@ -53,6 +53,7 @@ BRIDGE_PATHS = frozenset(
         "/api/ingest/mail/scanned",
         "/api/ingest/mail/alarm",
         "/api/bridge/login-link",
+        "/api/bridge/sayings",
     }
 )
 # MCP's endpoint (ADR-0011): for the API token alone.

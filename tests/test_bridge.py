@@ -1,6 +1,6 @@
 """The browser extension's side of the service (ADR-0016): pairing with a code, the proof of the paired service, a
-token that opens only the mail intake and the login link of "İplikçi Nedim'i aç" (ADR-0019), revocation, and the
-messages it delivers."""
+token that opens only the mail intake, the login link of "İplikçi Nedim'i aç" (ADR-0019) and İplikçi Nedim's lines
+(ADR-0020), revocation, and the messages it delivers."""
 
 import email
 import email.policy
@@ -18,6 +18,7 @@ from iplikci.api.app import create_app
 from iplikci.api.context import Context
 from iplikci.app import bridge
 from iplikci.app.bridge import MAX_WRONG_CODES, PairingCodes
+from iplikci.app.workspace import Busy
 from iplikci.domain.codes import DocumentStatus
 from iplikci.fakes import teb
 from iplikci.parsers.common import set_business_names
@@ -126,7 +127,7 @@ def test_the_service_proves_it_is_the_one_the_extension_paired_with(client):
     assert client.get("/api/bridge/hello", params={"id": found["id"], "nonce": "kisa"}).status_code == 422
 
 
-def test_a_bridges_token_opens_the_mail_intake_and_its_login_link_and_nothing_else(client):
+def test_a_bridges_token_opens_the_mail_intake_its_login_link_and_nedims_lines_and_nothing_else(client):
     found = paired(client)
     other = TestClient(client.app, base_url=BASE)
     assert other.get("/api/system", headers=bearer(found["token"])).json()["code"] == "forbidden"
@@ -166,6 +167,42 @@ def test_only_an_active_extensions_token_gets_a_login_link_from_the_bridges_endp
     assert client.delete(f"/api/bridge/{found['id']}", headers=OWN_PAGE).status_code == 204
     revoked = other.post("/api/bridge/login-link", headers=bearer(found["token"]))
     assert (revoked.status_code, revoked.json()["code"]) == (401, "unauthenticated")
+
+
+def test_only_an_active_extensions_token_hears_nedims_lines_and_they_name_no_amount(client):
+    found = paired(client)
+    other = TestClient(client.app, base_url=BASE)
+    heard = other.get("/api/bridge/sayings", headers=bearer(found["token"]) | EXTENSION)
+    assert heard.status_code == 200, heard.text
+    assert heard.json() == {  # an empty data folder: nothing known yet
+        "items": [
+            {
+                "situation": "no_data",
+                "mood": "neutral",
+                "reason": "Henüz belge yok; paranın nasıl gittiği bilinmiyor.",
+                "quote": {"id": "dont_know", "lines": ["İsa Muhammed aşkına bilmiyorum."]},
+            }
+        ]
+    }
+    assert other.get("/api/bridge/sayings").status_code == 401
+    cli = other.get("/api/bridge/sayings", headers=bearer(TOKEN))
+    assert (cli.status_code, cli.json()["code"]) == (403, "forbidden")  # the command line reads the dashboard
+    browser = client.get("/api/bridge/sayings")  # signed in while pairing
+    assert (browser.status_code, browser.json()["code"]) == (403, "forbidden")
+    assert client.delete(f"/api/bridge/{found['id']}", headers=OWN_PAGE).status_code == 204
+    assert other.get("/api/bridge/sayings", headers=bearer(found["token"])).status_code == 401
+
+
+def test_nedims_lines_wait_while_the_documents_are_busy(ws, monkeypatch):
+    context = Context(ws=ws, token=TOKEN)
+    extension = bridge.pair(ws, "Chrome")
+
+    def busy():
+        raise Busy("başka bir işlem belgeleri işliyor; biraz sonra yeniden deneyin")
+
+    monkeypatch.setattr(context.analysis, "get", busy)
+    refused = TestClient(create_app(context), base_url=BASE).get("/api/bridge/sayings", headers=bearer(extension.token))
+    assert (refused.status_code, refused.json()["code"]) == (503, "busy")
 
 
 def test_the_sign_in_pages_carry_the_title_the_extension_tells_them_by(client):

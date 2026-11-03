@@ -156,6 +156,7 @@ import type {
   RestoringOut,
   RowOut,
   RuleChangeOut,
+  SayingOut,
   SeriesOut,
   SeriesStatus,
   ServiceEndingOut,
@@ -347,9 +348,11 @@ export type Trend = TrendOut;
 export type Unusual = UnusualOut;
 export type { ForecastPart, HabitStatus, Tone, UnusualKind };
 
-// The dashboard (F06): every card with its plain-view sentence (`say`) and the screen it leads to (`link`).
+// The dashboard (F06): every card with its plain-view sentence (`say`) and the screen it leads to (`link`), and İplikçi
+// Nedim's lines on it, the one to show first.
 export type Dashboard = DashboardOut;
 export type NetWorth = NetWorthOut;
+export type Saying = SayingOut;
 // Döviz (F12, its Phase 6 part): the net worth in TL and the other units, every asset and debt, the currencies' shares
 // and the rates the documents print.
 export type Holdings = HoldingsOut;

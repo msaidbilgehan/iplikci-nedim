@@ -121,6 +121,7 @@ class Alert:
     count: int  # how many things it stands for: documents, accounts
     account: str  # the account it concerns; "" for none
     link: Link
+    day: date | None = None  # a forecast's first day below zero; None for the other kinds
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,6 +146,8 @@ class Closing:
     unmatched: int  # receipt and notice rows the statements do not show
     waiting: list[tuple[str, str]]  # (account, what closes its month) of the accounts that hold the month open
     link: Link
+    fees: Decimal = ZERO  # interest and fees, part of expense
+    saving: Decimal = ZERO  # what went to savings and investments
 
 
 @dataclass(frozen=True, slots=True)
@@ -303,7 +306,7 @@ def _negatives(a: Analysis, today: date) -> list[Alert]:
         # As the notification of "balance.forecast_negative" says it in full (notify.content).
         text = f"{name}: öngörüye göre bakiye {_day(day)} günü ({when}) {_amount(balance)} olacak."
         link = Link(Screen.FORECAST, account)
-        found.append(Alert(AlertKind.NEGATIVE, level, "Hesap eksiye düşecek", text, 1, account, link))
+        found.append(Alert(AlertKind.NEGATIVE, level, "Hesap eksiye düşecek", text, 1, account, link, day))
     return found
 
 
@@ -431,6 +434,8 @@ def closing(a: Analysis, today: date) -> LastMonths:
                 unmatched=len(me.unmatched),
                 waiting=[(ac.account.id, ac.waiting_for) for ac in me.open],
                 link=Link(Screen.MONTH, me.month),
+                fees=me.totals.fees,
+                saving=me.totals.saving,
             )
         )
     ended = [c for c in found if c.status is not MonthStatus.RUNNING]

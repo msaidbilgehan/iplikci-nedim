@@ -2068,6 +2068,30 @@ export const DASHBOARD: Dashboard = {
     say: "3 iş bekliyor: Eksik belge (1), İşlenmeyen belge (2).",
     link: { screen: "todo", id: "", query: {} },
   },
+  // The forecast going below zero first, both its lines, then October as the best of the closed months: a dialogue.
+  sayings: [
+    {
+      situation: "going_negative",
+      mood: "critical",
+      reason: "Öngörüye göre hesaplarınızdan biri 18 gün sonra eksiye düşecek.",
+      quote: { id: "linden_tree", lines: ["Değil ıhlamur içmek, ıhlamur ağacı yesem gevşemez sinirlerim."] },
+    },
+    {
+      situation: "going_negative",
+      mood: "critical",
+      reason: "Öngörüye göre hesaplarınızdan biri 18 gün sonra eksiye düşecek.",
+      quote: { id: "two_lindens", lines: ["Bize iki ıhlamur getir kızım."] },
+    },
+    {
+      situation: "best_month",
+      mood: "good",
+      reason: "Ekim 2026, kapanan son 5 ay içinde en çok paranın kaldığı ay oldu.",
+      quote: {
+        id: "who_is_bigger",
+        lines: ["Ortadoğu mu büyük? Ben mi büyüğüm? Çabuk söyle.", "Siz efendim.", "Hıh. Tamam canım."],
+      },
+    },
+  ],
 };
 
 // --- the Değerlendirme screen (F10) ---------------------------------------------------------------------------------

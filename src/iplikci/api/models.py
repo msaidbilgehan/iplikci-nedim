@@ -13,6 +13,7 @@ from ..app.links import Link, Screen
 from ..app.notify import Channel, ChannelStage, DeliveryStatus, DetailLevel, EventKind
 from ..app.now import Pace
 from ..app.rows import Certainty, Direction, Necessity, RowView, TransactionKind
+from ..app.sayings import Mood, Saying, Situation
 
 
 class LoginLink(BaseModel):
@@ -149,6 +150,32 @@ def pace_out(found: Pace) -> PaceOut:
         months=list(found.months),
         covered=found.covered,
         note=found.note,
+    )
+
+
+class QuoteOut(BaseModel):
+    """A line of İplikçi Nedim's; a dialogue's lines in turn, his first."""
+
+    id: str
+    lines: list[str]
+
+
+class SayingOut(BaseModel):
+    """İplikçi Nedim's word on the money (F06): a line of his, the situation it is said about and how that stands.
+    The browser extension shows it too, so it carries no amount, account or name (ADR-0020)."""
+
+    situation: Situation
+    mood: Mood  # good, warning, critical or neutral: the colour of his face
+    reason: str  # the situation in a Turkish sentence: words and shares only
+    quote: QuoteOut
+
+
+def saying_out(found: Saying) -> SayingOut:
+    return SayingOut(
+        situation=found.situation,
+        mood=found.mood,
+        reason=found.reason,
+        quote=QuoteOut(id=found.quote.id, lines=list(found.quote.lines)),
     )
 
 

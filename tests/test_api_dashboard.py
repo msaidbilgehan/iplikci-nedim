@@ -118,6 +118,14 @@ def test_an_empty_data_folder_has_cards_that_say_there_is_nothing_yet(ws):
     assert found["alerts"] == {"items": [], "say": "Açık uyarı yok.", "link": link("notifications")}
     assert found["freshness"]["say"] == "Henüz belgesi gelen bir hesap yok."
     assert found["todo"] == {"kinds": [], "total": 0, "say": "Yapılacak bir şey yok.", "link": link("todo")}
+    assert found["sayings"] == [
+        {
+            "situation": "no_data",
+            "mood": "neutral",
+            "reason": "Henüz belge yok; paranın nasıl gittiği bilinmiyor.",
+            "quote": {"id": "dont_know", "lines": ["İsa Muhammed aşkına bilmiyorum."]},
+        }
+    ]
 
 
 # --- the net worth ---------------------------------------------------------------------------------------------------
@@ -385,3 +393,48 @@ def test_the_to_do_numbers_are_the_to_do_lists(demo_client, demo_board):
     assert {k["kind"]: k["count"] for k in todo["kinds"]} == {k: n for k, n in listed["counts"].items() if n}
     assert todo["kinds"][0]["link"] == link("todo", "missing_documents")
     assert todo["say"] == "2 iş bekliyor: Eksik belge (1), İşlenmeyen belge (1)."
+
+
+# --- İplikçi Nedim's word ---------------------------------------------------------------------------------------------
+
+
+def test_nedim_says_the_last_closed_months_verdict_as_the_pano_does_and_then_its_fees(demo_board):
+    october = next(m for m in demo_board["closing"]["months"] if m["month"] == "2026-10")
+    assert october["status"] == "closed"
+    left = (october["income"]["minor"] - october["expense"]["minor"]) / october["income"]["minor"]
+    assert round(left * 100) == 49
+    first, second, fees = demo_board["sayings"]
+    assert (first["situation"], first["mood"], first["reason"]) == (
+        "good",
+        "good",
+        "Ekim 2026'da gelen paranın %49'u elde kaldı.",
+    )
+    assert second["situation"] == "good" and {first["quote"]["id"], second["quote"]["id"]} == {
+        "money_for_the_able",
+        "never_say_no",
+    }
+    assert fees == {
+        "situation": "fees",
+        "mood": "warning",
+        "reason": "Ekim 2026'da bankalara faiz ve ücret ödendi.",
+        "quote": {
+            "id": "toilet",
+            "lines": ["Allah belasını versin büyük Ortadoğu'nun… Tuvalet mi canım bu? Küçük bin, büyük iki bin."],
+        },
+    }
+
+
+def test_a_forecast_below_zero_is_what_nedim_says_first_and_the_extension_hears_the_same(ws):
+    add(ws, "teb.xls", teb.account_export(teb.running_rows(list(teb.ACCOUNT_MOVES))))
+    today = date(2026, 11, 15)
+    first = board(ws, today)["sayings"][0]
+    assert (first["situation"], first["mood"], first["reason"]) == (
+        "going_negative",
+        "warning",  # 40 days away: a week or less is critical
+        "Öngörüye göre hesaplarınızdan biri 40 gün sonra eksiye düşecek.",
+    )
+    assert first["quote"]["id"] in {"linden_tree", "two_lindens"}
+    extension = bridge.pair(ws, "Chrome")
+    heard = client_for(ws, today).get("/api/bridge/sayings", headers={"Authorization": f"Bearer {extension.token}"})
+    assert heard.status_code == 200, heard.text
+    assert heard.json()["items"] == board(ws, today)["sayings"]
