@@ -349,8 +349,8 @@ def rates(a: Analysis) -> Rates:
         note = (
             "Kurlar TCMB'nin günlük kurlarından, TCMB'ye ulaşılamayan günlerde ECB'nin referans kurundan. Varlıklar "
             "döviz alış, borçlar döviz satış kuruyla değerlenir; bu kurların vermediği birimlerde bankaların "
-            f"belgelerindeki en yeni kur kullanılır. Tarihçede sağlayıcıların son {HISTORY_DAYS} günü ve belgelerdeki "
-            "bütün kurlar var."
+            f"belgelerindeki en yeni kur kullanılır. Tarihçede TCMB ve ECB kurlarının son {HISTORY_DAYS} günü ve "
+            "belgelerdeki bütün kurlar var."
         )
     else:
         note = (

@@ -339,7 +339,7 @@ def _currency_note(c: CurrencyIncome, start: date, end: date) -> str:
     if c.rate is not None:
         note += f" Bugünkü değer {_rate_said(c.rate)}."
     else:
-        note += f" {c.currency} kuru ne kur sağlayıcılarından geldi ne belgelerde yazıyor: TL değeri bilinmiyor."
+        note += f" {c.currency} kuru ne TCMB ya da ECB'den geldi ne belgelerde yazıyor: TL değeri bilinmiyor."
     if c.sensitivity is None:
         note += " Kur duyarlılığı için bu gelirin girdiği bir tam ay yok; içinde bulunulan ay sayılmaz."
     return note

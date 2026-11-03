@@ -413,7 +413,8 @@ def holding_page(ds: Dataset, account: str, balance: now.Balance | None) -> Hold
         valued = (
             "TL değeri belgelerdeki en yeni kurla."
             if source in (None, RateSource.DOCUMENT)
-            else "TL değeri kur sağlayıcısının en yeni kuruyla: varlık döviz alış, borç döviz satış kuruyla."
+            else "TL değeri TCMB'nin (ulaşılamayan günlerde ECB'nin) en yeni kuruyla: varlık döviz alış, borç döviz "
+            "satış kuruyla."
         )
         note = f"{valued} Maliyet ve kur farkı için dövizin hangi kurdan alındığı belgelerden bütünüyle çıkmıyor."
     return HoldingPage(
