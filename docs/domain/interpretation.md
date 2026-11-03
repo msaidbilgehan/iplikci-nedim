@@ -136,8 +136,11 @@ nedenleri arasında sayılmaz.
   - Başlangıç tahmini güncel bakiyedir: son belge artı geçici olaylar.
     - Son belge, bakiyeyi yazan en yeni belgedir: hesap dökümünün kapanış bakiyesi ya da bir banka bildiriminin
       satırdan sonraki bakiyesi (Vakıfbank'ın FAST bildirimleri ile QNB'nin hareket bildirimleri yazar). İkisi aynı
-      günse döküm esas alınır: günün tamamını kapatır. Sonraki günlerin henüz ekstreye girmemiş dekont ve bildirim
-      satırları eklenir.
+      günse döküm esas alınır. Sonraki günlerin henüz ekstreye girmemiş dekont ve bildirim satırları eklenir.
+    - Döküm yalnızca gösterdiği satırları kapsar: son günlerinin dökümde görünmeyen dekont satırları da eklenir
+      (banka onları döküm alındıktan sonra işlemiş olabilir; defter onları geçici sayar). Bildirimin bakiyesi ise
+      kendi gününün ve önceki günlerin satırlarını zaten içerir. Hesaplar, Şu an, Döviz, net varlık ve öngörü aynı
+      bakiyeyi kullanır.
     - Bakiyesi hiçbir belgede yazmayan, bakiyesi en yeni belgeden 180 günden eski olan ve döviz ya da altın olan
       hesaplar öngörüye girmez; nedenleri yazılır.
     - Bakiyeyi yazan belgenin gününden bugüne kadarki günler de sayılır: döküm 31'inde bitip bugün ayın 2'siyse,

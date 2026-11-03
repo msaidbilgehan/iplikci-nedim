@@ -4,6 +4,24 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.9.3] — 2026-11-03 — Düzeltmeler
+
+Harcamalar Claude'la kategorilere ayrılırken bulunan üç hata düzeltildi.
+
+### Düzeltilenler
+
+- Kıraathaneler artık kira sayılmıyor. Hazır kurallardaki "KİRA" kelimesi, kelimenin başı tuttuğu için
+  "KIRAATHANESİ"ni de kiraya yazıyordu; "KİRALAMA" (araç ya da eşya kiralama), "KİRAZ" ve "KIRAÇ" da kiraya
+  düşebilirdi. Kira artık yalnızca kelimenin kendisinden ve eklerinden (KİRASI, KİRAYI…) bulunuyor; kıraathaneler
+  Kafe & Kahve'ye gidiyor. Kendi kurallarınıza yazdığınız ev sahibi değişmiyor.
+- Bir hesabın bakiyesi artık her yerde aynı. Dökümün son günlerinde yapılan ve dökümde henüz görünmeyen bir işlem,
+  ör. dökümü indirdiğiniz gün yaptığınız bir transfer, Değerlendirme'de bakiyeye ekleniyordu. Hesaplar'da, Şu an'da,
+  Döviz'de, net varlıkta ve nakit akışı öngörüsünün başlangıcında ise eklenmiyordu. Artık hepsinde ekleniyor ve döküm
+  gelince satırıyla eşleşip kesinleşiyor.
+- Değerlendirme'deki "Ekstre gelmeden işlenen dekontlar" bulgusu, kendi hesaplarınız arasındaki bir transferin iki
+  ucu da dekontla geldiğinde boş bir liste yazıyordu ("… şimdiden işlendi (…): ."). Artık transfer tek işlem
+  sayılıyor ve taşınan tutarla yazılıyor: "1 işlem … kendi hesaplarınız arasında 12.500 TL".
+
 ## [0.9.2] — 2026-11-03 — İplikçi Nedim'in sözleri
 
 İplikçi Nedim artık paranızın durumunu kendi sözleriyle söylüyor: Pano'nun en üstünde ve tarayıcı eklentisinin
