@@ -186,26 +186,41 @@ def asked(mid, name, **arguments):
 
 
 class Client:
-    """stdin as a client writes it, with what happens between its lines: the service starting or stopping."""
+    """stdin as a client writes it, with what happens between its lines: the service starting or stopping.
 
-    def __init__(self, *steps) -> None:
+    A step waits, as a client waits for its answers, until every line before it is answered: the SDK reads stdin ahead
+    of the bridge's answers, so a service started while a request is still on its way would be the one to meet it
+    (seen on CI: the request found the service not yet listening, then running, and got an error)."""
+
+    def __init__(self, out: io.StringIO, *steps) -> None:
+        self.out = out
         self.steps = steps
 
     def __aiter__(self):
         return self._lines()
 
     async def _lines(self):
+        # The answers the lines so far wait for: a request's, or an unreadable line's; a notification gets none.
+        asked = 0
         for step in self.steps:
             if callable(step):
+                await self._answered(asked)
                 await anyio.to_thread.run_sync(step)
             else:
+                asked += isinstance(step, str) or "id" in step
                 yield (step if isinstance(step, str) else json.dumps(step)) + "\n"
+
+    async def _answered(self, count: int) -> None:
+        deadline = time.monotonic() + 10
+        while len(self.out.getvalue().splitlines()) < count:
+            assert time.monotonic() < deadline, "the bridge did not answer"
+            await anyio.sleep(0.01)
 
 
 def relayed(ws, *steps):
     """What the bridge writes back to a client that writes these lines, one answer a line."""
     out = io.StringIO()
-    anyio.run(bridge.relay, ws, Client(*steps), anyio.wrap_file(out))
+    anyio.run(bridge.relay, ws, Client(out, *steps), anyio.wrap_file(out))
     return [json.loads(line) for line in out.getvalue().splitlines()]
 
 
