@@ -359,10 +359,17 @@ G8 · Çekirdek (enflasyon V1+)
     (bozdurma) ve kurun %5 değişmesinin aylık gelire etkisi. Aylık ortalama yalnızca tam aylardan ve hangi aylardan
     hesaplandığı yazar.
   - Sistem ekranında kurların durumu ve "Kurları şimdi al"; komut satırında `iplikci kurlar al | durum`.
-  - V1+ da geldi: Ayarlar'daki "Enflasyon verisi (EVDS)" kartına girilen anahtar EVDS'de bir kez denenir ve anahtar
-    zincirine yazılır; TÜFE her gün 10:30'da çekilir. Değerlendirme'deki "Harcamalar nasıl değişti" kartı iki dönemin
-    ortalamasını en yeni TÜFE'li ayın fiyatlarıyla da söyler; TÜFE'si henüz çıkmamış ay adıyla yazılır ve dışarıda
-    kalır.
+  - V1+ da geldi:
+    - Ayarlar'daki "Enflasyondan arındırma (EVDS)" kartına girilen anahtar EVDS'de bir kez denenir ve anahtar
+      zincirine yazılır. TÜFE (TÜİK'in 2025=100 genel endeksi) her gün 10:30'da çekilir.
+    - Değerlendirme'deki "Harcamalar nasıl değişti" kartı iki dönemin ortalamasını en yeni TÜFE'li ayın fiyatlarıyla
+      da söyler. TÜFE'si henüz çıkmamış ay adıyla yazılır ve dışarıda kalır.
+    - Özellik isteğe bağlıdır (v0.9.1): anahtar girilene kadar kapalıdır, anahtar kaldırılınca yeniden kapanır.
+      Kapalıyken EVDS'ye hiçbir istek gitmez ve Değerlendirme saklanan ayları okumaz.
+    - Kart şunları gösterir: ne işe yaradığı (örnekle), açık mı kapalı mı olduğu, EVDS'nin giriş sayfası ve
+      kılavuzlarına bağlantılar (yeni sekmede) ve anahtarın nereden kopyalanacağı.
+    - TÜFE'nin yayım takvimine göre gelmiş olması gereken bir ay gelmemişse ("ayın endeksi sonraki ayın 3'ünde
+      yayımlanır" kuralına göre) kart, serinin durmuş olabileceğini söyler.
 
 ## F13 — Bildirimler
 

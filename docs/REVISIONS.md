@@ -6,10 +6,20 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 | Revizyon | Konu | Durum | Belge |
 |---|---|---|---|
 | V0 | MVP `gider-analizi`: banka belgelerini okuyan, doğrulayan, yorumlayan yerel komut satırı programı, web paneli ve MCP sunucusu | 2026-10-31'de emekliye ayrıldı (K17) | Depo dışında, veri klasöründeki arşivde: `archive/mvp/CLAUDE.md` ve `README.md` |
-| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–6 (v0.1.0–v0.7.0), arayüzün sadeleşmesi (v0.7.1), resimlerle anlatan Pano (v0.7.2), açık sekmeye ulaşan güncellemeler (v0.7.3), içeriğinden tanınan belgeler (v0.7.4), Belge ekle ekranı (v0.7.5), belgelerle denetlenen bildirimler (v0.7.6) ve Aşama 7 (MCP, v0.8.0) ve Aşama 8 (Döviz, v0.9.0) uygulandı; sırada sürüm 1.0'ın koşulları var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
+| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–6 (v0.1.0–v0.7.0), arayüzün sadeleşmesi (v0.7.1), resimlerle anlatan Pano (v0.7.2), açık sekmeye ulaşan güncellemeler (v0.7.3), içeriğinden tanınan belgeler (v0.7.4), Belge ekle ekranı (v0.7.5), belgelerle denetlenen bildirimler (v0.7.6) ve Aşama 7 (MCP, v0.8.0), Aşama 8 (Döviz, v0.9.0) ve enflasyondan arındırmanın kartı (v0.9.1) uygulandı; sırada sürüm 1.0'ın koşulları var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
 | V2 | Finansal strateji uzmanları ve yapay zekâ asistanı | Gelecek (V1'den sonra) | [`v2/requirements.md`](v2/requirements.md) |
 
 ## Değişiklik kaydı
+
+- 2026-11-03 (31) — Enflasyondan arındırma (v0.9.1):
+  - [Gereksinimler](v1/requirements.md): K25, Windows ve Linux denemeleri bekletilir.
+  - [Yol haritası](v1/roadmap.md#sürüm-10): sürüm 1.0'ın süreye bağlı koşullarının neyi göstermesi gerektiği; K25'in
+    eşitlik listesine etkisi; Aşama 8'in EVDS notu.
+  - [Mimari](v1/architecture.md#15-döviz) §15: TÜFE serisi `TP.TUKFIY2025.GENEL` (2003=100 serisi Ocak 2026'da
+    arşive alınıp bitti); Değerlendirme TÜFE'yi yalnızca anahtar varken okur; duran seri (`behind`). §16'da
+    `/api/settings/evds`'nin `behind` alanı.
+  - [Özellikler](v1/features.md#f12--döviz-ve-varlıklar): F12'nin V1+ maddesi, kartın anlattıkları ve özelliğin açılıp
+    kapanması.
 
 - 2026-11-03 (30) — Aşama 8: Döviz (v0.9.0):
   - [ADR-0009](adr/0009-network-egress-policy.md)'un notu: kur sağlayıcılarının ve EVDS'nin sunucuları, yalnızca GET,

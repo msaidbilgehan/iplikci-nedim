@@ -4,6 +4,31 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.9.1] — 2026-11-03 — Enflasyondan arındırma
+
+Ayarlar'daki EVDS kartı artık özelliğin ne işe yaradığını bir örnekle anlatıyor, açık mı kapalı mı olduğunu söylüyor ve
+anahtarın alınacağı sayfalara götürüyor. TÜFE de TÜİK'in güncel serisinden alınıyor.
+
+### Değişenler
+
+- Kartın adı "Enflasyondan arındırma (EVDS)" oldu. Kart şunları gösteriyor:
+  - "Ne işe yarar?": fiyatlar arttığı için harcamanın artmış görünebileceğini ve Değerlendirme'nin karşılaştırmayı
+    aynı ayın fiyatlarıyla nasıl yaptığını sade sözlerle, bir örnekle anlatıyor.
+  - Özellik anahtar girilene kadar kapalı ("Kapalı"), anahtar kabul edilince açık ("Açık"). Açıkken Değerlendirme'ye
+    bir bağlantı var.
+  - "Anahtar nasıl alınır?": EVDS'nin giriş sayfasına (üye olmak için "Kayıt" sekmesi) ve kılavuzlarına giden
+    bağlantılar yeni sekmede açılıyor; anahtarın kopyalanacağı yer adım adım yazıyor.
+- Anahtar kaldırılınca özellik gerçekten kapanıyor: Değerlendirme saklanan TÜFE aylarını kullanmayı bırakıyor ve
+  anahtarın girilebileceğini söylüyor. Aylar silinmiyor; anahtar yeniden girilince hemen geri geliyor.
+
+### Düzeltilenler
+
+- TÜİK, TÜFE'yi 2026'da 2025=100 bazına taşıdı. EVDS 0.9.0'ın istediği 2003=100 serisini (`TP.FG.J0`) arşive aldı ve
+  bu seri Ocak 2026'da bitti; bu yüzden anahtar girilse bile 2026'nın ayları hiç gelmeyecekti. TÜFE artık TÜİK'in
+  güncel genel endeksinden (`TP.TUKFIY2025.GENEL`) alınıyor. Bu seri EVDS'de Ocak 2005'ten bugüne kadar var.
+- Bir seri yine durursa (en yeni ay, TÜFE'nin yayım takvimine göre çoktan gelmiş olmalıysa) Ayarlar "TÜFE'nin yeni
+  ayları gelmiyor" diye uyarıyor. Bekleyen karşılaştırma sessizce eskimiyor.
+
 ## [0.9.0] — 2026-11-03 — Aşama 8: Döviz
 
 Dövizli hesaplar, net varlık ve kur farkları artık resmî kurlarla hesaplanır: TCMB'nin her iş günü yayımladığı kurlar,

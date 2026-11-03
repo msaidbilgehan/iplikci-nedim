@@ -560,9 +560,15 @@ Ayrıntılar [ADR-0010](../adr/0010-notification-channels.md)'un uygulama notund
   çekim anını içerir).
 - Yeniden kurulum (`dogrula --yeniden-kur`) ve yedekler kurları dökümde taşır: analiz aynı kurlarla yapılır.
 - TÜFE (V1+): kullanıcının EVDS anahtarı Ayarlar'da bir kez denenir ve anahtar zincirine yazılır, ayarlar
-  `[fx] evds = true` der; anahtar girilmemiş bir veri klasörü anahtar zincirini bunun için okumaz. TÜFE (`TP.FG.J0`)
-  her gün 10:30'da `price_index`'e çekilir (iş `prices.fetch`). Analizin parçası değildir: Değerlendirme onu analizin
-  yanında okur (`inflation.real_trend`), yeniden kurulum taşımaz; anahtar onu yeniden getirir.
+  `[fx] evds = true` der; anahtar girilmemiş bir veri klasörü anahtar zincirini bunun için okumaz.
+  - Seri TÜİK'in 2025=100 genel endeksidir (`TP.TUKFIY2025.GENEL`). 0.9.0'ın istediği 2003=100 serisi (`TP.FG.J0`)
+    EVDS'de arşive alındı ve Ocak 2026'da bitti (EVDS'nin seri listesi, 2026-11-03).
+  - TÜFE her gün 10:30'da `price_index`'e çekilir (iş `prices.fetch`).
+  - Analizin parçası değildir: Değerlendirme onu analizin yanında okur (`inflation.real_trend`), yalnızca ayarlar
+    `evds = true` derken (`prices.index`). Anahtar kaldırılınca saklanan aylar silinmez ama okunmaz. Yeniden kurulum
+    TÜFE'yi taşımaz; anahtar onu yeniden getirir.
+  - En yeni ay, ayın endeksinin sonraki ayın 3'ünde çıktığı takvime göre gelmiş olması gerekenden eskiyse durum
+    `behind` der (`prices.behind`): seri durmuş olabilir, Ayarlar bunu söyler.
 
 ## 16. API
 
@@ -598,7 +604,7 @@ Ayrıntılar [ADR-0010](../adr/0010-notification-channels.md)'un uygulama notund
 | `POST /api/bridge/pairings`, `POST /api/bridge/pair`, `GET /api/bridge/hello`, `GET /api/bridge`, `DELETE /api/bridge/{id}`, `POST /api/bridge/login-link` | tarayıcı eklentisi: eşleştirme kodu, kodun belirtece dönmesi, servisin kanıtı (HMAC), eşleşmeler, iptal (ADR-0016); eklentinin "İplikçi Nedim'i aç" düğmesi için tek kullanımlık giriş bağlantısı, yalnızca etkin bir eklentinin belirteciyle (ADR-0019) |
 | `GET /api/ingest/mail/cursor`, `POST /api/ingest/mail`, `POST /api/ingest/mail/known`, `POST /api/ingest/mail/scanned`, `POST /api/ingest/mail/alarm` | eklentinin konumu ve geçmişin taranması gerekip gerekmediği, ham iletilerin teslimi, taramanın bulduğu iletilerden eksik olanlar, biten bir taramanın neyi aradığı, bir katmanın biçim alarmı; yalnızca eklenti belirteciyle |
 | `GET /api/settings`, `PUT /api/settings/identity`, `PUT /api/settings/backup`, `PUT /api/settings/mail` | ayarlar (sır içermez, adres maskeli): adlar ve şirket adları, yedeklerin saklanma süresi, e-posta bağlayıcısı ve başlangıç günü; yalnızca arayüz değiştirir |
-| `GET/PUT/DELETE /api/settings/evds` | EVDS anahtarı (V1+): anahtar kayıtlı mı, saklanan TÜFE ayları, son deneme; anahtar bir kez EVDS'de denenip anahtar zincirine yazılır, geri dönmez; unutma. Yalnızca arayüz değiştirir |
+| `GET/PUT/DELETE /api/settings/evds` | EVDS anahtarı (V1+): anahtar kayıtlı mı, saklanan TÜFE ayları, son deneme, seri durdu mu (`behind`); anahtar bir kez EVDS'de denenip anahtar zincirine yazılır, geri dönmez; unutma. Yalnızca arayüz değiştirir |
 | `POST /api/settings/mail/imap`, `DELETE /api/settings/mail/imap` | IMAP hesabını tek bir girişle kurma (şifre anahtar zincirine; reddedilen giriş yeniden denenmez); hesabı ve şifresini unutma |
 | `GET/PUT /api/settings/mail/other-senders` | banka dışı göndericiler (F14); yalnızca arayüz değiştirir. Banka alan adı (altı ya da üstü dahil), iki kez yazılan ve alan adı olmayan değer reddedilir, hiçbir şey yazılmaz |
 | `GET /api/setup` | kurulum sihirbazının adımları, her birinin durumu ve ilk açılış mı olduğu |

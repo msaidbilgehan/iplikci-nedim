@@ -145,11 +145,12 @@ Aşama 8 (Döviz, v0.9.0) resmî kurları getirdi:
 - Döviz ekranı dört bölüm: Varlıklar; Kurlar (son 90 gün grafikte); Kur makası (son 12 ayda bankaların kurunun TCMB'ye
   göre size maliyeti, işlemleriyle); Döviz geliri (bugünkü kurla TL karşılığı, TL'ye çevrildiği günler ve "EUR/TRY %5
   düşerse" duyarlılığı).
-- İsteğe bağlı: Ayarlar'a TCMB EVDS'den aldığınız anahtarı girerseniz Değerlendirme harcamanızı enflasyondan
-  arındırılmış olarak da gösterir. Anahtar yalnızca bu bilgisayarın anahtar zincirinde saklanır.
+- İsteğe bağlı enflasyondan arındırma: Ayarlar'daki "Enflasyondan arındırma (EVDS)" kartı ne işe yaradığını bir
+  örnekle anlatır ve TCMB EVDS'de ücretsiz anahtarın nasıl alınacağını gösterir. Anahtarı girerseniz Değerlendirme,
+  harcamanızın gerçekten mi yoksa yalnızca fiyatlar yüzünden mi arttığını da gösterir. Anahtar girilmedikçe özellik
+  kapalıdır ve EVDS'ye hiçbir istek gitmez. Anahtar yalnızca bu bilgisayarın anahtar zincirinde saklanır.
 
-Açık kalanlar: Windows'ta temiz kurulum denemesi (kullanıcı yapacak) ve servisin yedi gün kendi başına çalışması
-(K19).
+Açık kalanlar: servisin yedi gün kendi başına çalışması (K19). Windows ve Linux'ta denemeler bekletiliyor (K25).
 
 MVP 2026-10-31'de emekliye ayrıldı. İplikçi Nedim onun kodundan başlar ama verisini devralmaz; belgeleri kendisi toplar.
 

@@ -6,10 +6,11 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-03): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.0). Between Phases 6 and 7 came
+Status (2026-11-03): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.1). Between Phases 6 and 7 came
 the interface's simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab
 (v0.7.3), documents known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked
-against the documents (v0.7.6). Next is the 1.0 release, whose conditions are partly time-bound (roadmap "Sürüm 1.0").
+against the documents (v0.7.6). Next is the 1.0 release, whose conditions are partly time-bound (roadmap "Sürüm 1.0"
+says what the waiting must show; check them once their time has passed).
 - Phase 0 brought the MVP's code in as the `iplikci` package, cleaned of personal traces, with the shipped default
   rules, the verification baseline and the demo workspace.
 - Phase 1 (data core) moved everything into the data dir: `settings.toml`, the content-addressed vault, SQLite with the
@@ -25,8 +26,9 @@ against the documents (v0.7.6). Next is the 1.0 release, whose conditions are pa
   the middle of read conversations. The mailbox was read from the start and the first real baseline taken
   (`baseline.json` in the data dir): from now on `iplikci dogrula --taban` must stay free of regressions locally.
 - Phase 3 closed with two open conditions (K19): the service's 7-day run (earliest 2026-11-08) and the Windows check.
-  macOS comes first; keep the code cross-platform. The extension stays unpacked (K20): publishing it on the Chrome
-  Web Store is a paid account decision, ask first.
+  macOS comes first; keep the code cross-platform. The Windows and Linux checks wait (K25, 2026-11-03): don't block on
+  them; whether 1.0 waits for them is asked once its other conditions hold. The extension stays unpacked (K20):
+  publishing it on the Chrome Web Store is a paid account decision, ask first.
 - Phase 4 (the whole mailbox) reads the message bodies.
   - The bank notices are evidence like receipts: VakıfBank's, Garanti's and QNB's transfer notices and İş Bankası's
     card debt collection. A movement a notice and a receipt both tell counts once.
@@ -122,6 +124,10 @@ against the documents (v0.7.6). Next is the 1.0 release, whose conditions are pa
     kept in the keychain (`secrets.EVDS`); `[fx] evds = true` then says so, so a folder without a key never reads the
     keychain for it. `price_index` keeps it (job `prices.fetch`, daily 10:30); Değerlendirme's trend is also told at
     one month's prices (`inflation.real_trend`, `app/assessment`). The rebuild does not carry it.
+  - v0.9.1: the series is TÜİK's 2025=100 general index `TP.TUKFIY2025.GENEL`; the 2003=100 `TP.FG.J0` became an
+    archive in EVDS and ends with January 2026. The feature is off without a key: `prices.index` reads nothing then,
+    and a removed key turns it off again. `prices.behind` says a series that stopped. The Ayarlar card
+    (`components/settings/EvdsKey`) explains it with an example and links to EVDS's sign-in page and guides.
   - A rate change changes TL totals of foreign-currency rows: that is no regression of `dogrula --taban`, but say why
     when a total moves.
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
@@ -151,7 +157,7 @@ The MVP was retired on 2026-10-31 (K17, ADR-0018): İplikçi Nedim starts with n
 | Document | What it holds |
 |---|---|
 | `docs/README.md` | Map of the docs and reading order |
-| `docs/v1/requirements.md` | Requirements G1–G13, the user's decisions K1–K21, product principles |
+| `docs/v1/requirements.md` | Requirements G1–G13, the user's decisions K1–K25, product principles |
 | `docs/v1/architecture.md` | Target architecture: modules, data model, data dir, API, MCP, security, NFRs |
 | `docs/v1/features.md` | Feature specs with acceptance criteria and the MVP parity checklist |
 | `docs/v1/roadmap.md` | Phases 0–8 and the 1.0 release, exit criteria, MVP module mapping, first-session steps |

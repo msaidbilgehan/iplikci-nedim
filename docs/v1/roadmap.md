@@ -399,6 +399,11 @@ Durum: 2026-11-03'te `asama-8` dalında uygulandı, `v0.9.0` ([değişiklik gün
   MCP'nin `fx_rates` aracında.
 - EVDS (V1+): kullanıcının anahtarı Ayarlar'da bir kez denenip anahtar zincirine yazılır; TÜFE her gün 10:30'da
   `price_index`'e çekilir ve Değerlendirme'deki harcama eğilimi aynı ayın fiyatlarıyla da söylenir (`inflation`).
+  v0.9.1'de:
+  - Kart özelliği bir örnekle anlatır, açık mı kapalı mı olduğunu söyler ve EVDS'nin giriş sayfasına ve
+    kılavuzlarına bağlantı verir.
+  - TÜFE, TÜİK'in 2025=100 serisinden alınır. 2003=100 serisi Ocak 2026'da arşive alınıp bitmişti.
+  - Duran bir seri Ayarlar'da söylenir.
 - Ağ yokken belgelerdeki kurlarla çalışır; testler bunu sağlayıcı kuru olmadan ve sağlayıcılara ulaşılamazken dener.
   Demo kendi sahte TCMB bültenlerini taşır ve ağa çıkmaz; altın tabanı değişmedi.
 
@@ -422,10 +427,29 @@ sağlayıcılarının adresleri ADR-0009'da listelidir; `egress` onları ancak b
 MVP 2026-10-31'de emekliye ayrıldı, bu yüzden ayrı bir geçiş aşaması yok
 ([ADR-0018](../adr/0018-retire-mvp-clean-start.md)). `v1.0.0` şu koşullar sağlanınca atılır:
 
-- [MVP eşitlik listesi](features.md#mvp-eşitlik-listesi)'nin tamamı işaretlidir.
+- [MVP eşitlik listesi](features.md#mvp-eşitlik-listesi)'nin tamamı işaretlidir. Windows ve Linux denemeleri K25 ile
+  bekletiliyor ([gereksinimler](requirements.md)). "Diğer sistemler" maddesi açık kalırsa 1.0'ın bu denemeleri bekleyip
+  beklemeyeceğini kullanıcı, öteki koşullar sağlandığında seçer.
 - En az bir ay İplikçi Nedim'de kapanmıştır.
 - Servis iki hafta kesintisiz çalışmış, yedek alınmış ve geri yükleme provası geçmiştir.
 - `iplikci dogrula --arsiv` hatasız biter ve gerçek belgelerin tabanı gerilememiştir.
+
+**Süreye bağlı koşullar neyi gösterir (2026-11-03).** Kullanıcının isteğiyle süre dolunca denetlenirler. Sürenin
+kendisi bir şey kanıtlamaz. Denetlenen, o sürede kendiliğinden yaşanması gerekenlerdir. Testler bunları sahte saatle
+dener; gerçek bilgisayarda ise ancak zamanı gelince görülürler:
+
+- **Takvimli işler gerçekten çalışır:**
+  - her gece yedek, ayda bir geri yükleme provası;
+  - her gün 16:30'da kurlar, anahtar varsa 10:30'da TÜFE;
+  - e-postanın ve tarayıcı eklentisinin günlük teslimleri.
+- **Bilgisayarın olaylarından sonra servis kendiliğinden kalkar ve kaçırdığı işi yapar:** uyku ve uyanma, yeniden
+  başlatma, macOS güncellemesi.
+- **Zamanla büyüyenler sınırlarında kalır:** disk, günlükler ve veritabanı.
+- **Gerçek bir ay baştan sona kapanır:** ekstreleri gelir, ay kapanır, bildirimi gider. Ekim 2026'nın ekstreleri Kasım
+  ortasına kadar beklenir.
+
+Denetim `iplikci servis durum`, servisin günlüğü ve Sistem ekranıyla yapılır. Bu olaylar en az bir kez yaşanmış ve
+kesinti ya da hata yoksa koşul sağlanmıştır.
 
 ## MVP modüllerinin hedefleri
 
