@@ -11,8 +11,10 @@ on its second level, person's name reaches the model.
   Each becomes `Kişi 1`, `Kişi 2`… in the order of their names, wherever it stands ("Veli Örneksoy Kira Ödemesi"
   becomes "Kişi 1 Kira Ödemesi") and whatever the letters' case.
 
-Only text is masked, never a number: amounts and counts stay exact. The masks follow the data each time: a new
-account or person gets its own.
+Only text is masked, never a number: amounts and counts stay exact. Nor is the program's own identifier in the field
+that holds one: a row's fingerprint, a document's id, a plan's id are hex digits, all of them digits now and then (a
+fingerprint about once in 12 000 rows), and the tools must still find what they name. The masks follow the data each
+time: a new account or person gets its own.
 """
 
 import re
@@ -31,6 +33,10 @@ NUMBER = "[numara]"
 _IBAN = re.compile(r"(?<![A-Za-z0-9])[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]{4}){3,7}(?:[ ]?[A-Z0-9]{1,4})?(?![A-Za-z0-9])")
 _LONG_NUMBER = re.compile(r"(?<![0-9A-Za-z])\d{10,}(?![0-9A-Za-z])")
 _DIGITS = re.compile(r"\d{3,}")
+# The fields that hold the program's own identifiers, and what such an identifier is: a plan's id (16 hex digits), a
+# row's fingerprint (20), a document's sha256 (64) or the resource address made of one.
+_IDENTIFIER_KEYS = frozenset({"fingerprint", "fingerprints", "splitOf", "row", "document", "id", "plan_id", "resource"})
+_IDENTIFIER = re.compile(r"[0-9a-f]{16}|[0-9a-f]{20}|[0-9a-f]{64}|iplikci://documents/[0-9a-f]{64}(?:/pages/\d+)?")
 # The kinds whose other side may be a person: transfers to and from people, own transfers, income.
 _PEOPLE = frozenset({TransactionKind.P2P_TRANSFER, TransactionKind.OWN_TRANSFER, TransactionKind.INCOME})
 # A company's name is no person's: its legal form or trade says so.
@@ -67,16 +73,17 @@ class Mask:
         value = _IBAN.sub(IBAN, value)
         return _LONG_NUMBER.sub(NUMBER, value)
 
-    def apply(self, value: Any) -> Any:
-        """value with its text masked: the JSON a tool returns, keys and numbers untouched."""
+    def apply(self, value: Any, key: str = "") -> Any:
+        """value with its text masked: the JSON a tool returns, keys, numbers and identifiers untouched. key: the field
+        value stands in (a list's items stand in its field)."""
         if not self.on:
             return value
         if isinstance(value, str):
-            return self.text(value)
+            return value if key in _IDENTIFIER_KEYS and _IDENTIFIER.fullmatch(value) else self.text(value)
         if isinstance(value, dict):
-            return {k: self.apply(v) for k, v in cast(dict[str, Any], value).items()}
+            return {k: self.apply(v, k) for k, v in cast(dict[str, Any], value).items()}
         if isinstance(value, (list, tuple)):
-            return [self.apply(v) for v in cast(Iterable[Any], value)]
+            return [self.apply(v, key) for v in cast(Iterable[Any], value)]
         return value
 
 

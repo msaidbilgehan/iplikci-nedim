@@ -68,6 +68,27 @@ def test_masking_leaves_the_amounts_and_the_fingerprints_exact(session, ws):
     ]
 
 
+def test_the_programs_own_identifiers_stay_whole_even_when_their_hex_digits_are_all_digits():
+    mask = masking.Mask(masking.ACCOUNTS)
+    digits = "12345678901234567890"  # a row's fingerprint, its twenty hex digits all of them digits
+    sha = "1" * 64
+    found = mask.apply(
+        {
+            "fingerprint": digits,
+            "splitOf": digits,
+            "fingerprints": [digits],
+            "plan_id": digits[:16],
+            "document": {"id": sha, "resource": f"iplikci://documents/{sha}/pages/2"},
+            "description": f"EFT {digits}",
+            "id": "1234567890",  # an identifier's field holding no identifier of the program's
+        }
+    )
+    assert found["fingerprint"] == found["splitOf"] == digits and found["fingerprints"] == [digits]
+    assert found["plan_id"] == digits[:16] and found["document"]["id"] == sha
+    assert found["document"]["resource"] == f"iplikci://documents/{sha}/pages/2"
+    assert found["description"] == f"EFT {masking.NUMBER}" and found["id"] == masking.NUMBER
+
+
 def test_a_documents_text_is_masked_as_every_answer_is(session, ws):
     settings(ws, masking.NAMES)
     found = json.loads(session.call("search", {"text": "kahveci"}).text)
