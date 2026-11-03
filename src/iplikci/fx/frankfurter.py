@@ -64,6 +64,8 @@ def parse(data: bytes) -> list[Day]:
             if _CODE.fullmatch(code) and isinstance(rate, Decimal) and rate > 0
         }
         days.append(Day(day, ecb.tl_rates(day, per_euro, RateSource.FRANKFURTER)))
+    if days and not any(d.quotes for d in days):  # a changed answer must not pass for days without rates
+        raise ProviderError("Frankfurter yanıtında TL kuru yok")
     return sorted(days, key=lambda d: d.day)
 
 

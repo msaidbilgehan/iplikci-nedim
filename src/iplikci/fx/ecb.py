@@ -69,8 +69,8 @@ def parse_xml(data: bytes) -> list[Day]:
             if _CODE.fullmatch(code) and rate is not None:
                 per_euro[code] = rate
         days.append(Day(day, tl_rates(day, per_euro, RateSource.ECB)))
-    if not days:
-        raise ProviderError("ECB yanıtında kur yok")
+    if not any(d.quotes for d in days):  # a changed layout must not pass for days without rates
+        raise ProviderError("ECB yanıtında TL kuru yok")
     return sorted(days, key=lambda d: d.day)
 
 
@@ -82,6 +82,8 @@ def parse_zip(data: bytes, start: date, end: date) -> Span | None:
     if not header or header[0].strip() != "Date":
         raise ProviderError("ECB geçmişi beklenen biçimde değil")
     codes = [h.strip().upper() for h in header[1:]]
+    if LIRA not in codes:  # a changed layout must not pass for days without rates
+        raise ProviderError("ECB geçmişinde TL kuru yok")
     days: list[Day] = []
     seen: list[date] = []
     for row in rows:

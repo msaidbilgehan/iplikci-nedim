@@ -2,7 +2,7 @@
 cases ask for them. The analysis is made again after new documents and once a day, just after midnight (a new day
 can end a month); each time the feed compares it with the last one and records the difference as events, and the
 notifications follow at once (they also run every five minutes). A backup is made every night and its restore
-rehearsed every month."""
+rehearsed every month. The exchange rates are fetched every day from 16:30, the history's missing days with them."""
 
 import sqlite3
 from datetime import UTC, date, datetime, time, timedelta
@@ -13,7 +13,7 @@ from ..jobs.schedule import Periodic, daily, every, monthly
 from ..jobs.worker import Handler
 from ..storage import audit, events, feed_state, jobs
 from ..vault import trash
-from . import access, backup, bridge, intake, mail, notify, outlook, uploads
+from . import access, backup, bridge, fx, intake, mail, notify, outlook, uploads
 from .analysis import analyze
 from .kinds import BACKUP_DAILY, BACKUP_NOW, BACKUP_REHEARSAL, BRIDGE_CHECK, INBOX_TAKE, NOTIFY, PURGE, REFRESH
 from .workspace import Busy, Workspace
@@ -33,6 +33,8 @@ PERIODIC = (
     # The events the other jobs record, a failed attempt's next try and the digest after the quiet hours; a
     # refresh asks for the notifications at once (ADR-0010).
     Periodic(NOTIFY, every(5)),
+    # The day's bulletin, and the history where days are missing (architecture §15).
+    Periodic(fx.FETCH_JOB, daily(fx.DAILY_AT), {"history": True}),
 )
 
 
@@ -48,6 +50,7 @@ def handlers(ws: Workspace) -> dict[str, Handler]:
         BACKUP_NOW: lambda _payload: back_up(ws, BackupReason.MANUAL),
         BACKUP_REHEARSAL: lambda _payload: rehearse(ws),
         BRIDGE_CHECK: lambda _payload: bridge.check_silence(ws),
+        fx.FETCH_JOB: lambda payload: fetch_rates(ws, history=bool(payload.get("history", True))),
     }
 
 
@@ -90,6 +93,18 @@ def poll_mail(ws: Workspace) -> None:
         return
     if fetched.more:
         mail.request_fetch(ws)
+
+
+def fetch_rates(ws: Workspace, history: bool) -> int:
+    """Fetch the exchange rates (app.fx); how many days' rates came. A run that stopped at its limit queues the next
+    at once, and new rates make the analysis again. A provider's failure is recorded for the System screen, never
+    raised: the job is done, and a later run tries again."""
+    done = fx.fetch(ws, history)
+    if done.more:
+        fx.request(ws, history=True)
+    if done.stored:
+        request_refresh(ws)
+    return done.stored
 
 
 def take_inbox(ws: Workspace) -> int:

@@ -121,6 +121,15 @@ def test_a_day_without_the_liras_rate_gives_no_tl_rates():
     assert [(d.day, len(d.quotes)) for d in days] == [(FRIDAY, 2), (MONDAY, 0)]  # the oldest first
 
 
+def test_a_reference_answer_without_any_lira_rate_is_an_error_not_days_without_rates():
+    with pytest.raises(ProviderError, match="TL kuru yok"):
+        ecb.parse_xml(fake.ecb_xml({MONDAY: {"USD": "1.1216"}}))
+    with pytest.raises(ProviderError, match="TL kuru yok"):
+        ecb.parse_zip(fake.ecb_zip({MONDAY: {"USD": "1.1216"}}), MONDAY, MONDAY)
+    with pytest.raises(ProviderError, match="TL kuru yok"):
+        frankfurter.parse(fake.frankfurter_json({MONDAY: {"USD": "1.1216"}}))
+
+
 def test_the_history_zip_gives_the_days_asked_and_the_span_it_covers():
     history = {
         date(2004, 12, 31): {"USD": "1.3621"},  # no lira yet: ECB has TRY from 2005 on
