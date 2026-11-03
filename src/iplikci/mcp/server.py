@@ -21,7 +21,8 @@ from .tools import TOOLS, Session, Tool
 
 NAME = "iplikci"
 TITLE = "İplikçi Nedim"
-RESOURCE_NOT_FOUND = -32002  # the protocol's code for a resource that is not there
+# A resource that is not there is invalid params since SEP-2164; the protocol's earlier -32002 is retired.
+RESOURCE_NOT_FOUND = INVALID_PARAMS
 
 INSTRUCTIONS = """\
 İplikçi Nedim: kullanıcının kişisel banka belgelerinden (kart ekstreleri, hesap hareketleri, dekontlar, banka
