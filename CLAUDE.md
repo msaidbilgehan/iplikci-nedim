@@ -6,7 +6,7 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-03): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.6). Between Phases 6 and 7 came
+Status (2026-11-03): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.7). Between Phases 6 and 7 came
 the interface's simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab
 (v0.7.3), documents known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked
 against the documents (v0.7.6). Next is the 1.0 release, whose conditions are partly time-bound (roadmap "Sürüm 1.0"
@@ -166,6 +166,11 @@ says what the waiting must show; check them once their time has passed).
   (`_pair_own_sides`), then an open row with an opposite one that names the user (`_pair_open`), before a row that
   only names the receiving bank takes a named payment's kind (LIKE_NAMED, any date) and before open rows pair among
   themselves and with card payments. Otherwise a rule naming a person could turn an own overdraft payment into money sent to that person.
+- v0.9.7: a single row's exception is a correction, never a pattern written to miss it. A category the user gives a
+  transfer the ledger worked out (`annotate._WORKED_OUT`: rule, like-named, uncovered bank, person, income) brings
+  the kind a rule naming it would (`annotate.kind_in`, `Categorizer.kind_for`); the categories the program keeps for
+  a kind stand for it (`categorize._CATEGORY_KIND`). A card's purchase and a known own transfer keep their kind. The
+  MCP plan shows the kind (`Checked.kind`); İşlemler says it by the category picker.
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 

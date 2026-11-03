@@ -4,6 +4,23 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.9.7] — 2026-11-03 — Tek satırın düzeltmesi, sayıldığı yerle
+
+### Değişenler
+
+- Bir transferin kategorisini yalnızca o satır için değiştirdiğinizde, satırın nerede sayıldığı da değişiyor.
+  Önceden yalnızca etiketi değişiyordu; harcama sayılan bir satır harcama sayılmaya devam ediyordu. Örnekler:
+  - Ev sahibine ödenen bir depozitoyu "Kişilere Gönderilen"e alırsanız harcamadan çıkar.
+  - Kendi hesabınıza gittiğini bildiğiniz bir transferi "Hesaplar Arası Transfer"e alırsanız kendi transferiniz
+    olur.
+  - Kişiye gönderilmiş görünen bir muayene ücretini "Sağlık Hizmetleri"ne alırsanız harcama olur.
+  Böylece tek bir satırın istisnası için kural dosyasına o satırı dışarıda bırakan özel bir desen yazmak gerekmiyor.
+  Kartla yapılan alışverişler ve programın kendi transferiniz diye bildiği satırlar eskisi gibi kalıyor. İşlemler
+  ekranı bunu kategori seçiminin altında söylüyor; Claude'un düzeltme planı türün nasıl değişeceğini de gösteriyor.
+- Bir kural bir transferi programın tuttuğu kategorilerden birine (Hesaplar Arası Transfer, Nakit Avans & Çekim,
+  Kredi & Borç Anapara, faiz ve ücretler) koyarsa, transfer artık o türü alıyor; önceden alışveriş sayılıyordu.
+  Bugünkü belgelerde hiçbir satır değişmiyor.
+
 ## [0.9.6] — 2026-11-03 — Transferin karşılığı önce
 
 ### Düzeltilenler
