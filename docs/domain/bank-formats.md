@@ -322,6 +322,10 @@ yapılan ödemedir.
     e-dekontun ya da listenin dediği (ek hesap ya da değil) geçerlidir.
   - QNB bazı FAST bildirimlerine e-dekontu ekler. Hareket bir kez sayılır: dekontun satırı kalır, bildirimin yazdığı
     bakiyeyi alır.
+  - ATM ya da banka kartıyla para çıkışı ne işyeri ne karşı taraf yazar. Bu bir transfer değildir (deftere transfer
+    adayı olarak girseydi "kişilere gönderilen" sayılırdı); ATM'nin verdiği gibi nakittir (Nakit Avans & Çekim).
+    Bildirim ATM'yi işyerindeki kart okuyucusundan ayırmaz: kullanıcı bildiği bir kart ödemesini tek satır olarak
+    düzeltir (okuyucu sürüm 2).
 - Dekont numarası yazmaz: bildirim, günü ve dakikası, tutarı ve sonraki bakiyesiyle tanınır.
 
 ## Okuyucusu olmayan e-postalar

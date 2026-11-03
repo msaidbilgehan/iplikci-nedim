@@ -389,6 +389,12 @@ def test_money_out_just_before_midnight_is_dated_by_the_balances_time_not_the_ma
     ]  # day and minute, amount, balance
 
 
+def test_money_out_at_an_atm_or_by_card_is_cash_not_a_transfer():
+    [row] = read(qnb.cash_out()).transactions
+    assert (row.kind, row.counterparty) == (TransactionKind.CASH_ADVANCE, "")
+    assert read(qnb.transfer_out()).transactions[0].kind == TransactionKind.TRANSFER_CANDIDATE
+
+
 @pytest.mark.parametrize(
     ("printed", "value"),
     [

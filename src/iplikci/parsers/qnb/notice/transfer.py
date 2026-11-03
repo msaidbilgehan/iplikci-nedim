@@ -24,6 +24,9 @@ Traps:
   the account (an overdraft account or not).
 - QNB attaches an e-dekont to some FAST notices: the movement then counts once (analysis._drop_told_twice), and the
   receipt's row takes the balance the notice adds.
+- Money out at an ATM or by debit card names no shop and no other side: it is no transfer, which the ledger would
+  take for money sent to a person, but cash, as an ATM gives it. The notice does not tell an ATM from a shop's card
+  terminal; the user re-labels a card payment they know of as a single row.
 """
 
 import re
@@ -110,9 +113,10 @@ def read(doc: SourceDocument) -> ParseResult:
     account = _account(movement["number"], currency)
     party = _printed(mail.text, movement.span("party")) if movement["party"] else ""
     fast = movement["fast_in"] is not None or "FAST" in movement["end"]
+    cash = movement["end"].endswith("PARA CIKISI OLMUSTUR")
     if movement["way"] == "A":
         title, sign, arrow = ("Gelen FAST" if fast else "Gelen Transfer"), -1, "←"
-    elif movement["end"].endswith("PARA CIKISI OLMUSTUR"):
+    elif cash:
         title, sign, arrow = "Para Çıkışı", 1, ""
     else:
         title, sign, arrow = ("Giden FAST" if fast else "Giden Transfer"), 1, "→"
@@ -122,9 +126,9 @@ def read(doc: SourceDocument) -> ParseResult:
         date=day,
         description=f"{title} {arrow} {party}" if party else f"{title}{channel}",
         amount=sign * value,
-        # Whether it went to the user's own account, the landlord or a friend is decided once every account is known
-        # (analysis.py), like a transfer row of an account list.
-        kind=TransactionKind.TRANSFER_CANDIDATE,
+        # Whether a transfer went to the user's own account, the landlord or a friend is decided once every account is
+        # known (analysis.py), like a transfer row of an account list; money out at an ATM or by card is cash.
+        kind=TransactionKind.CASH_ADVANCE if cash else TransactionKind.TRANSFER_CANDIDATE,
         account=account.id,
         counterparty=party,
         source=doc.name,
@@ -147,7 +151,7 @@ def read(doc: SourceDocument) -> ParseResult:
 
 class TransferNotice:
     id = ID
-    version = 1
+    version = 2
     bank = "QNB"
     name = "QNB FAST, havale/EFT ve para çıkışı bildirimi"
     document_type = DocumentKind.NOTICE
