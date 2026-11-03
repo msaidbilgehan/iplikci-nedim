@@ -63,6 +63,7 @@ describe("SettingsPage", () => {
     expect(links.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
       ["Bildirimler", "/bildirimler"],
       ["Tarayıcı eklentisi", "/kurulum/eklenti"],
+      ["Claude bağlantısı", "/kurulum/claude"],
       ["Belgeler", "/belgeler"],
       ["Sistem", "/sistem"],
       ["Kurulum sihirbazı", "/kurulum"],

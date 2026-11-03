@@ -120,6 +120,7 @@ function Cards({ settings, onEnding }: { settings: Settings; onEnding: (ending: 
 const ELSEWHERE = [
   ["/bildirimler", "notifications"],
   ["/kurulum/eklenti", "extension"],
+  ["/kurulum/claude", "claude"],
   ["/belgeler", "documents"],
   ["/sistem", "system"],
   ["/kurulum", "setup"],

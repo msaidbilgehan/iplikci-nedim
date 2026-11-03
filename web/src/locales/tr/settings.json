@@ -18,6 +18,7 @@
     "links": {
       "notifications": "Bildirimler",
       "extension": "Tarayıcı eklentisi",
+      "claude": "Claude bağlantısı",
       "documents": "Belgeler",
       "system": "Sistem",
       "setup": "Kurulum sihirbazı"
@@ -25,6 +26,7 @@
     "linkText": {
       "notifications": "Telegram eşleştirmesi, kanallar, sessiz saatler ve bildirim kuralları.",
       "extension": "Eklentiyi kurun, eşleştirin ya da eşleşmesini iptal edin.",
+      "claude": "Claude'u bağlayın ve Claude'a giden yanıtlarda neyin gizleneceğini seçin.",
       "documents": "Belge ekleyin, saklanan belgelere bakın ya da birini kaldırın.",
       "system": "Banka dışı göndericiler, yedeklerin durumu, dışa aktarımlar ve günlük.",
       "setup": "Kurulum adımlarının her birinin durumu."
