@@ -1,6 +1,6 @@
 """Spending in real terms (F12, its V1+ part): the Değerlendirme screen's spending trend at one month's prices, with
-TÜFE, the consumer price index TCMB's EVDS publishes as TP.FG.J0 (2003=100; fx.evds), for a user who gave an EVDS
-key.
+TÜFE, the consumer price index TCMB's EVDS publishes as TP.TUKFIY2025.GENEL (2025=100; fx.evds), for a user who gave
+an EVDS key.
 
 The trend compares the average month of its recent complete months with the months before them (insights.trend).
 Here each of those months' spending is carried to the prices of the newest of them that has an index:

@@ -112,7 +112,7 @@ def frankfurter_json(days: Mapping[date, Mapping[str, str]]) -> bytes:
     return f'{{"amount":1.0,"base":"EUR","start_date":"{first}","end_date":"{last}","rates":{{{rates}}}}}'.encode()
 
 
-def evds_json(months: Mapping[str, str | None], series: str = "TP.FG.J0") -> bytes:
+def evds_json(months: Mapping[str, str | None], series: str = "TP.TUKFIY2025.GENEL") -> bytes:
     """EVDS's answer for a monthly series: each YYYY-MM written "YYYY-M" as EVDS writes it, its value as text, or null
     for a month not published yet; the series' dots as underscores."""
     column = series.replace(".", "_")

@@ -26,7 +26,8 @@ from conftest import add
 
 KEY = "AbCdEf1234"
 TODAY = date(2026, 11, 3)
-TUFE = {"2025-11": Decimal("3021.45"), "2025-12": Decimal("3112.37"), "2026-01": Decimal("3215.05")}
+# Made up, on the 2025=100 base: up to September, the newest month out on TODAY.
+TUFE = {"2026-07": Decimal("118.42"), "2026-08": Decimal("120.37"), "2026-09": Decimal("122.95")}
 TOKEN = "deneme-belirteci"
 
 
@@ -77,7 +78,7 @@ def test_a_key_evds_takes_is_kept_in_the_keychain_with_the_months_that_came(cove
     assert keychain == {"evds": KEY}
     # From January of the year before the data's first day: the trend's months and a year before them.
     assert get.asked == [(KEY, date(2025, 1, 1), TODAY)]
-    assert (found.has_key, found.months, found.first, found.newest) == (True, 3, "2025-11", "2026-01")
+    assert (found.has_key, found.months, found.first, found.newest) == (True, 3, "2026-07", "2026-09")
     assert config.load(covered.layout.settings).fx.evds is True
     assert KEY not in covered.layout.settings.read_text(encoding="utf-8")
     with covered.db() as db:
@@ -116,12 +117,12 @@ def test_without_a_key_nothing_is_asked_and_the_keychain_is_never_read(ws):
     get = Evds()
     assert prices.fetch(ws, get=get, today=TODAY) == 0 and get.asked == []
     found = prices.status(ws)
-    assert (found.has_key, found.months, found.newest, found.last_run) == (False, 0, None, "")
+    assert (found.has_key, found.months, found.newest, found.last_run, found.behind) == (False, 0, None, "", False)
 
 
 def test_with_a_key_the_index_is_fetched_and_a_revised_month_written_over(covered, keychain):
     prices.set_key(covered, KEY, Actor.USER, get=Evds(), today=TODAY)
-    revised = TUFE | {"2026-01": Decimal("3215.10"), "2026-02": Decimal("3300.00")}
+    revised = TUFE | {"2026-09": Decimal("123.01"), "2026-10": Decimal("125.60")}
     assert prices.fetch(covered, get=Evds(revised), today=TODAY) == 2  # the revised month and the new one
     assert kept_index(covered) == revised
     assert prices.fetch(covered, get=Evds(revised), today=TODAY) == 0
@@ -144,15 +145,47 @@ def test_a_key_gone_from_the_keychain_is_said_on_the_next_fetch(covered, keychai
     assert "Ayarlar'dan yeniden girin" in prices.status(covered).last_error
 
 
-def test_removing_the_key_forgets_it_and_stops_the_fetches_keeping_the_months(covered, keychain):
+def test_removing_the_key_turns_the_feature_off_and_stops_the_fetches_keeping_the_months(covered, keychain):
     prices.set_key(covered, KEY, Actor.USER, get=Evds(), today=TODAY)
+    assert prices.index(covered) == TUFE
     prices.remove_key(covered, Actor.USER)
     assert keychain == {} and config.load(covered.layout.settings).fx.evds is False
     get = Evds()
     assert prices.fetch(covered, get=get, today=TODAY) == 0 and get.asked == []
+    # Değerlendirme no longer reads them; they stay kept, and a new key shows them again before its fetch ends.
+    assert prices.index(covered) == {} and kept_index(covered) == TUFE
+    config.update(covered.layout.settings, "fx", {"evds": True})
     assert prices.index(covered) == TUFE
     with covered.db() as db:
         assert [e.action for e in audit.entries(db) if e.target == "evds"] == [prices.KEY_SET, prices.KEY_REMOVED]
+
+
+@pytest.mark.parametrize(
+    ("newest", "today", "late"),
+    [
+        ("2026-09", date(2026, 11, 3), False),  # October's comes out today at 10:00
+        ("2026-09", date(2026, 11, 30), False),
+        ("2026-09", date(2026, 12, 1), True),  # October's came on 3 November
+        ("2026-01", date(2026, 11, 3), True),  # the 2003=100 series' last month, an archive since (fx.evds)
+        ("2025-11", date(2026, 1, 15), False),  # across the year
+        ("2025-10", date(2026, 1, 15), True),
+        (None, date(2026, 11, 3), True),
+    ],
+)
+def test_tufe_is_behind_when_the_month_before_last_is_not_kept(newest, today, late):
+    assert prices.behind(newest, today) is late
+
+
+def test_a_series_evds_stopped_giving_is_said_once_a_newer_month_should_have_come(covered, keychain):
+    prices.set_key(covered, KEY, Actor.USER, get=Evds(), today=TODAY)
+    assert prices.status(covered, today=TODAY).behind is False
+    assert prices.fetch(covered, get=Evds(), today=date(2026, 12, 1)) == 0  # nothing newer came
+    assert prices.status(covered, today=date(2026, 12, 1)).behind is True
+
+
+def test_a_key_whose_series_gives_no_month_at_all_is_said_the_same_way(ws, keychain):
+    found = prices.set_key(ws, KEY, Actor.USER, get=Evds({}), today=TODAY)
+    assert (found.has_key, found.months, found.behind) == (True, 0, True)
 
 
 def test_the_index_is_fetched_every_day_at_ten_thirty_by_a_job_of_its_own(ws):
@@ -164,8 +197,17 @@ def test_the_index_is_fetched_every_day_at_ten_thirty_by_a_job_of_its_own(ws):
 # --- the Settings screen's routes -----------------------------------------------------------------------------------
 
 
+class Today(date):
+    """The use case's clock pinned to TODAY: the routes give it no day of their own."""
+
+    @classmethod
+    def today(cls) -> "Today":
+        return cls(TODAY.year, TODAY.month, TODAY.day)
+
+
 @pytest.fixture
-def client(covered) -> TestClient:
+def client(covered, monkeypatch) -> TestClient:
+    monkeypatch.setattr(prices, "date", Today)
     return TestClient(create_app(Context(ws=covered, token=TOKEN)), base_url="http://127.0.0.1:8643")
 
 
@@ -186,10 +228,11 @@ def test_the_settings_screen_keeps_a_key_shows_where_tufe_stands_and_never_sends
     assert saved.json() == {
         "has_key": True,
         "months": 3,
-        "first": "2025-11",
-        "newest": "2026-01",
+        "first": "2026-07",
+        "newest": "2026-09",
         "last_run": saved.json()["last_run"],
         "last_error": "",
+        "behind": False,
     }
     shown = client.get("/api/settings/evds", headers=headers)
     assert shown.status_code == 200 and KEY not in shown.text and shown.json()["has_key"] is True

@@ -1,14 +1,19 @@
-"""TCMB's EVDS (Elektronik Veri Dağıtım Sistemi): the monthly consumer price index TÜFE (TP.FG.J0, 2003=100), for the
-spending trend in real terms (F12's V1+ part; inflation.py). Only with the user's own key, which EVDS gives a
-registered user on their profile page; nothing else goes out but the series' code and the span (ADR-0009).
+"""TCMB's EVDS (Elektronik Veri Dağıtım Sistemi): the monthly consumer price index TÜFE, for the spending trend in real
+terms (F12's V1+ part; inflation.py). Only with the user's own key, which EVDS gives a registered user on their profile
+page; nothing else goes out but the series' code and the span (ADR-0009).
+
+The series is TÜİK's general index on the 2025 base, TP.TUKFIY2025.GENEL (2025=100). TÜİK moved TÜFE to that base in
+2026, and EVDS keeps the 2003=100 series v0.9.0 asked for, TP.FG.J0, as an archive that ends with January 2026; the new
+one runs from January 2005 to the newest month (EVDS's own series list, read on 2026-11-03). A series that stops
+coming is said on the Settings screen (app/prices.behind).
 
 A request is a GET with the parameters in the path and no "?":
 
-    /igmevdsms-dis/series=TP.FG.J0&startDate=01-01-2025&endDate=31-12-2026&type=json
+    /igmevdsms-dis/series=TP.TUKFIY2025.GENEL&startDate=01-01-2025&endDate=31-12-2026&type=json
 
 and the key in its `key` header (EVDS refuses a key in the address since 2024-04-05). The answer is JSON:
 
-    {"totalCount": 22, "items": [{"Tarih": "2025-1", "TP_FG_J0": "3021.45", "UNIXTIME": {...}}, ...]}
+    {"totalCount": 22, "items": [{"Tarih": "2025-1", "TP_TUKFIY2025_GENEL": "…", "UNIXTIME": {...}}, ...]}
 
 the series' dots turned into underscores, a month written "YYYY-M", and a month TÜFE is not out for yet null. An
 answer holds at most 1000 observations: 83 years of months. A refused key is answered 401 or 403.
@@ -27,7 +32,7 @@ from .provider import ProviderError
 
 HOST = egress.EVDS
 NAME = "EVDS"
-TUFE = "TP.FG.J0"  # the consumer price index (2003=100), monthly
+TUFE = "TP.TUKFIY2025.GENEL"  # the consumer price index, its general index (2025=100), monthly
 REFUSED = frozenset({401, 403})
 _MONTH = re.compile(r"([0-9]{4})-([0-9]{1,2})")
 

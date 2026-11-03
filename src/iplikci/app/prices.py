@@ -9,6 +9,10 @@ time. A failure is recorded for the Settings screen and logged at WARNING, never
 
 The index is not part of the analysis: the Değerlendirme screen reads it beside it (index), so a new month needs no
 new analysis, and the rebuild does not carry it — the key fetches it again.
+
+A series can stop: TÜİK moved TÜFE to a new base in 2026 and EVDS made the old series an archive (fx.evds). So the
+status says when the newest month kept is older than TÜFE's calendar allows (behind), rather than the trend waiting
+for a month that never comes.
 """
 
 import logging
@@ -34,6 +38,7 @@ __all__ = [
     "FETCH_JOB",
     "PricesError",
     "PricesStatus",
+    "behind",
     "fetch",
     "index",
     "remove_key",
@@ -71,6 +76,15 @@ class PricesStatus:
     newest: str | None
     last_run: str  # when the last fetch ran (UTC, ISO 8601); "" if none yet
     last_error: str  # what went wrong in it, in Turkish; ""
+    behind: bool  # with a key and a fetch done: no month kept, or the newest older than TÜFE's calendar allows
+
+
+def behind(newest: str | None, today: date) -> bool:
+    """Whether TÜFE should have a newer month than newest (YYYY-MM; None for none) by today. TÜİK publishes a month's
+    index on the third of the next one, so on any day the month before last is out: a newest month older than that
+    means EVDS stopped giving the series."""
+    year, month = (today.year, today.month - 2) if today.month > 2 else (today.year - 1, today.month + 10)
+    return newest is None or newest < f"{year}-{month:02d}"
 
 
 def _enabled(ws: Workspace) -> bool:
@@ -98,23 +112,30 @@ def _save(db: Database, error: str) -> None:
     feed_state.save(db, STATE, {"at": now(), "error": error})
 
 
-def status(ws: Workspace) -> PricesStatus:
+def status(ws: Workspace, today: date | None = None) -> PricesStatus:
     with ws.db() as db:
         kept = prices.every(db, SERIES)
         state: dict[str, Any] = feed_state.load(db, STATE) or {}
     months = list(kept)
+    has_key = _enabled(ws)
+    newest = months[-1] if months else None
+    last_run = str(state.get("at", ""))
     return PricesStatus(
-        has_key=_enabled(ws),
+        has_key=has_key,
         months=len(months),
         first=months[0] if months else None,
-        newest=months[-1] if months else None,
-        last_run=str(state.get("at", "")),
+        newest=newest,
+        last_run=last_run,
         last_error=str(state.get("error", "")),
+        behind=has_key and bool(last_run) and behind(newest, today or date.today()),
     )
 
 
 def index(ws: Workspace) -> dict[str, Decimal]:
-    """TÜFE as kept, by YYYY-MM; empty without a key's fetch."""
+    """TÜFE as kept, by YYYY-MM, while the feature is on: empty without a key. Removing the key turns it off; the
+    months stay kept (TCMB's public figures) and show again with a new key."""
+    if not _enabled(ws):
+        return {}
     with ws.db() as db:
         return prices.every(db, SERIES)
 
@@ -147,7 +168,7 @@ def set_key(ws: Workspace, key: str, actor: Actor, get: Fetch | None = None, tod
         prices.put(db, SERIES, found)
         _save(db, "")
         audit.record(db, actor, KEY_SET, "evds", months=len(found))
-    return status(ws)
+    return status(ws, today)
 
 
 def remove_key(ws: Workspace, actor: Actor) -> None:

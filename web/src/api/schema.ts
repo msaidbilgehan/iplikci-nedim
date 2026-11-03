@@ -643,6 +643,7 @@ export interface EvdsOut {
   newest: string | null;
   last_run: string;
   last_error: string;
+  behind: boolean;
 }
 
 /** An event a rule may watch, and the conditions it allows. */

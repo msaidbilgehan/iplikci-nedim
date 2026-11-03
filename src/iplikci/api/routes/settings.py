@@ -194,6 +194,7 @@ class EvdsOut(BaseModel):
     newest: str | None
     last_run: str
     last_error: str
+    behind: bool  # TÜFE should have a newer month by now: EVDS may have stopped the series
 
 
 def _evds_out(found: prices.PricesStatus) -> EvdsOut:
@@ -204,6 +205,7 @@ def _evds_out(found: prices.PricesStatus) -> EvdsOut:
         newest=found.newest,
         last_run=found.last_run,
         last_error=found.last_error,
+        behind=found.behind,
     )
 
 

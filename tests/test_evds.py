@@ -19,7 +19,7 @@ KEY = "AbCdEf1234"
 
 def test_a_request_names_the_series_and_the_span_in_the_path_as_evds_wants_them():
     path = evds.path(evds.TUFE, date(2025, 1, 1), date(2026, 11, 3))
-    assert path == "/igmevdsms-dis/series=TP.FG.J0&startDate=01-01-2025&endDate=03-11-2026&type=json"
+    assert path == "/igmevdsms-dis/series=TP.TUKFIY2025.GENEL&startDate=01-01-2025&endDate=03-11-2026&type=json"
     assert "?" not in path and KEY not in path
 
 
@@ -39,7 +39,7 @@ def test_an_answer_gives_each_month_its_index_exactly_and_leaves_a_month_not_out
 
 
 def test_a_number_written_as_a_json_number_is_read_exactly_too():
-    found = evds.parse(b'{"totalCount":1,"items":[{"Tarih":"2026-1","TP_FG_J0":3215.05}]}')
+    found = evds.parse(b'{"totalCount":1,"items":[{"Tarih":"2026-1","TP_TUKFIY2025_GENEL":3215.05}]}')
     assert found == {"2026-01": Decimal("3215.05")}
 
 
@@ -48,9 +48,9 @@ def test_a_number_written_as_a_json_number_is_read_exactly_too():
     [
         b"<html>bakim</html>",  # no JSON
         b'{"totalCount":0}',  # no items
-        b'{"items":[{"Tarih":"2026-01-15","TP_FG_J0":"3215.05"}]}',  # a daily date in a monthly series
-        b'{"items":[{"Tarih":"2026-1","TP_FG_J0":"3.215,05"}]}',  # a number EVDS does not write
-        b'{"items":[{"TP_FG_J0":"3215.05"}]}',  # no date
+        b'{"items":[{"Tarih":"2026-01-15","TP_TUKFIY2025_GENEL":"3215.05"}]}',  # a daily date in a monthly series
+        b'{"items":[{"Tarih":"2026-1","TP_TUKFIY2025_GENEL":"3.215,05"}]}',  # a number EVDS does not write
+        b'{"items":[{"TP_TUKFIY2025_GENEL":"3215.05"}]}',  # no date
         b'{"items":["2026-1"]}',
     ],
 )

@@ -3899,6 +3899,7 @@ export const EVDS_NONE: EvdsState = {
   newest: null,
   last_run: "",
   last_error: "",
+  behind: false,
 };
 
 export const EVDS_KEPT: EvdsState = {
@@ -3908,6 +3909,7 @@ export const EVDS_KEPT: EvdsState = {
   newest: "2026-10",
   last_run: "2026-11-03T07:30:02+00:00",
   last_error: "",
+  behind: false,
 };
 
 export const handlers = [

@@ -19,6 +19,7 @@ from iplikci.domain.codes import TransactionKind, UnusualKind
 from iplikci.domain.models import Transaction
 from iplikci.fx import evds
 from iplikci.insights import Insights
+from iplikci.settings import config
 from iplikci.storage import prices
 
 TOKEN = "deneme-belirteci"
@@ -77,8 +78,9 @@ BEFORE, RECENT = ["2026-01", "2026-02", "2026-03"], ["2026-04", "2026-05", "2026
 
 
 def insights_with(tmp_path, index: dict[str, Decimal]) -> dict:
-    """The demo's interpretation with TÜFE kept for index's months, as a key's fetch keeps it."""
+    """The demo's interpretation with TÜFE kept for index's months and the feature on, as a key's fetch leaves them."""
     ws = Workspace.load(demo.build(tmp_path / "veri"))
+    config.update(ws.layout.settings, "fx", {"evds": True})
     with ws.db() as db:
         prices.put(db, evds.TUFE, index)
     client = TestClient(
