@@ -7,8 +7,9 @@
   "code": {
     "title": "Claude Code'a ekleyin",
     "intro": "claude-SAK ile terminal açmadan eklenir:",
-    "stepOpen": "claude-SAK'ın web panelinde Store'u açın, Import / Export sekmesinde “MCP JSON”u seçin.",
-    "stepPaste": "Aşağıdaki yapılandırmayı kopyalayıp yapıştırın; kurulacak yer olarak bütün hesapları ve projeleri seçin.",
+    "stepOpen": "claude-SAK'ın web panelinde Store'u açın; Import / Export sekmesinde kaynak olarak “MCP JSON”u seçin.",
+    "stepPaste": "Aşağıdaki yapılandırmayı kopyalayıp JSON kutusuna yapıştırın ve “Preview”a basın.",
+    "stepInstall": "“Install it in these places” kutusunu işaretleyin ve Profiles'ta “All profiles”u seçin; proje seçmeyin. Sonra “Import”a basın. Böylece bütün Claude hesaplarınızda, her projede kullanılır.",
     "stepCheck": "Claude Code'da yeni bir oturum açın: /mcp listesinde “iplikci” görünür.",
     "config": "Claude Code ve claude-SAK yapılandırması",
     "token": "Bu yapılandırmada belirteç yok: Claude her bağlanışta onu İplikçi Nedim'in başlık yardımcısıyla anahtar zincirinden okur.",

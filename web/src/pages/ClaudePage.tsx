@@ -52,7 +52,8 @@ function Connected({ connection }: { connection: McpConnection }) {
   );
 }
 
-/** Claude Code, through claude-SAK's MCP JSON import: the steps, the JSON and, folded, the command lines. */
+/** Claude Code, through claude-SAK's MCP JSON import (its panel's own labels): the steps, the JSON and, folded, the
+ *  command lines. */
 function CodeCard({ connection }: { connection: McpConnection }) {
   const { t } = useTranslation("claude");
   return (
@@ -62,6 +63,7 @@ function CodeCard({ connection }: { connection: McpConnection }) {
         <ol className="list-decimal pl-5">
           <li>{t("code.stepOpen")}</li>
           <li>{t("code.stepPaste")}</li>
+          <li>{t("code.stepInstall")}</li>
           <li>{t("code.stepCheck")}</li>
         </ol>
         <Copyable

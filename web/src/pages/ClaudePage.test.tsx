@@ -14,9 +14,12 @@ describe("ClaudePage", () => {
     const card = await screen.findByRole("region", {
       name: "Claude Code'a ekleyin",
     });
-    expect(within(card).getAllByRole("listitem")).toHaveLength(3);
+    expect(within(card).getAllByRole("listitem")).toHaveLength(4);
     expect(
-      within(card).getByText(/Import \/ Export sekmesinde “MCP JSON”u seçin/),
+      within(card).getByText(/Import \/ Export sekmesinde kaynak olarak “MCP JSON”u/),
+    ).toBeInTheDocument();
+    expect(
+      within(card).getByText(/Profiles'ta “All profiles”u seçin; proje seçmeyin/),
     ).toBeInTheDocument();
     const config = within(card).getByText(/"headersHelper"/);
     expect(config.textContent).toContain('"url": "http://127.0.0.1:8643/mcp"');
