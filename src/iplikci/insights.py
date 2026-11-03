@@ -25,7 +25,16 @@ from decimal import Decimal
 from itertools import pairwise
 from statistics import median
 
-from .analysis import NOT_ON_STATEMENT, PROVISIONAL, Dataset, DatedRate, ReceiptLine, payments, whole
+from .analysis import (
+    NOT_ON_STATEMENT,
+    POSTING_DAYS,
+    PROVISIONAL,
+    Dataset,
+    DatedRate,
+    ReceiptLine,
+    payments,
+    whole,
+)
 from .categorize import FX_CATEGORY
 from .domain.codes import (
     CARD_TYPES,
@@ -1525,21 +1534,52 @@ def receipt_amount(ds: Dataset, line: ReceiptLine) -> str:
     return f"{format_amount(abs(line.native))} {currency}"
 
 
+def _transfers_once(rows: list[Transaction]) -> list[Transaction]:
+    """Provisional transfers between one's own accounts, each once. When both ends of a transfer wait for their
+    lists, the money shows going out of one account and the same money coming into another, a few days apart at
+    most; the ledger names both as one's own without pairing them, and their signed sum is nothing."""
+    outs = [t for t in rows if t.amount > 0]
+    once, left = list(outs), list(outs)
+    for t in (t for t in rows if t.amount < 0):
+        twin = next(
+            (
+                o
+                for o in left
+                if o.account != t.account
+                and abs(o.amount + t.amount) <= CENT
+                and abs((o.date - t.date).days) <= POSTING_DAYS[1]
+            ),
+            None,
+        )
+        if twin is None:
+            once.append(t)
+        else:
+            left = [o for o in left if o is not twin]
+    return once
+
+
 def _receipts_finding(c: _Context) -> None:
     rows = [t for t in c.ds.transactions if t.provisional]
     if rows:
+        own = [t for t in rows if t.kind == TransactionKind.OWN_TRANSFER]
+        made_of = [t for t in rows if t.kind != TransactionKind.OWN_TRANSFER] + _transfers_once(own)
         parts = []
         for kinds, label in _RECEIPT_KINDS:
-            total = sum((t.amount for t in rows if t.kind in kinds), ZERO)
+            found = [t for t in made_of if t.kind in kinds]
+            if kinds == (TransactionKind.OWN_TRANSFER,):
+                total = sum((abs(t.amount) for t in found), ZERO)  # how much moved, not where to
+            else:
+                total = sum((t.amount for t in found), ZERO)
             if abs(total) >= 1:
                 parts.append(f"{label} {tl(abs(total))}")
         first, last = min(t.date for t in rows), max(t.date for t in rows)
         when = _day(first) if first == last else f"{_day(first)}–{_day(last)}"
-        made = len({t.split_of or id(t) for t in rows})  # payments: a split row's parts are one
+        made = len({t.split_of or id(t) for t in made_of})  # payments: a split row's parts are one, a transfer's ends
+        listed = f": {', '.join(parts)}" if parts else ""
         text = (
             f"Son ekstre ve hesap dökümlerinden sonra gelen dekontlardan {made} işlem şimdiden işlendi "
-            f"({when}): {', '.join(parts)}. Bakiyeler ve kart borcu bunlarla güncellendi; ekstre ya da döküm "
-            "gelince satırlarıyla eşleşip kesinleşecekler."
+            f"({when}){listed}. Bakiyeler ve kart borcu bunlarla güncellendi; ekstre ya da döküm gelince "
+            "satırlarıyla eşleşip kesinleşecekler."
         )
         c.ins.findings.append(Finding("bilgi", "Ekstre gelmeden işlenen dekontlar", text, {"provisional": True}))
     missing = [line for line in c.ds.receipts if line.status == NOT_ON_STATEMENT]

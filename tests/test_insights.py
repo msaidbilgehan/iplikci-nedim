@@ -575,6 +575,41 @@ def test_stocks_count_at_market_value_and_an_old_balance_is_shown_but_not_counte
 # --- findings ---------------------------------------------------------------------------------
 
 
+def _waiting(d: date, merchant: str, amount: str, kind: TransactionKind, account: str) -> Transaction:
+    """A row a receipt brought before its account's statement."""
+    return replace(tx(d, merchant, Decimal(amount), "Hesaplar Arası Transfer", None, kind, account), provisional=True)
+
+
+def _receipts_text(txns: list[Transaction]) -> str:
+    found = interpret(dataset(txns, [])).findings
+    return next(f.text for f in found if f.title == "Ekstre gelmeden işlenen dekontlar")
+
+
+def test_a_transfer_between_own_accounts_waiting_at_both_ends_is_one_payment_told_by_how_much_moved():
+    text = _receipts_text(
+        [
+            _waiting(date(2026, 10, 31), "Giden transfer", "12500", TransactionKind.OWN_TRANSFER, "cash"),
+            _waiting(date(2026, 10, 31), "Gelen transfer", "-12500", TransactionKind.OWN_TRANSFER, "vadeli"),
+        ]
+    )
+    assert "dekontlardan 1 işlem şimdiden işlendi (31.10.2026): kendi hesaplarınız arasında 12.500 TL." in text
+
+
+def test_transfers_between_own_accounts_with_one_end_waiting_each_count_by_their_amount():
+    text = _receipts_text(
+        [
+            _waiting(date(2026, 10, 31), "Giden transfer", "1000", TransactionKind.OWN_TRANSFER, "cash"),
+            _waiting(date(2026, 11, 2), "Gelen transfer", "-500", TransactionKind.OWN_TRANSFER, "vadeli"),
+        ]
+    )
+    assert "2 işlem şimdiden işlendi (31.10.2026–02.11.2026): kendi hesaplarınız arasında 1.500 TL." in text
+
+
+def test_waiting_rows_too_small_to_name_leave_no_empty_list_in_the_sentence():
+    text = _receipts_text([_waiting(date(2026, 10, 31), "Ücret", "0.40", TransactionKind.INTEREST_FEE, "cash")])
+    assert "1 işlem şimdiden işlendi (31.10.2026). Bakiyeler" in text and ": ." not in text
+
+
 def test_interpretation_prices_the_steps_and_balances_the_budget():
     statements = card_statements(date(2025, 12, 14), 11, total=Decimal(5000)) + [
         Statement(
