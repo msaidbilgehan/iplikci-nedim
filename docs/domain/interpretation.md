@@ -100,7 +100,12 @@ nedenleri arasında sayılmaz.
 
 - **Hesaplar:** hesap listelerinin kapanış bakiyesi.
 - **Kartlar:** ekstre borcundan kesimden sonra yapılan ödemeler düşülür.
-- **Döviz:** belgelerdeki en yeni kurla, tarihi yazılarak. V1'de TCMB kuruyla, tarihi yazılarak.
+- **Döviz** (V1, [mimari §15](../v1/architecture.md#15-döviz))
+  - Kur sağlayıcısının en yeni kuruyla (TCMB; ulaşılamadığı günlerde ECB): varlık döviz alış, borç (eksi bakiye) döviz
+    satış kuruyla. Banka da dövizinizi alış kuruyla alır, borcunuzu satış kuruyla kapatır. Kurun günü ve kaynağı
+    yazılır.
+  - Kur sağlayıcısının o para birimi için kuru yoksa belgelerdeki en yeni kurla, tarihi yazılarak (MVP kuralı).
+  - Net varlık EUR ve USD'ye en yeni döviz satış kuruyla çevrilir: o parayla döviz almak satış kuruna mal olur.
 - **Altın:** gram ve ödenen TL ile gösterilir; belgeler altın fiyatı taşımaz.
 - **Hisseler:** en yeni yatırım ekstresinin piyasa değeriyle, tarihi yazılarak.
 - **Eski belge:** en yeni belgesi en yeni ekstreden 180 günden eski olan bir bakiye TL değeri olmadan gösterilir ve
@@ -191,7 +196,9 @@ nedenleri arasında sayılmaz.
 - **Borç görünümü**
   - Kart borçları; kalan taksitler (n/m etiketinden kalan × tutar); KMH (eksi bakiye) gösterilir.
   - Krediler, e-dekontlardaki taksit bilgisinden gösterilir; kalan anapara bilinmiyorsa "bilinmiyor" yazar.
-- **Çoklu para birimi:** varlıklar aynı günün kurlarıyla EUR, USD ve gram altın cinsinden de gösterilir.
+- **Çoklu para birimi:** varlıklar aynı günün kurlarıyla EUR, USD ve gram altın cinsinden de gösterilir. EUR ve USD
+  karşılığı kur sağlayıcısının en yeni döviz satış kuruyla hesaplanır (yukarıda, Varlıklar ve borçlar); gram altın,
+  ücretsiz ve güvenilir bir fiyat kaynağı doğrulanana dek gram ve maliyetiyle kalır.
 
 ## Akış olayları
 

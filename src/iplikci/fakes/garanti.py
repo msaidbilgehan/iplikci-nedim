@@ -340,13 +340,15 @@ def account_xls(
     number: str = "1234567",
     holder: str = HOLDER,
     period: tuple[date, date] = (date(2026, 10, 1), date(2026, 10, 31)),
+    currency: str = "TL",
 ) -> bytes:
     """A Garanti BBVA "Hesap Hareketleri" export (XLS): the account and its holder above a table of rows, newest
-    first, each with the bank's label and the balance after it."""
+    first, each with the bank's label and the balance after it. currency is the account's as the export prints it
+    ("TL", "EUR", "USD"): a foreign one makes a foreign-currency account, its amounts in that currency."""
     head: list[list[Cell]] = [
         ["T. Garanti Bankası A.Ş.", None, None, None, None],
         ["Hesap Hareketleri"],
-        ["Hesap", f"106 - {number} TL", None, "Ad Soyad", holder],
+        ["Hesap", f"106 - {number} {currency}", None, "Ad Soyad", holder],
         ["Başlangıç", f"{period[0]:%d.%m.%Y}", None, "Bitiş", f"{period[1]:%d.%m.%Y}"],
         ["IBAN", f"TR00 0006 2000 1060 000{number}"],
         [],

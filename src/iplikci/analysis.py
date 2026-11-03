@@ -27,12 +27,21 @@ from decimal import Decimal
 from typing import Any
 
 from .categorize import Categorizer, clean_description
-from .domain.codes import CARD_TYPES, AccountType, DocumentKind, EvidenceStatus, TransactionKind, TransferStep
+from .domain.codes import (
+    CARD_TYPES,
+    AccountType,
+    DocumentKind,
+    EvidenceStatus,
+    RateSource,
+    TransactionKind,
+    TransferStep,
+)
 from .domain.fingerprint import Fingerprints
-from .domain.labels import EVIDENCE_STATUS, format_amount
+from .domain.labels import EVIDENCE_STATUS, format_amount, format_rate
 from .domain.models import TRY, Account, Invoice, ParseResult, Statement, Transaction
-from .domain.money import CENT, round_half_up
+from .domain.money import CENT
 from .domain.text import fold
+from .fx.book import EMPTY, RateBook, to_tl
 from .invoices import InvoiceMatch, one_copy, settled_until
 from .invoices import match as match_invoices
 from .parsers.registry import document_type, label
@@ -87,6 +96,10 @@ class Dataset:
     invoices: list[InvoiceMatch] = field(default_factory=list)  # non-bank bills and receipts, never counted (F14)
     # The rows the user split (F04), whole, by fingerprint: `transactions` holds their parts in their place.
     split: dict[str, Transaction] = field(default_factory=dict)
+    # The rates the providers published (architecture §15), as the analysis read them from the database: they value the
+    # foreign rows no document gives a rate for and the balances, and the banks' rates are compared with them. Empty
+    # without the network: the documents' own rates are used then.
+    book: RateBook = EMPTY
 
 
 def whole(ds: Dataset, t: Transaction) -> Transaction:
@@ -532,10 +545,69 @@ def nearest_rate(rates: Mapping[str, Sequence[tuple[date, Decimal]]], currency: 
     return found[1] if found else None
 
 
+@dataclass(frozen=True, slots=True)
+class PrintedRate:
+    """The rate a bank prints on a row of its own: a currency bought or sold for TL."""
+
+    currency: str
+    rate: Decimal  # TL for one unit
+    amount: Decimal | None  # the foreign amount, where the row prints it beside the rate (Vakıfbank's "karşılığı")
+
+
+def _turkish_number(text: str) -> Decimal:
+    """A number as Vakıfbank prints it: "1.234,56" is Decimal("1234.56")."""
+    return Decimal(text.replace(".", "").replace(",", "."))
+
+
+def printed_rate(t: Transaction) -> PrintedRate | None:
+    """The bank's rate t's description prints: Vakıfbank's "(100,00 EUR karşılığı)) (İşlem Kuru : 36,50)", with the
+    foreign amount, or Garanti's "EUR:54.44500"; None where it prints none."""
+    found = _RATE_VAKIF.search(t.description)
+    if found:
+        return PrintedRate(found[2], _turkish_number(found[3]), _turkish_number(found[1]))
+    found = _RATE.search(t.description)
+    return PrintedRate(found[1], Decimal(found[2].replace(",", ".")), None) if found else None
+
+
+@dataclass(frozen=True, slots=True)
+class DatedRate:
+    """A TL rate as the ledger and the screens take it: TL for one unit, the day it is of, and where it comes from."""
+
+    rate: Decimal
+    day: date  # of the row that printed it, or of the providers' bulletin (Friday's for a Saturday)
+    source: RateSource
+
+
+def row_rate(
+    rates: Mapping[str, Sequence[tuple[date, Decimal]]], book: RateBook, currency: str, t: Transaction
+) -> DatedRate | None:
+    """The TL rate a row of a foreign-currency account is valued at (docs/domain/ledger.md, "Kur çevirisi"):
+
+    1. the bank's own rate for that very row, where its description prints one in the account's currency;
+    2. else the providers' rate of its day (the book's: its own bulletin or the latest one within a week before it),
+       at the buying side: what the currency was worth to its holder that day, as the account is an asset;
+    3. else the rate the documents print nearest to its day: without the network only the documents' rates are known.
+
+    None without any: the row is left out."""
+    own = printed_rate(t)
+    if own is not None and own.currency == currency:
+        return DatedRate(own.rate, t.date, RateSource.DOCUMENT)
+    quote = book.on(currency, t.date)
+    if quote is not None:
+        return DatedRate(quote.buying, quote.day, quote.source)
+    found = nearest(rates, currency, t.date)
+    return DatedRate(found[1], found[0], RateSource.DOCUMENT) if found else None
+
+
 def _to_tl(
-    txns: list[Transaction], accounts: dict[str, Account], rates: dict, warnings: list[str]
+    txns: list[Transaction],
+    accounts: dict[str, Account],
+    rates: dict,
+    warnings: list[str],
+    book: RateBook = EMPTY,
 ) -> list[Transaction]:
-    """Value foreign-currency account rows in TL with the nearest rate found in the documents."""
+    """Value foreign-currency account rows in TL at the rate row_rate picks; the rate, its day and its source, and the
+    amount it turned into TL, stay on the row's reason."""
     out = []
     for t in txns:
         currency = accounts[t.account].currency if t.account in accounts else TRY
@@ -544,14 +616,16 @@ def _to_tl(
             continue
         if t.kind == TransactionKind.OWN_TRANSFER:
             continue  # moving foreign currency between own accounts changes nothing
-        found = nearest(rates, currency, t.date)
+        found = row_rate(rates, book, currency, t)
         if found is None:
             warnings.append(f"{t.date} {currency} {t.amount}: kur bulunamadı, işlem dışarıda bırakıldı")
             continue
-        day, rate = found
-        t.amount = round_half_up(t.amount * rate)
-        t.original = f"{t.original} × {format_amount(rate)}"
-        t.reason = replace(t.reason, rate=rate, rate_day=day)
+        native = t.amount
+        t.amount = to_tl(native, found.rate)
+        # A bank prints its rate as it likes; a provider's is written as TCMB prints it, to four decimals.
+        shown = format_amount(found.rate) if found.source is RateSource.DOCUMENT else format_rate(found.rate)
+        t.original = f"{t.original} × {shown}"
+        t.reason = replace(t.reason, rate=found.rate, rate_day=found.day, rate_source=found.source, native=native)
         out.append(t)
     return out
 
@@ -652,9 +726,11 @@ def build(
     results: Sequence[tuple[Any, ParseResult | None, Sequence[str] | None]],
     categorizer: Categorizer,
     settings: Mapping[str, Any],
+    book: RateBook = EMPTY,
 ) -> Dataset:
     """results: (document, its reading or None, (status, detail) when there is no reading) tuples; a document has
-    a name, an origin and a sha256."""
+    a name, an origin and a sha256. book: the providers' rates; without them the documents' own rates value the
+    foreign rows."""
     accounts: dict[str, Account] = {}
     told: dict[str, Account] = {}  # accounts as only bank notices name them
     statements: dict[tuple, Statement] = {}
@@ -723,8 +799,8 @@ def build(
         account_txns + receipt_txns, own, categorizer, counted, accounts, _free_card_payments(card_txns, account_txns)
     )
     rates = _rates(account_txns)
-    account_txns = _to_tl(account_txns, accounts, rates, warnings)
-    receipt_txns = _to_tl(receipt_txns, accounts, rates, warnings)
+    account_txns = _to_tl(account_txns, accounts, rates, warnings, book)
+    receipt_txns = _to_tl(receipt_txns, accounts, rates, warnings, book)
 
     txns = card_txns + account_txns + receipt_txns
     for t in txns:
@@ -750,4 +826,5 @@ def build(
         regular=categorizer.regular,
         receipts=lines,
         invoices=invoices,
+        book=book,
     )

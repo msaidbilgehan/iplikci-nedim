@@ -25,18 +25,19 @@ from decimal import Decimal
 from itertools import pairwise
 from statistics import median
 
-from .analysis import NOT_ON_STATEMENT, PROVISIONAL, Dataset, ReceiptLine, payments, whole
+from .analysis import NOT_ON_STATEMENT, PROVISIONAL, Dataset, DatedRate, ReceiptLine, payments, whole
 from .categorize import FX_CATEGORY
 from .domain.codes import (
     CARD_TYPES,
     DEFAULT_EXPENSE_KINDS,
     AccountType,
     Necessity,
+    RateSource,
     SeriesPeriod,
     SeriesStatus,
     TransactionKind,
 )
-from .domain.labels import MONTHS, format_amount
+from .domain.labels import MONTHS, RATE_SOURCE, format_amount, format_rate
 from .domain.models import TRY, Transaction
 from .domain.money import CENT, round_half_up, to_decimal
 from .domain.text import fold
@@ -318,7 +319,7 @@ class Series:
 _FOREIGN = re.compile(r"^(\d{1,3}(?:\.\d{3})*|\d+),(\d{2}) ([A-Z]{3})$")
 
 
-def _billed(t: Transaction) -> tuple[Decimal, str] | None:
+def billed(t: Transaction) -> tuple[Decimal, str] | None:
     """What a payment billed in a foreign currency cost in it, and the currency; None for a payment in TL."""
     found = _FOREIGN.match(t.original.strip())
     return (Decimal(f"{found[1].replace('.', '')}.{found[2]}"), found[3]) if found else None
@@ -327,12 +328,12 @@ def _billed(t: Transaction) -> tuple[Decimal, str] | None:
 def _billed_tail(payments: list[Transaction]) -> list[Decimal]:
     """The foreign amounts of the latest payments that all have one in the last payment's currency, oldest first;
     none when the last payment was in TL."""
-    last = _billed(payments[-1]) if payments else None
+    last = billed(payments[-1]) if payments else None
     if last is None:
         return []
     tail: list[Decimal] = []
     for t in reversed(payments):
-        found = _billed(t)
+        found = billed(t)
         if found is None or found[1] != last[1]:
             break
         tail.append(found[0])
@@ -881,9 +882,32 @@ class Holding:
     cost: Decimal = ZERO  # TL paid for gold; its market price is not in the documents
 
 
-def _latest_rate(ds: Dataset, currency: str) -> tuple[date, Decimal] | None:
+def balance_rate(ds: Dataset, currency: str, amount: Decimal) -> DatedRate | None:
+    """The TL rate a balance of amount in a foreign currency is valued at (docs/domain/interpretation.md, "Varlıklar
+    ve borçlar"; architecture §15): the providers' newest, at the forex buying rate for an asset and at the selling
+    rate for a debt (an overdraft below zero), as a bank would take or ask; without one, the newest rate the documents
+    print, its day written. None without either."""
+    quote = ds.book.newest(currency)
+    if quote is not None:
+        return DatedRate(quote.selling if amount < 0 else quote.buying, quote.day, quote.source)
     found = ds.rates.get(currency)
-    return max(found) if found else None
+    if not found:
+        return None
+    day, rate = max(found)
+    return DatedRate(rate, day, RateSource.DOCUMENT)
+
+
+def provider_rate_said(r: DatedRate, selling: bool = False) -> str:
+    """A provider's rate as the notes name it: "TCMB 03.11.2026 döviz alış kuru"; ECB's and Frankfurter's one rate
+    a day stands for both sides: "ECB 03.11.2026 referans kuru"."""
+    side = ("döviz satış" if selling else "döviz alış") if r.source is RateSource.TCMB else "referans"
+    return f"{RATE_SOURCE[r.source]} {_day(r.day)} {side} kuru"
+
+
+def _rate_note(r: DatedRate, debt: bool) -> str:
+    if r.source is RateSource.DOCUMENT:
+        return f"kur {r.rate:.2f} ({_day(r.day)} belgesinden)".replace(".", ",", 1)
+    return f"kur {format_rate(r.rate)} ({provider_rate_said(r, debt)})"
 
 
 def payments_after(ds: Dataset, card: str, cut: date) -> list[Transaction]:
@@ -989,11 +1013,14 @@ def holdings(ds: Dataset) -> list[Holding]:
             )
             h = Holding(a.label, "altin", "gr", s.total, None, s.cut_date, note, max(ZERO, paid))
         elif a.currency != TRY:
-            rate = _latest_rate(ds, a.currency)
-            value = round_half_up(s.total * rate[1]) if rate else None
-            note = f"kur {rate[1]:.2f} ({_day(rate[0])} belgesinden)".replace(".", ",", 1) if rate else "kur bulunamadı"
+            lines = waiting.get(account, [])
+            # The receipts after the list move the balance (_with_receipts): an asset or a debt is what it comes to.
+            after = round_half_up(s.total - round_half_up(sum((line.native for line in lines), ZERO)))
+            rate = balance_rate(ds, a.currency, after)
+            value = round_half_up(s.total * rate.rate) if rate else None
+            note = _rate_note(rate, after < 0) if rate else "kur bulunamadı"
             h = Holding(a.label, "doviz", a.currency, s.total, value, s.cut_date, note)
-            _with_receipts(h, waiting.get(account, []), rate[1] if rate else None)
+            _with_receipts(h, lines, rate.rate if rate else None)
         else:
             h = Holding(a.label, "nakit", TRY, s.total, s.total, s.cut_date)
             _with_receipts(h, waiting.get(account, []), None)

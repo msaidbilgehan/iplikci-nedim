@@ -15,7 +15,15 @@ from itertools import groupby
 
 from ..analysis import NO_STATEMENT, PROVISIONAL, Dataset, ReceiptLine, statement_periods
 from ..categorize import FEE_CATEGORIES, FX_CATEGORY
-from ..domain.codes import DEFAULT_EXPENSE_KINDS, AccountType, Certainty, PaidStatus, PaymentKind, TransactionKind
+from ..domain.codes import (
+    DEFAULT_EXPENSE_KINDS,
+    AccountType,
+    Certainty,
+    PaidStatus,
+    PaymentKind,
+    RateSource,
+    TransactionKind,
+)
 from ..domain.models import TRY, Security, Statement
 from ..domain.money import round_half_up
 from ..domain.text import fold
@@ -124,9 +132,10 @@ class HoldingPage:
 
     amount: Decimal | None  # in the account's currency, or grams of gold
     currency: str
-    value: Decimal | None  # in TL at the documents' newest rate; None without one (gold)
+    value: Decimal | None  # in TL at the rate "Şu an" values it at (app.now); None without one (gold)
     rate: Decimal | None
     rate_day: date | None
+    rate_source: RateSource | None
     cost: Decimal | None  # TL paid for it where the documents tell: gold bought from a TL account of the same bank
     gain: Decimal | None  # value less cost, when both are known
     note: str
@@ -400,16 +409,20 @@ def holding_page(ds: Dataset, account: str, balance: now.Balance | None) -> Hold
         if cost is not None:
             note += " Maliyet, aynı bankanın TL hesaplarından altın alımına ödenenler (satışlar düşülerek)."
     else:
-        note = (
-            "TL değeri belgelerdeki en yeni kurla. Maliyet ve kur farkı için dövizin hangi kurdan alındığı belgelerden "
-            "bütünüyle çıkmıyor."
+        source = balance.rate_source if balance is not None else None
+        valued = (
+            "TL değeri belgelerdeki en yeni kurla."
+            if source in (None, RateSource.DOCUMENT)
+            else "TL değeri kur sağlayıcısının en yeni kuruyla: varlık döviz alış, borç döviz satış kuruyla."
         )
+        note = f"{valued} Maliyet ve kur farkı için dövizin hangi kurdan alındığı belgelerden bütünüyle çıkmıyor."
     return HoldingPage(
         amount=balance.balance if balance is not None else None,
         currency=found.currency,
         value=value,
         rate=balance.rate if balance is not None else None,
         rate_day=balance.rate_day if balance is not None else None,
+        rate_source=balance.rate_source if balance is not None else None,
         cost=cost,
         gain=gain,
         note=note,

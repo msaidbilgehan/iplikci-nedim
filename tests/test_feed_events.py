@@ -8,13 +8,14 @@ from decimal import Decimal
 
 from iplikci.analysis import CONFIRMED, NOT_ON_STATEMENT, PROVISIONAL, Dataset, ReceiptLine
 from iplikci.app import background
-from iplikci.domain.codes import AccountType, EvidenceStatus, Necessity, TransactionKind
+from iplikci.domain.codes import AccountType, EvidenceStatus, Necessity, RateSource, TransactionKind
 from iplikci.domain.models import Account, Statement, Transaction
 from iplikci.domain.text import fold
 from iplikci.fakes import teb
 from iplikci.feed import news
 from iplikci.feed.news import Found
 from iplikci.feed.snapshot import BULK, Change, Snapshot, diff, take
+from iplikci.fx.book import Quote, RateBook
 from iplikci.insights import interpret
 from iplikci.storage import events
 from iplikci.upcoming import CardDue, add_months
@@ -493,6 +494,14 @@ def test_an_unmatched_row_of_a_foreign_currency_account_is_valued_at_the_nearest
     assert valued.detail == {"title": "VELİ ÖRNEKSOY", "amount": "3650.00", "account": "euro", "date": "2026-11-06"}
     (unvalued,) = news.unmatched(dataset(receipts=[line]))  # no rate printed anywhere: the amount stays in euros
     assert (unvalued.detail["amount"], unvalued.detail["currency"]) == ("100.00", "EUR")
+
+
+def test_an_unmatched_foreign_row_takes_the_providers_rate_of_its_day_before_the_documents():
+    line = notice(date(2026, 11, 6), 100, account="euro", status=NOT_ON_STATEMENT)
+    rates = {"EUR": [(date(2026, 11, 1), Decimal("36.50"))]}
+    book = RateBook([Quote(date(2026, 11, 6), "EUR", Decimal("36.4521"), Decimal("36.5178"), RateSource.TCMB)])
+    (valued,) = news.unmatched(dataset(receipts=[line], rates=rates, book=book))
+    assert valued.detail["amount"] == "3645.21"  # at TCMB's buying rate of the day, as the ledger values the account
 
 
 # --- the snapshot ------------------------------------------------------------------------------------------------

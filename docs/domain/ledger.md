@@ -168,10 +168,20 @@ Kart ödemeleri ve kart tarafındaki alacakları birbirini götürür; asla harc
 
 - MVP'de dövizli satırlar belgelerde bulunan en yakın kurla çevrilir: açıklamalardaki `USD:` / `EUR:` ya da
   Vakıfbank'ın `İşlem Kuru`.
-- V1'de bunlara kur servisleri eklenir:
-  - Belgedeki kur o işlem için her zaman önce gelir.
-  - Belgede kur yoksa TCMB ya da ECB kuru kullanılır ([mimari §15](../v1/architecture.md#15-döviz)).
-  - Kurun kaynağı ve tarihi satırda saklanır.
+- V1'de bunlara kur servisleri eklenir ([mimari §15](../v1/architecture.md#15-döviz)). Döviz hesabının bir satırı
+  şu sırayla seçilen kurla TL'ye çevrilir (`analysis.row_rate`):
+  1. Satırın kendi kuru: açıklaması hesabın para biriminde bir kur yazıyorsa, bankanın o işlem için uyguladığı kur.
+     Belgedeki kur o işlem için her zaman önce gelir.
+  2. Yoksa kur sağlayıcısının o günkü kuru, **döviz alış** tarafıyla: dövizin o gün sahibine değeri buydu ve döviz
+     hesabı bir varlıktır. Gün, o günün bülteni ya da en fazla bir hafta önceki son bülten demektir: cumartesinin
+     satırı cumanın kurunu alır. Aynı gün TCMB'nin kuru ECB'ninkinden önce gelir; ECB'nin tek referans kuru iki taraf
+     için de geçer.
+  3. Yoksa belgelerin o güne en yakın kuru: ağ yokken yalnızca belgelerdeki kurlar bilinir.
+  4. Hiçbiri yoksa satır dışarıda bırakılır ve uyarı yazılır.
+- Kurun kendisi, günü (kuru yazan satırın ya da bültenin günü) ve kaynağı (belge, TCMB, ECB, Frankfurter) satırda
+  saklanır; satırın kendi para birimindeki tutarı da. Satırın özgün tutarı kuruyla birlikte yazılır: "100,00 EUR ×
+  36,4521" (sağlayıcının kuru TCMB'nin yazdığı gibi dört haneyle, belgenin kuru belgelerin hep gösterildiği gibi).
+- Kur sağlayıcılarından hiç kur alınmamışsa sonuç MVP'deki gibidir: her satır belgelerin en yakın kuruyla çevrilir.
 - Kendi hesapları arasındaki döviz hareketleri gidere girmez.
 
 ## Kapsama ve tam aylar

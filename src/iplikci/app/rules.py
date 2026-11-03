@@ -23,8 +23,9 @@ from ..domain.labels import NECESSITY
 from ..domain.models import Transaction
 from ..domain.money import round_half_up
 from ..domain.text import fold
+from ..fx.book import RateBook
 from ..settings import locks
-from ..storage import annotations, audit
+from ..storage import annotations, audit, fx_rates
 from . import annotate, background
 from .analysis import Current, ledger_input
 from .workspace import Workspace
@@ -186,8 +187,9 @@ def _ledger(ws: Workspace, rules: Categorizer) -> Dataset:
     with ws.db() as db:
         found, _ = ledger_input(db)
         notes = annotations.every(db)
+        book = RateBook(fx_rates.every(db))
     names = list(ws.fresh_settings().identity.names)
-    ds = build(found, rules, {"ad_soyad": names} if names else {})
+    ds = build(found, rules, {"ad_soyad": names} if names else {}, book)
     annotate.apply(ds, notes, rules)
     return ds
 

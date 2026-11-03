@@ -30,7 +30,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
-from ..analysis import CONFIRMED, NOT_ON_STATEMENT, Dataset, nearest_rate, payments
+from ..analysis import CONFIRMED, NOT_ON_STATEMENT, Dataset, payments, row_rate
 from ..domain.codes import CARD_TYPES, PaymentKind, SeriesPeriod, TransactionKind
 from ..domain.models import TRY
 from ..domain.money import round_half_up
@@ -309,8 +309,9 @@ def large(ds: Dataset, ins: Insights, today: date, confirmed: Mapping[str, tuple
 def unmatched(ds: Dataset) -> list[Found]:
     """The receipt and notice rows the statements covering their days do not show (docs/domain/ledger.md,
     "Kanıtlar"). Such a row counts nowhere, so the ledger never valued it in TL: a foreign-currency account's row is
-    valued at the rate the documents print nearest to its day, as the ledger values that account's rows; with no rate
-    printed, its amount stays in the account's currency, which `currency` names."""
+    valued as the ledger values that account's rows (analysis.row_rate: its own rate, else the providers' of its day,
+    else the documents' nearest); without a rate, its amount stays in the account's currency, which `currency`
+    names."""
     found: list[Found] = []
     for line in sorted(ds.receipts, key=lambda line: (line.txn.date, line.txn.fingerprint)):
         t = line.txn
@@ -325,10 +326,10 @@ def unmatched(ds: Dataset) -> list[Found]:
         account = ds.accounts.get(t.account)
         currency = account.currency if account is not None else TRY
         if currency != TRY:
-            rate = nearest_rate(ds.rates, currency, t.date)
+            rate = row_rate(ds.rates, ds.book, currency, t)
             if rate is None:
                 detail["currency"] = currency
             else:
-                detail["amount"] = money(line.native * rate)
+                detail["amount"] = money(line.native * rate.rate)
         found.append(Found(UNMATCHED, t.fingerprint, detail))
     return found

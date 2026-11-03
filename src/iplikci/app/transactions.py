@@ -28,6 +28,7 @@ from ..domain.codes import (
     EvidenceStatus,
     Necessity,
     NecessityReason,
+    RateSource,
     RuleLayer,
     TransactionKind,
     TransferStep,
@@ -56,6 +57,7 @@ __all__ = [
     "NecessityReason",
     "Page",
     "Printed",
+    "RateSource",
     "RowView",
     "RuleLayer",
     "Sort",
@@ -340,8 +342,9 @@ class Why:
     necessity_layer: RuleLayer | None
     transfer: TransferStep | None
     pair: RowView | None  # the opposite row in another own account, or the named payment it is like
-    rate: Decimal | None  # a foreign account's row: the TL rate it was valued at, from the documents
-    rate_day: date | None
+    rate: Decimal | None  # a foreign account's row: the TL rate it was valued at (docs/domain/ledger.md)
+    rate_day: date | None  # the day that rate is of: the row that printed it, or the providers' bulletin
+    rate_source: RateSource | None  # the documents (the row's own rate, else the nearest), or a provider
 
 
 @dataclass(frozen=True, slots=True)
@@ -464,6 +467,7 @@ def _why(reason: Reason, level: NecessityReason | None, level_file: str, rows: R
         pair=pair.view if pair is not None else None,
         rate=reason.rate,
         rate_day=reason.rate_day,
+        rate_source=reason.rate_source,
     )
 
 

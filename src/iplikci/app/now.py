@@ -15,13 +15,14 @@ from enum import StrEnum
 from statistics import median
 
 from .. import month_end
-from ..analysis import Dataset, statement_periods
-from ..domain.codes import CARD_TYPES, DEFAULT_EXPENSE_KINDS, AccountType, Certainty
-from ..domain.labels import format_amount
+from ..analysis import Dataset, DatedRate, statement_periods
+from ..domain.codes import CARD_TYPES, DEFAULT_EXPENSE_KINDS, AccountType, Certainty, RateSource
+from ..domain.labels import format_amount, format_rate
 from ..domain.models import TRY, Statement, Transaction
 from ..domain.money import round_half_up
 from ..forecast import STALE_DAYS, start_of
-from ..insights import complete_months, month_name, month_of, payments_after, pct
+from ..fx.book import to_tl
+from ..insights import balance_rate, complete_months, month_name, month_of, payments_after, pct, provider_rate_said
 from ..upcoming import Due, add_months
 from . import outlook, reach
 from .analysis import Analysis
@@ -36,6 +37,7 @@ __all__ = [
     "Now",
     "Pace",
     "Period",
+    "RateSource",
     "Unknown",
     "balances",
     "cards",
@@ -74,9 +76,12 @@ class Balance:
     type: AccountType
     currency: str  # of balance and stated: TRY, a foreign currency, or GR (grams of gold)
     balance: Decimal  # below zero: overdrawn
-    value: Decimal | None  # in TL: a TL balance itself, a foreign one at the documents' newest rate; None without one
+    # In TL: a TL balance itself; a foreign one at the providers' newest rate, buying for an asset and selling for a
+    # debt, else at the documents' newest (insights.balance_rate); None without one.
+    value: Decimal | None
     rate: Decimal | None  # that rate, TL for one unit
-    rate_day: date | None  # the day of the document that printed it
+    rate_day: date | None  # the day it is of: the providers' bulletin, or the document that printed it
+    rate_source: RateSource | None
     stated: Decimal  # the balance the newest document printed
     on: date  # that document's day
     source: BalanceSource
@@ -169,6 +174,14 @@ def newest_rate(ds: Dataset, currency: str) -> tuple[date, Decimal] | None:
     return max(found) if found else None
 
 
+def rate_text(r: DatedRate, debt: bool = False) -> str:
+    """A balance's rate and where it comes from, as the notes write it: "37,00 (20.10.2026 belgesinden)", "36,4521
+    (TCMB 03.11.2026 döviz alış kuru)"."""
+    if r.source is RateSource.DOCUMENT:
+        return f"{format_amount(r.rate)} ({_day(r.day)} belgesinden)"
+    return f"{format_rate(r.rate)} ({provider_rate_said(r, debt)})"
+
+
 def _portfolio(account: str, s: Statement) -> Balance:
     """A brokerage account: its cash and its securities at the market value its newest statement prints."""
     cash = s.total or ZERO
@@ -184,6 +197,7 @@ def _portfolio(account: str, s: Statement) -> Balance:
         value=worth,
         rate=None,
         rate_day=None,
+        rate_source=None,
         stated=worth,
         on=on,
         source=BalanceSource.PORTFOLIO,
@@ -206,8 +220,8 @@ def _balance(ds: Dataset, account: str, newest: date | None) -> Balance | Unknow
     if newest is not None and (newest - start.on).days > STALE_DAYS:
         return Unknown(account, f"son bakiye {_day(start.on)} tarihli; bugünkü bakiyesi belgelerde yok")
     currency = found.currency
-    rate = newest_rate(ds, currency) if currency not in (TRY, GOLD) else None
-    value = start.balance if currency == TRY else round_half_up(start.balance * rate[1]) if rate else None
+    rate = balance_rate(ds, currency, start.balance) if currency not in (TRY, GOLD) else None
+    value = start.balance if currency == TRY else to_tl(start.balance, rate.rate) if rate else None
     where = "banka bildiriminde" if start.notice else "dökümünde"
     note = f"{_day(start.on)} {where} {_amount(start.stated, currency)}"
     if start.moves:
@@ -219,15 +233,16 @@ def _balance(ds: Dataset, account: str, newest: date | None) -> Balance | Unknow
     if currency == GOLD:
         note += "; güncel altın fiyatı belgelerde yok"
     elif currency != TRY:
-        note += f"; kur {format_amount(rate[1])} ({_day(rate[0])} belgesinden)" if rate else "; kur bulunamadı"
+        note += f"; kur {rate_text(rate, start.balance < 0)}" if rate else "; kur bulunamadı"
     return Balance(
         account=account,
         type=found.type,
         currency=currency,
         balance=start.balance,
         value=value,
-        rate=rate[1] if rate else None,
-        rate_day=rate[0] if rate else None,
+        rate=rate.rate if rate else None,
+        rate_day=rate.day if rate else None,
+        rate_source=rate.source if rate else None,
         stated=start.stated,
         on=start.on,
         source=BalanceSource.NOTICE if start.notice else BalanceSource.STATEMENT,

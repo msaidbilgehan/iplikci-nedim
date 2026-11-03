@@ -15,10 +15,11 @@ from ..analysis import CONFIRMED, NOT_ON_STATEMENT, PROVISIONAL, Dataset, build
 from ..categorize import Categorizer
 from ..domain.codes import DocumentStatus
 from ..domain.models import ParseResult
+from ..fx.book import RateBook
 from ..insights import FULL, Insights, interpret, month_of, shift
 from ..parsers.common import BUSINESS_REASON
 from ..report import build_payload, write_csv, write_html, write_xlsx
-from ..storage import aliases, annotations, audit, documents, readings
+from ..storage import aliases, annotations, audit, documents, fx_rates, readings
 from ..storage.annotations import Annotation
 from ..storage.db import Database
 from . import annotate, reading
@@ -138,9 +139,11 @@ def analyze(
             found, stats = ledger_input(db)
             notes = annotations.every(db)
             names_given = {account: given.alias for account, given in aliases.every(db).items()}
+            # The providers' rates as stored; offline too, as reading them changes nothing.
+            book = RateBook(fx_rates.every(db))
     names = list(settings.identity.names)
     categorizer = Categorizer.layered(ws.rules)
-    ds = build(found, categorizer, {"ad_soyad": names} if names else {})
+    ds = build(found, categorizer, {"ad_soyad": names} if names else {}, book)
     applied = annotate.apply(ds, notes, categorizer)
     ins = interpret(ds)
     today = today or date.today()

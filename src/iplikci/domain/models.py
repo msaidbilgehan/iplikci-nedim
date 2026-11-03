@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 
-from .codes import AccountType, CategoryReason, InvoiceKind, Necessity, TransactionKind, TransferStep
+from .codes import AccountType, CategoryReason, InvoiceKind, Necessity, RateSource, TransactionKind, TransferStep
 from .money import TOLERANCE, round_half_up
 
 # The lira as the models carry it (ADR-0006); labels.currency_label writes it as "TL".
@@ -46,8 +46,13 @@ class Reason:
     layer: str = ""  # the name of the rule file it is in (categorize.RuleSet.name)
     transfer: TransferStep | None = None  # how a row moving money to or from someone unnamed was resolved
     pair: str = ""  # PAIRED: the opposite row's fingerprint; LIKE_NAMED: the fingerprint of the payment it is like
-    rate: Decimal | None = None  # a foreign account's row: the TL rate it was valued at, the documents' nearest
-    rate_day: date | None = None  # the day of the row that printed that rate
+    # A foreign account's row: the TL rate it was valued at (docs/domain/ledger.md, "Kur çevirisi"), the day that rate
+    # is of (the row that printed it, or the providers' bulletin), where it comes from, and the row's amount in the
+    # account's currency, which the rate turned into TL.
+    rate: Decimal | None = None
+    rate_day: date | None = None
+    rate_source: RateSource | None = None
+    native: Decimal | None = None
 
 
 @dataclass

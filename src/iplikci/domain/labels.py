@@ -461,6 +461,12 @@ def format_amount(value: Decimal) -> str:
     return f"{round_half_up(value):,.2f}".replace(",", " ").replace(".", ",").replace(" ", ".")
 
 
+def format_rate(value: Decimal) -> str:
+    """A TL rate as TCMB's bulletin prints it: Decimal("36.45213") → "36,4521", four decimals rounded half up, dots
+    between thousands, a comma before the decimals."""
+    return f"{round_half_up(value, 4):,.4f}".replace(",", " ").replace(".", ",").replace(" ", ".")
+
+
 def format_money(money: Money) -> str:
     """Money("1234.5", "TRY") → "1.234,50 TL"."""
     return f"{format_amount(money.amount)} {currency_label(money.currency)}"
