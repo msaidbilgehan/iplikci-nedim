@@ -13,11 +13,12 @@ devam eder.
 ### Eklenenler
 
 - Kurlar her gün 16.30'da TCMB'den alınır. Belgelerinizin kapsadığı günlerin geçmiş kurları bir kez, kendiliğinden
-  çekilir; hafta sonları hiç, kur yayımlanmayan tatil günleri bir kez sorulur. TCMB'ye ulaşılamayan günlerin kuru
-  ECB'nin referans kurlarından, Frankfurter üzerinden alınır.
+  çekilir: arka planda, iki dakikalık parçalar hâlinde, servisin öteki işlerini bekletmeden. Hafta sonları hiç, kur
+  yayımlanmayan tatil günleri bir kez sorulur. TCMB'ye ulaşılamayan günlerin kuru ECB'nin referans kurlarından,
+  Frankfurter üzerinden alınır.
 - Döviz ekranı dört bölüm oldu:
-  - **Varlıklar:** net varlık TL, euro, dolar ve gram altın karşılıklarıyla; her birimin yanında kullanılan kurun kaynağı
-    ve günü ("TCMB 13.11.2026 döviz satış kuruyla").
+  - **Varlıklar:** net varlık TL, euro, dolar ve gram altın karşılıklarıyla; her birimin yanında kullanılan kurun
+    kaynağı ve günü ("TCMB 13.11.2026 döviz satış kuruyla").
   - **Kurlar:** her para biriminin en yeni döviz alış ve satış kuru, günü ve kaynağı; son 90 günün kuru grafik ve tablo
     olarak; ayrıntılı görünümde belgelerin yazdığı bütün kurlar.
   - **Kur makası:** son 12 ayda kendi hesaplarınız arasındaki döviz alım-satımları ve yurt dışı kart harcamaları,

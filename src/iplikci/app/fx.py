@@ -7,7 +7,8 @@ the settings name no TCMB.
 - The history is fetched once, for the days the data covers: from the oldest statement or row day to yesterday. TCMB
   is asked for every Monday to Friday it was not asked for yet, the newest first, one request a day with a pause
   between them; a day it published nothing for (a holiday: 404) is marked so and never asked again. A run makes at
-  most RUN_LIMIT requests to TCMB, so the service's other jobs get their turn; the next run goes on where it stopped.
+  most RUN_LIMIT requests to TCMB and asks for RUN_BUDGET seconds at most, so the service's other jobs get their turn;
+  the next run goes on where it stopped.
 - Every day from 16:30 the day's bulletin is fetched, with the business days missed since the newest one. The day
   itself stays unrecorded until its bulletin comes: before 15:30, today.xml holds the day before's.
 - When TCMB cannot be reached, the reference rates fill the days it left, once a run, kept under their own source;
@@ -55,6 +56,9 @@ __all__ = [
 FETCH_JOB = kinds.FX_RATES
 DAILY_AT = clock(16, 30)  # local time: TCMB publishes at 15:30 Istanbul time
 RUN_LIMIT = 400  # requests a run makes to TCMB at most, today's bulletin among them
+# Seconds a run asks for at most: TCMB's server takes some three seconds a request (its TLS handshake, 2026-11-03), so
+# 400 requests would hold the service's one queue — the analysis, the mail, the notifications — for 25 minutes.
+RUN_BUDGET = 120.0
 PAUSE = 0.5  # seconds between two requests
 # Business days in a row without a bulletin that make TCMB's answers suspect: no holiday of Turkey's is that long,
 # so its files must have moved, and those days are left unrecorded instead of marked as holidays for good.
@@ -73,12 +77,15 @@ log = logging.getLogger("iplikci.fx")
 
 @dataclass(frozen=True, slots=True)
 class Pace:
-    """How politely a run asks: a pause between two requests, at most `limit` requests to TCMB. sleep is time.sleep
-    outside the tests. The reference provider's few requests come on top of the limit."""
+    """How politely a run asks: a pause between two requests, at most `limit` requests to TCMB and no new one after
+    `budget` seconds. sleep and clock are time's outside the tests. The reference provider's few requests come on top
+    of both."""
 
     pause: float = PAUSE
     limit: int = RUN_LIMIT
     sleep: Callable[[float], None] = time.sleep
+    budget: float = RUN_BUDGET
+    clock: Callable[[], float] = time.monotonic
 
 
 POLITE = Pace()
@@ -178,6 +185,14 @@ class _Run:
     stored: int = 0
     more: bool = False
     errors: list[str] = field(default_factory=list[str])
+    started: float = field(init=False, default=0.0)
+
+    def __post_init__(self) -> None:
+        self.started = self.pace.clock()
+
+    def spent(self) -> bool:
+        """Whether the run used its requests or its time up."""
+        return self.asked >= self.pace.limit or self.pace.clock() - self.started >= self.pace.budget
 
     def request(self) -> None:
         """Before a request: a pause after the run's first."""
@@ -286,7 +301,7 @@ def _from_tcmb(run: _Run, start: date | None, history: bool) -> list[date]:
         if wanted:
             ask.today()
         for day in (d for d in due if d not in ask.done):
-            if run.asked >= run.pace.limit:
+            if run.spent():
                 run.more = True
                 break
             ask.day(day)

@@ -289,16 +289,39 @@ def test_the_rates_are_fetched_every_day_from_half_past_four(ws):
     assert kinds.FX_RATES in background.handlers(ws) and kinds.LABELS[kinds.FX_RATES]
 
 
-def test_the_job_queues_the_next_run_at_its_limit_and_new_rates_refresh_the_analysis(covered, providers, monkeypatch):
+def waiting(ws: Workspace) -> set[tuple[str, str]]:
+    with ws.db() as db:
+        return {(j["kind"], j["payload"]) for j in db.rows("SELECT kind, payload FROM jobs WHERE status = 'queued'")}
+
+
+def test_the_job_queues_the_next_run_at_its_limit_and_the_last_one_refreshes_the_analysis_once(
+    covered, providers, monkeypatch
+):
     monkeypatch.setattr(fx, "POLITE", fx.Pace(limit=1, sleep=lambda _s: None))
     today = date.today()  # the job runs on the computer's day, a weekend or not
     publish(providers, *weekdays(REPUBLIC_DAY, today), today=today)
     with covered.db() as db:
         db.execute("DELETE FROM jobs")
-    background.handlers(covered)[kinds.FX_RATES]({"history": True})
-    with covered.db() as db:
-        waiting = {(j["kind"], j["payload"]) for j in db.rows("SELECT kind, payload FROM jobs WHERE status = 'queued'")}
-    assert waiting == {(kinds.FX_RATES, '{"history": true}'), (kinds.REFRESH, "{}")}
+    run = background.handlers(covered)[kinds.FX_RATES]
+    run({"history": True})
+    assert waiting(covered) == {(kinds.FX_RATES, '{"history": true}')}  # no analysis after every piece
+    for _ in range(10):
+        with covered.db() as db:
+            db.execute("DELETE FROM jobs")
+        run({"history": True})
+        if (kinds.FX_RATES, '{"history": true}') not in waiting(covered):
+            break
+    assert waiting(covered) == {(kinds.REFRESH, "{}")}  # the history is whole: the analysis once
+
+
+def test_a_run_stops_when_its_time_is_up_and_the_next_goes_on(covered, providers):
+    publish(providers, FRIDAY, MONDAY, today=TUESDAY)
+    ticks = iter(range(0, 1000, 50))  # each look at the clock is 50 seconds later
+    pace = fx.Pace(sleep=lambda _s: None, budget=120.0, clock=lambda: float(next(ticks)))
+    first = fx.fetch(covered, history=True, today=TUESDAY, pace=pace)
+    assert first.more and first.asked < 4  # today's bulletin and a day or two, then the time was up
+    second = fx.fetch(covered, history=True, today=TUESDAY, pace=fx.Pace(sleep=lambda _s: None))
+    assert (second.missing, second.more) == (0, False)
 
 
 def test_the_service_start_queues_the_history_once_and_only_when_days_are_missing(covered, providers, pauses):

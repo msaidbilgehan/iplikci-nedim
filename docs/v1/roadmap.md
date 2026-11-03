@@ -389,9 +389,10 @@ Durum: 2026-11-03'te `asama-8` dalında uygulandı, `v0.9.0` ([değişiklik gün
 - `fx` paketi: TCMB'nin günlük bülteni, ECB'nin referans kurları (günlük, 90 günlük ve bütün geçmiş) ve Frankfurter'in
   JSON'u; EVDS'den TÜFE. Hepsi `egress.https_get` ile ve ADR-0009'un izin listesiyle, yalnızca GET.
 - Kurlar `fx_rates`'te tarihçeli; sorulan günler `fx_days`'te. Geçmiş, verinin kapsadığı ilk günden bir kez çekilir
-  (çalıştırma başına en çok 400 istek, aralarında yarım saniye); günün bülteni her gün 16:30'da. TCMB'ye ulaşılamayan
-  günler ECB'nin referans kurlarıyla dolar; varsayılan sıra `document`, `tcmb`, `frankfurter`, `ecb` (ECB'nin
-  sertifikası macOS'taki Python'da doğrulanmadığı için Frankfurter önce; ADR-0009'un notu).
+  (çalıştırma başına en çok 400 istek ve iki dakika, aralarında yarım saniye; servisin öteki işleri araya girer); günün
+  bülteni her gün 16:30'da. TCMB'ye ulaşılamayan günler ECB'nin referans kurlarıyla dolar; varsayılan sıra `document`,
+  `tcmb`, `frankfurter`, `ecb` (ECB'nin sertifikası macOS'taki Python'da doğrulanmadığı için Frankfurter önce;
+  ADR-0009'un notu).
 - Kur politikası (mimari §15): satırın kendi kuru > o günün (ya da en fazla bir hafta önceki son bültenin) döviz alış
   kuru > belgelerin en yakın kuru; varlıklar alış, borçlar satış kuruyla; aynı gün TCMB ECB'den önce.
 - Kur makası (`exchange.spread`) ve döviz geliri (`exchange.foreign_income`), Döviz ekranında kendi bölümlerinde ve

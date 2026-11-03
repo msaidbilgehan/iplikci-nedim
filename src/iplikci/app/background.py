@@ -101,12 +101,13 @@ def poll_mail(ws: Workspace) -> None:
 
 def fetch_rates(ws: Workspace, history: bool) -> int:
     """Fetch the exchange rates (app.fx); how many days' rates came. A run that stopped at its limit queues the next
-    at once, and new rates make the analysis again. A provider's failure is recorded for the System screen, never
-    raised: the job is done, and a later run tries again."""
+    behind the jobs waiting already; the run that ends the history, or brings new rates, makes the analysis again — once,
+    not after every piece of a long history. A provider's failure is recorded for the System screen, never raised: the
+    job is done, and a later run tries again."""
     done = fx.fetch(ws, history)
     if done.more:
         fx.request(ws, history=True)
-    if done.stored:
+    elif done.stored or history:
         request_refresh(ws)
     return done.stored
 

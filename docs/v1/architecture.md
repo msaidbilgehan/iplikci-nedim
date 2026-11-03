@@ -545,9 +545,11 @@ Ayrıntılar [ADR-0010](../adr/0010-notification-channels.md)'un uygulama notund
 - Sağlayıcılar `fx` paketindedir (`tcmb`, `ecb`, `frankfurter`, `evds`); hepsi `egress.https_get` ile, yalnızca GET.
   Ayarlardaki `[fx] providers` sırası: TCMB, sonra adı geçen ilk referans sağlayıcı (varsayılan Frankfurter; ECB'nin
   sertifikası macOS'taki Python'da doğrulanmadı, ADR-0009'un notu). `document` tek başına ağa hiç çıkmamak demektir.
-- Kurlar `fx_rates`'te (gün, birim, kaynak, alış, satış; tam ondalık metin), sorulan günler `fx_days`'te. Geçmiş
-  verinin kapsadığı ilk günden düne kadar, en yeniden eskiye çekilir: çalıştırma başına en çok 400 istek, aralarında
-  yarım saniye; bitmezse sonraki çalıştırma kaldığı yerden sürer. Kur yayımlanmayan gün (404) bir kez sorulur.
+- Kurlar `fx_rates`'te (gün, birim, kaynak, alış, satış; tam ondalık metin), sorulan günler `fx_days`'te. Geçmiş verinin
+  kapsadığı ilk günden düne kadar, en yeniden eskiye çekilir: çalıştırma başına en çok 400 istek ve iki dakika, istekler
+  arasında yarım saniye; bitmezse sonraki çalıştırma kuyrukta bekleyen işlerden sonra kaldığı yerden sürer. TCMB'nin
+  sunucusu istek başına üç saniye kadar sürüyor (TLS el sıkışması): süre sınırı olmasa uzun bir geçmiş servisin tek
+  kuyruğunu dakikalarca tutardı. Analiz, geçmiş bitince bir kez yenilenir. Kur yayımlanmayan gün (404) bir kez sorulur.
   Art arda 10 iş günü bülten çıkmazsa bunlar tatil sayılmaz, hata yazılır (adresler değişmiş olabilir).
 - Kur defteri (`fx.book.RateBook`): bir günün kuru o günün bülteni ya da en fazla 7 gün önceki son bültendir; aynı gün
   TCMB ECB'den, ECB Frankfurter'den önce gelir. Yuvarlama tek yerde: `to_tl`, `from_tl`.

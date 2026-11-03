@@ -107,10 +107,11 @@ against the documents (v0.7.6). Next is the 1.0 release, whose conditions are pa
     server failed macOS Python's certificate check; ADR-0009's note), all by GET through `egress.https_get`. The
     settings' `[fx] providers` default is `document`, `tcmb`, `frankfurter`, `ecb`; `["document"]` alone never asks
     the network (the demo's).
-  - The history is fetched once for the days the data covers (400 requests a run at most, half a second apart), the
-    day's bulletin every day at 16:30 (job `fx.rates`); `fx_rates` keeps them, `fx_days` the days asked. The rebuild
-    and the backups carry them in the dump. `fx.book.RateBook` picks a day's quote (its bulletin or the last within a
-    week; TCMB before ECB before Frankfurter); `to_tl`/`from_tl` are the one rounding rule.
+  - The history is fetched once for the days the data covers (400 requests and two minutes a run at most, half a second
+    apart, so the queue's other jobs get their turn), the day's bulletin every day at 16:30 (job `fx.rates`); `fx_rates`
+    keeps them, `fx_days` the days asked. The rebuild and the backups carry them in the dump. `fx.book.RateBook` picks a
+    day's quote (its bulletin or the last within a week; TCMB before ECB before Frankfurter); `to_tl`/`from_tl` are the
+    one rounding rule.
   - Policy: a row's own printed rate, else the day's provider buying rate, else the documents' nearest; assets at
     buying, debts at selling, the net worth's EUR and USD at selling (`analysis.row_rate`, `insights.balance_rate`).
   - `exchange` (pure): the spread of the last 12 months' own-account trades and card purchases abroad against TCMB's
