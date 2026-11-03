@@ -159,6 +159,14 @@ Aşama 8 (Döviz, v0.9.0) resmî kurları getirdi:
   o gün doğru olan öbür sözleri gösterir. Sözlerin listesi [İplikçi Nedim'in sözleri](docs/İplikçi_Nedim_Sözler.md)
   belgesindedir.
 
+Grafikler birer kısayoldur (v0.9.4):
+
+- Bir grafikte bir aya, bir dilime, bir güne ya da bir akışa tıklayınca onu oluşturan işlemler açılır; listenin
+  toplamı tıkladığınız rakamla aynıdır. Ör. Ay sonu'nda "Son 12 ayın gideri"nde Haziran'a tıklayınca Haziran'ın
+  giderleri listelenir; Takvim'in öngörüsünde bir güne tıklayınca o gün beklenenler gösterilir.
+- Telefonda ilk dokunuş değeri gösterir, ikinci dokunuş ya da ipucundaki "Aç" açar. Klavyeyle aynı yerlere grafiğin
+  tablo görünümündeki bağlantılarla gidilir.
+
 Açık kalanlar: servisin yedi gün kendi başına çalışması (K19). Windows ve Linux'ta denemeler bekletiliyor (K25).
 
 MVP 2026-10-31'de emekliye ayrıldı. İplikçi Nedim onun kodundan başlar ama verisini devralmaz; belgeleri kendisi toplar.

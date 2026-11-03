@@ -4,6 +4,41 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.9.4] — 2026-11-03 — Grafiklerden işlemlere
+
+Grafikler artık birer kısayol. Bir çubuğa, bir dilime, bir güne ya da bir akışa tıklayınca onu oluşturan işlemler
+açılıyor. Listenin toplamı tıklanan rakamla aynı.
+
+### Eklenenler
+
+- Ay sonu: "Son 12 ayın gideri"nde bir aya tıklayınca o ayın giderleri (harcama, iade, faiz ve ücret) İşlemler'de
+  listeleniyor. Ayın gruplarına, gereklilik düzeylerine, kategorilerine ve işyerlerine tıklayınca da o ayın giderleri
+  açılıyor.
+- Pano: aylar grafiğinde gelen para o ayın gelirlerini, giden para giderlerini açıyor. "Paranız nereye gitti?"de bir
+  kategori o ayki işlemlerini açıyor; "Önümüzdeki 30 gün"de bir güne tıklamak o günü Takvim'de gösteriyor.
+- Değerlendirme: aylık giderlerde bir ay ya da bir grup, gerekliliklerde bir düzey, kategoriler ve işyerleri, "Gelir
+  ve gider"de bir ayın geliri, gideri, kişilere giden parası, borcu ve birikimi, tahminin geçmiş ayları. Hepsi ekranın
+  süzgeçleriyle ve seçili dönemin günleriyle açılıyor.
+- Hesaplar: para akışı diyagramında bir bant. Hesap sayfasında bakiye eğrisinin bir günü, bir ayın giren ve çıkan
+  parası, faiz ve ücretlerin bir kalemi.
+- Takvim: öngörü grafiğinde bir güne tıklayınca liste o güne daralıyor, "Bütün günleri göster" geri döndürüyor.
+  Bildirimlerin son ödeme günleri ve düzenli ödemelerin sonraki ödemesi de artık o günü gösteriyor.
+- Döviz: tek hesapta duran bir para birimi o hesabı açıyor.
+- Fareyle bir tıklama yetiyor. İpucu neyin açılacağını söylüyor ve açılacak dilimi öne çıkarıyor. Dokunmatik ekranda
+  ilk dokunuş değeri gösteriyor; ikinci dokunuş ya da ipucundaki "Aç" bağlantısı açıyor. Grafiğin altındaki bir satır
+  neye tıklanabileceğini söylüyor; klavyeyle aynı yerlere tablo görünümündeki bağlantılarla gidiliyor.
+
+### Düzeltilenler
+
+- Değerlendirme'de ve Pano'da bir kategoriye ya da işyerine tıklamak, seçili dönemin değil bütün zamanların
+  işlemlerini açıyordu. Bağlantı artık kartın günlerini, hesaplarını ve türlerini taşıyor.
+- Hesaplar'daki para akışında bir hesaptan bir harcama grubuna giden bant, grubun değil hesabın bütün alışverişlerini
+  açıyordu. Birden çok türü ya da hesabı olan bir bantta da yalnızca sonuncusu süzülüyordu.
+- Bir ekranın aşağısından açılan yeni ekran, önceki ekranın kaydırıldığı yerde açılabiliyordu. Artık sayfanın
+  başından açılıyor.
+- İşlemler'de bir grafiğin açtığı gider türleri "Tür: 3/12" yerine "Tür: Giderler (harcama, iade, faiz ve ücret)"
+  diye yazıyor.
+
 ## [0.9.3] — 2026-11-03 — Düzeltmeler
 
 Harcamalar Claude'la kategorilere ayrılırken bulunan üç hata düzeltildi.

@@ -6,7 +6,7 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-03): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.3). Between Phases 6 and 7 came
+Status (2026-11-03): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.4). Between Phases 6 and 7 came
 the interface's simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab
 (v0.7.3), documents known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked
 against the documents (v0.7.6). Next is the 1.0 release, whose conditions are partly time-bound (roadmap "Sürüm 1.0"
@@ -144,6 +144,14 @@ says what the waiting must show; check them once their time has passed).
   the list does not show, as the ledger and `insights.holdings` do, so Hesaplar, Şu an, Döviz, the net worth and the
   forecast agree on a balance. The finding about rows processed ahead of their statements counts a transfer between
   own accounts waiting at both ends once, by how much moved (`insights._transfers_once`).
+- v0.9.4 (K27): the charts are shortcuts to the rows that add up to their parts. A month's column or one series of
+  it, a ranked bar's whole row, a line's day and a flow's band lead somewhere (`components/charts/open`): a click
+  opens it, a touch shows it first and its tip's link or a second touch opens it, and the table view's months, values
+  and days are the same links for the keyboard. `lib/rows` holds a month's rows, spending (its kinds written out) and
+  income; `insights/query` Değerlendirme's, with the screen's filters and the month's days within the period's. A
+  link's query gives a filter's many values as a list (`LinkOut.query`; `Filter.query()` and `rows_link` in
+  `app/transactions`), the spending's categories and merchants carry the card's days, accounts and kinds, and a
+  flow's band its spending group or payer. Takvim narrows its list to `?gun=`; a new screen opens at its top (Layout).
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 
@@ -171,7 +179,7 @@ The MVP was retired on 2026-10-31 (K17, ADR-0018): İplikçi Nedim starts with n
 | Document | What it holds |
 |---|---|
 | `docs/README.md` | Map of the docs and reading order |
-| `docs/v1/requirements.md` | Requirements G1–G13, the user's decisions K1–K25, product principles |
+| `docs/v1/requirements.md` | Requirements G1–G13, the user's decisions K1–K27, product principles |
 | `docs/v1/architecture.md` | Target architecture: modules, data model, data dir, API, MCP, security, NFRs |
 | `docs/v1/features.md` | Feature specs with acceptance criteria and the MVP parity checklist |
 | `docs/v1/roadmap.md` | Phases 0–8 and the 1.0 release, exit criteria, MVP module mapping, first-session steps |
@@ -296,7 +304,8 @@ TÜFE), `api/routes/rates` (`POST /api/fx/fetch`) and `cli/rates` (`iplikci kurl
 Döviz's parts and the System screen's rates card, and `components/settings/EvdsKey` the key's card.
 v0.9.2 added `app/sayings` (İplikçi Nedim's lines by the money's situation); in `web/`,
 `components/dashboard/NedimSays` shows them, and in `extension/`, `bridge/sayings` asks for them and `ui/nedim` holds
-the faces.
+the faces. v0.9.4 added `components/charts/open` (where a chart's parts lead) and `lib/rows` (where a month's rows
+are) in `web/`.
 The rest keeps the MVP's flat layout (`analysis`, `insights`, `month_end`, `report` with its `templates`, …) until the
 phases in the roadmap's MVP module table move it. Next to them: `fakes` (the fake document builders and every
 reader's specimens, shared with the tests and the demo), `demo` (the demo data folder), `baseline` (the verification

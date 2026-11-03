@@ -526,7 +526,7 @@ wheels = [
 
 [[package]]
 name = "iplikci-nedim"
-version = "0.9.3"
+version = "0.9.4"
 source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },

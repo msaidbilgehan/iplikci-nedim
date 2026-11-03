@@ -27,11 +27,25 @@ Bütün ekranlar için geçerlidir:
   - Ortalama, eğilim ve tahmin yalnızca tam aylardan hesaplanır; içinde bulunulan ay eksik sayılır.
   - Düzensiz harcama yıllığa çevrilmez, 12 ile çarpılmaz.
 - **İz:** her rakamdan dayandığı işlemlere, her işlemden belgesine ve belgenin geldiği e-postaya gidilir.
+  Bağlantının açtığı liste rakamı toplar: aynı günler, aynı türler (bir gider rakamı için harcama, iade, faiz ve
+  ücret), ekranın süzgeçleri.
 - **Grafikler** (MVP kuralları):
   - Her grup ve gereklilik düzeyinin süzgeçlerle değişmeyen sabit bir renk yuvası vardır. İlk 8 ana grup renklidir,
     "Diğer" gridir.
   - Yığılmış dilimler arasında 2 px boşluk bırakılır; veri uçları 4 px yuvarlaktır.
   - Her grafiğin bir tablo görünümü vardır.
+  - Grafikler kısayoldur ([K27](requirements.md#kararlar)): bir parçaya tıklayınca onun dayandığı işlemler açılır.
+    - Ayların sütunlarında bir dilime tıklamak o ayın o grubunu ya da düzeyini, dilimlerin dışına tıklamak bütün ayı
+      açar. Gelen ve giden parayı gösteren grafikte sıfırın üstü gelirleri, altı giderleri açar.
+    - Sıralı çubuklarda bütün satır (ad, çubuk, tutar) tıklanır; çizgide en yakın gün, akış diyagramında bant açılır.
+    - İpucu neye tıklandığında ne açılacağını söyler, açılacak dilimi öne çıkarır; grafiğin altındaki bir satır
+      grafiğin neye götürdüğünü söyler.
+    - Dokunmatik ekranda ilk dokunuş değerleri gösterir ve ipucu açık kalır. Aynı parçaya ikinci dokunuş ya da
+      ipucundaki "Aç" bağlantısı açar; grafiğin dışına dokunmak ya da sayfayı kaydırmak ipucunu kapatır.
+    - Klavye ve ekran okuyucu aynı yerlere tablo görünümündeki bağlantılarla gider: ayların, günlerin ve değerlerin
+      adları bağlantıdır.
+    - Gelecek aylar (tahmin) bir yere götürmez; tek hesapta durmayan bir para birimi de.
+  - Yeni bir ekran sayfanın başından açılır. Süzgeç ya da bölüm değişince sayfanın yeri korunur.
   - Açık ve koyu paletler ayrı seçilir.
   - Durum renkleri (iyi, uyarı, kritik) her zaman ikon ve etiketle birlikte kullanılır.
 - **Süzgeçlerin kapsamı** (MVP kuralı):
@@ -302,6 +316,9 @@ G10, K7 · Çekirdek
     ([domain/interpretation.md](../domain/interpretation.md#akış-olayları)).
   - KMH faizi tahmini, oran belgede yazıyorsa.
 - **Etiket:** öngörü her zaman "tahmin" etiketi taşır.
+- **Bir gün:** adresteki gün (`?gun=`) listeyi o güne daraltır; "Bütün günleri göster" geri döner. Öngörü
+  grafiğinden (Takvim'in ve Pano'nun) bir güne tıklamak, bir bildirimin son ödeme günü ve bir düzenli ödemenin
+  sonraki ödemesi buraya götürür.
 - **V1+:** takvim aboneliği (`.ics`).
 
 ## F10 — Değerlendirme, bütçe ve tahmin

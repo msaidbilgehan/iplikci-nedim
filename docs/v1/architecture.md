@@ -683,6 +683,11 @@ Teknoloji ADR-0008'dedir. Ekranlar ve davranışları [features.md](features.md)
   - `/ayarlar`
 - **Veri:** TanStack Query; SSE bir olay alınca ilgili sorguları geçersiz kılar. Arayüzde iyimser güncelleme yalnızca
   notlarda ve etiketlerde vardır.
+- **Bağlantılar:** servis bir öğenin nereye götürdüğünü ekranın adı ve açılacak şeyle söyler (`app/links`,
+  `LinkOut`). Bir liste ekranının süzgeçleri API'nin adlarıyla gelir; birden çok değerli bir süzgecin
+  (`kind=purchase&kind=refund`) değerleri liste olarak gelir. Arayüz adresleri bilir (`lib/links`). Bir sütunun, bir
+  günün ya da bir bandın götürdüğü yer grafiğin `open` bağlantısıdır (`components/charts/open`). Bir ayın işlemleri
+  `lib/rows`'tadır; Değerlendirme'ninkiler ekranın süzgeçlerini taşır (`insights/query`).
 - **PWA:** web uygulaması bildirgesi ve simgeler oturum istemez, kişisel bir şey taşımaz; servis çalışanı yalnızca
   uygulamanın kabuğunu (derlenmiş dosyaları) saklar, API yanıtlarını asla. Kayıt satır içi betikle değil, kendi
   dosyasıyla yapılır.

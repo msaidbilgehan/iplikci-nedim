@@ -1,6 +1,6 @@
 [project]
 name = "iplikci-nedim"
-version = "0.9.3"
+version = "0.9.4"
 description = "İplikçi Nedim (Money-Grubber): banka belgelerini toplayan, doğrulayan ve yorumlayan kişisel finans asistanı"
 readme = "README.md"
 license = "BSD-3-Clause"
