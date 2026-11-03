@@ -4,6 +4,40 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.9.5] — 2026-11-03 — Kuralların yerinde düzeltmeler
+
+0.9.3'ün iki düzeltmesi geçici yamalardı; ikisi de olması gereken yerde yeniden yapıldı. Biten bir düzenli gelir
+artık arayüzden bitiriliyor.
+
+### Eklenenler
+
+- Düzenli ödemeler: her düzenli gelirin kartında, tablosunda ve panelinde "Artık gelmiyor…" var. Son gelişin ayını
+  seçiyorsunuz (son maaş henüz yatmadıysa yatacağı ayı); değişiklik önizleniyor, sonra kişisel kurallarınıza
+  yazılıyor. O aydan sonra takvim ve nakit akışı öngörüsü geliri beklemiyor. Bitirdiğiniz gelir listede "Artık
+  gelmiyor" diye kalıyor ve "Yeniden bekle…" ile geri alınabiliyor.
+- Kurallar: bir kategoriye `_hariç` yazılabiliyor. Kategorinin desenleri bir kelimenin başında tutsa da o
+  kategoriye ait olmayan kelimeler buraya yazılıyor; o yerdeki eşleşme sayılmıyor, açıklamada sonra geçen bir eşleşme
+  yine sayılıyor. Kendi kurallarınızdaki `_hariç`, hazır kurallardakinin üstüne ekleniyor.
+
+### Değişenler
+
+- Kira yeniden hazır kurallardaki "KİRA" kelimesiyle bulunuyor; kira olmayan kelimeler (KIRAATHANE, KİRALAMA,
+  KİRALIK, KİRAZ) `_hariç`'te yazıyor. 0.9.3'teki ek listesi kalktı: Türkçe ekler sayılamaz, "KİRADAN" gibi bir
+  kira ödemesi o listeye uymuyordu.
+- "İptal ettim"de seçilen ay son ödemenin ayı demek. O ayın ödemesi henüz gelmediyse ödeme ay sonuna dek
+  bekleniyor, sonrası beklenmiyor. Önceden ileri bir ay seçmek o ayın ödemesini de hemen takvimden düşürüyordu.
+
+### Düzeltilenler
+
+- Kendi hesaplarınız arasındaki bir transferin iki ucu da adınızı yazıyorsa artık birbirine bağlanıyor. Hesaplar'daki
+  para akışı bu transferleri "belgesi olmayan hesap"a değil, gittiği hesaba çiziyor. Aynı tutarda başka birinden
+  gelen para da artık kendi transferinizin yerine geçemiyor. 0.9.3'te bulgunun kendisi iki ucu eşleştiriyordu; artık
+  eşleştirmeyi defter yapıyor.
+- QNB'nin "ATM/Banka Kartı Para Çıkışı" bildirimi artık nakit çekim (Nakit Avans & Çekim) sayılıyor. Önceden
+  karşı tarafı olmayan bir transfer gibi okunup "Kişilere Gönderilen"e düşüyordu. Bildirim ATM'yi mağazadaki kart
+  okuyucusundan ayırmıyor; bir kart ödemesini biliyorsanız tek satır olarak düzeltebilirsiniz. Bildirimler yeniden
+  okunuyor.
+
 ## [0.9.4] — 2026-11-03 — Grafiklerden işlemlere
 
 Grafikler artık birer kısayol. Bir çubuğa, bir dilime, bir güne ya da bir akışa tıklayınca onu oluşturan işlemler

@@ -1,4 +1,4 @@
 """İplikçi Nedim (Money-Grubber): a personal finance assistant that reads, checks and interprets bank
 documents."""
 
-__version__ = "0.9.4"
+__version__ = "0.9.5"

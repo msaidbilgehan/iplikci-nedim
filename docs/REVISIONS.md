@@ -6,10 +6,18 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 | Revizyon | Konu | Durum | Belge |
 |---|---|---|---|
 | V0 | MVP `gider-analizi`: banka belgelerini okuyan, doğrulayan, yorumlayan yerel komut satırı programı, web paneli ve MCP sunucusu | 2026-10-31'de emekliye ayrıldı (K17) | Depo dışında, veri klasöründeki arşivde: `archive/mvp/CLAUDE.md` ve `README.md` |
-| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–6 (v0.1.0–v0.7.0), arayüzün sadeleşmesi (v0.7.1), resimlerle anlatan Pano (v0.7.2), açık sekmeye ulaşan güncellemeler (v0.7.3), içeriğinden tanınan belgeler (v0.7.4), Belge ekle ekranı (v0.7.5), belgelerle denetlenen bildirimler (v0.7.6) ve Aşama 7 (MCP, v0.8.0), Aşama 8 (Döviz, v0.9.0), enflasyondan arındırmanın kartı (v0.9.1), İplikçi Nedim'in sözleri (v0.9.2), düzeltmeler (v0.9.3) ve grafiklerden işlemlere giden kısayollar (v0.9.4) uygulandı; sırada sürüm 1.0'ın koşulları var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
+| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–6 (v0.1.0–v0.7.0), arayüzün sadeleşmesi (v0.7.1), resimlerle anlatan Pano (v0.7.2), açık sekmeye ulaşan güncellemeler (v0.7.3), içeriğinden tanınan belgeler (v0.7.4), Belge ekle ekranı (v0.7.5), belgelerle denetlenen bildirimler (v0.7.6) ve Aşama 7 (MCP, v0.8.0), Aşama 8 (Döviz, v0.9.0), enflasyondan arındırmanın kartı (v0.9.1), İplikçi Nedim'in sözleri (v0.9.2), düzeltmeler (v0.9.3), grafiklerden işlemlere giden kısayollar (v0.9.4) ve kuralların yerinde düzeltmeler (v0.9.5) uygulandı; sırada sürüm 1.0'ın koşulları var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
 | V2 | Finansal strateji uzmanları ve yapay zekâ asistanı | Gelecek (V1'den sonra) | [`v2/requirements.md`](v2/requirements.md) |
 
 ## Değişiklik kaydı
+
+- 2026-11-03 (35) — Kuralların yerinde düzeltmeler (v0.9.5):
+  - [Kategori kuralları](domain/categorization.md): `_hariç`, bir kategorinin desenleri tutsa da ona ait olmayan
+    kelimeler; katmanlar arasında birleşir.
+  - [Yorumlama](domain/interpretation.md): `_biten`'deki ay son ödemenin ayıdır, o ayın ödemesi gelene dek seri
+    sürer; düzenli bir gelir de böyle bitirilir ve sonradan gelen para onu yeniden başlatmaz.
+  - [Özellikler](v1/features.md) F08: "Artık gelmiyor".
+  - [Banka biçimleri](domain/bank-formats.md): QNB'nin ATM ya da banka kartıyla para çıkışı bildirimi nakittir.
 
 - 2026-11-03 (34) — Grafiklerden işlemlere (v0.9.4):
   - [Gereksinimler](v1/requirements.md): K27, grafikler kısayoldur. Bir parçaya tıklayınca onu toplayan işlemler

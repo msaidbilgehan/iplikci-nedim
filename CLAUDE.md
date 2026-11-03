@@ -6,7 +6,7 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-03): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.4). Between Phases 6 and 7 came
+Status (2026-11-03): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.5). Between Phases 6 and 7 came
 the interface's simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab
 (v0.7.3), documents known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked
 against the documents (v0.7.6). Next is the 1.0 release, whose conditions are partly time-bound (roadmap "Sürüm 1.0"
@@ -138,12 +138,10 @@ says what the waiting must show; check them once their time has passed).
   the dashboard's `sayings`); the extension's window (0.6.0) asks `GET /api/bridge/sayings`, a bridge's token only, and
   colours the header's logo. The faces are drawn from the logo by `packaging/icons.py` (`face-warning`, `-critical`,
   `-neutral`; the logo itself is the good one).
-- v0.9.3: three fixes found while categorizing spending through MCP. The shipped rent keyword is the word
-  KİRA with its endings (`re:\bKIRA(SI|SINI|YI|LARI)?\b`), so KIRAATHANE (now Kafe & Kahve), KİRALAMA, KİRAZ and KIRAÇ
-  are no rent. `forecast.start_of` moves a list's closing balance by the provisional receipt rows of its last days
-  the list does not show, as the ledger and `insights.holdings` do, so Hesaplar, Şu an, Döviz, the net worth and the
-  forecast agree on a balance. The finding about rows processed ahead of their statements counts a transfer between
-  own accounts waiting at both ends once, by how much moved (`insights._transfers_once`).
+- v0.9.3: three fixes found while categorizing spending through MCP. KIRAATHANE is a Kafe & Kahve
+  keyword. `forecast.start_of` moves a list's closing balance by the provisional receipt rows of its last days the
+  list does not show, as the ledger and `insights.holdings` do, so Hesaplar, Şu an, Döviz, the net worth and the
+  forecast agree on a balance. Its other two fixes were patches in the wrong layer, redone in v0.9.5.
 - v0.9.4 (K27): the charts are shortcuts to the rows that add up to their parts. A month's column or one series of
   it, a ranked bar's whole row, a line's day and a flow's band lead somewhere (`components/charts/open`): a click
   opens it, a touch shows it first and its tip's link or a second touch opens it, and the table view's months, values
@@ -152,6 +150,18 @@ says what the waiting must show; check them once their time has passed).
   link's query gives a filter's many values as a list (`LinkOut.query`; `Filter.query()` and `rows_link` in
   `app/transactions`), the spending's categories and merchants carry the card's days, accounts and kinds, and a
   flow's band its spending group or payer. Takvim narrows its list to `?gun=`; a new screen opens at its top (Layout).
+- v0.9.5: the user asked that words and rules never be buried in code and that fixes go where the bug is.
+  - A category's `_hariç` lists the words its patterns begin but which are not it (`categorize.Rule.find`): a match
+    there is passed over, a later one counts; the layers' lists add up. Rent is `_: [KIRA]` again, with
+    `_hariç: [KIRAATHANE, KIRALAMA, KIRALIK, KIRAZ]`; no list of Turkish endings.
+  - The ledger pairs the two sides of an own transfer that both name the user (`analysis._pair_own_sides`, before
+    the pairing by amount alone; `TRANSFER_DAYS`), so `Reason.pair` tells the flows and the early-receipts finding
+    where the money went.
+  - QNB's "ATM/Banka Kartı Para Çıkışı" notice is cash (`qnb.notice.transfer` 2), never a transfer candidate.
+  - `_biten`'s month is the last payment's (`insights.settle`): a series runs on until that month's payment comes,
+    and `upcoming.until` expects it no later. An income the user ended is `iptal`, never `iptal_sonrasi`; it stays
+    listed within the window. Düzenli ödemeler ends an income with "Artık gelmiyor…" (`Wording` in
+    `components/subscriptions/series`; the texts' i18next context `income`).
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 
