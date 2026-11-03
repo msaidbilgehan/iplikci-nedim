@@ -16,6 +16,7 @@ from ...app.accounts import AccountGroup, AccountType, Actor, Certainty, Documen
 from ...app.analysis import Analysis, account_labels
 from ...app.flows import FlowKind, TransactionKind
 from ...app.links import Link, Screen
+from ...app.now import RateSource
 from ...app.workspace import Busy
 from ..context import Context, context_of
 from ..guard import Principal
@@ -190,12 +191,13 @@ class HoldingOut(BaseModel):
     """A foreign currency or gold account."""
 
     amount: MoneyOut | None  # in its currency, gold as "GR"
-    value: MoneyOut | None  # in TL at the documents' newest rate; null without one (gold)
+    value: MoneyOut | None  # in TL at the rate "Şu an" values it at; null without one (gold)
     rate: str | None  # TL for one unit, as a decimal number
     rate_day: date | None
     cost: MoneyOut | None  # TL paid for it where the documents tell: gold bought from a TL account of the same bank
     gain: MoneyOut | None  # value less cost, when both are known
     note: str
+    rate_source: RateSource | None = None  # a provider's newest rate, or the documents'; null without one
 
 
 class SecurityOut(BaseModel):
@@ -512,6 +514,7 @@ def _detail(found: accounts.Detail, labels: dict[str, str]) -> AccountDetailOut:
             cost=None if h.cost is None else money(h.cost),
             gain=None if h.gain is None else money(h.gain),
             note=h.note,
+            rate_source=h.rate_source,
         ),
         brokerage=None
         if b is None

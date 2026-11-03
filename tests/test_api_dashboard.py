@@ -171,6 +171,7 @@ def test_the_net_worth_is_told_in_a_currency_at_the_newest_rate_the_documents_pr
         "rate": "37.00",
         "rate_day": "2026-10-20",
         "note": "20.10.2026 belgesindeki kurla",
+        "rate_source": "document",
     }
     assert (dollar["amount"], dollar["rate"], dollar["note"]) == (None, None, "belgelerde USD kuru yok")
 

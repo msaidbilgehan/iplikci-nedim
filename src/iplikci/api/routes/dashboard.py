@@ -12,7 +12,7 @@ from ...app import dashboard
 from ...app.analysis import Analysis, account_labels
 from ...app.dashboard import AlertKind, AlertLevel, MonthStatus, TodoKind
 from ...app.links import Link
-from ...app.now import Certainty
+from ...app.now import Certainty, RateSource
 from ...app.workspace import Busy
 from ..context import Context, context_of
 from ..guard import Principal
@@ -35,13 +35,15 @@ class PartOut(BaseModel):
 
 
 class InCurrencyOut(BaseModel):
-    """The net worth in another unit, at the newest rate the documents print."""
+    """The net worth in another unit: at the providers' newest selling rate (what buying it would cost), else at the
+    newest rate the documents print."""
 
     currency: str  # EUR, USD, or GR: grams of gold
     amount: MoneyOut | None  # null without a rate
     rate: str | None  # TL for one unit, as a decimal number ("34.5012")
-    rate_day: date | None  # the day of the row that printed it
+    rate_day: date | None  # the day it is of: the providers' bulletin, or the row that printed it
     note: str  # where the rate comes from, or why there is none
+    rate_source: RateSource | None = None  # null without a rate
 
 
 class NetWorthOut(BaseModel):
@@ -187,6 +189,7 @@ def _net_worth(found: dashboard.NetWorth, labels: dict[str, str]) -> NetWorthOut
                 rate=None if c.rate is None else str(c.rate),
                 rate_day=c.rate_day,
                 note=c.note,
+                rate_source=c.rate_source,
             )
             for c in found.currencies
         ],

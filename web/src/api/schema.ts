@@ -201,6 +201,7 @@ export interface AssetOut {
   day: string;
   certainty: Certainty;
   note: string;
+  rate_source?: RateSource | null;
 }
 
 export interface AttachmentOut {
@@ -851,10 +852,49 @@ export interface FreshnessOut {
   link: LinkOut;
 }
 
+/** A sale of the currency for TL. */
+export interface FxConversionOut {
+  fingerprint: string;
+  day: string;
+  account: AccountRefOut;
+  amount: MoneyOut;
+  tl: MoneyOut;
+  rate: string;
+}
+
+export interface FxCurrencyIncomeOut {
+  currency: string;
+  rate: FxRateOut | null;
+  rows: FxIncomeRowOut[];
+  received: MoneyOut;
+  worth: MoneyOut | null;
+  sold: FxConversionOut[];
+  sensitivity: FxSensitivityOut | null;
+  note: string;
+}
+
 export interface FxCurrencyOut {
   currency: string;
   newest: FxRateOut;
   history: FxRateOut[];
+}
+
+/** The income that comes in a foreign currency (F12), by currency. */
+export interface FxIncomeOut {
+  start: string;
+  end: string;
+  currencies: FxCurrencyIncomeOut[];
+  note: string;
+}
+
+export interface FxIncomeRowOut {
+  fingerprint: string;
+  day: string;
+  account: AccountRefOut;
+  title: string;
+  amount: MoneyOut;
+  counted: MoneyOut;
+  worth: MoneyOut | null;
 }
 
 export interface FxOut {
@@ -867,6 +907,46 @@ export interface FxRateOut {
   day: string;
   rate: string;
   source: RateSource;
+  buying?: string | null;
+  selling?: string | null;
+}
+
+/** What a 5% move of the rate does to the monthly income: the average of complete months only. */
+export interface FxSensitivityOut {
+  months: string[];
+  received: MoneyOut;
+  monthly: MoneyOut;
+  monthly_tl: MoneyOut | null;
+  change: MoneyOut | null;
+  say: string;
+}
+
+/** What the banks' rates cost against TCMB's in the last 12 months (F12). */
+export interface FxSpreadOut {
+  start: string;
+  end: string;
+  total: MoneyOut;
+  trades: FxSpreadRowOut[];
+  trades_total: MoneyOut;
+  purchases: FxSpreadRowOut[];
+  purchases_total: MoneyOut;
+  left_out: number;
+  note: string;
+}
+
+/** A row that shows a bank's rate, against TCMB's of its day in the trade's direction. */
+export interface FxSpreadRowOut {
+  fingerprint: string;
+  day: string;
+  account: AccountRefOut;
+  title: string;
+  side: TradeSide;
+  amount: MoneyOut;
+  tl: MoneyOut;
+  rate: string;
+  tcmb_rate: string;
+  tcmb_day: string;
+  cost: MoneyOut;
 }
 
 export interface GroupOut {
@@ -911,6 +991,7 @@ export interface HoldingOut {
   cost: MoneyOut | null;
   gain: MoneyOut | null;
   note: string;
+  rate_source?: RateSource | null;
 }
 
 export interface HoldingsOut {
@@ -938,13 +1019,17 @@ export interface ImapOut {
   in_keyring: boolean;
 }
 
-/** The net worth in another unit, at the newest rate the documents print. */
+/**
+ * The net worth in another unit: at the providers' newest selling rate (what buying it would cost), else at the newest
+ * rate the documents print.
+ */
 export interface InCurrencyOut {
   currency: string;
   amount: MoneyOut | null;
   rate: string | null;
   rate_day: string | null;
   note: string;
+  rate_source?: RateSource | null;
 }
 
 export interface IncomeOut {
@@ -1412,6 +1497,7 @@ export interface NowBalanceOut {
   through: string;
   certainty: Certainty;
   note: string;
+  rate_source?: RateSource | null;
 }
 
 /** A card's newest statement, what it still asks, and the period the card is in now. */
@@ -2084,6 +2170,12 @@ export interface TotalsOut {
   excluded: number;
 }
 
+/**
+ * Which way a currency changed hands for TL (docs/domain/interpretation.md, "Kur makası"): it decides which of TCMB's
+ * two rates the bank's rate is compared with.
+ */
+export type TradeSide = "buy" | "sell";
+
 export interface TransactionDetailOut {
   row: RowOut;
   printed: PrintedOut | null;
@@ -2187,6 +2279,7 @@ export interface WhyOut {
   pair: RowOut | null;
   rate: string | null;
   rate_day: string | null;
+  rate_source?: RateSource | null;
 }
 
 /** The days a document's bank row is looked for in. */

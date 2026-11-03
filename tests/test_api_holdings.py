@@ -1,6 +1,7 @@
-"""The Döviz screen's API (F12, its Phase 6 part): the TL rates the documents print, and the net worth in TL and the
-other units with each holding's value and, where the documents tell, its cost, and how the assets spread over
-currencies. Nothing is fetched from the network."""
+"""The Döviz screen's API (F12): the TL rates, the providers' as stored or else the documents' own; the net worth in TL
+and the other units with each holding's value and, where the documents tell, its cost, and how the assets spread over
+currencies; the spread the banks' rates cost and the income that comes in a foreign currency. Nothing is fetched from
+the network."""
 
 from datetime import date
 from decimal import Decimal
@@ -12,7 +13,10 @@ from iplikci import demo
 from iplikci.api.app import create_app
 from iplikci.api.context import Context
 from iplikci.app.workspace import Busy, Workspace
-from iplikci.fakes import Move, teb
+from iplikci.domain.codes import RateSource
+from iplikci.fakes import Move, garanti, teb
+from iplikci.fx.book import Quote
+from iplikci.storage import fx_rates
 
 from conftest import add
 
@@ -72,22 +76,183 @@ def trading_ws(ws: Workspace) -> Workspace:
 def test_the_rates_and_the_holdings_need_a_session_or_the_token(ws, monkeypatch):
     context = Context(ws=ws, token=TOKEN)
     client = TestClient(create_app(context), base_url=BASE)
-    assert client.get("/api/fx").status_code == 401
-    assert client.get("/api/holdings").status_code == 401
+    paths = ("/api/fx", "/api/holdings", "/api/fx/spread", "/api/fx/income")
+    for path in paths:
+        assert client.get(path).status_code == 401
 
     def busy():
         raise Busy("başka bir işlem belgeleri işliyor; biraz sonra yeniden deneyin")
 
     monkeypatch.setattr(context.analysis, "get", busy)
-    for path in ("/api/fx", "/api/holdings"):
+    for path in paths:
         refused = client.get(path, headers=bearer())
         assert (refused.status_code, refused.json()["code"]) == (503, "busy")
+
+
+def store(ws: Workspace, *quotes: Quote) -> None:
+    """The providers' answers as the rate job keeps them, a day and a source at a time."""
+    with ws.db() as db:
+        for day, source in sorted({(q.day, q.source) for q in quotes}):
+            fx_rates.put(db, day, source, [q for q in quotes if (q.day, q.source) == (day, source)])
+
+
+def tcmb(day: date, buying: str, selling: str, currency: str = "EUR") -> Quote:
+    return Quote(day, currency, Decimal(buying), Decimal(selling), RateSource.TCMB)
+
+
+# TCMB's euro rates for the trading account's days: Friday's stands for the Saturday purchase of 10 October.
+EURO_RATES = (
+    tcmb(date(2026, 10, 9), "36.3000", "36.4000"),
+    tcmb(date(2026, 10, 20), "36.8000", "36.9000"),
+    tcmb(date(2026, 10, 30), "36.4521", "36.5178"),
+)
+
+
+def test_the_providers_rates_come_first_with_both_sides_and_the_documents_beside_them(trading_ws):
+    store(trading_ws, *EURO_RATES)
+    found = get(client_for(trading_ws), "/api/fx")
+    euro, dollar = found["currencies"]  # the dollar's only rate is still the document's
+    assert euro["newest"] == {
+        "day": "2026-10-30",
+        "rate": "36.4521",
+        "source": "tcmb",
+        "buying": "36.4521",
+        "selling": "36.5178",
+    }
+    assert [(r["day"], r["source"]) for r in euro["history"]] == [
+        ("2026-10-09", "tcmb"),
+        ("2026-10-10", "document"),
+        ("2026-10-20", "tcmb"),
+        ("2026-10-20", "document"),  # on a day with both, the provider's first
+        ("2026-10-30", "tcmb"),
+    ]
+    assert (dollar["newest"]["source"], dollar["newest"]["rate"]) == ("document", "34.10")
+    assert found["missing"] == ["GR"] and "TCMB" in found["note"]
+
+
+def test_the_holdings_and_the_net_worth_name_the_providers_rate_they_are_valued_at(trading_ws):
+    store(trading_ws, *EURO_RATES)
+    worth = get(client_for(trading_ws), "/api/holdings")["worth"]
+    euro, dollar, _ = worth["currencies"]
+    # 23.240 TL at the euro's selling rate, what buying euros would cost; the dollar at the document's rate.
+    assert (euro["amount"], euro["rate"], euro["rate_day"], euro["rate_source"]) == (
+        tl(63640, "EUR"),
+        "36.5178",
+        "2026-10-30",
+        "tcmb",
+    )
+    assert euro["note"] == "TCMB 30.10.2026 döviz satış kuruyla"
+    assert (dollar["rate"], dollar["rate_source"]) == ("34.10", "document")
+
+
+def test_the_spread_compares_each_trade_with_tcmbs_rate_of_its_day_and_counts_what_has_none(trading_ws):
+    store(trading_ws, *EURO_RATES)  # no dollar rate from TCMB: the dollar purchase is left out
+    client = client_for(trading_ws)
+    found = get(client, "/api/fx/spread")
+    assert (found["start"], found["end"], found["left_out"]) == ("2025-11-06", "2026-11-05", 1)
+    first, second = found["trades"]
+    assert {k: first[k] for k in ("day", "side", "amount", "tl", "rate", "tcmb_rate", "tcmb_day", "cost")} == {
+        "day": "2026-10-10",
+        "side": "buy",
+        "amount": tl(10000, "EUR"),
+        "tl": tl(365000),
+        "rate": "36.50",
+        "tcmb_rate": "36.4000",  # Friday's selling rate for a Saturday purchase
+        "tcmb_day": "2026-10-09",
+        "cost": tl(1000),  # (36,50 − 36,40) × 100 EUR
+    }
+    assert (second["tcmb_rate"], second["cost"]) == ("36.9000", tl(1000))
+    assert (found["total"], found["trades_total"], found["purchases"]) == (tl(2000), tl(2000), [])
+    assert "TCMB kuru bulunmayan 1 işlem toplama girmedi" in found["note"]
+    assert client.get(f"/api/transactions/{first['fingerprint']}", headers=bearer()).status_code == 200
+
+
+@pytest.fixture
+def earning_ws(ws: Workspace) -> Workspace:
+    """A euro account paid by a client every month from July to October, and a TL account that sold 100 EUR in
+    October; TCMB's rates for the days of the income."""
+    paid = [
+        Move(date(2026, 7, 3), "ORNEK MUSTERI LTD GELEN EFT", Decimal(2000)),
+        Move(date(2026, 8, 3), "ORNEK MUSTERI LTD GELEN EFT", Decimal(2000)),
+        Move(date(2026, 9, 3), "ORNEK MUSTERI LTD GELEN EFT", Decimal(2500)),
+        Move(date(2026, 10, 3), "ORNEK MUSTERI LTD GELEN EFT", Decimal(3000)),
+    ]
+    period = (date(2026, 7, 1), date(2026, 10, 31))
+    add(ws, "eur.xls", garanti.account_xls(paid, Decimal(0), "9000001", period=period, currency="EUR"))
+    sold = [Move(date(2026, 10, 12), "DÖVİZ SATIŞ EUR: 36,10", Decimal(3610))]
+    add(ws, "teb.xls", teb.account_export(teb.running_rows(sold), period=OCTOBER))
+    store(
+        ws,
+        tcmb(date(2026, 7, 3), "35.0000", "35.1000"),
+        tcmb(date(2026, 8, 3), "35.5000", "35.6000"),
+        tcmb(date(2026, 9, 3), "36.0000", "36.1000"),
+        tcmb(date(2026, 10, 2), "36.2000", "36.3000"),
+        tcmb(date(2026, 10, 30), "36.4521", "36.5178"),
+    )
+    return ws
+
+
+def test_the_foreign_income_is_worth_its_euros_at_the_current_buying_rate(earning_ws):
+    found = get(client_for(earning_ws), "/api/fx/income")
+    [euro] = found["currencies"]
+    assert euro["rate"] == {"day": "2026-10-30", "rate": "36.4521", "source": "tcmb", "buying": None, "selling": None}
+    first = euro["rows"][0]
+    assert (first["day"], first["amount"], first["counted"], first["worth"]) == (
+        "2026-07-03",
+        tl(200000, "EUR"),
+        tl(7000000),  # at 3 July's rate, as the ledger counts it
+        tl(7290420),  # at today's
+    )
+    assert (euro["received"], euro["worth"]) == (tl(950000, "EUR"), tl(34629495))
+    [sale] = euro["sold"]
+    assert (sale["day"], sale["amount"], sale["tl"], sale["rate"]) == (
+        "2026-10-12",
+        tl(10000, "EUR"),
+        tl(361000),
+        "36.10",
+    )
+
+
+def test_the_incomes_sensitivity_is_over_complete_months_only_and_names_them(earning_ws):
+    [euro] = get(client_for(earning_ws), "/api/fx/income")["currencies"]
+    sensitivity = euro["sensitivity"]
+    assert sensitivity["months"] == ["2026-07", "2026-08", "2026-09", "2026-10"]  # November is the current month
+    assert (sensitivity["monthly"], sensitivity["monthly_tl"], sensitivity["change"]) == (
+        tl(237500, "EUR"),
+        tl(8657374),  # 2.375,00 EUR at 36,4521
+        tl(432869),
+    )
+    assert sensitivity["say"].startswith("Aylık ortalama Temmuz 2026 – Ekim 2026 arasındaki 4 tam ay üzerinden")
+    assert "EUR/TRY %5 düşerse aylık gelir 4.328,69 TL azalır" in sensitivity["say"]
+
+
+def test_without_a_foreign_income_the_income_says_so(trading_ws):
+    found = get(client_for(trading_ws), "/api/fx/income")
+    assert found["currencies"] == [] and found["note"].startswith("Döviz cinsinden gelen bir gelir yok")
+
+
+def test_a_foreign_rows_detail_and_balance_name_their_rates_source(earning_ws):
+    client = client_for(earning_ws)
+    [row] = [r for r in get(client, "/api/fx/income")["currencies"][0]["rows"] if r["day"] == "2026-10-03"]
+    why = get(client, f"/api/transactions/{row['fingerprint']}")["why"]
+    # A Saturday's income: Friday's bulletin, at the buying rate.
+    assert (why["rate"], why["rate_day"], why["rate_source"]) == ("36.2000", "2026-10-02", "tcmb")
+    [euro] = [b for b in get(client, "/api/feed/now")["balances"] if b["account"]["id"] == "garanti-9000001"]
+    assert (euro["rate"], euro["rate_source"], euro["value"]) == ("36.4521", "tcmb", tl(34629495))
+    page = get(client, "/api/accounts/garanti-9000001")
+    assert (page["holding"]["rate"], page["holding"]["rate_source"]) == ("36.4521", "tcmb")
 
 
 def test_the_rates_are_the_documents_own_each_with_its_day(trading_ws):
     found = get(client_for(trading_ws), "/api/fx")
     euro, dollar = found["currencies"]
-    assert euro["newest"] == {"day": "2026-10-20", "rate": "37.00", "source": "document"}
+    assert euro["newest"] == {
+        "day": "2026-10-20",
+        "rate": "37.00",
+        "source": "document",
+        "buying": None,
+        "selling": None,
+    }
     assert [r["rate"] for r in euro["history"]] == ["36.50", "37.00"]  # the oldest first
     assert (dollar["currency"], dollar["newest"]["rate"]) == ("USD", "34.10")
     assert found["missing"] == ["GR"]  # the gold account: no document prints a gold price

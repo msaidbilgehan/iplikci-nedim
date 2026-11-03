@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from ...app import feed, now
 from ...app.analysis import Analysis, account_labels
 from ...app.feed import Certainty, DocumentKind, DocumentStatus, MonthStatus, PaymentKind, SeriesPeriod, SourceKind
-from ...app.now import AccountType, BalanceSource
+from ...app.now import AccountType, BalanceSource, RateSource
 from ...app.workspace import Busy
 from ..context import Context, context_of
 from ..guard import Principal
@@ -94,9 +94,11 @@ class NowBalanceOut(BaseModel):
     account: AccountRefOut
     type: AccountType
     balance: MoneyOut  # in the account's currency (grams of gold as "GR"); below zero: overdrawn
-    value: MoneyOut | None  # in TL: a foreign balance at the documents' newest rate; null without one (gold)
+    # In TL: a foreign balance at the providers' newest rate (buying for an asset, selling for a debt), else at the
+    # documents' newest; null without one (gold).
+    value: MoneyOut | None
     rate: str | None  # that rate, TL for one unit, as a decimal number ("34.5012")
-    rate_day: date | None  # the day of the document that printed it
+    rate_day: date | None  # the day it is of: the providers' bulletin, or the document that printed it
     stated: MoneyOut  # the balance the newest document printed
     on: date  # that document's day
     source: BalanceSource
@@ -104,6 +106,7 @@ class NowBalanceOut(BaseModel):
     through: date  # the newest day the balance knows of
     certainty: Certainty  # confirmed: printed by a document; provisional: moved since by receipts and notices
     note: str  # what it rests on, in Turkish
+    rate_source: RateSource | None = None  # where rate comes from; null for a TL or a gold balance
 
 
 class UnknownOut(BaseModel):
@@ -244,6 +247,7 @@ def _balance(b: now.Balance, labels: dict[str, str]) -> NowBalanceOut:
         through=b.through,
         certainty=b.certainty,
         note=b.note,
+        rate_source=b.rate_source,
     )
 
 

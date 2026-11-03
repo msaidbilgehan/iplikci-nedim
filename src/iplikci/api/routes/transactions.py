@@ -25,6 +25,7 @@ from ...app.transactions import (
     NecessityReason,
     Order,
     Printed,
+    RateSource,
     RuleLayer,
     Sort,
     TransactionKind,
@@ -223,7 +224,9 @@ class WhyOut(BaseModel):
     transfer: TransferStep | None  # how a transfer was resolved; null for a row that was no transfer to resolve
     pair: RowOut | None  # the opposite row in another own account, or the named payment it is like
     rate: str | None  # the TL rate a foreign account's row was valued at, as a decimal ("54.4400")
-    rate_day: date | None  # the day of the row that printed it (the source: the documents)
+    rate_day: date | None  # the day it is of: the row that printed it, or the providers' bulletin
+    # Where it comes from: the documents (the row's own rate, else the nearest one) or a provider (TCMB, ECB).
+    rate_source: RateSource | None = None
 
 
 class SplitPartOut(BaseModel):
@@ -304,6 +307,7 @@ def transaction_detail(request: Request, fingerprint: Fingerprint) -> Transactio
             pair=row_out(why.pair, labels) if why.pair is not None else None,
             rate=str(why.rate) if why.rate is not None else None,
             rate_day=why.rate_day,
+            rate_source=why.rate_source,
         ),
         told=[
             ToldOut(

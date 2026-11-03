@@ -558,7 +558,8 @@ Ayrıntılar [ADR-0010](../adr/0010-notification-channels.md)'un uygulama notund
 | `GET /api/documents/{id}/original.html`, `GET /api/documents/{id}/download` | e-postanın betiksiz, uzak içeriksiz özgün görünümü (`sandbox`); aslını okunaklı adıyla indirme |
 | `POST /api/documents/{id}/reparse`, `POST /api/documents/{id}/remove` | yeniden okuma; çöp kutusuna taşıma |
 | `POST /api/uploads`, `POST /api/inbox/plan`, `POST /api/inbox/apply` | elle ekleme (plan → onay → uygula) |
-| `GET /api/subscriptions`, `/api/calendar`, `/api/forecast`, `/api/insights`, `/api/spending`, `/api/holdings`, `/api/fx` | analizler: abonelikler, takvim, nakit öngörüsü, değerlendirme (bulgular, adımlar, olağan dışı hareketler), harcama kartları (İşlemler süzgeçleriyle), varlıklar, kurlar |
+| `GET /api/subscriptions`, `/api/calendar`, `/api/forecast`, `/api/insights`, `/api/spending`, `/api/holdings`, `/api/fx` | analizler: abonelikler, takvim, nakit öngörüsü, değerlendirme (bulgular, adımlar, olağan dışı hareketler), harcama kartları (İşlemler süzgeçleriyle), varlıklar (her değer kurunun günü ve kaynağıyla), kurlar (kur sağlayıcısının en yenisi ya da belgelerinki, alış ve satışıyla; sağlayıcıların son 90 günü ve belgelerdeki kurlar) |
+| `GET /api/fx/spread`, `GET /api/fx/income` | kur makası: son 12 ayın döviz alım-satımları ve yurt dışı kart harcamaları, her biri gününün yönüne uygun TCMB kuruyla, farkı ve toplamı, TCMB kuru olmadığı için dışarıda kalanların sayısı; döviz geliri: son 12 ayın döviz gelirleri bugünkü kurla, TL'ye çevrildikleri günler, tam aylardan kur duyarlılığı |
 | `GET /api/invoices` | banka dışı faturalar ve makbuzlar: durumu (bekliyor, eşleşmedi, eşleşti), ödeyen banka satırı ya da olası nedenler, durum başına sayılar; hiçbiri toplamlara girmez (F14) |
 | `GET /api/month-end`, `GET /api/month-end/{YYYY-MM}` | ay kapanışı |
 | `GET /api/todos`, `POST /api/todos/ignored` | yapılacaklar; birini görmezden gelme |
