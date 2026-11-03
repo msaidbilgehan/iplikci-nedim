@@ -290,6 +290,7 @@ def test_a_cancelled_payment_is_not_expected_and_one_whose_grace_ended_long_ago_
 
 def test_a_yearly_payment_that_did_not_come_names_its_period():
     insurance = [
+        tx(date(2023, 11, 6), "Örnek Sigorta", 4000, "Sigorta"),
         tx(date(2024, 11, 5), "Örnek Sigorta", 4000, "Sigorta"),
         tx(date(2025, 11, 5), "Örnek Sigorta", 4400, "Sigorta"),
     ]
@@ -354,10 +355,11 @@ def test_a_new_price_is_history_once_the_payment_that_made_it_certain_is_older_t
 
 def test_a_yearly_payments_new_price_is_certain_on_its_one_payment_and_history_after_repriced_days():
     insurance = [
+        tx(date(2023, 11, 6), "Örnek Sigorta", 4000, "Sigorta"),
         tx(date(2024, 11, 5), "Örnek Sigorta", 4000, "Sigorta"),
         tx(date(2025, 11, 5), "Örnek Sigorta", 4400, "Sigorta"),
     ]
-    ds = dataset(insurance, [account_list(date(2025, 11, 30), start=date(2024, 11, 1))])
+    ds = dataset(insurance, [account_list(date(2025, 11, 30), start=date(2023, 11, 1))])
     last_day = date(2025, 11, 5) + timedelta(days=news.REPRICED_DAYS)
     assert [f.detail["new"] for f in finds(news.REPRICED, ds, last_day)] == ["4400.00"]
     assert finds(news.REPRICED, ds, last_day + timedelta(days=1)) == []

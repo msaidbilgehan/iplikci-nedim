@@ -503,6 +503,10 @@ def listed(s: Series, ds: Dataset, window: list[str]) -> bool:
 PERIODS = {SeriesPeriod.HALF_YEAR: (160, 200), SeriesPeriod.YEAR: (330, 400)}  # days between two payments
 # Outside commitment categories a periodic payment may move this much: a yearly price rise, not another purchase.
 _PERIODIC_CHANGE = Decimal("0.50")
+# Outside commitment categories two payments a period apart may be two purchases that happen to be (two donations
+# half a year apart, two visits to a shop): the period has to come back once more, as a monthly series needs three
+# months. A commitment category says the payments are one commitment, so two are enough there.
+_PERIODIC_LEAST = 3
 
 
 def period_of(gap: int) -> SeriesPeriod | None:
@@ -557,12 +561,13 @@ def _periodic_chain(payee: str, items: list[Transaction]) -> list[PeriodicSeries
 
 
 def find_periodic(txns: list[Transaction], regular: set[str]) -> list[PeriodicSeries]:
-    """Periodic series per payee: at least two payments about 182 (160–200) or 365 (330–400) days apart.
+    """Periodic series per payee: payments about 182 (160–200) or 365 (330–400) days apart.
 
-    In commitment categories (`regular`) a payee paid once a period is one series whatever the amounts (a car tax
-    moves with its base), as a once-a-month bill is; elsewhere, and where the payee is paid more often, the amounts
-    stay within ±50% of each other (chained as in _periodic_chain). A payee paid more than five times a month is a
-    shop, as for the monthly series.
+    In commitment categories (`regular`) two payments make a series, and a payee paid once a period is one series
+    whatever the amounts (a car tax moves with its base), as a once-a-month bill is. Elsewhere, and where the payee
+    is paid more often, the amounts stay within ±50% of each other (chained as in _periodic_chain), and outside
+    commitment categories a series takes three payments (_PERIODIC_LEAST). A payee paid more than five times a month
+    is a shop, as for the monthly series.
     """
     by_payee: dict[str, list[Transaction]] = defaultdict(list)
     for t in txns:
@@ -574,10 +579,12 @@ def find_periodic(txns: list[Transaction], regular: set[str]) -> list[PeriodicSe
             continue
         periods = [period_of((b.date - a.date).days) for a, b in pairwise(items)]
         once = periods[0] if all(p == periods[0] for p in periods) else None
-        if items[-1].category in regular and once is not None:
+        commitment = items[-1].category in regular
+        if commitment and once is not None:
             found.append(PeriodicSeries(payee, items, period=once))
             continue
-        found += [s for s in _periodic_chain(payee, items) if len(s.payments) >= 2]
+        least = 2 if commitment else _PERIODIC_LEAST
+        found += [s for s in _periodic_chain(payee, items) if len(s.payments) >= least]
     return found
 
 

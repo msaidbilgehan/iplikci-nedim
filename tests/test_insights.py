@@ -383,12 +383,28 @@ def test_payments_a_period_apart_with_similar_ones_between_are_a_shop_not_a_peri
     assert find_periodic(visits, REGULAR) == []
     # A payment at another amount in between is another purchase: the yearly one stays a series.
     app = [
+        tx(date(2024, 1, 30), "Örnek Uygulama", Decimal(950), category="Diğer Harcamalar"),
         tx(date(2025, 2, 1), "Örnek Uygulama", Decimal(1000), category="Diğer Harcamalar"),
         tx(date(2025, 6, 9), "Örnek Uygulama", Decimal(30), category="Diğer Harcamalar"),
         tx(date(2026, 2, 3), "Örnek Uygulama", Decimal(1100), category="Diğer Harcamalar"),
     ]
     (s,) = find_periodic(app, REGULAR)
-    assert [t.amount for t in s.payments] == [Decimal(1000), Decimal(1100)]
+    assert [t.amount for t in s.payments] == [Decimal(950), Decimal(1000), Decimal(1100)]
+
+
+def test_outside_commitment_categories_two_payments_a_period_apart_are_no_series_until_a_third_comes():
+    # Two donations half a year apart, at amounts within half of each other, may be two donations: the period has
+    # to come back once more. The same two payments in a commitment category are its periodic payment.
+    donations = [
+        tx(date(2026, 4, 14), "Örnek Dernek", Decimal(2400), category="Bağış"),
+        tx(date(2026, 10, 1), "Örnek Dernek", Decimal(1900), category="Bağış"),
+    ]
+    assert find_periodic(donations, REGULAR) == []
+    third = tx(date(2027, 3, 25), "Örnek Dernek", Decimal(2000), category="Bağış")
+    (s,) = find_periodic([*donations, third], REGULAR)
+    assert (s.period, len(s.payments)) == (SeriesPeriod.HALF_YEAR, 3)
+    bills = [replace(t, category="Dijital Abonelikler") for t in donations]
+    assert [s.period for s in find_periodic(bills, REGULAR)] == [SeriesPeriod.HALF_YEAR]
 
 
 @pytest.mark.parametrize("gap", [120, 208, 250, 420])
@@ -402,7 +418,8 @@ def test_payments_outside_both_periods_are_no_series(gap):
 
 def test_a_periodic_payment_may_come_as_late_as_its_period_allows_before_it_ends():
     fee = [
-        tx(d, "Örnek Dernek", Decimal(1000), category="Diğer Harcamalar") for d in (date(2024, 5, 5), date(2025, 5, 7))
+        tx(d, "Örnek Dernek", Decimal(1000), category="Diğer Harcamalar")
+        for d in (date(2023, 5, 4), date(2024, 5, 5), date(2025, 5, 7))
     ]
     # Expected on 09.05.2026; a yearly payment may still come until 400 days after the last, 11.06.2026.
     waiting = dataset(fee, card_statements(date(2024, 5, 25), 25))  # statements until 25.05.2026
@@ -417,7 +434,7 @@ def test_monthly_series_keep_their_payments_and_periodic_series_stay_apart():
     music = [tx(d, "Örnek Müzik", Decimal("99.99")) for d in monthly(date(2025, 6, 15), 14)]
     yearly = [
         tx(d, "Örnek Sigorta", Decimal(4000), category="Sigorta", necessity=Necessity.REQUIRED)
-        for d in (date(2025, 3, 10), date(2026, 3, 12))
+        for d in (date(2024, 3, 11), date(2025, 3, 10), date(2026, 3, 12))
     ]
     ins = interpret(dataset(music + yearly, card_statements(date(2025, 3, 15), 20)))
     assert [(s.merchant, len(s.payments)) for s in ins.series] == [("Örnek Müzik", 14)]
