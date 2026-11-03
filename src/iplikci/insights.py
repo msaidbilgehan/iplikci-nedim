@@ -25,16 +25,7 @@ from decimal import Decimal
 from itertools import pairwise
 from statistics import median
 
-from .analysis import (
-    NOT_ON_STATEMENT,
-    POSTING_DAYS,
-    PROVISIONAL,
-    Dataset,
-    DatedRate,
-    ReceiptLine,
-    payments,
-    whole,
-)
+from .analysis import NOT_ON_STATEMENT, PROVISIONAL, Dataset, DatedRate, ReceiptLine, payments, whole
 from .categorize import FX_CATEGORY
 from .domain.codes import (
     CARD_TYPES,
@@ -1534,35 +1525,17 @@ def receipt_amount(ds: Dataset, line: ReceiptLine) -> str:
     return f"{format_amount(abs(line.native))} {currency}"
 
 
-def _transfers_once(rows: list[Transaction]) -> list[Transaction]:
-    """Provisional transfers between one's own accounts, each once. When both ends of a transfer wait for their
-    lists, the money shows going out of one account and the same money coming into another, a few days apart at
-    most; the ledger names both as one's own without pairing them, and their signed sum is nothing."""
-    outs = [t for t in rows if t.amount > 0]
-    once, left = list(outs), list(outs)
-    for t in (t for t in rows if t.amount < 0):
-        twin = next(
-            (
-                o
-                for o in left
-                if o.account != t.account
-                and abs(o.amount + t.amount) <= CENT
-                and abs((o.date - t.date).days) <= POSTING_DAYS[1]
-            ),
-            None,
-        )
-        if twin is None:
-            once.append(t)
-        else:
-            left = [o for o in left if o is not twin]
-    return once
-
-
 def _receipts_finding(c: _Context) -> None:
     rows = [t for t in c.ds.transactions if t.provisional]
     if rows:
-        own = [t for t in rows if t.kind == TransactionKind.OWN_TRANSFER]
-        made_of = [t for t in rows if t.kind != TransactionKind.OWN_TRANSFER] + _transfers_once(own)
+        # A transfer between own accounts waiting at both ends is one payment, told by the side the money left (the
+        # ledger pairs the two sides, Reason.pair).
+        waiting = {t.fingerprint for t in rows if t.fingerprint}
+        made_of = [
+            t
+            for t in rows
+            if not (t.kind == TransactionKind.OWN_TRANSFER and t.amount < 0 and t.reason.pair in waiting)
+        ]
         parts = []
         for kinds, label in _RECEIPT_KINDS:
             found = [t for t in made_of if t.kind in kinds]

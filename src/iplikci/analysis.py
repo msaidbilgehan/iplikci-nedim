@@ -55,6 +55,9 @@ RECEIPT_STATUS = EVIDENCE_STATUS
 # A statement books a receipt's transaction from the day before (a late-evening transfer) to three days
 # after it (a weekend or holiday in between).
 POSTING_DAYS = (-1, 3)
+# A transfer's receiving side is booked from the day before its sending side (a late-evening transfer) to four days
+# after it; a card payment's card side likewise after the paying account's.
+TRANSFER_DAYS = (-1, 4)
 # An account whose statements stopped this long before the newest statement is closed or no longer
 # followed: no statement is expected for it any more.
 ACTIVE_DAYS = 180
@@ -421,9 +424,32 @@ def _free_card_payments(card_txns: list[Transaction], account_txns: list[Transac
     from_accounts = [t for t in account_txns if t.kind == TransactionKind.CARD_PAYMENT]
     free = []
     for p in (t for t in card_txns if t.kind == TransactionKind.CARD_PAYMENT):
-        if not any(abs(a.amount + p.amount) <= CENT and -1 <= (p.date - a.date).days <= 4 for a in from_accounts):
+        if not any(abs(a.amount + p.amount) <= CENT and _in_transfer_days(a, p) for a in from_accounts):
             free.append(p)
     return free
+
+
+def _in_transfer_days(out: Transaction, inc: Transaction) -> bool:
+    return TRANSFER_DAYS[0] <= (inc.date - out.date).days <= TRANSFER_DAYS[1]
+
+
+def _pair_own_sides(found: list[Transaction], paired: set[int]) -> None:
+    """Pair the sides of transfers between own accounts that both name the user or an own account: they were found
+    by name, so each knows it is an own transfer but not where the money went. An outgoing side takes the incoming
+    one of the same amount in another account, the closest in time within TRANSFER_DAYS."""
+    incoming = sorted((t for t in found if t.amount < 0), key=lambda x: x.date)
+    for out in sorted((t for t in found if t.amount > 0), key=lambda x: x.date):
+        best, best_gap = None, 0
+        for inc in incoming:
+            if id(inc) in paired or inc.account == out.account or abs(inc.amount + out.amount) > CENT:
+                continue
+            gap = abs((inc.date - out.date).days)
+            if _in_transfer_days(out, inc) and (best is None or gap < best_gap):
+                best, best_gap = inc, gap
+        if best:
+            paired.update((id(out), id(best)))
+            out.reason = replace(out.reason, pair=best.fingerprint)
+            best.reason = replace(best.reason, pair=out.fingerprint)
 
 
 def _resolve_transfers(
@@ -471,20 +497,22 @@ def _resolve_transfers(
         else:
             still_open.append(t)
 
-    # A row matched by an opposite row of the same amount in another own account.
+    # Two sides that both name the user pair first: a stranger's payment of the same amount must not take one.
     paired: set[int] = set()
+    _pair_own_sides(found_by_name, paired)
+    # A row matched by an opposite row of the same amount in another own account.
     pool = still_open + found_by_name + card_payments
     for t in sorted(still_open, key=lambda x: x.date):
         if t.kind != TransactionKind.TRANSFER_CANDIDATE or id(t) in paired:
             continue
-        best, best_gap = None, None
+        best, best_gap = None, 0
         for other in pool:
             if other is t or id(other) in paired or other.account == t.account or abs(other.amount + t.amount) > CENT:
                 continue
             out, inc = (t, other) if t.amount > 0 else (other, t)
-            gap = (inc.date - out.date).days
-            if -1 <= gap <= 4 and (best is None or abs(gap) < best_gap):
-                best, best_gap = other, abs(gap)
+            gap = abs((inc.date - out.date).days)
+            if _in_transfer_days(out, inc) and (best is None or gap < best_gap):
+                best, best_gap = other, gap
         if best:
             t.kind = best.kind = TransactionKind.OWN_TRANSFER
             paired.update((id(t), id(best)))

@@ -111,6 +111,29 @@ def test_opposite_rows_on_two_own_accounts_pair_up(cat):
     assert far.reason.transfer is TransferStep.INCOME
 
 
+def test_two_sides_that_name_the_user_pair_with_each_other(cat):
+    me = "ÖRNEK İSİM SOYADOĞLU"
+    out = cand(date(2026, 2, 1), "Giden FAST", Decimal(5000), counterparty=me)
+    inc = cand(date(2026, 2, 2), "Gelen FAST", Decimal(-5000), account="vakifbank-0999000000123456", counterparty=me)
+    later = cand(date(2026, 2, 5), "Gelen FAST", Decimal(-5000), account="vakifbank-0999000000123456", counterparty=me)
+    out.fingerprint, inc.fingerprint, later.fingerprint = "a" * 16, "b" * 16, "c" * 16
+    resolve(cat, [out, inc, later])
+    assert (out.reason.pair, inc.reason.pair) == ("b" * 16, "a" * 16)  # the closest in time
+    assert (out.reason.transfer, inc.reason.transfer) == (TransferStep.OWN_NAME, TransferStep.OWN_NAME)
+    assert later.kind == TransactionKind.OWN_TRANSFER and later.reason.pair == ""  # its other side is not shown
+
+
+def test_a_strangers_payment_of_the_same_amount_does_not_take_a_side_that_names_the_user(cat):
+    me = "ÖRNEK İSİM SOYADOĞLU"
+    out = cand(date(2026, 2, 1), "Giden FAST", Decimal(5000), counterparty=me)
+    inc = cand(date(2026, 2, 2), "Gelen FAST", Decimal(-5000), account="vakifbank-0999000000123456", counterparty=me)
+    gift = cand(date(2026, 2, 1), "Gelen FAST", Decimal(-5000), account="vakifbank-0999000000123456")
+    out.fingerprint, inc.fingerprint, gift.fingerprint = "a" * 16, "b" * 16, "c" * 16
+    resolve(cat, [gift, out, inc])
+    assert (out.reason.pair, inc.reason.pair) == ("b" * 16, "a" * 16)
+    assert gift.kind == TransactionKind.INCOME and gift.reason.pair == ""
+
+
 def test_bank_only_payment_outside_coverage_goes_to_own_account(cat):
     covered = Statement(
         account="vakifbank-0999000000123456",
