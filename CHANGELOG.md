@@ -4,6 +4,16 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.9.6] — 2026-11-03 — Transferin karşılığı önce
+
+### Düzeltilenler
+
+- Yalnızca alıcı bankayı yazan bir ödeme (TEB'in "QNB BANK A.Ş." gibi satırları), aynı bankaya aynı tutarda adıyla
+  yapılmış herhangi bir ödemenin türünü, tarihine bakılmadan alıyordu. Bu adım, ödemenin sizin başka bir
+  hesabınızdaki birebir karşılığından önce geliyordu. Bir yakınınıza aynı tutarda ve aynı bankaya para gönderdiğinizde,
+  aylar önce kendi ek hesabınıza yaptığınız ödeme de ona gitmiş sayılabiliyordu. Artık önce sizin adınızı yazan
+  karşılık aranıyor; benzerlik ondan sonra geliyor. Bugünkü belgelerde hiçbir satır değişmiyor.
+
 ## [0.9.5] — 2026-11-03 — Kuralların yerinde düzeltmeler
 
 0.9.3'ün iki düzeltmesi geçici yamalardı; ikisi de olması gereken yerde yeniden yapıldı. Biten bir düzenli gelir
