@@ -243,6 +243,8 @@ okuyucunun belgeleri ve işlenmeyen belgeler yeniden okunur; defter baştan hesa
 
 **Kullanıcı düzeltmesi:** kategori ya da not değişikliği işlemin parmak izine yazılır; kural olarak kaydedilirse
 `rules/personal.yaml` doğrulanarak güncellenir, önceki sürüm `rules/history/`'ye alınır; etkilenen işlemler gösterilir.
+Defterin bir kuraldan ya da bulamadığından çözdüğü bir transfere verilen kategori, bir kuralın vereceği türü de getirir
+(`Categorizer.kind_for`, `annotate.kind_in`); kart alışverişi ve kendi transferiniz diye bilinen satır türünü korur.
 
 ## 8. Veri modeli
 

@@ -4,8 +4,11 @@ An annotation finds its row by fingerprint after every reading. A receipt's row 
 the ledger, and its annotation moves to the statement's row. An annotation no row carries any more is an orphan:
 it is kept and shown, never dropped on the program's own.
 
-A corrected category brings its group and the necessity its rules give; a corrected necessity replaces that. The
-row's kind stays: a rule in the user's rule file is the way to change how a merchant's rows are counted.
+A corrected category brings its group and the necessity its rules give; a corrected necessity replaces that. A
+transfer whose kind the ledger worked out from a rule, a payment it looks like, or from finding nothing (money sent
+to a person, income) takes the category's kind as well, as a rule naming it would (`Categorizer.kind_for`): one
+deposit to a landlord is money sent to a person, not rent. A card's purchase and a transfer the ledger knows is the
+user's own (by name, an own account or its other side) keep their kind; a rule changes how a merchant's rows count.
 
 A split row (F04) leaves the ledger for its parts: each counts under its own category with its share of the amount,
 the parts adding up to the row to the kuruş. They keep the row's day, account, kind, document and note, and are
@@ -22,7 +25,7 @@ from decimal import Decimal
 
 from ..analysis import Dataset, payments
 from ..categorize import OTHER_GROUP, Categorizer
-from ..domain.codes import SPLITTABLE_KINDS, CategoryReason, Necessity
+from ..domain.codes import SPLITTABLE_KINDS, CategoryReason, Necessity, TransactionKind, TransferStep
 from ..domain.labels import NECESSITY, format_amount
 from ..domain.models import Transaction
 from ..domain.money import round_half_up
@@ -30,6 +33,11 @@ from ..domain.text import fold
 from ..storage.annotations import Annotation, Part, Subject
 
 MAX_PARTS = 20
+# The ways the ledger resolves a transfer from what it could find rather than from the user's own name, an own
+# account or the transfer's other side: a category the user gives such a row brings the category's kind.
+_WORKED_OUT = frozenset(
+    {TransferStep.RULE, TransferStep.LIKE_NAMED, TransferStep.UNCOVERED_BANK, TransferStep.PERSON, TransferStep.INCOME}
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,9 +145,16 @@ def split(categorizer: Categorizer, t: Transaction, given: Sequence[Share]) -> t
     return tuple(parts)
 
 
+def kind_in(t: Transaction, category: str, categorizer: Categorizer) -> TransactionKind:
+    """The kind a row takes when the user gives it category: the category's for a transfer the ledger worked out,
+    its own otherwise."""
+    return categorizer.kind_for(category, t.amount) if t.reason.transfer in _WORKED_OUT else t.kind
+
+
 def _put(t: Transaction, annotation: Annotation, categorizer: Categorizer) -> None:
     t.note, t.tags = annotation.note, annotation.tags
     if annotation.category:
+        t.kind = kind_in(t, annotation.category, categorizer)
         t.category = annotation.category
         t.group = categorizer.categories.get(annotation.category, OTHER_GROUP)
         t.necessity = categorizer.necessity_for(t)

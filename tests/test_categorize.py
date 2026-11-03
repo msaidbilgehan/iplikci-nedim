@@ -125,6 +125,24 @@ def test_a_personal_exception_adds_to_the_shipped_ones(tmp_path, cat):
     assert categorize(layered, "EKİM KİRASI").category == "Kira"
 
 
+@pytest.mark.parametrize(
+    "category, amount, kind",
+    [
+        ("Hesaplar Arası Transfer", 500, TransactionKind.OWN_TRANSFER),  # a category the program keeps for a kind
+        ("Döviz & Altın Alım-Satımı", -500, TransactionKind.OWN_TRANSFER),
+        ("Nakit Avans & Çekim", 500, TransactionKind.CASH_ADVANCE),
+        ("Kredi & Borç Anapara", 500, TransactionKind.LOAN_PRINCIPAL),
+        ("Kredi Kartı Faizi", 500, TransactionKind.INTEREST_FEE),
+        ("Kişilere Gönderilen", 500, TransactionKind.P2P_TRANSFER),  # by its `_tür` and the money's way
+        ("Kişilere Gönderilen", -500, TransactionKind.INCOME),
+        ("Kira", 500, TransactionKind.PURCHASE),
+        ("Kira", -500, TransactionKind.REFUND),
+    ],
+)
+def test_a_transfer_in_a_category_takes_the_kind_it_stands_for(cat, category, amount, kind):
+    assert cat.kind_for(category, amount) == kind
+
+
 def test_bank_category_beats_weak_keyword(cat):
     t = categorize(cat, "ORNEK GIDA", bank_category="Fast Food")
     assert t.category == "Restoran & Yemek"

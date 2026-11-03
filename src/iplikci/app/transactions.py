@@ -578,6 +578,9 @@ class Checked:
 
     row: Transaction
     values: dict[str, Any]  # note, tags, category ("" back to the rules), necessity (None back to them), parts
+    # The kind the row takes with the category it is given, when that is not its kind now: a transfer the ledger
+    # worked out counts as its new category says (annotate.kind_in). None when it stays.
+    kind: TransactionKind | None = None
 
 
 def check(ws: Workspace, a: Analysis, fingerprint: str, change: Correction) -> Checked:
@@ -591,7 +594,9 @@ def check(ws: Workspace, a: Analysis, fingerprint: str, change: Correction) -> C
             "Bölünmüş satırın kategorisi ve gerekliliği her parçada ayrı seçilir: parçaları düzenleyin ya da önce "
             "bölmeyi kaldırın."
         )
-    return Checked(t, _changes(ws, change, t))
+    values = _changes(ws, change, t)
+    kind = annotate.kind_in(t, values["category"], Categorizer.layered(ws.rules)) if values.get("category") else None
+    return Checked(t, values, kind if kind != t.kind else None)
 
 
 def correct(ws: Workspace, a: Analysis, fingerprint: str, change: Correction, actor: Actor) -> Annotation | None:

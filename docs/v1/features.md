@@ -188,6 +188,11 @@ G2, K4 · Çekirdek
   - Kesinlik.
 - **Düzeltmeler**
   - Kategori ya da gereklilik değiştirilebilir; yalnızca bu işlem için ya da kural olarak.
+  - Defterin bir kuraldan ya da bulamadığından çözdüğü bir transferin (kişiye giden, gelen para, adıyla yapılmış bir
+    ödemeye benzeyen) kategorisi türünü de belirler: kira sayılan bir depozito "Kişilere Gönderilen"e alınınca
+    harcamadan çıkar; bir hesabınıza gittiği anlaşılan para "Hesaplar Arası Transfer" olur. Kartla yapılan alışveriş
+    ve defterin kendi transferiniz diye bildiği satırlar türünü korur. Tek bir satırın istisnası için desen
+    uydurulmaz, bu düzeltme kullanılır.
   - Not, etiket ve bölme (bir satırı birden çok kategoriye ayırma) eklenebilir.
   - Düzeltmeler yeniden okumada korunur (parmak izi). Eşi bulunamayan düzeltme Yapılacaklar'a düşer.
 - **Toplu işlem:** seçili işlemlere kategori ya da etiket verilebilir.

@@ -877,6 +877,20 @@ def test_a_rows_correction_is_shown_as_it_would_leave_the_row_then_kept_once_app
     assert not failed and undone["annotation"] is None and undone["row"]["category"] == "Kafe & Kahve"
 
 
+def test_a_transfers_correction_shows_where_it_will_count_then(server):
+    # The coffee row is a transfer a rule named: given to people, it no longer counts as spending.
+    fp = coffee_row(server)["fingerprint"]
+    plan, failed = call(server, "annotate_transaction", fingerprint=fp, category="Kişilere Gönderilen")
+    assert not failed and plan["changes"] == [
+        {"field": "category", "now": "Kafe & Kahve", "after": "Kişilere Gönderilen"},
+        {"field": "kind", "now": "purchase", "after": "p2p_transfer", "note": "transferin sayıldığı yer"},
+    ]
+    done, failed = call(server, "annotate_transaction", plan_id=plan["plan_id"])
+    assert not failed and (done["row"]["category"], done["row"]["kind"]) == ("Kişilere Gönderilen", "p2p_transfer")
+    _, (undone, failed) = approved(server, "annotate_transaction", fingerprint=fp, category="")
+    assert not failed and (undone["row"]["category"], undone["row"]["kind"]) == ("Kafe & Kahve", "purchase")
+
+
 def test_a_correction_the_program_would_refuse_gets_no_plan(server):
     fp = coffee_row(server)["fingerprint"]
     text, failed = call(server, "annotate_transaction", fingerprint=fp, category="Kafe ve Kahve")

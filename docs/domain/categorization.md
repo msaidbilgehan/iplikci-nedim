@@ -61,7 +61,9 @@ _banka_kategorileri: …          # Garanti'nin ekstrede yazdığı başlıklar�
 
 - `re:` ile başlayan desen, katlanmış ASCII metin üzerinde çalışan bir düzenli ifadedir.
 - `_tür`, o kategorideki transferlerin türünü belirler: `gelir`, `kişi`, `borç`, `yatırım`
-  ([defter kuralları](ledger.md)).
+  ([defter kuralları](ledger.md)). Programın bir tür için tuttuğu kategoriler o türdür: "Hesaplar Arası Transfer"
+  kendi transferi, "Nakit Avans & Çekim" nakit, "Kredi & Borç Anapara" borç anaparası, faiz ve ücret kategorileri
+  faiz ve ücrettir. Bir kural ya da tek satırlık bir düzeltme bir transferi oraya koyarsa türü bu olur.
 - `_hariç`, kategorinin desenleri bir kelimenin başında tutsa da o kategoriye ait olmayan kelimelerdir. Açıklamada
   bu kelimelerden biriyle başlayan yerdeki eşleşme yok sayılır; daha sonra geçen bir eşleşme yine sayılır
   ("KİRALIK DAİRE EKİM KİRASI" kiradır). Kategorinin bütün desenlerine (isimli, genel, `_zayıf`) uygulanır.

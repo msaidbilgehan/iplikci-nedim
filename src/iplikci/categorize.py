@@ -60,6 +60,14 @@ FEE_CATEGORIES = {
     "card_fee": "Kart Aidatı & Ücretleri",
 }
 
+# The categories the program keeps for a kind of row stand for that kind: a transfer a rule or the user puts in one is
+# that kind (a payment to "Hesaplar Arası Transfer" is an own transfer, not a purchase).
+_CATEGORY_KIND = {
+    **{category: kind for kind, category in KIND_CATEGORY.items()},
+    FX_CATEGORY: TransactionKind.OWN_TRANSFER,
+    **dict.fromkeys(FEE_CATEGORIES.values(), TransactionKind.INTEREST_FEE),
+}
+
 # `_tür` of a category, as the rule file writes it (folded), per money direction (out, in).
 _KIND_BY_TYPE = {
     "": (TransactionKind.PURCHASE, TransactionKind.REFUND),
@@ -291,6 +299,11 @@ class Categorizer:
         return None
 
     def kind_for(self, category: str, amount: Decimal) -> TransactionKind:
+        """The kind a transfer takes in category: the kind a category the program keeps for one stands for, else the
+        category's `_tür` for the money's way (a purchase or a refund without one)."""
+        kept = _CATEGORY_KIND.get(category)
+        if kept is not None:
+            return kept
         out_kind, in_kind = _KIND_BY_TYPE.get(self.types.get(category, ""), _KIND_BY_TYPE[""])
         return out_kind if amount > 0 else in_kind
 

@@ -1,5 +1,6 @@
 """The user's notes and corrections: bound to fingerprints, kept across readings, never lost when their row goes."""
 
+from dataclasses import replace
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -15,7 +16,7 @@ from iplikci.app.rows import Rows
 from iplikci.app.workspace import Workspace
 from iplikci.categorize import Categorizer
 from iplikci.cli import main
-from iplikci.domain.codes import AccountType, Actor, CategoryReason, Necessity, TransactionKind
+from iplikci.domain.codes import AccountType, Actor, CategoryReason, Necessity, TransactionKind, TransferStep
 from iplikci.domain.fingerprint import Fingerprints, fingerprint
 from iplikci.domain.models import Account, Statement, Transaction
 from iplikci.fakes import teb
@@ -143,6 +144,43 @@ def _row(fp: str, description: str) -> Transaction:
     t = Transaction(date(2026, 1, 20), description, 500.0, TransactionKind.P2P_TRANSFER, "teb-1", category="Kişilere")
     t.fingerprint = fp
     return t
+
+
+def _transfer(fp: str, kind: TransactionKind, step: TransferStep | None, category: str, amount: str) -> Transaction:
+    t = Transaction(date(2024, 1, 15), f"GIDEN FAST {fp.upper()}", Decimal(amount), kind, "teb-1", category=category)
+    t.fingerprint, t.reason = fp, replace(t.reason, transfer=step)
+    return t
+
+
+def test_a_transfer_the_ledger_worked_out_counts_as_the_category_the_user_gives_it():
+    rules = Categorizer.layered(None)
+    deposit = _transfer("depozito", TransactionKind.PURCHASE, TransferStep.RULE, "Kira", "15000")  # the landlord's
+    visit = _transfer("muayene", TransactionKind.P2P_TRANSFER, TransferStep.PERSON, "Kişilere Gönderilen", "1750")
+    mine = _transfer("hesabim", TransactionKind.P2P_TRANSFER, TransferStep.PERSON, "Kişilere Gönderilen", "500")
+    own = _transfer("kendim", TransactionKind.OWN_TRANSFER, TransferStep.OWN_NAME, "Hesaplar Arası Transfer", "900")
+    card = _transfer("kart", TransactionKind.PURCHASE, None, "Market & Gıda", "100")
+    given = {
+        "depozito": "Kişilere Gönderilen",  # a deposit to the landlord: money to a person, no spending
+        "muayene": "Sağlık Hizmetleri",  # a doctor's visit paid by transfer: spending
+        "hesabim": "Hesaplar Arası Transfer",  # to the user's own account the ledger could not tell
+        "kendim": "Kişilere Gönderilen",  # the ledger knows it is the user's own: it stays so
+        "kart": "Kişilere Gönderilen",  # a card's purchase stays a purchase
+    }
+    rows = [deposit, visit, mine, own, card]
+    ds = Dataset({}, [], rows, [], [], {})
+    found = {
+        t.fingerprint: annotations.Annotation(t.fingerprint, annotate.subject(t, "TEB"), category=given[t.fingerprint])
+        for t in rows
+    }
+    annotate.apply(ds, found, rules)
+    assert [(t.category, t.kind) for t in rows] == [
+        ("Kişilere Gönderilen", TransactionKind.P2P_TRANSFER),
+        ("Sağlık Hizmetleri", TransactionKind.PURCHASE),
+        ("Hesaplar Arası Transfer", TransactionKind.OWN_TRANSFER),
+        ("Kişilere Gönderilen", TransactionKind.OWN_TRANSFER),
+        ("Kişilere Gönderilen", TransactionKind.PURCHASE),
+    ]
+    assert visit.necessity == Necessity.REQUIRED  # the category's, now that it is spending
 
 
 def test_a_receipts_note_moves_to_the_statement_row_that_confirmed_it():

@@ -1376,10 +1376,12 @@ def _annotate(s: Session, args: Args) -> Proposal:
             "note": "Düzeltme yalnızca bu satırda ve parmak iziyle saklandı; belgeler yeniden okunsa da kalır.",
         }
 
-    shown = {
-        "row": _row_view(row, _bank_labels(a)),
-        "changes": [_changed(field, now[field], after) for field, after in checked.values.items()],
-    }
+    changes = [_changed(field, now[field], after) for field, after in checked.values.items()]
+    if checked.kind is not None:  # a transfer the ledger worked out counts as its new category says
+        changes.append(
+            {"field": "kind", "now": checked.row.kind, "after": checked.kind, "note": "transferin sayıldığı yer"}
+        )
+    shown = {"row": _row_view(row, _bank_labels(a)), "changes": changes}
     return Proposal(shown, apply)
 
 
@@ -2219,9 +2221,12 @@ TOOLS = (
         "Bir işleme not, etiket, kategori ya da gereklilik düzeltmesi: yalnızca o satır değişir ve belgeler yeniden "
         'okunsa da parmak iziyle korunur. Verilmeyen alan olduğu gibi kalır; note "" notu siler, tags satırın '
         'etiketlerini verilen listeyle değiştirir ([] hepsini kaldırır), category ya da necessity "" kararı '
-        "kurallara bırakır. Bir işyerinin bütün işlemleri için add_rule kullanın. Ekstrede görünmeyen dekont satırı "
-        "ve bölünmüş bir satırın kategorisi ya da gerekliliği düzeltilmez. Plan satırı ve her alanın şimdiki ve "
-        "sonraki halini gösterir. Planlarken fingerprint ve en az bir alan gerekir. " + _TWO_STEPS,
+        "kurallara bırakır. Bir işyerinin bütün işlemleri için add_rule kullanın. Kural ya da kişi/gelir diye "
+        "çözülmüş bir transferin kategorisi türünü de belirler (ör. Kişilere Gönderilen'e alınan bir kira depozitosu "
+        "harcama sayılmaz); kartla yapılan alışveriş ve kendi hesaplarınız arası transfer türünü korur. Ekstrede "
+        "görünmeyen dekont satırı ve bölünmüş bir satırın kategorisi ya da gerekliliği düzeltilmez. Plan satırı ve "
+        "her alanın (türü değişecekse onun da) şimdiki ve sonraki halini gösterir. Planlarken fingerprint ve en az "
+        "bir alan gerekir. " + _TWO_STEPS,
         _schema(
             fingerprint=_FINGERPRINT,
             note={"type": "string", "maxLength": 500},
