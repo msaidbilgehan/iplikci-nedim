@@ -93,6 +93,19 @@ def test_while_the_service_is_down_a_change_is_planned_but_never_applied(read):
     assert not read.layout.alert_rules.exists()
 
 
+def test_while_the_service_is_down_an_import_is_planned_but_taken_in_only_by_the_service(read, tmp_path):
+    folder = tmp_path / "indirilenler"
+    folder.mkdir()
+    (folder / "ekstre.pdf").write_bytes(teb.bonus_statement())
+    offline = Session(replace(read, offline=True), offline=True)
+    before = fingerprint(read)
+    planned, failed = answer(offline, "import_documents", paths=[str(folder)])
+    assert not failed and planned["plan_id"]
+    found = offline.call("apply_inbox", {"plan_id": planned["plan_id"]})
+    assert found.error and found.text == OFFLINE
+    assert fingerprint(read) == before and (folder / "ekstre.pdf").is_file()
+
+
 def test_while_the_service_is_down_no_document_is_read_again(read, monkeypatch):
     def refuse(*args, **kwargs):
         raise AssertionError("an offline analysis read a document")

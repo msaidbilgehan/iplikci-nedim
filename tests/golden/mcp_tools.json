@@ -101,9 +101,9 @@
     },
     "annotations": {
       "title": "Belge içe aktar",
-      "readOnlyHint": false,
+      "readOnlyHint": true,
       "destructiveHint": false,
-      "idempotentHint": false,
+      "idempotentHint": true,
       "openWorldHint": false
     }
   },

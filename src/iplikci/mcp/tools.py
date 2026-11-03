@@ -1944,8 +1944,7 @@ TOOLS = (
             ("paths",),
             paths={"type": "array", "minItems": 1, "items": _TEXT, "description": "mutlak yollar; ~ kullanılabilir"},
         ),
-        _import,
-        read_only=False,
+        _import,  # only plans, as plan_inbox does: apply_inbox is what changes something
     ),
     Tool(
         "fetch_email",

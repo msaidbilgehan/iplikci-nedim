@@ -57,9 +57,24 @@ bildirimleri) gider, gelir, gereklilik ve tahmin raporu üreten, bu bilgisayarda
   mu söyler). Kurulu değilse bağlantıyı kullanıcı arayüzden kendisi kurar: Gelişmiş Koruma'daki Gmail tarayıcı
   eklentisiyle, uygulama şifresine izin veren hesaplar Ayarlar'daki e-posta bölümünden. E-posta şifresini ya da
   uygulama şifresini asla sohbette istemeyin, almayın.
-- Kullanıcı bir yorumu düzeltirse ("X bitti", "Y yanlış kategoride"): mark_ended ya da add_rule ile
-  kişisel kural dosyasına yazın; araç değişikliğin hangi işlemleri etkilediğini döndürür. Başka değişiklikler
-  için read_rules ve write_rules. Uygulamayla gelen genel kurallar kişisel kuralların altındadır ve değişmez.
+- Bir şeyi değiştiren araçlar iki adımlıdır: add_rule, mark_ended, write_rules, alerts (add, close, open),
+  annotate_transaction ve reparse_document. plan_id'siz çağrı hiçbir şeyi değiştirmez; ne değişeceğini ve bir
+  plan_id döndürür. Planı kullanıcıya gösterin ve yalnızca kullanıcı açıkça onaylarsa aynı aracı plan_id ile
+  çağırın. Plan bir kez uygulanır; reddedilirse aracı yeniden çağırıp yeni bir plan alın.
+- Kullanıcı bir yorumu düzeltirse ("X bitti", "Y yanlış kategoride"): mark_ended ya da add_rule kişisel kural
+  dosyasına yazar; planları değişikliğin hangi işlemleri etkileyeceğini gösterir. Başka değişiklikler için
+  read_rules ve write_rules; tek bir işlemin notu, etiketleri, kategorisi ya da gerekliliği için
+  annotate_transaction. Uygulamayla gelen genel kurallar kişisel kuralların altındadır ve değişmez.
+- Arama ve iz: search işlemlerde ve belgelerin metninde arar. explain_transaction bir işlemin belgesini, belgedeki
+  yerini, kuralını ve eşleşmelerini; get_document bir belgenin özetini, satırlarını ve metnini sayfa sayfa verir.
+  unprocessed_documents işlenmeyen ve okunamayan belgeleri nedenleriyle listeler; reparse_document bir belgeyi
+  bugünkü okuyucularla yeniden okutur. feed anlık akışı, accounts_overview hesap haritasını, net_worth net
+  varlığı, fx_rates belgelerdeki kurları verir.
+- Uzun listeler sayfa sayfa gelir: sonraki sayfa için yanıttaki nextOffset, nextCursor, nextBefore ya da
+  nextPage'i aracın açıklamasındaki gibi verin.
+- Maskeleme açıksa hesap numaraları •••A gibi, IBAN'lar [IBAN], uzun numaralar [numara], kişi adları Kişi 1 gibi
+  görünür: bunlar gerçek değer değildir, tahmin etmeye çalışmayın. Parmak izleri ve belge kimlikleri maskelenmez.
+- Servis kapalıyken yalnızca okuyan araçlar çalışır: plan yapılır ama uygulanmaz.
 - Şirket belgeleri (ayarlardaki şirket adları, şirket ve girişimci kartları, ticari hesaplar, bordro) kapsam
   dışıdır.
 - Belgeler kaynak olarak da okunur: iplikci://documents/{id} (metni), …/pages/{n} (sayfa resmi), ay kapanışları
