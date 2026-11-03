@@ -83,6 +83,18 @@ describe("TransactionsPage: the list", () => {
     expect(asked).toHaveLength(1); // the open row is no filter
   });
 
+  it("names a chart's month of spending by what its kinds add up to, its days as the period", async () => {
+    const asked = listen();
+    renderScreen(<TransactionsPage />, {
+      path: "/islemler?from=2026-06-01&to=2026-06-30&kind=purchase&kind=refund&kind=interest_fee",
+    });
+    await table();
+    expect(asked[0]!.getAll("kind")).toEqual(["purchase", "refund", "interest_fee"]);
+    expect(screen.getByText("Giderler (harcama, iade, faiz ve ücret)")).toBeInTheDocument();
+    expect(screen.getByText("01.06.2026 – 30.06.2026")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tür süzgecini kaldır" })).toBeInTheDocument();
+  });
+
   it("starts again at the first page when a filter changes", async () => {
     const user = userEvent.setup();
     const { location } = renderScreen(<TransactionsPage />, { path: "/islemler?merchant=Migros&offset=50" });

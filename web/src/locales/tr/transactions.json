@@ -23,7 +23,8 @@
     "period": "Dönem",
     "closed": "kapalı",
     "more": "Süzgeçler",
-    "setCount": "{{count}} etkin"
+    "setCount": "{{count}} etkin",
+    "spending": "Giderler (harcama, iade, faiz ve ücret)"
   },
   "totals": {
     "label": "Toplamlar",

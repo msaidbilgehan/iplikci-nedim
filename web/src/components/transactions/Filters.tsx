@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import type { CategoryRules, Labels } from "../../api/types";
 import { formatDay } from "../../lib/format";
 import { labelOf } from "../../lib/labels";
+import { SPENDING_KINDS } from "../../lib/rows";
 import { selectionOf, withSelection } from "../../lib/selection";
 import { cn } from "../../lib/cn";
 import { SLOT_BG, slotOf } from "../charts/palette";
@@ -46,6 +47,11 @@ const KINDS = [
   "transfer_candidate",
 ];
 const NECESSITIES = ["required", "optional", "unnecessary", "unknown"];
+
+/** Whether the kinds chosen are the spending's own, as a chart's or a card's link writes them out. */
+function isSpending(selected: ReadonlySet<string>): boolean {
+  return selected.size === SPENDING_KINDS.length && SPENDING_KINDS.every((kind) => selected.has(kind));
+}
 const SWATCH = "inline-block size-3 shrink-0 rounded-sm"; // a category's group colour beside its name
 
 interface FiltersProps {
@@ -108,7 +114,8 @@ export function Filters({ params, onChange, labels, accounts, rules }: FiltersPr
       chips.push({
         key: name,
         name: t(`filters.${name}`),
-        value: summarize(selected, options[name]),
+        // The spending's kinds are named as what they add up to, not counted as three of twelve.
+        value: name === "kind" && isSpending(selected) ? t("filters.spending") : summarize(selected, options[name]),
         onRemove: () => set((next) => next.delete(name)),
       });
     }
