@@ -93,7 +93,7 @@ DEFAULTS: tuple[AlertRule, ...] = (
     _rule("Son ödemeye 3 gün", E.PAYMENT_DUE_SOON, days=3),
     _rule("Hesap eksiye düşecek", E.BALANCE_FORECAST_NEGATIVE),
     _rule("Büyük harcama", E.TRANSACTION_LARGE),
-    _rule("Düzenli ödeme zammı", E.SUBSCRIPTION_PRICE_CHANGED),
+    _rule("Düzenli ödeme tutarı değişti", E.SUBSCRIPTION_PRICE_CHANGED),
     _rule("İptalden sonra ödeme", E.SUBSCRIPTION_PAID_AFTER_CANCEL),
     _rule("Beklenen ödeme gelmedi", E.EXPECTED_PAYMENT_MISSING),
     _rule("Maaş gecikti", E.INCOME_LATE),

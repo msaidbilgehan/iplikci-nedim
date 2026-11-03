@@ -16,6 +16,9 @@ from ..domain.labels import EVENT_KIND, MONTHS, PAYMENT_KIND, format_amount
 APP = "İplikçi Nedim"
 IN_THE_APP = "ayrıntı uygulamada"
 DIGEST_LINES = 20  # a digest names this many notifications; the rest it counts
+# A regular payment's new price is one event (subscription.price_changed) whichever way it went; its title and its
+# summary say which.
+PRICE_ROSE, PRICE_FELL = "Düzenli ödeme zammı", "Düzenli ödeme ucuzladı"
 
 E = EventKind
 
@@ -31,6 +34,25 @@ def label(kind: str) -> str:
         return EVENT_KIND[EventKind(kind)]
     except ValueError:
         return kind
+
+
+def title(kind: str, d: Mapping[str, Any]) -> str:
+    """What a notification of an event is titled: the kind of event, and for a regular payment's new price whether it
+    rose or fell."""
+    if kind == E.SUBSCRIPTION_PRICE_CHANGED:
+        rose = _rose(d)
+        if rose is not None:
+            return PRICE_ROSE if rose else PRICE_FELL
+    return label(kind)
+
+
+def _rose(d: Mapping[str, Any]) -> bool | None:
+    """Whether a price change's new price is above its old one; None when the detail does not carry both."""
+    try:
+        old, new = Decimal(str(d.get("old", ""))), Decimal(str(d.get("new", "")))
+    except InvalidOperation:
+        return None
+    return new > old if old.is_finite() and new.is_finite() and new != old else None
 
 
 def _tl(value: Any, currency: str = "TL") -> str:
@@ -107,7 +129,10 @@ def _text(kind: EventKind, target: str, d: Mapping[str, Any], full: bool) -> str
     if kind is E.SUBSCRIPTION_PRICE_CHANGED:
         old, new = _tl(d.get("old", "")), _tl(d.get("new", ""))
         if not full:
-            return f"Bir düzenli ödeme zamlandı: {old} yerine {new}."
+            rose = _rose(d)
+            if rose is None:
+                return f"Bir düzenli ödemenin tutarı değişti: {old} yerine {new}."
+            return f"Bir düzenli ödeme {'zamlandı' if rose else 'ucuzladı'}: {old} yerine {new}."
         return f"{title}: {_day(d.get('since'))} gününden beri {old} yerine {new} ödeniyor."
     if kind is E.SUBSCRIPTION_PAID_AFTER_CANCEL:
         if not full:
@@ -159,16 +184,16 @@ def _plain(kind: EventKind, target: str, d: Mapping[str, Any]) -> str:
 
 def render(kind: str, target: str, detail: Mapping[str, Any], level: DetailLevel) -> Message:
     """The notification of an event at a level of detail."""
-    title = label(kind)
+    heading = title(kind, detail)
     if level is DetailLevel.MINIMAL:
-        return Message(title, f"{title} — {IN_THE_APP}.")
+        return Message(heading, f"{heading} — {IN_THE_APP}.")
     if not target and "count" in detail:  # one event for many: only their number
-        return Message(title, f"{title}: {detail['count']} yeni kayıt; {IN_THE_APP}.")
+        return Message(heading, f"{heading}: {detail['count']} yeni kayıt; {IN_THE_APP}.")
     try:
         code = EventKind(kind)
     except ValueError:
-        return Message(title, f"{title}.")
-    return Message(title, _text(code, target, detail, level is DetailLevel.FULL))
+        return Message(heading, f"{heading}.")
+    return Message(heading, _text(code, target, detail, level is DetailLevel.FULL))
 
 
 def digest(messages: Sequence[Message]) -> Message:

@@ -131,6 +131,26 @@ def test_a_large_purchase_names_the_merchant_and_the_accounts_last_digits_only_i
     assert content.render(E.TRANSACTION_LARGE, "fp", detail, DetailLevel.SUMMARY).body == "Büyük harcama: 6.500,00 TL."
 
 
+@pytest.mark.parametrize(
+    ("old", "new", "title", "summary"),
+    [
+        ("4000.00", "4400.00", "Düzenli ödeme zammı", "Bir düzenli ödeme zamlandı: 4.000,00 TL yerine 4.400,00 TL."),
+        ("2400.00", "1900.00", "Düzenli ödeme ucuzladı", "Bir düzenli ödeme ucuzladı: 2.400,00 TL yerine 1.900,00 TL."),
+    ],
+)
+def test_a_regular_payments_new_price_says_whether_it_rose_or_fell(old, new, title, summary):
+    detail = {"title": "Örnek Dernek", "old": old, "new": new, "since": "2026-10-01"}
+    full = content.render(E.SUBSCRIPTION_PRICE_CHANGED, "s|2026-10-28", detail, DetailLevel.FULL)
+    assert full.title == title
+    assert full.body.startswith("Örnek Dernek: 01.10.2026 gününden beri")
+    said = content.render(E.SUBSCRIPTION_PRICE_CHANGED, "s|2026-10-28", detail, DetailLevel.SUMMARY)
+    assert said == Message(title, summary)  # no payee in summary
+    minimal = content.render(E.SUBSCRIPTION_PRICE_CHANGED, "s|2026-10-28", detail, DetailLevel.MINIMAL)
+    assert minimal.body == f"{title} — ayrıntı uygulamada."
+    # A detail without both prices is titled by the kind alone.
+    assert content.title(E.SUBSCRIPTION_PRICE_CHANGED, {"title": "Örnek Dernek"}) == "Düzenli ödeme tutarı değişti"
+
+
 def test_a_month_and_one_event_for_many_are_told_plainly():
     assert content.render(E.MONTH_CLOSED, "2026-10", {}, DetailLevel.SUMMARY).body.startswith("Ekim 2026 kapandı")
     assert content.render(E.TRANSACTION_LARGE, "", {"count": 12}, DetailLevel.FULL).body == (

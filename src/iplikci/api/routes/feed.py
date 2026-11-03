@@ -69,7 +69,7 @@ class FeedItemOut(BaseModel):
     id: int  # its place in the log: the stream's event id, and a page's `before`
     at: str  # when it was recorded, ISO in UTC
     kind: str  # its code (architecture §13); /api/labels' EventKind names it
-    label: str  # the kind, in Turkish
+    label: str  # the kind, in Turkish, as its notification is titled (a new price: whether it rose or fell)
     text: str  # what happened, in a Turkish sentence (as a notification in full says it)
     target: str  # what it concerns, as the log keys it; "" for an event standing for many
     account: AccountRefOut | None  # the one account it concerns; null for none or several

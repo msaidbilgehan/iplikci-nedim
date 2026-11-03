@@ -152,7 +152,7 @@ class Item:
     id: int
     at: str  # when it was recorded, ISO in UTC
     kind: str  # its code (architecture §13); a kind this version does not know passes as it is
-    label: str  # the kind, in Turkish
+    label: str  # the kind, in Turkish, as its notification is titled (notify.content.title)
     text: str  # what happened, in a Turkish sentence
     target: str  # what it concerns, as the log keys it; "" for an event standing for many
     account: str  # the one account it concerns; "" for none or several
@@ -348,7 +348,7 @@ def _item(db: Database, event_id: int, event: events.Event, concern: _Concern, d
         id=event_id,
         at=event.at,
         kind=event.kind,
-        label=_label(event.kind),
+        label=content.title(event.kind, event.detail),  # as its notification is titled: a new price rose or fell
         text=text_of(event.kind, event.target, event.detail),
         target=event.target,
         account=concern.accounts[0] if len(concern.accounts) == 1 else "",

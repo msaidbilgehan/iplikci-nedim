@@ -47,6 +47,17 @@ const TONES: Readonly<Record<string, Tone>> = {
 
 const SMALL = "text-xs text-zinc-600 dark:text-zinc-300";
 
+/** How an event reads: by its kind, and a regular payment's new price by whether it rose (a warning) or fell (good
+ * news), as the service titles it. */
+function toneOf(item: FeedItem): Tone {
+  const { old, new: now } = item.detail;
+  const moved = old && now && old.currency === now.currency && old.minor !== now.minor;
+  if (item.kind === "subscription.price_changed" && moved) {
+    return now.minor > old.minor ? "warning" : "good";
+  }
+  return TONES[item.kind] ?? "neutral";
+}
+
 // The document news whose sentence only restates its name ("Yeni bir belge geldi.", "Bir belge okundu.").
 const PLAIN_DOCUMENT_NEWS: ReadonlySet<string> = new Set(["document.received", "document.processed"]);
 
@@ -76,7 +87,7 @@ export function EventCard({ item, labels, isNew }: EventCardProps) {
     >
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <h4 id={heading} className="text-sm font-medium">
-          <Status tone={TONES[item.kind] ?? "neutral"}>{item.label}</Status>
+          <Status tone={toneOf(item)}>{item.label}</Status>
         </h4>
         <span className={cn("flex items-center gap-2", SMALL)}>
           {isNew ? (

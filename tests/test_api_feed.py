@@ -195,6 +195,25 @@ def test_an_events_details_come_typed_with_their_amounts_in_minor_units(ws):
     assert maturity["account"] == {"id": "vadeli-1", "label": "vadeli-1"}
 
 
+def test_a_regular_payments_new_price_is_labelled_by_whether_it_rose_or_fell(ws):
+    def price(old: str, new: str) -> dict[str, str]:
+        return {"title": "Örnek Dernek", "old": old, "new": new, "since": "2026-10-01"}
+
+    log(
+        ws,
+        ("subscription.price_changed", "a|2026-10-01", price("2400.00", "1900.00")),
+        ("subscription.price_changed", "b|2026-10-01", price("4000.00", "4400.00")),
+    )
+    rose, fell = page(client_for(ws))["items"]
+    assert (fell["label"], fell["detail"]["old"], fell["detail"]["new"]) == (
+        "Düzenli ödeme ucuzladı",
+        tl(240000),
+        tl(190000),
+    )
+    assert fell["text"] == "Örnek Dernek: 01.10.2026 gününden beri 2.400,00 TL yerine 1.900,00 TL ödeniyor."
+    assert rose["label"] == "Düzenli ödeme zammı"
+
+
 def test_many_new_rows_at_once_are_one_event_that_leads_to_their_days(ws):
     log(ws, ("transaction.created", "", {"count": 120, "from": "2026-01-02", "to": "2026-10-31"}))
     [item] = page(client_for(ws))["items"]
