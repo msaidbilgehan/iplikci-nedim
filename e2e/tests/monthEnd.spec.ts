@@ -1,6 +1,7 @@
 // The Ay sonu screens on the service itself (F11): a month opens from the list with its status and its accounts'
-// closing; the month before is one step away; a big purchase opens its detail at the side; the detailed view's tables
-// pass axe. Nothing here changes data, so both themes' projects run it side by side on the one demo data folder.
+// closing; the month before is one step away; a month's bar of the last 12 months opens its spending; a big purchase
+// opens its detail at the side; the detailed view's tables pass axe. Nothing here changes data, so both themes'
+// projects run it side by side on the one demo data folder.
 
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
@@ -31,6 +32,34 @@ test("bir ay listeden açılır, hesapların kapanışını gösterir ve önceki
   await months.getByRole("link", { name: /^Önceki ay/ }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Eylül 2026" })).toBeVisible();
   await loaded(page);
+});
+
+test("bir ayın gider çubuğuna tıklanınca o ayın giderleri listelenir, toplamları çubuğunkine eşittir", async ({
+  page,
+}) => {
+  await page.goto("/ay-sonu/2026-10");
+  await loaded(page);
+  const trend = page.getByRole("region", { name: "Son 12 ayın gideri" });
+  await expect(trend.getByText("Bir aya tıklayın: o ayın giderleri listelenir.")).toBeVisible();
+  // June's amount as the table view writes it, and its month there leading to the same rows.
+  await trend.getByRole("tab", { name: "Tablo" }).click();
+  const june = trend.getByRole("row", { name: /^Haziran 2026/ });
+  const amount = ((await june.getByRole("cell").nth(1).textContent()) ?? "").trim();
+  expect(amount).toMatch(/^[\d.]+,\d{2} TL$/);
+  await expect(june.getByRole("link", { name: "Haziran 2026" })).toHaveAttribute("href", /from=2026-06-01/);
+  await trend.getByRole("tab", { name: "Grafik" }).click();
+
+  const bar = trend.locator("rect[fill='transparent']").nth(5);
+  await bar.hover();
+  await expect(trend.getByText("Tıklayın: bu ayın giderleri açılır.")).toBeVisible();
+  await bar.click();
+  const spending = "from=2026-06-01&to=2026-06-30&kind=purchase&kind=refund&kind=interest_fee";
+  await expect(page).toHaveURL(new RegExp(`/islemler\\?${spending}$`));
+  await loaded(page);
+  await expect(page.getByText("Giderler (harcama, iade, faiz ve ücret)")).toBeVisible();
+  const totals = page.getByRole("region", { name: "Toplamlar" });
+  await expect(totals.getByText(amount, { exact: true })).toBeVisible(); // the Harcama tile: the bar's amount
+  expect(await page.evaluate(() => window.scrollY)).toBe(0); // the list opens at its top
 });
 
 test("büyük bir harcama yan panelde açılır ve ayrıntılı görünüm erişilebilirlik denetiminden geçer", async ({

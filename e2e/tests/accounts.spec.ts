@@ -1,7 +1,8 @@
 // The Hesaplar screens on the service itself (F07): an account gets a name of the user's own, which the account map
 // shows; accounts chosen together open their rows on the İşlemler screen; the bank's name comes back; and a band of the
-// money's way between the accounts leads to its rows. Each theme's project names an account of its own, so the two run
-// side by side on the one demo data folder; the TL account the screens' test opens is never renamed.
+// money's way between the accounts leads to its rows, from the table and from the drawing. Each theme's project names
+// an account of its own, so the two run side by side on the one demo data folder; the TL account the screens' test
+// opens is never renamed.
 
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
@@ -77,4 +78,43 @@ test("hesaplar arası akışın tablosu erişilebilirlik denetiminden geçer ve 
   await expect(page).toHaveURL(/[?&]from=2026-10-01(&|$)/);
   await loaded(page);
   await expect(page.getByRole("table").first()).toBeVisible(); // the band's rows
+});
+
+test("akış diyagramında bir bant tıklanınca onu oluşturan işlemler açılır, toplamları bandınkine eşittir", async ({
+  page,
+}) => {
+  await page.goto(`/hesaplar?${OCTOBER}`);
+  await loaded(page);
+  const flows = page.getByRole("region", { name: "Hesaplar arası akış" });
+  await expect(flows.getByText("Bir akışa tıklayın: onu oluşturan işlemler listelenir.")).toBeVisible();
+  // The band from the TL account to a spending group, and its amount as the table view writes it.
+  await flows.getByRole("tab", { name: "Tablo" }).click();
+  const row = flows.getByRole("row", { name: new RegExp(`^${TEB.label} Yeme & İçme`) });
+  const amount = ((await row.getByRole("cell").nth(2).textContent()) ?? "").trim();
+  await flows.getByRole("tab", { name: "Grafik" }).click();
+  const drawing = flows.getByRole("img", { name: /: akış diyagramı\./ });
+  await drawing.scrollIntoViewIfNeeded();
+  const middles = await drawing.locator("g[fill='none'] path").evaluateAll((paths) =>
+    paths.map((path) => {
+      const band = path as SVGPathElement;
+      const point = band.getPointAtLength(band.getTotalLength() / 2);
+      const box = band.ownerSVGElement?.getBoundingClientRect();
+      return { x: (box?.x ?? 0) + point.x, y: (box?.y ?? 0) + point.y };
+    }),
+  );
+  const tip = flows.getByText(`${TEB.label} → Yeme & İçme: ${amount}`);
+  let found = false;
+  for (const { x, y } of middles) {
+    await page.mouse.move(x, y);
+    if (await tip.isVisible()) {
+      found = true;
+      await page.mouse.click(x, y);
+      break;
+    }
+  }
+  expect(found).toBe(true);
+  await expect(page).toHaveURL(/\/islemler\?.*group=Yeme\+%26\+%C4%B0%C3%A7me/);
+  await loaded(page);
+  const totals = page.getByRole("region", { name: "Toplamlar" });
+  await expect(totals.getByText(amount, { exact: true })).toBeVisible(); // the Harcama tile: the band's amount
 });
