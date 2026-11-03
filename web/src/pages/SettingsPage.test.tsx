@@ -231,16 +231,36 @@ describe("SettingsPage", () => {
     expect(sent).toEqual([{ path: "backup", body: { keep_days: 90 } }]);
   });
 
-  it("offers an EVDS key, saying what it brings, how to get it and that it stays in the keychain", async () => {
+  it("says the feature is off until a key is given, what it does and that the key stays in the keychain", async () => {
     serve();
     renderScreen(<SettingsPage />);
-    const evds = await card("Enflasyon verisi (EVDS)");
-    expect(within(evds).getByText(/harcama karşılaştırması enflasyondan arındırılmış/)).toBeInTheDocument();
-    expect(await within(evds).findByText("Yok")).toBeInTheDocument();
-    expect(within(evds).getByText(/evds3\.tcmb\.gov\.tr adresinde ücretsiz üye olun/)).toBeInTheDocument();
+    const evds = await card("Enflasyondan arındırma (EVDS)");
+    expect(await within(evds).findByText("Kapalı")).toBeInTheDocument();
+    expect(within(evds).getByText("Kapalı (anahtar girilmedi)")).toBeInTheDocument();
+    expect(within(evds).getByRole("heading", { name: "Ne işe yarar?" })).toBeInTheDocument();
+    expect(within(evds).getByText(/aynı ayın fiyatlarına çevirir/)).toBeInTheDocument();
+    expect(within(evds).getByText(/ayda 26\.000 TL eder/)).toBeInTheDocument();
+    expect(within(evds).getByText(/EVDS'ye hiçbir istek gitmez/)).toBeInTheDocument();
     expect(within(evds).getByText(/yalnızca bu bilgisayarın anahtar zincirinde saklanır/)).toBeInTheDocument();
     expect(within(evds).getByRole("button", { name: "Dene ve kaydet" })).toBeDisabled();
     expect(within(evds).queryByRole("button", { name: "Anahtarı kaldır" })).not.toBeInTheDocument();
+    expect(within(evds).queryByRole("link", { name: "Değerlendirme'de gör" })).not.toBeInTheDocument();
+  });
+
+  it("leads to EVDS's own sign-in page and guides in a new tab, to get a key", async () => {
+    serve();
+    renderScreen(<SettingsPage />);
+    const evds = await card("Enflasyondan arındırma (EVDS)");
+    expect(await within(evds).findByRole("heading", { name: "Anahtar nasıl alınır?" })).toBeInTheDocument();
+    const login = within(evds).getByRole("link", { name: /EVDS'nin giriş sayfasını/ });
+    expect(login).toHaveAttribute("href", "https://evds3.tcmb.gov.tr/login");
+    expect(login).toHaveAttribute("target", "_blank");
+    expect(login).toHaveAttribute("rel", "noopener noreferrer");
+    expect(login).toHaveAccessibleName("EVDS'nin giriş sayfasını (yeni sekmede açılır)");
+    const guides = within(evds).getByRole("link", { name: /EVDS'nin kılavuzlarında/ });
+    expect(guides).toHaveAttribute("href", "https://evds3.tcmb.gov.tr/dokumanlar");
+    expect(within(evds).getByText(/"Kayıt" sekmesinden ücretsiz üye olun/)).toBeInTheDocument();
+    expect(within(evds).getByText(/"API Key Kopyala"ya basın/)).toBeInTheDocument();
   });
 
   it("sends the key once, clears it from the page and says how many months of TÜFE came", async () => {
@@ -253,15 +273,31 @@ describe("SettingsPage", () => {
       }),
     );
     renderScreen(<SettingsPage />);
-    const evds = await card("Enflasyon verisi (EVDS)");
+    const evds = await card("Enflasyondan arındırma (EVDS)");
     const field = await within(evds).findByLabelText("EVDS API anahtarı");
     await userEvent.type(field, "AbCdEf1234");
     await userEvent.click(within(evds).getByRole("button", { name: "Dene ve kaydet" }));
     expect(await within(evds).findByText("Anahtar kabul edildi; 22 ayın TÜFE'si alındı")).toBeInTheDocument();
     expect(sent).toEqual([{ key: "AbCdEf1234" }]);
     expect(field).toHaveValue("");
-    expect(within(evds).getByText("Kayıtlı (bu bilgisayarın anahtar zincirinde)")).toBeInTheDocument();
+    expect(within(evds).getByText("Açık")).toBeInTheDocument();
+    expect(within(evds).getByText("Açık (anahtar bu bilgisayarın anahtar zincirinde)")).toBeInTheDocument();
     expect(within(evds).getByText("22 ay, Ocak 2025 – Ekim 2026")).toBeInTheDocument();
+    expect(within(evds).getByRole("link", { name: "Değerlendirme'de gör" })).toHaveAttribute(
+      "href",
+      "/degerlendirme?bolum=harcamalar",
+    );
+  });
+
+  it("says when TÜFE's new months stop coming, as when EVDS ends a series", async () => {
+    serve();
+    server.use(
+      http.get("/api/settings/evds", () => HttpResponse.json({ ...EVDS_KEPT, newest: "2026-01", behind: true })),
+    );
+    renderScreen(<SettingsPage />);
+    const evds = await card("Enflasyondan arındırma (EVDS)");
+    expect(await within(evds).findByText("TÜFE'nin yeni ayları gelmiyor")).toBeInTheDocument();
+    expect(within(evds).getByText(/En yeni TÜFE Ocak 2026 ayına ait/)).toBeInTheDocument();
   });
 
   it("says why EVDS refused a key, beside the field", async () => {
@@ -275,7 +311,7 @@ describe("SettingsPage", () => {
       ),
     );
     renderScreen(<SettingsPage />);
-    const evds = await card("Enflasyon verisi (EVDS)");
+    const evds = await card("Enflasyondan arındırma (EVDS)");
     const field = await within(evds).findByLabelText("EVDS API anahtarı");
     await userEvent.type(field, "yanlis1234");
     await userEvent.click(within(evds).getByRole("button", { name: "Dene ve kaydet" }));
@@ -297,13 +333,14 @@ describe("SettingsPage", () => {
       }),
     );
     renderScreen(<SettingsPage />);
-    const evds = await card("Enflasyon verisi (EVDS)");
+    const evds = await card("Enflasyondan arındırma (EVDS)");
     expect(await within(evds).findByText("TÜFE son denemede alınamadı")).toBeInTheDocument();
     expect(within(evds).getByText("EVDS 503 yanıtı verdi")).toBeInTheDocument();
     await userEvent.click(within(evds).getByRole("button", { name: "Anahtarı kaldır" }));
     const dialog = await screen.findByRole("alertdialog", { name: "EVDS anahtarı kaldırılsın mı?" });
     await userEvent.click(within(dialog).getByRole("button", { name: "Anahtarı kaldır" }));
-    expect(await within(evds).findByText("Yok")).toBeInTheDocument();
+    expect(await within(evds).findByText("Kapalı (anahtar girilmedi)")).toBeInTheDocument();
+    expect(within(evds).getByText("Anahtar kaldırıldı, özellik kapandı: TÜFE artık alınmayacak.")).toBeInTheDocument();
     expect(removed).toBe(1);
   });
 
