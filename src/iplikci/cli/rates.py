@@ -1,4 +1,4 @@
-"""`iplikci kur`: the exchange rates (F12, architecture §15): fetch them now, and see where they stand. While the
+"""`iplikci kurlar`: the exchange rates (F12, architecture §15): fetch them now, and see where they stand. While the
 service runs, it fetches: `al` asks it to, as `eposta al` does, instead of fetching beside it."""
 
 import argparse
@@ -13,7 +13,7 @@ from .common import clear_progress, local_time, open_workspace
 
 def rates_command(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
-        prog="iplikci kur",
+        prog="iplikci kurlar",
         description="Döviz kurları: TCMB'nin günlük bülteni; TCMB'ye ulaşılamazsa ECB'nin referans kurları. Geçmiş "
         "kurlar verinin kapsadığı günler için bir kez çekilir; sonra her gün, saat 16.30 geçince, o günün bülteni "
         "gelir. Kur sağlayıcılarına yalnızca tarih gider. Servis çalışırken kurları servis çeker.",
@@ -57,7 +57,7 @@ def _fetch(ws: Workspace, history: bool) -> int:
         except client.ServiceError as exc:
             print(f"Servise iletilemedi: {exc}", file=sys.stderr)
             return 1
-        print("Servis kurları çekiyor; sonucu: iplikci kur durum")
+        print("Servis kurları çekiyor; sonucu: iplikci kurlar durum")
         return 0
     while True:
         done = fx.fetch(ws, history, progress=_progress)

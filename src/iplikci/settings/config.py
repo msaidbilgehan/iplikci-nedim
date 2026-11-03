@@ -88,7 +88,9 @@ class Notify:
 
 @dataclass(frozen=True, slots=True)
 class Fx:
-    providers: tuple[str, ...] = ("document", "tcmb", "ecb")
+    # TCMB first; when it cannot be reached, ECB's reference rates, through Frankfurter before ECB's own server, whose
+    # certificate chain the bundle Python verifies with does not complete (ADR-0009's note).
+    providers: tuple[str, ...] = ("document", "tcmb", "frankfurter", "ecb")
 
 
 @dataclass(frozen=True, slots=True)

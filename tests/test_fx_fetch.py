@@ -182,6 +182,7 @@ def test_a_weekend_day_asks_for_no_bulletin_of_its_own(covered, providers, pause
 
 
 def test_when_tcmb_cannot_be_reached_ecb_fills_its_days_and_tcmb_is_asked_again_later(covered, providers, pauses):
+    providers_are(covered, "document", "tcmb", "ecb")
     providers.down.add(egress.TCMB)
     providers.answers[(egress.ECB, ecb.RECENT)] = (200, fake.ecb_xml(reference(REPUBLIC_DAY, FRIDAY, MONDAY)))
     done = fx.fetch(covered, history=True, today=TUESDAY)
@@ -205,6 +206,7 @@ def test_when_tcmb_cannot_be_reached_ecb_fills_its_days_and_tcmb_is_asked_again_
 def test_an_older_history_comes_from_ecbs_whole_history_in_one_request(ws, providers, pauses):
     rows = teb.running_rows([Move(date(2026, 1, 5), "MARKET", Decimal(-5))], Decimal(9))
     add(ws, "ocak.xls", teb.account_export(rows))  # January 2026
+    providers_are(ws, "document", "tcmb", "ecb")
     providers.down.add(egress.TCMB)
     # The history begins long before the data (in 1999); ECB published nothing on New Year's Day.
     history = reference(date(2025, 12, 31), date(2026, 1, 2), date(2026, 1, 5), TUESDAY)
@@ -271,7 +273,8 @@ def test_the_status_tells_the_newest_bulletin_the_days_kept_and_what_is_missing(
 
 def test_the_status_without_documents_waits_for_the_first_one(ws):
     found = fx.status(ws, TUESDAY)
-    assert found.providers == (RateSource.TCMB, RateSource.ECB)  # the settings' defaults
+    # The settings' defaults: Frankfurter before ECB, whose own server's chain Python's bundle cannot complete.
+    assert found.providers == (RateSource.TCMB, RateSource.FRANKFURTER)
     assert found.summary == "henüz kur yok · geçmiş kurlar ilk belge gelince çekilir" and found.missing == 0
 
 
@@ -318,7 +321,7 @@ def test_the_system_status_carries_where_the_rates_stand(covered, providers, pau
     context = Context(ws=covered, token="belirtec", today=lambda: TUESDAY)
     app = TestClient(create_app(context), base_url="http://127.0.0.1:8643")
     rates = app.get("/api/system", headers={"Authorization": "Bearer belirtec"}).json()["rates"]
-    assert rates["providers"] == ["tcmb", "ecb"]
+    assert rates["providers"] == ["tcmb", "frankfurter"]
     assert rates["sources"] == [{"source": "tcmb", "newest": "2026-11-03", "days": 3}]
     assert (rates["start"], rates["missing"], rates["last_error"]) == ("2026-10-29", 0, "") and rates["last_run"]
     assert rates["summary"] == "TCMB'nin son bülteni 03.11.2026 · 3 günün kurları saklı · geçmiş tamam"
@@ -341,21 +344,21 @@ def test_the_command_fetches_itself_when_no_service_runs(covered, providers, pau
     monkeypatch.setenv("IPLIKCI_HOME", str(covered.home))
     today = date.today()  # the command runs on the computer's day
     publish(providers, *weekdays(REPUBLIC_DAY, today), today=today)
-    assert cli.main(["kur", "al", "--gecmis"]) == 0
+    assert cli.main(["kurlar", "al", "--gecmis"]) == 0
     assert "günün kurları geldi" in capsys.readouterr().out
-    assert cli.main(["kur", "durum"]) == 0
+    assert cli.main(["kurlar", "durum"]) == 0
     out = capsys.readouterr().out
     assert "Kurlar: TCMB'nin son bülteni" in out and "geçmiş tamam" in out
-    assert "Sağlayıcılar: TCMB; ulaşılamazsa ECB" in out and "Geçmişin ilk günü: 29.10.2026" in out
+    assert "Sağlayıcılar: TCMB; ulaşılamazsa Frankfurter" in out and "Geçmişin ilk günü: 29.10.2026" in out
     assert "Son çekim: " in out and "henüz yok" not in out
 
 
 def test_the_command_says_when_the_providers_fail(covered, providers, pauses, monkeypatch, capsys):
     monkeypatch.setenv("IPLIKCI_HOME", str(covered.home))
     providers.down |= {egress.TCMB, egress.ECB}
-    assert cli.main(["kur", "al", "--gecmis"]) == 1  # the history has days to ask on any day of the week
+    assert cli.main(["kurlar", "al", "--gecmis"]) == 1  # the history has days to ask on any day of the week
     assert "ulaşılamadı" in capsys.readouterr().out
-    assert cli.main(["kur", "durum"]) == 0 and "Son hata: TCMB: www.tcmb.gov.tr" in capsys.readouterr().out
+    assert cli.main(["kurlar", "durum"]) == 0 and "Son hata: TCMB: www.tcmb.gov.tr" in capsys.readouterr().out
 
 
 def test_the_command_asks_the_running_service_to_fetch(covered, providers, monkeypatch, capsys):
@@ -363,7 +366,7 @@ def test_the_command_asks_the_running_service_to_fetch(covered, providers, monke
     asked: list[tuple[str, str, object]] = []
     monkeypatch.setattr(client, "call", lambda ws, method, path, body=None: asked.append((method, path, body)) or {})
     with instance.held(covered.run, instance.Holder(111, covered.port, "", "")):
-        assert cli.main(["kur", "al", "--gecmis"]) == 0
+        assert cli.main(["kurlar", "al", "--gecmis"]) == 0
     assert asked == [("POST", "/api/fx/fetch", {"history": True})] and providers.asked == []
     assert "Servis kurları çekiyor" in capsys.readouterr().out
 

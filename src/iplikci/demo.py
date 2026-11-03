@@ -35,6 +35,10 @@ _SETTINGS = f"""\
 [identity]
 names = ["{HOLDER}"]
 business_names = ["Örnek Teknoloji A.Ş."]
+
+# Kurlar demonun kendi sahte TCMB bültenlerinden: demo ağdan kur istemez.
+[fx]
+providers = ["document"]
 """
 
 
@@ -160,23 +164,24 @@ def documents() -> dict[str, bytes]:
     return lists | _garanti_receipts() | _brokerage_statements() | _inbox(lists)
 
 
-def _store_rates(ws: Workspace, today: date) -> int:
-    """TCMB's made-up bulletins for every business day from the demo's first day through AS_OF or today, whichever
-    is later: the screens have a provider's rates to show, and a service on the demo finds no day to fetch from the
-    network. A day's rates are the same whenever the demo is built. How many days were stored."""
+def _store_rates(ws: Workspace) -> int:
+    """TCMB's made-up bulletins for every business day from the demo's first day through AS_OF: the screens have a
+    provider's rates to show, and the same ones whenever and on whatever day the demo is built, its newest among
+    them. The demo's settings ask no provider, so a service on it never reaches the network for more. How many days
+    were stored."""
     with ws.db() as db, db.transaction():
         start = fx.history_start(db)
-        days = list(weekdays(start, max(AS_OF, today))) if start else []
+        days = list(weekdays(start, AS_OF)) if start else []
         for day in days:
             bulletin = tcmb.parse(fake_rates.tcmb_xml(day, fake_rates.tcmb_rates(day)))
             fx_rates.put(db, bulletin.day, RateSource.TCMB, bulletin.quotes)
     return len(days)
 
 
-def build(target: Path, today: date | None = None) -> Path:
+def build(target: Path) -> Path:
     """Make a demo data folder at target, which must be missing or empty: nothing is overwritten. Its documents
     go into the vault as an import ("Bankalar/…") and as the inbox would bring them ("Gelen Belgeler/…"); its rates
-    reach today (the computer's day when None)."""
+    reach AS_OF."""
     if target.exists() and (not target.is_dir() or any(target.iterdir())):
         raise FileExistsError(f"{target} boş değil: demo veri klasörü yalnızca boş ya da olmayan bir klasöre kurulur")
     layout = Layout(target)
@@ -190,5 +195,5 @@ def build(target: Path, today: date | None = None) -> Path:
         kind = SourceKind.INBOX if folder == _INBOX else SourceKind.IMPORT
         incoming.append(intake.Incoming(name, data, Source(kind, name, folder)))
     intake.apply(ws, intake.plan_documents(ws, incoming), Actor.SYSTEM)
-    _store_rates(ws, today or date.today())
+    _store_rates(ws)
     return target

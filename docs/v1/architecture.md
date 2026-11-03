@@ -768,7 +768,7 @@ channels = ["desktop", "telegram"]  # uygulama içi kutuya ek olarak açık kana
 telegram_chat = 0                   # eşleştirmenin yazdığı sohbet; 0: eşleşme yok
 
 [fx]
-providers = ["document", "tcmb", "ecb"]
+providers = ["document", "tcmb", "frankfurter", "ecb"]
 
 [privacy]
 mcp_masking = "off"                 # "accounts" | "accounts_and_names"

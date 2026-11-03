@@ -139,8 +139,13 @@ def test_the_net_worth_adds_up_what_stands_now_and_names_what_has_no_value(demo_
     ]
     assert worth["left_out"] == now["unknown"]  # the Garanti account known only from receipts
     euro, dollar, gold = worth["currencies"]
-    assert (euro["amount"], euro["note"]) == (None, "belgelerde EUR kuru yok")
-    assert (dollar["currency"], dollar["amount"]) == ("USD", None)
+    # At the demo's made-up TCMB bulletin of its last business day: what the TL would buy, at the selling rate.
+    assert (euro["amount"], euro["rate"], euro["note"]) == (
+        {"minor": 329449, "currency": "EUR"},  # 185.722,10 / 56,3735
+        "56.3735",
+        "TCMB 13.11.2026 döviz satış kuruyla",
+    )
+    assert (dollar["amount"], dollar["rate_source"]) == ({"minor": 369401, "currency": "USD"}, "tcmb")
     assert (gold["currency"], gold["amount"], gold["note"]) == ("GR", None, "gram altının TL fiyatı belgelerde yok")
     assert worth["say"] == "Net varlığınız 185.722,10 TL; 1 hesabın TL değeri bilinmediği için toplama girmedi."
     assert worth["link"] == link("accounts")

@@ -49,4 +49,9 @@ Kur sağlayıcılarının sunucuları, 2026-11-03'te denenmiş adresleriyle:
 
 - `evds2.tcmb.gov.tr` artık `evds3`'e yönlendiriyor; uygulama yönlendirme izlemez, doğrudan `evds3`'e gider.
 - Sağlayıcılar `egress` üzerinden yalnızca GET ile çağrılır: sertifika ve sunucu adı denetlenir, yönlendirme izlenmez,
-  yanıt 1 MB ile sınırlıdır (ECB'nin bütün geçmişi zip olarak 642 KB).
+  yanıt 1 MB ile sınırlıdır (ECB'nin bütün geçmişi zip olarak 642 KB). Yol `/` ile başlamalıdır: izinli sunucudan sonra
+  gelen `@başka.adres/` gibi bir yol isteği başka bir sunucuya götürürdü.
+- ECB'nin sunucusu macOS'taki Python'un sertifika denetiminden geçmedi (`CERTIFICATE_VERIFY_FAILED`): Python'un
+  okuduğu kök sertifika dosyasında Sectigo'nun E46 kökü yok, sunucu da oraya götüren ara sertifikayı göndermiyor.
+  Güven ayarı değiştirilmedi. Bu yüzden TCMB'ye ulaşılamazsa ECB'nin kurları önce Frankfurter'den istenir; ayarlardaki
+  varsayılan sıra `document`, `tcmb`, `frankfurter`, `ecb`.

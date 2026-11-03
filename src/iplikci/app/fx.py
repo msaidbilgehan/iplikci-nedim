@@ -120,7 +120,7 @@ class SourceDays:
 
 @dataclass(frozen=True, slots=True)
 class RatesStatus:
-    """Where the rates stand, for the System screen and `iplikci kur durum`."""
+    """Where the rates stand, for the System screen and `iplikci kurlar durum`."""
 
     providers: tuple[RateSource, ...]  # the providers the settings let the program ask, in that order; () none
     sources: tuple[SourceDays, ...]  # those whose rates are kept, TCMB first

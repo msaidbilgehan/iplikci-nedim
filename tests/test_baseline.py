@@ -50,17 +50,18 @@ def test_the_demo_documents_are_in_the_vault_and_read_into_the_database(tmp_path
     assert ws.vault.verify().ok and sorted(ws.vault.objects()) == sorted(d.sha256 for d in kept)
 
 
-def test_the_demo_holds_tcmb_rates_for_every_business_day_and_leaves_nothing_to_fetch(tmp_path, providers):
-    built = date(2026, 12, 2)  # a Wednesday after the day the demo is looked at
-    ws = Workspace.load(demo.build(tmp_path / "demo", today=built))
+def test_the_demo_holds_tcmb_rates_through_its_own_day_and_asks_no_provider_for_more(tmp_path, providers):
+    ws = Workspace.load(demo.build(tmp_path / "demo"))
     with ws.db() as db:
         days = fx_rates.asked(db, RateSource.TCMB)
         currencies = {q.currency for q in fx_rates.every(db)}
-    # Its first day through the build day: 336 days, 48 whole weeks of five business days.
-    assert (min(days), max(days), len(days)) == (date(2026, 1, 1), built, 240)
+    # Its first day through AS_OF, a Sunday: the business days of 1 January to 13 November 2026, whatever the day it is
+    # built on, so its numbers in other currencies stay the same.
+    assert (min(days), max(days), len(days)) == (date(2026, 1, 1), date(2026, 11, 13), 227)
     assert all(a.published for a in days.values()) and currencies == {"EUR", "GBP", "USD"}
-    assert fx.request_missing(ws, built) is False
-    assert fx.fetch(ws, history=True, today=built).asked == 0 and providers.asked == []  # the network is not needed
+    later = date(2026, 12, 2)  # a day after the demo's, with business days it has no rate for
+    assert fx.request_missing(ws, later) is False
+    assert fx.fetch(ws, history=True, today=later).asked == 0 and providers.asked == []  # its settings ask no one
 
 
 def test_the_demo_is_built_only_into_an_empty_folder(tmp_path):
