@@ -39,9 +39,14 @@ Kullanıcı yalnızca toplamları değil, yorumu ve stratejiyi istiyor. Kullanı
 | MVP | V1 kodu | Kural |
 |---|---|---|
 | `bitti` | `ended` | Hesaplarının ekstreleri beklenen ödemeyi ve payını ödeme olmadan geçti, ya da beklenen tarihten bu yana 90 gün geçti. |
-| `iptal` | `cancelled` | `_biten`'de yazıyor. |
-| `iptal_sonrasi` | `paid_after_cancel` | O aydan sonra bir ödeme göründü; kullanıcı uyarılır. |
+| `iptal` | `cancelled` | `_biten`'de yazıyor ve o ayın ödemesi yapıldı (ya da beklenen ödeme o aydan sonraya düşüyor, ya da hiç gelmedi). |
+| `iptal_sonrasi` | `paid_after_cancel` | O aydan sonra bir ödeme göründü; kullanıcı uyarılır. Gelirde olmaz. |
 | `devam` | `active` | Diğer durumlar. |
+
+- `_biten`'deki ay son ödemenin ayıdır: o ayın ödemesi henüz gelmediyse seri o ayın sonuna dek sürer ve takvim, öngörü
+  onu yalnızca o aya dek bekler. Kullanıcı ayı ileriye yazmışsa (son maaş gelecek ay yatacaksa) o ödeme sayılır.
+- Düzenli bir gelir de `_biten`'e yazılarak bitirilir ("Artık gelmiyor"). O aydan sonra gelen para geliri yeniden
+  başlatmaz ve uyarı değildir; gecikmiş gelir haberi de verilmez.
 
 Biten bir "Gerekli" fatura "Belgelerde yok" diye gösterilir: belgesi olmayan bir hesaptan ödeniyor olabilir.
 

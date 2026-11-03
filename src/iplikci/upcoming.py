@@ -10,7 +10,7 @@ and what it asks come from its statement; the caller reads them (CardDue).
 
 from calendar import monthrange
 from collections import defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from decimal import Decimal
@@ -21,7 +21,7 @@ from .domain.codes import CARD_TYPES, AccountType, InvoiceKind, InvoiceStatus, P
 from .domain.labels import SERIES_PERIOD, format_amount
 from .domain.models import TRY, Statement, Transaction
 from .domain.text import fold
-from .insights import Insights, PeriodicSeries, Series, Timeline, month_name, month_of, settle, shift
+from .insights import Insights, PeriodicSeries, Series, Timeline, month_end, month_name, month_of, settle, shift
 from .invoices import InvoiceMatch, similar
 
 HORIZON = 60  # days the calendar and the cash-flow forecast look ahead, today the first of them (F09)
@@ -188,6 +188,14 @@ def _amount_basis(s: Series) -> str:
     return f"son üç ödemenin medyanı ({_months(s.payments[-3:])})"
 
 
+def until(s: Series, ended: Mapping[str, str], end: date) -> date:
+    """The last day a running series is expected on: end, or the last day of the month the user's rules give as its
+    last (`_biten`) while that month's payment is still to come. A payment that goes on after that month (paid after
+    cancelling) is expected on."""
+    month = ended.get(fold(s.merchant))
+    return min(end, month_end(month)) if month and s.status == "devam" else end
+
+
 def series_items(ds: Dataset, series: Iterable[Series], start: date, end: date) -> list[Due]:
     """The running monthly series' next payments, from the account each was last paid from. A loan's series is left
     to loan_items, which knows its whole installment."""
@@ -197,20 +205,20 @@ def series_items(ds: Dataset, series: Iterable[Series], start: date, end: date) 
         if not s.running or (account is not None and account.type == AccountType.LOAN):
             continue
         basis = _amount_basis(s) + ("; iptal edildi ama ödeme sürüyor" if s.status == "iptal_sonrasi" else "")
-        for day in monthly_days(s.payments, start, end):
+        for day in monthly_days(s.payments, start, until(s, ds.ended, end)):
             found.append(
                 Due(day, PaymentKind.REGULAR, s.merchant, s.last.account, s.monthly, basis, series_id(s), _rows(s))
             )
     return found
 
 
-def periodic_items(series: Iterable[PeriodicSeries], start: date, end: date) -> list[Due]:
+def periodic_items(series: Iterable[PeriodicSeries], ended: Mapping[str, str], start: date, end: date) -> list[Due]:
     found: list[Due] = []
     for s in series:
         if not s.running:
             continue
         basis = f"{SERIES_PERIOD[s.period].lower()}; son ödeme {_day(s.last.date)}: {_tl(s.per_period)}"
-        for day in periodic_days(s, start, end):
+        for day in periodic_days(s, start, until(s, ended, end)):
             found.append(
                 Due(day, PaymentKind.PERIODIC, s.merchant, s.last.account, s.per_period, basis, series_id(s), _rows(s))
             )
@@ -222,14 +230,15 @@ def income_amount(s: Series) -> Decimal:
     return median(abs(t.amount) for t in s.payments[-3:])
 
 
-def income_items(series: Iterable[Series], start: date, end: date) -> list[Due]:
-    """The salary and the other running income series, on the series' day, into the account they last came to."""
+def income_items(series: Iterable[Series], ended: Mapping[str, str], start: date, end: date) -> list[Due]:
+    """The salary and the other running income series, on the series' day, into the account they last came to; one the
+    user ended (`_biten`) up to the month they gave as its last."""
     found: list[Due] = []
     for s in series:
         if not s.running:
             continue
         basis = f"son üç tutarın medyanı ({_months(s.payments[-3:])})"
-        for day in monthly_days(s.payments, start, end):
+        for day in monthly_days(s.payments, start, until(s, ended, end)):
             found.append(
                 Due(
                     day,
@@ -330,7 +339,7 @@ def loan_items(ds: Dataset, tl_: Timeline, series: Iterable[Series], start: date
             f"{_tl(amount - principal)}); kalan taksit sayısı belgelerde yok"
         )
         prints = tuple(t.fingerprint for t in last if t.fingerprint)
-        for day in monthly_days(rows, start, end):
+        for day in monthly_days(rows, start, until(s, ds.ended, end)):
             found.append(Due(day, PaymentKind.LOAN, account.label, loan, amount, basis, rows=prints))
     return found
 
@@ -424,13 +433,13 @@ def upcoming(
     counts the days before today its documents do not reach yet)."""
     start, end = min(since or today, today), horizon_end(today, days)
     regular, bills = billed(
-        [*series_items(ds, ins.series, start, end), *periodic_items(ins.periodic, start, end)],
+        [*series_items(ds, ins.series, start, end), *periodic_items(ins.periodic, ds.ended, start, end)],
         [*ins.series, *ins.periodic],
         _bills(ds, start, end),
     )
     items = [
         *regular,
-        *income_items(ins.income, start, end),
+        *income_items(ins.income, ds.ended, start, end),
         *installment_items(ds, start, end),
         *loan_items(ds, ins.timeline, ins.series, start, end),
         *card_due_items(ds, dues, start, end),

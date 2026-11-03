@@ -438,15 +438,22 @@ def find_series(txns: list[Transaction], regular: set[str]) -> list[Series]:
 
 
 def settle(s: Series, seen_until: dict[str, date], ended: dict[str, str], as_of: date) -> None:
-    """Status of a series: running, ended (statements go on without it) or cancelled."""
+    """Status of a series: running, ended (statements go on without it) or ended by the user's rules (`_biten`, the
+    month of its last payment: cancelled). A series the user ended runs on while that month's payment is still to
+    come; a payment that goes on after the month is paid after cancelling, a warning, and still expected. An income
+    is never that: money that came after the month the user gave does not make it run again."""
     s.expected = s.last.date + timedelta(days=s.cadence)
-    cancelled = ended.get(fold(s.merchant))
-    if cancelled:
-        s.status = "iptal_sonrasi" if paid_after_cancel(s, ended) else "iptal"
-        return
     seen = max(seen_until.get(t.account, t.date) for t in s.payments[-2:])
     over = seen >= s.expected + timedelta(days=s.grace) or as_of > s.expected + timedelta(days=_STALE)
-    s.status = "bitti" if over else "devam"
+    last_month = ended.get(fold(s.merchant))
+    if last_month is None:
+        s.status = "bitti" if over else "devam"
+    elif paid_after_cancel(s, ended) and s.last.kind is not TransactionKind.INCOME:
+        s.status = "iptal_sonrasi"
+    elif over or month_of(s.last.date) >= last_month or month_of(s.expected) > last_month:
+        s.status = "iptal"
+    else:
+        s.status = "devam"
 
 
 def paid_after_cancel(s: Series, ended: dict[str, str]) -> list[Transaction]:
@@ -480,11 +487,13 @@ def regular_payments(ds: Dataset, tl_: Timeline) -> tuple[list[Series], list[Ser
 
 
 def listed(s: Series, ds: Dataset, window: list[str]) -> bool:
-    """Whether a series belongs on the list of regular payments: a running one, or one that ended or was cancelled
-    within the window; an ended purchase only when it was a commitment (a bill, not a shop visited monthly)."""
+    """Whether a series belongs on the list of regular payments or income: a running one, or one that ended or was
+    cancelled within the window; an ended purchase only when it was a commitment (a bill, not a shop visited monthly),
+    an ended income only when the user ended it (so that they can take it back)."""
     recent = month_of(s.last.date) >= window[0]
     if s.status == "bitti":
-        return recent and (s.last.category in ds.regular or s.last.kind != TransactionKind.PURCHASE)
+        commitment = s.last.category in ds.regular or s.last.kind != TransactionKind.PURCHASE
+        return recent and commitment and s.last.kind != TransactionKind.INCOME
     return s.running or (s.status == "iptal" and recent)
 
 

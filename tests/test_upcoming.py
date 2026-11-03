@@ -178,12 +178,33 @@ def test_the_salary_is_expected_on_its_day_at_the_median_of_its_last_three_amoun
         for d, a in zip(monthly(date(2026, 6, 1), 5), amounts)
     ]
     series = running(find_series(salary, set()))
-    found = income_items(series, date(2026, 11, 1), date(2026, 12, 30))
+    found = income_items(series, {}, date(2026, 11, 1), date(2026, 12, 30))
     assert [(d.day, d.kind, d.amount) for d in found] == [
         (date(2026, 11, 1), PaymentKind.INCOME, Decimal(-41500)),  # money in: below zero, as a Transaction's
         (date(2026, 12, 1), PaymentKind.INCOME, Decimal(-41500)),
     ]
     assert found[0].basis == "son üç tutarın medyanı (Ağustos 2026 – Ekim 2026)"
+
+
+def test_an_income_the_user_ended_is_expected_only_up_to_the_month_they_gave():
+    salary = [
+        tx(d, "Örnek İşveren", -40000, category="Maaş", kind=TransactionKind.INCOME)
+        for d in monthly(date(2026, 6, 1), 5)
+    ]
+    series = running(find_series(salary, set()))
+    found = income_items(series, {"ORNEK ISVEREN": "2026-11"}, date(2026, 11, 1), date(2027, 1, 30))
+    assert [d.day for d in found] == [date(2026, 11, 1)]  # its last month's, none after
+
+
+def test_a_payment_going_on_after_its_cancellation_is_expected_past_the_month_given():
+    (s,) = running(
+        find_series(
+            [tx(d, "Örnek Dergi", 50, category="Dijital Abonelikler") for d in monthly(date(2026, 6, 9), 5)], REGULAR
+        )
+    )
+    s.status = "iptal_sonrasi"
+    found = series_items(dataset([], ended={"ORNEK DERGI": "2026-08"}), [s], date(2026, 11, 1), date(2026, 12, 30))
+    assert [d.day for d in found] == [date(2026, 11, 9), date(2026, 12, 9)]
 
 
 def test_a_periodic_payment_is_expected_a_period_after_the_last():
@@ -193,11 +214,11 @@ def test_a_periodic_payment_is_expected_a_period_after_the_last():
         status="devam",
         period=SeriesPeriod.YEAR,
     )
-    (found,) = periodic_items([s], date(2026, 11, 20), horizon_end(date(2026, 11, 20)))
+    (found,) = periodic_items([s], {}, date(2026, 11, 20), horizon_end(date(2026, 11, 20)))
     assert (found.day, found.kind, found.amount) == (date(2027, 1, 8), PaymentKind.PERIODIC, Decimal(4800))
     assert found.basis == "yılda bir; son ödeme 10.01.2026: 4.800,00 TL"
     s.status = "bitti"
-    assert periodic_items([s], date(2026, 11, 20), horizon_end(date(2026, 11, 20))) == []
+    assert periodic_items([s], {}, date(2026, 11, 20), horizon_end(date(2026, 11, 20))) == []
 
 
 def card_statement(cut: date, rows: list[Transaction]) -> Statement:

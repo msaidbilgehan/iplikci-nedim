@@ -135,6 +135,49 @@ def test_listed_as_ended_is_cancelled_and_a_later_charge_is_reported():
     assert "12.11.2026" in finding.text
 
 
+def test_listed_as_ended_with_a_later_month_runs_until_that_months_payment_comes():
+    txns = [tx(d, "Örnek Dergi", Decimal("49.90")) for d in monthly(date(2025, 12, 12), 11)]  # last 12.10.2026
+    statements = card_statements(date(2025, 12, 13), 11)  # last statement cut 13.10.2026
+    # The user gave November as the last payment's month: the November charge is still to come.
+    assert series_status(dataset(txns, statements, ended={"ORNEK DERGI": "2026-11"})) == {
+        ("Örnek Dergi", Decimal("49.9")): "devam"
+    }
+    paid = txns + [tx(date(2026, 11, 12), "Örnek Dergi", Decimal("49.90"))]
+    ds = dataset(paid, card_statements(date(2025, 12, 13), 12), ended={"ORNEK DERGI": "2026-11"})
+    assert series_status(ds) == {("Örnek Dergi", Decimal("49.9")): "iptal"}
+
+
+def test_a_cancelled_payment_whose_last_month_already_has_its_payment_is_not_expected_again_that_month():
+    # Paid on the 1st: the next one is due before the month ends, yet the month's payment was the last.
+    txns = [tx(d, "Örnek Dergi", Decimal("49.90")) for d in monthly(date(2026, 1, 1), 10)]  # last 01.10.2026
+    ds = dataset(txns, card_statements(date(2026, 1, 2), 10), ended={"ORNEK DERGI": "2026-10"})
+    assert series_status(ds) == {("Örnek Dergi", Decimal("49.9")): "iptal"}
+
+
+def _income_status(ds: Dataset) -> dict[str, str]:
+    _, income = regular_payments(ds, timeline(ds))
+    return {s.merchant: s.status for s in income}
+
+
+def test_an_income_the_user_ended_stays_ended_when_money_comes_after_its_last_month():
+    salary = [
+        tx(d, "Örnek İşveren", Decimal(-40000), "Maaş", None, TransactionKind.INCOME, "cash")
+        for d in monthly(date(2026, 3, 3), 8)  # last 03.10.2026
+    ]
+    lists = full_coverage("cash", "2026-03", "2026-10")
+    assert _income_status(dataset(salary, [], {"cash": lists})) == {"Örnek İşveren": "devam"}
+    assert _income_status(dataset(salary, [], {"cash": lists}, {"ORNEK ISVEREN": "2026-11"})) == {
+        "Örnek İşveren": "devam"  # November's is still to come
+    }
+    late = salary + [
+        tx(date(2026, 11, 3), "Örnek İşveren", Decimal(-40000), "Maaş", None, TransactionKind.INCOME, "cash")
+    ]
+    # Income after the month the user gave does not make it run again, nor is it a warning as a payment's would be.
+    assert _income_status(dataset(late, [], {"cash": lists}, {"ORNEK ISVEREN": "2026-10"})) == {
+        "Örnek İşveren": "iptal"
+    }
+
+
 def test_two_subscriptions_with_one_payee_are_told_apart_by_amount():
     premium = [tx(d, "Örnek Video", Decimal("129.99")) for d in monthly(date(2026, 1, 1), 8)]
     membership = [tx(d, "Örnek Video", Decimal(100), account="old") for d in monthly(date(2026, 1, 18), 8)]
