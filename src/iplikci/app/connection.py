@@ -34,6 +34,8 @@ __all__ = ["Actor", "Connection", "SettingsError", "connection", "set_masking"]
 NAME = "iplikci"  # the server's name in Claude's settings
 MASKING_CHANGED = "settings.privacy_changed"
 LEVELS = ("off", "accounts", "accounts_and_names")
+# Every Claude profile claude-SAK knows (one per account), at user scope: the interface's import steps say the same.
+_EVERY_PROFILE = ("--all-profiles", "--scope", "user")
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,7 +47,7 @@ class Connection:
     arguments: tuple[str, ...]  # and its arguments
     claude_code: dict[str, Any]  # Claude Code's and claude-SAK's MCP JSON: HTTP with the headers helper
     claude_desktop: dict[str, Any]  # Claude Desktop's: the stdio bridge
-    sak_add: str  # claude-SAK's command line, for those who use it
+    sak_add: str  # claude-SAK's command line, for those who use it: every Claude profile SAK knows
     sak_remove: str
     claude_add: str  # Claude Code's own command line, without claude-SAK
     masking: str  # the masking level the MCP answers have (settings [privacy] mcp_masking)
@@ -80,9 +82,9 @@ def connection(ws: Workspace) -> Connection:
         claude_code={"mcpServers": {NAME: http}},
         claude_desktop={"mcpServers": {NAME: stdio}},
         sak_add=_shell(
-            ["sak", "store", "mcp", "add", NAME, "--url", address, "--headers-helper", helper, "--scope", "user"]
+            ["sak", "store", "mcp", "add", NAME, "--url", address, "--headers-helper", helper, *_EVERY_PROFILE]
         ),
-        sak_remove=_shell(["sak", "store", "mcp", "remove", NAME, "--scope", "user"]),
+        sak_remove=_shell(["sak", "store", "mcp", "remove", NAME, *_EVERY_PROFILE]),
         claude_add=_shell(["claude", "mcp", "add-json", "--scope", "user", NAME, json.dumps(http, ensure_ascii=False)]),
         masking=settings.privacy.mcp_masking,
         development=manager.development_folder() is not None,
