@@ -154,13 +154,18 @@ Para hareketi taşıyan hesap satırları, bütün hesaplar okunana kadar aday k
    - `kişi` → `p2p_transfer` ya da `income`,
    - `borç` → `loan_principal`,
    - `yatırım` → `investment`.
-3. Yalnızca alıcı bankayı yazan bir satır, aynı bankaya aynı tutarda adıyla yapılmış ödemenin türünü alır. Örnek:
+3. Eşleştirme, en sağlam işaretten başlar (`TRANSFER_DAYS`, −1…+4 gün):
+   - İki ucu da kendi adınızı yazan satırlar birbirine bağlanır (`Reason.pair`).
+   - Açık bir satır, başka bir kendi hesabında aynı tutarda ters ve kendi adınızı yazan bir satırla eşleşirse →
+     `own_transfer`. Bu, 4. adımdan önce gelir: aynı tutarda adıyla yapılmış bir ödemeye benzemek, hesabınızdaki
+     birebir karşılıktan zayıf bir işarettir.
+4. Yalnızca alıcı bankayı yazan bir satır, aynı bankaya aynı tutarda adıyla yapılmış ödemenin türünü alır. Örnek:
    TEB'den ödenen kira.
-4. Başka bir kendi hesabında −1…+4 gün içinde aynı tutarda ters bir satır varsa → `own_transfer`. Yalnızca kart
+5. Kalan açık satırlar, başka bir kendi hesabındaki aynı tutarda ters bir açık satırla → `own_transfer`. Yalnızca kart
    ekstresinde görünen kart ödemeleri de eşleşir.
-5. Kullanıcının hesabı olan bir bankaya, o bankanın hiçbir listesinin kapsamadığı bir tarihte yapılmış ve yalnızca
+6. Kullanıcının hesabı olan bir bankaya, o bankanın hiçbir listesinin kapsamadığı bir tarihte yapılmış ve yalnızca
    bankayı yazan ödeme → kendi transferi.
-6. Kalan giden para → `p2p_transfer`; kalan gelen para → `income`.
+7. Kalan giden para → `p2p_transfer`; kalan gelen para → `income`.
 
 Kart ödemeleri ve kart tarafındaki alacakları birbirini götürür; asla harcama sayılmaz.
 

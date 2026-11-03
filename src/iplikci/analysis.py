@@ -433,6 +433,27 @@ def _in_transfer_days(out: Transaction, inc: Transaction) -> bool:
     return TRANSFER_DAYS[0] <= (inc.date - out.date).days <= TRANSFER_DAYS[1]
 
 
+def _pair_open(rows: list[Transaction], pool: list[Transaction], paired: set[int]) -> None:
+    """Pair each open row with an opposite row of the same amount in another own account from pool, the closest in
+    time within TRANSFER_DAYS: both are an own transfer, each naming the other."""
+    for t in sorted(rows, key=lambda x: x.date):
+        if t.kind != TransactionKind.TRANSFER_CANDIDATE or id(t) in paired:
+            continue
+        best, best_gap = None, 0
+        for other in pool:
+            if other is t or id(other) in paired or other.account == t.account or abs(other.amount + t.amount) > CENT:
+                continue
+            out, inc = (t, other) if t.amount > 0 else (other, t)
+            gap = abs((inc.date - out.date).days)
+            if _in_transfer_days(out, inc) and (best is None or gap < best_gap):
+                best, best_gap = other, gap
+        if best:
+            t.kind = best.kind = TransactionKind.OWN_TRANSFER
+            paired.update((id(t), id(best)))
+            t.reason = replace(t.reason, transfer=TransferStep.PAIRED, pair=best.fingerprint)
+            best.reason = replace(best.reason, transfer=best.reason.transfer or TransferStep.PAIRED, pair=t.fingerprint)
+
+
 def _pair_own_sides(found: list[Transaction], paired: set[int]) -> None:
     """Pair the sides of transfers between own accounts that both name the user or an own account: they were found
     by name, so each knows it is an own transfer but not where the money went. An outgoing side takes the incoming
@@ -474,6 +495,13 @@ def _resolve_transfers(
         else:
             open_.append(t)
 
+    # The surer signs first. Two sides that both name the user pair with each other, and an open row with an opposite
+    # one that names the user (in another own account, within days): a payment that only looks like a named one must
+    # take neither, nor may a stranger's payment of the same amount.
+    paired: set[int] = set()
+    _pair_own_sides(found_by_name, paired)
+    _pair_open(open_, found_by_name, paired)
+
     # Same receiver bank and amount as a named payment: "YAPI VE KREDI BANKASI A.Ş. -21.000"
     # on one account is the rent that another account pays to the landlord by name.
     known: dict[tuple, Transaction] = {}
@@ -488,6 +516,8 @@ def _resolve_transfers(
                 known[(bank, round(t.amount))] = t
     still_open = []
     for t in open_:
+        if t.kind != TransactionKind.TRANSFER_CANDIDATE:
+            continue  # paired above
         bank = _receiver_bank(t) if t.amount > 0 and not t.counterparty else ""
         like = known.get((bank, round(t.amount))) if bank else None
         if like:
@@ -497,27 +527,8 @@ def _resolve_transfers(
         else:
             still_open.append(t)
 
-    # Two sides that both name the user pair first: a stranger's payment of the same amount must not take one.
-    paired: set[int] = set()
-    _pair_own_sides(found_by_name, paired)
-    # A row matched by an opposite row of the same amount in another own account.
-    pool = still_open + found_by_name + card_payments
-    for t in sorted(still_open, key=lambda x: x.date):
-        if t.kind != TransactionKind.TRANSFER_CANDIDATE or id(t) in paired:
-            continue
-        best, best_gap = None, 0
-        for other in pool:
-            if other is t or id(other) in paired or other.account == t.account or abs(other.amount + t.amount) > CENT:
-                continue
-            out, inc = (t, other) if t.amount > 0 else (other, t)
-            gap = abs((inc.date - out.date).days)
-            if _in_transfer_days(out, inc) and (best is None or gap < best_gap):
-                best, best_gap = other, gap
-        if best:
-            t.kind = best.kind = TransactionKind.OWN_TRANSFER
-            paired.update((id(t), id(best)))
-            t.reason = replace(t.reason, transfer=TransferStep.PAIRED, pair=best.fingerprint)
-            best.reason = replace(best.reason, transfer=best.reason.transfer or TransferStep.PAIRED, pair=t.fingerprint)
+    # The rest: an open row matched by an opposite open row, or by a card's payment, in another own account.
+    _pair_open(still_open, still_open + card_payments, paired)
 
     # A bank-only payment to a bank where the user has an account, on a date none of
     # that bank's statements cover, most likely went to that own account.

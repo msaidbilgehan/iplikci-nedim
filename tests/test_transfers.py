@@ -134,6 +134,35 @@ def test_a_strangers_payment_of_the_same_amount_does_not_take_a_side_that_names_
     assert gift.kind == TransactionKind.INCOME and gift.reason.pair == ""
 
 
+def test_a_bank_only_payment_whose_other_side_names_the_user_is_no_payment_like_a_named_one(cat):
+    # The landlord is paid by name at Yapı Kredi; months before, the same amount went to the user's own account there.
+    named = cand(
+        date(2026, 5, 2),
+        "FAST Anlık Ödeme: k (02/05/2026 tarihli 1 sorgu no'lu ÖRNEK İSİM SOYADOĞLU "
+        "hesabından Yapı ve Kredi Bankası A.Ş. Veli Örneksoy hesabına giden FAST ödemesi)",
+        Decimal(15000),
+        account="vakifbank-0999000000123456",
+        counterparty="Veli Örneksoy",
+    )
+    bank_only = cand(date(2026, 1, 28), "YAPI VE KREDI BANKASI A.Ş.", Decimal(15000))
+    arrived = cand(
+        date(2026, 1, 28),
+        "Gelen transfer",
+        Decimal(-15000),
+        account="vakifbank-0999000000123456",
+        counterparty="ÖRNEK İSİM SOYADOĞLU",
+    )
+    bank_only.fingerprint, arrived.fingerprint = "a" * 16, "b" * 16
+    resolve(cat, [named, bank_only, arrived])
+    assert (bank_only.kind, bank_only.reason.transfer, bank_only.reason.pair) == (
+        TransactionKind.OWN_TRANSFER,
+        TransferStep.PAIRED,
+        "b" * 16,
+    )
+    assert bank_only.description == "YAPI VE KREDI BANKASI A.Ş."  # not "(→ Veli Örneksoy)"
+    assert named.category == "Kira"
+
+
 def test_bank_only_payment_outside_coverage_goes_to_own_account(cat):
     covered = Statement(
         account="vakifbank-0999000000123456",
