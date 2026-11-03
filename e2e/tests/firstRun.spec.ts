@@ -1,8 +1,8 @@
 // The first run on the service itself (F17, ADR-0017): with nothing set up yet, opening the interface through a
 // one-time login link, as the installed app opens it, leads to the setup wizard by itself, and only once a session.
 // This file starts a service of its own on a new, empty data folder, not the demo's: its own free port, the tests'
-// made-up token (the keychain is never asked) and no channel (no notification leaves the computer). Each theme's
-// project runs its own.
+// made-up token (the keychain is never asked), no channel (no notification leaves the computer) and no rate provider
+// (no exchange rate is fetched). Each theme's project runs its own.
 
 import { type ChildProcess, spawn } from "node:child_process";
 import { mkdirSync, openSync, rmSync, writeFileSync } from "node:fs";
@@ -59,7 +59,11 @@ test.beforeAll(async ({}, testInfo) => {
   rmSync(home, { recursive: true, force: true });
   mkdirSync(home, { recursive: true });
   // Its port and no channel, nothing else: no name, no e-mail account and no document is what a first run is.
-  writeFileSync(join(home, "settings.toml"), `[server]\nport = ${port}\n\n[notify]\nchannels = []\n`);
+  // No channel and no rate provider: nothing leaves the computer while the tests run.
+  writeFileSync(
+    join(home, "settings.toml"),
+    `[server]\nport = ${port}\n\n[notify]\nchannels = []\n\n[fx]\nproviders = ["document"]\n`,
+  );
   const log = openSync(join(STATE_DIR, `ilk-acilis-${testInfo.project.name}.log`), "a");
   service = spawn("uv", ["run", "iplikci", "servis", "calistir", "--ev", home], {
     cwd: ROOT,
