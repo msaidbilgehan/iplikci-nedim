@@ -156,7 +156,11 @@ export function MonthsCard({ account, months }: { account: string; months: reado
           { key: "out", label: t("months.out"), slot: 2 },
         ]}
         months={months.map((m) => ({ month: m.month, values: { in: m.money_in.minor, out: -m.money_out.minor } }))}
-        open={{ link: ({ month }) => monthRows(month, { account }), hint: t("months.openHint") }}
+        open={{
+          // The money in and out of a month are its rows alike: the month leads there, not one side of it.
+          link: ({ month, series }) => (series === null ? monthRows(month, { account }) : null),
+          hint: t("months.openHint"),
+        }}
       />
       {months.some((m) => !m.complete) ? <p className={`mt-2 ${SMALL}`}>{t("months.partial")}</p> : null}
     </Card>
