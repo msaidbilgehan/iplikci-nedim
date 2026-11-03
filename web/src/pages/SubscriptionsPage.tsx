@@ -131,7 +131,7 @@ function Overview({ found, labels, rules, opening }: OverviewProps) {
       {income.length > 0 ? (
         <Card title={t("income.title")}>
           <p className={`mb-3 ${SMALL}`}>{t("income.text")}</p>
-          <IncomeList income={income} asOf={found.as_of} labels={labels} opening={opening} />
+          <IncomeList income={income} {...shared} />
         </Card>
       ) : null}
       {found.installments.length > 0 ? (

@@ -1,7 +1,7 @@
 // One series in a panel over the list (F08), as ?seri=<id> opens it from this screen or another (the feed's warning,
 // an account's page): what it is and what it means, every payment it rests on leading to its row on the İşlemler
-// screen and to its document, opened at the row, and "İptal ettim" or "Yeniden bekle". A payment after the month the
-// user's rules give as the last is marked: the warning is about it.
+// screen and to its document, opened at the row, and "İptal ettim" ("Artık gelmiyor" for an income) or "Yeniden
+// bekle". A payment after the month the user's rules give as the last is marked: the warning is about it.
 
 import type { TFunction } from "i18next";
 import { type ReactNode, type RefObject, useId, useRef, useState } from "react";
@@ -20,7 +20,18 @@ import { Say, ScreenLink } from "../ui/Say";
 import { SidePanel } from "../ui/SidePanel";
 import { Table, Td, Th } from "../ui/Table";
 import { AgainForm, EndForm } from "./EndForm";
-import { endedOf, isLate, isRunning, monthOf, offerOf, priceOf, seriesOf, STATUS_TONES } from "./series";
+import {
+  endedOf,
+  isLate,
+  isRunning,
+  monthOf,
+  offerOf,
+  priceOf,
+  seriesOf,
+  STATUS_TONES,
+  statusOf,
+  type Wording,
+} from "./series";
 
 const SMALL = "text-xs text-zinc-600 dark:text-zinc-300";
 
@@ -44,13 +55,14 @@ export function SeriesPanel({ id, found, labels, rules, act, onClose }: SeriesPa
   const again = useRef<HTMLButtonElement>(null);
   const income = found.income.find((series) => series.id === id);
   const series = income ?? found.series.find((s) => s.id === id);
+  const wording: Wording = income ? "income" : "payment";
   const target = act === "end" ? month : act === "again" ? again : undefined;
   return (
     <SidePanel
       open={id !== ""}
       onClose={onClose}
       title={series ? series.payee : t("panel.missing")}
-      description={series ? <Summary series={series} labels={labels} /> : undefined}
+      description={series ? <Summary series={series} wording={wording} labels={labels} /> : undefined}
       initialFocus={target}
     >
       {series ? (
@@ -58,7 +70,7 @@ export function SeriesPanel({ id, found, labels, rules, act, onClose }: SeriesPa
         <Body
           key={series.id}
           series={series}
-          isIncome={income !== undefined}
+          wording={wording}
           found={found}
           labels={labels}
           rules={rules}
@@ -72,10 +84,11 @@ export function SeriesPanel({ id, found, labels, rules, act, onClose }: SeriesPa
 }
 
 /** The line under the series' name: its status, its category and the account it is paid from. */
-function Summary({ series, labels }: { series: Series; labels: Labels }) {
+function Summary({ series, wording, labels }: { series: Series; wording: Wording; labels: Labels }) {
+  const { t } = useTranslation("subscriptions");
   return (
     <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
-      <Badge tone={STATUS_TONES[series.status]}>{labelOf(labels, "SeriesStatus", series.status)}</Badge>
+      <Badge tone={STATUS_TONES[series.status]}>{statusOf(series, wording, labels, t)}</Badge>
       <span>{[series.category, series.account.label].filter(Boolean).join(" · ")}</span>
     </span>
   );
@@ -100,33 +113,33 @@ interface Targets {
 
 interface BodyProps {
   series: Series;
-  isIncome: boolean;
+  wording: Wording;
   found: Subscriptions;
   labels: Labels;
   rules: Rules;
   targets: Targets;
 }
 
-function Body({ series, isIncome, found, labels, rules, targets }: BodyProps) {
+function Body({ series, wording, found, labels, rules, targets }: BodyProps) {
   const { t } = useTranslation("subscriptions");
   const cancelled = endedOf(rules.data, series.payee)?.month;
   const next = isRunning(series) && series.next_day && !isLate(series, found.as_of) ? series.next_day : "";
   return (
     <div className="flex flex-col gap-6">
       <Say next={next ? { link: { screen: "calendar", id: next, query: {} }, label: t("panel.calendar") } : null}>
-        {sayOf(series, isIncome, found.as_of, labels, t)}
+        {sayOf(series, wording, found.as_of, labels, t)}
       </Say>
-      <Facts items={factsOf(series, isIncome, found.as_of, labels, t)} />
+      <Facts items={factsOf(series, wording, found.as_of, labels, t)} />
       <Section title={t("panel.payments")}>
-        <PaymentsTable series={series} cancelled={cancelled} labels={labels} />
+        <PaymentsTable series={series} wording={wording} cancelled={cancelled} labels={labels} />
       </Section>
-      {isIncome ? null : <Actions series={series} found={found} labels={labels} rules={rules} targets={targets} />}
+      <Actions series={series} wording={wording} found={found} labels={labels} rules={rules} targets={targets} />
     </div>
   );
 }
 
 /** The simple view's sentence: what the series costs and when its next payment comes, or what its status means. */
-function sayOf(series: Series, isIncome: boolean, asOf: string, labels: Labels, t: TFunction<"subscriptions">): string {
+function sayOf(series: Series, wording: Wording, asOf: string, labels: Labels, t: TFunction<"subscriptions">): string {
   // A payment after the user's cancellation is what to look at first; an ended series says why it reads as ended.
   if (!isRunning(series) || series.next_day === null || series.status === "paid_after_cancel") {
     return series.note || t("panel.sayEnded", { day: series.last_day });
@@ -135,7 +148,7 @@ function sayOf(series: Series, isIncome: boolean, asOf: string, labels: Labels, 
     return t("panel.sayLate", { day: series.next_day });
   }
   const amount = formatMoney(series.amount);
-  if (isIncome) {
+  if (wording === "income") {
     return t("panel.sayIncome", { amount, day: series.next_day });
   }
   if (series.period !== "month") {
@@ -148,16 +161,17 @@ function sayOf(series: Series, isIncome: boolean, asOf: string, labels: Labels, 
 /** What the series is, in name–value pairs; the amount and the next payment only while it runs. */
 function factsOf(
   series: Series,
-  isIncome: boolean,
+  wording: Wording,
   asOf: string,
   labels: Labels,
   t: TFunction<"subscriptions">,
 ): Array<[string, ReactNode]> {
+  const isIncome = wording === "income";
   const facts: Array<[string, ReactNode]> = [
     [
       t("panel.status"),
       <span key="status" className="flex flex-col items-start gap-1">
-        <Badge tone={STATUS_TONES[series.status]}>{labelOf(labels, "SeriesStatus", series.status)}</Badge>
+        <Badge tone={STATUS_TONES[series.status]}>{statusOf(series, wording, labels, t)}</Badge>
         {series.note ? <span>{series.note}</span> : null}
       </span>,
     ],
@@ -205,12 +219,13 @@ function factsOf(
 
 interface PaymentsTableProps {
   series: Series;
+  wording: Wording;
   cancelled: string | undefined; // the month the user's rules give as the last payment's
   labels: Labels;
 }
 
 /** The rows the series rests on, newest first: each day leads to its row, each document to its page at the row. */
-function PaymentsTable({ series, cancelled, labels }: PaymentsTableProps) {
+function PaymentsTable({ series, wording, cancelled, labels }: PaymentsTableProps) {
   const { t } = useTranslation("subscriptions");
   const payments = [...series.payments].sort((a, b) => b.day.localeCompare(a.day));
   return (
@@ -236,7 +251,7 @@ function PaymentsTable({ series, cancelled, labels }: PaymentsTableProps) {
               )}
               {cancelled && monthOf(payment.day) > cancelled ? (
                 <span className="mt-1 block">
-                  <Badge tone="warning">{t("panel.afterCancel")}</Badge>
+                  <Badge tone="warning">{t("panel.afterCancel", { context: wording })}</Badge>
                 </span>
               ) : null}
             </Td>
@@ -268,6 +283,7 @@ function PaymentsTable({ series, cancelled, labels }: PaymentsTableProps) {
 
 interface ActionsProps {
   series: Series;
+  wording: Wording;
   found: Subscriptions;
   labels: Labels;
   rules: Rules;
@@ -275,10 +291,10 @@ interface ActionsProps {
 }
 
 /**
- * "İptal ettim", "Yeniden bekle", or both when payments came after the month the user gave; what was saved stays said
- * while the panel is open.
+ * "İptal ettim" ("Artık gelmiyor"), "Yeniden bekle", or both when payments came after the month the user gave; what
+ * was saved stays said while the panel is open.
  */
-function Actions({ series, found, labels, rules, targets }: ActionsProps) {
+function Actions({ series, wording, found, labels, rules, targets }: ActionsProps) {
   const { t } = useTranslation("subscriptions");
   const [said, setSaid] = useState("");
   // Reading the rules again keeps the ones read before, and the forms with them: a refetch that fails takes away
@@ -294,14 +310,22 @@ function Actions({ series, found, labels, rules, targets }: ActionsProps) {
     <div className="flex flex-col gap-3">
       {said ? <Alert tone="good" title={said} live /> : null}
       {entry && (offer === "again" || offer === "both") ? (
-        <AgainForm key={`again:${version}`} series={series} entry={entry} target={targets.again} onSaved={setSaid} />
+        <AgainForm
+          key={`again:${version}`}
+          series={series}
+          wording={wording}
+          entry={entry}
+          target={targets.again}
+          onSaved={setSaid}
+        />
       ) : null}
       {offer === "end" || offer === "both" ? (
         <EndForm
           key={`end:${version}`}
           series={series}
+          wording={wording}
           asOf={found.as_of}
-          others={seriesOf(found.series, series.payee) - 1}
+          others={seriesOf(wording === "income" ? found.income : found.series, series.payee) - 1}
           labels={labels}
           changing={offer === "both"}
           target={targets.month}

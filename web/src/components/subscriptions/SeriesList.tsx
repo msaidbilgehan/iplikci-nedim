@@ -14,7 +14,7 @@ import { Detailed, Simple } from "../Preferences";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Table, Td, Th } from "../ui/Table";
-import { isLate, isRunning, monthOf, offerOf, priceOf, STATUS_TONES } from "./series";
+import { isLate, isRunning, monthOf, offerOf, priceOf, STATUS_TONES, type Wording } from "./series";
 
 export const SMALL = "text-xs text-zinc-600 dark:text-zinc-300";
 export const CARD = cn(
@@ -68,12 +68,13 @@ export function SeriesList(props: SeriesListProps) {
 
 interface ActionsProps {
   series: Series;
+  wording: Wording;
   rules: CategoryRules | undefined;
   opening: Opening;
 }
 
 /** The card's foot with its action, when it has one. */
-function SeriesFoot(props: ActionsProps) {
+export function SeriesFoot(props: ActionsProps) {
   const offer = offerOf(props.series, props.rules);
   if (offer !== "end" && offer !== "again" && offer !== "both") {
     return null;
@@ -85,8 +86,11 @@ function SeriesFoot(props: ActionsProps) {
   );
 }
 
-/** "İptal ettim…" or "Yeniden bekle…", each opening the series' panel at its form, where the change is previewed. */
-function SeriesActions({ series, rules, opening, quiet = false }: ActionsProps & { quiet?: boolean }) {
+/**
+ * "İptal ettim…" ("Artık gelmiyor…" for an income) or "Yeniden bekle…", each opening the series' panel at its form,
+ * where the change is previewed.
+ */
+export function SeriesActions({ series, wording, rules, opening, quiet = false }: ActionsProps & { quiet?: boolean }) {
   const { t } = useTranslation("subscriptions");
   const offer = offerOf(series, rules);
   if (offer === "end") {
@@ -94,10 +98,10 @@ function SeriesActions({ series, rules, opening, quiet = false }: ActionsProps &
       <Button
         variant={quiet ? "quiet" : "secondary"}
         className="whitespace-nowrap"
-        aria-label={t("series.endOf", { payee: series.payee })}
+        aria-label={t("series.endOf", { payee: series.payee, context: wording })}
         onClick={() => opening.onAct(series.id, "end")}
       >
-        {t("series.end")}
+        {t("series.end", { context: wording })}
       </Button>
     );
   }
@@ -171,7 +175,7 @@ function SeriesCard({ series, kind, asOf, labels, rules, opening }: SeriesCardPr
         {series.price_change ? <li>{priceOf(series, t)}</li> : null}
       </ul>
       {series.note ? <p className={SMALL}>{series.note}</p> : null}
-      <SeriesFoot series={series} rules={rules} opening={opening} />
+      <SeriesFoot series={series} wording="payment" rules={rules} opening={opening} />
     </li>
   );
 }
@@ -250,7 +254,7 @@ function SeriesTable({ series, kind, caption, asOf, labels, rules, opening }: Se
             </Td>
             <Td className="whitespace-nowrap">{t("series.payments", { count: s.payments.length })}</Td>
             <Td>
-              <SeriesActions series={s} rules={rules} opening={opening} />
+              <SeriesActions series={s} wording="payment" rules={rules} opening={opening} />
             </Td>
           </tr>
         ))}

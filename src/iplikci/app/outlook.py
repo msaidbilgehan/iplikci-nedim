@@ -93,7 +93,7 @@ class SeriesView:
     last_amount: Decimal
     next_day: date | None  # a running series' next payment; a past day when the documents end before it came
     price_change: PriceChange | None
-    listed: bool  # on the list of regular payments: running, or a commitment that ended within the window
+    listed: bool  # on the list: running, or a commitment that ended or an income the user ended within the window
     rows: tuple[Row, ...]
 
 
@@ -136,14 +136,18 @@ def _row(t: Transaction) -> Row:
 
 
 def _note(s: Series, ds: Dataset) -> str:
-    """docs/domain/interpretation.md: an ended required bill reads "not in the documents"; a cancelled one names the
-    month the user wrote, and a payment after it is a warning."""
+    """docs/domain/interpretation.md: an ended required bill reads "not in the documents"; one the user ended names
+    the month they wrote, a payment's or an income's last, whose payment may still be to come; a payment after it is a
+    warning."""
     status = V1_STATUS[s.status]
     cancelled = ds.ended.get(fold(s.merchant))
+    last = "son geliş ayı" if s.last.kind == TransactionKind.INCOME else "son ödeme ayı"
     if status == SeriesStatus.ENDED and s.last.necessity == Necessity.REQUIRED:
         return "Belgelerde yok: belgesi olmayan bir hesaptan ödeniyor olabilir."
+    if status == SeriesStatus.ACTIVE and cancelled:
+        return f"Kişisel kurallarınızda {last} {month_name(cancelled)}: o ayınki bekleniyor, sonrası beklenmiyor."
     if status == SeriesStatus.CANCELLED and cancelled:
-        return f"Kişisel kurallarınızda son ödeme ayı {month_name(cancelled)}."
+        return f"Kişisel kurallarınızda {last} {month_name(cancelled)}."
     if status == SeriesStatus.PAID_AFTER_CANCEL and cancelled:
         return (
             f"Kişisel kurallarınızda son ödeme ayı {month_name(cancelled)}, ama sonrasında da ödendi: aboneliği kontrol "
@@ -169,7 +173,7 @@ def _view(s: Series, ds: Dataset, window: list[str], income: bool = False) -> Se
         last_amount=abs(s.last.amount),
         next_day=next_day(s) if s.running else None,
         price_change=PriceChange(change[0], change[1], change[2]) if change else None,
-        listed=s.running if income else listed(s, ds, window),
+        listed=listed(s, ds, window),
         rows=tuple(_row(t) for t in s.payments),
     )
 

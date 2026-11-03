@@ -292,7 +292,9 @@ Ekranın adı "Düzenli ödemeler"dir (`/abonelikler`; 2026-11-02'ye dek "Abonel
   - son ödeme ve beklenen sonraki ödeme (tarih ve tutar),
   - fiyat değişimi (dövizle faturalanan serilerde döviz tutarıyla karşılaştırılır: kurun etkisi zam sayılmaz),
   - belgeleri.
-- **"İptal ettim":** `_biten`'e ay yazılır. Sonra ödeme görünürse uyarı verilir.
+- **"İptal ettim":** `_biten`'e son ödemenin ayı yazılır. Sonra ödeme görünürse uyarı verilir.
+- **"Artık gelmiyor":** düzenli bir gelir de aynı yolla bitirilir (son gelişin ayı); o aydan sonra takvim ve öngörü onu
+  beklemez. "Yeniden bekle" iki durumda da satırı kişisel kurallardan çıkarır.
 - **Taksitli alışverişler:** kalan taksit sayısı ve tutarı, bitiş ayı.
 - **V1+:** deneme süresi ve yenileme e-postalarından önceden uyarı; çift abonelik tespiti.
 

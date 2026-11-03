@@ -408,6 +408,31 @@ def test_the_subscriptions_are_the_series_with_their_status_next_payment_and_row
     assert found["installments"] == []  # the demo has no card statements
 
 
+@pytest.mark.parametrize(
+    ("month", "status", "note"),
+    [
+        ("2026-10", "cancelled", "Kişisel kurallarınızda son geliş ayı Ekim 2026."),
+        # The last pay is still to come in November: it runs on until then, and nothing is expected after it.
+        (
+            "2026-11",
+            "active",
+            "Kişisel kurallarınızda son geliş ayı Kasım 2026: o ayınki bekleniyor, sonrası beklenmiyor.",
+        ),
+    ],
+)
+def test_an_income_the_user_ended_stays_listed_with_its_month_and_is_expected_no_more(tmp_path, month, status, note):
+    ws = Workspace.load(demo.build(tmp_path / "demo"))
+    rules = ws.rules.read_text(encoding="utf-8") if ws.rules.exists() else ""
+    ws.rules.write_text(f"{rules}\n_biten:\n  Örnek İşveren A.Ş.: {month}\n", encoding="utf-8")
+    (tmp_path / "arayuz").mkdir()
+    context = Context(ws=ws, token=TOKEN, ui=tmp_path / "arayuz", today=lambda: demo.AS_OF)
+    client = TestClient(create_app(context), base_url=BASE)
+    (salary,) = client.get("/api/subscriptions", headers=bearer()).json()["income"]
+    assert (salary["status"], salary["listed"], salary["note"]) == (status, True, note)
+    items = client.get("/api/calendar", headers=bearer()).json()["items"]
+    assert [item for item in items if item["kind"] == "income"] == []  # December's is not expected
+
+
 def test_the_calendar_lists_the_next_sixty_days_by_day(demo_client):
     found = demo_client.get("/api/calendar", headers=bearer()).json()
     assert (found["today"], found["end"]) == ("2026-11-15", "2027-01-13")

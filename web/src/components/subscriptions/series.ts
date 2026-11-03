@@ -3,8 +3,9 @@
 
 import type { TFunction } from "i18next";
 
-import type { CategoryRules, EndedPayment, Payment, Series, SeriesStatus } from "../../api/types";
+import type { CategoryRules, EndedPayment, Labels, Payment, Series, SeriesStatus } from "../../api/types";
 import { formatMoney } from "../../lib/format";
+import { labelOf } from "../../lib/labels";
 import { fold } from "../../lib/turkish";
 import type { Tone } from "../ui/Badge";
 
@@ -55,10 +56,12 @@ export function monthsDown(first: string, last: string): string[] {
  * after its last one or after the documents' end, whichever is later (a payment may still come after the user
  * cancelled).
  */
-export function monthChoices(series: Series, asOf: string): string[] {
+export function monthChoices(series: Series, asOf: string, wording: Wording): string[] {
   const days = [series.last_day, ...series.payments.map((payment) => payment.day)].sort();
   const latest = [monthOf(series.last_day), monthOf(asOf)].sort().at(-1) ?? monthOf(asOf);
-  return monthsDown(monthOf(days[0] ?? series.last_day), nextMonth(latest));
+  // An income ends with the last money that came or a later month: an earlier one would leave money it never meant.
+  const first = wording === "income" ? monthOf(series.last_day) : monthOf(days[0] ?? series.last_day);
+  return monthsDown(first, nextMonth(latest));
 }
 
 /** The payments made after a month: those a cancellation in that month did not expect. */
@@ -89,6 +92,20 @@ export function priceOf(series: Series, t: TFunction<"subscriptions">): string {
     before: formatMoney(change.before),
     after: formatMoney(change.after),
   });
+}
+
+/**
+ * Whose words a series' controls speak: a payment the user cancelled ("İptal ettim") or an income that no longer comes
+ * ("Artık gelmiyor"). Both write the same `_biten` entry, the month of the last payment. A wording is the texts'
+ * i18next context: an income's are the keys ending in "_income", a payment's (no "_payment" keys) the keys themselves.
+ */
+export type Wording = "payment" | "income";
+
+/** A series' status in words; an income the user ended "no longer comes" rather than being cancelled. */
+export function statusOf(series: Series, wording: Wording, labels: Labels, t: TFunction<"subscriptions">): string {
+  return wording === "income" && series.status === "cancelled"
+    ? t("income.cancelled")
+    : labelOf(labels, "SeriesStatus", series.status);
 }
 
 /** What the user may do with a series: end it, expect it again, both (its month changed), or nothing here. */

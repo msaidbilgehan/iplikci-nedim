@@ -33,7 +33,8 @@
   "income": {
     "title": "Düzenli gelirler",
     "caption": "Düzenli gelirler",
-    "text": "Beklenen tutar son üç gelişin medyanı."
+    "text": "Beklenen tutar son üç gelişin medyanı.",
+    "cancelled": "Artık gelmiyor"
   },
   "installments": {
     "title": "Taksitli alışverişler",
@@ -58,6 +59,8 @@
     "payments": "{{count}} ödeme",
     "end": "İptal ettim…",
     "endOf": "İptal ettim: {{payee}}",
+    "end_income": "Artık gelmiyor…",
+    "endOf_income": "Artık gelmiyor: {{payee}}",
     "again": "Yeniden bekle…",
     "againOf": "Yeniden bekle: {{payee}}"
   },
@@ -118,28 +121,39 @@
     "noDocument": "Belge adı yok",
     "openDocument": "Belgeyi aç",
     "afterCancel": "İptalden sonra",
+    "afterCancel_income": "Bitişten sonra",
     "calendar": "Takvimde göster"
   },
   "end": {
     "title": "İptal ettim",
+    "title_income": "Artık gelmiyor",
     "titleChange": "İptal ayını değiştir",
     "text": "Bu ödemeyi iptal ettiyseniz son ödemenin ayını seçin: sonrasında ödeme beklenmez, gelirse uyarılırsınız.",
+    "text_income": "Bu gelir artık gelmeyecekse son gelişinin ayını seçin; son ödeme henüz gelmediyse geleceği ayı. O aya dek beklenir, sonrasında beklenmez.",
     "textChange": "Son ödeme ayını değiştirebilirsiniz: seçtiğiniz aydan sonra ödeme beklenmez, gelirse uyarılırsınız.",
     "month": "Son ödeme ayı",
+    "month_income": "Son geliş ayı",
     "lastMark": "{{month}} (son ödeme)",
+    "lastMark_income": "{{month}} (son gelen)",
     "note": "Not (isteğe bağlı)",
     "noteHint": "Kişisel kurallarınızda satırın yanına yazılır.",
     "others": "{{payee}} adına {{count}} düzenli ödeme var; iptal hepsine uygulanır.",
+    "others_income": "{{payee}} adına {{count}} düzenli gelir var; bitiş hepsine uygulanır.",
     "after": "Bu aydan sonra {{count}} ödeme var; kaydederseniz durumu “{{status}}” olur.",
     "effect": "Kaydedince {{payee}} için {{month, fromMonth}} sonra ödeme beklenmez; takvim ve öngörü onu saymaz.",
+    "effect_income": "Kaydedince {{payee}} için {{month, fromMonth}} sonra gelir beklenmez; takvim ve öngörü onu saymaz.",
     "saved": "Kaydedildi: {{payee}} için {{month, fromMonth}} sonra ödeme beklenmiyor.",
+    "saved_income": "Kaydedildi: {{payee}} için {{month, fromMonth}} sonra gelir beklenmiyor.",
     "shipped": "Hazır kurallarda son ödeme ayı {{month}} olarak yazılı; buradan değiştirilemez."
   },
   "again": {
     "title": "Yeniden bekle",
     "text": "Kişisel kurallarınızda {{payee}} için son ödeme ayı {{month}}. Ödeme yeniden bekleniyorsa bu satırı kaldırın.",
+    "text_income": "Kişisel kurallarınızda {{payee}} için son geliş ayı {{month}}. Gelir yeniden bekleniyorsa bu satırı kaldırın.",
     "effect": "Kaydedince satır kurallarınızdan çıkar; durumu belgelerdeki ödemelere göre yeniden belirlenir.",
-    "saved": "Kaydedildi: {{payee}} için son ödeme ayı kurallarınızdan çıktı."
+    "effect_income": "Kaydedince satır kurallarınızdan çıkar; durumu belgelerdeki gelişlere göre yeniden belirlenir.",
+    "saved": "Kaydedildi: {{payee}} için son ödeme ayı kurallarınızdan çıktı.",
+    "saved_income": "Kaydedildi: {{payee}} için son geliş ayı kurallarınızdan çıktı."
   },
   "preview": {
     "preview": "Önizle",

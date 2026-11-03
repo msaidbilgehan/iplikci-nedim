@@ -388,6 +388,87 @@ describe("SubscriptionsPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("ends a regular income that no longer comes: the month of its last coming, previewed, then saved", async () => {
+    const user = userEvent.setup();
+    const { previewed, saved } = serveRules(
+      [
+        "--- personal.yaml (önce)",
+        "+++ personal.yaml (sonra)",
+        "@@ -1,3 +1,4 @@",
+        " _biten:",
+        "   ORNEK VIDEO: 2026-09",
+        "   Örnek Dergi: 2026-08",
+        "+  Örnek İşveren A.Ş.: 2026-11",
+      ].join("\n"),
+    );
+    renderScreen(<SubscriptionsPage />);
+    const salary = await card("Düzenli gelirler", "Örnek İşveren A.Ş.");
+    await user.click(within(salary).getByRole("button", { name: "Artık gelmiyor: Örnek İşveren A.Ş." }));
+    const panel = await screen.findByRole("dialog", { name: "Örnek İşveren A.Ş." });
+    expect(within(panel).getByRole("region", { name: "Artık gelmiyor" })).toHaveTextContent(
+      "son ödeme henüz gelmediyse geleceği ayı",
+    );
+    const month = within(panel).getByLabelText("Son geliş ayı");
+    expect(month).toHaveFocus();
+    // From the last money that came on: an earlier month would leave money the income never meant.
+    expect(within(month).getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "Kasım 2026",
+      "Ekim 2026 (son gelen)",
+    ]);
+    expect(within(panel).queryByText(/düzenli gelir var/)).not.toBeInTheDocument();
+    await user.selectOptions(month, "2026-11"); // the last salary is still to come
+    await user.click(within(panel).getByRole("button", { name: "Önizle" }));
+    expect(
+      await within(panel).findByText(
+        "Kaydedince Örnek İşveren A.Ş. için Kasım 2026'dan sonra gelir beklenmez; takvim ve öngörü onu saymaz.",
+      ),
+    ).toBeInTheDocument();
+    expect(previewed).toEqual([{ action: "ended", merchant: "Örnek İşveren A.Ş.", month: "2026-11", note: "" }]);
+    server.use(
+      http.get("/api/rules/categories", () =>
+        HttpResponse.json({
+          ...CATEGORY_RULES,
+          ended: [...CATEGORY_RULES.ended, { merchant: "Örnek İşveren A.Ş.", month: "2026-11", own: true }],
+        }),
+      ),
+    );
+    await user.click(within(panel).getByRole("button", { name: "Kaydet" }));
+    expect(
+      await within(panel).findByText("Kaydedildi: Örnek İşveren A.Ş. için Kasım 2026'dan sonra gelir beklenmiyor."),
+    ).toBeInTheDocument();
+    expect(saved).toEqual(previewed);
+    expect(await within(panel).findByRole("region", { name: "Yeniden bekle" })).toHaveTextContent(
+      "Kişisel kurallarınızda Örnek İşveren A.Ş. için son geliş ayı Kasım 2026. " +
+        "Gelir yeniden bekleniyorsa bu satırı kaldırın.",
+    );
+  });
+
+  it("shows an income the user ended as no longer coming, with nothing to expect, and offers it again", async () => {
+    localStorage.setItem("iplikci.view", "detailed");
+    const ended = {
+      ...SUBSCRIPTIONS.income[0]!,
+      status: "cancelled" as const,
+      next_day: null,
+      note: "Kişisel kurallarınızda son geliş ayı Ekim 2026.",
+    };
+    server.use(
+      http.get("/api/subscriptions", () => HttpResponse.json({ ...SUBSCRIPTIONS, income: [ended] })),
+      http.get("/api/rules/categories", () =>
+        HttpResponse.json({
+          ...CATEGORY_RULES,
+          ended: [...CATEGORY_RULES.ended, { merchant: "Örnek İşveren A.Ş.", month: "2026-10", own: true }],
+        }),
+      ),
+    );
+    renderScreen(<SubscriptionsPage />);
+    const table = await screen.findByRole("table", { name: "Düzenli gelirler" });
+    const row = within(table).getByRole("link", { name: "Örnek İşveren A.Ş." }).closest("tr")!;
+    expect(within(row).getByText("Artık gelmiyor")).toBeInTheDocument();
+    expect(within(row).getByText("Kişisel kurallarınızda son geliş ayı Ekim 2026.")).toBeInTheDocument();
+    expect(within(row).queryByText("40.000,00 TL")).not.toBeInTheDocument(); // nothing to expect
+    expect(await within(row).findByRole("button", { name: "Yeniden bekle: Örnek İşveren A.Ş." })).toBeInTheDocument();
+  });
+
   it("says when no series is known yet, and where the documents are", async () => {
     server.use(
       http.get("/api/subscriptions", () =>

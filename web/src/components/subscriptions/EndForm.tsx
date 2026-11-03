@@ -1,7 +1,8 @@
 // "İptal ettim" and "Yeniden bekle" (F08): a payment the user cancelled goes into their rule file's `_biten` with the
 // month of its last payment, and comes off it when it is expected again (F15). As every rule edit, the change is shown
 // before it is written: the rule file's difference and what it does. A payment after that month then reads as
-// "İptalden sonra ödeme var", a warning.
+// "İptalden sonra ödeme var", a warning. An income that no longer comes ends the same way, in its own words
+// ("Artık gelmiyor"): the texts are the payment's keys with the "income" context.
 
 import { type FormEvent, type RefObject, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -14,7 +15,7 @@ import { labelOf } from "../../lib/labels";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { RuleDiff } from "./RuleDiff";
-import { monthChoices, monthOf, paidAfter } from "./series";
+import { monthChoices, monthOf, paidAfter, type Wording } from "./series";
 
 const INPUT = cn(
   "min-h-11 w-full rounded-md border px-3 text-sm",
@@ -63,6 +64,7 @@ function RulePreview({ change, effect, saving, onSave, onCancel }: PreviewProps)
 
 interface EndFormProps {
   series: Series;
+  wording: Wording;
   asOf: string; // the documents' end: a cancellation may name the month after it
   others: number; // the payee's series besides this one, which the cancellation reaches too
   labels: Labels;
@@ -71,9 +73,10 @@ interface EndFormProps {
   onSaved: (said: string) => void;
 }
 
-/** "İptal ettim": the month of the last payment, a note if the user likes, previewed, then written. */
-export function EndForm({ series, asOf, others, labels, changing, target, onSaved }: EndFormProps) {
+/** "İptal ettim" or "Artık gelmiyor": the month of the last payment, a note if the user likes, previewed, written. */
+export function EndForm({ series, wording, asOf, others, labels, changing, target, onSaved }: EndFormProps) {
   const { t } = useTranslation("subscriptions");
+  const context = wording;
   const preview = usePreviewRule();
   const save = useSaveRule();
   const last = monthOf(series.last_day);
@@ -95,18 +98,18 @@ export function EndForm({ series, asOf, others, labels, changing, target, onSave
     save.mutate(rule(), {
       onSuccess: () => {
         preview.reset();
-        onSaved(t("end.saved", { payee: series.payee, month }));
+        onSaved(t("end.saved", { payee: series.payee, month, context }));
       },
     });
 
   return (
     <section aria-labelledby={heading} className={SECTION}>
       <h3 id={heading} className="text-base font-semibold">
-        {changing ? t("end.titleChange") : t("end.title")}
+        {changing ? t("end.titleChange") : t("end.title", { context })}
       </h3>
-      <p className={SMALL}>{changing ? t("end.textChange") : t("end.text")}</p>
+      <p className={SMALL}>{changing ? t("end.textChange") : t("end.text", { context })}</p>
       <form onSubmit={submit} className="flex flex-col gap-2 text-sm">
-        <label htmlFor={monthId}>{t("end.month")}</label>
+        <label htmlFor={monthId}>{t("end.month", { context })}</label>
         <select
           id={monthId}
           ref={target}
@@ -117,9 +120,9 @@ export function EndForm({ series, asOf, others, labels, changing, target, onSave
           }}
           className={INPUT}
         >
-          {monthChoices(series, asOf).map((choice) => (
+          {monthChoices(series, asOf, wording).map((choice) => (
             <option key={choice} value={choice}>
-              {choice === last ? t("end.lastMark", { month: formatMonth(choice) }) : formatMonth(choice)}
+              {choice === last ? t("end.lastMark", { month: formatMonth(choice), context }) : formatMonth(choice)}
             </option>
           ))}
         </select>
@@ -143,7 +146,7 @@ export function EndForm({ series, asOf, others, labels, changing, target, onSave
         <span id={hintId} className={SMALL}>
           {t("end.noteHint")}
         </span>
-        {others > 0 ? <p>{t("end.others", { payee: series.payee, count: others + 1 })}</p> : null}
+        {others > 0 ? <p>{t("end.others", { payee: series.payee, count: others + 1, context })}</p> : null}
         <Button type="submit" variant="secondary" className="self-start" disabled={preview.isPending}>
           {preview.isPending ? t("preview.previewing") : t("preview.preview")}
         </Button>
@@ -152,7 +155,7 @@ export function EndForm({ series, asOf, others, labels, changing, target, onSave
       {preview.data ? (
         <RulePreview
           change={preview.data}
-          effect={t("end.effect", { payee: series.payee, month })}
+          effect={t("end.effect", { payee: series.payee, month, context })}
           saving={save.isPending}
           onSave={saveIt}
           onCancel={() => preview.reset()}
@@ -165,14 +168,16 @@ export function EndForm({ series, asOf, others, labels, changing, target, onSave
 
 interface AgainFormProps {
   series: Series;
+  wording: Wording;
   entry: EndedPayment; // the user's own `_biten` entry that names the payee
   target?: RefObject<HTMLButtonElement | null> | undefined; // what "Yeniden bekle…" puts the focus on
   onSaved: (said: string) => void;
 }
 
 /** "Yeniden bekle": the user's own entry taken off `_biten`, previewed, then written. */
-export function AgainForm({ series, entry, target, onSaved }: AgainFormProps) {
+export function AgainForm({ series, wording, entry, target, onSaved }: AgainFormProps) {
   const { t } = useTranslation("subscriptions");
+  const context = wording;
   const preview = usePreviewRule();
   const save = useSaveRule();
   const heading = useId();
@@ -182,7 +187,7 @@ export function AgainForm({ series, entry, target, onSaved }: AgainFormProps) {
     save.mutate(rule, {
       onSuccess: () => {
         preview.reset();
-        onSaved(t("again.saved", { payee: series.payee }));
+        onSaved(t("again.saved", { payee: series.payee, context }));
       },
     });
 
@@ -191,7 +196,7 @@ export function AgainForm({ series, entry, target, onSaved }: AgainFormProps) {
       <h3 id={heading} className="text-base font-semibold">
         {t("again.title")}
       </h3>
-      <p className="text-sm">{t("again.text", { payee: series.payee, month: formatMonth(entry.month) })}</p>
+      <p className="text-sm">{t("again.text", { payee: series.payee, month: formatMonth(entry.month), context })}</p>
       <Button
         ref={target}
         variant="secondary"
@@ -208,7 +213,7 @@ export function AgainForm({ series, entry, target, onSaved }: AgainFormProps) {
       {preview.data ? (
         <RulePreview
           change={preview.data}
-          effect={t("again.effect")}
+          effect={t("again.effect", { context })}
           saving={save.isPending}
           onSave={saveIt}
           onCancel={() => preview.reset()}

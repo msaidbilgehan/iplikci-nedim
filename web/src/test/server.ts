@@ -473,6 +473,24 @@ export const SUBSCRIPTIONS: Subscriptions = {
       last_amount: tl(4150000),
       next_day: "2026-11-01",
       price_change: null,
+      payments: [
+        {
+          fingerprint: "fp-maas-09",
+          day: "2026-09-01",
+          amount: tl(-4000000),
+          document: "TEB Hesap Dökümü Eylül 2026.xls",
+          sha256: "3".repeat(64),
+          certainty: "confirmed",
+        },
+        {
+          fingerprint: "fp-maas-10",
+          day: "2026-10-01",
+          amount: tl(-4150000),
+          document: "TEB Hesap Dökümü Ekim 2026.xls",
+          sha256: "1".repeat(64),
+          certainty: "confirmed",
+        },
+      ],
     }),
   ],
   installments: [
