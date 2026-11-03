@@ -81,6 +81,7 @@ import type {
   EventInfoOut,
   EventKind,
   EventOut,
+  EvdsOut,
   ExportKind,
   ExportOut,
   ExportsQueuedOut,
@@ -147,6 +148,7 @@ import type {
   RateDaysOut,
   RateSource,
   RatesOut,
+  RealTrendOut,
   RatesQueuedOut,
   RefusedMailOut,
   RemovedOut,
@@ -369,6 +371,10 @@ export type Sensitivity = FxSensitivityOut;
 export type RatesState = RatesOut;
 export type RateDays = RateDaysOut;
 export type RatesQueued = RatesQueuedOut;
+// TÜFE from EVDS with the user's own key (F12's V1+ part): where it stands, and the spending trend at one month's
+// prices that it makes possible on Değerlendirme.
+export type EvdsState = EvdsOut;
+export type RealTrend = RealTrendOut;
 export type OpenAlert = AlertOut;
 export type MonthClosing = ClosingOut;
 export type Freshness = FreshnessOut;

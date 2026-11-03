@@ -1,5 +1,6 @@
 """Spending in real terms (F12, its V1+ part): the Değerlendirme screen's spending trend at one month's prices, with
-TÜFE, the consumer price index TCMB's EVDS publishes as TP.FG.J0 (2003=100), for a user who gave an EVDS key.
+TÜFE, the consumer price index TCMB's EVDS publishes as TP.FG.J0 (2003=100; fx.evds), for a user who gave an EVDS
+key.
 
 The trend compares the average month of its recent complete months with the months before them (insights.trend).
 Here each of those months' spending is carried to the prices of the newest of them that has an index:
@@ -19,7 +20,6 @@ from .domain.codes import DEFAULT_EXPENSE_KINDS
 from .domain.money import round_half_up
 from .insights import month_of
 
-SERIES = "TP.FG.J0"  # TÜFE (2003=100), monthly
 ZERO = Decimal(0)
 
 
@@ -92,13 +92,3 @@ def real_trend(
         prices=round_half_up(prices, 4),
         missing=missing,
     )
-
-
-def index_by_month(items: Iterable[tuple[str, Decimal]]) -> dict[str, Decimal]:
-    """An index series as EVDS dates a monthly one ("2025-1"), by YYYY-MM."""
-    found: dict[str, Decimal] = {}
-    for when, value in items:
-        year, _, month = when.partition("-")
-        if year.isdigit() and month.isdigit() and 1 <= int(month) <= 12:
-            found[f"{int(year):04d}-{int(month):02d}"] = value
-    return found

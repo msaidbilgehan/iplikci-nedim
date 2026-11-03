@@ -184,5 +184,34 @@
       "saved": "Kaydedildi: e-postalar {{day}} itibaren yeniden okunur.",
       "outside": "Gün 01.01.2000 ile {{today}} arasında olmalı."
     }
+  },
+  "evds": {
+    "title": "Enflasyon verisi (EVDS)",
+    "say": "İsteğe bağlı: TCMB'nin EVDS'sinden aylık TÜFE alınırsa Değerlendirme'deki harcama karşılaştırması enflasyondan arındırılmış olarak da gösterilir.",
+    "key": "EVDS anahtarı",
+    "kept": "Kayıtlı (bu bilgisayarın anahtar zincirinde)",
+    "none": "Yok",
+    "months": "Saklanan TÜFE",
+    "monthsValue": "{{count}} ay, {{first}} – {{newest}}",
+    "noMonths": "Henüz yok",
+    "lastRun": "Son deneme",
+    "never": "Henüz denenmedi",
+    "failed": "TÜFE son denemede alınamadı",
+    "step1": "evds3.tcmb.gov.tr adresinde ücretsiz üye olun ve giriş yapın.",
+    "step2": "Profilim sayfasında \"API Key Kopyala\"ya basın.",
+    "step3": "Anahtarı aşağıya yapıştırıp kaydedin; bir kez EVDS'de denenir.",
+    "keyLabel": "EVDS API anahtarı",
+    "newKey": "Yeni EVDS API anahtarı (kayıtlı olanın yerine)",
+    "send": "Dene ve kaydet",
+    "sending": "EVDS'de deneniyor…",
+    "privacy": "Anahtar yalnızca bu bilgisayarın anahtar zincirinde saklanır ve bir daha gösterilmez. EVDS'ye yalnızca TÜFE'nin seri kodu ve tarih aralığı gider; hesaplarınızdan hiçbir bilgi gitmez. TÜFE her gün 10.30'da yenilenir.",
+    "refused": "Anahtar kaydedilmedi",
+    "done_one": "Anahtar kabul edildi; {{count}} ayın TÜFE'si alındı",
+    "done_other": "Anahtar kabul edildi; {{count}} ayın TÜFE'si alındı",
+    "doneText": "Değerlendirme'deki harcama karşılaştırması artık enflasyondan arındırılmış olarak da görünür.",
+    "remove": "Anahtarı kaldır",
+    "removed": "Anahtar kaldırıldı; TÜFE artık alınmayacak.",
+    "removeTitle": "EVDS anahtarı kaldırılsın mı?",
+    "removeText": "Anahtar anahtar zincirinden silinir ve TÜFE artık alınmaz. Şimdiye kadar alınan aylar saklı kalır; anahtarı istediğiniz zaman yeniden girebilirsiniz."
   }
 }

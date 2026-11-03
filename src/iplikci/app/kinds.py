@@ -11,6 +11,7 @@ BACKUP_REHEARSAL = "backup.rehearsal"  # the month's restore rehearsal
 BRIDGE_CHECK = "mail.bridge_check"  # whether the paired browser extension was seen in the last day
 NOTIFY = "notify.deliver"  # the new events into notifications, and what is due sent (ADR-0010)
 FX_RATES = "fx.rates"  # the day's exchange rates and the history's missing days (architecture §15)
+PRICES = "prices.fetch"  # TÜFE from EVDS, with the user's key (F12's V1+ part)
 
 # What each kind is, for the System screen (Turkish, as all user-facing text).
 LABELS = {
@@ -24,4 +25,5 @@ LABELS = {
     BRIDGE_CHECK: "Tarayıcı eklentisi denetimi",
     NOTIFY: "Bildirim gönderme",
     FX_RATES: "Döviz kurlarının çekilmesi",
+    PRICES: "TÜFE'nin çekilmesi (EVDS)",
 }

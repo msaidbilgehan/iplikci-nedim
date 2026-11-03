@@ -182,7 +182,12 @@
     "noLarge": "Bu aylarda büyük tek seferlik alışveriş yok.",
     "day": "Gün",
     "row": "İşlem",
-    "amount": "Tutar"
+    "amount": "Tutar",
+    "real": "Enflasyondan arındırılmış",
+    "realBefore": "Önceki dönem, {{month}} fiyatlarıyla",
+    "realRecent": "Son dönem, {{month}} fiyatlarıyla",
+    "realMeta": "TL olarak {{amount}}",
+    "realNext": "Ayarlar'da EVDS anahtarı gir"
   },
   "unusual": {
     "title": "Olağan dışı hareketler",

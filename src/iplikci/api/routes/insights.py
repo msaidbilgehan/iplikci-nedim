@@ -7,7 +7,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 
-from ...app import assessment
+from ...app import assessment, prices
 from ...app.analysis import Analysis, account_labels
 from ...app.assessment import HabitStatus, Necessity, SeriesStatus, Tone, UnusualKind
 from ...app.links import Link
@@ -87,6 +87,23 @@ class ChangeOut(BaseModel):
     recent: MoneyOut
 
 
+class RealTrendOut(BaseModel):
+    """The trend's averages at one month's prices with TÜFE (F12's V1+ part): only the months with an index."""
+
+    base: str  # YYYY-MM: the month whose prices the real amounts are in
+    before: list[str]
+    recent: list[str]
+    before_nominal: MoneyOut  # the average month, in TL of its own time
+    recent_nominal: MoneyOut
+    before_real: MoneyOut  # the same, at the base month's prices
+    recent_real: MoneyOut
+    nominal_change: float | None  # recent ÷ before − 1; null when before is zero
+    real_change: float | None
+    prices: float  # how much prices rose between the two sides, by TÜFE
+    missing: list[str]  # the trend's months without an index yet
+    say: str  # all of it in a sentence, with its months and numbers
+
+
 class TrendOut(BaseModel):
     before: list[str]
     recent: list[str]
@@ -97,6 +114,8 @@ class TrendOut(BaseModel):
     changes: list[ChangeOut]
     large: list[RowOut]
     threshold: MoneyOut
+    real: RealTrendOut | None = None  # null without TÜFE for both sides
+    real_note: str = ""  # why there is none: no EVDS key yet, or the months' TÜFE not out yet
 
 
 class IncomeOut(BaseModel):
@@ -157,6 +176,26 @@ def _flow(f: assessment.Flow | None) -> FlowOut | None:
     )
 
 
+def _real(r: assessment.Real | None) -> RealTrendOut | None:
+    if r is None:
+        return None
+    t = r.trend
+    return RealTrendOut(
+        base=t.base,
+        before=list(t.before),
+        recent=list(t.recent),
+        before_nominal=money(t.before_nominal),
+        recent_nominal=money(t.recent_nominal),
+        before_real=money(t.before_real),
+        recent_real=money(t.recent_real),
+        nominal_change=None if t.nominal_change is None else float(t.nominal_change),
+        real_change=None if t.real_change is None else float(t.real_change),
+        prices=float(t.prices),
+        missing=list(t.missing),
+        say=r.say,
+    )
+
+
 def _trend(t: assessment.Trend | None, labels: dict[str, str]) -> TrendOut | None:
     if t is None:
         return None
@@ -170,6 +209,8 @@ def _trend(t: assessment.Trend | None, labels: dict[str, str]) -> TrendOut | Non
         changes=[ChangeOut(category=c.category, before=money(c.before), recent=money(c.recent)) for c in t.changes],
         large=[row_out(r, labels) for r in t.large],
         threshold=money(t.threshold),
+        real=_real(t.real),
+        real_note=t.real_note,
     )
 
 
@@ -197,7 +238,7 @@ def insights(request: Request) -> InsightsOut:
     """The interpretation over the complete months; no filter changes it."""
     context = context_of(request)
     a = _analysis(context)
-    found = assessment.assess(a, context.today())
+    found = assessment.assess(a, context.today(), prices.index(context.ws))
     labels = account_labels(a)
     w = found.window
     return InsightsOut(

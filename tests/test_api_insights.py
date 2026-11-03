@@ -17,7 +17,9 @@ from iplikci.app import assessment
 from iplikci.app.workspace import Workspace
 from iplikci.domain.codes import TransactionKind, UnusualKind
 from iplikci.domain.models import Transaction
+from iplikci.fx import evds
 from iplikci.insights import Insights
+from iplikci.storage import prices
 
 TOKEN = "deneme-belirteci"
 TODAY = date(2026, 11, 15)
@@ -62,6 +64,55 @@ def test_habits_money_in_and_out_and_the_large_one_offs_come_with_their_numbers(
     trend = found["trend"]
     assert [r["title"] for r in trend["large"]] == ["Teknosa"] and trend["threshold"]["minor"] >= 500_000
     assert [(i["name"], i["status"]) for i in found["income"]] == [("Örnek İşveren A.Ş.", "active")]
+
+
+def test_without_tufe_the_trend_stays_in_tl_of_its_own_time_and_says_how_to_get_it(found):
+    trend = found["trend"]
+    assert trend["real"] is None and trend["real_note"] == assessment.NO_INDEX
+
+
+# --- the trend in real terms (F12's V1+ part) ------------------------------------------------------------------------
+
+BEFORE, RECENT = ["2026-01", "2026-02", "2026-03"], ["2026-04", "2026-05", "2026-06", "2026-08", "2026-09", "2026-10"]
+
+
+def insights_with(tmp_path, index: dict[str, Decimal]) -> dict:
+    """The demo's interpretation with TÜFE kept for index's months, as a key's fetch keeps it."""
+    ws = Workspace.load(demo.build(tmp_path / "veri"))
+    with ws.db() as db:
+        prices.put(db, evds.TUFE, index)
+    client = TestClient(
+        create_app(Context(ws=ws, token=TOKEN, today=lambda: demo.AS_OF)), base_url="http://127.0.0.1:8643"
+    )
+    response = client.get("/api/insights", headers={"Authorization": f"Bearer {TOKEN}"})
+    assert response.status_code == 200
+    return response.json()["trend"]
+
+
+def test_with_tufe_the_trend_is_also_told_at_one_months_prices_with_its_months_and_numbers(tmp_path):
+    # Prices 10% higher in the recent months: a 1,3% rise in TL is a fall in real terms.
+    index = {m: Decimal(3000) for m in BEFORE} | {m: Decimal(3300) for m in RECENT}
+    trend = insights_with(tmp_path, index)
+    real = trend["real"]
+    assert (real["base"], real["before"], real["recent"], real["missing"]) == ("2026-10", BEFORE, RECENT, [])
+    assert real["before_nominal"] == trend["before_average"] and real["recent_nominal"] == trend["recent_average"]
+    assert (real["before_real"]["minor"], real["recent_real"]["minor"]) == (2_351_741, 2_165_706)
+    assert (real["prices"], real["nominal_change"], real["real_change"]) == (0.1, 0.013, -0.0791)
+    assert real["say"] == (
+        "Önceki dönemden (Ocak 2026 – Mart 2026 arasındaki 3 tam ay) son döneme (Nisan 2026 – Ekim 2026 arasındaki 6 "
+        "tam ay) fiyatlar (TÜFE) %10,0 arttı. Aylık ortalama harcamanız TL olarak %1,3 arttı; Ekim 2026 fiyatlarıyla "
+        "23.517,41 TL'den 21.657,06 TL'ye, yani fiyat artışı düşülünce %7,9 azaldı."
+    )
+    assert trend["real_note"] == ""
+
+
+def test_a_month_without_tufe_yet_is_named_and_left_out_and_with_none_for_a_side_the_note_says_so(tmp_path):
+    index = {m: Decimal(3000) for m in BEFORE} | {m: Decimal(3300) for m in RECENT[:-1]}
+    real = insights_with(tmp_path / "bir", index)["real"]
+    assert real["missing"] == ["2026-10"] and real["base"] == "2026-09"
+    assert real["say"].endswith("Ekim 2026 için TÜFE henüz yok; bu ay karşılaştırmaya girmedi.")
+    trend = insights_with(tmp_path / "iki", {m: Decimal(3000) for m in BEFORE})
+    assert trend["real"] is None and trend["real_note"] == assessment.NOT_YET
 
 
 # --- the unusual movements -------------------------------------------------------------------------------------

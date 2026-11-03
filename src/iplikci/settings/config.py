@@ -91,6 +91,9 @@ class Fx:
     # TCMB first; when it cannot be reached, ECB's reference rates, through Frankfurter before ECB's own server, whose
     # certificate chain the bundle Python verifies with does not complete (ADR-0009's note).
     providers: tuple[str, ...] = ("document", "tcmb", "frankfurter", "ecb")
+    # TÜFE from EVDS with the user's key (F12's V1+ part): set when the key is kept, so a data folder without one
+    # never reads the keychain for it — a throwaway service, the tests' and the demo's, among them.
+    evds: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -281,7 +284,7 @@ _SCHEMA: dict[str, tuple[type, dict[str, Check]]] = {
         Notify,
         {"quiet_hours": _quiet_hours, "detail": _detail, "channels": _channels, "telegram_chat": _chat},
     ),
-    "fx": (Fx, {"providers": _providers}),
+    "fx": (Fx, {"providers": _providers, "evds": _flag}),
     "privacy": (Privacy, {"mcp_masking": _one_of("off", "accounts", "accounts_and_names")}),
     "backup": (Backup, {"keep_days": _days, "folder": _location}),
 }

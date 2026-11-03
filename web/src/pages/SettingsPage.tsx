@@ -1,8 +1,9 @@
 // The Settings screen (F17): the setup wizard's fields, to change at any time — the user's names and the company names,
 // how e-mail comes in and from which day, how long backups are kept — a backup on request or put back, the service's
-// state with stopping, restarting and removing it (ADR-0017), and where the rest is set: the notifications, the
-// browser extension, the documents, the non-bank senders and the wizard itself. Secrets are only entered, never shown;
-// the e-mail address is shown masked. The detailed view adds the settings' raw values.
+// state with stopping, restarting and removing it (ADR-0017), the optional EVDS key that brings TÜFE (F12), and where
+// the rest is set: the notifications, the browser extension, the documents, the non-bank senders and the wizard
+// itself. Secrets are only entered, never shown; the e-mail address is shown masked. The detailed view adds the
+// settings' raw values.
 //
 // A step that ends the service (components/settings/ServiceLife) replaces the cards with what happened: their
 // questions could only fail while the service is gone, and a restored service needs a new session.
@@ -16,6 +17,7 @@ import type { Settings } from "../api/types";
 import { useView } from "../components/Preferences";
 import { Failure, Loading } from "../components/QueryState";
 import { BackupEditor, BackupNow } from "../components/settings/BackupField";
+import { EvdsCard } from "../components/settings/EvdsKey";
 import { LINK, MailEditor } from "../components/settings/MailFields";
 import { BusinessNamesEditor, HINT, NamesEditor } from "../components/settings/NameList";
 import { BackupRestore, type Ending, EndingState, ServiceCard, showsCards } from "../components/settings/ServiceLife";
@@ -86,6 +88,7 @@ function Cards({ settings, onEnding }: { settings: Settings; onEnding: (ending: 
     </Card>
   );
   const service = <ServiceCard home={settings.home} onEnding={onEnding} />;
+  const evds = <EvdsCard />;
   const more = <MoreCard />;
   if (view === "simple") {
     // Two columns that do not move as a card grows: the names and e-mail on one side, the backups, the service and the
@@ -95,6 +98,7 @@ function Cards({ settings, onEnding }: { settings: Settings; onEnding: (ending: 
         <div className="flex min-w-0 flex-col gap-4">
           {names}
           {mail}
+          {evds}
         </div>
         <div className="flex min-w-0 flex-col gap-4">
           {backup}
@@ -110,6 +114,7 @@ function Cards({ settings, onEnding }: { settings: Settings; onEnding: (ending: 
       {mail}
       {backup}
       {service}
+      {evds}
       {more}
       <RawCard settings={settings} />
     </div>

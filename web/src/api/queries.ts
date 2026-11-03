@@ -35,6 +35,7 @@ import type {
   ExportItem,
   ExportsQueued,
   ExtensionFolder,
+  EvdsState,
   ExtensionInfo,
   FxIncome,
   FxRates,
@@ -1082,6 +1083,43 @@ export async function setUpImap(
   } finally {
     void client.invalidateQueries({ queryKey: keys.system }); // the settings, the setup and the mail's state
   }
+}
+
+// --- TÜFE from EVDS, with the user's own key (F12's V1+ part) ------------------------------------------------------------
+
+const evdsKey = [...keys.system, "evds"] as const;
+const EVDS = `${SETTINGS}/evds`;
+
+/** Whether a key is kept, TÜFE's months fetched and the last attempt; the key itself never comes back. */
+export function useEvds() {
+  return useQuery({
+    queryKey: evdsKey,
+    queryFn: () => api.get<EvdsState>(EVDS),
+  });
+}
+
+/**
+ * Give the service an EVDS key: it is tried once with EVDS and kept in the keychain only when EVDS takes it. The
+ * Değerlendirme screen's trend is asked again, now in real terms too.
+ */
+export function useSetEvdsKey() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (key: string) => api.put<EvdsState>(EVDS, { key }),
+    onSuccess: (saved) => {
+      client.setQueryData(evdsKey, saved);
+      void client.invalidateQueries({ queryKey: keys.insights });
+    },
+  });
+}
+
+/** Forget the key; TÜFE's months already fetched stay. */
+export function useRemoveEvdsKey() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.delete<void>(EVDS),
+    onSettled: () => client.invalidateQueries({ queryKey: evdsKey }),
+  });
 }
 
 /** Forget the IMAP account and its password. */

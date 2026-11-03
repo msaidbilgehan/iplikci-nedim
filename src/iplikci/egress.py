@@ -1,6 +1,6 @@
 """The only way out (ADR-0009). Every connection the program opens to another computer is made here, to a host on
-the allowlist: the mail servers the user set up, the Telegram Bot API, the exchange rate providers, and EVDS when its
-feature arrives. A connection anywhere else is refused before it leaves. 127.0.0.1 is no egress: the command line and
+the allowlist: the mail servers the user set up, the Telegram Bot API, the exchange rate providers, and TCMB's EVDS
+for the consumer price index. A connection anywhere else is refused before it leaves. 127.0.0.1 is no egress: the command line and
 the browser extension talk to the service there."""
 
 import http.client
@@ -19,8 +19,10 @@ TELEGRAM = "api.telegram.org"  # the notifications' Telegram channel (ADR-0010)
 TCMB = "www.tcmb.gov.tr"  # the Central Bank of Turkey's daily bulletin
 ECB = "www.ecb.europa.eu"  # the euro reference rates, when TCMB cannot be reached
 FRANKFURTER = "api.frankfurter.dev"  # the same reference rates as JSON
-# ADR-0009's fixed hosts; EVDS joins with its feature.
-FIXED_HOSTS: frozenset[str] = frozenset({TELEGRAM, TCMB, ECB, FRANKFURTER})
+# TÜFE for the spending in real terms, asked only with the user's own EVDS key (ADR-0009; evds2 redirects here).
+EVDS = "evds3.tcmb.gov.tr"
+# ADR-0009's fixed hosts.
+FIXED_HOSTS: frozenset[str] = frozenset({TELEGRAM, TCMB, ECB, FRANKFURTER, EVDS})
 # An answer larger than this is cut: the services asked answer in a few kilobytes, ECB's whole history in 642 KB.
 _ANSWER_LIMIT = 1 << 20
 

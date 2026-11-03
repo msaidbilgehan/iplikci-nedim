@@ -630,6 +630,21 @@ export interface EndedOut {
   own: boolean;
 }
 
+/** The user's own EVDS key, as EVDS's profile page copies it; tried once, then kept in the keychain only. */
+export interface EvdsIn {
+  key: string;
+}
+
+/** Where TÜFE stands: whether a key is kept, the months fetched and the last attempt. The key is never sent back. */
+export interface EvdsOut {
+  has_key: boolean;
+  months: number;
+  first: string | null;
+  newest: string | null;
+  last_run: string;
+  last_error: string;
+}
+
 /** An event a rule may watch, and the conditions it allows. */
 export interface EventInfoOut {
   kind: EventKind;
@@ -1748,6 +1763,22 @@ export interface ReaderHealthOut {
   alarms: number;
 }
 
+/** The trend's averages at one month's prices with TÜFE (F12's V1+ part): only the months with an index. */
+export interface RealTrendOut {
+  base: string;
+  before: string[];
+  recent: string[];
+  before_nominal: MoneyOut;
+  recent_nominal: MoneyOut;
+  before_real: MoneyOut;
+  recent_real: MoneyOut;
+  nominal_change: number | null;
+  real_change: number | null;
+  prices: number;
+  missing: string[];
+  say: string;
+}
+
 export interface RefusedMailOut {
   taken: "unlisted" | "unverified" | "business";
   reason: string;
@@ -2245,6 +2276,8 @@ export interface TrendOut {
   changes: ChangeOut[];
   large: RowOut[];
   threshold: MoneyOut;
+  real?: RealTrendOut | null;
+  real_note?: string;
 }
 
 export interface UnknownMailOut {

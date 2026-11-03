@@ -1,7 +1,7 @@
 """The settings the interface changes (F17): the non-bank senders (F14), the user's and the company names, how e-mail
-comes in (an IMAP account with its app password, or the browser extension), the start day, how long backups are kept.
-A browser changes them only from the service's own pages (the guard); the API token reads them. Nothing of them goes
-to the log, and a password is only taken in."""
+comes in (an IMAP account with its app password, or the browser extension), the start day, how long backups are kept,
+and the EVDS key that brings TÜFE (F12's V1+ part). A browser changes them only from the service's own pages (the
+guard); the API token reads them. Nothing of them goes to the log, and a password or a key is only taken in."""
 
 from datetime import date
 from typing import Annotated, Literal
@@ -9,7 +9,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 
-from ...app import senders, setup
+from ...app import prices, senders, setup
 from ...app.senders import SenderRefused, SettingsError
 from ...app.setup import Actor, SetupStep
 from ..context import context_of
@@ -177,6 +177,63 @@ def settings_imap_remove(request: Request) -> None:
     """Forget the IMAP account and its password."""
     if not setup.remove_imap(context_of(request).ws, Actor.USER):
         raise Problem(404, "mail_not_set_up", "Kurulu bir IMAP hesabı yok.")
+
+
+class EvdsIn(BaseModel):
+    """The user's own EVDS key, as EVDS's profile page copies it; tried once, then kept in the keychain only."""
+
+    key: str = Field(min_length=1, max_length=200)
+
+
+class EvdsOut(BaseModel):
+    """Where TÜFE stands: whether a key is kept, the months fetched and the last attempt. The key is never sent back."""
+
+    has_key: bool
+    months: int
+    first: str | None  # YYYY-MM
+    newest: str | None
+    last_run: str
+    last_error: str
+
+
+def _evds_out(found: prices.PricesStatus) -> EvdsOut:
+    return EvdsOut(
+        has_key=found.has_key,
+        months=found.months,
+        first=found.first,
+        newest=found.newest,
+        last_run=found.last_run,
+        last_error=found.last_error,
+    )
+
+
+@router.get("/api/settings/evds", dependencies=[Depends(only(Principal.BROWSER, Principal.CLIENT))])
+def settings_evds(request: Request) -> EvdsOut:
+    try:
+        return _evds_out(prices.status(context_of(request).ws))
+    except setup.SettingsError as exc:
+        raise _refused(exc) from exc
+
+
+@router.put("/api/settings/evds", dependencies=[Depends(only(Principal.BROWSER))])
+def settings_evds_key(request: Request, body: EvdsIn) -> EvdsOut:
+    """Try the key with EVDS and keep it in the keychain when EVDS takes it, with TÜFE's months that came. A refused
+    key, or one EVDS could not be asked about, is not kept."""
+    try:
+        return _evds_out(prices.set_key(context_of(request).ws, body.key, Actor.USER))
+    except prices.PricesError as exc:
+        raise Problem(400, "evds_refused", str(exc)) from exc
+    except setup.SettingsError as exc:
+        raise _refused(exc) from exc
+
+
+@router.delete("/api/settings/evds", status_code=204, dependencies=[Depends(only(Principal.BROWSER))])
+def settings_evds_remove(request: Request) -> None:
+    """Forget the key; TÜFE's months already fetched stay, and are no longer fetched."""
+    try:
+        prices.remove_key(context_of(request).ws, Actor.USER)
+    except (prices.PricesError, setup.SettingsError) as exc:
+        raise _refused(exc) from exc
 
 
 class SetupStepOut(BaseModel):

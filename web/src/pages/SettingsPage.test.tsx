@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Settings } from "../api/types";
 import { GIVE_UP_MS, POLL_MS } from "../components/settings/ServiceLife";
 import { renderScreen } from "../test/render";
-import { serviceState, SETUP, server, settings } from "../test/server";
+import { EVDS_KEPT, EVDS_NONE, serviceState, SETUP, server, settings } from "../test/server";
 import SettingsPage from "./SettingsPage";
 
 afterEach(() => {
@@ -229,6 +229,82 @@ describe("SettingsPage", () => {
     await user.click(within(backup).getByRole("button", { name: "Kaydet" }));
     expect(await within(backup).findByText("Kaydedildi: günlük yedekler 90 gün saklanır.")).toBeInTheDocument();
     expect(sent).toEqual([{ path: "backup", body: { keep_days: 90 } }]);
+  });
+
+  it("offers an EVDS key, saying what it brings, how to get it and that it stays in the keychain", async () => {
+    serve();
+    renderScreen(<SettingsPage />);
+    const evds = await card("Enflasyon verisi (EVDS)");
+    expect(within(evds).getByText(/harcama karşılaştırması enflasyondan arındırılmış/)).toBeInTheDocument();
+    expect(await within(evds).findByText("Yok")).toBeInTheDocument();
+    expect(within(evds).getByText(/evds3\.tcmb\.gov\.tr adresinde ücretsiz üye olun/)).toBeInTheDocument();
+    expect(within(evds).getByText(/yalnızca bu bilgisayarın anahtar zincirinde saklanır/)).toBeInTheDocument();
+    expect(within(evds).getByRole("button", { name: "Dene ve kaydet" })).toBeDisabled();
+    expect(within(evds).queryByRole("button", { name: "Anahtarı kaldır" })).not.toBeInTheDocument();
+  });
+
+  it("sends the key once, clears it from the page and says how many months of TÜFE came", async () => {
+    serve();
+    const sent: unknown[] = [];
+    server.use(
+      http.put("/api/settings/evds", async ({ request }) => {
+        sent.push(await request.json());
+        return HttpResponse.json(EVDS_KEPT);
+      }),
+    );
+    renderScreen(<SettingsPage />);
+    const evds = await card("Enflasyon verisi (EVDS)");
+    const field = await within(evds).findByLabelText("EVDS API anahtarı");
+    await userEvent.type(field, "AbCdEf1234");
+    await userEvent.click(within(evds).getByRole("button", { name: "Dene ve kaydet" }));
+    expect(await within(evds).findByText("Anahtar kabul edildi; 22 ayın TÜFE'si alındı")).toBeInTheDocument();
+    expect(sent).toEqual([{ key: "AbCdEf1234" }]);
+    expect(field).toHaveValue("");
+    expect(within(evds).getByText("Kayıtlı (bu bilgisayarın anahtar zincirinde)")).toBeInTheDocument();
+    expect(within(evds).getByText("22 ay, Ocak 2025 – Ekim 2026")).toBeInTheDocument();
+  });
+
+  it("says why EVDS refused a key, beside the field", async () => {
+    serve();
+    server.use(
+      http.put("/api/settings/evds", () =>
+        HttpResponse.json(
+          { code: "evds_refused", title: "EVDS anahtarı kabul etmedi: anahtarı profil sayfanızdan yeniden kopyalayın" },
+          { status: 400 },
+        ),
+      ),
+    );
+    renderScreen(<SettingsPage />);
+    const evds = await card("Enflasyon verisi (EVDS)");
+    const field = await within(evds).findByLabelText("EVDS API anahtarı");
+    await userEvent.type(field, "yanlis1234");
+    await userEvent.click(within(evds).getByRole("button", { name: "Dene ve kaydet" }));
+    expect(await within(evds).findByText("Anahtar kaydedilmedi")).toBeInTheDocument();
+    expect(within(evds).getByText(/EVDS anahtarı kabul etmedi/)).toBeInTheDocument();
+    expect(field).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("forgets a kept key after asking, and says the last fetch's failure while one is kept", async () => {
+    serve();
+    let removed = 0;
+    server.use(
+      http.get("/api/settings/evds", () =>
+        HttpResponse.json(removed ? EVDS_NONE : { ...EVDS_KEPT, last_error: "EVDS 503 yanıtı verdi" }),
+      ),
+      http.delete("/api/settings/evds", () => {
+        removed += 1;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    renderScreen(<SettingsPage />);
+    const evds = await card("Enflasyon verisi (EVDS)");
+    expect(await within(evds).findByText("TÜFE son denemede alınamadı")).toBeInTheDocument();
+    expect(within(evds).getByText("EVDS 503 yanıtı verdi")).toBeInTheDocument();
+    await userEvent.click(within(evds).getByRole("button", { name: "Anahtarı kaldır" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "EVDS anahtarı kaldırılsın mı?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Anahtarı kaldır" }));
+    expect(await within(evds).findByText("Yok")).toBeInTheDocument();
+    expect(removed).toBe(1);
   });
 
   it("adds the settings' values in the detailed view", async () => {

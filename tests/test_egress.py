@@ -50,10 +50,11 @@ def https(monkeypatch) -> type[FakeHttps]:
     return FakeHttps
 
 
-def test_the_rate_providers_are_on_the_allowlist_and_evds_not_yet():
+def test_the_rate_providers_and_evds_are_on_the_allowlist_and_evds_old_address_not():
     hosts = egress.allowed_hosts(SETTINGS)
-    assert {"www.tcmb.gov.tr", "www.ecb.europa.eu", "api.frankfurter.dev"} <= hosts
-    assert "evds3.tcmb.gov.tr" not in hosts and "evds2.tcmb.gov.tr" not in hosts
+    assert {egress.TCMB, egress.ECB, egress.FRANKFURTER, egress.EVDS} <= hosts
+    assert (egress.TCMB, egress.EVDS) == ("www.tcmb.gov.tr", "evds3.tcmb.gov.tr")
+    assert "evds2.tcmb.gov.tr" not in hosts  # it only redirects to evds3, and a redirect is never followed
 
 
 def test_a_get_brings_the_answer_and_its_status_an_error_status_too(https):

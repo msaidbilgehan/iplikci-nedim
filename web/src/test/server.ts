@@ -29,6 +29,7 @@ import type {
   FeedPage,
   Flows,
   Forecast,
+  EvdsState,
   FxIncome,
   FxRates,
   FxSpread,
@@ -2466,6 +2467,8 @@ export const INSIGHTS: Insights = {
       }),
     ],
     threshold: tl(500000),
+    real: null,
+    real_note: "Enflasyondan arındırılmış karşılaştırma için Ayarlar'da bir EVDS anahtarı girilebilir.",
   },
   income: [
     {
@@ -3888,6 +3891,25 @@ export const BACKUPS: BackupItem[] = [
   }),
 ];
 
+// TÜFE from EVDS (F12's V1+ part): no key yet, and a key kept with the months that came.
+export const EVDS_NONE: EvdsState = {
+  has_key: false,
+  months: 0,
+  first: null,
+  newest: null,
+  last_run: "",
+  last_error: "",
+};
+
+export const EVDS_KEPT: EvdsState = {
+  has_key: true,
+  months: 22,
+  first: "2025-01",
+  newest: "2026-10",
+  last_run: "2026-11-03T07:30:02+00:00",
+  last_error: "",
+};
+
 export const handlers = [
   http.get("/api/labels", () => HttpResponse.json(LABELS)),
   http.get("/api/dashboard", () => HttpResponse.json(DASHBOARD)),
@@ -4046,6 +4068,9 @@ export const handlers = [
     "/api/settings/mail/imap",
     () => new HttpResponse(null, { status: 204 }),
   ),
+  http.get("/api/settings/evds", () => HttpResponse.json(EVDS_NONE)),
+  http.put("/api/settings/evds", () => HttpResponse.json(EVDS_KEPT)),
+  http.delete("/api/settings/evds", () => new HttpResponse(null, { status: 204 })),
   // the service's own life (ADR-0017)
   http.get("/api/service", () => HttpResponse.json(serviceState())),
   http.get("/api/backups", () => HttpResponse.json(BACKUPS)),

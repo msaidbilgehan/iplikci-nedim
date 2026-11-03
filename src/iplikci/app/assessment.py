@@ -1,9 +1,11 @@
 """The Değerlendirme screen's interpretation (F10), which no filter changes: the highlights, the steps with their
 monthly effect, the monthly budget, the habits, money in and out over the window, what changed and the large one-off
-purchases, the regular income, and the unusual movements worth a look. Every part says its window and numbers
-(docs/domain/interpretation.md); the averages use complete months only."""
+purchases — in real terms too where TÜFE is known (F12's V1+ part) — the regular income, and the unusual movements
+worth a look. Every part says its window and numbers (docs/domain/interpretation.md); the averages use complete months
+only."""
 
 from collections import defaultdict
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
@@ -14,8 +16,10 @@ from ..categorize import FEE_CATEGORIES
 from ..domain.codes import Certainty, HabitStatus, Necessity, SeriesStatus, Tone, TransactionKind, UnusualKind
 from ..domain.labels import format_amount
 from ..domain.models import Transaction
+from ..domain.money import round_half_up
 from ..domain.text import fold
-from ..insights import V1_STATUS, Habit, Insights, large_purchase_threshold
+from ..inflation import RealTrend, monthly_spending, real_trend
+from ..insights import V1_STATUS, Habit, Insights, large_purchase_threshold, month_name
 from .analysis import Analysis
 from .links import Link, Screen, finding_link
 from .rows import RowView, view
@@ -134,6 +138,16 @@ class Trend:
     changes: list[Change]  # the largest movers first
     large: list[RowView]  # the large one-off purchases of the window, largest first: kept apart from the averages
     threshold: Decimal  # from this amount on a single purchase is large
+    real: "Real | None" = None  # the same averages at one month's prices; None without TÜFE for both sides
+    real_note: str = ""  # why there is none, in Turkish; "" when there is
+
+
+@dataclass(frozen=True, slots=True)
+class Real:
+    """The trend at one month's prices with TÜFE (inflation.real_trend), and what it says in a sentence."""
+
+    trend: RealTrend
+    say: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -209,13 +223,55 @@ def _flow(ins: Insights) -> Flow | None:
     )
 
 
-def _trend(ds: Dataset, ins: Insights) -> Trend | None:
+NO_INDEX = "Enflasyondan arındırılmış karşılaştırma için Ayarlar'da bir EVDS anahtarı girilebilir."
+NOT_YET = "Bu ayların TÜFE'si henüz alınmadı: enflasyondan arındırılmış karşılaştırma TÜFE gelince görünür."
+
+
+def _months_said(months: tuple[str, ...]) -> str:
+    """ "Ekim 2026"; "Nisan 2026 – Ekim 2026 arasındaki 6 tam ay": a month the window skips is not counted."""
+    if len(months) == 1:
+        return month_name(months[0])
+    return f"{month_name(months[0])} – {month_name(months[-1])} arasındaki {len(months)} tam ay"
+
+
+def _moved(change: Decimal) -> str:
+    """0.123 → "%12,3 arttı"; −0.04 → "%4,0 azaldı"; a change that rounds to none → "değişmedi"."""
+    shown = round_half_up(abs(change) * 100, 1)
+    if not shown:
+        return "değişmedi"
+    return f"%{str(shown).replace('.', ',')} {'arttı' if change > 0 else 'azaldı'}"
+
+
+def _real_say(r: RealTrend) -> str:
+    said = (
+        f"Önceki dönemden ({_months_said(r.before)}) son döneme ({_months_said(r.recent)}) fiyatlar (TÜFE) "
+        f"{_moved(r.prices)}."
+    )
+    if r.nominal_change is not None and r.real_change is not None:
+        said += (
+            f" Aylık ortalama harcamanız TL olarak {_moved(r.nominal_change)}; {month_name(r.base)} fiyatlarıyla "
+            f"{_tl(r.before_real)}'den {_tl(r.recent_real)}'ye, yani fiyat artışı düşülünce {_moved(r.real_change)}."
+        )
+    if r.missing:
+        which = "bu ay" if len(r.missing) == 1 else "bu aylar"
+        said += f" {', '.join(month_name(m) for m in r.missing)} için TÜFE henüz yok; {which} karşılaştırmaya girmedi."
+    return said
+
+
+def _real(ds: Dataset, before: tuple[str, ...], recent: tuple[str, ...], index: Mapping[str, Decimal]) -> Real | None:
+    found = real_trend(before, recent, monthly_spending(ds, (*before, *recent)), index)
+    return None if found is None else Real(found, _real_say(found))
+
+
+def _trend(ds: Dataset, ins: Insights, index: Mapping[str, Decimal]) -> Trend | None:
     t = ins.trend
     if t is None:
         return None
+    before, recent = tuple(t.before), tuple(t.recent)
+    real = _real(ds, before, recent, index) if index else None
     return Trend(
-        tuple(t.before),
-        tuple(t.recent),
+        before,
+        recent,
         t.before_avg,
         t.recent_avg,
         t.usual_before,
@@ -223,6 +279,8 @@ def _trend(ds: Dataset, ins: Insights) -> Trend | None:
         [Change(c.category, c.before, c.recent) for c in t.changes],
         [_row(r) for r in t.big],
         large_purchase_threshold(ds, ins.timeline.window),
+        real,
+        "" if real is not None else NOT_YET if index else NO_INDEX,
     )
 
 
@@ -230,7 +288,8 @@ def _row(t: Transaction) -> RowView:
     return view(t, Certainty.PROVISIONAL if t.provisional else Certainty.CONFIRMED)
 
 
-def assess(a: Analysis, today: date) -> Assessment:
+def assess(a: Analysis, today: date, index: Mapping[str, Decimal] | None = None) -> Assessment:
+    """The interpretation of a; index: TÜFE by YYYY-MM (app.prices), for the trend in real terms."""
     ds, ins = a.dataset, a.insights
     tl_ = ins.timeline
     return Assessment(
@@ -242,7 +301,7 @@ def assess(a: Analysis, today: date) -> Assessment:
         budget=[BudgetLine(b.label, b.now, b.plan, b.note) for b in ins.budget],
         habits=[_habit(h) for h in ins.habits],
         flow=_flow(ins),
-        trend=_trend(ds, ins),
+        trend=_trend(ds, ins, index or {}),
         income=[Income(s.merchant, s.monthly, s.last.date, V1_STATUS[s.status]) for s in ins.income if s.running],
         unusual=unusual(ds, ins, today),
     )

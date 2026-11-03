@@ -1,7 +1,7 @@
 """Fake answers of the exchange rate providers (architecture §15), laid out as the providers write them: TCMB's daily
-bulletin as XML, ECB's reference rates as XML and as the zip of their history, and Frankfurter's JSON, for the days
-and rates given. The rates are made up. The tests and the demo data folder read them through the providers' own
-readers (iplikci.fx), so nothing here needs the network.
+bulletin as XML, ECB's reference rates as XML and as the zip of their history, Frankfurter's JSON for the days and
+rates given, and EVDS's JSON of a monthly series such as TÜFE. The figures are made up. The tests and the demo data
+folder read them through the providers' own readers (iplikci.fx), so nothing here needs the network.
 """
 
 import io
@@ -110,6 +110,18 @@ def frankfurter_json(days: Mapping[date, Mapping[str, str]]) -> bytes:
     )
     first, last = (ordered[0][0].isoformat(), ordered[-1][0].isoformat()) if ordered else ("", "")
     return f'{{"amount":1.0,"base":"EUR","start_date":"{first}","end_date":"{last}","rates":{{{rates}}}}}'.encode()
+
+
+def evds_json(months: Mapping[str, str | None], series: str = "TP.FG.J0") -> bytes:
+    """EVDS's answer for a monthly series: each YYYY-MM written "YYYY-M" as EVDS writes it, its value as text, or null
+    for a month not published yet; the series' dots as underscores."""
+    column = series.replace(".", "_")
+    items: list[str] = []
+    for month, value in sorted(months.items()):
+        year, number = month.split("-")
+        written = "null" if value is None else f'"{value}"'
+        items.append(f'{{"Tarih":"{year}-{int(number)}","{column}":{written},"UNIXTIME":{{"$numberLong":"0"}}}}')
+    return f'{{"totalCount":{len(items)},"items":[{",".join(items)}]}}'.encode()
 
 
 # --- made-up rates that move a little from day to day -----------------------------------------------------------

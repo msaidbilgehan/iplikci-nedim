@@ -357,6 +357,44 @@ describe("InsightsPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("says how to see the spending in real terms while no TÜFE is kept, leading to the settings", async () => {
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=harcamalar" });
+    const trend = await card("Harcamalar nasıl değişti");
+    expect(within(trend).getByText(/Ayarlar'da bir EVDS anahtarı girilebilir/)).toBeInTheDocument();
+    expect(within(trend).getByRole("link", { name: "Ayarlar'da EVDS anahtarı gir" })).toHaveAttribute("href", "/ayarlar");
+  });
+
+  it("tells the trend at one month's prices with TÜFE, its months and numbers, beside the TL of its time", async () => {
+    const say =
+      "Önceki dönemden (Mayıs 2026 – Haziran 2026 arasındaki 2 tam ay) son döneme (Ağustos 2026 – Ekim 2026 " +
+      "arasındaki 3 tam ay) fiyatlar (TÜFE) %6,0 arttı. Aylık ortalama harcamanız TL olarak %2,0 arttı; Ekim 2026 " +
+      "fiyatlarıyla 21.200,00 TL'den 20.400,00 TL'ye, yani fiyat artışı düşülünce %3,8 azaldı.";
+    const real = {
+      base: "2026-10",
+      before: ["2026-05", "2026-06"],
+      recent: ["2026-08", "2026-09", "2026-10"],
+      before_nominal: tl(2000000),
+      recent_nominal: tl(2040000),
+      before_real: tl(2120000),
+      recent_real: tl(2040000),
+      nominal_change: 0.02,
+      real_change: -0.0377,
+      prices: 0.06,
+      missing: [],
+      say,
+    };
+    const insights = { ...INSIGHTS, trend: { ...INSIGHTS.trend!, real, real_note: "" } };
+    server.use(http.get("/api/insights", () => HttpResponse.json(insights)));
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=harcamalar" });
+    const trend = await card("Harcamalar nasıl değişti");
+    const part = within(trend).getByRole("region", { name: "Enflasyondan arındırılmış" });
+    expect(within(part).getByText(say)).toBeInTheDocument();
+    expect(within(part).getByText("Önceki dönem, Ekim 2026 fiyatlarıyla")).toBeInTheDocument();
+    expect(within(part).getByText("21.200,00 TL")).toBeInTheDocument();
+    expect(within(part).getByText("TL olarak 20.000,00 TL")).toBeInTheDocument();
+    expect(within(trend).queryByRole("link", { name: "Ayarlar'da EVDS anahtarı gir" })).not.toBeInTheDocument();
+  });
+
   it("lists the categories that moved most and the large one-offs, each leading to its rows", async () => {
     detailed();
     renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=harcamalar" });

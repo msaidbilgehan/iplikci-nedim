@@ -115,6 +115,7 @@ def no_keyring_or_network(monkeypatch, tmp_path_factory):
     monkeypatch.setattr(dialog, "show_folder", refuse)  # a folder opened in the file manager
     monkeypatch.delenv("IPLIKCI_MAIL_PASSWORD", raising=False)
     monkeypatch.delenv("IPLIKCI_TELEGRAM_TOKEN", raising=False)
+    monkeypatch.delenv("IPLIKCI_EVDS_KEY", raising=False)
     # A test that forgets to name its data folder gets an empty one, never the user's.
     monkeypatch.setenv(HOME_ENV, str(tmp_path_factory.mktemp("iplikci-bos")))
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path_factory.mktemp("yerel")))  # where the Windows task's record goes

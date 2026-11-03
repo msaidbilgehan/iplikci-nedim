@@ -1,9 +1,11 @@
 // How the spending moved (F10): the recent whole months against the ones before, with and without the large one-off
-// purchases the averages keep apart, the categories that changed most, and the movements worth a look — only flagged,
-// every row still counts. Both read the interpretation's complete months; no filter changes them.
+// purchases the averages keep apart — at one month's prices too where TÜFE is known (F12's V1+ part) — the categories
+// that changed most, and the movements worth a look — only flagged, every row still counts. Both read the
+// interpretation's complete months; no filter changes them.
 
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router";
 
 import type { Labels, Trend, Unusual } from "../../api/types";
 import { formatDay, formatFlow, formatMoney, formatMonth } from "../../lib/format";
@@ -12,7 +14,7 @@ import { percent } from "../../lib/turkish";
 import { Detailed, Simple } from "../Preferences";
 import { Badge } from "../ui/Badge";
 import { Card } from "../ui/Card";
-import { NextStep, ScreenLink } from "../ui/Say";
+import { NextStep, ScreenLink, STEP } from "../ui/Say";
 import { Stat } from "../ui/Stat";
 import { Table, Td, Th } from "../ui/Table";
 
@@ -84,11 +86,51 @@ export function TrendCard({ trend }: { trend: Trend | null }) {
             .join(" · ")}
         />
       </div>
+      <RealTerms trend={trend} />
       <Detailed>
         <Changes trend={trend} />
         <Large trend={trend} />
       </Detailed>
     </Card>
+  );
+}
+
+/** The two averages at one month's prices with TÜFE, in a sentence that names its months; or how to get them. */
+function RealTerms({ trend }: { trend: Trend }) {
+  const { t } = useTranslation("insights");
+  const heading = useId();
+  const real = trend.real;
+  if (!real) {
+    return trend.real_note ? (
+      <p className={`mt-4 ${SMALL}`}>
+        {trend.real_note}{" "}
+        <Link to="/ayarlar" className={STEP}>
+          {t("trend.realNext")}
+        </Link>
+      </p>
+    ) : null;
+  }
+  const month = formatMonth(real.base);
+  return (
+    <section aria-labelledby={heading} className="mt-6 flex flex-col gap-2">
+      <h3 id={heading} className="text-base font-semibold">
+        {t("trend.real")}
+      </h3>
+      {/* Never folded: it says which months each side is over (features.md). */}
+      <p className="text-sm">{real.say}</p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Stat
+          label={t("trend.realBefore", { month })}
+          value={formatMoney(real.before_real)}
+          meta={t("trend.realMeta", { amount: formatMoney(real.before_nominal) })}
+        />
+        <Stat
+          label={t("trend.realRecent", { month })}
+          value={formatMoney(real.recent_real)}
+          meta={t("trend.realMeta", { amount: formatMoney(real.recent_nominal) })}
+        />
+      </div>
+    </section>
   );
 }
 
