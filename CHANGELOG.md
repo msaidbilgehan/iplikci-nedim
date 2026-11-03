@@ -4,6 +4,55 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.9.0] — 2026-11-03 — Aşama 8: Döviz
+
+Dövizli hesaplar, net varlık ve kur farkları artık resmî kurlarla hesaplanır: TCMB'nin her iş günü yayımladığı kurlar,
+TCMB'ye ulaşılamayan günlerde ECB'nin referans kurları. İnternet yokken bankaların belgelerindeki kurlarla çalışmaya
+devam eder.
+
+### Eklenenler
+
+- Kurlar her gün 16.30'da TCMB'den alınır. Belgelerinizin kapsadığı günlerin geçmiş kurları bir kez, kendiliğinden
+  çekilir; hafta sonları hiç, kur yayımlanmayan tatil günleri bir kez sorulur. TCMB'ye ulaşılamayan günlerin kuru
+  ECB'nin referans kurlarından, Frankfurter üzerinden alınır.
+- Döviz ekranı dört bölüm oldu:
+  - **Varlıklar:** net varlık TL, euro, dolar ve gram altın karşılıklarıyla; her birimin yanında kullanılan kurun kaynağı
+    ve günü ("TCMB 13.11.2026 döviz satış kuruyla").
+  - **Kurlar:** her para biriminin en yeni döviz alış ve satış kuru, günü ve kaynağı; son 90 günün kuru grafik ve tablo
+    olarak; ayrıntılı görünümde belgelerin yazdığı bütün kurlar.
+  - **Kur makası:** son 12 ayda kendi hesaplarınız arasındaki döviz alım-satımları ve yurt dışı kart harcamaları,
+    her biri aynı günün TCMB kuruyla karşılaştırılarak; bankaların kurunun size toplam maliyeti ve ilgili işlemler.
+  - **Döviz geliri:** döviz hesaplarınıza gelen gelirin bugünkü kurla TL karşılığı, dövizin TL'ye çevrildiği günler
+    ve kurun aylık gelire etkisi ("EUR/TRY %5 düşerse aylık gelir … TL azalır"). Ortalama yalnızca tam aylardan.
+- Sistem ekranında "Döviz kurları" kartı: hangi sağlayıcının hangi güne kadar kuru olduğu, kaç günün kurunun saklandığı,
+  geçmişte eksik gün olup olmadığı, son deneme ve hatası; "Kurları şimdi al" ve "Eksik günlerin kurlarını al".
+- İsteğe bağlı enflasyon verisi: Ayarlar'daki "Enflasyon verisi (EVDS)" kartına TCMB EVDS'den aldığınız API anahtarını
+  girerseniz aylık TÜFE alınır ve Değerlendirme'deki "Harcamalar nasıl değişti" kartı harcamanızı enflasyondan
+  arındırılmış olarak da gösterir: iki dönemin ortalaması aynı ayın fiyatlarıyla, hangi aylardan hesaplandığıyla.
+  Anahtar yalnızca bu bilgisayarın anahtar zincirinde saklanır; EVDS'ye yalnızca TÜFE'nin seri kodu ve tarih aralığı
+  gider.
+- Komut satırı: `iplikci kurlar al [--gecmis]` ve `iplikci kurlar durum` (geliştiriciler için; her şeyin arayüzde de
+  yolu var).
+
+### Değişenler
+
+- Döviz hesaplarının satırları, belgede o işlemin kendi kuru yoksa o günün TCMB döviz alış kuruyla TL'ye çevrilir
+  (hafta sonu ve tatilde önceki iş gününün kuru); daha önce belgelerdeki en yakın kur kullanılıyordu. Bu yüzden
+  dövizli hesabı olanların TL toplamları biraz değişebilir.
+- Varlıklar döviz alış, borçlar döviz satış kuruyla değerlenir. Net varlığın euro ve dolar karşılığı satış kuruyla
+  bulunur.
+- Bir kurun gösterildiği her yerde kaynağı da yazar: işlemin yan panelinde, Akış'ta, hesap sayfasında ve Döviz'de
+  ("TCMB'nin 13.11.2026 kuruyla", "13.11.2026 belgesindeki kurla").
+- Kuru bilinmeyen bir varlık için "Kuru belgelerde yok" yerine "Kuru bilinmiyor" yazar.
+
+### Güvenlik
+
+- Kur sağlayıcılarına yalnızca tarih, EVDS'ye yalnızca seri kodu ve tarih aralığı gider; hepsi `egress` modülünden ve
+  ADR-0009'un izin listesinden geçer. Yönlendirme izlenmez, yanıt 1 MB ile sınırlıdır; belge türü ya da varlık bildiren
+  XML okunmaz.
+- EVDS anahtarı yalnızca girilir: bir kez denenir, kabul edilirse anahtar zincirine yazılır ve bir daha gösterilmez.
+  Anahtar girilmemiş bir veri klasörü anahtar zincirini bunun için hiç okumaz.
+
 ## [0.8.0] — 2026-11-03 — Aşama 7: MCP
 
 Claude, paranıza dair sorularınızı İplikçi Nedim'deki verilere ve belgelere bakarak yanıtlar. Bağlantı bu bilgisayarda

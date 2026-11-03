@@ -6,10 +6,21 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 | Revizyon | Konu | Durum | Belge |
 |---|---|---|---|
 | V0 | MVP `gider-analizi`: banka belgelerini okuyan, doğrulayan, yorumlayan yerel komut satırı programı, web paneli ve MCP sunucusu | 2026-10-31'de emekliye ayrıldı (K17) | Depo dışında, veri klasöründeki arşivde: `archive/mvp/CLAUDE.md` ve `README.md` |
-| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–6 (v0.1.0–v0.7.0), arayüzün sadeleşmesi (v0.7.1), resimlerle anlatan Pano (v0.7.2), açık sekmeye ulaşan güncellemeler (v0.7.3), içeriğinden tanınan belgeler (v0.7.4), Belge ekle ekranı (v0.7.5), belgelerle denetlenen bildirimler (v0.7.6) ve Aşama 7 (MCP, v0.8.0) uygulandı; sırada Aşama 8 var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
+| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–6 (v0.1.0–v0.7.0), arayüzün sadeleşmesi (v0.7.1), resimlerle anlatan Pano (v0.7.2), açık sekmeye ulaşan güncellemeler (v0.7.3), içeriğinden tanınan belgeler (v0.7.4), Belge ekle ekranı (v0.7.5), belgelerle denetlenen bildirimler (v0.7.6) ve Aşama 7 (MCP, v0.8.0) ve Aşama 8 (Döviz, v0.9.0) uygulandı; sırada sürüm 1.0'ın koşulları var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
 | V2 | Finansal strateji uzmanları ve yapay zekâ asistanı | Gelecek (V1'den sonra) | [`v2/requirements.md`](v2/requirements.md) |
 
 ## Değişiklik kaydı
+
+- 2026-11-03 (30) — Aşama 8: Döviz (v0.9.0):
+  - [ADR-0009](adr/0009-network-egress-policy.md)'un notu: kur sağlayıcılarının ve EVDS'nin sunucuları, yalnızca GET,
+    ECB'nin sertifikası yüzünden Frankfurter'in önce gelmesi; EVDS'nin izin listesine girmesi.
+  - [Mimari](v1/architecture.md#15-döviz) §15: uygulananlar (sağlayıcılar, geçmişin bir kez çekilmesi, kur defteri,
+    makas ve döviz geliri, TÜFE); §16'da `POST /api/fx/fetch` ve `/api/settings/evds`; §9'da `price_index`; §20'de
+    `[fx] evds`.
+  - [Özellikler](v1/features.md#f12--döviz-ve-varlıklar): F12'nin Aşama 8'de uygulananları, V1+ TÜFE'si dahil.
+  - [Yol haritası](v1/roadmap.md#aşama-8--döviz): Aşama 8'in durumu.
+  - [Alan kuralları](domain/): kur çevirisi ([defter](domain/ledger.md#kur-çevirisi)), kur makası ve döviz geliri
+    ([yorumlama](domain/interpretation.md)).
 
 - 2026-11-03 (29) — Aşama 7: MCP (v0.8.0):
   - [ADR-0011](adr/0011-mcp.md)'e uygulama notu: SDK, durumsuz `/mcp`, başlık yardımcısı, her iletide servisi ya da

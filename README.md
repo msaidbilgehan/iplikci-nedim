@@ -135,6 +135,19 @@ Aşama 7 (MCP, v0.8.0) Claude'u İplikçi Nedim'e bağlar:
 - Claude terminal açmadan bağlanır. "Claude bağlantısı" ekranı claude-SAK'a ya da Claude Desktop'a yapıştırılacak
   yapılandırmayı verir. Belirteç Claude'un ayar dosyasına yazılmaz.
 
+Aşama 8 (Döviz, v0.9.0) resmî kurları getirdi:
+
+- Kurlar her gün TCMB'den alınır; belgelerinizin kapsadığı günlerin geçmiş kurları bir kez, kendiliğinden çekilir.
+  TCMB'ye ulaşılamayan günlerin kuru ECB'nin referans kurundan gelir. İnternet yokken bankaların belgelerindeki kurlar
+  kullanılır. Kurun kaynağı ve günü, gösterildiği her yerde yazar.
+- Dövizli varlıklar döviz alış, borçlar satış kuruyla değerlenir; net varlık euro, dolar ve gram altın olarak da
+  görünür.
+- Döviz ekranı dört bölüm: Varlıklar; Kurlar (son 90 gün grafikte); Kur makası (son 12 ayda bankaların kurunun TCMB'ye
+  göre size maliyeti, işlemleriyle); Döviz geliri (bugünkü kurla TL karşılığı, TL'ye çevrildiği günler ve "EUR/TRY %5
+  düşerse" duyarlılığı).
+- İsteğe bağlı: Ayarlar'a TCMB EVDS'den aldığınız anahtarı girerseniz Değerlendirme harcamanızı enflasyondan
+  arındırılmış olarak da gösterir. Anahtar yalnızca bu bilgisayarın anahtar zincirinde saklanır.
+
 Açık kalanlar: Windows'ta temiz kurulum denemesi (kullanıcı yapacak) ve servisin yedi gün kendi başına çalışması
 (K19).
 
@@ -211,6 +224,7 @@ uv run iplikci ac                                # arayüzü tek kullanımlık g
 uv run iplikci servis durum                      # servis çalışıyor mu; kuyruk, e-posta ve kapsamı, yedek ve disk
 uv run iplikci yedek al | liste | geri-yukle | prova
 uv run iplikci eposta kur | durum | kaldir | al  # IMAP hesabı; şifre yalnızca anahtar zincirinde
+uv run iplikci kurlar al [--gecmis] | durum   # döviz kurları: şimdi çek (servis çalışıyorsa ona sorar), durumu
 uv run iplikci mcp                               # MCP'nin stdio köprüsü: servis çalışıyorsa ona, değilse salt okunur
 uv run iplikci mcp baslik                        # Claude Code'un başlık yardımcısı: belirteçli Authorization başlığı
 (cd extension && npm ci && npm test && npm run build)   # eklenti; extension/dist ve pakete giren kopyası
@@ -230,7 +244,7 @@ depoya hiç girmez: testler ve demo, kodla üretilen sahte belgelerle ve kendi k
 
 - Banka akışları esastır: her para hareketi bir banka belgesine dayanır; diğer e-postalar kanıt ve bilgi katmanıdır.
 - Yerel öncelik: belgeler ve veriler bu bilgisayarda, deponun dışındaki veri klasöründe durur. Ağa yalnızca e-posta
-  okumak, döviz kurlarını almak ve bildirim göndermek için çıkılır.
+  okumak, döviz kurlarını (ve anahtar girildiyse TÜFE'yi) almak ve bildirim göndermek için çıkılır.
 - Yalnızca kişisel para hareketleri; şirket belgeleri kapsam dışıdır.
 - Hiçbir belge kalıcı silinmez.
 - Finanstan anlayan da anlamayan da kullanmak istemeli.

@@ -345,6 +345,24 @@ G8 · Çekirdek (enflasyon V1+)
 - **Kur makası:** son 12 ayda ödenen fark ve ilgili işlemler.
 - **Döviz geliri:** TL karşılığı, bozdurma zamanları, kur duyarlılığı (örnek: "EUR/TRY %5 düşerse").
 - **V1+:** enflasyondan arındırılmış karşılaştırma (EVDS anahtarıyla).
+- **Aşama 8'de uygulanan (2026-11-03)**
+  - Kurlar TCMB'den her gün 16:30'da; geçmişleri verinin kapsadığı günler için bir kez. TCMB'ye ulaşılamayan günler
+    ECB'nin referans kurlarıyla (Frankfurter üzerinden) dolar. Ağ yokken belgelerdeki kurlar kullanılır (test edilir).
+  - Kurun kaynağı ve günü, kurun gösterildiği her yerde yazar: Döviz'in toplamlarında ve tablolarında, Pano'nun net
+    varlığında, Akış'ın bakiyelerinde, hesap sayfasında ve işlemin yan panelinde.
+  - Döviz dört bölümdür (`?bolum=`): Varlıklar, Kurlar (en yeni alış ve satış kurları; son 90 günün grafiği ve tablosu;
+    ayrıntılı görünümde belgelerin kurları), Kur makası ve Döviz geliri.
+  - Kur makası: son 12 ayda kendi hesaplar arasındaki döviz alım-satımları ve yurt dışı kart harcamaları, işlemin
+    yönüne uygun TCMB kuruyla (alım TCMB'nin döviz satış, satış döviz alış kuruyla) karşılaştırılır. TCMB kuru olmayan
+    işlem toplama girmez ve sayısı yazar. Eksi fark, bankanın kurunun daha iyi olduğunu söyler.
+  - Döviz geliri: son 12 ayın gelir satırları geldikleri günün ve bugünün kuruyla, dövizin TL'ye çevrildiği günler
+    (bozdurma) ve kurun %5 değişmesinin aylık gelire etkisi. Aylık ortalama yalnızca tam aylardan ve hangi aylardan
+    hesaplandığı yazar.
+  - Sistem ekranında kurların durumu ve "Kurları şimdi al"; komut satırında `iplikci kurlar al | durum`.
+  - V1+ da geldi: Ayarlar'daki "Enflasyon verisi (EVDS)" kartına girilen anahtar EVDS'de bir kez denenir ve anahtar
+    zincirine yazılır; TÜFE her gün 10:30'da çekilir. Değerlendirme'deki "Harcamalar nasıl değişti" kartı iki dönemin
+    ortalamasını en yeni TÜFE'li ayın fiyatlarıyla da söyler; TÜFE'si henüz çıkmamış ay adıyla yazılır ve dışarıda
+    kalır.
 
 ## F13 — Bildirimler
 

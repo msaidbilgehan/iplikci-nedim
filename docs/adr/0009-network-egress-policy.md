@@ -48,6 +48,8 @@ Kur sağlayıcılarının sunucuları, 2026-11-03'te denenmiş adresleriyle:
 | TCMB EVDS (isteğe bağlı) | `evds3.tcmb.gov.tr` | `/igmevdsms-dis/series=…&startDate=…&endDate=…&type=json` | API anahtarı (istek başlığında) ve seri kodları |
 
 - `evds2.tcmb.gov.tr` artık `evds3`'e yönlendiriyor; uygulama yönlendirme izlemez, doğrudan `evds3`'e gider.
+- `evds3.tcmb.gov.tr` izin listesine TÜFE özelliğiyle girdi. Yalnızca kullanıcı Ayarlar'da kendi anahtarını
+  girdiyse çağrılır; anahtar `key` başlığındadır, adreste ve günlükte yer almaz.
 - Sağlayıcılar `egress` üzerinden yalnızca GET ile çağrılır: sertifika ve sunucu adı denetlenir, yönlendirme izlenmez,
   yanıt 1 MB ile sınırlıdır (ECB'nin bütün geçmişi zip olarak 642 KB). Yol `/` ile başlamalıdır: izinli sunucudan sonra
   gelen `@başka.adres/` gibi bir yol isteği başka bir sunucuya götürürdü.

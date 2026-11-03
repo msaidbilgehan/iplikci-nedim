@@ -259,6 +259,7 @@ okuyucunun belgeleri ve işlenmeyen belgeler yeniden okunur; defter baştan hesa
 | `annotations` | **birincil** | parmak izine bağlı not, etiket, kategori ve gereklilik düzeltmesi, bölme |
 | `analysis_snapshots` | türev | yorum, düzenli ödemeler, alışkanlıklar, tahmin, varlıklar, ay kapanışları (JSON) |
 | `fx_rates` | dış kaynak | tarih, döviz çifti, alış ve satış, kaynak |
+| `price_index` | dış kaynak (isteğe bağlı) | EVDS serisi, ay, değer (TÜFE) |
 | `events` | **birincil** (günlük) | tür, zaman, yük, ilgili kimlikler |
 | `jobs`, `deliveries` | işletim | iş kuyruğu; gönderilen bildirimler |
 | `mail_accounts` | işletim | adres, klasör, UIDVALIDITY, son UID, başlangıç günü, son hata |
@@ -539,6 +540,28 @@ Ayrıntılar [ADR-0010](../adr/0010-notification-channels.md)'un uygulama notund
 - Ağ yoksa belgedeki kurlar kullanılır; ekranda kurun tarihi yazar.
 - Altın fiyatı için ücretsiz ve güvenilir bir kaynak doğrulanana dek altın, gram ve maliyetiyle gösterilir.
 
+**Aşama 8'de uygulanan (2026-11-03)**
+
+- Sağlayıcılar `fx` paketindedir (`tcmb`, `ecb`, `frankfurter`, `evds`); hepsi `egress.https_get` ile, yalnızca GET.
+  Ayarlardaki `[fx] providers` sırası: TCMB, sonra adı geçen ilk referans sağlayıcı (varsayılan Frankfurter; ECB'nin
+  sertifikası macOS'taki Python'da doğrulanmadı, ADR-0009'un notu). `document` tek başına ağa hiç çıkmamak demektir.
+- Kurlar `fx_rates`'te (gün, birim, kaynak, alış, satış; tam ondalık metin), sorulan günler `fx_days`'te. Geçmiş
+  verinin kapsadığı ilk günden düne kadar, en yeniden eskiye çekilir: çalıştırma başına en çok 400 istek, aralarında
+  yarım saniye; bitmezse sonraki çalıştırma kaldığı yerden sürer. Kur yayımlanmayan gün (404) bir kez sorulur.
+  Art arda 10 iş günü bülten çıkmazsa bunlar tatil sayılmaz, hata yazılır (adresler değişmiş olabilir).
+- Kur defteri (`fx.book.RateBook`): bir günün kuru o günün bülteni ya da en fazla 7 gün önceki son bültendir; aynı gün
+  TCMB ECB'den, ECB Frankfurter'den önce gelir. Yuvarlama tek yerde: `to_tl`, `from_tl`.
+- Kur makası (`exchange.spread`) ve döviz geliri (`exchange.foreign_income`) defterin üzerinde saftır; ağ ve depo
+  yoktur. Makas yalnızca TCMB'yle karşılaştırılır: ECB'nin tek referans kurunun alış ve satış tarafı yoktur.
+- Kurların durumu `GET /api/system`'in `rates` bölümündedir; `POST /api/fx/fetch` hemen çekim ister. İş `fx.rates`
+  her gün 16:30'da kuyruğa girer; yeni kur gelince analiz yenilenir (`Workspace.signature` kurların sayısını ve son
+  çekim anını içerir).
+- Yeniden kurulum (`dogrula --yeniden-kur`) ve yedekler kurları dökümde taşır: analiz aynı kurlarla yapılır.
+- TÜFE (V1+): kullanıcının EVDS anahtarı Ayarlar'da bir kez denenir ve anahtar zincirine yazılır, ayarlar
+  `[fx] evds = true` der; anahtar girilmemiş bir veri klasörü anahtar zincirini bunun için okumaz. TÜFE (`TP.FG.J0`)
+  her gün 10:30'da `price_index`'e çekilir (iş `prices.fetch`). Analizin parçası değildir: Değerlendirme onu analizin
+  yanında okur (`inflation.real_trend`), yeniden kurulum taşımaz; anahtar onu yeniden getirir.
+
 ## 16. API
 
 | Yol | Amaç |
@@ -559,6 +582,7 @@ Ayrıntılar [ADR-0010](../adr/0010-notification-channels.md)'un uygulama notund
 | `POST /api/documents/{id}/reparse`, `POST /api/documents/{id}/remove` | yeniden okuma; çöp kutusuna taşıma |
 | `POST /api/uploads`, `POST /api/inbox/plan`, `POST /api/inbox/apply` | elle ekleme (plan → onay → uygula) |
 | `GET /api/subscriptions`, `/api/calendar`, `/api/forecast`, `/api/insights`, `/api/spending`, `/api/holdings`, `/api/fx` | analizler: abonelikler, takvim, nakit öngörüsü, değerlendirme (bulgular, adımlar, olağan dışı hareketler), harcama kartları (İşlemler süzgeçleriyle), varlıklar (her değer kurunun günü ve kaynağıyla), kurlar (kur sağlayıcısının en yenisi ya da belgelerinki, alış ve satışıyla; sağlayıcıların son 90 günü ve belgelerdeki kurlar) |
+| `POST /api/fx/fetch` | kurları şimdi çek (`{"history": true}`: geçmişin eksik günleri de); kur sağlayıcısı yoksa 409. Durum `GET /api/system`'in `rates` bölümünde |
 | `GET /api/fx/spread`, `GET /api/fx/income` | kur makası: son 12 ayın döviz alım-satımları ve yurt dışı kart harcamaları, her biri gününün yönüne uygun TCMB kuruyla, farkı ve toplamı, TCMB kuru olmadığı için dışarıda kalanların sayısı; döviz geliri: son 12 ayın döviz gelirleri bugünkü kurla, TL'ye çevrildikleri günler, tam aylardan kur duyarlılığı |
 | `GET /api/invoices` | banka dışı faturalar ve makbuzlar: durumu (bekliyor, eşleşmedi, eşleşti), ödeyen banka satırı ya da olası nedenler, durum başına sayılar; hiçbiri toplamlara girmez (F14) |
 | `GET /api/month-end`, `GET /api/month-end/{YYYY-MM}` | ay kapanışı |
@@ -572,10 +596,11 @@ Ayrıntılar [ADR-0010](../adr/0010-notification-channels.md)'un uygulama notund
 | `POST /api/bridge/pairings`, `POST /api/bridge/pair`, `GET /api/bridge/hello`, `GET /api/bridge`, `DELETE /api/bridge/{id}`, `POST /api/bridge/login-link` | tarayıcı eklentisi: eşleştirme kodu, kodun belirtece dönmesi, servisin kanıtı (HMAC), eşleşmeler, iptal (ADR-0016); eklentinin "İplikçi Nedim'i aç" düğmesi için tek kullanımlık giriş bağlantısı, yalnızca etkin bir eklentinin belirteciyle (ADR-0019) |
 | `GET /api/ingest/mail/cursor`, `POST /api/ingest/mail`, `POST /api/ingest/mail/known`, `POST /api/ingest/mail/scanned`, `POST /api/ingest/mail/alarm` | eklentinin konumu ve geçmişin taranması gerekip gerekmediği, ham iletilerin teslimi, taramanın bulduğu iletilerden eksik olanlar, biten bir taramanın neyi aradığı, bir katmanın biçim alarmı; yalnızca eklenti belirteciyle |
 | `GET /api/settings`, `PUT /api/settings/identity`, `PUT /api/settings/backup`, `PUT /api/settings/mail` | ayarlar (sır içermez, adres maskeli): adlar ve şirket adları, yedeklerin saklanma süresi, e-posta bağlayıcısı ve başlangıç günü; yalnızca arayüz değiştirir |
+| `GET/PUT/DELETE /api/settings/evds` | EVDS anahtarı (V1+): anahtar kayıtlı mı, saklanan TÜFE ayları, son deneme; anahtar bir kez EVDS'de denenip anahtar zincirine yazılır, geri dönmez; unutma. Yalnızca arayüz değiştirir |
 | `POST /api/settings/mail/imap`, `DELETE /api/settings/mail/imap` | IMAP hesabını tek bir girişle kurma (şifre anahtar zincirine; reddedilen giriş yeniden denenmez); hesabı ve şifresini unutma |
 | `GET/PUT /api/settings/mail/other-senders` | banka dışı göndericiler (F14); yalnızca arayüz değiştirir. Banka alan adı (altı ya da üstü dahil), iki kez yazılan ve alan adı olmayan değer reddedilir, hiçbir şey yazılmaz |
 | `GET /api/setup` | kurulum sihirbazının adımları, her birinin durumu ve ilk açılış mı olduğu |
-| `GET /api/system`, `GET /api/system/log` | sağlık, işler, okuyucu sağlığı, e-posta, yedekler; servisin günlüğü, kişisel olabilecek yollar, adlar, adresler ve numaralar çıkarılmış |
+| `GET /api/system`, `GET /api/system/log` | sağlık, işler, okuyucu sağlığı, e-posta, yedekler, kurların durumu; servisin günlüğü, kişisel olabilecek yollar, adlar, adresler ve numaralar çıkarılmış |
 | `GET /api/backups`, `POST /api/backups`, `POST /api/backups/{ad}/restore` | yedekler; şimdi yedek al; bir yedeği geri yükleme: yedek hemen denetlenir, servis yeniden başlarken veritabanı açılmadan yerine konur |
 | `GET /api/service`, `POST /api/service/stop`, `POST /api/service/restart`, `POST /api/service/remove` | servisin kendisi (ADR-0017): bilgisayar onu başlatıyor mu; durdurma, yeniden başlatma (yalnızca kayıtlı servis), bilgisayardan kaldırma (veri klasörü istenirse sonunda çöp kutusuna); önce yanıt verilir, servis sonra biter; yalnızca arayüz |
 | `GET /api/extension`, `POST /api/extension/folder` | tarayıcı eklentisinin klasörü (K20): program eklentiyi taşıyor mu, klasör güncel mi; klasörü yapma ya da yenileme ve dosya yöneticisinde gösterme |
@@ -769,6 +794,7 @@ telegram_chat = 0                   # eşleştirmenin yazdığı sohbet; 0: eşl
 
 [fx]
 providers = ["document", "tcmb", "frankfurter", "ecb"]
+evds = false                        # EVDS anahtarı Ayarlar'da girilince true; anahtarın kendisi anahtar zincirinde
 
 [privacy]
 mcp_masking = "off"                 # "accounts" | "accounts_and_names"

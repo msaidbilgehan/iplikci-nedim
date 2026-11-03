@@ -6,10 +6,10 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-03): Phases 0–7 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.8.0). Between Phases 6 and 7 came
+Status (2026-11-03): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.0). Between Phases 6 and 7 came
 the interface's simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab
 (v0.7.3), documents known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked
-against the documents (v0.7.6). Phase 8 (Döviz) is next.
+against the documents (v0.7.6). Next is the 1.0 release, whose conditions are partly time-bound (roadmap "Sürüm 1.0").
 - Phase 0 brought the MVP's code in as the `iplikci` package, cleaned of personal traces, with the shipped default
   rules, the verification baseline and the demo workspace.
 - Phase 1 (data core) moved everything into the data dir: `settings.toml`, the content-addressed vault, SQLite with the
@@ -102,6 +102,27 @@ against the documents (v0.7.6). Phase 8 (Döviz) is next.
     people's names, never amounts, dates, fingerprints or document ids.
   - The Claude bağlantısı screen (`/kurulum/claude`) gives the configuration for claude-SAK's MCP JSON import (with
     its panel's own steps), Claude Desktop's part, the address, the token behind Göster and the masking choice.
+- Phase 8 (Döviz, v0.9.0) brought the exchange rates in the `fx` package.
+  - Providers: TCMB's daily bulletin, ECB's reference rates through Frankfurter when TCMB cannot be reached (ECB's own
+    server failed macOS Python's certificate check; ADR-0009's note), all by GET through `egress.https_get`. The
+    settings' `[fx] providers` default is `document`, `tcmb`, `frankfurter`, `ecb`; `["document"]` alone never asks
+    the network (the demo's).
+  - The history is fetched once for the days the data covers (400 requests a run at most, half a second apart), the
+    day's bulletin every day at 16:30 (job `fx.rates`); `fx_rates` keeps them, `fx_days` the days asked. The rebuild
+    and the backups carry them in the dump. `fx.book.RateBook` picks a day's quote (its bulletin or the last within a
+    week; TCMB before ECB before Frankfurter); `to_tl`/`from_tl` are the one rounding rule.
+  - Policy: a row's own printed rate, else the day's provider buying rate, else the documents' nearest; assets at
+    buying, debts at selling, the net worth's EUR and USD at selling (`analysis.row_rate`, `insights.balance_rate`).
+  - `exchange` (pure): the spread of the last 12 months' own-account trades and card purchases abroad against TCMB's
+    rate in the trade's direction, and the foreign income with its sales for TL and its 5% sensitivity over complete
+    months. Döviz shows them in four parts (Varlıklar, Kurlar, Kur makası, Döviz geliri); `lib/rateOrigin` says every
+    rate's source and day; Sistem has the rates' card with "Kurları şimdi al".
+  - V1+: TÜFE from EVDS (`fx/evds`, host `evds3.tcmb.gov.tr`) with the user's own key, typed on Ayarlar, tried once and
+    kept in the keychain (`secrets.EVDS`); `[fx] evds = true` then says so, so a folder without a key never reads the
+    keychain for it. `price_index` keeps it (job `prices.fetch`, daily 10:30); Değerlendirme's trend is also told at
+    one month's prices (`inflation.real_trend`, `app/assessment`). The rebuild does not carry it.
+  - A rate change changes TL totals of foreign-currency rows: that is no regression of `dogrula --taban`, but say why
+    when a total moves.
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 
@@ -202,7 +223,7 @@ The MVP was retired on 2026-10-31 (K17, ADR-0018): İplikçi Nedim starts with n
 
 | Path | Content |
 |---|---|
-| `src/iplikci/` | Python package: `domain`, `settings`, `storage`, `vault`, `ingest`, `parsers`, `ledger`, `categorize`, `insights`, `month_end`, `fx`, `feed`, `notify`, `jobs`, `egress`, `app`, `api`, `mcp`, `cli`, `export`, `service` (architecture §6) |
+| `src/iplikci/` | Python package: `domain`, `settings`, `storage`, `vault`, `ingest`, `parsers`, `ledger`, `categorize`, `insights`, `month_end`, `fx`, `exchange`, `inflation`, `feed`, `notify`, `jobs`, `egress`, `app`, `api`, `mcp`, `cli`, `export`, `service` (architecture §6) |
 | `src/iplikci/rules/default.yaml` | Generic category rules shipped with the app; the user's rules live in the data dir |
 | `web/` | React + TypeScript + Vite + Tailwind PWA (ADR-0008) |
 | `extension/` | Chromium browser extension, Manifest V3, TypeScript: the e-mail bridge of ADR-0016 |
@@ -247,6 +268,11 @@ low-level server with the Turkish instructions), `resources`, `prompts`, `maskin
 inside the service) and `stdio` with `bridge` (`iplikci mcp`: through the service, or the database read-only while it
 is down); `app/calls` records the calls (waiting in `run/` while the service is down), `app/connection` says what
 connects Claude, `api/routes/claude` gives it to the Claude bağlantısı screen and `cli/mcp` holds the headers helper.
+Phase 8 added `fx` (`book` the rate book, `provider` with `tcmb`, `ecb`, `frankfurter` and `evds`), `exchange` (the
+spread and the foreign income, pure over the ledger and the book), `inflation` (the trend in real terms, pure),
+`storage/fx_rates` and `storage/prices`, `app/fx` (fetching, the status, the requests), `app/prices` (the EVDS key and
+TÜFE), `api/routes/rates` (`POST /api/fx/fetch`) and `cli/rates` (`iplikci kurlar`); in `web/`, `components/fx` holds
+Döviz's parts and the System screen's rates card, and `components/settings/EvdsKey` the key's card.
 The rest keeps the MVP's flat layout (`analysis`, `insights`, `month_end`, `report` with its `templates`, …) until the
 phases in the roadmap's MVP module table move it. Next to them: `fakes` (the fake document builders and every
 reader's specimens, shared with the tests and the demo), `demo` (the demo data folder), `baseline` (the verification
@@ -289,6 +315,7 @@ uv run iplikci yedek al | liste | prova        # backups; geri-yukle restores (-
 uv run iplikci eposta kur | durum | kaldir | al   # the IMAP account; al asks the running service when there is one
 uv run iplikci bildirim durum | kurallar | gecmis | dene <kanal>   # notification channels, rules, history, a test
 uv run iplikci telegram kur | eslestir | kaldir   # the bot's token in a hidden prompt (the user types it), pairing
+uv run iplikci kurlar al [--gecmis] | durum    # the rates now (asks the running service) and where they stand
 uv run iplikci mcp                             # MCP over stdio: through the service, or read-only while it is down
 uv run iplikci mcp baslik                      # Claude Code's headers helper: the Authorization header as JSON
 (cd web && npm ci && npm run typecheck && npm test && npm run build)         # the interface, built into the package

@@ -218,6 +218,13 @@ nedenleri arasında sayılmaz.
 - **Çoklu para birimi:** varlıklar aynı günün kurlarıyla EUR, USD ve gram altın cinsinden de gösterilir. EUR ve USD
   karşılığı kur sağlayıcısının en yeni döviz satış kuruyla hesaplanır (yukarıda, Varlıklar ve borçlar); gram altın,
   ücretsiz ve güvenilir bir fiyat kaynağı doğrulanana dek gram ve maliyetiyle kalır.
+- **Enflasyondan arındırma** (V1+, `inflation.real_trend`): kullanıcı EVDS anahtarı girdiyse harcama eğiliminin iki
+  dönemi (değerlendirmenin tam ayları, eğilimin seçtiği gibi) en yeni TÜFE'li ayın fiyatlarına taşınır:
+  reel = harcama × TÜFE(taban ay) ÷ TÜFE(ay).
+  - Yalnızca tam aylar. TÜFE'si henüz çıkmamış bir ay (TÜFE sonraki ayın başında yayımlanır) iki taraftan da çıkar ve
+    adıyla yazılır; bir tarafta TÜFE'li ay kalmazsa karşılaştırma yapılmaz, not nedenini söyler.
+  - Cümle iki dönemin aylarını, fiyatların (TÜFE ortalamalarının) ne kadar değiştiğini, harcamanın TL'deki ve taban
+    ayın fiyatlarıyla değişimini söyler. TÜFE analizin parçası değildir; toplamları değiştirmez.
 
 ## Akış olayları
 
