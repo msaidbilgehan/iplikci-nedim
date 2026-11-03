@@ -17,7 +17,7 @@ import zipfile
 import zlib
 from collections.abc import Mapping
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from .. import egress
 from ..domain.codes import RateSource
@@ -39,14 +39,18 @@ _CODE = re.compile(r"[A-Z]{3}")
 
 
 def tl_rates(day: date, per_euro: Mapping[str, Decimal], source: RateSource) -> tuple[Quote, ...]:
-    """A day's TL rates from its rates per euro; none without the lira's own (ECB has it from 2005 on)."""
+    """A day's TL rates from its rates per euro; none without the lira's own (ECB has it from 2005 on). A rate so
+    far off that its quotient has no six decimals within Decimal's precision makes the answer unreadable."""
     lira = per_euro.get(LIRA)
     if lira is None:
         return ()
     quotes = [Quote(day, "EUR", lira, lira, source)]
     for code, rate in sorted(per_euro.items()):
         if code not in (LIRA, "EUR"):
-            value = round_half_up(lira / rate, DIGITS)
+            try:
+                value = round_half_up(lira / rate, DIGITS)
+            except InvalidOperation:
+                raise ProviderError(f"{source.value} yanıtında okunamayan bir kur var ({code})") from None
             quotes.append(Quote(day, code, value, value, source))
     return tuple(quotes)
 
@@ -77,7 +81,10 @@ def parse_xml(data: bytes) -> list[Day]:
 def parse_zip(data: bytes, start: date, end: date) -> Span | None:
     """The history's days from start to end (both included), and the part of that span the history covers; None
     when it covers none of it. Only those days' rates are worked out: the history holds every day since 1999."""
-    rows = csv.reader(io.StringIO(_history_text(data)))
+    try:
+        rows = iter(list(csv.reader(io.StringIO(_history_text(data)))))
+    except csv.Error as exc:  # a NUL, a field longer than the csv module takes
+        raise ProviderError("ECB geçmişi okunamadı") from exc
     header = next(rows, None)
     if not header or header[0].strip() != "Date":
         raise ProviderError("ECB geçmişi beklenen biçimde değil")

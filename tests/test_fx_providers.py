@@ -121,6 +121,21 @@ def test_a_day_without_the_liras_rate_gives_no_tl_rates():
     assert [(d.day, len(d.quotes)) for d in days] == [(FRIDAY, 2), (MONDAY, 0)]  # the oldest first
 
 
+def test_a_garbled_number_in_an_answer_is_a_provider_error_never_a_crash():
+    absurd = {MONDAY: {"USD": "0.000000000000000000000001", "TRY": "56.0442"}}  # no six decimals within precision
+    with pytest.raises(ProviderError, match="okunamayan bir kur"):
+        ecb.parse_xml(fake.ecb_xml(absurd))
+    with pytest.raises(ProviderError, match="okunamayan bir kur"):
+        frankfurter.parse(fake.frankfurter_json(absurd))
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:  # a field longer than the csv module takes
+        archive.writestr("eurofxref-hist.csv", f'Date,USD,TRY,\n2026-11-02,"{"1" * 200_000}",56.04,\n')
+    with pytest.raises(ProviderError, match="okunamadı"):
+        ecb.parse_zip(out.getvalue(), MONDAY, MONDAY)
+    found = tcmb.parse(fake.tcmb_xml(MONDAY, [TcmbRate("USD", "٤٩.٨٨", "49.97"), *BULLETIN[1:2]]))
+    assert sorted(by_code(found.quotes)) == ["EUR"]  # digits of another script are no rate
+
+
 def test_a_reference_answer_without_any_lira_rate_is_an_error_not_days_without_rates():
     with pytest.raises(ProviderError, match="TL kuru yok"):
         ecb.parse_xml(fake.ecb_xml({MONDAY: {"USD": "1.1216"}}))

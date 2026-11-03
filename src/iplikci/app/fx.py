@@ -6,8 +6,8 @@ the settings name no TCMB.
 
 - The history is fetched once, for the days the data covers: from the oldest statement or row day to yesterday. TCMB
   is asked for every Monday to Friday it was not asked for yet, the newest first, one request a day with a pause
-  between them; a day it published nothing for (a holiday: 404) is marked so and never asked again. A run asks at
-  most RUN_LIMIT days, so the service's other jobs get their turn; the next run goes on where it stopped.
+  between them; a day it published nothing for (a holiday: 404) is marked so and never asked again. A run makes at
+  most RUN_LIMIT requests to TCMB, so the service's other jobs get their turn; the next run goes on where it stopped.
 - Every day from 16:30 the day's bulletin is fetched, with the business days missed since the newest one. The day
   itself stays unrecorded until its bulletin comes: before 15:30, today.xml holds the day before's.
 - When TCMB cannot be reached, the reference rates fill the days it left, once a run, kept under their own source;
@@ -54,7 +54,7 @@ __all__ = [
 
 FETCH_JOB = kinds.FX_RATES
 DAILY_AT = clock(16, 30)  # local time: TCMB publishes at 15:30 Istanbul time
-RUN_LIMIT = 400  # days a run asks TCMB for at most
+RUN_LIMIT = 400  # requests a run makes to TCMB at most, today's bulletin among them
 PAUSE = 0.5  # seconds between two requests
 # Business days in a row without a bulletin that make TCMB's answers suspect: no holiday of Turkey's is that long,
 # so its files must have moved, and those days are left unrecorded instead of marked as holidays for good.
@@ -66,7 +66,7 @@ STATE = "fx.fetch"  # feed_state: when the last run that asked anything was, and
 _LOCK_NAME = ".kurlar.kilit"
 _BUSY = "kurlar şu an başka bir işlemde çekiliyor; biraz sonra yeniden deneyin"
 _DAY = timedelta(days=1)
-_RECENT = timedelta(days=7)  # what a reference provider is asked for when the program has none of its rates yet
+_RECENT = timedelta(days=7)  # how far back a reference provider is asked when the program has none of its rates
 
 log = logging.getLogger("iplikci.fx")
 

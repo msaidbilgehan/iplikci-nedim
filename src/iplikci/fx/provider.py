@@ -17,7 +17,7 @@ from ..settings.config import Settings
 from .book import Quote
 
 _DECLARATION = re.compile(rb"<!\s*(?:DOCTYPE|ENTITY)", re.IGNORECASE)
-_NUMBER = re.compile(r"\d+(?:\.\d+)?")
+_NUMBER = re.compile(r"[0-9]+(?:\.[0-9]+)?")  # ASCII digits only: Decimal would take any script's
 
 
 class ProviderError(Exception):
