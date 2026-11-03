@@ -184,7 +184,9 @@ def last_of_day(found: list[tuple[ReceiptLine, Decimal]]) -> tuple[ReceiptLine, 
 def start_of(ds: Dataset, account: str) -> Start | None:
     """Today's balance of an account as far as the documents tell: the newest balance a document prints, an account
     list's closing balance before a notice's on the same day (it closes the whole day), moved by the counted receipt
-    and notice rows dated after it. Rows of that same day are taken to be in a notice's balance already."""
+    and notice rows dated after it. Rows of that same day are taken to be in a notice's balance already. A list's
+    closing balance holds only the rows the list shows: a provisional row of its last days is one it does not show
+    (settle_receipts: the bank may book it after the list ends), so it moves the balance too, as in the ledger."""
     currency = ds.accounts[account].currency
     lists = [s for s in ds.statements if s.account == account and s.is_account and s.currency == currency]
     closing = max((s for s in lists if s.total is not None), key=lambda s: s.cut_date, default=None)
@@ -198,9 +200,14 @@ def start_of(ds: Dataset, account: str) -> Start | None:
         on, notice = newest, True
     else:
         return None
-    after = [line for line in lines if line.status in (PROVISIONAL, NO_STATEMENT) and line.txn.date > on]
+    after = [
+        line
+        for line in lines
+        if (line.status in (PROVISIONAL, NO_STATEMENT) and line.txn.date > on)
+        or (not notice and line.status == PROVISIONAL and line.txn.date <= on)
+    ]
     moved = -sum((line.native for line in after), ZERO)
-    through = max((line.txn.date for line in after), default=on)
+    through = max([on, *(line.txn.date for line in after)])
     return Start(stated + moved, stated, on, notice, len(after), through)
 
 

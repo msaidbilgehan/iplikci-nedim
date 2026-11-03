@@ -163,6 +163,29 @@ def test_a_list_closes_its_whole_day_but_a_later_notice_is_newer():
     assert start_of(dataset(receipts=[receipt(date(2026, 10, 1), 100, NO_STATEMENT, "vakif")]), "vakif") is None
 
 
+def test_a_list_balance_moves_by_the_provisional_rows_of_its_last_days_the_list_does_not_show():
+    # The bank booked these after the list was taken: the ledger keeps them provisional (their posting window runs
+    # past the list), so the list's closing balance does not hold them yet; a row the list shows it does.
+    rows = [
+        receipt(date(2026, 10, 31), 12500, PROVISIONAL),  # a transfer on the list's last day
+        receipt(date(2026, 10, 29), -100, PROVISIONAL),  # money in, two days before the end
+        receipt(date(2026, 10, 30), 2000, CONFIRMED),
+    ]
+    ds = dataset(statements=[account_list("cash", date(2026, 5, 1), date(2026, 10, 31), 0)], receipts=rows)
+    assert start_of(ds, "cash") == Start(Decimal(-12400), Decimal(0), date(2026, 10, 31), False, 2, date(2026, 10, 31))
+
+
+def test_a_notice_balance_already_holds_the_rows_of_its_day_and_of_the_days_before():
+    rows = [
+        receipt(date(2026, 11, 2), 300, PROVISIONAL, "vakif"),
+        receipt(date(2026, 11, 3), 200, PROVISIONAL, "vakif"),
+        receipt(date(2026, 11, 3), 500, PROVISIONAL, "vakif", balance=6500, query=2),
+    ]
+    statements = [account_list("vakif", date(2026, 10, 1), date(2026, 10, 31), 7500)]
+    start = start_of(dataset(statements=statements, receipts=rows), "vakif")
+    assert start == Start(Decimal(6500), Decimal(6500), date(2026, 11, 3), True, 0, date(2026, 11, 3))
+
+
 # --- money out spread over the days -------------------------------------------------------------------------
 
 
