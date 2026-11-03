@@ -63,6 +63,14 @@ def asked(db: Database, source: RateSource) -> dict[date, Asked]:
     }
 
 
+def asked_days(db: Database) -> list[Asked]:
+    """Every day any provider was asked for, by day and source: what a dump carries."""
+    return [
+        Asked(date.fromisoformat(r["day"]), RateSource(r["source"]), bool(r["published"]), r["asked_at"])
+        for r in db.rows("SELECT * FROM fx_days ORDER BY day, source")
+    ]
+
+
 def restore(db: Database, quotes: Iterable[Quote], days: Iterable[Asked], fetched_at: str) -> None:
     """The rates and the days asked as a dump recorded them (the rebuild)."""
     with db.transaction():

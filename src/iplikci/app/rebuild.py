@@ -6,6 +6,10 @@ each document's name and arrivals, the user's annotations and account names, the
 counts the company documents that were never kept), the event log and the notifications. It is dumped as JSON, the dump is read back
 into a new database beside the real one, the documents are read again, and both are analysed and compared. The vault
 is only read: a company document found on the way is marked in the new database, never moved.
+
+The exchange rates the providers gave are not primary, but they came from the network and may not come again: the
+dump carries them and the days each provider was asked for, so that both analyses use the same rates. A history of
+years holds tens of thousands of quotes, so each is one line of text: "2026-11-02 tcmb USD 49.8827 49.9726".
 """
 
 import json
@@ -13,27 +17,32 @@ import tempfile
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field, replace
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 from .. import baseline
-from ..domain.codes import Actor, DocumentStatus, Necessity, SourceKind
-from ..storage import aliases, annotations, audit, documents, events, notifications
+from ..domain.codes import Actor, DocumentStatus, Necessity, RateSource, SourceKind
+from ..fx.book import Quote
+from ..storage import aliases, annotations, audit, documents, events, fx_rates, notifications
 from ..storage.aliases import Alias
 from ..storage.annotations import Annotation, Subject, parts_of
 from ..storage.audit import Entry
 from ..storage.db import Database
 from ..storage.documents import DocumentRow, Source
 from ..storage.events import Event
+from ..storage.fx_rates import Asked
 from ..storage.notifications import Notification
 from . import reading
 from .analysis import Analysis, analyze
 from .workspace import Workspace
 
 FORMAT = "iplikci-birincil-veri"
-VERSION = 5  # 2: the event log; 3: the notifications; 4: the accounts' names; 5: the split rows' parts
-# A version 2 dump has no notifications, a version 3 one no account names, a version 4 one no parts.
-_READS = (2, 3, 4, 5)
+# 2: the event log; 3: the notifications; 4: the accounts' names; 5: the split rows' parts; 6: the exchange rates
+VERSION = 6
+# A version 2 dump has no notifications, a version 3 one no account names, a version 4 one no parts, a version 5 one
+# no exchange rates.
+_READS = (2, 3, 4, 5, 6)
 
 
 @dataclass(frozen=True)
@@ -52,6 +61,8 @@ class Primary:
     events: list[Event] = field(default_factory=list[Event])
     notifications: list[Notification] = field(default_factory=list[Notification])
     aliases: list[Alias] = field(default_factory=list[Alias])
+    rates: list[Quote] = field(default_factory=list[Quote])
+    rate_days: list[Asked] = field(default_factory=list[Asked])
 
 
 def export(db: Database) -> Primary:
@@ -62,7 +73,27 @@ def export(db: Database) -> Primary:
         events.entries(db),
         notifications.every(db),
         list(aliases.every(db).values()),
+        fx_rates.every(db),
+        fx_rates.asked_days(db),
     )
+
+
+def _rate_line(q: Quote) -> str:
+    return f"{q.day.isoformat()} {q.source.value} {q.currency} {q.buying} {q.selling}"
+
+
+def _rate(line: str) -> Quote:
+    day, source, currency, buying, selling = line.split(" ")
+    return Quote(date.fromisoformat(day), currency, Decimal(buying), Decimal(selling), RateSource(source))
+
+
+def _day_line(a: Asked) -> str:
+    return f"{a.day.isoformat()} {a.source.value} {int(a.published)} {a.asked_at}"
+
+
+def _day(line: str) -> Asked:
+    day, source, published, asked_at = line.split(" ")
+    return Asked(date.fromisoformat(day), RateSource(source), published == "1", asked_at)
 
 
 def dump(primary: Primary) -> str:
@@ -96,6 +127,8 @@ def dump(primary: Primary) -> str:
         "events": [asdict(e) for e in primary.events],
         "notifications": [asdict(n) for n in primary.notifications],
         "aliases": [asdict(a) for a in primary.aliases],
+        "rates": [_rate_line(q) for q in primary.rates],
+        "rate_days": [_day_line(a) for a in primary.rate_days],
     }
     return json.dumps(value, ensure_ascii=False, indent=1, sort_keys=True)
 
@@ -138,7 +171,9 @@ def load(text: str) -> Primary:
     happened = [Event(e["at"], e["kind"], e["target"], e["detail"]) for e in value["events"]]
     told = [Notification(**n) for n in value.get("notifications", [])]
     names = [Alias(a["account"], a["alias"], a["updated_at"], Actor(a["actor"])) for a in value.get("aliases", [])]
-    return Primary(kept, notes, entries, happened, told, names)
+    rates = [_rate(line) for line in value.get("rates", [])]
+    rate_days = [_day(line) for line in value.get("rate_days", [])]
+    return Primary(kept, notes, entries, happened, told, names, rates, rate_days)
 
 
 def restore(db: Database, primary: Primary) -> None:
@@ -158,6 +193,9 @@ def restore(db: Database, primary: Primary) -> None:
             notifications.restore(db, n)
         for name in primary.aliases:
             aliases.restore(db, name)
+        # A dump keeps no fetch time of its own: the rates count as fetched when their newest day was asked for.
+        fetched = max((a.asked_at for a in primary.rate_days), default="")
+        fx_rates.restore(db, primary.rates, primary.rate_days, fetched)
 
 
 def rebuild(ws: Workspace, folder: Path, primary: Primary, progress: reading.Progress | None = None) -> Workspace:
@@ -224,6 +262,15 @@ def compare(
     return out
 
 
+def rates_carried(primary: Primary, db: Database) -> list[str]:
+    """What differs between the exchange rates the dump carried and those of the rebuilt database db."""
+    rates, days = fx_rates.every(db), fx_rates.asked_days(db)
+    if rates == primary.rates and days == primary.rate_days:
+        return []
+    carried = f"{len(primary.rates)} kur ve {len(primary.rate_days)} gün"
+    return [f"kurlar: dökümde {carried}, yeniden kurulanda {len(rates)} kur ve {len(days)} gün"]
+
+
 def check(ws: Workspace, today: date | None = None, progress: reading.Progress | None = None) -> Report:
     """Dump the primary data, make the database again from it and the vault, and compare the two analyses."""
     today = today or date.today()
@@ -236,4 +283,5 @@ def check(ws: Workspace, today: date | None = None, progress: reading.Progress |
         again = analyze(shadow, today=today)
         with ws.db() as db, shadow.db() as other:
             differences = compare(live, again, documents.every(db), documents.every(other), today)
+            differences += rates_carried(primary, other)
     return Report(len(primary.documents), len(primary.annotations), differences)

@@ -7,17 +7,19 @@ After a deliberate change to the demo or the analysis, rewrite the golden file a
 import copy
 import json
 import os
+from datetime import date
 from pathlib import Path
 
 import pytest
 
 from iplikci import baseline, demo
+from iplikci.app import fx
 from iplikci.app.analysis import analyze
 from iplikci.app.workspace import Workspace
 from iplikci.cli import main
-from iplikci.domain.codes import DocumentStatus
+from iplikci.domain.codes import DocumentStatus, RateSource
 from iplikci.settings.paths import HOME_ENV
-from iplikci.storage import audit, documents
+from iplikci.storage import audit, documents, fx_rates
 
 GOLDEN = Path(__file__).parent / "golden" / "demo_baseline.json"
 
@@ -46,6 +48,19 @@ def test_the_demo_documents_are_in_the_vault_and_read_into_the_database(tmp_path
         assert db.scalar("SELECT count(*) FROM statements") == 7
         assert len(audit.targets(db, "document.business")) == 1  # the company list: refused, not kept
     assert ws.vault.verify().ok and sorted(ws.vault.objects()) == sorted(d.sha256 for d in kept)
+
+
+def test_the_demo_holds_tcmb_rates_for_every_business_day_and_leaves_nothing_to_fetch(tmp_path, providers):
+    built = date(2026, 12, 2)  # a Wednesday after the day the demo is looked at
+    ws = Workspace.load(demo.build(tmp_path / "demo", today=built))
+    with ws.db() as db:
+        days = fx_rates.asked(db, RateSource.TCMB)
+        currencies = {q.currency for q in fx_rates.every(db)}
+    # Its first day through the build day: 336 days, 48 whole weeks of five business days.
+    assert (min(days), max(days), len(days)) == (date(2026, 1, 1), built, 240)
+    assert all(a.published for a in days.values()) and currencies == {"EUR", "GBP", "USD"}
+    assert fx.request_missing(ws, built) is False
+    assert fx.fetch(ws, history=True, today=built).asked == 0 and providers.asked == []  # the network is not needed
 
 
 def test_the_demo_is_built_only_into_an_empty_folder(tmp_path):

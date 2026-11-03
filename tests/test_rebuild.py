@@ -3,6 +3,7 @@ from the vault and the primary data gives the same result."""
 
 import json
 import os
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
@@ -13,10 +14,12 @@ from iplikci.app import annotate, checks, intake, rebuild
 from iplikci.app.analysis import analyze
 from iplikci.app.workspace import Workspace
 from iplikci.cli import main
-from iplikci.domain.codes import Actor, DocumentStatus, Necessity
+from iplikci.domain.codes import Actor, DocumentStatus, Necessity, RateSource
+from iplikci.fakes import fx as fake_fx
 from iplikci.fakes import garanti, teb
+from iplikci.fx import tcmb
 from iplikci.settings.paths import HOME_ENV
-from iplikci.storage import annotations, documents
+from iplikci.storage import annotations, documents, fx_rates
 
 from conftest import JANUARY, add
 
@@ -84,6 +87,41 @@ def test_the_dump_carries_names_arrivals_annotations_and_the_logs(noted):
     ]
     with pytest.raises(ValueError, match="dökümü değil"):
         rebuild.load('{"format": "baska"}')
+
+
+def test_the_rebuilt_database_has_the_same_exchange_rates_and_asked_days(noted, tmp_path):
+    friday, saturday = date(2026, 10, 30), date(2026, 10, 31)
+    with noted.db() as db:
+        fx_rates.put(
+            db, friday, RateSource.TCMB, tcmb.parse(fake_fx.tcmb_xml(friday, fake_fx.tcmb_rates(friday))).quotes
+        )
+        fx_rates.put(db, saturday, RateSource.ECB, [])  # asked, nothing published
+        kept, days = fx_rates.every(db), fx_rates.asked_days(db)
+        primary = rebuild.load(rebuild.dump(rebuild.export(db)))
+    assert (primary.rates, primary.rate_days) == (kept, days) and len(kept) == 3
+    with rebuild.rebuild(noted, tmp_path, primary).db() as db:
+        assert (fx_rates.every(db), fx_rates.asked_days(db)) == (kept, days)
+        assert rebuild.rates_carried(primary, db) == []
+    report = rebuild.check(noted)
+    assert report.ok, report.differences
+
+
+def test_an_older_dump_has_no_rates_and_rates_lost_on_the_way_are_a_difference(noted, tmp_path):
+    friday = date(2026, 10, 30)
+    with noted.db() as db:
+        fx_rates.put(
+            db, friday, RateSource.TCMB, tcmb.parse(fake_fx.tcmb_xml(friday, fake_fx.tcmb_rates(friday))).quotes
+        )
+        primary = rebuild.export(db)
+    older = json.loads(rebuild.dump(primary))
+    older["version"] = 5
+    del older["rates"], older["rate_days"]
+    without = rebuild.load(json.dumps(older))
+    assert (without.rates, without.rate_days) == ([], [])
+    with rebuild.rebuild(noted, tmp_path, without).db() as db:
+        assert rebuild.rates_carried(primary, db) == [
+            "kurlar: dökümde 3 kur ve 1 gün, yeniden kurulanda 0 kur ve 0 gün"
+        ]
 
 
 def test_a_changed_reading_in_the_database_is_found(noted):

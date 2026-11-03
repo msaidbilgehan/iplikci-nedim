@@ -5,20 +5,25 @@ documents. Every document comes from the fake document builders (iplikci.fakes),
 with made-up names, numbers and amounts; the tests use the same builders. The documents go into the folder's
 vault the way an import does, so the demo's baseline is taken from the vault and the database like a real one.
 Card statements and the other readers' documents have builders too; adding them here changes the golden
-baseline, so that is a step of its own.
+baseline, so that is a step of its own. The exchange rates are TCMB's made-up bulletins (fakes.fx), one for every
+business day the demo covers, read through TCMB's own reader.
 """
 
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
-from .app import intake
+from .app import fx, intake
 from .app.workspace import Workspace
 from .categorize import PERSONAL_TEMPLATE
-from .domain.codes import Actor, SourceKind
+from .domain.codes import Actor, RateSource, SourceKind
 from .fakes import HOLDER, Move, garanti, teb
+from .fakes import fx as fake_rates
 from .fakes.files import text_pdf
+from .fx import tcmb
+from .fx.provider import weekdays
 from .settings.paths import Layout, write_private
+from .storage import fx_rates
 from .storage.documents import Source
 
 COMPANY = "ÖRNEK TEKNOLOJİ A.Ş."
@@ -155,9 +160,23 @@ def documents() -> dict[str, bytes]:
     return lists | _garanti_receipts() | _brokerage_statements() | _inbox(lists)
 
 
-def build(target: Path) -> Path:
+def _store_rates(ws: Workspace, today: date) -> int:
+    """TCMB's made-up bulletins for every business day from the demo's first day through AS_OF or today, whichever
+    is later: the screens have a provider's rates to show, and a service on the demo finds no day to fetch from the
+    network. A day's rates are the same whenever the demo is built. How many days were stored."""
+    with ws.db() as db, db.transaction():
+        start = fx.history_start(db)
+        days = list(weekdays(start, max(AS_OF, today))) if start else []
+        for day in days:
+            bulletin = tcmb.parse(fake_rates.tcmb_xml(day, fake_rates.tcmb_rates(day)))
+            fx_rates.put(db, bulletin.day, RateSource.TCMB, bulletin.quotes)
+    return len(days)
+
+
+def build(target: Path, today: date | None = None) -> Path:
     """Make a demo data folder at target, which must be missing or empty: nothing is overwritten. Its documents
-    go into the vault as an import ("Bankalar/…") and as the inbox would bring them ("Gelen Belgeler/…")."""
+    go into the vault as an import ("Bankalar/…") and as the inbox would bring them ("Gelen Belgeler/…"); its rates
+    reach today (the computer's day when None)."""
     if target.exists() and (not target.is_dir() or any(target.iterdir())):
         raise FileExistsError(f"{target} boş değil: demo veri klasörü yalnızca boş ya da olmayan bir klasöre kurulur")
     layout = Layout(target)
@@ -171,4 +190,5 @@ def build(target: Path) -> Path:
         kind = SourceKind.INBOX if folder == _INBOX else SourceKind.IMPORT
         incoming.append(intake.Incoming(name, data, Source(kind, name, folder)))
     intake.apply(ws, intake.plan_documents(ws, incoming), Actor.SYSTEM)
+    _store_rates(ws, today or date.today())
     return target
