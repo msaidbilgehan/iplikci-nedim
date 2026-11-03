@@ -2,7 +2,8 @@
 // its last payment chosen, the rule file's change previewed, then saved — and expected again through "Yeniden bekle".
 // The light theme's project ends one at its last payment's month, so it reads as cancelled among what ended; the dark
 // one names the month before, so the payment after it reads as a warning. Each ends a payment of its own, so the two
-// run side by side on the one demo data folder and write the one rule file: two changes at once both stand.
+// run side by side on the one demo data folder and write the one rule file: two changes at once both stand. The
+// salary, the demo's only income, is ended through "Artık gelmiyor" by the light theme's project alone.
 
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
@@ -72,4 +73,49 @@ test("bir ödeme iptal edilir, önizlenip kaydedilir ve yeniden beklenir", async
   await expect(panel.getByText(back)).toBeVisible(SAVES);
   await page.keyboard.press("Escape");
   await expect(monthly.getByRole("button", { name: `İptal ettim: ${plan.payee}` })).toBeVisible(SAVES);
+});
+
+/** text as a regular expression's own letters: a payer's name may hold a dot. */
+function literal(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+test("düzenli bir gelir artık gelmiyor diye bitirilir, önizlenip kaydedilir ve yeniden beklenir", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "acik", "the demo has one income: only the light theme's project ends it");
+  test.slow(); // two rule changes, each with the analysis made again
+  const payer = "Örnek İşveren A.Ş.";
+  await page.goto("/abonelikler");
+  await loaded(page);
+  const income = page.getByRole("region", { name: "Düzenli gelirler" });
+  await income.getByRole("button", { name: `Artık gelmiyor: ${payer}` }).click();
+
+  const panel = page.getByRole("dialog", { name: payer });
+  const month = panel.getByLabel("Son geliş ayı");
+  await expect(month).toBeFocused();
+  await expect(month).toHaveValue("2026-10"); // the last salary's month
+  await panel.getByRole("button", { name: "Önizle" }).click();
+  const change = panel.getByRole("figure", { name: "Kişisel kurallarınızdaki değişiklik" });
+  await expect(change).toContainText(new RegExp(`\\+\\s+${literal(payer)}: 2026-10`));
+  expect(await violations(page, '[role="dialog"]')).toEqual([]);
+  await panel.getByRole("button", { name: "Kaydet" }).click();
+  await expect(panel.getByText(`Kaydedildi: ${payer} için Ekim 2026'dan sonra gelir beklenmiyor.`)).toBeVisible(SAVES);
+  const again = panel.getByRole("region", { name: "Yeniden bekle" });
+  await expect(again).toBeVisible(SAVES);
+  await page.keyboard.press("Escape");
+  await expect(panel).toBeHidden();
+
+  // It stays on the list as no longer coming, with nothing to expect, and may be expected again.
+  await expect(income.getByText("Artık gelmiyor", { exact: true })).toBeVisible(SAVES);
+  await expect(income.getByText("Kişisel kurallarınızda son geliş ayı Ekim 2026.")).toBeVisible();
+  expect(await violations(page, "main")).toEqual([]);
+  await income.getByRole("button", { name: `Yeniden bekle: ${payer}` }).click();
+  await expect(again.getByRole("button", { name: "Önizle" })).toBeFocused();
+  await again.getByRole("button", { name: "Önizle" }).click();
+  await expect(again.getByRole("figure")).toContainText(new RegExp(`-\\s+${literal(payer)}: 2026-10`));
+  await again.getByRole("button", { name: "Kaydet" }).click();
+  await expect(panel.getByText(`Kaydedildi: ${payer} için son geliş ayı kurallarınızdan çıktı.`)).toBeVisible(SAVES);
+  await page.keyboard.press("Escape");
+  await expect(income.getByRole("button", { name: `Artık gelmiyor: ${payer}` })).toBeVisible(SAVES);
 });
