@@ -23,8 +23,12 @@ def client(tmp_path_factory) -> TestClient:
     )
 
 
+def bearer() -> dict[str, str]:
+    return {"Authorization": f"Bearer {TOKEN}"}
+
+
 def cards(client: TestClient, **query: str | list[str]) -> dict:
-    response = client.get("/api/spending", params=query, headers={"Authorization": f"Bearer {TOKEN}"})
+    response = client.get("/api/spending", params=query, headers=bearer())
     assert response.status_code == 200
     return response.json()
 
@@ -69,12 +73,24 @@ def test_the_months_by_group_and_by_necessity_keep_their_fixed_colour_slots(foun
 
 def test_categories_and_merchants_lead_to_their_rows(found):
     first = found["categories"][0]
-    assert first["category"] == "Kira" and first["link"]["query"] == {"category": "Kira"}
+    # The period's days and the spending's kinds written out, so the Transactions screen keeps the rows counted here.
+    period = {"from": "2026-01-01", "to": "2026-10-31", "kind": ["interest_fee", "purchase", "refund"]}
+    assert first["category"] == "Kira" and first["link"]["query"] == {**period, "category": "Kira"}
     shares = sum(float(c["share"]) for c in found["categories"])
     assert 0.99 < shares < 1.01
     totals = [m["total"]["minor"] for m in found["merchants"]]
     assert totals == sorted(totals, reverse=True)
-    assert found["merchants"][0]["link"]["query"] == {"merchant": found["merchants"][0]["merchant"]}
+    assert found["merchants"][0]["link"]["query"] == {**period, "merchant": found["merchants"][0]["merchant"]}
+
+
+def test_a_category_or_a_merchant_leads_to_the_rows_that_make_its_total_in_the_period_and_filters(client):
+    for query in ({"from": "2026-08-01", "to": "2026-10-31"}, {"account": "teb-123456789", "necessity": "required"}):
+        found = cards(client, **query)
+        lines = [*found["categories"], *found["merchants"]]
+        assert lines
+        for line in lines:
+            rows = client.get("/api/transactions", params=line["link"]["query"], headers=bearer()).json()
+            assert rows["totals"]["spent"] == line["total"], line["link"]["query"]
 
 
 def test_money_in_and_out_by_month_says_what_is_left(found):

@@ -40,6 +40,7 @@ from ..storage import annotations, audit, documents, feed_state
 from ..storage.annotations import Annotation
 from . import annotate, background
 from .analysis import Analysis, account_labels
+from .links import Link, Screen
 from .rows import Direction, Found, Rows, RowView, view
 from .workspace import Workspace
 
@@ -118,6 +119,36 @@ class Filter:
             and (not self.merchant or fold(row.merchant) == fold(self.merchant))
             and (not self.text or _has_words(row, label, self.text))
         )
+
+    def query(self) -> tuple[tuple[str, str], ...]:
+        """The filters as the Transactions screen's address holds them, in the API's names, each of many values a pair
+        of its own and in a steady order: a link with them opens the screen on these rows."""
+        pairs: list[tuple[str, str]] = []
+        if self.start is not None:
+            pairs.append(("from", self.start.isoformat()))
+        if self.end is not None:
+            pairs.append(("to", self.end.isoformat()))
+        many: tuple[tuple[str, frozenset[str]], ...] = (
+            ("account", self.accounts),
+            ("kind", frozenset(k.value for k in self.kinds)),
+            ("category", self.categories),
+            ("group", self.groups),
+            ("necessity", frozenset(n.value for n in self.necessities)),
+            ("certainty", frozenset(c.value for c in self.certainties)),
+            ("tag", self.tags),
+        )
+        for name, values in many:
+            pairs += [(name, value) for value in sorted(values)]
+        if self.merchant:
+            pairs.append(("merchant", self.merchant))
+        if self.text:
+            pairs.append(("q", self.text))
+        return tuple(pairs)
+
+
+def rows_link(f: Filter) -> Link:
+    """The Transactions screen narrowed to the rows f keeps."""
+    return Link(Screen.TRANSACTIONS, query=f.query())
 
 
 def _has_words(row: RowView, label: str, text: str) -> bool:

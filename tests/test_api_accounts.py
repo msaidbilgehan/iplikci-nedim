@@ -345,6 +345,21 @@ def test_the_flow_joins_a_card_payment_to_the_card_it_paid(garanti_ws):
     assert sum(e["amount"]["minor"] for e in income) >= 4000000  # the salary
 
 
+def test_a_band_leads_to_the_rows_it_adds_up_its_spending_group_or_its_payer_alone(demo_client):
+    found = get(demo_client, "/api/accounts/flows", **{"from": "2026-10-01", "to": "2026-10-31"})
+    nodes = {n["id"]: n for n in found["nodes"]}
+    spent = [e for e in found["edges"] if nodes[e["target"]]["kind"] == "spending"]
+    came = [e for e in found["edges"] if nodes[e["source"]]["kind"] == "income"]
+    assert len(spent) >= 2 and came
+    for edge in spent:
+        assert edge["link"]["query"]["group"] == nodes[edge["target"]]["name"]
+        rows = get(demo_client, "/api/transactions", **edge["link"]["query"])
+        assert rows["totals"]["spent"] == edge["amount"]  # the group's rows, not every purchase of the account
+    for edge in came:
+        rows = get(demo_client, "/api/transactions", **edge["link"]["query"])
+        assert rows["totals"]["money_in"] == edge["amount"]
+
+
 def test_a_transfer_between_own_accounts_flows_to_the_account_it_reached(ws):
     out = [
         Move(date(2026, 10, 1), "ÖRNEK İŞVEREN A.Ş. den gelen havale", Decimal(5000)),

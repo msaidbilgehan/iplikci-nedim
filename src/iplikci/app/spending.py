@@ -24,7 +24,7 @@ from ..insights import NOT_BANK_ACCOUNTS, Series, complete_months, month_of, shi
 from .analysis import Analysis
 from .links import Link, Screen
 from .rows import Direction, RowView, view
-from .transactions import Filter, every_row, labels, select
+from .transactions import Filter, every_row, labels, rows_link, select
 
 __all__ = ["ForecastPart", "Necessity", "Spending", "spending"]
 
@@ -224,8 +224,8 @@ def spending(a: Analysis, f: Filter) -> Spending:
         tiles=_tiles(a, narrowed, rows, months, income_months, whole),
         by_group=_by_group(a, rows, months, whole),
         by_level=_level_table(rows, months, whole),
-        categories=_categories(a, rows, months, whole),
-        merchants=_merchants(a, rows),
+        categories=_categories(a, narrowed, rows, months, whole),
+        merchants=_merchants(a, narrowed, rows),
         flow=_flow(a, narrowed, rows, income_months, whole),
         forecast=_forecast(a, _expenses(f), period),
     )
@@ -309,7 +309,11 @@ def _level_table(rows: Iterable[RowView], months: Sequence[str], whole: set[str]
     return _table([Slice(n.value, NECESSITY_SLOTS[n]) for n in LEVELS], months, values, whole)
 
 
-def _categories(a: Analysis, rows: list[RowView], months: Sequence[str], whole: set[str]) -> list[CategoryLine]:
+def _categories(
+    a: Analysis, f: Filter, rows: list[RowView], months: Sequence[str], whole: set[str]
+) -> list[CategoryLine]:
+    """The categories of the rows f keeps, the most spent first, each leading to those rows of it: the same days,
+    accounts and kinds, so its rows on the Transactions screen add up to its total."""
     total = sum((_signed(r) for r in rows), ZERO)
     full = len([m for m in months if m in whole])
     sums: dict[str, Decimal] = defaultdict(Decimal)
@@ -332,13 +336,14 @@ def _categories(a: Analysis, rows: list[RowView], months: Sequence[str], whole: 
             share=v / total if total > 0 else None,
             average=in_whole[c] / full if full else None,
             count=counts[c],
-            link=Link(Screen.TRANSACTIONS, query=(("category", c),)),
+            link=rows_link(replace(f, categories=frozenset({c}))),
         )
         for c, v in sorted(sums.items(), key=lambda item: -item[1])
     ]
 
 
-def _merchants(a: Analysis, rows: list[RowView]) -> list[MerchantLine]:
+def _merchants(a: Analysis, f: Filter, rows: list[RowView]) -> list[MerchantLine]:
+    """The merchants of the rows f keeps, the most spent first, each leading to those rows of it."""
     by: dict[str, list[RowView]] = defaultdict(list)
     for r in rows:
         by[r.merchant or r.title].append(r)
@@ -358,7 +363,7 @@ def _merchants(a: Analysis, rows: list[RowView]) -> list[MerchantLine]:
                 total=total,
                 per_row=total / paid,
                 last=newest.day,
-                link=Link(Screen.TRANSACTIONS, query=(("merchant", name),)),
+                link=rows_link(replace(f, merchant=name)),
             )
         )
     return sorted(lines, key=lambda m: -m.total)[:TOP_MERCHANTS]

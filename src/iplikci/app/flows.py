@@ -139,6 +139,18 @@ def _node_id(kind: FlowKind, name: str) -> str:
     return f"{kind.value}:{name}" if name else kind.value
 
 
+def _place_filter(*ends: Node) -> list[tuple[str, str]]:
+    """What narrows a band's rows to the place outside the accounts it reaches, beside its accounts and kinds: a
+    spending group's name, an income's payer (as the rules name the merchant). The payers beyond the few named apiece
+    have no filter of their own: their band leads to every income of its account."""
+    for node in ends:
+        if node.kind is FlowKind.SPENDING:
+            return [("group", node.name)]
+        if node.kind is FlowKind.INCOME and node.name != OTHER_INCOME:
+            return [("merchant", node.name)]
+    return []
+
+
 def flows(a: Analysis, start: date, end: date) -> Flows:
     """The money's flow over the days from start to end."""
     ds = a.dataset
@@ -209,6 +221,7 @@ def flows(a: Analysis, start: date, end: date) -> Flows:
         query: list[tuple[str, str]] = [("from", start.isoformat()), ("to", end.isoformat())]
         query += [("account", account) for account in sorted(found.accounts or ())]
         query += [("kind", kind.value) for kind in kinds]
+        query += _place_filter(nodes[source], nodes[target])
         edges.append(
             Edge(source, target, abs(found.amount), found.rows, kinds, Link(Screen.TRANSACTIONS, query=tuple(query)))
         )

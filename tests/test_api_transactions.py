@@ -11,7 +11,9 @@ from openpyxl import load_workbook
 from iplikci import demo, report
 from iplikci.api.app import create_app
 from iplikci.api.context import Context
+from iplikci.api.models import link_out
 from iplikci.app.analysis import analyze
+from iplikci.app.transactions import Filter, TransactionKind, rows_link
 from iplikci.app.workspace import Workspace
 from iplikci.fakes import teb
 
@@ -91,6 +93,21 @@ def test_the_filters_take_the_names_the_other_screens_link_with(client):
     assert both["totals"]["count"] == 20
     assert client.get("/api/transactions", params={"certainty": "provisional"}, headers=bearer()).json()["rows"] == []
     assert client.get("/api/transactions", params={"kind": "faks"}, headers=bearer()).status_code == 422
+
+
+def test_a_filter_written_as_a_links_query_opens_the_list_on_the_same_rows(client):
+    kinds = frozenset({TransactionKind.PURCHASE, TransactionKind.REFUND, TransactionKind.INTEREST_FEE})
+    f = Filter(start=date(2026, 8, 1), end=date(2026, 10, 31), kinds=kinds, categories=frozenset({"Kafe & Kahve"}))
+    link = link_out(rows_link(f))
+    assert link is not None and link.screen == "transactions"
+    assert link.query == {  # many values as a list, one as a string, in a steady order
+        "from": "2026-08-01",
+        "to": "2026-10-31",
+        "kind": ["interest_fee", "purchase", "refund"],
+        "category": "Kafe & Kahve",
+    }
+    found = client.get("/api/transactions", params=link.query, headers=bearer()).json()
+    assert found["totals"]["count"] == 3 and {r["day"][:7] for r in found["rows"]} == {"2026-08", "2026-09", "2026-10"}
 
 
 def test_the_csv_holds_every_row_the_filters_keep_for_turkish_excel(client):

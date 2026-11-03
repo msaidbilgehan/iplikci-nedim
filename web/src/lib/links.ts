@@ -1,16 +1,34 @@
 // Where an item of a screen leads in the interface (app/links.py; architecture §18): the service names a screen and
 // what to open there, the interface knows the addresses. A list screen opens with the link's query as its filters, in
-// the API's names, so the Transactions screen narrowed by `merchant` or `kind` is one address. A screen not built yet
-// has no address to lead to: hrefOf gives null, and the item is shown without a link until the screen comes.
+// the API's names, so the Transactions screen narrowed by `merchant` or `kind` is one address; a filter given many
+// values (?kind=purchase&kind=refund) has their list. A screen not built yet has no address to lead to: hrefOf gives
+// null, and the item is shown without a link until the screen comes.
 
 import type { Destination } from "../api/types";
 import { DETAILS, isReady, type ScreenKey } from "../components/navigation";
 
 type Address = (link: Destination) => string | null;
+export type LinkQuery = Destination["query"];
 
-function address(path: string, query: Record<string, string>, extra: Record<string, string> = {}): string {
-  const params = new URLSearchParams({ ...query, ...extra }).toString();
-  return params ? `${path}?${params}` : path;
+function address(path: string, query: LinkQuery, extra: Record<string, string> = {}): string {
+  const params = new URLSearchParams();
+  for (const [name, value] of Object.entries({ ...query, ...extra })) {
+    for (const one of typeof value === "string" ? [value] : value) {
+      params.append(name, one);
+    }
+  }
+  const written = params.toString();
+  return written ? `${path}?${written}` : path;
+}
+
+/** An address's query as a link carries it: one value as a string, a filter given many as their list. */
+export function queryOf(params: URLSearchParams): LinkQuery {
+  const query: LinkQuery = {};
+  for (const name of new Set(params.keys())) {
+    const values = params.getAll(name);
+    query[name] = values.length === 1 ? (values[0] ?? "") : values;
+  }
+  return query;
 }
 
 /** The list screen at path, its filters from the link's query, and what the link's id opens there under name. */

@@ -1153,7 +1153,7 @@ export interface LastMonthsOut {
 export interface LinkOut {
   screen: Screen;
   id: string;
-  query: Record<string, string>;
+  query: Record<string, string | string[]>;
 }
 
 export interface LoanInstallmentOut {

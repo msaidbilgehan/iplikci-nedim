@@ -48,11 +48,19 @@ class LinkOut(BaseModel):
 
     screen: Screen
     id: str
-    query: dict[str, str]  # the filters a list screen opens with; a document opens at a row with {"satir": fp}
+    # The filters a list screen opens with, in the API's names: one value as a string, a filter given many values
+    # (kind=purchase&kind=refund) as their list. A document opens at a row with {"satir": fp}.
+    query: dict[str, str | list[str]]
 
 
 def link_out(link: Link | None) -> LinkOut | None:
-    return None if link is None else LinkOut(screen=link.screen, id=link.id, query=dict(link.query))
+    if link is None:
+        return None
+    query: dict[str, str | list[str]] = {}
+    for name, value in link.query:
+        was = query.get(name)
+        query[name] = value if was is None else [*([was] if isinstance(was, str) else was), value]
+    return LinkOut(screen=link.screen, id=link.id, query=query)
 
 
 class RowOut(BaseModel):
