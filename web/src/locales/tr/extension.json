@@ -22,11 +22,7 @@
     "stepLoadHint": "Pencerede klasörü bulamazsanız klasörün yerini yapıştırın; macOS'ta önce ⇧⌘G tuşlarına basın.",
     "stepDone": "Eklenti “İplikçi Nedim Köprüsü” adıyla listede görünür. Ardından aşağıdan eşleştirin.",
     "keep": "Klasörü silmeyin ve taşımayın: tarayıcı eklentiyi oradan çalıştırır. İplikçi Nedim güncellenince klasördeki eklenti de yenilenir; yeni sürüm, tarayıcı yeniden açılınca çalışır.",
-    "stale": "Klasördeki eklenti uygulamanın taşıdığından eski. “Klasörü yeniden aç” yenisini yazar; ardından eklentiler sayfasında eklentinin yenileme düğmesine basın.",
-    "copy": "Kopyala",
-    "copyNamed": "Kopyala: {{name}}",
-    "copied": "Kopyalandı.",
-    "copyFailed": "Kopyalanamadı; metni seçip kopyalayın."
+    "stale": "Klasördeki eklenti uygulamanın taşıdığından eski. “Klasörü yeniden aç” yenisini yazar; ardından eklentiler sayfasında eklentinin yenileme düğmesine basın."
   },
   "pairing": {
     "title": "Eşleştir",

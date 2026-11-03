@@ -29,6 +29,7 @@ class ConnectionOut(BaseModel):
     claude_desktop: dict[str, Any]  # Claude Desktop's: the stdio bridge
     sak_add: str  # claude-SAK's command line, for those who use one
     sak_remove: str
+    claude_add: str  # Claude Code's own command line, without claude-SAK
     masking: Masking
     development: bool  # a development copy: the commands point at its Python
 
@@ -59,6 +60,7 @@ def _out(found: connection.Connection) -> ConnectionOut:
         claude_desktop=found.claude_desktop,
         sak_add=found.sak_add,
         sak_remove=found.sak_remove,
+        claude_add=found.claude_add,
         masking=level,
         development=found.development,
     )

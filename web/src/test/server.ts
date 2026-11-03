@@ -60,10 +60,16 @@ import type {
   Todos,
   TransactionDetail,
   TransactionPage,
+  McpConnection,
 } from "../api/types";
 
 export const LABELS: Labels = {
-  DocumentStatus: { processed: "İşlendi", unprocessed: "İşlenmedi", unreadable: "Okunamadı", removed: "Kaldırıldı" },
+  DocumentStatus: {
+    processed: "İşlendi",
+    unprocessed: "İşlenmedi",
+    unreadable: "Okunamadı",
+    removed: "Kaldırıldı",
+  },
   DocumentKind: {
     account_statement: "Hesap dökümü",
     card_statement: "Kart ekstresi",
@@ -71,14 +77,23 @@ export const LABELS: Labels = {
     notice: "Banka bildirimi",
     invoice: "Fatura ya da makbuz",
   },
-  SourceKind: { email: "E-posta", upload: "Yükleme", inbox: "Gelen klasörü", import: "İçe aktarma" },
+  SourceKind: {
+    email: "E-posta",
+    upload: "Yükleme",
+    inbox: "Gelen klasörü",
+    import: "İçe aktarma",
+  },
   SeriesStatus: {
     active: "Devam ediyor",
     ended: "Bitti",
     cancelled: "İptal edildi",
     paid_after_cancel: "İptalden sonra ödeme var",
   },
-  SeriesPeriod: { month: "Ayda bir", half_year: "Altı ayda bir", year: "Yılda bir" },
+  SeriesPeriod: {
+    month: "Ayda bir",
+    half_year: "Altı ayda bir",
+    year: "Yılda bir",
+  },
   PaymentKind: {
     regular: "Düzenli ödeme",
     periodic: "Dönemsel ödeme",
@@ -88,10 +103,24 @@ export const LABELS: Labels = {
     card_due: "Kart son ödemesi",
     bill: "Fatura",
   },
-  Certainty: { confirmed: "Kesin", provisional: "Geçici", excluded: "Ekstrede yok", info: "Yalnızca bilgi" },
+  Certainty: {
+    confirmed: "Kesin",
+    provisional: "Geçici",
+    excluded: "Ekstrede yok",
+    info: "Yalnızca bilgi",
+  },
   InvoiceKind: { bill: "Fatura", receipt: "Makbuz" },
-  InvoiceStatus: { matched: "Eşleşti", pending: "Bekliyor", unmatched: "Eşleşmedi" },
-  Channel: { in_app: "Uygulama içi", desktop: "Masaüstü", email: "E-posta", telegram: "Telegram" },
+  InvoiceStatus: {
+    matched: "Eşleşti",
+    pending: "Bekliyor",
+    unmatched: "Eşleşmedi",
+  },
+  Channel: {
+    in_app: "Uygulama içi",
+    desktop: "Masaüstü",
+    email: "E-posta",
+    telegram: "Telegram",
+  },
   DetailLevel: { full: "Tam", summary: "Özet", minimal: "Asgari" },
   DeliveryStatus: {
     pending: "Gönderilecek",
@@ -159,7 +188,11 @@ export const LABELS: Labels = {
     cash: "Nakit",
     elsewhere: "Başka bir yer",
   },
-  StatementCheck: { verified: "Tutarlı", failed: "Tutmuyor", nothing: "Denetlenecek satır yok" },
+  StatementCheck: {
+    verified: "Tutarlı",
+    failed: "Tutmuyor",
+    nothing: "Denetlenecek satır yok",
+  },
   TodoKind: {
     uncategorized: "Kategorisiz işlemler",
     missing_documents: "Eksik belge",
@@ -203,7 +236,12 @@ export const LABELS: Labels = {
     cash_advance: "Nakit avans / çekim",
     card_payment_no_statement: "Ekstresi olmayan kart ödemesi",
   },
-  Necessity: { required: "Gerekli", optional: "İsteğe bağlı", unnecessary: "Gereksiz", unknown: "Belirsiz" },
+  Necessity: {
+    required: "Gerekli",
+    optional: "İsteğe bağlı",
+    unnecessary: "Gereksiz",
+    unknown: "Belirsiz",
+  },
   Tone: { attention: "Dikkat", info: "Bilgi", good: "İyi" },
   HabitStatus: {
     monthly: "Her ay",
@@ -218,7 +256,11 @@ export const LABELS: Labels = {
     new_large: "Yeni bir yerde büyük tutar",
     unexpected_fee: "Beklenmedik ücret",
   },
-  ForecastPart: { regular: "Düzenli ödemeler", installments: "Kalan taksitler", variable: "Değişken harcamalar" },
+  ForecastPart: {
+    regular: "Düzenli ödemeler",
+    installments: "Kalan taksitler",
+    variable: "Değişken harcamalar",
+  },
   CategoryReason: {
     rule: "Kategori kuralı",
     own_transfer: "Kendi hesaplarınız arası",
@@ -238,7 +280,11 @@ export const LABELS: Labels = {
     provisional: "Geçici — ekstre bekleniyor",
     unmatched: "Ekstrede görünmüyor",
   },
-  BackupReason: { daily: "Günlük", manual: "Elle", before_restore: "Geri yükleme öncesi" },
+  BackupReason: {
+    daily: "Günlük",
+    manual: "Elle",
+    before_restore: "Geri yükleme öncesi",
+  },
 };
 
 /** An amount in TL from its kuruş. */
@@ -264,7 +310,11 @@ export function series(overrides: Partial<Series> = {}): Series {
     last_day: "2026-10-03",
     last_amount: tl(1500000),
     next_day: "2026-11-03",
-    price_change: { before: tl(1400000), after: tl(1500000), since: "2026-07-03" },
+    price_change: {
+      before: tl(1400000),
+      after: tl(1500000),
+      since: "2026-07-03",
+    },
     listed: true,
     payments: [
       {
@@ -356,7 +406,11 @@ export const SUBSCRIPTIONS: Subscriptions = {
       last_day: "2026-01-10",
       last_amount: tl(480000),
       next_day: "2027-01-08",
-      price_change: { before: tl(400000), after: tl(480000), since: "2026-01-10" },
+      price_change: {
+        before: tl(400000),
+        after: tl(480000),
+        since: "2026-01-10",
+      },
     }),
     series({
       id: "fp-su",
@@ -395,7 +449,13 @@ export const SUBSCRIPTIONS: Subscriptions = {
         },
       ],
     }),
-    series({ id: "fp-eski", payee: "Eski Dergi", status: "ended", listed: false, next_day: null }),
+    series({
+      id: "fp-eski",
+      payee: "Eski Dergi",
+      status: "ended",
+      listed: false,
+      next_day: null,
+    }),
   ],
   income: [
     series({
@@ -455,15 +515,50 @@ export const HOLDINGS: Holdings = {
     debts: { minor: 1200000, currency: "TRY" },
     certainty: "provisional",
     parts: [
-      { account: TL_ACCOUNT, value: { minor: 17700000, currency: "TRY" }, certainty: "confirmed" },
-      { account: EUR_ACCOUNT, value: { minor: 7300000, currency: "TRY" }, certainty: "confirmed" },
-      { account: CARD_DEBT, value: { minor: -1200000, currency: "TRY" }, certainty: "provisional" },
+      {
+        account: TL_ACCOUNT,
+        value: { minor: 17700000, currency: "TRY" },
+        certainty: "confirmed",
+      },
+      {
+        account: EUR_ACCOUNT,
+        value: { minor: 7300000, currency: "TRY" },
+        certainty: "confirmed",
+      },
+      {
+        account: CARD_DEBT,
+        value: { minor: -1200000, currency: "TRY" },
+        certainty: "provisional",
+      },
     ],
-    left_out: [{ account: { id: "garanti-1", label: "Garanti BBVA Vadesiz TL" }, reason: "bakiyesi hiçbir belgede yazmıyor" }],
+    left_out: [
+      {
+        account: { id: "garanti-1", label: "Garanti BBVA Vadesiz TL" },
+        reason: "bakiyesi hiçbir belgede yazmıyor",
+      },
+    ],
     currencies: [
-      { currency: "EUR", amount: { minor: 652055, currency: "EUR" }, rate: "36.50", rate_day: "2026-10-30", note: "" },
-      { currency: "USD", amount: null, rate: null, rate_day: null, note: "belgelerde USD kuru yok" },
-      { currency: "GR", amount: null, rate: null, rate_day: null, note: "gram altının TL fiyatı belgelerde yok" },
+      {
+        currency: "EUR",
+        amount: { minor: 652055, currency: "EUR" },
+        rate: "36.50",
+        rate_day: "2026-10-30",
+        note: "",
+      },
+      {
+        currency: "USD",
+        amount: null,
+        rate: null,
+        rate_day: null,
+        note: "belgelerde USD kuru yok",
+      },
+      {
+        currency: "GR",
+        amount: null,
+        rate: null,
+        rate_day: null,
+        note: "gram altının TL fiyatı belgelerde yok",
+      },
     ],
     note: "Hesapların son belgelerindeki bakiyeler; değeri bilinmeyenler toplama girmedi.",
   },
@@ -536,7 +631,13 @@ export const HOLDINGS: Holdings = {
       share: 0.292,
       accounts: [EUR_ACCOUNT],
     },
-    { currency: "GR", amount: { minor: 1250, currency: "GR" }, value: null, share: null, accounts: [GOLD_ACCOUNT] },
+    {
+      currency: "GR",
+      amount: { minor: 1250, currency: "GR" },
+      value: null,
+      share: null,
+      accounts: [GOLD_ACCOUNT],
+    },
   ],
   note: "Kurlar belgelerdeki döviz işlemlerinden, en yenisiyle; ağdan kur alınmıyor.",
 };
@@ -621,11 +722,24 @@ export const FORECAST: Forecast = {
       ],
     },
   ],
-  elsewhere: [item({ day: "2026-12-09", title: "Örnek Müzik", account: CARD, amount: tl(9999), series: "fp-muzik" })],
-  skipped: [
-    { account: { id: "garanti-1234567", label: "Garanti Vadesiz TL" }, reason: "bakiyesi hiçbir belgede yazmıyor" },
+  elsewhere: [
+    item({
+      day: "2026-12-09",
+      title: "Örnek Müzik",
+      account: CARD,
+      amount: tl(9999),
+      series: "fp-muzik",
+    }),
   ],
-  notes: ["Bu bir tahmindir: belgelerdeki son bakiyeden ve geçmiş ödemelerden çıkarıldı."],
+  skipped: [
+    {
+      account: { id: "garanti-1234567", label: "Garanti Vadesiz TL" },
+      reason: "bakiyesi hiçbir belgede yazmıyor",
+    },
+  ],
+  notes: [
+    "Bu bir tahmindir: belgelerdeki son bakiyeden ve geçmiş ödemelerden çıkarıldı.",
+  ],
 };
 
 function invoice(overrides: Partial<InvoiceItem>): InvoiceItem {
@@ -709,7 +823,9 @@ export const INVOICES: Invoices = {
   counts: { pending: 2, unmatched: 1, matched: 1 },
 };
 
-export const OTHER_SENDERS: OtherSenders = { domains: ["ornekcell.example", "fatura.example"] };
+export const OTHER_SENDERS: OtherSenders = {
+  domains: ["ornekcell.example", "fatura.example"],
+};
 
 // --- what stands now and the feed (F05) -----------------------------------------------------------------------------
 
@@ -794,8 +910,18 @@ export const NOW: Now = {
       limit: tl(5000000),
       paid: tl(200000),
       debt: tl(700000),
-      last: { start: "2026-09-29", end: "2026-10-28", spent: tl(900000), rows: 14 },
-      current: { start: "2026-10-29", end: "2026-11-28", spent: tl(320000), rows: 5 },
+      last: {
+        start: "2026-09-29",
+        end: "2026-10-28",
+        spent: tl(900000),
+        rows: 14,
+      },
+      current: {
+        start: "2026-10-29",
+        end: "2026-11-28",
+        spent: tl(320000),
+        rows: 5,
+      },
       certainty: "provisional",
       note: "28.10.2026 ekstresi; kesimden sonra 2.000,00 TL ödendi",
     },
@@ -814,7 +940,13 @@ export const NOW: Now = {
     note: "Kasım 2026 sürüyor: rakamlar bugüne kadar gelen belgelerden. Tipik ay: Mayıs 2026 – Ekim 2026 arasındaki 6 tam ayın medyanı.",
   },
   upcoming: [
-    item({ day: "2026-11-15", title: "Örnek Müzik", account: CARD, amount: tl(9999), series: "fp-muzik" }),
+    item({
+      day: "2026-11-15",
+      title: "Örnek Müzik",
+      account: CARD,
+      amount: tl(9999),
+      series: "fp-muzik",
+    }),
     item({
       day: "2026-11-16",
       kind: "income",
@@ -856,7 +988,11 @@ const NO_DETAIL: FeedDetail = {
   unverified: [],
 };
 
-export function feedItem(overrides: Omit<Partial<FeedItem>, "detail"> & { detail?: Partial<FeedDetail> } = {}): FeedItem {
+export function feedItem(
+  overrides: Omit<Partial<FeedItem>, "detail"> & {
+    detail?: Partial<FeedDetail>;
+  } = {},
+): FeedItem {
   const { detail, ...rest } = overrides;
   return {
     id: 1,
@@ -890,7 +1026,11 @@ export const FEED_FIRST: FeedPage = {
       certainty: "provisional",
       row: row(),
       link: { screen: "transaction", id: "0123456789abcdef0123", query: {} },
-      detail: { title: "Örnek Elektronik", amount: tl(1250000), day: "2026-11-15" },
+      detail: {
+        title: "Örnek Elektronik",
+        amount: tl(1250000),
+        day: "2026-11-15",
+      },
     }),
     feedItem({
       id: 30,
@@ -899,7 +1039,12 @@ export const FEED_FIRST: FeedPage = {
       label: "Belge okunamadı",
       text: "Bir belge okunamadı; Belgeler ekranına bakın.",
       target: "b".repeat(64),
-      document: { sha256: "b".repeat(64), name: "sifreli.pdf", kind: null, status: "unreadable" },
+      document: {
+        sha256: "b".repeat(64),
+        name: "sifreli.pdf",
+        kind: null,
+        status: "unreadable",
+      },
       link: { screen: "document", id: "b".repeat(64), query: {} },
       detail: { reason: "PDF şifreli" },
     }),
@@ -939,9 +1084,19 @@ export const FEED_FIRST: FeedPage = {
       text: "Bir belge okundu.",
       target: "e".repeat(64),
       account: CARD,
-      document: { sha256: "e".repeat(64), name: "Örnek Kart Ekstresi Ekim 2026.pdf", kind: "card_statement", status: "processed" },
+      document: {
+        sha256: "e".repeat(64),
+        name: "Örnek Kart Ekstresi Ekim 2026.pdf",
+        kind: "card_statement",
+        status: "processed",
+      },
       link: { screen: "document", id: "e".repeat(64), query: {} },
-      detail: { document_kind: "card_statement", parser: "ornek.card", reader: "Örnek kart ekstresi", version: "1.2" },
+      detail: {
+        document_kind: "card_statement",
+        parser: "ornek.card",
+        reader: "Örnek kart ekstresi",
+        version: "1.2",
+      },
     }),
   ],
   next: 27,
@@ -988,7 +1143,14 @@ export function accountItem(overrides: Partial<AccountItem> = {}): AccountItem {
       note: "son döküm 31.10.2026",
       link: { screen: "account", id: CASH.id, query: {} },
     },
-    month: { month: "2026-11", money_in: tl(0), money_out: tl(150000), rows: 2, provisional: 2, note: "" },
+    month: {
+      month: "2026-11",
+      money_in: tl(0),
+      money_out: tl(150000),
+      rows: 2,
+      provisional: 2,
+      note: "",
+    },
     closed: false,
     link: { screen: "account", id: CASH.id, query: {} },
     ...overrides,
@@ -1019,7 +1181,14 @@ export const ACCOUNTS: Accounts = {
           day: "2026-11-15",
           certainty: "confirmed",
           freshness: null,
-          month: { month: "2026-11", money_in: tl(200000), money_out: tl(320000), rows: 6, provisional: 0, note: "" },
+          month: {
+            month: "2026-11",
+            money_in: tl(200000),
+            money_out: tl(320000),
+            rows: 6,
+            provisional: 0,
+            note: "",
+          },
           link: { screen: "account", id: CARD.id, query: {} },
         }),
       ],
@@ -1042,7 +1211,14 @@ export const ACCOUNTS: Accounts = {
           certainty: null,
           note: "Bakiyesi hiçbir belgede yazmıyor.",
           freshness: null,
-          month: { month: "2026-11", money_in: tl(0), money_out: tl(0), rows: 0, provisional: 0, note: "" },
+          month: {
+            month: "2026-11",
+            money_in: tl(0),
+            money_out: tl(0),
+            rows: 0,
+            provisional: 0,
+            note: "",
+          },
           link: { screen: "account", id: UNKNOWN.id, query: {} },
         }),
       ],
@@ -1063,7 +1239,14 @@ export const ACCOUNTS: Accounts = {
           value: tl(1850000),
           certainty: "confirmed",
           freshness: null,
-          month: { month: "2026-11", money_in: tl(0), money_out: tl(0), rows: 0, provisional: 0, note: "" },
+          month: {
+            month: "2026-11",
+            money_in: tl(0),
+            money_out: tl(0),
+            rows: 0,
+            provisional: 0,
+            note: "",
+          },
           link: { screen: "account", id: FX.id, query: {} },
         }),
       ],
@@ -1078,7 +1261,14 @@ export const ACCOUNTS: Accounts = {
       day: "2026-02-28",
       certainty: "confirmed",
       freshness: null,
-      month: { month: "2026-11", money_in: tl(0), money_out: tl(0), rows: 0, provisional: 0, note: "" },
+      month: {
+        month: "2026-11",
+        money_in: tl(0),
+        money_out: tl(0),
+        rows: 0,
+        provisional: 0,
+        note: "",
+      },
       closed: true,
       link: { screen: "account", id: CLOSED.id, query: {} },
     }),
@@ -1091,14 +1281,36 @@ export const ACCOUNTS: Accounts = {
 
 /** What the last analysis wrote: the report and the rows; the month-end pages wait for a closed month. */
 export const EXPORTS: ExportItem[] = [
-  { kind: "report", name: "iplikci-rapor-2026-11-15.html", size: 412_000, made_at: "2026-11-15T06:00:00+00:00" },
-  { kind: "csv", name: "iplikci-islemler-2026-11-15.csv", size: 18_500, made_at: "2026-11-15T06:00:00+00:00" },
-  { kind: "xlsx", name: "iplikci-islemler-2026-11-15.xlsx", size: 52_300, made_at: "2026-11-15T06:00:00+00:00" },
+  {
+    kind: "report",
+    name: "iplikci-rapor-2026-11-15.html",
+    size: 412_000,
+    made_at: "2026-11-15T06:00:00+00:00",
+  },
+  {
+    kind: "csv",
+    name: "iplikci-islemler-2026-11-15.csv",
+    size: 18_500,
+    made_at: "2026-11-15T06:00:00+00:00",
+  },
+  {
+    kind: "xlsx",
+    name: "iplikci-islemler-2026-11-15.xlsx",
+    size: 52_300,
+    made_at: "2026-11-15T06:00:00+00:00",
+  },
 ];
 
-export function systemStatus(overrides: Partial<SystemStatus> = {}): SystemStatus {
+export function systemStatus(
+  overrides: Partial<SystemStatus> = {},
+): SystemStatus {
   return {
-    service: { version: "0.4.0", started_at: "2026-11-01T07:30:00+00:00", pid: 4242, home: "/veri/iplikci" },
+    service: {
+      version: "0.4.0",
+      started_at: "2026-11-01T07:30:00+00:00",
+      pid: 4242,
+      home: "/veri/iplikci",
+    },
     documents: { processed: 3, unreadable: 1 },
     readers: [
       {
@@ -1131,7 +1343,13 @@ export function systemStatus(overrides: Partial<SystemStatus> = {}): SystemStatu
         business: 12,
         unknown: 18,
         share: 0.91,
-        left: [{ domain: "banka.example", template: "Haftalık bildiriminiz", count: 18 }],
+        left: [
+          {
+            domain: "banka.example",
+            template: "Haftalık bildiriminiz",
+            count: 18,
+          },
+        ],
       },
     },
     backup: {
@@ -1163,7 +1381,9 @@ export const FIRST_PAGE: DocumentPage = {
       sources: ["upload"],
       added_at: "2026-11-01T07:31:00+00:00",
       size: 2048,
-      accounts: [{ id: "teb-123456789", label: "TEB Vadesiz TL 123456789", bank: "TEB" }],
+      accounts: [
+        { id: "teb-123456789", label: "TEB Vadesiz TL 123456789", bank: "TEB" },
+      ],
     },
     {
       sha256: "b".repeat(64),
@@ -1187,18 +1407,90 @@ export const FIRST_PAGE: DocumentPage = {
 };
 
 export const SECOND_PAGE: DocumentPage = {
-  items: [{ ...FIRST_PAGE.items[0]!, sha256: "c".repeat(64), name: "TEB Hesap Dökümü Ocak 2026", file: "ocak.xls" }],
+  items: [
+    {
+      ...FIRST_PAGE.items[0]!,
+      sha256: "c".repeat(64),
+      name: "TEB Hesap Dökümü Ocak 2026",
+      file: "ocak.xls",
+    },
+  ],
   next: "",
 };
 
+const HELPER = "/usr/local/bin/python3 -I -X utf8 -m iplikci mcp baslik";
+
+/** Claude's connection as the service gives it (K23): the configurations carry the helper, never the token. */
+export const MCP_CONNECTION: McpConnection = {
+  address: "http://127.0.0.1:8643/mcp",
+  name: "iplikci",
+  helper: HELPER,
+  command: "/usr/local/bin/python3",
+  arguments: [
+    "-I",
+    "-X",
+    "utf8",
+    "-m",
+    "iplikci",
+    "mcp",
+    "--klasor",
+    "/Users/ornek/iplikci",
+  ],
+  claude_code: {
+    mcpServers: {
+      iplikci: {
+        type: "http",
+        url: "http://127.0.0.1:8643/mcp",
+        headersHelper: HELPER,
+      },
+    },
+  },
+  claude_desktop: {
+    mcpServers: {
+      iplikci: {
+        command: "/usr/local/bin/python3",
+        args: [
+          "-I",
+          "-X",
+          "utf8",
+          "-m",
+          "iplikci",
+          "mcp",
+          "--klasor",
+          "/Users/ornek/iplikci",
+        ],
+      },
+    },
+  },
+  sak_add: `sak store mcp add iplikci --url http://127.0.0.1:8643/mcp --headers-helper '${HELPER}' --scope user`,
+  sak_remove: "sak store mcp remove iplikci --scope user",
+  claude_add: "claude mcp add-json --scope user iplikci '{...}'",
+  masking: "off",
+  development: false,
+};
+
 export const BRIDGES: Bridge[] = [
-  { id: "k1", name: "Chrome 140, macOS", created_at: "2026-11-01T08:00:00+00:00", last_seen: "", active: true },
+  {
+    id: "k1",
+    name: "Chrome 140, macOS",
+    created_at: "2026-11-01T08:00:00+00:00",
+    last_seen: "",
+    active: true,
+  },
 ];
 
-export const EXTENSION_FOLDER = "/Users/deneme/Library/Application Support/iplikci/extension";
-export const EXTENSION: ExtensionInfo = { available: true, version: "0.4.0", folder: "", current: false };
+export const EXTENSION_FOLDER =
+  "/Users/deneme/Library/Application Support/iplikci/extension";
+export const EXTENSION: ExtensionInfo = {
+  available: true,
+  version: "0.4.0",
+  folder: "",
+  current: false,
+};
 
-export function notification(overrides: Partial<NotificationItem> = {}): NotificationItem {
+export function notification(
+  overrides: Partial<NotificationItem> = {},
+): NotificationItem {
   return {
     id: 4,
     created_at: "2026-11-01T09:00:00+00:00",
@@ -1224,7 +1516,12 @@ const DUE = {
   target: "card_due|teb-1234|Örnek Kart •1234|2026-11-05",
   title: "Son ödeme yaklaşıyor",
 };
-const LARGE = { rule: "Büyük harcama", kind: "transaction.large", target: "3f9a2c7d1e5b4a60", title: "Büyük harcama" };
+const LARGE = {
+  rule: "Büyük harcama",
+  kind: "transaction.large",
+  target: "3f9a2c7d1e5b4a60",
+  title: "Büyük harcama",
+};
 
 // The box as /api/notifications?channel=in_app gives it: newest first, two not seen yet.
 export const BOX: Notifications = {
@@ -1314,26 +1611,62 @@ export const TELEGRAM_NOTES = {
   paired: "@ornek_bot botuyla eşleşti.",
 };
 
-export function telegramState(overrides: Partial<ChannelState> = {}): ChannelState {
-  return { channel: "telegram", on: true, ready: false, stage: "no_bot", note: TELEGRAM_NOTES.none, ...overrides };
+export function telegramState(
+  overrides: Partial<ChannelState> = {},
+): ChannelState {
+  return {
+    channel: "telegram",
+    on: true,
+    ready: false,
+    stage: "no_bot",
+    note: TELEGRAM_NOTES.none,
+    ...overrides,
+  };
 }
 
-export const TELEGRAM_UNPAIRED = telegramState({ stage: "not_paired", note: TELEGRAM_NOTES.unpaired });
-export const TELEGRAM_PAIRED = telegramState({ stage: "ready", ready: true, note: TELEGRAM_NOTES.paired });
+export const TELEGRAM_UNPAIRED = telegramState({
+  stage: "not_paired",
+  note: TELEGRAM_NOTES.unpaired,
+});
+export const TELEGRAM_PAIRED = telegramState({
+  stage: "ready",
+  ready: true,
+  note: TELEGRAM_NOTES.paired,
+});
 
 export const EMAIL_NOTE =
   "E-posta kanalı, e-postası uygulama şifresiyle (IMAP) bağlı bir hesap ister. Bu hesap tarayıcı eklentisiyle bağlı " +
   "(Gelişmiş Koruma'da uygulama şifresi yok); Telegram ve masaüstü kullanılabilir.";
 
-export function notifySettings(telegram: ChannelState = telegramState()): NotifySettings {
+export function notifySettings(
+  telegram: ChannelState = telegramState(),
+): NotifySettings {
   return {
     quiet_hours: "23:00-08:00",
     detail: { desktop: "summary", telegram: "summary", email: "full" },
     channels: [
-      { channel: "in_app", on: true, ready: true, stage: "ready", note: "Arayüzdeki bildirim kutusu; her zaman açık." },
-      { channel: "desktop", on: true, ready: true, stage: "ready", note: "Bu bilgisayarın bildirim merkezi." },
+      {
+        channel: "in_app",
+        on: true,
+        ready: true,
+        stage: "ready",
+        note: "Arayüzdeki bildirim kutusu; her zaman açık.",
+      },
+      {
+        channel: "desktop",
+        on: true,
+        ready: true,
+        stage: "ready",
+        note: "Bu bilgisayarın bildirim merkezi.",
+      },
       telegram,
-      { channel: "email", on: false, ready: false, stage: "unavailable", note: EMAIL_NOTE },
+      {
+        channel: "email",
+        on: false,
+        ready: false,
+        stage: "unavailable",
+        note: EMAIL_NOTE,
+      },
     ],
     counts: { pending: 0, sent: 3, held: 1, digested: 1, failed: 1 },
     unread: 2,
@@ -1341,10 +1674,34 @@ export function notifySettings(telegram: ChannelState = telegramState()): Notify
 }
 
 export const ALERT_EVENTS: AlertEvent[] = [
-  { kind: "payment.due_soon", label: "Son ödeme yaklaşıyor", days: true, amount: true, text: true },
-  { kind: "balance.forecast_negative", label: "Hesap eksiye düşecek", days: true, amount: true, text: true },
-  { kind: "transaction.large", label: "Büyük harcama", days: false, amount: true, text: true },
-  { kind: "month.closed", label: "Ay kapandı", days: false, amount: false, text: false },
+  {
+    kind: "payment.due_soon",
+    label: "Son ödeme yaklaşıyor",
+    days: true,
+    amount: true,
+    text: true,
+  },
+  {
+    kind: "balance.forecast_negative",
+    label: "Hesap eksiye düşecek",
+    days: true,
+    amount: true,
+    text: true,
+  },
+  {
+    kind: "transaction.large",
+    label: "Büyük harcama",
+    days: false,
+    amount: true,
+    text: true,
+  },
+  {
+    kind: "month.closed",
+    label: "Ay kapandı",
+    days: false,
+    amount: false,
+    text: false,
+  },
 ];
 
 export function alertRule(overrides: Partial<AlertRule> = {}): AlertRule {
@@ -1387,7 +1744,11 @@ export const ALERT_RULES: AlertRules = {
 
 // --- the dashboard (F06) ----------------------------------------------------------------------------------------------
 
-function closing(month: string, status: MonthClosing["status"], overrides: Partial<MonthClosing> = {}): MonthClosing {
+function closing(
+  month: string,
+  status: MonthClosing["status"],
+  overrides: Partial<MonthClosing> = {},
+): MonthClosing {
   return {
     month,
     status,
@@ -1420,7 +1781,9 @@ export const DASHBOARD: Dashboard = {
       { account: CARD, value: tl(-700000), certainty: "provisional" },
       { account: CASH, value: tl(100000), certainty: "provisional" },
     ],
-    left_out: [{ account: UNKNOWN, reason: "bakiyesi hiçbir belgede yazmıyor" }],
+    left_out: [
+      { account: UNKNOWN, reason: "bakiyesi hiçbir belgede yazmıyor" },
+    ],
     currencies: [
       {
         currency: "EUR",
@@ -1429,8 +1792,20 @@ export const DASHBOARD: Dashboard = {
         rate_day: "2026-10-31",
         note: "31.10.2026 belgesindeki kurla",
       },
-      { currency: "USD", amount: null, rate: null, rate_day: null, note: "belgelerde USD kuru yok" },
-      { currency: "GR", amount: null, rate: null, rate_day: null, note: "gram altının TL fiyatı belgelerde yok" },
+      {
+        currency: "USD",
+        amount: null,
+        rate: null,
+        rate_day: null,
+        note: "belgelerde USD kuru yok",
+      },
+      {
+        currency: "GR",
+        amount: null,
+        rate: null,
+        rate_day: null,
+        note: "gram altının TL fiyatı belgelerde yok",
+      },
     ],
     note: "Hesapların son belgelerindeki bakiyeler, sonraki dekont ve bildirimlerle. Değeri bilinmeyenler toplama girmedi.",
     say: "Net varlığınız 12.500,00 TL (geçici); 1 hesabın TL değeri bilinmediği için toplama girmedi.",
@@ -1489,14 +1864,17 @@ export const DASHBOARD: Dashboard = {
       closing("2026-05", "closed"),
       closing("2026-06", "closed"),
       closing("2026-07", "missing", {
-        summary: "Kapanması için eksik belge var: Örnek Vadesiz TL (1–4 Temmuz hesap dökümü eksik).",
+        summary:
+          "Kapanması için eksik belge var: Örnek Vadesiz TL (1–4 Temmuz hesap dökümü eksik).",
         expense: tl(903999),
         income: tl(0),
         left: tl(-903999),
         income_note:
           "gelir eksik olabilir: Örnek Vadesiz TL dökümü ayın tamamını kapsamıyor; maaş bu ay görünmüyor: dökümün " +
           "kapsamadığı günlerde yatmış olabilir",
-        waiting: [{ account: CASH, waiting_for: "1–4 Temmuz hesap dökümü eksik" }],
+        waiting: [
+          { account: CASH, waiting_for: "1–4 Temmuz hesap dökümü eksik" },
+        ],
       }),
       closing("2026-08", "closed"),
       closing("2026-09", "closed"),
@@ -1560,8 +1938,16 @@ export const DASHBOARD: Dashboard = {
   },
   todo: {
     kinds: [
-      { kind: "missing_documents", count: 1, link: { screen: "todo", id: "missing_documents", query: {} } },
-      { kind: "unprocessed_document", count: 2, link: { screen: "todo", id: "unprocessed_document", query: {} } },
+      {
+        kind: "missing_documents",
+        count: 1,
+        link: { screen: "todo", id: "missing_documents", query: {} },
+      },
+      {
+        kind: "unprocessed_document",
+        count: 2,
+        link: { screen: "todo", id: "unprocessed_document", query: {} },
+      },
     ],
     total: 3,
     say: "3 iş bekliyor: Eksik belge (1), İşlenmeyen belge (2).",
@@ -1576,7 +1962,11 @@ function monthRow(month: string, values: number[], partial = false) {
   return { month, values: values.map(tl), partial };
 }
 
-const rowsOf = (query: Record<string, string>) => ({ screen: "transactions" as const, id: "", query });
+const rowsOf = (query: Record<string, string>) => ({
+  screen: "transactions" as const,
+  id: "",
+  query,
+});
 const SIX = ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10"];
 const WHOLE_MONTHS = SIX.filter((month) => month !== "2026-07");
 const AHEAD = ["2026-11", "2026-12", "2027-01"];
@@ -1595,7 +1985,12 @@ const LEVELS = [
   { key: "unnecessary", slot: 5 },
 ];
 
-function flowMonth(month: string, income: number, expense: number, rest: { people?: number; debt?: number } = {}) {
+function flowMonth(
+  month: string,
+  income: number,
+  expense: number,
+  rest: { people?: number; debt?: number } = {},
+) {
   const people = rest.people ?? 0;
   const debt = rest.debt ?? 0;
   return {
@@ -1614,7 +2009,12 @@ function flowMonth(month: string, income: number, expense: number, rest: { peopl
 // May to October 2026 with July covered only partly: 110.700,00 TL over 60 rows, 20.240,00 TL a whole month; the
 // income known from account lists; four categories and merchants; a forecast whose two market lines share a payee.
 export const SPENDING: Spending = {
-  period: { start: "2026-05", end: "2026-10", first: "2026-01", last: "2026-10" },
+  period: {
+    start: "2026-05",
+    end: "2026-10",
+    first: "2026-01",
+    last: "2026-10",
+  },
   tiles: {
     total: tl(11070000),
     count: 60,
@@ -1648,10 +2048,38 @@ export const SPENDING: Spending = {
   },
   by_level: { slices: LEVELS, months: LEVEL_MONTHS },
   categories: [
-    { category: "Kira", group: "Ev & Faturalar", slot: 3, total: tl(7500000), share: "0.6775", count: 5 },
-    { category: "Market & Gıda", group: "Yeme & İçme", slot: 1, total: tl(2110000), share: "0.1906", count: 40 },
-    { category: "Elektronik", group: "Alışveriş", slot: 5, total: tl(950000), share: "0.0858", count: 2 },
-    { category: "Elektrik", group: "Ev & Faturalar", slot: 3, total: tl(510000), share: "0.0461", count: 5 },
+    {
+      category: "Kira",
+      group: "Ev & Faturalar",
+      slot: 3,
+      total: tl(7500000),
+      share: "0.6775",
+      count: 5,
+    },
+    {
+      category: "Market & Gıda",
+      group: "Yeme & İçme",
+      slot: 1,
+      total: tl(2110000),
+      share: "0.1906",
+      count: 40,
+    },
+    {
+      category: "Elektronik",
+      group: "Alışveriş",
+      slot: 5,
+      total: tl(950000),
+      share: "0.0858",
+      count: 2,
+    },
+    {
+      category: "Elektrik",
+      group: "Ev & Faturalar",
+      slot: 3,
+      total: tl(510000),
+      share: "0.0461",
+      count: 5,
+    },
   ].map((line) => ({
     ...line,
     average: tl(Math.round(line.total.minor / 5)),
@@ -1659,9 +2087,25 @@ export const SPENDING: Spending = {
   })),
   merchants: [
     ["Ev Sahibi Örnek", "Kira", "Ev & Faturalar", 3, 5, 7500000, "2026-10-03"],
-    ["Örnek Market", "Market & Gıda", "Yeme & İçme", 1, 40, 2110000, "2026-10-28"],
+    [
+      "Örnek Market",
+      "Market & Gıda",
+      "Yeme & İçme",
+      1,
+      40,
+      2110000,
+      "2026-10-28",
+    ],
     ["Örnek Teknoloji", "Elektronik", "Alışveriş", 5, 2, 950000, "2026-10-12"],
-    ["Örnek Elektrik", "Elektrik", "Ev & Faturalar", 3, 5, 510000, "2026-10-20"],
+    [
+      "Örnek Elektrik",
+      "Elektrik",
+      "Ev & Faturalar",
+      3,
+      5,
+      510000,
+      "2026-10-20",
+    ],
   ].map(([merchant, category, group, slot, count, total, last]) => ({
     merchant: String(merchant),
     category: String(category),
@@ -1685,11 +2129,51 @@ export const SPENDING: Spending = {
     base: WHOLE_MONTHS,
     months: AHEAD,
     lines: [
-      ["regular", "Ev kirası", "Kira · son ödeme 03.10.2026", "required", "Ev & Faturalar", 3, 1500000],
-      ["regular", "Örnek Market", "Market & Gıda · son ödeme 12.10.2026", "required", "Yeme & İçme", 1, 200000],
-      ["regular", "Örnek Market", "Market & Gıda · son ödeme 28.10.2026", "required", "Yeme & İçme", 1, 180000],
-      ["installments", "Örnek Elektronik", "Örnek Kart •1234 · 12 taksit", "optional", "Alışveriş", 5, 50000],
-      ["variable", "Gereksiz", "aylık 10,00 TL ile 40,00 TL arasında", "unnecessary", "", 5, 1000],
+      [
+        "regular",
+        "Ev kirası",
+        "Kira · son ödeme 03.10.2026",
+        "required",
+        "Ev & Faturalar",
+        3,
+        1500000,
+      ],
+      [
+        "regular",
+        "Örnek Market",
+        "Market & Gıda · son ödeme 12.10.2026",
+        "required",
+        "Yeme & İçme",
+        1,
+        200000,
+      ],
+      [
+        "regular",
+        "Örnek Market",
+        "Market & Gıda · son ödeme 28.10.2026",
+        "required",
+        "Yeme & İçme",
+        1,
+        180000,
+      ],
+      [
+        "installments",
+        "Örnek Elektronik",
+        "Örnek Kart •1234 · 12 taksit",
+        "optional",
+        "Alışveriş",
+        5,
+        50000,
+      ],
+      [
+        "variable",
+        "Gereksiz",
+        "aylık 10,00 TL ile 40,00 TL arasında",
+        "unnecessary",
+        "",
+        5,
+        1000,
+      ],
     ].map(([part, label, note, necessity, group, slot, amount]) => ({
       part: part as "regular" | "installments" | "variable",
       label: String(label),
@@ -1698,10 +2182,15 @@ export const SPENDING: Spending = {
       group: String(group),
       slot: Number(slot),
       amounts: AHEAD.map(() => tl(Number(amount))),
-      link: group ? rowsOf({ merchant: String(label) }) : rowsOf({ necessity: String(necessity) }),
+      link: group
+        ? rowsOf({ merchant: String(label) })
+        : rowsOf({ necessity: String(necessity) }),
     })),
     totals: AHEAD.map(() => tl(1931000)),
-    by_level: { slices: LEVELS, months: AHEAD.map((month) => monthRow(month, [1880000, 50000, 1000])) },
+    by_level: {
+      slices: LEVELS,
+      months: AHEAD.map((month) => monthRow(month, [1880000, 50000, 1000])),
+    },
     actual: { slices: LEVELS, months: LEVEL_MONTHS },
     income: tl(4000000),
     income_names: ["Örnek İşveren A.Ş."],
@@ -1718,7 +2207,11 @@ const LARGE_ROW = "b1b1b1b1b1b1b1b1b1b1";
 // The interpretation over the five whole months: two highlights (one about the whole picture), a priced and an unpriced
 // step, a short budget, three habits (one a one-off), the trend with a large purchase, and a possible double charge.
 export const INSIGHTS: Insights = {
-  window: { months: WHOLE_MONTHS, as_of: "2026-10-31", last_complete: "2026-10" },
+  window: {
+    months: WHOLE_MONTHS,
+    as_of: "2026-10-31",
+    last_complete: "2026-10",
+  },
   findings: [
     {
       tone: "attention",
@@ -1746,15 +2239,30 @@ export const INSIGHTS: Insights = {
     },
   ],
   budget: [
-    { label: "Düzenli gelir", now: tl(4000000), plan: tl(4000000), note: "son maaş (Örnek İşveren A.Ş.)" },
-    { label: "Sabit ödemeler", now: tl(1880000), plan: tl(1880000), note: "4 düzenli ödeme, son tutarlarıyla" },
+    {
+      label: "Düzenli gelir",
+      now: tl(4000000),
+      plan: tl(4000000),
+      note: "son maaş (Örnek İşveren A.Ş.)",
+    },
+    {
+      label: "Sabit ödemeler",
+      now: tl(1880000),
+      plan: tl(1880000),
+      note: "4 düzenli ödeme, son tutarlarıyla",
+    },
     {
       label: "Gereksiz harcamalar (faiz, banka ücretleri…)",
       now: tl(1600),
       plan: tl(0),
       note: "öneri: borcu tam ödeyerek sıfırlayın",
     },
-    { label: "Ay sonunda kalan", now: tl(2118400), plan: tl(2120000), note: "birikime ve acil durum fonuna" },
+    {
+      label: "Ay sonunda kalan",
+      now: tl(2118400),
+      plan: tl(2120000),
+      note: "birikime ve acil durum fonuna",
+    },
   ],
   habits: [
     {
@@ -1845,7 +2353,14 @@ export const INSIGHTS: Insights = {
     ],
     threshold: tl(500000),
   },
-  income: [{ name: "Örnek İşveren A.Ş.", monthly: tl(4000000), last: "2026-10-01", status: "active" }],
+  income: [
+    {
+      name: "Örnek İşveren A.Ş.",
+      monthly: tl(4000000),
+      last: "2026-10-01",
+      status: "active",
+    },
+  ],
   unusual: [
     {
       kind: "possible_duplicate",
@@ -1966,14 +2481,34 @@ export const TRANSACTIONS: TransactionPage = {
 };
 
 export const NEXT_TRANSACTIONS: TransactionPage = {
-  rows: [row({ fingerprint: "f5f5f5f5f5f5f5f5f5f5", day: "2026-09-02", title: "Örnek Kitapçı", certainty: "confirmed" })],
+  rows: [
+    row({
+      fingerprint: "f5f5f5f5f5f5f5f5f5f5",
+      day: "2026-09-02",
+      title: "Örnek Kitapçı",
+      certainty: "confirmed",
+    }),
+  ],
   totals: TRANSACTIONS.totals,
   offset: 50,
   next: null,
 };
 
-export function category(name: string, group: string, slot: number, overrides: Partial<Category> = {}): Category {
-  return { name, group, slot, necessity: "optional", regular: false, own: false, ...overrides };
+export function category(
+  name: string,
+  group: string,
+  slot: number,
+  overrides: Partial<Category> = {},
+): Category {
+  return {
+    name,
+    group,
+    slot,
+    necessity: "optional",
+    regular: false,
+    own: false,
+    ...overrides,
+  };
 }
 
 export const CATEGORY_RULES: CategoryRules = {
@@ -1995,9 +2530,16 @@ export const CATEGORY_RULES: CategoryRules = {
 };
 
 /** A document's place with no page, line, sheet or row: a receipt or a notice found as a whole. */
-export const NOWHERE = { page: null, line: null, sheet: null, row: null } as const;
+export const NOWHERE = {
+  page: null,
+  line: null,
+  sheet: null,
+  row: null,
+} as const;
 
-export function transactionDetail(overrides: Partial<TransactionDetail> = {}): TransactionDetail {
+export function transactionDetail(
+  overrides: Partial<TransactionDetail> = {},
+): TransactionDetail {
   return {
     row: PURCHASE,
     printed: {
@@ -2026,7 +2568,12 @@ export function transactionDetail(overrides: Partial<TransactionDetail> = {}): T
         status: "matched",
         day: "2026-11-12",
         amount: tl(84050),
-        printed: { ...NOWHERE, document: RECEIPT, name: "Örnek Banka dekontu", kind: "receipt" },
+        printed: {
+          ...NOWHERE,
+          document: RECEIPT,
+          name: "Örnek Banka dekontu",
+          kind: "receipt",
+        },
       },
     ],
     bill: null,
@@ -2048,7 +2595,14 @@ export function transactionDetail(overrides: Partial<TransactionDetail> = {}): T
 
 /** The split row's detail: the whole row, with the category it had before, and its parts in order. */
 export const SPLIT_DETAIL = transactionDetail({
-  row: { ...PARTS[0]!, fingerprint: WHOLE, amount: tl(125000), category: "Market", split_of: "", split_parts: 2 },
+  row: {
+    ...PARTS[0]!,
+    fingerprint: WHOLE,
+    amount: tl(125000),
+    category: "Market",
+    split_of: "",
+    split_parts: 2,
+  },
   why: { ...transactionDetail().why, rule: "ORNEK SUPERMARKET" },
   told: [],
   annotation: {
@@ -2072,7 +2626,9 @@ export const PAGE_SIZES = [
 
 // The statement's second page as text, line by line: line 14 is the purchase's.
 export const STATEMENT_LINES = Array.from({ length: 20 }, (_, index) =>
-  index === 13 ? "12.11.2026 ORNEK MARKET KADIKOY 840,50" : `Satır ${index + 1}`,
+  index === 13
+    ? "12.11.2026 ORNEK MARKET KADIKOY 840,50"
+    : `Satır ${index + 1}`,
 );
 
 export const STATEMENT_VIEW: DocumentView = {
@@ -2118,7 +2674,14 @@ export const STATEMENT_DETAIL: DocumentDetail = {
       provisional: false,
       counted: true,
       evidence: "matched",
-      ref: { page: 2, box: [40, 300, 555, 312], line: 14, sheet: null, row: null, span: null },
+      ref: {
+        page: 2,
+        box: [40, 300, 555, 312],
+        line: 14,
+        sheet: null,
+        row: null,
+        span: null,
+      },
     },
   ],
   more_rows: false,
@@ -2189,7 +2752,14 @@ export const LIST_DETAIL: DocumentDetail = {
       provisional: false,
       counted: true,
       evidence: null,
-      ref: { page: null, box: null, line: null, sheet: "Hesap Hareketleri", row: 3, span: null },
+      ref: {
+        page: null,
+        box: null,
+        line: null,
+        sheet: "Hesap Hareketleri",
+        row: 3,
+        span: null,
+      },
     },
   ],
   more_rows: false,
@@ -2199,7 +2769,8 @@ export const LIST_DETAIL: DocumentDetail = {
 
 // The receipt as an e-mail: its body as a browser breaks it, the same text collapsed (a row's span counts in it) and
 // an HTML part shown only in a sandbox.
-const RECEIPT_TEXT = "Sayın Müşterimiz, 03.11.2026 tarihli işleminiz: ORNEK KAFE 90,00 TL. Bilgilerinize sunarız.";
+const RECEIPT_TEXT =
+  "Sayın Müşterimiz, 03.11.2026 tarihli işleminiz: ORNEK KAFE 90,00 TL. Bilgilerinize sunarız.";
 const KAFE = RECEIPT_TEXT.indexOf("ORNEK KAFE 90,00 TL");
 
 export const RECEIPT_VIEW: DocumentView = {
@@ -2210,7 +2781,11 @@ export const RECEIPT_VIEW: DocumentView = {
     subject: "İşlem bildirimi",
     sender: "ornekbanka.example",
     sent: "2026-11-03T06:15:00+00:00",
-    lines: ["Sayın Müşterimiz,", "03.11.2026 tarihli işleminiz: ORNEK KAFE 90,00 TL.", "Bilgilerinize sunarız."],
+    lines: [
+      "Sayın Müşterimiz,",
+      "03.11.2026 tarihli işleminiz: ORNEK KAFE 90,00 TL.",
+      "Bilgilerinize sunarız.",
+    ],
     text: RECEIPT_TEXT,
   },
   text: "",
@@ -2246,7 +2821,8 @@ export const RECEIPT_DETAIL: DocumentDetail = {
       subject: "İşlem bildirimi",
       sent_at: "2026-11-03T06:15:00+00:00",
       received_at: "2026-11-03T06:20:00+00:00",
-      gmail: "https://mail.google.com/mail/u/0/#search/rfc822msgid%3Aornek-1%40ornekbanka.example",
+      gmail:
+        "https://mail.google.com/mail/u/0/#search/rfc822msgid%3Aornek-1%40ornekbanka.example",
     },
   ],
   checks: [],
@@ -2262,7 +2838,14 @@ export const RECEIPT_DETAIL: DocumentDetail = {
       provisional: false,
       counted: false,
       evidence: "unmatched",
-      ref: { page: null, box: null, line: null, sheet: null, row: null, span: [KAFE, KAFE + 19] },
+      ref: {
+        page: null,
+        box: null,
+        line: null,
+        sheet: null,
+        row: null,
+        span: [KAFE, KAFE + 19],
+      },
     },
   ],
   more_rows: false,
@@ -2296,15 +2879,37 @@ const DOCUMENT_VIEWS: Record<string, DocumentView> = {
 
 // --- the Hesaplar screens (F07) -------------------------------------------------------------------------------------
 
-const MONTHS = ["2025-12", ...Array.from({ length: 11 }, (_, i) => `2026-${String(i + 1).padStart(2, "0")}`)];
+const MONTHS = [
+  "2025-12",
+  ...Array.from(
+    { length: 11 },
+    (_, i) => `2026-${String(i + 1).padStart(2, "0")}`,
+  ),
+];
 
 /** The TL account's page: its rows, a balance curve with days no document covers, its months, fees and series. */
 export function accountPage(overrides: Partial<AccountPage> = {}): AccountPage {
   const cash = ACCOUNTS.groups[1]!.accounts[0]!;
   return {
     account: cash,
-    rows: [INCOME, row({ fingerprint: "c7c7c7c7c7c7c7c7c7c7", account: CASH, day: "2026-11-03", title: "Ev kirası" })],
-    totals: { count: 2, counted: 2, spent: tl(1250000), money_out: tl(1250000), money_in: tl(4000000), provisional: 1, excluded: 0 },
+    rows: [
+      INCOME,
+      row({
+        fingerprint: "c7c7c7c7c7c7c7c7c7c7",
+        account: CASH,
+        day: "2026-11-03",
+        title: "Ev kirası",
+      }),
+    ],
+    totals: {
+      count: 2,
+      counted: 2,
+      spent: tl(1250000),
+      money_out: tl(1250000),
+      money_in: tl(4000000),
+      provisional: 1,
+      excluded: 0,
+    },
     offset: 0,
     next: null,
     curve: [
@@ -2313,7 +2918,8 @@ export function accountPage(overrides: Partial<AccountPage> = {}): AccountPage {
       { day: "2026-10-31", balance: tl(120000), certainty: "confirmed" },
       { day: "2026-11-04", balance: tl(100000), certainty: "provisional" },
     ],
-    curve_note: "Gün sonu bakiyeleri hesap dökümlerinden; son dökümden sonrası bildirim ve dekontlardan.",
+    curve_note:
+      "Gün sonu bakiyeleri hesap dökümlerinden; son dökümden sonrası bildirim ve dekontlardan.",
     months: MONTHS.map((month) => ({
       month,
       money_in: tl(4000000),
@@ -2444,10 +3050,24 @@ export const CARD_PAGE: AccountPage = accountPage({
 export const FX_PAGE: AccountPage = accountPage({
   account: ACCOUNTS.groups[2]!.accounts[0]!,
   rows: [],
-  totals: { count: 0, counted: 0, spent: tl(0), money_out: tl(0), money_in: tl(0), provisional: 0, excluded: 0 },
+  totals: {
+    count: 0,
+    counted: 0,
+    spent: tl(0),
+    money_out: tl(0),
+    money_in: tl(0),
+    provisional: 0,
+    excluded: 0,
+  },
   curve: [],
   curve_note: "Günlük bakiye TL vadesiz, vadeli ve ek hesaplar için çizilir.",
-  months: MONTHS.map((month) => ({ month, money_in: tl(0), money_out: tl(0), rows: 0, complete: true })),
+  months: MONTHS.map((month) => ({
+    month,
+    money_in: tl(0),
+    money_out: tl(0),
+    rows: 0,
+    complete: true,
+  })),
   fees: { months: MONTHS.slice(0, 11), total: tl(0), categories: [] },
   payments: [],
   income: [],
@@ -2466,7 +3086,10 @@ export const FX_PAGE: AccountPage = accountPage({
 // January to October 2026: the TL account's lists cover every day but most of July; the card's statements start in
 // March, the first of them in its middle; a closed account's lists stopped in February.
 export const COVERAGE: Coverage = {
-  months: Array.from({ length: 10 }, (_, i) => `2026-${String(i + 1).padStart(2, "0")}`),
+  months: Array.from(
+    { length: 10 },
+    (_, i) => `2026-${String(i + 1).padStart(2, "0")}`,
+  ),
   accounts: [
     {
       account: CASH,
@@ -2494,7 +3117,12 @@ export const FLOWS: Flows = {
   start: "2026-10-01",
   end: "2026-10-31",
   nodes: [
-    { id: "income:Örnek İşveren A.Ş.", kind: "income", name: "Örnek İşveren A.Ş.", account: null },
+    {
+      id: "income:Örnek İşveren A.Ş.",
+      kind: "income",
+      name: "Örnek İşveren A.Ş.",
+      account: null,
+    },
     { id: CASH.id, kind: "account", name: "", account: CASH },
     { id: CARD.id, kind: "account", name: "", account: CARD },
     { id: "spending:Gıda", kind: "spending", name: "Gıda", account: null },
@@ -2502,11 +3130,26 @@ export const FLOWS: Flows = {
     { id: "people", kind: "people", name: "", account: null },
   ],
   edges: [
-    edge("income:Örnek İşveren A.Ş.", CASH.id, 4000000, 1, ["income"], { account: CASH.id, kind: "income" }),
-    edge(CASH.id, "spending:Ev", 1500000, 1, ["purchase"], { account: CASH.id, group: "Ev" }),
-    edge(CASH.id, CARD.id, 900000, 1, ["card_payment"], { account: CASH.id, kind: "card_payment" }),
-    edge(CARD.id, "spending:Gıda", 840050, 6, ["purchase", "refund"], { account: CARD.id, group: "Gıda" }),
-    edge(CASH.id, "people", 250000, 2, ["p2p_transfer"], { account: CASH.id, kind: "p2p_transfer" }),
+    edge("income:Örnek İşveren A.Ş.", CASH.id, 4000000, 1, ["income"], {
+      account: CASH.id,
+      kind: "income",
+    }),
+    edge(CASH.id, "spending:Ev", 1500000, 1, ["purchase"], {
+      account: CASH.id,
+      group: "Ev",
+    }),
+    edge(CASH.id, CARD.id, 900000, 1, ["card_payment"], {
+      account: CASH.id,
+      kind: "card_payment",
+    }),
+    edge(CARD.id, "spending:Gıda", 840050, 6, ["purchase", "refund"], {
+      account: CARD.id,
+      group: "Gıda",
+    }),
+    edge(CASH.id, "people", 250000, 2, ["p2p_transfer"], {
+      account: CASH.id,
+      kind: "p2p_transfer",
+    }),
   ],
   note: "",
 };
@@ -2514,14 +3157,37 @@ export const FLOWS: Flows = {
 type Band = Flows["edges"][number];
 
 /** A band of the flow, its rows on the Transactions screen narrowed to the flow's month. */
-function edge(source: string, target: string, minor: number, rows: number, kinds: Band["kinds"], query: Band["link"]["query"]) {
-  const link = { screen: "transactions" as const, id: "", query: { ...query, from: "2026-10-01", to: "2026-10-31" } };
+function edge(
+  source: string,
+  target: string,
+  minor: number,
+  rows: number,
+  kinds: Band["kinds"],
+  query: Band["link"]["query"],
+) {
+  const link = {
+    screen: "transactions" as const,
+    id: "",
+    query: { ...query, from: "2026-10-01", to: "2026-10-31" },
+  };
   return { source, target, amount: tl(minor), rows, kinds, link };
 }
 
 // --- the month-end closing (F11) --------------------------------------------------------------------------------------
 
-const MONTH_NAMES = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım"];
+const MONTH_NAMES = [
+  "Ocak",
+  "Şubat",
+  "Mart",
+  "Nisan",
+  "Mayıs",
+  "Haziran",
+  "Temmuz",
+  "Ağustos",
+  "Eylül",
+  "Ekim",
+  "Kasım",
+];
 const BROKER = { id: "ornek-yatirim-1", label: "Örnek Yatırım Hesabı" };
 
 /** "2026-10" moved by some months: ("2026-01", -1) → "2025-12". */
@@ -2531,7 +3197,11 @@ function shiftMonth(month: string, by: number): string {
   return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, "0")}`;
 }
 
-function monthEnd(month: string, status: MonthStatus, overrides: Partial<MonthEnd> = {}): MonthEnd {
+function monthEnd(
+  month: string,
+  status: MonthStatus,
+  overrides: Partial<MonthEnd> = {},
+): MonthEnd {
   const [year, number = 1] = month.split("-");
   return {
     month,
@@ -2562,21 +3232,33 @@ export const MONTH_ENDS: MonthEndList = {
   months: [
     monthEnd("2026-11", "running", {
       summary: "Rakamlar şimdiye kadar gelen ekstre ve dökümlerden.",
-      totals: { ...monthEnd("2026-11", "running").totals, expense: tl(84050), income: null, left: null },
+      totals: {
+        ...monthEnd("2026-11", "running").totals,
+        expense: tl(84050),
+        income: null,
+        left: null,
+      },
       provisional: 2,
       income_note: "bu ay için hesap dökümü yok: gelir bilinmiyor",
     }),
     monthEnd("2026-10", "waiting", {
-      summary: "Ekstresi beklenen hesap var: Örnek Kart •1234 (19–31 Ekim ekstresi, kesim ~18.11).",
+      summary:
+        "Ekstresi beklenen hesap var: Örnek Kart •1234 (19–31 Ekim ekstresi, kesim ~18.11).",
       provisional: 2,
       unmatched: 1,
     }),
-    monthEnd("2026-09", "closed", { totals: { ...monthEnd("2026-09", "closed").totals, expense: tl(2118242) } }),
+    monthEnd("2026-09", "closed", {
+      totals: { ...monthEnd("2026-09", "closed").totals, expense: tl(2118242) },
+    }),
     monthEnd("2026-08", "closed"),
     monthEnd("2026-07", "missing", {
-      summary: "Kapanması için eksik belge var: Örnek Vadesiz TL (1–4 Temmuz hesap dökümü eksik).",
+      summary:
+        "Kapanması için eksik belge var: Örnek Vadesiz TL (1–4 Temmuz hesap dökümü eksik).",
     }),
-    monthEnd("2026-06", "check", { summary: "Kontrol edilecek belge var: Örnek Kart •1234 ekstresi tutmuyor." }),
+    monthEnd("2026-06", "check", {
+      summary:
+        "Kontrol edilecek belge var: Örnek Kart •1234 ekstresi tutmuyor.",
+    }),
   ],
   export: "month_end",
 };
@@ -2634,7 +3316,10 @@ const UNSEEN = row({
   document: RECEIPT,
 });
 
-function closedAccount(account: { id: string; label: string }, overrides: Partial<MonthEndAccount> = {}) {
+function closedAccount(
+  account: { id: string; label: string },
+  overrides: Partial<MonthEndAccount> = {},
+) {
   return {
     account,
     status: "closed" as const,
@@ -2665,15 +3350,36 @@ function closedAccount(account: { id: string; label: string }, overrides: Partia
   } satisfies MonthEndAccount;
 }
 
-function regular(payee: string, category: string, paid: Row[], expected: string | null, now: number, monthly: number) {
-  return { payee, category, paid, expected, this_month: tl(now), monthly: tl(monthly) };
+function regular(
+  payee: string,
+  category: string,
+  paid: Row[],
+  expected: string | null,
+  now: number,
+  monthly: number,
+) {
+  return {
+    payee,
+    category,
+    paid,
+    expected,
+    this_month: tl(now),
+    monthly: tl(monthly),
+  };
 }
 
 /** A month in full, October by default: a list closes it, a card waits for its statement, a brokerage never holds
  * it. */
-export function monthEndDetail(month = "2026-10", overrides: Partial<MonthEndDetail> = {}): MonthEndDetail {
-  const listed = MONTH_ENDS.months.find((m) => m.month === month) ?? monthEnd(month, "closed");
-  const before = MONTH_ENDS.months.find((m) => m.month === shiftMonth(month, -1));
+export function monthEndDetail(
+  month = "2026-10",
+  overrides: Partial<MonthEndDetail> = {},
+): MonthEndDetail {
+  const listed =
+    MONTH_ENDS.months.find((m) => m.month === month) ??
+    monthEnd(month, "closed");
+  const before = MONTH_ENDS.months.find(
+    (m) => m.month === shiftMonth(month, -1),
+  );
   return {
     month: listed,
     previous: before ? before.totals : monthEnd(month, "closed").totals,
@@ -2713,23 +3419,59 @@ export function monthEndDetail(month = "2026-10", overrides: Partial<MonthEndDet
       { name: "Banka", slot: 8, amount: tl(800), count: null, code: "" },
     ],
     levels: [
-      { name: "Gerekli", slot: 1, amount: tl(2004000), count: null, code: "required" },
-      { name: "İsteğe bağlı", slot: 4, amount: tl(27999), count: null, code: "optional" },
-      { name: "Gereksiz", slot: 5, amount: tl(800), count: null, code: "unnecessary" },
+      {
+        name: "Gerekli",
+        slot: 1,
+        amount: tl(2004000),
+        count: null,
+        code: "required",
+      },
+      {
+        name: "İsteğe bağlı",
+        slot: 4,
+        amount: tl(27999),
+        count: null,
+        code: "optional",
+      },
+      {
+        name: "Gereksiz",
+        slot: 5,
+        amount: tl(800),
+        count: null,
+        code: "unnecessary",
+      },
     ],
     categories: [
       { name: "Kira", slot: 3, amount: tl(1500000), count: 1, code: "" },
       { name: "Market", slot: 1, amount: tl(399000), count: 2, code: "" },
       { name: "Faturalar", slot: 3, amount: tl(105000), count: 2, code: "" },
       { name: "Kafe", slot: 1, amount: tl(18000), count: 2, code: "" },
-      { name: "Dijital Abonelikler", slot: 4, amount: tl(9999), count: 1, code: "" },
+      {
+        name: "Dijital Abonelikler",
+        slot: 4,
+        amount: tl(9999),
+        count: 1,
+        code: "",
+      },
       { name: "Banka ücretleri", slot: 8, amount: tl(800), count: 1, code: "" },
     ],
     merchants: [
-      { name: "Örnek Ev Sahibi", slot: 3, amount: tl(1500000), count: 1, code: "" },
+      {
+        name: "Örnek Ev Sahibi",
+        slot: 3,
+        amount: tl(1500000),
+        count: 1,
+        code: "",
+      },
       { name: "Örnek Market", slot: 1, amount: tl(399000), count: 2, code: "" },
       { name: "Örnek Enerji", slot: 3, amount: tl(60000), count: 1, code: "" },
-      { name: "Örnek İletişim", slot: 3, amount: tl(45000), count: 1, code: "" },
+      {
+        name: "Örnek İletişim",
+        slot: 3,
+        amount: tl(45000),
+        count: 1,
+        code: "",
+      },
       { name: "Örnek Kafe", slot: 1, amount: tl(18000), count: 2, code: "" },
       { name: "Örnek Müzik", slot: 4, amount: tl(9999), count: 1, code: "" },
     ],
@@ -2745,7 +3487,10 @@ export function monthEndDetail(month = "2026-10", overrides: Partial<MonthEndDet
     trend: [
       { month: "2025-11", expense: tl(0) },
       { month: "2025-12", expense: tl(0) },
-      ...[2122799, 2228242, 2062799, 2872799, 1997799, 1987799, 903999, 1984799, 2118242, 2032799].map((minor, i) => ({
+      ...[
+        2122799, 2228242, 2062799, 2872799, 1997799, 1987799, 903999, 1984799,
+        2118242, 2032799,
+      ].map((minor, i) => ({
         month: `2026-${String(i + 1).padStart(2, "0")}`,
         expense: tl(minor),
       })),
@@ -2761,11 +3506,16 @@ export function monthEndDetail(month = "2026-10", overrides: Partial<MonthEndDet
 
 /** Rules with a file of the user's own: their categories, two payments ended (one shipped), a merchant on its own. */
 export const OWN_RULES: CategoryRules = {
-  content: "Gıda:\n  Market:\n    Örnek Market: [ORNEK MARKET]\n\n_biten:\n  Örnek Dergi: 2026-09\n",
+  content:
+    "Gıda:\n  Market:\n    Örnek Market: [ORNEK MARKET]\n\n_biten:\n  Örnek Dergi: 2026-09\n",
   categories: [
     category("Market", "Gıda", 1, { necessity: "required", own: true }),
     category("Kafe", "Yeme içme", 2),
-    category("Kira", "Ev", 3, { necessity: "required", regular: true, own: true }),
+    category("Kira", "Ev", 3, {
+      necessity: "required",
+      regular: true,
+      own: true,
+    }),
     category("Dijital Abonelikler", "Abonelikler", 4, { regular: true }),
     category("Maaş", "Gelir", 5, { necessity: null }),
   ],
@@ -2774,7 +3524,10 @@ export const OWN_RULES: CategoryRules = {
     { merchant: "Eski Spor Salonu", month: "2025-12", own: false },
   ],
   merchant_necessity: [{ merchant: "Örnek Kafe", necessity: "unnecessary" }],
-  history: ["personal 2026-11-02 10.00.00.yaml", "personal 2026-10-20 08.30.00.yaml"],
+  history: [
+    "personal 2026-11-02 10.00.00.yaml",
+    "personal 2026-10-20 08.30.00.yaml",
+  ],
 };
 
 /** A change's preview: three market rows become café rows, and the file gains the merchant. */
@@ -2789,8 +3542,18 @@ export const RULE_CHANGE: RuleChange = {
       day: "2026-11-12",
       description: "ORNEK KAFE KADIKOY",
       amount: tl(84050),
-      before: { merchant: "Örnek Kafe", category: "Market", necessity: "required", kind: "purchase" },
-      after: { merchant: "Örnek Kafe", category: "Kafe", necessity: "optional", kind: "purchase" },
+      before: {
+        merchant: "Örnek Kafe",
+        category: "Market",
+        necessity: "required",
+        kind: "purchase",
+      },
+      after: {
+        merchant: "Örnek Kafe",
+        category: "Kafe",
+        necessity: "optional",
+        kind: "purchase",
+      },
     },
   ],
   saved: false,
@@ -2806,13 +3569,19 @@ export function todo(overrides: Partial<TodoItem> = {}): TodoItem {
     key: "uncategorized:ornek kafe",
     kind: "uncategorized",
     title: "Örnek Kafe",
-    detail: "5 işlem, toplam 2.521,50 TL; sonuncusu 12.11.2026. Hiçbir kural adlandırmıyor.",
+    detail:
+      "5 işlem, toplam 2.521,50 TL; sonuncusu 12.11.2026. Hiçbir kural adlandırmıyor.",
     count: 5,
     amount: tl(252150),
     target: "Örnek Kafe",
-    link: { screen: "transactions", id: "", query: { category: "Diğer Harcamalar", q: "Örnek Kafe" } },
+    link: {
+      screen: "transactions",
+      id: "",
+      query: { category: "Diğer Harcamalar", q: "Örnek Kafe" },
+    },
     actions: ["add_rule", "ask_claude", "ignore"],
-    prompt: "İplikçi Nedim'de 'Örnek Kafe' adlı işyerinin 5 işlemi kategorisiz.",
+    prompt:
+      "İplikçi Nedim'de 'Örnek Kafe' adlı işyerinin 5 işlemi kategorisiz.",
     ignored: false,
     ...overrides,
   };
@@ -2826,7 +3595,8 @@ export const TODOS: Todos = {
       key: "gap:Örnek Vadesiz TL:2026-10-31:2026-07",
       kind: "missing_documents",
       title: "Örnek Vadesiz TL",
-      detail: "Son hesap hareketleri 31.10.2026 tarihli, 15 gün önce; eksik aylar: Temmuz 2026.",
+      detail:
+        "Son hesap hareketleri 31.10.2026 tarihli, 15 gün önce; eksik aylar: Temmuz 2026.",
       count: 1,
       amount: null,
       target: "Örnek Vadesiz TL",
@@ -2844,13 +3614,15 @@ export const TODOS: Todos = {
       target: TALIMAT,
       link: { screen: "document", id: TALIMAT, query: {} },
       actions: ["open", "reparse", "ask_claude", "ignore"],
-      prompt: "İplikçi Nedim'de 'TalimatFormu.pdf' belgesi işlenmedi (talimat formu).",
+      prompt:
+        "İplikçi Nedim'de 'TalimatFormu.pdf' belgesi işlenmedi (talimat formu).",
     }),
     todo({
       key: `split:${WHOLE}`,
       kind: "split_dropped",
       title: "Örnek Süpermarket",
-      detail: "01.11.2026 günlü 1.250,00 TL tutarındaki satırı 2 parçaya bölmüştünüz; satır bütün olarak sayılıyor.",
+      detail:
+        "01.11.2026 günlü 1.250,00 TL tutarındaki satırı 2 parçaya bölmüştünüz; satır bütün olarak sayılıyor.",
       count: 1,
       amount: tl(125000),
       target: WHOLE,
@@ -2877,7 +3649,8 @@ export const TODOS: Todos = {
 export const IGNORED_TODO = todo({
   key: "uncategorized:eski kitapci",
   title: "Eski Kitapçı",
-  detail: "2 işlem, toplam 340,00 TL; sonuncusu 02.09.2026. Hiçbir kural adlandırmıyor.",
+  detail:
+    "2 işlem, toplam 340,00 TL; sonuncusu 02.09.2026. Hiçbir kural adlandırmıyor.",
   count: 2,
   amount: tl(34000),
   target: "Eski Kitapçı",
@@ -2892,12 +3665,42 @@ export const SETUP: Setup = {
     { step: "data_folder", done: true, optional: false, note: "/veri/iplikci" },
     { step: "names", done: false, optional: false, note: "Henüz ad yok." },
     { step: "business_names", done: false, optional: true, note: "Yok." },
-    { step: "mail", done: false, optional: false, note: "E-posta bağlantısı kurulmadı." },
-    { step: "senders", done: true, optional: true, note: "3 banka adresi, 1 banka dışı gönderici" },
-    { step: "documents", done: false, optional: false, note: "Henüz belge yok." },
-    { step: "notifications", done: false, optional: true, note: "Yalnızca uygulama içi." },
-    { step: "service", done: true, optional: false, note: "Bilgisayar açılınca kendiliğinden başlar." },
-    { step: "remote", done: false, optional: true, note: "Kapalı: yalnızca bu bilgisayardan." },
+    {
+      step: "mail",
+      done: false,
+      optional: false,
+      note: "E-posta bağlantısı kurulmadı.",
+    },
+    {
+      step: "senders",
+      done: true,
+      optional: true,
+      note: "3 banka adresi, 1 banka dışı gönderici",
+    },
+    {
+      step: "documents",
+      done: false,
+      optional: false,
+      note: "Henüz belge yok.",
+    },
+    {
+      step: "notifications",
+      done: false,
+      optional: true,
+      note: "Yalnızca uygulama içi.",
+    },
+    {
+      step: "service",
+      done: true,
+      optional: false,
+      note: "Bilgisayar açılınca kendiliğinden başlar.",
+    },
+    {
+      step: "remote",
+      done: false,
+      optional: true,
+      note: "Kapalı: yalnızca bu bilgisayardan.",
+    },
   ],
   first_run: false,
 };
@@ -2926,7 +3729,9 @@ export function settings(overrides: Partial<Settings> = {}): Settings {
 // --- the service's own life (ADR-0017) -------------------------------------------------------------------------------
 
 /** The service as GET /api/service gives it: registered for this data folder with launchd, able to end itself. */
-export function serviceState(overrides: Partial<ServiceState> = {}): ServiceState {
+export function serviceState(
+  overrides: Partial<ServiceState> = {},
+): ServiceState {
   return {
     version: "0.7.0",
     started_at: "2026-11-15T08:00:00+00:00",
@@ -2938,7 +3743,12 @@ export function serviceState(overrides: Partial<ServiceState> = {}): ServiceStat
   };
 }
 
-function backupItem(name: string, created_at: string, reason: string, overrides: Partial<BackupItem> = {}): BackupItem {
+function backupItem(
+  name: string,
+  created_at: string,
+  reason: string,
+  overrides: Partial<BackupItem> = {},
+): BackupItem {
   return {
     name,
     created_at,
@@ -2955,8 +3765,13 @@ function backupItem(name: string, created_at: string, reason: string, overrides:
 // The backups, newest first: a daily one, one asked for, and an older daily one with a file that no longer matches.
 export const BACKUPS: BackupItem[] = [
   backupItem("2026-11-15 03.00.00", "2026-11-15T00:00:00+00:00", "daily"),
-  backupItem("2026-11-14 18.30.00", "2026-11-14T15:30:00+00:00", "manual", { documents: 41 }),
-  backupItem("2026-11-01 03.00.00", "2026-11-01T00:00:00+00:00", "daily", { documents: 30, damaged: 1 }),
+  backupItem("2026-11-14 18.30.00", "2026-11-14T15:30:00+00:00", "manual", {
+    documents: 41,
+  }),
+  backupItem("2026-11-01 03.00.00", "2026-11-01T00:00:00+00:00", "daily", {
+    documents: 30,
+    damaged: 1,
+  }),
 ];
 
 export const handlers = [
@@ -2965,32 +3780,59 @@ export const handlers = [
   http.get("/api/spending", () => HttpResponse.json(SPENDING)),
   http.get("/api/insights", () => HttpResponse.json(INSIGHTS)),
   http.get("/api/feed", ({ request }) =>
-    HttpResponse.json(new URL(request.url).searchParams.get("before") === "27" ? FEED_OLDER : FEED_FIRST),
+    HttpResponse.json(
+      new URL(request.url).searchParams.get("before") === "27"
+        ? FEED_OLDER
+        : FEED_FIRST,
+    ),
   ),
   http.get("/api/feed/now", () => HttpResponse.json(NOW)),
   http.get("/api/accounts", () => HttpResponse.json(ACCOUNTS)),
   http.get("/api/accounts/flows", () => HttpResponse.json(FLOWS)), // before the pages: "flows" is no account
   http.get("/api/accounts/coverage", () => HttpResponse.json(COVERAGE)),
   http.get("/api/accounts/:id", ({ params }) => {
-    const pages: Record<string, AccountPage> = { [CARD.id]: CARD_PAGE, [FX.id]: FX_PAGE };
+    const pages: Record<string, AccountPage> = {
+      [CARD.id]: CARD_PAGE,
+      [FX.id]: FX_PAGE,
+    };
     return HttpResponse.json(pages[String(params["id"])] ?? accountPage());
   }),
   http.get("/api/transactions", ({ request }) =>
-    HttpResponse.json(new URL(request.url).searchParams.get("offset") === "50" ? NEXT_TRANSACTIONS : TRANSACTIONS),
+    HttpResponse.json(
+      new URL(request.url).searchParams.get("offset") === "50"
+        ? NEXT_TRANSACTIONS
+        : TRANSACTIONS,
+    ),
   ),
   http.get("/api/transactions/views", () => HttpResponse.json([])), // before the rows: "views" is no fingerprint
   http.get("/api/transactions/:fingerprint", ({ params }) =>
-    HttpResponse.json(String(params["fingerprint"]).startsWith(WHOLE) ? SPLIT_DETAIL : transactionDetail()),
+    HttpResponse.json(
+      String(params["fingerprint"]).startsWith(WHOLE)
+        ? SPLIT_DETAIL
+        : transactionDetail(),
+    ),
   ),
   http.get("/api/rules/categories", () => HttpResponse.json(CATEGORY_RULES)),
   http.get("/api/documents/:sha256/view", ({ params }) =>
     String(params["sha256"]) === LOCKED
-      ? HttpResponse.json({ code: "document_unshown", title: "Belge gösterilemiyor: PDF şifreli" }, { status: 422 })
-      : HttpResponse.json(DOCUMENT_VIEWS[String(params["sha256"])] ?? STATEMENT_VIEW),
+      ? HttpResponse.json(
+          {
+            code: "document_unshown",
+            title: "Belge gösterilemiyor: PDF şifreli",
+          },
+          { status: 422 },
+        )
+      : HttpResponse.json(
+          DOCUMENT_VIEWS[String(params["sha256"])] ?? STATEMENT_VIEW,
+        ),
   ),
-  http.get("/api/documents/:sha256/pages/:page/lines", () => HttpResponse.json({ lines: STATEMENT_LINES })),
+  http.get("/api/documents/:sha256/pages/:page/lines", () =>
+    HttpResponse.json({ lines: STATEMENT_LINES }),
+  ),
   http.get("/api/documents/:sha256", ({ params }) =>
-    HttpResponse.json(DOCUMENT_DETAILS[String(params["sha256"])] ?? STATEMENT_DETAIL),
+    HttpResponse.json(
+      DOCUMENT_DETAILS[String(params["sha256"])] ?? STATEMENT_DETAIL,
+    ),
   ),
   http.get("/api/subscriptions", () => HttpResponse.json(SUBSCRIPTIONS)),
   http.get("/api/calendar", () => HttpResponse.json(CALENDAR)),
@@ -2998,13 +3840,18 @@ export const handlers = [
   http.get("/api/holdings", () => HttpResponse.json(HOLDINGS)),
   http.get("/api/fx", () => HttpResponse.json(FX_RATES)),
   http.get("/api/invoices", () => HttpResponse.json(INVOICES)),
-  http.get("/api/settings/mail/other-senders", () => HttpResponse.json(OTHER_SENDERS)),
+  http.get("/api/settings/mail/other-senders", () =>
+    HttpResponse.json(OTHER_SENDERS),
+  ),
   http.get("/api/system", () => HttpResponse.json(systemStatus())),
   http.get("/api/exports", () => HttpResponse.json(EXPORTS)),
   http.get("/api/bridge", () => HttpResponse.json(BRIDGES)),
+  http.get("/api/mcp/connection", () => HttpResponse.json(MCP_CONNECTION)),
   http.get("/api/extension", () => HttpResponse.json(EXTENSION)),
   http.get("/api/notifications", ({ request }) =>
-    HttpResponse.json(new URL(request.url).searchParams.get("channel") === "in_app" ? BOX : LOG),
+    HttpResponse.json(
+      new URL(request.url).searchParams.get("channel") === "in_app" ? BOX : LOG,
+    ),
   ),
   http.get("/api/notify/settings", () => HttpResponse.json(notifySettings())),
   http.get("/api/rules/alerts", () => HttpResponse.json(ALERT_RULES)),
@@ -3020,11 +3867,19 @@ export const handlers = [
   }),
   // the month-end closing (F11)
   http.get("/api/month-end", () => HttpResponse.json(MONTH_ENDS)),
-  http.get("/api/month-end/:month", ({ params }) => HttpResponse.json(monthEndDetail(String(params["month"])))),
+  http.get("/api/month-end/:month", ({ params }) =>
+    HttpResponse.json(monthEndDetail(String(params["month"]))),
+  ),
   // the Rules screen (F15)
-  http.post("/api/rules/categories/preview", () => HttpResponse.json(RULE_CHANGE)),
+  http.post("/api/rules/categories/preview", () =>
+    HttpResponse.json(RULE_CHANGE),
+  ),
   http.put("/api/rules/categories", () =>
-    HttpResponse.json({ ...RULE_CHANGE, saved: true, backup: "personal 2026-11-15 09.00.00.yaml" }),
+    HttpResponse.json({
+      ...RULE_CHANGE,
+      saved: true,
+      backup: "personal 2026-11-15 09.00.00.yaml",
+    }),
   ),
   // the to-do list (F19)
   http.get("/api/todos", ({ request }) =>
@@ -3034,24 +3889,46 @@ export const handlers = [
         : TODOS,
     ),
   ),
-  http.post("/api/todos/ignored", () => new HttpResponse(null, { status: 204 })),
-  http.post("/api/documents/:sha256/reparse", () => HttpResponse.json({ status: "processed" })),
+  http.post(
+    "/api/todos/ignored",
+    () => new HttpResponse(null, { status: 204 }),
+  ),
+  http.post("/api/documents/:sha256/reparse", () =>
+    HttpResponse.json({ status: "processed" }),
+  ),
   // the setup wizard and the Settings screen (F17)
   http.get("/api/setup", () => HttpResponse.json(SETUP)),
   http.get("/api/settings", () => HttpResponse.json(settings())),
   http.put("/api/settings/identity", async ({ request }) =>
-    HttpResponse.json(settings((await request.json()) as Pick<Settings, "names" | "business_names">)),
+    HttpResponse.json(
+      settings(
+        (await request.json()) as Pick<Settings, "names" | "business_names">,
+      ),
+    ),
   ),
   http.put("/api/settings/mail", async ({ request }) => {
-    const change = (await request.json()) as { connector?: "imap" | "browser_bridge"; start?: string };
+    const change = (await request.json()) as {
+      connector?: "imap" | "browser_bridge";
+      start?: string;
+    };
     const mail = settings().mail;
     return HttpResponse.json(settings({ mail: { ...mail, ...change } }));
   }),
   http.put("/api/settings/backup", async ({ request }) =>
-    HttpResponse.json(settings({ backup_days: ((await request.json()) as { keep_days: number }).keep_days })),
+    HttpResponse.json(
+      settings({
+        backup_days: ((await request.json()) as { keep_days: number })
+          .keep_days,
+      }),
+    ),
   ),
-  http.post("/api/settings/mail/imap", () => HttpResponse.json({ folder: "INBOX", in_keyring: true })),
-  http.delete("/api/settings/mail/imap", () => new HttpResponse(null, { status: 204 })),
+  http.post("/api/settings/mail/imap", () =>
+    HttpResponse.json({ folder: "INBOX", in_keyring: true }),
+  ),
+  http.delete(
+    "/api/settings/mail/imap",
+    () => new HttpResponse(null, { status: 204 }),
+  ),
   // the service's own life (ADR-0017)
   http.get("/api/service", () => HttpResponse.json(serviceState())),
   http.get("/api/backups", () => HttpResponse.json(BACKUPS)),

@@ -1,0 +1,49 @@
+{
+  "page": {
+    "title": "Claude bağlantısı",
+    "description": "Claude, paranıza dair sorularınızı İplikçi Nedim'deki belgelere bakarak yanıtlasın. Bağlantı bu bilgisayarda kalır: Claude yalnızca bu bilgisayardaki servise bağlanır."
+  },
+  "development": "Bu bir geliştirme kopyası: aşağıdaki komutlar geliştirme klasörünün Python'unu gösterir.",
+  "code": {
+    "title": "Claude Code'a ekleyin",
+    "intro": "claude-SAK ile terminal açmadan eklenir:",
+    "stepOpen": "claude-SAK'ın web panelinde Store'u açın, Import / Export sekmesinde “MCP JSON”u seçin.",
+    "stepPaste": "Aşağıdaki yapılandırmayı kopyalayıp yapıştırın; kurulacak yer olarak bütün hesapları ve projeleri seçin.",
+    "stepCheck": "Claude Code'da yeni bir oturum açın: /mcp listesinde “iplikci” görünür.",
+    "config": "Claude Code ve claude-SAK yapılandırması",
+    "token": "Bu yapılandırmada belirteç yok: Claude her bağlanışta onu İplikçi Nedim'in başlık yardımcısıyla anahtar zincirinden okur.",
+    "commands": "Komut satırını kullananlar için",
+    "sakAdd": "claude-SAK ile ekleme",
+    "sakRemove": "claude-SAK ile kaldırma",
+    "claudeAdd": "claude-SAK olmadan, Claude Code'un kendi komutuyla"
+  },
+  "desktop": {
+    "title": "Claude Desktop'a ekleyin",
+    "step": "Claude Desktop'ta Ayarlar → Geliştirici → “Yapılandırmayı düzenle” ile açılan dosyaya aşağıdakini ekleyin ve Claude Desktop'ı yeniden açın.",
+    "config": "Claude Desktop yapılandırması",
+    "offline": "Claude Desktop İplikçi Nedim'i kendisi başlatır. Servis kapalıyken de yanıt verir, ama o sırada yalnızca okuyabilir; bir şeyi değiştirmek için servisin çalışması gerekir."
+  },
+  "address": {
+    "title": "Adres ve belirteç",
+    "intro": "Başka bir MCP istemcisi kullanıyorsanız bunlar gerekir.",
+    "label": "MCP adresi",
+    "token": "API belirteci",
+    "show": "Göster",
+    "hide": "Gizle",
+    "warning": "Belirteç bu bilgisayardaki İplikçi Nedim servisine erişimi açar. Kimseyle paylaşmayın; bir istemcinin ayar dosyasına yazmak yerine yukarıdaki yapılandırmaları kullanın.",
+    "failed": "Belirteç alınamadı"
+  },
+  "masking": {
+    "title": "Claude neyi görsün?",
+    "intro": "Claude'a giden yanıtlarda neyin gizleneceğini seçin. Tutarlar ve tarihler her zaman görünür.",
+    "legend": "Claude'dan gizlenecekler",
+    "off": "Hiçbir şey gizlenmesin",
+    "offHint": "Claude hesap adlarını, numaralarını ve kişi adlarını belgelerdeki gibi görür.",
+    "accounts": "Hesap numaraları gizlensin",
+    "accountsHint": "Hesap ve kart numaraları •••A, •••B, IBAN'lar [IBAN] olur.",
+    "accounts_and_names": "Hesap numaraları ve kişi adları gizlensin",
+    "accounts_and_namesHint": "Ayrıca para gönderdiğiniz ya da aldığınız kişilerin ve sizin adınız Kişi 1, Kişi 2… olur.",
+    "saved": "Kaydedildi: bundan sonraki yanıtlar böyle.",
+    "failed": "Kaydedilemedi"
+  }
+}

@@ -23,6 +23,7 @@ const FxPage = lazy(() => import("./pages/FxPage"));
 const InvoicesPage = lazy(() => import("./pages/InvoicesPage"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 const ExtensionPage = lazy(() => import("./pages/ExtensionPage"));
+const ClaudePage = lazy(() => import("./pages/ClaudePage"));
 const MonthEndPage = lazy(() => import("./pages/MonthEndPage"));
 const MonthPage = lazy(() => import("./pages/MonthPage"));
 const RulesPage = lazy(() => import("./pages/RulesPage"));
@@ -55,6 +56,7 @@ export const routes: RouteObject[] = [
       { path: "faturalar", element: screen(<InvoicesPage />) },
       { path: "bildirimler", element: screen(<NotificationsPage />) },
       { path: "kurulum/eklenti", element: screen(<ExtensionPage />) },
+      { path: "kurulum/claude", element: screen(<ClaudePage />) },
       { path: "ay-sonu", element: screen(<MonthEndPage />) },
       { path: "ay-sonu/:ay", element: screen(<MonthPage />) },
       { path: "kurallar", element: screen(<RulesPage />) },

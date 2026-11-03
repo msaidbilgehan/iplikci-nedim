@@ -22,6 +22,7 @@ const SCREENS = [
   { path: "/faturalar", heading: "Faturalar" },
   { path: "/bildirimler", heading: "Bildirimler" },
   { path: "/kurulum/eklenti", heading: "Tarayıcı eklentisi" },
+  { path: "/kurulum/claude", heading: "Claude bağlantısı" },
   { path: "/ay-sonu", heading: "Ay sonu" },
   { path: "/ay-sonu/2026-10", heading: "Ekim 2026" }, // a closed month of the demo
   { path: "/kurallar", heading: "Kurallar" },

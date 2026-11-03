@@ -34,7 +34,8 @@
     "settings": "Ayarlar",
     "system": "Sistem",
     "setup": "Kurulum sihirbazı",
-    "extension": "Tarayıcı eklentisi"
+    "extension": "Tarayıcı eklentisi",
+    "claude": "Claude bağlantısı"
   },
   "unread": "({{count}} okunmamış)",
   "theme": {

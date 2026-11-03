@@ -13,6 +13,7 @@ The API token itself is shown only when the user asks (the "Göster" button); th
 It is never written into a file or a log.
 """
 
+import json
 import shlex
 import subprocess
 import sys
@@ -46,6 +47,7 @@ class Connection:
     claude_desktop: dict[str, Any]  # Claude Desktop's: the stdio bridge
     sak_add: str  # claude-SAK's command line, for those who use it
     sak_remove: str
+    claude_add: str  # Claude Code's own command line, without claude-SAK
     masking: str  # the masking level the MCP answers have (settings [privacy] mcp_masking)
     development: bool  # this copy runs from a source folder: the commands point at its Python
 
@@ -81,6 +83,7 @@ def connection(ws: Workspace) -> Connection:
             ["sak", "store", "mcp", "add", NAME, "--url", address, "--headers-helper", helper, "--scope", "user"]
         ),
         sak_remove=_shell(["sak", "store", "mcp", "remove", NAME, "--scope", "user"]),
+        claude_add=_shell(["claude", "mcp", "add-json", "--scope", "user", NAME, json.dumps(http, ensure_ascii=False)]),
         masking=settings.privacy.mcp_masking,
         development=manager.development_folder() is not None,
     )

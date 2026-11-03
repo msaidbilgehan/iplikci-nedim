@@ -27,6 +27,7 @@ import {
 import accounts from "./locales/tr/accounts.json";
 import calendar from "./locales/tr/calendar.json";
 import charts from "./locales/tr/charts.json";
+import claude from "./locales/tr/claude.json";
 import common from "./locales/tr/common.json";
 import dashboard from "./locales/tr/dashboard.json";
 import documents from "./locales/tr/documents.json";
@@ -60,6 +61,7 @@ export const resources = {
     accounts,
     documents,
     extension,
+    claude,
     subscriptions,
     calendar,
     insights,
@@ -75,7 +77,10 @@ export const resources = {
   },
 } as const;
 
-const WHOLE = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0, useGrouping: "always" });
+const WHOLE = new Intl.NumberFormat("tr-TR", {
+  maximumFractionDigits: 0,
+  useGrouping: "always",
+});
 
 /** A number as it stands before its suffix, and the number the suffix is chosen by. */
 function written(value: unknown): [string, number] {

@@ -2,6 +2,7 @@
 token behind its button, the masking setting, and the headers helper Claude Code runs."""
 
 import json
+import shlex
 
 import pytest
 from fastapi.testclient import TestClient
@@ -41,6 +42,9 @@ def test_the_connection_names_the_address_the_helper_and_both_configurations_but
     assert desktop["command"] == found["command"] and desktop["args"][-3:] == ["mcp", "--klasor", str(ws.home)]
     assert found["sak_add"].startswith("sak store mcp add iplikci --url http://127.0.0.1:8643/mcp --headers-helper ")
     assert found["sak_remove"] == "sak store mcp remove iplikci --scope user"
+    *words, given = shlex.split(found["claude_add"])  # Claude Code's own command, for those without claude-SAK
+    assert words == ["claude", "mcp", "add-json", "--scope", "user", "iplikci"]
+    assert json.loads(given) == found["claude_code"]["mcpServers"]["iplikci"]
     assert found["masking"] == "off" and TOKEN not in response.text
 
 

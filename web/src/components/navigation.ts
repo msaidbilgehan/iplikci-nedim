@@ -12,6 +12,7 @@ import {
   CalendarCheckIcon,
   CalendarIcon,
   ChartIcon,
+  ChatIcon,
   ChecklistIcon,
   CoinsIcon,
   FileIcon,
@@ -51,25 +52,68 @@ export const MENU: readonly ScreenGroup[] = [
   {
     key: "today", // what to look at first: where things stand, what happened, what needs the user
     screens: [
-      { to: "/", key: "dashboard", icon: HomeIcon, ready: true, end: true, everyday: true },
+      {
+        to: "/",
+        key: "dashboard",
+        icon: HomeIcon,
+        ready: true,
+        end: true,
+        everyday: true,
+      },
       { to: "/akis", key: "feed", icon: PulseIcon, ready: true },
-      { to: "/yapilacaklar", key: "todo", icon: ChecklistIcon, ready: true, everyday: true },
+      {
+        to: "/yapilacaklar",
+        key: "todo",
+        icon: ChecklistIcon,
+        ready: true,
+        everyday: true,
+      },
     ],
   },
   {
     key: "money", // the accounts, their rows, what is paid regularly and what comes next
     screens: [
-      { to: "/hesaplar", key: "accounts", icon: BankIcon, ready: true, everyday: true },
-      { to: "/islemler", key: "transactions", icon: SwapIcon, ready: true, everyday: true },
-      { to: "/abonelikler", key: "subscriptions", icon: RepeatIcon, ready: true, everyday: true },
-      { to: "/takvim", key: "calendar", icon: CalendarIcon, ready: true, everyday: true },
+      {
+        to: "/hesaplar",
+        key: "accounts",
+        icon: BankIcon,
+        ready: true,
+        everyday: true,
+      },
+      {
+        to: "/islemler",
+        key: "transactions",
+        icon: SwapIcon,
+        ready: true,
+        everyday: true,
+      },
+      {
+        to: "/abonelikler",
+        key: "subscriptions",
+        icon: RepeatIcon,
+        ready: true,
+        everyday: true,
+      },
+      {
+        to: "/takvim",
+        key: "calendar",
+        icon: CalendarIcon,
+        ready: true,
+        everyday: true,
+      },
       { to: "/doviz", key: "fx", icon: CoinsIcon, ready: true },
     ],
   },
   {
     key: "analysis", // what the numbers mean: the assessment and each month's closing
     screens: [
-      { to: "/degerlendirme", key: "insights", icon: ChartIcon, ready: true, everyday: true },
+      {
+        to: "/degerlendirme",
+        key: "insights",
+        icon: ChartIcon,
+        ready: true,
+        everyday: true,
+      },
       { to: "/ay-sonu", key: "monthEnd", icon: CalendarCheckIcon, ready: true },
     ],
   },
@@ -77,7 +121,13 @@ export const MENU: readonly ScreenGroup[] = [
     key: "archive", // the documents kept and the non-bank bills matched to the bank's rows
     screens: [
       // Where the documents downloaded by hand come in, a folder of them at once (F02, K24).
-      { to: "/belge-ekle", key: "addDocuments", icon: UploadIcon, ready: true, everyday: true },
+      {
+        to: "/belge-ekle",
+        key: "addDocuments",
+        icon: UploadIcon,
+        ready: true,
+        everyday: true,
+      },
       { to: "/belgeler", key: "documents", icon: FileIcon, ready: true },
       { to: "/faturalar", key: "invoices", icon: ReceiptIcon, ready: true },
     ],
@@ -99,13 +149,18 @@ export const SETUP: ScreenGroup = {
   screens: [
     { to: "/kurulum", key: "setup", icon: WandIcon, ready: true, end: true },
     { to: "/kurulum/eklenti", key: "extension", icon: PlugIcon, ready: true },
+    // Connecting Claude without a terminal: the configuration to copy, claude-SAK's steps (K23).
+    { to: "/kurulum/claude", key: "claude", icon: ChatIcon, ready: true },
   ],
 };
 
 /** The groups with the screens built so far; a group with none built is left out. */
 export function builtGroups(groups: readonly ScreenGroup[]): ScreenGroup[] {
   return groups
-    .map((group) => ({ ...group, screens: group.screens.filter((screen) => screen.ready) }))
+    .map((group) => ({
+      ...group,
+      screens: group.screens.filter((screen) => screen.ready),
+    }))
     .filter((group) => group.screens.length > 0);
 }
 
@@ -129,23 +184,34 @@ export function everydayScreens(groups: readonly ScreenGroup[]): Screen[] {
     return found === -1 ? EVERYDAY_ORDER.length : found;
   };
   return builtGroups(groups)
-    .flatMap((group) => group.screens.filter((screen) => screen.everyday === true))
+    .flatMap((group) =>
+      group.screens.filter((screen) => screen.everyday === true),
+    )
     .sort((a, b) => rank(a) - rank(b));
 }
 
 /** The groups without their everyday screens: what the simple view's menu keeps under "Diğer ekranlar". */
 export function otherGroups(groups: readonly ScreenGroup[]): ScreenGroup[] {
-  return builtGroups(groups.map((group) => ({ ...group, screens: group.screens.filter((s) => s.everyday !== true) })));
+  return builtGroups(
+    groups.map((group) => ({
+      ...group,
+      screens: group.screens.filter((s) => s.everyday !== true),
+    })),
+  );
 }
 
 /** Whether a screen of the menu is built, so a link may lead to it (lib/links.ts). */
 export function isReady(key: ScreenKey): boolean {
-  return [...MENU, SETUP].some((group) => group.screens.some((screen) => screen.key === key && screen.ready));
+  return [...MENU, SETUP].some((group) =>
+    group.screens.some((screen) => screen.key === key && screen.ready),
+  );
 }
 
 // The pages under a screen's address that open one thing (architecture §18); each comes with or after its list. Set
 // one when its route lands, as `ready` above.
-export const DETAILS: Readonly<Record<"document" | "account" | "month", boolean>> = {
+export const DETAILS: Readonly<
+  Record<"document" | "account" | "month", boolean>
+> = {
   document: true, // /belgeler/:id, the viewer: ?satir=<fingerprint> opens it at a row
   account: true, // /hesaplar/:id
   month: true, // /ay-sonu/:ay

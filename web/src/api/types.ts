@@ -13,6 +13,7 @@ import type {
   BrokerageOut,
   BudgetLineOut,
   CardPageOut,
+  ConnectionOut,
   CategoryLineOut,
   CurvePointOut,
   DepositOut,
@@ -158,6 +159,7 @@ import type {
   TelegramCheckOut,
   TelegramPairingOut,
   TelegramTokenOut,
+  TokenOut,
   TilesOut,
   TodoAction,
   TodoKind,
@@ -211,6 +213,9 @@ export type AccountForecast = AccountForecastOut;
 export type Invoices = InvoicesOut;
 export type InvoiceItem = InvoiceOut;
 export type OtherSenders = OtherSendersOut;
+export type McpConnection = ConnectionOut; // Claude's connection (K23): no secret in it
+export type McpToken = TokenOut; // the API token, shown when the user asks
+export type McpMasking = ConnectionOut["masking"];
 
 // The notifications (F13, ADR-0010). The codes keep the API's names; Pairing above is the browser extension's.
 export type { Channel, ChannelStage, DeliveryStatus, DetailLevel, EventKind };
@@ -286,7 +291,13 @@ export type EndedRule = EndedIn;
 export type NotEndedRule = NotEndedIn;
 // The edits the screens preview, then write: a merchant rule, an ended payment and its undoing, and the Rules
 // screen's commitment category, merchant's own necessity and whole file.
-export type RuleEdit = MerchantRule | EndedRule | NotEndedRule | CommitmentIn | MerchantNecessityIn | WriteRulesIn;
+export type RuleEdit =
+  | MerchantRule
+  | EndedRule
+  | NotEndedRule
+  | CommitmentIn
+  | MerchantNecessityIn
+  | WriteRulesIn;
 
 // A document as the viewer shows it, and where its rows are printed (F03).
 export type DocumentDetail = DocumentDetailOut;

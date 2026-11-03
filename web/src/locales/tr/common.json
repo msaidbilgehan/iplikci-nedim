@@ -56,5 +56,11 @@
     "amount": "Tutar",
     "basis": "Dayanak"
   },
-  "explain": "Nasıl hesaplandı?"
+  "explain": "Nasıl hesaplandı?",
+  "copy": {
+    "button": "Kopyala",
+    "named": "Kopyala: {{name}}",
+    "done": "Kopyalandı.",
+    "failed": "Kopyalanamadı; metni seçip kopyalayın."
+  }
 }

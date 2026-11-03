@@ -79,7 +79,7 @@ describe("Layout", () => {
       ["/ay-sonu"],
       ["/belgeler", "/faturalar"],
       ["/bildirimler", "/kurallar", "/ayarlar", "/sistem"],
-      ["/kurulum", "/kurulum/eklenti"],
+      ["/kurulum", "/kurulum/eklenti", "/kurulum/claude"],
     ]);
   });
 
@@ -106,7 +106,7 @@ describe("Layout", () => {
       Analiz: ["/degerlendirme", "/ay-sonu"],
       Arşiv: ["/belge-ekle", "/belgeler", "/faturalar"],
       Uygulama: ["/bildirimler", "/kurallar", "/ayarlar", "/sistem"],
-      Kurulum: ["/kurulum", "/kurulum/eklenti"],
+      Kurulum: ["/kurulum", "/kurulum/eklenti", "/kurulum/claude"],
     };
     const lists = within(menu()).getAllByRole("list");
     expect(lists.map(accessibleNameOf)).toEqual(Object.keys(expected));
@@ -132,7 +132,7 @@ describe("Layout", () => {
       [...MENU, SETUP].map((group) => ({ ...group, screens: group.screens.map((s) => ({ ...s, ready: true })) })),
     );
     expect(all.map((group) => group.key)).toEqual(["today", "money", "analysis", "archive", "app", "setup"]);
-    expect(all.flatMap((group) => group.screens).length).toBe(19);
+    expect(all.flatMap((group) => group.screens).length).toBe(20);
   });
 
   it("marks the current screen for screen readers and with a bar", () => {

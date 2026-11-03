@@ -322,6 +322,15 @@ export function PlugIcon(props: IconProps) {
   );
 }
 
+export function ChatIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" />
+      <path d="M8.5 12h.01M12 12h.01M15.5 12h.01" />
+    </Icon>
+  );
+}
+
 export function LightbulbIcon(props: IconProps) {
   return (
     <Icon {...props}>

@@ -433,6 +433,7 @@ export interface ConnectionOut {
   claude_desktop: Record<string, unknown>;
   sak_add: string;
   sak_remove: string;
+  claude_add: string;
   masking: "off" | "accounts" | "accounts_and_names";
   development: boolean;
 }
