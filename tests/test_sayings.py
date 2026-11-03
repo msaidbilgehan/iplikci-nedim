@@ -1,8 +1,10 @@
 """İplikçi Nedim's lines (app.sayings): every line belongs to a situation the documents show, the most pressing
 situation's line comes first and the day turns it, and the sentence that says the situation carries no amount."""
 
+import re
 from datetime import date, timedelta
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 from hypothesis import given
@@ -234,3 +236,24 @@ def test_every_situations_lines_come_once_in_order_and_no_sentence_names_an_amou
     assert all("TL" not in s.reason and "₺" not in s.reason for s in found)
     if f.negative is not None:
         assert found[0].situation is Situation.GOING_NEGATIVE
+
+
+# --- his face, in the interface and in the extension's window ---------------------------------------------------------
+
+ROOT = Path(__file__).resolve().parent.parent
+FACES = (  # where each interface names his faces, and the folder it serves them from
+    (ROOT / "web" / "src" / "components" / "dashboard" / "NedimSays.tsx", ROOT / "web" / "public", "/"),
+    (ROOT / "extension" / "src" / "ui" / "nedim.ts", ROOT / "extension" / "static", ""),
+)
+
+
+@pytest.mark.parametrize(("source", "folder", "prefix"), FACES, ids=["web", "extension"])
+def test_every_mood_has_a_face_drawn_from_the_logo_in_both_interfaces(source, folder, prefix):
+    text = source.read_text(encoding="utf-8")
+    block = re.search(r"FACES[^=]*= \{(.*?)\}", text, re.DOTALL)
+    assert block is not None
+    named = dict(re.findall(r'(\w+): "([^"]+)"', block[1]))
+    assert set(named) == {m.value for m in Mood}
+    for mood, path in named.items():
+        assert path.startswith(prefix) and (folder / path.removeprefix(prefix)).is_file(), (mood, path)
+    assert named["good"].endswith(("logo.png", "icon-128.png"))  # the logo itself when the money goes well

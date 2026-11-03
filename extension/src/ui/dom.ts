@@ -6,6 +6,7 @@
 
 import type { Request, Status } from "../bridge/messages";
 import type { PanelAnswer, PanelOutcome } from "../bridge/panel";
+import { type Saying, asSaying } from "../bridge/service";
 import { ICON_PATHS, SILENT, type Shown } from "./status";
 
 export function element<T extends Element>(id: string, type: new () => T): T {
@@ -31,6 +32,12 @@ export function version(): string {
 export async function ask(request: Request): Promise<Status | null> {
   const answer = await send(request);
   return isStatus(answer) ? answer : null;
+}
+
+/** İplikçi Nedim's lines on the money, from the service worker (bridge/sayings.ts); none when it has none. */
+export async function askSayings(): Promise<Saying[]> {
+  const answer = await send({ kind: "sayings" });
+  return Array.isArray(answer) ? answer.flatMap(asSaying) : [];
 }
 
 async function send(request: Request): Promise<unknown> {

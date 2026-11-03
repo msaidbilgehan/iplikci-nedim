@@ -4,6 +4,11 @@
   "empty": "Henüz belge yok",
   "emptyText": "Ekstreler, hesap dökümleri ve dekontlar geldikçe pano dolar. Belgeleri Belgeler ekranından ekleyebilir, e-posta bağlantısını kurabilirsiniz.",
   "emptyNext": "Belge ekle",
+  "nedim": {
+    "label": "İplikçi Nedim'in paranız hakkındaki sözü",
+    "name": "İplikçi Nedim",
+    "another": "Başka bir söz"
+  },
   "netWorth": {
     "title": "Net varlık",
     "next": "Hesaplara bak",

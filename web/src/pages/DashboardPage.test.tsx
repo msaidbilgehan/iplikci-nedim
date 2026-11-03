@@ -60,6 +60,20 @@ describe("DashboardPage", () => {
     expect(screen.queryByRole("region", { name: "Veri tazeliği" })).not.toBeInTheDocument();
   });
 
+  it("lets İplikçi Nedim have his say first, in the simple view and the detailed one", async () => {
+    const nedim = "İplikçi Nedim'in paranız hakkındaki sözü";
+    const { unmount } = renderScreen(<DashboardPage />);
+    const said = await card(nedim);
+    expect(within(said).getByText("Öngörüye göre hesaplarınızdan biri 18 gün sonra eksiye düşecek.")).toBeInTheDocument();
+    expect(said.compareDocumentPosition(screen.getByRole("region", { name: "Ekim 2026: paranız ne durumda?" }))).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    unmount();
+    chooseDetailed();
+    renderScreen(<DashboardPage />);
+    expect(await card(nedim)).toBeInTheDocument();
+  });
+
   it("leads each card to its screen once that screen is built", async () => {
     chooseDetailed();
     renderScreen(<DashboardPage />);
@@ -208,6 +222,7 @@ describe("DashboardPage", () => {
     expect(screen.getByRole("link", { name: "Belge ekle" })).toHaveAttribute("href", "/belgeler");
     expect(await card("Açık uyarılar")).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Net varlık" })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "İplikçi Nedim'in paranız hakkındaki sözü" })).toBeInTheDocument();
   });
 
   it("offers to try again when the dashboard could not be read", async () => {

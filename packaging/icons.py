@@ -1,7 +1,8 @@
 """Draws every icon of the product from its logo, the line drawing of İplikçi Nedim in packaging/logo/:
 the interface's (web/public), the browser extension's (extension/static/icons) and the installers'
 (packaging/assets). The face is filled white inside its outline with its lines in teal, on a teal tile: a line
-drawing alone thins to nothing at 16 px, a light face still reads there. Small icons get thicker lines.
+drawing alone thins to nothing at 16 px, a light face still reads there. Small icons get thicker lines. Beside the
+logo, his face in the colour of his word on the money (app.sayings): amber, red or grey where the logo is teal.
 
     uv run python -I packaging/icons.py
 """
@@ -19,6 +20,13 @@ ASSETS = ROOT / "packaging" / "assets"
 
 TEAL = (15, 118, 110, 255)  # the interface's teal-700 and the PWA's theme colour
 WHITE = (255, 255, 255, 255)
+# His face as his word on the money colours it, Tailwind's 700s as the interface's verdicts: a white face keeps 3:1
+# against each. A good word is the logo itself.
+MOODS = {
+    "warning": (180, 83, 9, 255),  # amber-700
+    "critical": (185, 28, 28, 255),  # red-700
+    "neutral": (82, 82, 91, 255),  # zinc-600
+}
 SUPERSAMPLE = 4  # shapes are drawn this many times larger and scaled down, so their edges stay smooth
 
 
@@ -71,26 +79,34 @@ def _grow(size: int) -> int:
     return 1
 
 
-def face(height: int, grow: int | None = None) -> Image.Image:
-    """The face alone, `height` pixels tall, on a transparent ground."""
+def face(height: int, grow: int | None = None, color: tuple[int, int, int, int] = TEAL) -> Image.Image:
+    """The face alone, `height` pixels tall, its lines in `color` on a transparent ground."""
     lines = _scaled(LINES, height, _grow(height) if grow is None else grow)
     inside = _scaled(INSIDE, height, 1)
     image = Image.new("RGBA", lines.size, (0, 0, 0, 0))
     image.paste(Image.new("RGBA", lines.size, WHITE), (0, 0), inside)
-    image.paste(Image.new("RGBA", lines.size, TEAL), (0, 0), lines)
+    image.paste(Image.new("RGBA", lines.size, color), (0, 0), lines)
     return image
 
 
-def icon(size: int, *, share: float = 0.84, corner: float = 0.22, margin: float = 0.0) -> Image.Image:
-    """The face on a teal tile: `share` of the tile's height, the tile's corners rounded by `corner` of its side
-    (0 for a full square), and `margin` of the canvas left empty around the tile (macOS's icon grid)."""
+def icon(
+    size: int,
+    *,
+    share: float = 0.84,
+    corner: float = 0.22,
+    margin: float = 0.0,
+    color: tuple[int, int, int, int] = TEAL,
+) -> Image.Image:
+    """The face on a tile of `color`, its lines in it: `share` of the tile's height, the tile's corners rounded by
+    `corner` of its side (0 for a full square), and `margin` of the canvas left empty around the tile (macOS's icon
+    grid)."""
     canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     side = round(size * (1 - 2 * margin))
     big = side * SUPERSAMPLE
     tile = Image.new("RGBA", (big, big), (0, 0, 0, 0))
-    ImageDraw.Draw(tile).rounded_rectangle((0, 0, big - 1, big - 1), radius=round(big * corner), fill=TEAL)
+    ImageDraw.Draw(tile).rounded_rectangle((0, 0, big - 1, big - 1), radius=round(big * corner), fill=color)
     tile = tile.resize((side, side), Image.Resampling.LANCZOS)
-    drawn = face(round(side * share), _grow(size))
+    drawn = face(round(side * share), _grow(size), color)
     tile.alpha_composite(drawn, ((side - drawn.width) // 2, (side - drawn.height) // 2))
     offset = (size - side) // 2
     canvas.alpha_composite(tile, (offset, offset))
@@ -127,6 +143,10 @@ def main() -> None:
     # The browser extension: its toolbar button and its line on the extensions page.
     for size in (16, 32, 48, 128):
         _save(icon(size), EXTENSION / f"icon-{size}.png")
+    # His face beside his word on the money: on the Pano and in the extension's window, the logo where it is good.
+    for mood, color in MOODS.items():
+        _save(icon(128, color=color), WEB / f"face-{mood}.png")
+        _save(icon(128, color=color), EXTENSION / f"face-{mood}.png")
     # The installers: the Linux AppImage's icon, the Windows installer's and the macOS app's (the macOS grid leaves a
     # margin around the tile, as the system's own icons do).
     _save(icon(512), ASSETS / "iplikci.png")

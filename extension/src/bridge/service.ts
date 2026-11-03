@@ -1,7 +1,8 @@
 /**
  * The paired İplikçi Nedim service, on this computer only (ADR-0016): pairing with a code, the proof that the
- * service is the one paired with, where delivery stands, the delivery of raw messages, and a login link for the
- * interface (ADR-0019). The token goes in the Authorization header only; no cookie is sent.
+ * service is the one paired with, where delivery stands, the delivery of raw messages, a login link for the
+ * interface (ADR-0019) and İplikçi Nedim's lines on the money (ADR-0020). The token goes in the Authorization header
+ * only; no cookie is sent.
  */
 
 import type { PageTraits } from "../gmail/original";
@@ -30,6 +31,57 @@ export interface Cursor {
   readonly senders: readonly string[];
   /** No finished scan of Gmail searched this start day and these senders (false from a service that does not say). */
   readonly historyDue: boolean;
+}
+
+/** How the money stands, as İplikçi Nedim's face is coloured by it. */
+export type Mood = "good" | "warning" | "critical" | "neutral";
+
+/** A line of İplikçi Nedim's on the money (ADR-0020): words and shares only, never an amount, an account or a name. */
+export interface Saying {
+  /** What it is said about, as the service names it ("overspent", "going_negative", …). */
+  readonly situation: string;
+  readonly mood: Mood;
+  /** The situation in a Turkish sentence. */
+  readonly reason: string;
+  /** The line; a dialogue's lines in turn, his first. */
+  readonly lines: readonly string[];
+}
+
+const MOODS: ReadonlySet<string> = new Set<Mood>(["good", "warning", "critical", "neutral"]);
+/** As much as a line and its sentence could take: what is longer is not one. */
+const MAX_TEXT = 400;
+
+const isText = (value: unknown): value is string => typeof value === "string" && value.length <= MAX_TEXT;
+
+/** A saying as the service sends it ({situation, mood, reason, quote: {id, lines}}), or none when it is not one. */
+function fromService(value: unknown): Saying[] {
+  if (typeof value !== "object" || value === null) {
+    return [];
+  }
+  const { quote, ...rest } = value as Record<string, unknown>;
+  const lines = typeof quote === "object" && quote !== null ? (quote as Record<string, unknown>)["lines"] : undefined;
+  return asSaying({ ...rest, lines });
+}
+
+/** A saying as the extension passes it on, checked: the window checks what its service worker answers too. */
+export function asSaying(value: unknown): Saying[] {
+  if (typeof value !== "object" || value === null) {
+    return [];
+  }
+  const { situation, mood, reason, lines } = value as Record<string, unknown>;
+  if (
+    !isText(situation) ||
+    typeof mood !== "string" ||
+    !MOODS.has(mood) ||
+    !isText(reason) ||
+    !Array.isArray(lines) ||
+    lines.length === 0 ||
+    lines.length > 5 ||
+    !lines.every(isText)
+  ) {
+    return [];
+  }
+  return [{ situation, mood: mood as Mood, reason, lines: [...lines] }];
 }
 
 /** The service does not answer: it is not running on this computer. */
@@ -127,6 +179,13 @@ export async function loginLink(fetcher: Fetcher, paired: Paired): Promise<strin
     throw new Refused(response.status, "login_link_answer", "servisin giriş bağlantısı yanıtı anlaşılamadı");
   }
   return found.url;
+}
+
+/** İplikçi Nedim's lines on the money, as the Pano has them, the one to show first (ADR-0020). */
+export async function sayings(fetcher: Fetcher, paired: Paired): Promise<Saying[]> {
+  const response = await call(fetcher, "/api/bridge/sayings", { method: "GET", headers: bearer(paired) });
+  const found = (await response.json()) as { items?: unknown };
+  return Array.isArray(found.items) ? found.items.flatMap(fromService) : [];
 }
 
 export async function cursor(fetcher: Fetcher, paired: Paired): Promise<Cursor> {

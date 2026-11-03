@@ -1,14 +1,16 @@
 /**
  * The bridge's service worker (ADR-0016): every minute (and when the browser starts) it delivers the inbox's new
  * bank messages to the paired service; it pairs with a code typed into the extension's settings page and then scans
- * Gmail for the history the service lacks; it opens the service's interface for "İplikçi Nedim'i aç" (ADR-0019); and
- * it runs the ADR-0016 verification for its own page. All network work happens here, never in a page or a content
+ * Gmail for the history the service lacks; it opens the service's interface for "İplikçi Nedim'i aç" (ADR-0019); it
+ * asks the service for İplikçi Nedim's lines on the money the window shows (ADR-0020); and it runs the ADR-0016
+ * verification for its own page. All network work happens here, never in a page or a content
  * script. The toolbar button opens the extension's window (popup.html); its settings page is options.html.
  */
 
 import { type Request, type Status, asRequest } from "./bridge/messages";
 import { openPanel } from "./bridge/panel";
 import { type RunEnvironment, deliverNew } from "./bridge/run";
+import { hear } from "./bridge/sayings";
 import { scanGmail } from "./bridge/scan";
 import { NotTheService, Refused, ServiceDown, cursor, pair, prove } from "./bridge/service";
 import { type RunSummary, type ScanSummary, chromeStore } from "./bridge/state";
@@ -134,10 +136,13 @@ async function answer(request: Request, from: number | undefined): Promise<unkno
       return status("");
     case "open-panel":
       return openPanel({ service: answeringSoon, tabs: chromePanelTabs }, (await chromeStore.get()).paired);
+    case "sayings":
+      return hear(answeringSoon, (await chromeStore.get()).paired);
   }
 }
 
-/** The service, for "İplikçi Nedim'i aç": the window waits for it, so a service that hangs does not hold it. */
+/** The service, for "İplikçi Nedim'i aç" and his lines: the window waits for it, so a service that hangs does not hold
+ * it. */
 function answeringSoon(url: string, init: RequestInit): Promise<Response> {
   return fetch(url, { ...init, signal: AbortSignal.timeout(PANEL_WAIT_MS) });
 }

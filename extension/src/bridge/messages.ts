@@ -10,7 +10,8 @@ export type Request =
   | { readonly kind: "run" }
   | { readonly kind: "scan" }
   | { readonly kind: "forget" }
-  | { readonly kind: "open-panel" }; // answered with a PanelAnswer (bridge/panel.ts), not a Status
+  | { readonly kind: "open-panel" } // answered with a PanelAnswer (bridge/panel.ts), not a Status
+  | { readonly kind: "sayings" }; // answered with İplikçi Nedim's lines (bridge/sayings.ts), not a Status
 
 /** What the extension's window and its settings page show; the token never leaves the service worker. */
 export interface Status {
@@ -49,6 +50,7 @@ export function asRequest(message: unknown): Request | null {
     case "scan":
     case "forget":
     case "open-panel":
+    case "sayings":
       return { kind };
     default:
       return null;

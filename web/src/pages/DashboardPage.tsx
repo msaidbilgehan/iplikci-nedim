@@ -1,9 +1,10 @@
-// The Pano screen (F06), the home page. The simple view tells the money in pictures, for anyone: the last closed month's
-// money in, out and left, the months as bars, where the money went, the next 30 days and what to do now
-// (dashboard/Overview). The detailed view gives the net worth, this month against the typical month, the payments due
-// within a week, the open alerts, the last seven months' closing, how fresh each account's documents are and how much
-// there is to see to: four of them as figures first, then every card with its table, each saying in one sentence what
-// it shows (the service's `say`) and leading to its screen (`link`).
+// The Pano screen (F06), the home page. İplikçi Nedim has his say first, in both views (dashboard/NedimSays). The
+// simple view tells the money in pictures, for anyone: the last closed month's money in, out and left, the months as
+// bars, where the money went, the next 30 days and what to do now (dashboard/Overview). The detailed view gives the
+// net worth, this month against the typical month, the payments due within a week, the open alerts, the last seven
+// months' closing, how fresh each account's documents are and how much there is to see to: four of them as figures
+// first, then every card with its table, each saying in one sentence what it shows (the service's `say`) and leading
+// to its screen (`link`).
 
 import { useTranslation } from "react-i18next";
 
@@ -13,6 +14,7 @@ import { AlertsCard, DueCard, MonthCard, TodoCard } from "../components/dashboar
 import { ClosingCard } from "../components/dashboard/ClosingCard";
 import { FreshnessCard } from "../components/dashboard/FreshnessCard";
 import { Highlights } from "../components/dashboard/Highlights";
+import { NedimSays } from "../components/dashboard/NedimSays";
 import { NetWorthCard } from "../components/dashboard/NetWorthCard";
 import { Overview } from "../components/dashboard/Overview";
 import { useView } from "../components/Preferences";
@@ -36,6 +38,8 @@ export default function DashboardPage() {
       />
       {dashboard.isPending ? <Loading /> : null}
       {dashboard.isError ? <Failure error={dashboard.error} onRetry={() => void dashboard.refetch()} /> : null}
+      {/* Other lines than before (a new analysis, a new day) start again from the first. */}
+      {found ? <NedimSays key={found.sayings.map((s) => s.quote.id).join()} sayings={found.sayings} /> : null}
       {found ? <Cards found={found} labels={labels} /> : null}
     </div>
   );
