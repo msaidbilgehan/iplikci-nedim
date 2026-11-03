@@ -195,6 +195,18 @@ describe("Layout", () => {
     expect(html).toHaveClass("light");
   });
 
+  it("opens a new screen at its top, and keeps the place when only the screen's address changes", async () => {
+    const scrolled = vi.spyOn(window, "scrollTo");
+    const { location } = renderScreen(<Layout />, { path: "/islemler?kind=income" });
+    await userEvent.click(within(menu()).getByRole("link", { name: "İşlemler" }));
+    expect(location()).toBe("/islemler"); // the same screen, its filters taken off: the place is kept
+    expect(scrolled).not.toHaveBeenCalled();
+    await userEvent.click(within(menu()).getByRole("link", { name: "Hesaplar" }));
+    expect(location()).toBe("/hesaplar");
+    expect(scrolled).toHaveBeenCalledWith(0, 0);
+    scrolled.mockRestore();
+  });
+
   it("switches between the simple and the detailed view from the header, naming the view on its button", async () => {
     renderScreen(<Layout />);
     await userEvent.click(screen.getByRole("button", { name: "Görünüm: Sade" }));

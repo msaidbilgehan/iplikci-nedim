@@ -15,6 +15,10 @@ class StillResizeObserver {
 }
 globalThis.ResizeObserver ??= StillResizeObserver;
 
+// jsdom lays nothing out and scrolls nowhere (it only reports that it cannot): a new screen's return to the top
+// (Layout) does nothing here, and a test that cares spies on it.
+window.scrollTo = () => undefined;
+
 // A busy machine can take more than the default second to answer from the mock service and render the answer.
 configure({ asyncUtilTimeout: 5_000 });
 

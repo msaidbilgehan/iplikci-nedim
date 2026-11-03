@@ -1,12 +1,12 @@
 // The app's frame: a header with the logo and the name, the notification box's bell and the display settings (view and
 // theme, in one small panel), a grouped menu with an icon beside each screen — beside the screen on wide windows,
 // behind a menu button on narrow ones — and a skip link to the content for keyboard users. The menu shows the screens
-// built so far (navigation.ts) and how many notifications are not seen yet.
+// built so far (navigation.ts) and how many notifications are not seen yet. A new screen opens at its top.
 
 import * as Popover from "@radix-ui/react-popover";
-import { type KeyboardEvent, type ReactNode, useId, useRef, useState } from "react";
+import { type KeyboardEvent, type ReactNode, useId, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, NavLink, Outlet, useLocation } from "react-router";
+import { Link, NavLink, Outlet, useLocation, useNavigationType } from "react-router";
 
 import { useUnreadNotifications } from "../api/queries";
 import { useEventStream } from "../hooks/useEventStream";
@@ -25,9 +25,27 @@ const HEADER_BUTTON = cn(
   FOCUS,
 );
 
+/**
+ * A new screen opens at its top, as a page does: a link followed from low on one screen (a chart's bar, a card's step)
+ * must not leave the next one scrolled down to where the last one was. A filter, a part (?bolum=) or a row's detail
+ * changes the address of the same screen and keeps the place; back and forward leave it to the browser's own return.
+ */
+function useScreenStart(): void {
+  const { pathname } = useLocation();
+  const type = useNavigationType();
+  const was = useRef(pathname);
+  useLayoutEffect(() => {
+    if (pathname !== was.current && type !== "POP") {
+      window.scrollTo(0, 0);
+    }
+    was.current = pathname;
+  }, [pathname, type]);
+}
+
 export function Layout() {
   useEventStream();
   useFirstRun();
+  useScreenStart();
   const { t } = useTranslation("shell");
   const { view } = useView();
   const unread = useUnreadNotifications();
