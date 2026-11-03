@@ -14,10 +14,11 @@ from mcp import Client
 from iplikci import demo
 from iplikci.app import accounts, documents, reading, rules, transactions
 from iplikci.app.workspace import BUSY, Busy, Workspace
-from iplikci.domain.codes import Actor, InvoiceKind
+from iplikci.domain.codes import Actor, InvoiceKind, RateSource
 from iplikci.domain.models import Invoice, InvoiceLine
-from iplikci.fakes import Move, teb
+from iplikci.fakes import Move, garanti, teb
 from iplikci.fakes.files import text_pdf
+from iplikci.fx.book import Quote
 from iplikci.invoices import UNPAID_REASON, match
 from iplikci.mcp import tools
 from iplikci.mcp.server import build
@@ -33,7 +34,7 @@ from iplikci.mcp.tools import (
     TOOLS,
     Session,
 )
-from iplikci.storage import audit, events
+from iplikci.storage import audit, events, fx_rates
 
 from conftest import FEBRUARY, JANUARY, add, bank_mail, put
 
@@ -617,13 +618,91 @@ def trading(ws):
 def test_the_rates_are_the_documents_own_each_with_its_day(trading):
     found, failed = call(trading, "fx_rates")
     euro, dollar = found["currencies"]
-    assert not failed and euro["newest"] == {"day": "2026-10-20", "rate": 37.0, "source": "Belgedeki kur"}
+    assert not failed and euro["newest"] == {
+        "day": "2026-10-20",
+        "rate": 37.0,
+        "source": "Belgedeki kur",
+        "buying": None,
+        "selling": None,
+    }
     assert [r["rate"] for r in euro["history"]] == [36.5, 37.0] and euro["historyCount"] == 2  # the oldest first
     assert (dollar["currency"], dollar["newest"]["rate"]) == ("USD", 34.1)
-    assert found["missing"] == ["GR"] and "Aşama 8" in found["note"]
+    assert found["missing"] == ["GR"] and "TCMB ya da ECB kuru henüz alınmadı" in found["note"]
     newest, _ = call(trading, "fx_rates", currency="eur", history=1)
     [only] = newest["currencies"]
     assert only["currency"] == "EUR" and [r["rate"] for r in only["history"]] == [37.0] and only["historyCount"] == 2
+    # Without TCMB's rates the euros and dollars bought cost nothing anyone can tell: counted, not guessed.
+    assert (found["spread"]["leftOut"], found["spread"]["trades"], found["income"]["currencies"]) == (3, [], [])
+
+
+def store(ws, *quotes: Quote) -> None:
+    with ws.db() as db:
+        for day, source in sorted({(q.day, q.source) for q in quotes}):
+            fx_rates.put(db, day, source, [q for q in quotes if (q.day, q.source) == (day, source)])
+
+
+def tcmb(day: date, buying: str, selling: str, currency: str = "EUR") -> Quote:
+    return Quote(day, currency, Decimal(buying), Decimal(selling), RateSource.TCMB)
+
+
+def test_the_rates_come_from_tcmb_with_both_sides_and_the_spread_against_them(trading, ws):
+    store(
+        ws,
+        tcmb(date(2026, 10, 9), "36.3000", "36.4000"),  # Friday's, for the Saturday purchase of 10 October
+        tcmb(date(2026, 10, 15), "34.0000", "34.0500", "USD"),
+        tcmb(date(2026, 10, 20), "36.8000", "36.9000"),
+    )
+    found, failed = call(trading, "fx_rates", history=2)
+    euro, dollar = found["currencies"]
+    assert not failed and euro["newest"] == {
+        "day": "2026-10-20",
+        "rate": 36.8,
+        "source": "TCMB",
+        "buying": 36.8,
+        "selling": 36.9,
+    }
+    assert euro["history"] == [  # on a day with both, the provider's rate first
+        {"day": "2026-10-20", "rate": 36.8, "source": "TCMB"},
+        {"day": "2026-10-20", "rate": 37.0, "source": "Belgedeki kur"},
+    ]
+    spread = found["spread"]
+    assert (spread["from"], spread["to"], spread["leftOut"]) == ("2025-11-06", "2026-11-05", 0)
+    assert [(t["currency"], t["side"], t["bankRate"], t["tcmbRate"], t["costTL"]) for t in spread["trades"]] == [
+        ("EUR", "buy", 36.5, 36.4, 10.0),
+        ("USD", "buy", 34.1, 34.05, 5.0),
+        ("EUR", "buy", 37.0, 36.9, 10.0),
+    ]
+    assert spread["totalTL"] == 25.0 and spread["trades"][0]["sideLabel"] == "Döviz alımı"
+    assert dollar["newest"]["source"] == "TCMB"
+    worth, _ = call(trading, "net_worth")
+    euro_worth = worth["netWorth"]["inOtherUnits"][0]
+    assert (euro_worth["rate"], euro_worth["rateSource"]) == (36.9, "TCMB")  # what buying euros would cost
+
+
+def test_the_foreign_income_is_told_at_todays_rate_with_its_sensitivity(ws):
+    paid = [
+        Move(date(2026, 8, 3), "ORNEK MUSTERI LTD GELEN EFT", Decimal(2000)),
+        Move(date(2026, 9, 3), "ORNEK MUSTERI LTD GELEN EFT", Decimal(2000)),
+    ]
+    period = (date(2026, 8, 1), date(2026, 9, 30))
+    add(ws, "eur.xls", garanti.account_xls(paid, Decimal(0), "9000001", period=period, currency="EUR"))
+    store(ws, tcmb(date(2026, 8, 3), "35.0000", "35.1000"), tcmb(date(2026, 9, 3), "36.0000", "36.1000"))
+    session = Session(ws)
+    session.today = lambda: date(2026, 11, 5)
+    found, failed = call(session, "fx_rates", currency="EUR")
+    [euro] = found["income"]["currencies"]
+    assert not failed and euro["rate"] == {"rate": 36.0, "day": "2026-09-03", "source": "TCMB"}
+    assert [(r["date"], r["amount"], r["countedTL"], r["worthTL"]) for r in euro["rows"]] == [
+        ("2026-08-03", 2000.0, 70000.0, 72000.0),
+        ("2026-09-03", 2000.0, 72000.0, 72000.0),
+    ]
+    sensitivity = euro["sensitivity"]
+    assert (sensitivity["months"], sensitivity["monthly"], sensitivity["changeTL"]) == (
+        ["2026-08", "2026-09"],
+        2000.0,
+        3600.0,
+    )
+    assert "EUR/TRY %5 düşerse aylık gelir 3.600,00 TL azalır" in sensitivity["say"]
 
 
 def test_the_net_worth_is_told_in_other_units_and_gold_shows_its_grams_never_a_guessed_value(trading):

@@ -614,7 +614,7 @@ uygulanır.
 | `upcoming_payments`, `cash_flow_forecast` | – | takvim; hesap başına bakiye öngörüsü |
 | `subscriptions` | – | abonelikler, düzenli ve dönemsel ödemeler |
 | `invoices` | – | banka dışı faturalar ve makbuzlar: durumu, ödeyen banka satırı ya da olası nedenler |
-| `net_worth`, `fx_rates` | – | varlıklar (TL, EUR, USD, altın); belgelerdeki kurlar (kur sağlayıcıları Aşama 8'de) |
+| `net_worth`, `fx_rates` | – | varlıklar (TL, EUR, USD, altın; döviz varlık alış, borç satış kuruyla, kurun günü ve kaynağıyla); kurlar (TCMB, ECB ya da belgelerdeki, alış ve satışıyla), kur makası ve döviz geliri |
 | `alerts` | plan | bildirim kurallarını listele (yalnızca okur), ekle, kapat ya da yeniden aç; kanalların durumu |
 | `annotate_transaction` | plan | not, etiket, kategori ya da gereklilik düzeltmesi |
 

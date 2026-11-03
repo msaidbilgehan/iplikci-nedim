@@ -69,7 +69,8 @@ bildirimleri) gider, gelir, gereklilik ve tahmin raporu üreten, bu bilgisayarda
   yerini, kuralını ve eşleşmelerini; get_document bir belgenin özetini, satırlarını ve metnini sayfa sayfa verir.
   unprocessed_documents işlenmeyen ve okunamayan belgeleri nedenleriyle listeler; reparse_document bir belgeyi
   bugünkü okuyucularla yeniden okutur. feed anlık akışı, accounts_overview hesap haritasını, net_worth net
-  varlığı, fx_rates belgelerdeki kurları verir.
+  varlığı, fx_rates kurları (TCMB, ECB ya da belgelerdeki, kaynağı ve günüyle), kur makasını ve döviz gelirini
+  verir.
 - Uzun listeler sayfa sayfa gelir: sonraki sayfa için yanıttaki nextOffset, nextCursor, nextBefore ya da
   nextPage'i aracın açıklamasındaki gibi verin.
 - Maskeleme açıksa hesap numaraları •••A gibi, IBAN'lar [IBAN], uzun numaralar [numara], kişi adları Kişi 1 gibi

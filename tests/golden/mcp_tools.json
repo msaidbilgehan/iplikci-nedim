@@ -834,7 +834,7 @@
   {
     "name": "net_worth",
     "title": "Net varlık",
-    "description": "Net varlık: varlıklar eksi borçlar TL olarak ve EUR, USD, gram altın karşılığı (belgelerdeki en yeni kurla, günüyle); her varlık ve borç (sıfırın altı borç), değeri, kuru ve belgelerin söylediği yerde maliyeti; varlıkların para birimlerine dağılımı (share: TL değeri olanların içindeki payı); TL değeri olmadığı için toplama girmeyenler, nedenleriyle. Altının fiyatı belgelerde yazmadığından TL değeri verilmez.",
+    "description": "Net varlık: varlıklar eksi borçlar TL olarak ve EUR, USD, gram altın karşılığı (EUR ve USD kur sağlayıcısının, TCMB ya da ECB, en yeni döviz satış kuruyla, yoksa belgelerdeki en yeni kurla; kurun günü ve kaynağıyla); her varlık ve borç (sıfırın altı borç), değeri, kuru (döviz varlık alış, döviz borç satış kuruyla), kurun günü ve kaynağı (rateSource) ve belgelerin söylediği yerde maliyeti; varlıkların para birimlerine dağılımı (share: TL değeri olanların içindeki payı); TL değeri olmadığı için toplama girmeyenler, nedenleriyle. Altının fiyatı belgelerde yazmadığından TL değeri verilmez.",
     "inputSchema": {
       "type": "object",
       "properties": {},
@@ -851,15 +851,15 @@
   },
   {
     "name": "fx_rates",
-    "title": "Döviz kurları",
-    "description": "Belgelerdeki döviz kurları: bankaların döviz alım-satım satırlarından, para birimi başına en yenisi (ekranlar değerlemede bunu kullanır) ve tarihçesi, her biri günüyle. Kur sağlayıcıları (TCMB, ECB) Aşama 8'de gelecek; şimdilik ağdan kur alınmaz. missing: hesabı olup hiçbir belgede kuru geçmeyen para birimleri.",
+    "title": "Döviz kurları, kur makası ve döviz geliri",
+    "description": "Döviz kurları, kur makası ve döviz geliri. currencies: para birimi başına en yeni kur, kur sağlayıcısının (TCMB; ulaşılamadığı günlerde ECB) ya da onun vermediği birimde belgelerdeki (bankaların döviz alım-satım satırları); source kaynağı, buying ve selling sağlayıcının alış ve satış kuru (ekranlar döviz varlığı alış, borcu satış kuruyla değerler), tarihçe sağlayıcıların son 90 günü ve belgelerdeki bütün kurlar, her biri günü ve kaynağıyla. missing: hesabı olup kuru hiçbir yerde olmayan para birimleri. spread (kur makası): son 12 ayda kendi hesaplar arası döviz alım-satımlarında bankanın kuru ile aynı günün TCMB kuru arasındaki fark (alımda TCMB döviz satış, satışta döviz alış kuru; hafta sonunda cumanın kuru), yurt dışı kart harcamalarında kartın kuru (TL ÷ döviz tutarı) ile TCMB döviz satış kuru arasındaki fark; her işlem farkıyla (costTL, eksi: banka daha iyi) ve toplamlar; leftOut: TCMB kuru olmadığı için toplama girmeyen işlem sayısı. income (döviz geliri): döviz hesaplarına gelen gelir, son 12 ayın satırları defterin saydığı ve bugünkü kurla TL karşılıklarıyla, TL'ye çevrildiği satışlar, kur duyarlılığı (yalnızca tam aylardan, ayları months'ta; changeTL kurun %5 değişmesinin aylık gelire etkisi).",
     "inputSchema": {
       "type": "object",
       "properties": {
         "currency": {
           "type": "string",
           "pattern": "[A-Za-z]{3}",
-          "description": "yalnızca bu para birimi (ör. EUR)"
+          "description": "yalnızca bu para biriminin kurları ve geliri (ör. EUR); kur makası hep bütün işlemlerle"
         },
         "history": {
           "type": "integer",
@@ -872,7 +872,7 @@
       "additionalProperties": false
     },
     "annotations": {
-      "title": "Döviz kurları",
+      "title": "Döviz kurları, kur makası ve döviz geliri",
       "readOnlyHint": true,
       "destructiveHint": false,
       "idempotentHint": true,

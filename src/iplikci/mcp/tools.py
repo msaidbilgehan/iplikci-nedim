@@ -36,6 +36,7 @@ from ..domain.codes import (
     EventKind,
     InvoiceStatus,
     Necessity,
+    RateSource,
     SeriesPeriod,
     SourceKind,
     TransactionKind,
@@ -1279,7 +1280,9 @@ def _explain(s: Session, args: Args) -> Json:
             "stepLabel": label(why.transfer),
             "pair": None if why.pair is None else _row_view(why.pair, names),
         },
-        "rate": None if why.rate is None else {"rate": why.rate, "day": why.rate_day, "source": "belgedeki kur"},
+        "rate": None
+        if why.rate is None
+        else {"rate": why.rate, "day": why.rate_day, "source": label(why.rate_source or RateSource.DOCUMENT)},
         "evidence": [
             {
                 "fingerprint": t.fingerprint,
@@ -1792,7 +1795,14 @@ def _net_worth(s: Session, args: Args) -> Json:
             "parts": [{"account": names.get(p.account, p.account), "valueTL": p.value} for p in w.parts],
             "leftOut": [{"account": names.get(u.account, u.account), "reason": u.reason} for u in w.left_out],
             "inOtherUnits": [
-                {"currency": c.currency, "amount": c.amount, "rate": c.rate, "rateDay": c.rate_day, "note": c.note}
+                {
+                    "currency": c.currency,
+                    "amount": c.amount,
+                    "rate": c.rate,
+                    "rateDay": c.rate_day,
+                    "rateSource": _source(c.rate_source),
+                    "note": c.note,
+                }
                 for c in w.currencies
             ],
             "note": w.note,
@@ -1807,6 +1817,7 @@ def _net_worth(s: Session, args: Args) -> Json:
                 "valueTL": h.value,
                 "rate": h.rate,
                 "rateDay": h.rate_day,
+                "rateSource": _source(h.rate_source),
                 "cost": h.cost,
                 "gain": h.gain,
                 "day": h.day,
@@ -1829,24 +1840,123 @@ def _net_worth(s: Session, args: Args) -> Json:
     }
 
 
+def _source(source: RateSource | None) -> str | None:
+    return None if source is None else label(source)
+
+
+def _spread_row(r: holdings.SpreadRow, names: Mapping[str, str]) -> Json:
+    return {
+        "fingerprint": r.fingerprint,
+        "date": r.day,
+        "account": names.get(r.account, r.account),
+        "title": r.title,
+        "side": r.side,
+        "sideLabel": label(r.side),
+        "currency": r.currency,
+        "amount": r.amount,
+        "amountTL": r.tl,
+        "bankRate": r.rate,
+        "tcmbRate": r.tcmb,
+        "tcmbDay": r.tcmb_day,
+        "costTL": r.cost,
+    }
+
+
+def _spread_view(found: holdings.Spread, names: Mapping[str, str]) -> Json:
+    return {
+        "from": found.start,
+        "to": found.end,
+        "totalTL": found.total,
+        "trades": [_spread_row(r, names) for r in found.trades],
+        "tradesTL": found.trades_cost,
+        "cardPurchases": [_spread_row(r, names) for r in found.purchases],
+        "cardPurchasesTL": found.purchases_cost,
+        "leftOut": found.left_out,
+        "note": found.note,
+    }
+
+
+def _income_view(c: holdings.CurrencyIncome, names: Mapping[str, str]) -> Json:
+    s = c.sensitivity
+    return {
+        "currency": c.currency,
+        "rate": None if c.rate is None else {"rate": c.rate.rate, "day": c.rate.day, "source": label(c.rate.source)},
+        "rows": [
+            {
+                "fingerprint": r.fingerprint,
+                "date": r.day,
+                "account": names.get(r.account, r.account),
+                "title": r.title,
+                "amount": r.amount,
+                "countedTL": r.counted,
+                "worthTL": r.worth,
+            }
+            for r in c.rows
+        ],
+        "received": c.received,
+        "worthTL": c.worth,
+        "sold": [
+            {
+                "fingerprint": x.fingerprint,
+                "date": x.day,
+                "account": names.get(x.account, x.account),
+                "amount": x.amount,
+                "amountTL": x.tl,
+                "rate": x.rate,
+            }
+            for x in c.sold
+        ],
+        "sensitivity": None
+        if s is None
+        else {
+            "months": list(s.months),
+            "received": s.received,
+            "monthly": s.monthly,
+            "monthlyTL": s.monthly_tl,
+            "changeTL": s.change,
+            "say": s.say,
+        },
+        "note": c.note,
+    }
+
+
 def _fx_rates(s: Session, args: Args) -> Json:
-    found = holdings.rates(s.current.get())
+    a = s.current.get()
+    found = holdings.rates(a)
     wanted = str(args.get("currency", "")).upper()
     keep = args.get("history", 10)
+    names, today = _bank_labels(a), s.today()
+    income = holdings.foreign_income(a, today)
     return {
         "currencies": [
             {
                 "currency": c.currency,
-                "newest": {"day": c.newest.day, "rate": c.newest.rate, "source": label(c.newest.source)},
-                "history": [{"day": r.day, "rate": r.rate} for r in c.history[-keep:]] if keep else [],
+                "newest": {
+                    "day": c.newest.day,
+                    "rate": c.newest.rate,
+                    "source": label(c.newest.source),
+                    "buying": c.newest.buying,
+                    "selling": c.newest.selling,
+                },
+                "history": [{"day": r.day, "rate": r.rate, "source": label(r.source)} for r in c.history[-keep:]]
+                if keep
+                else [],
                 "historyCount": len(c.history),
             }
             for c in found.currencies
             if not wanted or c.currency == wanted
         ],
         "missing": found.missing,
-        "note": f"{found.note} Kur sağlayıcıları Aşama 8'de gelecek. rate: bir birimin TL karşılığı; history en "
-        "eskiden en yeniye, en yeni kurlarla sınırlı (historyCount: hepsinin sayısı).",
+        "spread": _spread_view(holdings.spread(a, today), names),
+        "income": {
+            "from": income.start,
+            "to": income.end,
+            "currencies": [_income_view(c, names) for c in income.currencies if not wanted or c.currency == wanted],
+            "note": income.note,
+        },
+        "note": f"{found.note} rate: bir birimin TL karşılığı (sağlayıcının alış kuru ya da belgedeki kur); history "
+        "en eskiden en yeniye, en yeni kurlarla sınırlı (historyCount: hepsinin sayısı). spread ve income son 12 ayın; "
+        "currency verilirse yalnızca o para biriminin kurları ve geliri gelir, kur makası bütün işlemleriyle gelir.",
     }
 
 
@@ -2243,21 +2353,36 @@ TOOLS = (
     Tool(
         "net_worth",
         "Net varlık",
-        "Net varlık: varlıklar eksi borçlar TL olarak ve EUR, USD, gram altın karşılığı (belgelerdeki en yeni kurla, "
-        "günüyle); her varlık ve borç (sıfırın altı borç), değeri, kuru ve belgelerin söylediği yerde maliyeti; "
-        "varlıkların para birimlerine dağılımı (share: TL değeri olanların içindeki payı); TL değeri olmadığı için "
-        "toplama girmeyenler, nedenleriyle. Altının fiyatı belgelerde yazmadığından TL değeri verilmez.",
+        "Net varlık: varlıklar eksi borçlar TL olarak ve EUR, USD, gram altın karşılığı (EUR ve USD kur "
+        "sağlayıcısının, TCMB ya da ECB, en yeni döviz satış kuruyla, yoksa belgelerdeki en yeni kurla; kurun günü ve "
+        "kaynağıyla); her varlık ve borç (sıfırın altı borç), değeri, kuru (döviz varlık alış, döviz borç satış "
+        "kuruyla), kurun günü ve kaynağı (rateSource) ve belgelerin söylediği yerde maliyeti; varlıkların para "
+        "birimlerine dağılımı (share: TL değeri olanların içindeki payı); TL değeri olmadığı için toplama girmeyenler, "
+        "nedenleriyle. Altının fiyatı belgelerde yazmadığından TL değeri verilmez.",
         _schema(),
         _net_worth,
     ),
     Tool(
         "fx_rates",
-        "Döviz kurları",
-        "Belgelerdeki döviz kurları: bankaların döviz alım-satım satırlarından, para birimi başına en yenisi (ekranlar "
-        "değerlemede bunu kullanır) ve tarihçesi, her biri günüyle. Kur sağlayıcıları (TCMB, ECB) Aşama 8'de "
-        "gelecek; şimdilik ağdan kur alınmaz. missing: hesabı olup hiçbir belgede kuru geçmeyen para birimleri.",
+        "Döviz kurları, kur makası ve döviz geliri",
+        "Döviz kurları, kur makası ve döviz geliri. currencies: para birimi başına en yeni kur, kur sağlayıcısının "
+        "(TCMB; ulaşılamadığı günlerde ECB) ya da onun vermediği birimde belgelerdeki (bankaların döviz alım-satım "
+        "satırları); source kaynağı, buying ve selling sağlayıcının alış ve satış kuru (ekranlar döviz varlığı alış, "
+        "borcu satış kuruyla değerler), tarihçe sağlayıcıların son 90 günü ve belgelerdeki bütün kurlar, her biri günü "
+        "ve kaynağıyla. missing: hesabı olup kuru hiçbir yerde olmayan para birimleri. spread (kur makası): son 12 ayda "
+        "kendi hesaplar arası döviz alım-satımlarında bankanın kuru ile aynı günün TCMB kuru arasındaki fark (alımda "
+        "TCMB döviz satış, satışta döviz alış kuru; hafta sonunda cumanın kuru), yurt dışı kart harcamalarında kartın "
+        "kuru (TL ÷ döviz tutarı) ile TCMB döviz satış kuru arasındaki fark; her işlem farkıyla (costTL, eksi: banka "
+        "daha iyi) ve toplamlar; leftOut: TCMB kuru olmadığı için toplama girmeyen işlem sayısı. income (döviz "
+        "geliri): döviz hesaplarına gelen gelir, son 12 ayın satırları defterin saydığı ve bugünkü kurla TL "
+        "karşılıklarıyla, TL'ye çevrildiği satışlar, kur duyarlılığı (yalnızca tam aylardan, ayları months'ta; "
+        "changeTL kurun %5 değişmesinin aylık gelire etkisi).",
         _schema(
-            currency={"type": "string", "pattern": "[A-Za-z]{3}", "description": "yalnızca bu para birimi (ör. EUR)"},
+            currency={
+                "type": "string",
+                "pattern": "[A-Za-z]{3}",
+                "description": "yalnızca bu para biriminin kurları ve geliri (ör. EUR); kur makası hep bütün işlemlerle",
+            },
             history={
                 "type": "integer",
                 "minimum": 0,
