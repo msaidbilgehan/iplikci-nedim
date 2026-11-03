@@ -1,18 +1,19 @@
 // Where a month's money went (F11): its spending by main group, each in the group's fixed colour, and the merchants
 // it went to most; the detailed view adds the necessity levels and the categories and merchants in full. A group, a
-// level, a category or a merchant leads to its rows of the month on the Transactions screen.
+// level, a category or a merchant leads to its spending of the month on the Transactions screen: its purchases,
+// refunds, interest and fees, which add up to its amount.
 
 import { useTranslation } from "react-i18next";
 
 import type { Destination, MonthEndDetail, MonthEndShare } from "../../api/types";
 import { formatMoney } from "../../lib/format";
+import { monthRows, monthSpending } from "../../lib/rows";
 import { HBars } from "../charts/HBars";
 import { slotOf } from "../charts/palette";
 import { Detailed, Simple } from "../Preferences";
 import { Card } from "../ui/Card";
 import { Say, ScreenLink } from "../ui/Say";
 import { Table, Td, Th } from "../ui/Table";
-import { monthRows } from "./parts";
 
 const TOP = 5; // the merchants the simple view names
 
@@ -51,7 +52,7 @@ export function SpendingCard({ detail }: { detail: MonthEndDetail }) {
           title={t("spending.groups")}
           summary={t("spending.groupsSay", { month, count: detail.groups.length, total: formatMoney(total) })}
           itemName={t("spending.group")}
-          items={bars(detail.groups, (share) => monthRows(month, { group: share.name }))}
+          items={bars(detail.groups, (share) => monthSpending(month, { group: share.name }))}
         />
         <Simple>
           <div className="flex flex-col gap-2">
@@ -59,7 +60,7 @@ export function SpendingCard({ detail }: { detail: MonthEndDetail }) {
             <ol className="flex flex-col gap-1 text-sm">
               {detail.merchants.slice(0, TOP).map((share) => (
                 <li key={share.name} className="flex flex-wrap items-baseline justify-between gap-x-3">
-                  <ScreenLink link={monthRows(month, { merchant: share.name })}>{share.name}</ScreenLink>
+                  <ScreenLink link={monthSpending(month, { merchant: share.name })}>{share.name}</ScreenLink>
                   <span className="whitespace-nowrap tabular-nums">{formatMoney(share.amount)}</span>
                 </li>
               ))}
@@ -72,20 +73,20 @@ export function SpendingCard({ detail }: { detail: MonthEndDetail }) {
               title={t("spending.levels")}
               summary={t("spending.levelsSay", { month })}
               itemName={t("spending.level")}
-              items={bars(detail.levels, (share) => monthRows(month, { necessity: share.code }))}
+              items={bars(detail.levels, (share) => monthSpending(month, { necessity: share.code }))}
             />
           ) : null}
           <SharesTable
             title={t("spending.categories")}
             name={t("spending.category")}
             shares={detail.categories}
-            link={(share) => monthRows(month, { category: share.name })}
+            link={(share) => monthSpending(month, { category: share.name })}
           />
           <SharesTable
             title={t("spending.merchants")}
             name={t("spending.merchant")}
             shares={detail.merchants}
-            link={(share) => monthRows(month, { merchant: share.name })}
+            link={(share) => monthSpending(month, { merchant: share.name })}
           />
         </Detailed>
       </div>
@@ -97,7 +98,7 @@ interface SharesTableProps {
   title: string;
   name: string; // what the rows are: "Kategori", "İşyeri"
   shares: readonly MonthEndShare[];
-  link: (share: MonthEndShare) => ReturnType<typeof monthRows>;
+  link: (share: MonthEndShare) => Destination;
 }
 
 /** The categories or the merchants of the month, the most spent first, each leading to its rows. */

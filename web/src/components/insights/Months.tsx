@@ -1,6 +1,7 @@
 // The months of the spending (F10, the MVP report's "Aylık giderler" and "Gerekli ve gereksiz harcamalar"): stacked by
 // group, then by necessity level, each group and level in its fixed colour slot; their table view is a heat table whose
-// averages count the whole months alone. The level tiles narrow every card to one level, as the MVP's did.
+// averages count the whole months alone. The level tiles narrow every card to one level, as the MVP's did. A month, or
+// one group or level of it, leads to the rows the card counts there, with the screen's filters.
 
 import { useTranslation } from "react-i18next";
 
@@ -13,15 +14,16 @@ import { SLOT_BG } from "../charts/palette";
 import { StackedBars } from "../charts/StackedBars";
 import { Card } from "../ui/Card";
 import { Habits } from "./Habits";
-import { stackOf } from "./query";
+import { monthRowsOf, stackOf } from "./query";
 
 function periodOf(found: Spending): { from: string; to: string } {
   return { from: formatMonth(found.period?.start ?? ""), to: formatMonth(found.period?.end ?? "") };
 }
 
-export function MonthlyCard({ found }: { found: Spending }) {
+export function MonthlyCard({ found, params }: { found: Spending; params: URLSearchParams }) {
   const { t } = useTranslation("insights");
   const stack = stackOf(found.by_group, (key) => key);
+  const linkOf = (month: string, group: string | null) => monthRowsOf(params, month, group ? { group } : {});
   const { tiles } = found;
   const summary = [
     t("monthly.summary", periodOf(found)),
@@ -38,8 +40,19 @@ export function MonthlyCard({ found }: { found: Spending }) {
         months={stack.months}
         partial={stack.partial}
         table={
-          <HeatTable caption={t("monthly.chart")} series={stack.series} months={stack.months} partial={stack.partial} />
+          <HeatTable
+            caption={t("monthly.chart")}
+            series={stack.series}
+            months={stack.months}
+            partial={stack.partial}
+            linkOf={linkOf}
+          />
         }
+        open={{
+          link: ({ month, series }) => linkOf(month, series),
+          hint: t("monthly.openHint"),
+          what: (s) => (s ? t("monthly.openGroup", { group: s.label }) : t("monthly.openMonth")),
+        }}
       />
     </Card>
   );
@@ -51,11 +64,13 @@ interface NecessityCardProps {
   labels: Labels;
   chosen: readonly string[]; // the necessity levels the address narrows to
   onChoose: (level: string | null) => void; // one level alone, or every level again
+  params: URLSearchParams; // the screen's filters, which a month's rows keep
 }
 
-export function NecessityCard({ found, insights, labels, chosen, onChoose }: NecessityCardProps) {
+export function NecessityCard({ found, insights, labels, chosen, onChoose, params }: NecessityCardProps) {
   const { t } = useTranslation("insights");
   const stack = stackOf(found.by_level, (key) => labelOf(labels, "Necessity", key));
+  const linkOf = (month: string, level: string | null) => monthRowsOf(params, month, level ? { necessity: level } : {});
   const whole = stack.months.filter((m) => !stack.partial.includes(m.month));
   const totalOf = (key: string) => stack.months.reduce((sum, m) => sum + (m.values[key] ?? 0), 0);
   const grand = stack.series.reduce((sum, s) => sum + totalOf(s.key), 0);
@@ -121,8 +136,15 @@ export function NecessityCard({ found, insights, labels, chosen, onChoose }: Nec
             series={stack.series}
             months={stack.months}
             partial={stack.partial}
+            linkOf={linkOf}
           />
         }
+        open={{
+          link: ({ month, series }) => linkOf(month, series),
+          hint: t("necessity.openHint"),
+          what: (s) =>
+            s ? t("necessity.openLevel", { level: s.label.toLocaleLowerCase("tr-TR") }) : t("necessity.openMonth"),
+        }}
       />
       {insights ? <Habits found={insights} labels={labels} /> : null}
     </Card>

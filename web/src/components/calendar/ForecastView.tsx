@@ -1,7 +1,8 @@
 // Each TL account's balance day by day for the next sixty days (F09): a line per account, the part below zero hatched
 // and the day an account goes under it marked, with the table of every day's balance. Each account says where its
 // forecast starts and what it assumes, which account a payment leaves from among them; the items no account takes and
-// the accounts left out are named. Everything here is an estimate, labelled so.
+// the accounts left out are named. Everything here is an estimate, labelled so. A day of the chart leads to what is
+// expected on it, in the list above (?gun=).
 
 import { useTranslation } from "react-i18next";
 
@@ -96,6 +97,11 @@ function Balances({ forecast }: { forecast: Forecast }) {
           day: a.negative?.day ?? "",
           label: t("forecast.marker", { account: a.account.label }),
         }))}
+        open={{
+          link: (day) => ({ screen: "calendar", id: day, query: {} }),
+          hint: t("forecast.openHint"),
+          what: t("forecast.openWhat"),
+        }}
       />
       <SummaryTable accounts={accounts} />
       {accounts.map((a) => (

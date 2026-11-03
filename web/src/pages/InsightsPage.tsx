@@ -194,7 +194,9 @@ export default function InsightsPage() {
                   label: t("sections.income"),
                   content: () => (
                     <>
-                      {found ? <FlowCard found={found} insights={insights.data} labels={labels} /> : null}
+                      {found ? (
+                        <FlowCard found={found} insights={insights.data} labels={labels} params={params} />
+                      ) : null}
                       <DashboardPart query={dashboard} labels={labels} />
                       {insights.data ? <DebtCard insights={insights.data} /> : null}
                     </>
@@ -205,7 +207,7 @@ export default function InsightsPage() {
                   label: t("sections.ahead"),
                   content: () => (
                     <>
-                      {found ? <ForecastCard found={found.forecast} labels={labels} /> : null}
+                      {found ? <ForecastCard found={found.forecast} labels={labels} params={params} /> : null}
                       <RegularPart subscriptions={subscriptions} rules={rules} params={params} />
                     </>
                   ),
@@ -251,13 +253,14 @@ function SpendingCards({ found, insights, labels, params }: SpendingCardsProps) 
     );
   return (
     <>
-      <MonthlyCard found={found} />
+      <MonthlyCard found={found} params={params} />
       <NecessityCard
         found={found}
         insights={insights}
         labels={labels}
         chosen={params.getAll("necessity")}
         onChoose={chooseLevel}
+        params={params}
       />
       <div className={pair}>
         <CategoriesCard found={found} />

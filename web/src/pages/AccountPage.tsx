@@ -132,8 +132,13 @@ function Sections({ found, labels }: { found: Page; labels: Labels }) {
                 {found.loan ? <LoanDetails loan={found.loan} labels={labels} /> : null}
               </div>
               {found.card ? <CardDetails card={found.card} labels={labels} /> : null}
-              <CurveCard curve={found.curve} note={found.curve_note} label={item.account.label} />
-              <MonthsCard months={found.months} />
+              <CurveCard
+                account={item.account.id}
+                curve={found.curve}
+                note={found.curve_note}
+                label={item.account.label}
+              />
+              <MonthsCard account={item.account.id} months={found.months} />
             </>
           ),
         },
@@ -145,7 +150,7 @@ function Sections({ found, labels }: { found: Page; labels: Labels }) {
             <div className={grid}>
               <SeriesCard title={t("payments.title")} series={found.payments} labels={labels} />
               <SeriesCard title={t("income.title")} series={found.income} labels={labels} />
-              <FeesCard fees={found.fees} />
+              <FeesCard account={item.account.id} fees={found.fees} />
             </div>
           ),
         },

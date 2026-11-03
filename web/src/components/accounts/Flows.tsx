@@ -1,7 +1,7 @@
 // Where the money went between the accounts (F07's Sankey and its table): from the payers of income into the
 // accounts, between them, and out to the spending groups, people, savings, loans and cash, over a window of days the
 // address keeps (?from=&to=); without one, the service's newest complete month. Every band leads to its rows on the
-// Transactions screen.
+// Transactions screen, from the drawing and from the table alike.
 
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
@@ -172,6 +172,10 @@ function FlowChart({ flows, labels, categories }: FlowChartProps) {
         points={points}
         bands={bands}
         table={table}
+        open={{
+          link: (key) => flows.edges.find((edge) => `${edge.source}>${edge.target}` === key)?.link ?? null,
+          hint: t("flows.openHint"),
+        }}
       />
       {flows.note ? (
         <Explain>

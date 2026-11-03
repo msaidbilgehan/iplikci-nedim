@@ -2101,11 +2101,14 @@ function monthRow(month: string, values: number[], partial = false) {
   return { month, values: values.map(tl), partial };
 }
 
-const rowsOf = (query: Record<string, string>) => ({
+const rowsOf = (query: Record<string, string | string[]>) => ({
   screen: "transactions" as const,
   id: "",
   query,
 });
+// A spending line's rows as the service links them: the card's days and the spending's kinds, with the line's own key.
+const spentOf = (query: Record<string, string>) =>
+  rowsOf({ from: "2026-05-01", to: "2026-10-31", kind: ["interest_fee", "purchase", "refund"], ...query });
 const SIX = ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10"];
 const WHOLE_MONTHS = SIX.filter((month) => month !== "2026-07");
 const AHEAD = ["2026-11", "2026-12", "2027-01"];
@@ -2222,7 +2225,7 @@ export const SPENDING: Spending = {
   ].map((line) => ({
     ...line,
     average: tl(Math.round(line.total.minor / 5)),
-    link: rowsOf({ category: line.category }),
+    link: spentOf({ category: line.category }),
   })),
   merchants: [
     ["Ev Sahibi Örnek", "Kira", "Ev & Faturalar", 3, 5, 7500000, "2026-10-03"],
@@ -2254,7 +2257,7 @@ export const SPENDING: Spending = {
     last: String(last),
     total: tl(Number(total)),
     per_row: tl(Math.round(Number(total) / Number(count))),
-    link: rowsOf({ merchant: String(merchant) }),
+    link: spentOf({ merchant: String(merchant) }),
   })),
   flow: [
     flowMonth("2026-05", 4000000, 2000000),

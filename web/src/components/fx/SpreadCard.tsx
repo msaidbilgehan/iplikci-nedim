@@ -1,6 +1,6 @@
 // How the assets spread over currencies (F12): each unit's TL value as a bar in its own colour, with the table of the
 // same; the assets of a unit without a rate (gold, whose price no document prints) are named apart, outside the bars
-// and the shares, with their amounts in their own unit.
+// and the shares, with their amounts in their own unit. A unit one account holds alone leads to that account's page.
 
 import { useTranslation } from "react-i18next";
 
@@ -16,12 +16,16 @@ export function SpreadCard({ spread }: { spread: CurrencyShare[] }) {
   const { t } = useTranslation("fx");
   const valued = spread.filter((s) => s.value !== null);
   const unvalued = spread.filter((s) => s.value === null);
-  const items: BarItem[] = valued.map((s) => ({
-    key: s.currency,
-    label: currencyName(t, s.currency),
-    value: s.value?.minor ?? 0,
-    slot: currencySlot(s.currency),
-  }));
+  const items: BarItem[] = valued.map((s) => {
+    const [only, ...more] = s.accounts;
+    return {
+      key: s.currency,
+      label: currencyName(t, s.currency),
+      value: s.value?.minor ?? 0,
+      slot: currencySlot(s.currency),
+      ...(only && more.length === 0 ? { link: { screen: "account" as const, id: only.id, query: {} } } : {}),
+    };
+  });
   const largest = valued[0];
   const total = valued.reduce((sum, s) => sum + (s.value?.minor ?? 0), 0);
   return (

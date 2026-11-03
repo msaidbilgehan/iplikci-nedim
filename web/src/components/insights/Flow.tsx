@@ -1,23 +1,42 @@
 // "Gelir ve gider" (the MVP report's cash flow): the months an account list covers, the income rising above the axis
 // and the spending hanging below it, each column's sum the month's net. Its table adds what went to people, to debt
 // principal and to savings, and what was left after all of it; the averages count the whole months alone. Under it,
-// the regular income the interpretation found, which no filter changes.
+// the regular income the interpretation found, which no filter changes. A month's income and spending lead to their
+// rows, in the chart and in its table, as do the table's money to people, to debt and to savings.
 
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { FlowMonth, Insights, Labels, Spending } from "../../api/types";
+import type { Destination, FlowMonth, Insights, Labels, Spending } from "../../api/types";
 import { cn } from "../../lib/cn";
 import { formatDay, formatMoney, formatMonth } from "../../lib/format";
 import { labelOf } from "../../lib/labels";
 import { StackedBars } from "../charts/StackedBars";
 import { Badge } from "../ui/Badge";
 import { Card } from "../ui/Card";
+import { ScreenLink } from "../ui/Say";
 import { Table, Td, Th } from "../ui/Table";
+import { monthKindOf, monthRowsOf } from "./query";
 
 const SMALL = "text-xs text-zinc-600 dark:text-zinc-300";
 const COLUMNS = ["income", "expense", "net", "people", "debt", "saving", "left"] as const;
 type Column = (typeof COLUMNS)[number];
+// The kind of the rows each column of money counts, but the spending's, which is the spending cards' own.
+const KINDS: Partial<Record<Column, string>> = {
+  income: "income",
+  people: "p2p_transfer",
+  debt: "loan_principal",
+  saving: "investment",
+};
+
+/** Where a month's column leads: its rows on the İşlemler screen, with the screen's filters; net and left nowhere. */
+function rowsOf(params: URLSearchParams, month: string, column: Column): Destination | null {
+  const kind = KINDS[column];
+  if (kind) {
+    return monthKindOf(params, month, kind);
+  }
+  return column === "expense" ? monthRowsOf(params, month) : null;
+}
 
 /** Each column's average over the whole months, in minor units; null without one. */
 function averages(months: readonly FlowMonth[]): Record<Column, number> | null {
@@ -33,9 +52,10 @@ interface FlowCardProps {
   found: Spending;
   insights: Insights | undefined; // the regular income under the months; none until it arrives
   labels: Labels;
+  params: URLSearchParams; // the screen's filters, which a month's rows keep
 }
 
-export function FlowCard({ found, insights, labels }: FlowCardProps) {
+export function FlowCard({ found, insights, labels, params }: FlowCardProps) {
   const { t } = useTranslation("insights");
   const months = found.flow;
   const first = months[0]?.month;
@@ -75,7 +95,13 @@ export function FlowCard({ found, insights, labels }: FlowCardProps) {
             partial={months.filter((m) => m.partial).map((m) => m.month)}
             totalLabel={t("flow.net")}
             currency={currency}
-            table={<FlowTable months={months} average={average} currency={currency} />}
+            table={<FlowTable months={months} average={average} currency={currency} params={params} />}
+            open={{
+              link: ({ month, series }) =>
+                series === "income" || series === "expense" ? rowsOf(params, month, series) : null,
+              hint: t("flow.openHint"),
+              what: (s) => (s?.key === "income" ? t("flow.openIncome") : t("flow.openExpense")),
+            }}
           />
         </>
       ) : (
@@ -90,9 +116,10 @@ interface FlowTableProps {
   months: readonly FlowMonth[];
   average: Record<Column, number> | null;
   currency: string;
+  params: URLSearchParams;
 }
 
-function FlowTable({ months, average, currency }: FlowTableProps) {
+function FlowTable({ months, average, currency, params }: FlowTableProps) {
   const { t } = useTranslation("insights");
   const { t: tc } = useTranslation("charts");
   const money = (minor: number) => formatMoney({ minor, currency });
@@ -119,11 +146,14 @@ function FlowTable({ months, average, currency }: FlowTableProps) {
             <Th scope="row" className="font-normal whitespace-nowrap text-zinc-900 dark:text-zinc-100">
               {m.partial ? tc("partialMonth", { month: formatMonth(m.month) }) : formatMonth(m.month)}
             </Th>
-            {COLUMNS.map((column) => (
-              <Td key={column} className={cn(NUMBER, (column === "net" || column === "left") && "font-medium")}>
-                {formatMoney(m[column])}
-              </Td>
-            ))}
+            {COLUMNS.map((column) => {
+              const link = m[column].minor === 0 ? null : rowsOf(params, m.month, column);
+              return (
+                <Td key={column} className={cn(NUMBER, (column === "net" || column === "left") && "font-medium")}>
+                  {link ? <ScreenLink link={link}>{formatMoney(m[column])}</ScreenLink> : formatMoney(m[column])}
+                </Td>
+              );
+            })}
           </tr>
         ))}
       </tbody>

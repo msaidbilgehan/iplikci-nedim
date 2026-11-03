@@ -78,7 +78,10 @@
     "title": "Aylık giderler",
     "chart": "Aylık giderler, ana gruplara göre",
     "summary": "{{from}} – {{to}}, ana gruplara göre.",
-    "average": "Tam aylarda aylık ortalama {{amount}} ({{count}} ay)."
+    "average": "Tam aylarda aylık ortalama {{amount}} ({{count}} ay).",
+    "openHint": "Bir aya ya da bir gruba tıklayın: o harcamalar listelenir.",
+    "openMonth": "bu ayın harcamaları",
+    "openGroup": "bu ayın {{group}} harcamaları"
   },
   "necessity": {
     "title": "Gerekli ve gereksiz harcamalar",
@@ -89,7 +92,10 @@
     "tileMeta": "{{share, percentOrLess}} · tam aylarda ayda {{amount}}",
     "tileShare": "{{share, percentOrLess}}",
     "only": "(yalnızca bu düzeyi göster)",
-    "all": "(bütün düzeyleri göster)"
+    "all": "(bütün düzeyleri göster)",
+    "openHint": "Bir aya ya da bir düzeye tıklayın: o harcamalar listelenir.",
+    "openMonth": "bu ayın harcamaları",
+    "openLevel": "bu ayın {{level}} harcamaları"
   },
   "habits": {
     "title": "Alışkanlıklar ve tasarruf fırsatları",
@@ -123,7 +129,10 @@
     "saving": "Birikim ve yatırım",
     "left": "Hepsinden sonra kalan",
     "month": "Ay",
-    "total": "Toplam"
+    "total": "Toplam",
+    "openHint": "Bir ayın gelirine ya da giderine tıklayın: o işlemler listelenir.",
+    "openIncome": "bu ayın gelirleri",
+    "openExpense": "bu ayın giderleri"
   },
   "forecast": {
     "title": "Önümüzdeki aylar",
@@ -157,7 +166,8 @@
     "otherRow": "Kişilere ve borç ödemelerine giden (son altı ayın medyanı; düzensiz)",
     "leftRow": "Hepsinden sonra kalan",
     "say": "{{month}} için tahmini gider {{amount}}; beklenen gelirle ayın sonunda {{left}} kalır.",
-    "sayNoIncome": "{{month}} için tahmini gider {{amount}}; düzenli gelir bulunamadığı için kalan tahmin edilmedi."
+    "sayNoIncome": "{{month}} için tahmini gider {{amount}}; düzenli gelir bulunamadığı için kalan tahmin edilmedi.",
+    "openHint": "Geçmiş bir aya ya da bir düzeye tıklayın: o harcamalar listelenir. Tahmin edilen ayların işlemi yok."
   },
   "trend": {
     "title": "Harcamalar nasıl değişti",

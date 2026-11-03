@@ -2,8 +2,10 @@
 // payments a series expects, the salary and other regular income, card installments still to come, loan installments
 // and non-bank bills not paid yet, each on its day with its kind, account and amount. Every item is an estimate from
 // the past payments, labelled so; the detailed view says what each rests on. An item leads to its series, its bill
-// or its account.
+// or its account. A day the address names (?gun=, where a forecast's day, a notice's due day or a series' next payment
+// leads) narrows the list to that day's items, with a button back to every day.
 
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 
 import type { Calendar, CalendarItem, Destination, Labels, Money } from "../../api/types";
@@ -11,6 +13,7 @@ import { formatDay, formatFlow, formatMoney } from "../../lib/format";
 import { labelOf } from "../../lib/labels";
 import { useView } from "../Preferences";
 import { Empty } from "../QueryState";
+import { Button } from "../ui/Button";
 import { Flow } from "../ui/Money";
 import { Say, ScreenLink } from "../ui/Say";
 import { Table, Td, Th } from "../ui/Table";
@@ -34,8 +37,15 @@ function destination(item: CalendarItem): Destination {
   return { screen: "account", id: item.account.id, query: {} };
 }
 
+interface AgendaProps {
+  calendar: Calendar;
+  labels: Labels;
+  day?: string; // one day alone, YYYY-MM-DD; "" for every day
+  onAllDays?: (() => void) | undefined; // back to every day
+}
+
 /** The card's content: its loading and failure states stay with the card on the page. */
-export function Agenda({ calendar, labels }: { calendar: Calendar; labels: Labels }) {
+export function Agenda({ calendar, labels, day = "", onAllDays }: AgendaProps) {
   const { t } = useTranslation("calendar");
   const span = { start: formatDay(calendar.today), end: formatDay(calendar.end) };
   if (calendar.items.length === 0) {
@@ -45,71 +55,101 @@ export function Agenda({ calendar, labels }: { calendar: Calendar; labels: Label
       </Empty>
     );
   }
-  return <Items calendar={calendar} labels={labels} />;
+  return <Items calendar={calendar} labels={labels} day={day} onAllDays={onAllDays} />;
 }
 
-function Items({ calendar, labels }: { calendar: Calendar; labels: Labels }) {
+/** What the days hold in one sentence: every day's payments and income, or one day's. */
+function sentenceOf(calendar: Calendar, items: CalendarItem[], day: string, t: TFunction<"calendar">): string {
+  const out = items.filter((i) => i.direction === "out");
+  const income = items.filter((i) => i.direction === "in");
+  const span = { start: formatDay(calendar.today), end: formatDay(calendar.end) };
+  const paid = { count: out.length, amount: formatMoney(total(out, "out")) };
+  const came = { count: income.length, amount: formatMoney(total(income, "in")) };
+  if (day) {
+    if (items.length === 0) {
+      return t("agenda.dayNone", { day });
+    }
+    return out.length > 0
+      ? [t("agenda.dayOut", { day, ...paid }), income.length > 0 ? t("agenda.dayIn", came) : ""].join(" ").trim()
+      : t("agenda.dayInOnly", { day, ...came });
+  }
+  const first = items[0];
+  return [
+    out.length > 0 ? t("agenda.sayOut", { ...span, ...paid }) : "",
+    income.length > 0 ? t("agenda.sayIn", came) : "",
+    first ? t("agenda.sayFirst", { day: first.day, title: first.title }) : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function Items({ calendar, labels, day = "", onAllDays }: AgendaProps) {
   const { t } = useTranslation("calendar");
   const detailed = useView().view === "detailed";
   const span = { start: formatDay(calendar.today), end: formatDay(calendar.end) };
-  const out = calendar.items.filter((i) => i.direction === "out");
-  const income = calendar.items.filter((i) => i.direction === "in");
-  const first = calendar.items[0];
-  const sentence = [
-    out.length > 0 ? t("agenda.sayOut", { ...span, count: out.length, amount: formatMoney(total(out, "out")) }) : "",
-    income.length > 0 ? t("agenda.sayIn", { count: income.length, amount: formatMoney(total(income, "in")) }) : "",
-    first ? t("agenda.sayFirst", { day: first.day, title: first.title }) : "",
-  ];
+  const items = day ? calendar.items.filter((i) => i.day === day) : calendar.items;
   return (
     <div className="flex flex-col gap-2">
-      <Say next={{ link: SUBSCRIPTIONS, label: t("agenda.next") }}>{sentence.filter(Boolean).join(" ")}</Say>
-      <p className="text-sm text-zinc-600 dark:text-zinc-300">{t("agenda.span", span)}</p>
-      <Table>
-        <caption className="sr-only">{t("agenda.caption")}</caption>
-        <thead>
-          <tr>
-            <Th>{t("agenda.day")}</Th>
-            <Th>{t("agenda.kind")}</Th>
-            <Th>{t("agenda.what")}</Th>
-            <Th>{t("agenda.account")}</Th>
-            <Th className="text-right">{t("agenda.amount")}</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {calendar.items.map((item, index) => (
-            <tr key={`${item.day}-${item.kind}-${item.title}-${index}`}>
-              <Td className="whitespace-nowrap">{formatDay(item.day)}</Td>
-              <Td>{labelOf(labels, "PaymentKind", item.kind)}</Td>
-              <Td>
-                <ScreenLink link={destination(item)} className="font-medium">
-                  {item.title}
-                </ScreenLink>
-                {detailed ? <span className={SMALL}>{item.basis}</span> : null}
+      <Say next={day ? null : { link: SUBSCRIPTIONS, label: t("agenda.next") }}>
+        {sentenceOf(calendar, items, day, t)}
+      </Say>
+      {day ? (
+        <div>
+          <Button variant="secondary" onClick={onAllDays}>
+            {t("agenda.allDays")}
+          </Button>
+        </div>
+      ) : (
+        <p className="text-sm text-zinc-600 dark:text-zinc-300">{t("agenda.span", span)}</p>
+      )}
+      {items.length === 0 ? null : (
+        <Table>
+          <caption className="sr-only">
+            {day ? t("agenda.dayCaption", { day: formatDay(day) }) : t("agenda.caption")}
+          </caption>
+          <thead>
+            <tr>
+              <Th>{t("agenda.day")}</Th>
+              <Th>{t("agenda.kind")}</Th>
+              <Th>{t("agenda.what")}</Th>
+              <Th>{t("agenda.account")}</Th>
+              <Th className="text-right">{t("agenda.amount")}</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item, index) => (
+              <tr key={`${item.day}-${item.kind}-${item.title}-${index}`}>
+                <Td className="whitespace-nowrap">{formatDay(item.day)}</Td>
+                <Td>{labelOf(labels, "PaymentKind", item.kind)}</Td>
+                <Td>
+                  <ScreenLink link={destination(item)} className="font-medium">
+                    {item.title}
+                  </ScreenLink>
+                  {detailed ? <span className={SMALL}>{item.basis}</span> : null}
+                </Td>
+                <Td>{item.account.label}</Td>
+                <Td className="whitespace-nowrap text-right tabular-nums">
+                  <Flow value={item.amount} direction={item.direction} />
+                  {item.minimum ? (
+                    <span className={SMALL}>{t("agenda.minimum", { amount: formatMoney(item.minimum) })}</span>
+                  ) : null}
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <Td colSpan={4} className="font-medium">
+                {t("agenda.total")}
               </Td>
-              <Td>{item.account.label}</Td>
-              <Td className="whitespace-nowrap text-right tabular-nums">
-                <Flow value={item.amount} direction={item.direction} />
-                {item.minimum ? (
-                  <span className={SMALL}>{t("agenda.minimum", { amount: formatMoney(item.minimum) })}</span>
-                ) : null}
+              <Td className="text-right tabular-nums">
+                <span className="block">{t("agenda.in", { amount: formatFlow(total(items, "in"), "in") })}</span>
+                <span className="block">{t("agenda.out", { amount: formatFlow(total(items, "out"), "out") })}</span>
               </Td>
             </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr>
-            <Td colSpan={4} className="font-medium">
-              {t("agenda.total")}
-            </Td>
-            <Td className="text-right tabular-nums">
-              <span className="block">{t("agenda.in", { amount: formatFlow(total(calendar.items, "in"), "in") })}</span>
-              <span className="block">
-                {t("agenda.out", { amount: formatFlow(total(calendar.items, "out"), "out") })}
-              </span>
-            </Td>
-          </tr>
-        </tfoot>
-      </Table>
+          </tfoot>
+        </Table>
+      )}
     </div>
   );
 }

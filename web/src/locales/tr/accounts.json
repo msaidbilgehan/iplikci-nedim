@@ -72,7 +72,8 @@
     "amount": "Tutar",
     "rows": "İşlem",
     "kinds": "Türler",
-    "open": "İşlemleri göster"
+    "open": "İşlemleri göster",
+    "openHint": "Bir akışa tıklayın: onu oluşturan işlemler listelenir."
   },
   "page": {
     "title": "Hesap",
@@ -116,7 +117,8 @@
   "curve": {
     "title": "Günlük bakiye",
     "chart": "{{account}}, gün sonu bakiyesi",
-    "say": "{{start}} – {{end}}: en düşük {{low}}, en yüksek {{high}}; son gün {{last}}. Hiçbir belgenin kapsamadığı günler boş."
+    "say": "{{start}} – {{end}}: en düşük {{low}}, en yüksek {{high}}; son gün {{last}}. Hiçbir belgenin kapsamadığı günler boş.",
+    "openHint": "Bir güne tıklayın: o günün işlemleri listelenir."
   },
   "months": {
     "title": "Son 12 ay",
@@ -125,7 +127,8 @@
     "sayNone": "Belgelerin baştan sona kapsadığı bir ay henüz yok; rakamlar belgelerin gösterdikleri.",
     "in": "Giren",
     "out": "Çıkan",
-    "partial": "Tamamlanmamış aylar (içinde bulunulan ay, belgelerin tam kapsamadığı aylar) yalnızca belgelerin gösterdiklerini toplar."
+    "partial": "Tamamlanmamış aylar (içinde bulunulan ay, belgelerin tam kapsamadığı aylar) yalnızca belgelerin gösterdiklerini toplar.",
+    "openHint": "Bir aya tıklayın: hesabın o ayki işlemleri listelenir."
   },
   "fees": {
     "title": "Faiz ve ücretler",

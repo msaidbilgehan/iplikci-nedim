@@ -1,7 +1,8 @@
 // "Önümüzdeki aylar" (the MVP report's forecast): the next three months' spending in three parts — the regular
 // payments still running at their monthly amount, the installments still due, the rest by necessity level at the
 // median of the base months — beside the last six months, and what the regular income leaves after it, the savings
-// and the typical money to people and debt. Every filter but the period narrows it; it is an estimate and says so.
+// and the typical money to people and debt. Every filter but the period narrows it; it is an estimate and says so. A
+// past month, or one level of it, leads to its rows; the months ahead have none.
 
 import { useTranslation } from "react-i18next";
 
@@ -17,7 +18,7 @@ import { Card } from "../ui/Card";
 import { Say, ScreenLink } from "../ui/Say";
 import { Stat } from "../ui/Stat";
 import { Table, Td, Th } from "../ui/Table";
-import { stackOf } from "./query";
+import { monthRowsOf, stackOf, withRange } from "./query";
 
 const SMALL = "text-xs text-zinc-600 dark:text-zinc-300";
 const NUMBER = "text-right whitespace-nowrap tabular-nums";
@@ -34,6 +35,7 @@ function levelIn(table: MonthTable, index: number, level: string): number {
 interface ForecastCardProps {
   found: SpendingForecast | null;
   labels: Labels;
+  params: URLSearchParams; // the screen's filters: every one but the period narrows the forecast
 }
 
 interface ForecastPartProps {
@@ -41,7 +43,7 @@ interface ForecastPartProps {
   labels: Labels;
 }
 
-export function ForecastCard({ found, labels }: ForecastCardProps) {
+export function ForecastCard({ found, labels, params }: ForecastCardProps) {
   const { t } = useTranslation("insights");
   const title = t("forecast.title");
   if (!found || found.months.length === 0) {
@@ -106,7 +108,7 @@ export function ForecastCard({ found, labels }: ForecastCardProps) {
           }
         />
       </section>
-      <ForecastChart found={found} labels={labels} />
+      <ForecastChart found={found} labels={labels} params={params} />
       <Detailed>
         <div className="mt-4">
           <ForecastTable found={found} labels={labels} />
@@ -117,8 +119,11 @@ export function ForecastCard({ found, labels }: ForecastCardProps) {
 }
 
 /** The last six months and the three ahead, stacked by necessity level; the months ahead lighter, after a line. */
-function ForecastChart({ found, labels }: ForecastPartProps) {
+function ForecastChart({ found, labels, params }: ForecastPartProps & { params: URLSearchParams }) {
   const { t } = useTranslation("insights");
+  const first = found.months[0] ?? ""; // the first month ahead
+  // The past months count every filter but the period, as the forecast does.
+  const anyPeriod = withRange(params, null);
   const name = (code: string) => labelOf(labels, "Necessity", code);
   const actual = stackOf(found.actual, name);
   const ahead = stackOf(found.by_level, name);
@@ -135,6 +140,13 @@ function ForecastChart({ found, labels }: ForecastPartProps) {
       partial={actual.partial}
       {...(found.months[0] ? { forecastFrom: found.months[0] } : {})}
       currency={found.totals[0]?.currency ?? "TRY"}
+      open={{
+        link: ({ month, series }) =>
+          first && month >= first ? null : monthRowsOf(anyPeriod, month, series ? { necessity: series } : {}),
+        hint: t("forecast.openHint"),
+        what: (s) =>
+          s ? t("necessity.openLevel", { level: s.label.toLocaleLowerCase("tr-TR") }) : t("necessity.openMonth"),
+      }}
     />
   );
 }

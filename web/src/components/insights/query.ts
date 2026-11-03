@@ -1,9 +1,12 @@
 // The Değerlendirme screen's address: the Transactions screen's filters in the API's names (F10, "Süzgeçler"), which
 // /api/spending takes as they are, and the period presets the MVP report offered. Without a period the service shows
 // the data's last twelve months, so "Son 12 ay" is the address without one. The regular payments come from
-// /api/subscriptions, which takes no filter, so the screen narrows them itself.
+// /api/subscriptions, which takes no filter, so the screen narrows them itself. A card's month leads to the rows it
+// counts there: the address's filters, the month's days within the period's, and the part a click names.
 
-import type { CategoryRules, Installment, MonthTable, Series } from "../../api/types";
+import type { CategoryRules, Destination, Installment, MonthTable, Series } from "../../api/types";
+import { queryOf } from "../../lib/links";
+import { monthDays, rowsLink, SPENDING_KINDS } from "../../lib/rows";
 import { selectionOf } from "../../lib/selection";
 import { fold } from "../../lib/turkish";
 import type { StackSeries } from "../charts/layout";
@@ -13,7 +16,7 @@ import { filtersOf, type MANY } from "../transactions/query";
 
 // What the spending counts when no kind is chosen (domain.codes.DEFAULT_EXPENSE_KINDS), and the kinds it leaves out
 // that the MVP offered to add ("Toplama dahil değil").
-export const SPENDING_KINDS = ["purchase", "refund", "interest_fee"] as const;
+export { SPENDING_KINDS };
 export const LEFT_OUT = ["p2p_transfer", "loan_principal", "cash_advance", "card_payment_no_statement"] as const;
 
 export type Preset = "last3" | "last6" | "last12" | "thisYear" | "lastYear" | "all";
@@ -108,6 +111,39 @@ export function rowsFilters(params: URLSearchParams): URLSearchParams {
     }
   }
   return query;
+}
+
+/** A month's days within the address's period, with the part a click names: one group, one level, one kind. */
+function monthOf(query: URLSearchParams, params: URLSearchParams, month: string, part: Record<string, string>) {
+  const days = monthDays(month);
+  const from = params.get("from") ?? "";
+  const to = params.get("to") ?? "";
+  query.set("from", from > days.from ? from : days.from);
+  query.set("to", to && to < days.to ? to : days.to);
+  for (const [name, value] of Object.entries(part)) {
+    query.set(name, value); // the one part in place of the filter's values
+  }
+  return rowsLink(queryOf(query));
+}
+
+/**
+ * A month's spending as the cards count it, on the İşlemler screen: the address's filters with the spending's kinds
+ * written out, the month's days within the period's, narrowed to the part given (a group, a level).
+ */
+export function monthRowsOf(params: URLSearchParams, month: string, part: Record<string, string> = {}): Destination {
+  return monthOf(rowsFilters(params), params, month, part);
+}
+
+/**
+ * A month's rows of one kind as "Gelir ve gider" counts them (income, money to people, debt, savings): the address's
+ * filters but its kinds, categories, groups and levels, which the card leaves to the spending.
+ */
+export function monthKindOf(params: URLSearchParams, month: string, kind: string): Destination {
+  const query = filtersOf(params, false);
+  for (const name of ["kind", "category", "group", "necessity"]) {
+    query.delete(name);
+  }
+  return monthOf(query, params, month, { kind });
 }
 
 /** The address with a kind the spending leaves out added to the ones it counts. */

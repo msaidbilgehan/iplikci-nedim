@@ -1,6 +1,7 @@
 // "Kategoriler" and "En çok harcama yapılan yerler" (the MVP report's ranked bars): the spending the filters keep, the
 // largest first, each bar in its group's colour. The chart shows twelve and folds the rest into one bar; the tables
-// list them all, each name leading to its rows on the İşlemler screen.
+// list them all. Each bar and name leads to its rows on the İşlemler screen, with the period and the filters the card
+// counts (the service's link), so they add up to its total.
 
 import { useTranslation } from "react-i18next";
 
@@ -35,6 +36,7 @@ export function CategoriesCard({ found }: { found: Spending }) {
     label: line.category,
     value: line.total.minor,
     slot: slotOf(line.slot),
+    link: line.link,
   }));
   if (rest.length > 0) {
     items.push({
@@ -128,6 +130,7 @@ export function MerchantsCard({ found }: { found: Spending }) {
           label: line.merchant,
           value: line.total.minor,
           slot: slotOf(line.slot),
+          link: line.link,
         }))}
         currency={top?.total.currency ?? "TRY"}
         table={<MerchantTable lines={lines} />}

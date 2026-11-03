@@ -11,6 +11,8 @@ import InsightsPage from "./InsightsPage";
 afterEach(() => localStorage.clear());
 
 const detailed = () => localStorage.setItem("iplikci.view", "detailed");
+const SPENT = "kind=interest_fee&kind=purchase&kind=refund"; // the spending's kinds, in the service's order
+const KINDS = "kind=purchase&kind=refund&kind=interest_fee"; // as the screen writes them out
 const REGULAR_HINT = "Dönem süzgecinden bağımsızdır, diğer süzgeçlere uyar; durumlar bugüne göredir.";
 const RENT_ONLY = "Bu süzgeçlerle süren 1 aylık ödeme ayda 15.000,00 TL tutuyor.";
 // The rules with the rent's category in a group of its own.
@@ -190,6 +192,23 @@ describe("InsightsPage", () => {
     expect(within(average).getAllByRole("cell").at(-1)).toHaveTextContent("20.240,00 TL");
   });
 
+  it("leads from a month of the heat table, and from a group of it, to the rows it counts there", async () => {
+    const path = "/degerlendirme?from=2026-08-15&to=2026-10-31&account=teb-123456789&bolum=harcamalar";
+    renderScreen(<InsightsPage />, { path });
+    const monthly = await card("Aylık giderler");
+    expect(within(monthly).getByText("Bir aya ya da bir gruba tıklayın: o harcamalar listelenir.")).toBeInTheDocument();
+    await userEvent.click(within(monthly).getByRole("tab", { name: "Tablo" }));
+    const table = within(monthly).getByRole("table", { name: "Aylık giderler, ana gruplara göre" });
+    const august = within(table).getByRole("row", { name: /^Ağustos 2026/ });
+    // The screen's filters, the spending's kinds written out, and August's days within the period's.
+    const rows = `/islemler?account=teb-123456789&from=2026-08-15&to=2026-08-31&${KINDS}`;
+    expect(within(august).getByRole("link", { name: "Ağustos 2026" })).toHaveAttribute("href", rows);
+    expect(within(august).getByRole("link", { name: "16.000,00 TL" })).toHaveAttribute(
+      "href",
+      `${rows}&group=Ev+%26+Faturalar`,
+    );
+  });
+
   it("narrows every card to a necessity level when its tile is pressed, and widens them again", async () => {
     const { location } = renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=harcamalar" });
     const levels = await screen.findByRole("group", { name: "Gereklilik düzeyleri" });
@@ -255,6 +274,30 @@ describe("InsightsPage", () => {
     ]);
   });
 
+  it("leads from a month's income, spending and debt to their rows, and nowhere from what is left", async () => {
+    renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=gelir-gider" });
+    const flow = await card("Gelir ve gider");
+    expect(
+      within(flow).getByText("Bir ayın gelirine ya da giderine tıklayın: o işlemler listelenir."),
+    ).toBeInTheDocument();
+    await userEvent.click(within(flow).getByRole("tab", { name: "Tablo" }));
+    const september = within(within(flow).getByRole("table")).getByRole("row", { name: /^Eylül 2026/ });
+    const days = "from=2026-09-01&to=2026-09-30";
+    expect(within(september).getByRole("link", { name: "40.000,00 TL" })).toHaveAttribute(
+      "href",
+      `/islemler?${days}&kind=income`,
+    );
+    expect(within(september).getAllByRole("link", { name: "20.000,00 TL" })[0]).toHaveAttribute(
+      "href",
+      `/islemler?${KINDS}&${days}`,
+    );
+    expect(within(september).getByRole("link", { name: "1.000,00 TL" })).toHaveAttribute(
+      "href",
+      `/islemler?${days}&kind=loan_principal`,
+    );
+    expect(within(september).getAllByRole("link")).toHaveLength(3); // the net, nothing and what is left lead nowhere
+  });
+
   it("forecasts the next month and what the income leaves after it, as an estimate", async () => {
     renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=gelecek" });
     const forecast = await card("Önümüzdeki aylar");
@@ -293,20 +336,23 @@ describe("InsightsPage", () => {
     expect(within(table).getByRole("row", { name: /^Hepsinden sonra kalan/ })).toHaveTextContent("20.440,00 TL");
   });
 
-  it("ranks the categories and the merchants, each name leading to its rows", async () => {
+  it("ranks the categories and the merchants, each bar and name leading to its rows of the period", async () => {
     renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=harcamalar" });
+    const period = `/islemler?from=2026-05-01&to=2026-10-31&${SPENT}`;
     const categories = await card("Kategoriler");
     expect(
       within(categories).getByText("Mayıs 2026 – Ekim 2026; en çok Kira, toplamın %68 kadarı."),
     ).toBeInTheDocument();
+    const bars = within(categories).getByRole("list", { name: "Kategoriler" });
+    expect(within(bars).getByRole("link", { name: "Kira" })).toHaveAttribute("href", `${period}&category=Kira`);
     await userEvent.click(within(categories).getByRole("tab", { name: "Tablo" }));
-    expect(within(categories).getByRole("link", { name: "Kira" })).toHaveAttribute("href", "/islemler?category=Kira");
+    expect(within(categories).getByRole("link", { name: "Kira" })).toHaveAttribute("href", `${period}&category=Kira`);
     const merchants = await card("En çok harcama yapılan yerler");
     expect(within(merchants).getByText("Mayıs 2026 – Ekim 2026; en çok Ev Sahibi Örnek, 5 işlem.")).toBeInTheDocument();
     await userEvent.click(within(merchants).getByRole("tab", { name: "Tablo" }));
     expect(within(merchants).getByRole("link", { name: "Örnek Market" })).toHaveAttribute(
       "href",
-      "/islemler?merchant=%C3%96rnek+Market",
+      `${period}&merchant=%C3%96rnek+Market`,
     );
   });
 

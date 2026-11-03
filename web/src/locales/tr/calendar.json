@@ -20,7 +20,13 @@
     "minimum": "asgari {{amount}}",
     "total": "Toplam",
     "in": "giriş {{amount}}",
-    "out": "çıkış {{amount}}"
+    "out": "çıkış {{amount}}",
+    "dayOut": "{{day, onDay}} {{count}} ödeme bekleniyor, toplam {{amount}}.",
+    "dayIn": "{{count}} gelir bekleniyor, toplam {{amount}}.",
+    "dayInOnly": "{{day, onDay}} {{count}} gelir bekleniyor, toplam {{amount}}.",
+    "dayNone": "{{day, onDay}} beklenen bir ödeme ya da gelir yok.",
+    "allDays": "Bütün günleri göster",
+    "dayCaption": "{{day}} günü beklenen ödemeler ve gelirler"
   },
   "forecast": {
     "title": "Nakit akışı öngörüsü",
@@ -49,6 +55,8 @@
     "assumptionsTitle": "{{account}}: varsayımlar",
     "elsewhere": "Hesaplara düşülmeyen kalemler",
     "elsewhereItem": "{{day}} {{title}} ({{account}}): {{amount}}",
-    "skipped": "Öngörüye girmeyen hesaplar"
+    "skipped": "Öngörüye girmeyen hesaplar",
+    "openHint": "Bir güne tıklayın: o gün beklenenler yukarıdaki listede gösterilir.",
+    "openWhat": "o gün beklenenler"
   }
 }

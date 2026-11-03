@@ -56,6 +56,30 @@ describe("AccountPage: a TL account", () => {
     ).toHaveAttribute("href", "/abonelikler?seri=fp-maas");
   });
 
+  it("leads from a day of the balance, a month and a kind of fee to the account's rows that make them", async () => {
+    const user = userEvent.setup();
+    open("teb-123456789");
+    const curve = await card("Günlük bakiye");
+    expect(within(curve).getByText("Bir güne tıklayın: o günün işlemleri listelenir.")).toBeInTheDocument();
+    await user.click(within(curve).getByRole("tab", { name: "Tablo" }));
+    expect(within(curve).getByRole("link", { name: "29.10.2026" })).toHaveAttribute(
+      "href",
+      "/islemler?account=teb-123456789&from=2026-10-29&to=2026-10-29",
+    );
+    const months = await card("Son 12 ay");
+    await user.click(within(months).getByRole("tab", { name: "Tablo" }));
+    expect(within(months).getByRole("link", { name: "Ekim 2026" })).toHaveAttribute(
+      "href",
+      "/islemler?from=2026-10-01&to=2026-10-31&account=teb-123456789",
+    );
+    await user.click(screen.getByRole("tab", { name: "Düzenli ödemeler ve ücretler 2" }));
+    const fees = await card("Faiz ve ücretler");
+    expect(within(fees).getByRole("link", { name: "EFT ücreti" })).toHaveAttribute(
+      "href",
+      "/islemler?account=teb-123456789&kind=interest_fee&category=EFT+%C3%BCcreti&from=2025-12-01&to=2026-10-31",
+    );
+  });
+
   it("says what the documents never print about the overdraft instead of a zero", async () => {
     open("teb-123456789");
     const overdraft = await card("Kredili mevduat (KMH)");

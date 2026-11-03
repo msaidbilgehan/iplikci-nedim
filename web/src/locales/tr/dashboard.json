@@ -142,7 +142,10 @@
       "sayNone": "Henüz kapanan bir ay yok; çubuklar belgelerin şimdiye kadar gösterdikleri.",
       "in": "Gelen",
       "out": "Giden",
-      "net": "Kalan"
+      "net": "Kalan",
+      "openHint": "Bir ayın gelen ya da giden parasına tıklayın: o işlemler listelenir.",
+      "openIn": "bu ayın gelirleri",
+      "openOut": "bu ayın giderleri"
     },
     "where": {
       "title": "Paranız nereye gitti?",
@@ -168,7 +171,9 @@
       "nothing": "Bu 30 günde beklenen bir ödeme ya da gelir yok.",
       "more": "ve {{count}} tane daha",
       "calendar": "Takvimde hepsini göster",
-      "none": "Tahmin için bakiyesi belgelerde yazan bir TL hesap yok."
+      "none": "Tahmin için bakiyesi belgelerde yazan bir TL hesap yok.",
+      "openHint": "Bir güne tıklayın: o gün beklenen ödemeler ve gelirler Takvim'de açılır.",
+      "openWhat": "o gün beklenenler"
     },
     "todo": {
       "title": "Ne yapmalısınız?",

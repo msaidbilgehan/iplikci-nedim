@@ -1,12 +1,14 @@
 // An account's page, what every type shows (F07): where the account stands and how far its documents reach, its
 // balance day by day, the last 12 months' money in and out, its interest and fees, and the regular payments and
-// income that run through it.
+// income that run through it. A day of the balance, a month and a kind of fee lead to the account's rows that make
+// them on the İşlemler screen.
 
 import { useTranslation } from "react-i18next";
 
 import type { AccountItem, CurvePoint, Fees, Labels, MonthTotals, Series } from "../../api/types";
 import { formatDay, formatMoney, formatMonth } from "../../lib/format";
 import { labelOf } from "../../lib/labels";
+import { monthDays, monthRows, rowsLink } from "../../lib/rows";
 import { HBars } from "../charts/HBars";
 import { LineChart } from "../charts/LineChart";
 import { StackedBars } from "../charts/StackedBars";
@@ -82,8 +84,15 @@ export function StatusCard({ item, labels }: { item: AccountItem; labels: Labels
   );
 }
 
+interface CurveCardProps {
+  account: string; // the account's id, whose rows a day leads to
+  curve: readonly CurvePoint[];
+  note: string;
+  label: string;
+}
+
 /** The balance at each day's end as the documents tell it; a day no document covers is blank. */
-export function CurveCard({ curve, note, label }: { curve: readonly CurvePoint[]; note: string; label: string }) {
+export function CurveCard({ account, curve, note, label }: CurveCardProps) {
   const { t } = useTranslation("accounts");
   const first = curve[0];
   const last = curve.at(-1);
@@ -116,6 +125,7 @@ export function CurveCard({ curve, note, label }: { curve: readonly CurvePoint[]
             points: curve.map((point) => ({ day: point.day, value: point.balance.minor })),
           },
         ]}
+        open={{ link: (day) => rowsLink({ account, from: day, to: day }), hint: t("curve.openHint") }}
       />
       <p className={`mt-2 ${SMALL}`}>{note}</p>
     </Card>
@@ -123,7 +133,7 @@ export function CurveCard({ curve, note, label }: { curve: readonly CurvePoint[]
 }
 
 /** The last 12 months' money in above the axis and out below it; the summary names the newest complete month. */
-export function MonthsCard({ months }: { months: readonly MonthTotals[] }) {
+export function MonthsCard({ account, months }: { account: string; months: readonly MonthTotals[] }) {
   const { t } = useTranslation("accounts");
   if (months.every((m) => m.rows === 0)) {
     return null;
@@ -146,14 +156,15 @@ export function MonthsCard({ months }: { months: readonly MonthTotals[] }) {
           { key: "out", label: t("months.out"), slot: 2 },
         ]}
         months={months.map((m) => ({ month: m.month, values: { in: m.money_in.minor, out: -m.money_out.minor } }))}
+        open={{ link: ({ month }) => monthRows(month, { account }), hint: t("months.openHint") }}
       />
       {months.some((m) => !m.complete) ? <p className={`mt-2 ${SMALL}`}>{t("months.partial")}</p> : null}
     </Card>
   );
 }
 
-/** The interest and fees of the window, by category, the largest first. */
-export function FeesCard({ fees }: { fees: Fees }) {
+/** The interest and fees of the window, by category, the largest first, each leading to its rows of the window. */
+export function FeesCard({ account, fees }: { account: string; fees: Fees }) {
   const { t } = useTranslation("accounts");
   const first = fees.months[0];
   const last = fees.months.at(-1);
@@ -174,7 +185,20 @@ export function FeesCard({ fees }: { fees: Fees }) {
         title={t("fees.chart")}
         summary={t("fees.say", { ...span, total: formatMoney(fees.total) })}
         itemName={t("fees.category")}
-        items={fees.categories.map((fee) => ({ key: fee.category, label: fee.category, value: fee.amount.minor, slot: 0 }))}
+        items={fees.categories.map((fee) => ({
+          key: fee.category,
+          label: fee.category,
+          value: fee.amount.minor,
+          slot: 0,
+          // The window's first to last day: a month in it the documents do not cover whole is in the list too.
+          link: rowsLink({
+            account,
+            kind: "interest_fee",
+            category: fee.category,
+            from: monthDays(first).from,
+            to: monthDays(last).to,
+          }),
+        }))}
       />
     </Card>
   );

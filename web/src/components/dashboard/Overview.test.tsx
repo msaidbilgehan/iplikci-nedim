@@ -1,4 +1,5 @@
 import { screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
@@ -90,6 +91,26 @@ describe("Overview", () => {
     expect(within(chart).getByText("Kapanan 5 ayın 4'ünde gelen para gideni geçti.")).toBeInTheDocument();
   });
 
+  it("leads from a month's money in to its income and from its money out to its spending", async () => {
+    renderScreen(<Overview found={DASHBOARD} />);
+    const months = await region("Aylara göre gelen ve giden");
+    expect(
+      within(months).getByText("Bir ayın gelen ya da giden parasına tıklayın: o işlemler listelenir."),
+    ).toBeInTheDocument();
+    await userEvent.click(within(months).getByRole("tab", { name: "Tablo" }));
+    const october = within(within(months).getByRole("table")).getByRole("row", { name: /^Ekim 2026/ });
+    const days = "from=2026-10-01&to=2026-10-31";
+    expect(within(october).getByRole("link", { name: "40.000,00 TL" })).toHaveAttribute(
+      "href",
+      `/islemler?${days}&kind=income`,
+    );
+    expect(within(october).getByRole("link", { name: "−19.977,99 TL" })).toHaveAttribute(
+      "href",
+      `/islemler?${days}&kind=purchase&kind=refund&kind=interest_fee`,
+    );
+    expect(within(october).getAllByRole("link")).toHaveLength(2); // the month alone leads to neither
+  });
+
   it("shows where the last closed month's money went, asking for that month only", async () => {
     let asked = "";
     server.use(
@@ -108,6 +129,23 @@ describe("Overview", () => {
       "href",
       "/islemler?from=2026-10-01&to=2026-10-31",
     );
+    // Each bar leads where the service says its rows are: that month's spending of the category.
+    const bars = within(where).getByRole("list", { name: "Ekim 2026 harcamaları, türlerine göre" });
+    expect(within(bars).getByRole("link", { name: "Kira" })).toHaveAttribute(
+      "href",
+      "/islemler?from=2026-05-01&to=2026-10-31&kind=interest_fee&kind=purchase&kind=refund&category=Kira",
+    );
+  });
+
+  it("leads from a day of the next 30 to what the calendar expects on it", async () => {
+    renderScreen(<Overview found={DASHBOARD} />);
+    const ahead = await region("Önümüzdeki 30 gün");
+    await within(ahead).findByRole("img", { name: /çizgi grafiği/ });
+    expect(
+      within(ahead).getByText("Bir güne tıklayın: o gün beklenen ödemeler ve gelirler Takvim'de açılır."),
+    ).toBeInTheDocument();
+    await userEvent.click(within(ahead).getByRole("tab", { name: "Tablo" }));
+    expect(within(ahead).getByRole("link", { name: "03.12.2026" })).toHaveAttribute("href", "/takvim?gun=2026-12-03");
   });
 
   it("warns when the next 30 days take the account below zero, and says where the line starts", async () => {

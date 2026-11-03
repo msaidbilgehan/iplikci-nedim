@@ -103,6 +103,43 @@ describe("CalendarPage", () => {
     expect(within(table).getByText("13.01.2027").closest("tr")).toHaveTextContent("−14.060,00 TL");
   });
 
+  it("narrows the list to the day the address names, and goes back to every day", async () => {
+    const { location } = renderScreen(<CalendarPage />, { path: "/takvim?gun=2026-12-01" });
+    const agenda = await screen.findByRole("region", { name: "Önümüzdeki 60 gün" });
+    expect(
+      await within(agenda).findByText("01.12.2026'da 1 gelir bekleniyor, toplam 40.000,00 TL."),
+    ).toBeInTheDocument();
+    expect(within(agenda).getByRole("table", { name: "01.12.2026 günü beklenen ödemeler ve gelirler" })).toBeVisible();
+    expect(within(agenda).getByText("Örnek İşveren A.Ş.")).toBeInTheDocument();
+    expect(within(agenda).queryByText("Ev kirası")).not.toBeInTheDocument();
+    await userEvent.click(within(agenda).getByRole("button", { name: "Bütün günleri göster" }));
+    expect(location()).toBe("/takvim");
+    expect(within(agenda).getByText("Ev kirası")).toBeInTheDocument();
+  });
+
+  it("says when the day the address names holds nothing expected", async () => {
+    renderScreen(<CalendarPage />, { path: "/takvim?gun=2026-11-20" });
+    const agenda = await screen.findByRole("region", { name: "Önümüzdeki 60 gün" });
+    expect(
+      await within(agenda).findByText("20.11.2026'da beklenen bir ödeme ya da gelir yok."),
+    ).toBeInTheDocument();
+    expect(within(agenda).queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it("leads from a day of the forecast to what the list above expects on it", async () => {
+    const { location } = renderScreen(<CalendarPage />, { path: "/takvim" });
+    const forecast = await screen.findByRole("region", { name: "Nakit akışı öngörüsü" });
+    await within(forecast).findByRole("img", { name: /^Gün gün bakiye öngörüsü: çizgi grafiği/ });
+    expect(
+      within(forecast).getByText("Bir güne tıklayın: o gün beklenenler yukarıdaki listede gösterilir."),
+    ).toBeInTheDocument();
+    await userEvent.click(within(forecast).getByRole("tab", { name: "Tablo" }));
+    await userEvent.click(within(forecast).getByRole("link", { name: "25.11.2026" }));
+    expect(location()).toBe("/takvim?gun=2026-11-25");
+    const agenda = screen.getByRole("region", { name: "Önümüzdeki 60 gün" });
+    expect(await within(agenda).findByText(/^25\.11\.2026'da 1 ödeme bekleniyor/)).toBeInTheDocument();
+  });
+
   it("says when nothing is expected and no account has a balance known", async () => {
     server.use(
       http.get("/api/calendar", () => HttpResponse.json({ today: "2026-11-15", end: "2027-01-13", items: [] })),

@@ -12,6 +12,9 @@ afterEach(() => localStorage.clear());
 const open = (month: string) => renderScreen(<MonthPage />, { path: `/ay-sonu/${month}`, route: "/ay-sonu/:ay" });
 const card = (name: string) => screen.findByRole("region", { name });
 const detailed = () => localStorage.setItem("iplikci.view", "detailed");
+// A month's spending on the İşlemler screen: its days and the kinds the spending counts.
+const SPENT = (month: string, last: number) =>
+  `/islemler?from=${month}-01&to=${month}-${last}&kind=purchase&kind=refund&kind=interest_fee`;
 
 describe("MonthPage: the month and its accounts", () => {
   it("names the month with its status and the closing in a sentence", async () => {
@@ -137,6 +140,22 @@ describe("MonthPage: the totals", () => {
       within(trend).getByText("Kapanmamış ayların gideri eksik olabilir: Haziran 2026, Temmuz 2026, Ekim 2026."),
     ).toBeInTheDocument();
   });
+
+  it("opens a month's spending on the İşlemler screen from its bar, and says so under the chart", async () => {
+    const { location } = open("2026-10");
+    const trend = await card("Son 12 ayın gideri");
+    expect(within(trend).getByText("Bir aya tıklayın: o ayın giderleri listelenir.")).toBeInTheDocument();
+    const bars = trend.querySelectorAll("rect[fill='transparent']");
+    await userEvent.pointer({ keys: "[MouseLeft]", target: bars[5] as Element }); // June
+    expect(location()).toBe(SPENT("2026-06", 30));
+  });
+
+  it("names the trend's months in its table with links to their spending", async () => {
+    open("2026-10");
+    const trend = await card("Son 12 ayın gideri");
+    await userEvent.click(within(trend).getByRole("tab", { name: "Tablo" }));
+    expect(within(trend).getByRole("link", { name: "Ağustos 2026" })).toHaveAttribute("href", SPENT("2026-08", 31));
+  });
 });
 
 describe("MonthPage: where the money went and the rows", () => {
@@ -152,12 +171,10 @@ describe("MonthPage: where the money went and the rows", () => {
     );
     expect(within(spending).getByRole("link", { name: "Örnek Market" })).toHaveAttribute(
       "href",
-      "/islemler?from=2026-10-01&to=2026-10-31&merchant=%C3%96rnek+Market",
+      `${SPENT("2026-10", 31)}&merchant=%C3%96rnek+Market`,
     );
-    expect(within(spending).getByRole("link", { name: "Ev" })).toHaveAttribute(
-      "href",
-      "/islemler?from=2026-10-01&to=2026-10-31&group=Ev",
-    );
+    const group = within(spending).getByRole("link", { name: "Ev" });
+    expect(group).toHaveAttribute("href", `${SPENT("2026-10", 31)}&group=Ev`);
   });
 
   it("lists every level, category and merchant in the detailed view, each leading to its rows", async () => {
@@ -167,12 +184,12 @@ describe("MonthPage: where the money went and the rows", () => {
     const levels = within(spending).getByRole("figure", { name: "Gerekliliğe göre gider" });
     expect(within(levels).getByRole("link", { name: "Gereksiz" })).toHaveAttribute(
       "href",
-      "/islemler?from=2026-10-01&to=2026-10-31&necessity=unnecessary",
+      `${SPENT("2026-10", 31)}&necessity=unnecessary`,
     );
     const categories = within(spending).getByRole("table", { name: "Kategoriler" });
     expect(within(categories).getByRole("link", { name: "Kira" })).toHaveAttribute(
       "href",
-      "/islemler?from=2026-10-01&to=2026-10-31&category=Kira",
+      `${SPENT("2026-10", 31)}&category=Kira`,
     );
     expect(within(spending).getByRole("table", { name: "İşyerleri" })).toBeInTheDocument();
   });

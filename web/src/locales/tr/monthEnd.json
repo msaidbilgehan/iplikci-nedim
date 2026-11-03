@@ -118,7 +118,9 @@
     "typicalSay": "Tipik ay, önceki {{count, number}} tam ayın ortancası: {{amount}}.",
     "open_one": "{{months}} kapanmadığı için gideri eksik olabilir.",
     "open_other": "Kapanmamış ayların gideri eksik olabilir: {{months}}.",
-    "none": "Bu aya kadar gider yok."
+    "none": "Bu aya kadar gider yok.",
+    "openHint": "Bir aya tıklayın: o ayın giderleri listelenir.",
+    "openWhat": "bu ayın giderleri"
   },
   "spending": {
     "title": "Para nereye gitti",

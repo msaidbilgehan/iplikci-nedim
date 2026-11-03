@@ -1,13 +1,13 @@
-// What the month-end screens share (F11): a month's status as an icon and its name, the window of days a month's rows
-// are asked for, and the download of the months' script-free pages (F20). The pages are written by the analysis and
-// downloaded zipped, the month's own among them; the interface writes none of its own.
+// What the month-end screens share (F11): a month's status as an icon and its name, and the download of the months'
+// script-free pages (F20). The pages are written by the analysis and downloaded zipped, the month's own among them; the
+// interface writes none of its own. Where a month's rows are is lib/rows'.
 
 import { useTranslation } from "react-i18next";
 
 import { useExports } from "../../api/queries";
-import type { Destination, ExportKind, Labels, MonthStatus } from "../../api/types";
+import type { ExportKind, Labels, MonthStatus } from "../../api/types";
 import { cn } from "../../lib/cn";
-import { addDays, formatTime } from "../../lib/format";
+import { formatTime } from "../../lib/format";
 import { labelOf } from "../../lib/labels";
 import { MONTH_TONES } from "../dashboard/ClosingCard";
 import { DownloadLink } from "../ui/LinkButton";
@@ -24,19 +24,6 @@ export const ROW_LINK = cn(
 /** A month's status, an account's in it too: its icon and its name, never the colour alone. */
 export function MonthStatusMark({ status, labels, label }: { status: MonthStatus; labels: Labels; label?: string }) {
   return <Status tone={MONTH_TONES[status]}>{label ?? labelOf(labels, "MonthStatus", status)}</Status>;
-}
-
-/** "2026-02" → its first and last days, as the Transactions screen's filters take them. */
-export function monthWindow(month: string): { from: string; to: string } {
-  const from = `${month}-01`;
-  const [year = 0, number = 1] = month.split("-").map(Number);
-  const next = number === 12 ? `${year + 1}-01-01` : `${year}-${String(number + 1).padStart(2, "0")}-01`;
-  return { from, to: addDays(next, -1) };
-}
-
-/** The month's rows on the Transactions screen, narrowed by the filters given (in the API's names). */
-export function monthRows(month: string, query: Record<string, string> = {}): Destination {
-  return { screen: "transactions", id: "", query: { ...monthWindow(month), ...query } };
 }
 
 /** Whether a month ("2026-10") is a valid one to ask for. */

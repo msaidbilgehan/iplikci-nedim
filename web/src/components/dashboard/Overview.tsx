@@ -3,7 +3,9 @@
 // went; the months before as bars above and below a line; where that month's money went, by category; the next 30
 // days' money as a line with what is to be paid and to come in; and what to do now, each with its button. Every chart
 // says how to read it and has its table (ChartFrame). The figures are the service's: a month's are its closing, the
-// forecast is the calendar's, the advice the assessment's steps; nothing typical is reckoned here.
+// forecast is the calendar's, the advice the assessment's steps; nothing typical is reckoned here. Every chart leads
+// on: a month's money in to its income and its money out to its spending, a category to its rows of the month, a day
+// of the next 30 to what the calendar expects on it.
 
 import { type ReactNode, useId } from "react";
 import { useTranslation } from "react-i18next";
@@ -12,6 +14,7 @@ import { useForecast, useInsights, useSpending } from "../../api/queries";
 import type { CalendarItem, Dashboard, Forecast, MonthClosing, OpenAlert } from "../../api/types";
 import { cn } from "../../lib/cn";
 import { addDays, formatDay, formatMoney, formatMonth } from "../../lib/format";
+import { monthDays, monthIncome, monthSpending, rowsLink } from "../../lib/rows";
 import { HBars } from "../charts/HBars";
 import { LineChart } from "../charts/LineChart";
 import { SLOT_BG } from "../charts/palette";
@@ -236,6 +239,13 @@ function MonthsChart({ months }: { months: readonly MonthClosing[] }) {
           partial={partial}
           totalLabel={t("overview.months.net")}
           height={240}
+          open={{
+            // Money in is the month's income and money out its spending; the month alone leads to neither.
+            link: ({ month, series }) =>
+              series === "in" ? monthIncome(month) : series === "out" ? monthSpending(month) : null,
+            hint: t("overview.months.openHint"),
+            what: (s) => (s?.key === "in" ? t("overview.months.openIn") : t("overview.months.openOut")),
+          }}
         />
       </div>
     </Card>
@@ -244,18 +254,12 @@ function MonthsChart({ months }: { months: readonly MonthClosing[] }) {
 
 // --- where the money went ------------------------------------------------------------------------------------------
 
-function lastDayOf(month: string): string {
-  const [year, number] = month.split("-").map(Number);
-  const days = new Date(year ?? 1970, number ?? 1, 0).getDate();
-  return `${month}-${String(days).padStart(2, "0")}`;
-}
-
 function WhereItWent({ month }: { month: string }) {
   const { t } = useTranslation("dashboard");
-  const range = { from: `${month}-01`, to: lastDayOf(month) };
+  const range = monthDays(month);
   const spending = useSpending(new URLSearchParams(range).toString());
   const found = spending.data;
-  const rows = { screen: "transactions", id: "", query: range } as const;
+  const rows = rowsLink(range);
   return (
     <Card title={t("overview.where.title")}>
       {spending.isPending ? <Loading /> : null}
@@ -382,6 +386,11 @@ function Ahead({ forecast }: { forecast: Forecast }) {
             })}
             series={[{ key: "total", label: t("overview.ahead.line"), slot: IN_SLOT, points }]}
             height={220}
+            open={{
+              link: (day) => ({ screen: "calendar", id: day, query: {} }),
+              hint: t("overview.ahead.openHint"),
+              what: t("overview.ahead.openWhat"),
+            }}
           />
         </div>
         <div className="flex min-w-0 flex-col gap-2">
