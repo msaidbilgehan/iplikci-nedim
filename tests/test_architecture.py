@@ -46,6 +46,9 @@ RULES = {
     "iplikci.invoices": ("iplikci.domain",),
     # The alert rules, the texts and the channels: no storage; the channels leave only through egress (ADR-0009).
     "iplikci.notify": ("iplikci.domain", "iplikci.egress"),
+    # The exchange rates: the domain's codes and money; the providers leave only through egress (ADR-0009), and what
+    # they fetch is stored by the use cases, not here.
+    "iplikci.fx": ("iplikci.domain", "iplikci.egress", "iplikci.settings"),
     # Showing a document: the readers' own helpers in a process of its own; no storage, no vault, no network.
     "iplikci.viewer": ("iplikci.parsers",),
 }

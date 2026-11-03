@@ -1619,10 +1619,11 @@ export interface QueuedOut {
 }
 
 /**
- * Where a TL rate comes from (F12). Without the network the documents' own rates are used; the rate services come with
- * Phase 8.
+ * Where a TL rate comes from (F12, architecture §15). A row's own rate always comes first; then TCMB's bulletin of the
+ * day; ECB's reference rate, or Frankfurter's copy of it, when TCMB could not be reached. Without the network the
+ * documents' own rates are used.
  */
-export type RateSource = "document";
+export type RateSource = "document" | "tcmb" | "ecb" | "frankfurter";
 
 export interface ReaderHealthOut {
   parser: string;

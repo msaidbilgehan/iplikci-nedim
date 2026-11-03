@@ -35,3 +35,18 @@ listesinden geçer.
 - Olumlu: neyin ne zaman dışarı çıktığı tek bir yerden görülür ve test edilir; izin listesi dışındaki bir istek hata
   verir.
 - Olumsuz: her yeni veri kaynağı bir karar gerektirir. Bu bilinçli bir tercihtir.
+
+## Uygulama notu (Aşama 8, 2026-11-03)
+
+Kur sağlayıcılarının sunucuları, 2026-11-03'te denenmiş adresleriyle:
+
+| Sağlayıcı | Sunucu | Yol | Giden veri |
+|---|---|---|---|
+| TCMB günlük kurları | `www.tcmb.gov.tr` | `/kurlar/today.xml`, `/kurlar/YYYYAA/GGAAYYYY.xml` (hafta sonu ve tatilde 404) | yalnızca tarih |
+| ECB referans kurları | `www.ecb.europa.eu` | `/stats/eurofxref/eurofxref-daily.xml`, `eurofxref-hist-90d.xml`, `eurofxref-hist.zip` | hiçbir şey |
+| Frankfurter (ECB verisinin kopyası) | `api.frankfurter.dev` | `/v1/<başlangıç>..<bitiş>?base=EUR&symbols=…` | tarih aralığı ve birim kodları |
+| TCMB EVDS (isteğe bağlı) | `evds3.tcmb.gov.tr` | `/igmevdsms-dis/series=…&startDate=…&endDate=…&type=json` | API anahtarı (istek başlığında) ve seri kodları |
+
+- `evds2.tcmb.gov.tr` artık `evds3`'e yönlendiriyor; uygulama yönlendirme izlemez, doğrudan `evds3`'e gider.
+- Sağlayıcılar `egress` üzerinden yalnızca GET ile çağrılır: sertifika ve sunucu adı denetlenir, yönlendirme izlenmez,
+  yanıt 1 MB ile sınırlıdır (ECB'nin bütün geçmişi zip olarak 642 KB).

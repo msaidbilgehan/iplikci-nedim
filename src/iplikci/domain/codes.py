@@ -426,7 +426,11 @@ class StatementCheck(StrEnum):
 
 
 class RateSource(StrEnum):
-    """Where a TL rate comes from (F12). Without the network the documents' own rates are used; the rate services
-    come with Phase 8."""
+    """Where a TL rate comes from (F12, architecture §15). A row's own rate always comes first; then TCMB's bulletin
+    of the day; ECB's reference rate, or Frankfurter's copy of it, when TCMB could not be reached. Without the
+    network the documents' own rates are used."""
 
     DOCUMENT = "document"  # a row of a bank's document prints it: a foreign currency bought or sold
+    TCMB = "tcmb"  # the Central Bank of Turkey's daily bulletin: forex buying and selling
+    ECB = "ecb"  # the European Central Bank's euro reference rates: one rate for both sides
+    FRANKFURTER = "frankfurter"  # the same ECB rates, from frankfurter.dev

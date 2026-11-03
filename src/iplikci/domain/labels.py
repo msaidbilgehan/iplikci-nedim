@@ -371,7 +371,12 @@ SETUP_STEP: dict[SetupStep, str] = {
     SetupStep.REMOTE: "Uzaktan erişim",
 }
 
-RATE_SOURCE: dict[RateSource, str] = {RateSource.DOCUMENT: "Belgedeki kur"}
+RATE_SOURCE: dict[RateSource, str] = {
+    RateSource.DOCUMENT: "Belgedeki kur",
+    RateSource.TCMB: "TCMB",
+    RateSource.ECB: "ECB",
+    RateSource.FRANKFURTER: "Frankfurter (ECB)",
+}
 
 STATEMENT_CHECK: dict[StatementCheck, str] = {
     StatementCheck.VERIFIED: "Tutarlı",
