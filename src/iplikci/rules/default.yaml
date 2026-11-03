@@ -34,7 +34,7 @@ Yeme & İçme:
     Simit Sarayı: [SIMIT SARAYI]
     MADO: ["re:\\bMADO\\b"]
     _: [CAFE, CAFFE, CAFFEE, KAFE, KAHVE, COFFEE, COFFE, COFFY, PASTANE, PATISSERIE, MUHALLEBI, SIMIT,
-        BAKERY, FIRIN, UN MAMULLERI, LOKUM]
+        BAKERY, FIRIN, UN MAMULLERI, LOKUM, KIRAATHANE]
   Restoran & Yemek:
     Yemeksepeti: [YEMEK SEPETI, YEMEKSEPETI]
     Uber Eats: [UBER EATS]
@@ -91,7 +91,9 @@ Ev & Faturalar:
   Kira:
     # Kira, ev sahibine giden havalelerden bulunur: ev sahibinin adını kendi kural dosyanıza yazın. Başka bir
     # hesaptan alıcı adı yazılmadan aynı bankaya giden aynı tutarlı havaleler de buraya eşlenir.
-    _: [KIRA]
+    # KİRA yalnızca kelime olarak tutar (KİRASI, KİRAYI…): KIRAATHANE kahvehanedir, KİRALAMA araç ya da eşya
+    # kiralamadır, KİRAZ ve KIRAÇ başka şeylerdir.
+    _: ["re:\\bKIRA(SI|SINI|YI|LARI)?\\b"]
   Konut & Aidat:
     _: [SITE YONETIM, YONETIM, AIDAT, EMLAK, GAYRIMENKUL]
   Elektrik, Su & Doğalgaz:

@@ -55,6 +55,27 @@ def test_rules(cat, description, category, merchant):
         assert t.merchant == merchant
 
 
+@pytest.mark.parametrize(
+    "description",
+    ["ORNEK KISI 2024 SUBAT KIRA ODEMESI", "EV KİRASI ARALIK", "ARALIK AYI KİRAYI GÖNDERDİM", "2 AYLIK KİRALARI"],
+)
+def test_rent_is_the_word_kira_and_its_endings(cat, description):
+    assert categorize(cat, description).category == "Kira"
+
+
+@pytest.mark.parametrize(
+    "description, category",
+    [
+        ("ORNEK KIRAATHANESİ İSTANBUL TR", "Kafe & Kahve"),  # a coffeehouse
+        ("KİRALAMA ORNEK FİRMA", "Diğer Harcamalar"),  # renting a car or a thing, not a home
+        ("KİRAZ ORNEK BUTİK", "Diğer Harcamalar"),
+        ("KIRAÇ ORNEK ŞUBE", "Diğer Harcamalar"),  # a place in İstanbul
+    ],
+)
+def test_words_that_only_begin_with_kira_are_not_rent(cat, description, category):
+    assert categorize(cat, description).category == category
+
+
 def test_bank_category_beats_weak_keyword(cat):
     t = categorize(cat, "ORNEK GIDA", bank_category="Fast Food")
     assert t.category == "Restoran & Yemek"
