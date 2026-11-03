@@ -1311,6 +1311,75 @@ def _explain(s: Session, args: Args) -> Json:
     }
 
 
+STALE_ROW = (
+    "işlemin notu ya da düzeltmesi plan gösterildikten sonra değişti ya da işlem artık yok: aracı plan_id olmadan "
+    "yeniden çağırıp yeni plan alın"
+)
+_CORRECTED = ("note", "tags", "category", "necessity")
+
+
+def _correction(args: Args) -> transactions.Correction:
+    """The correction the arguments ask for: a field not given stays as it is; "" gives the category or the
+    necessity back to the rules."""
+    if not any(name in args for name in _CORRECTED):
+        raise ToolError("neyin değişeceğini verin: note, tags, category ya da necessity")
+    necessity = args.get("necessity")
+    return transactions.Correction(
+        note=args.get("note"),
+        tags=tuple(args["tags"]) if "tags" in args else None,
+        category=args.get("category"),
+        necessity=Necessity(necessity) if necessity else None,
+        clear_necessity=necessity == "",
+    )
+
+
+def _changed(field: str, now: object, after: object) -> Json:
+    """One field of a row as it is and as a correction leaves it."""
+    if field in ("category", "necessity") and not after:
+        return {"field": field, "now": now, "after": None, "note": "kurallar karar verir"}
+    return {"field": field, "now": now, "after": list(cast(tuple[str, ...], after)) if field == "tags" else after}
+
+
+def _annotate(s: Session, args: Args) -> Proposal:
+    """A correction of one row, shown as the row is and as it would be; applied through the use case the
+    Transactions screen corrects with, unless the row's annotation changed in between."""
+    _needs(args, "fingerprint")
+    fingerprint, change = args["fingerprint"], _correction(args)
+    a = s.current.get()
+    try:
+        checked = transactions.check(s.ws, a, fingerprint, change)
+        found = transactions.detail(s.ws, a, fingerprint)
+    except transactions.NotFound:
+        raise ToolError(NO_ROW) from None
+    except transactions.Refused as exc:
+        raise ToolError(str(exc)) from exc
+    row, base = found.row, found.annotation
+    now: Json = {"note": row.note, "tags": list(row.tags), "category": row.category, "necessity": row.necessity}
+
+    def apply(s: Session) -> Json:
+        a = s.current.get()
+        try:
+            if transactions.detail(s.ws, a, fingerprint).annotation != base:
+                raise StalePlan(STALE_ROW)
+            kept = transactions.correct(s.ws, a, fingerprint, change, Actor.MCP)
+        except transactions.NotFound:
+            raise StalePlan(STALE_ROW) from None
+        except transactions.Refused as exc:
+            raise ToolError(str(exc)) from exc
+        a = s.current.get()  # made again: the correction is on its row now
+        return {
+            "row": _row_view(transactions.detail(s.ws, a, fingerprint).row, _bank_labels(a)),
+            "annotation": _annotation_view(kept),
+            "note": "Düzeltme yalnızca bu satırda ve parmak iziyle saklandı; belgeler yeniden okunsa da kalır.",
+        }
+
+    shown = {
+        "row": _row_view(row, _bank_labels(a)),
+        "changes": [_changed(field, now[field], after) for field, after in checked.values.items()],
+    }
+    return Proposal(shown, apply)
+
+
 # --- the archive: one document, the unprocessed ones (the Documents screen's use cases) ------------------------------
 
 NO_DOCUMENT = "bu kimlikle arşivde bir belge yok (search ve unprocessed_documents belgelerin kimliğini verir)"
@@ -1520,6 +1589,62 @@ def _unprocessed(s: Session, args: Args) -> Json:
         "ve nasıl geldiğini (e-postaysa Gmail'deki bağlantısını), reparse_document yeniden okunmasını sağlar. Bir "
         "bankanın tanınmayan bir belgesiyse kullanıcı okuyucusunu isteyebilir.",
     }
+
+
+STALE_DOCUMENT = (
+    "belge plan gösterildikten sonra değişti ya da arşivden kaldırıldı: aracı plan_id olmadan yeniden çağırıp yeni "
+    "plan alın"
+)
+
+
+def _reading(found: documents.Detail) -> tuple[str, str, str, str]:
+    """What a document's reading is now: what a plan to read it again rests on."""
+    d = found.document
+    return d.status, d.parser, found.parser_version, d.reason
+
+
+def _reparse(s: Session, args: Args) -> Proposal:
+    """Reading a kept document again, shown as the document is now; applied through the Documents screen's use
+    case, unless its reading changed in between."""
+    _needs(args, "id")
+    sha256 = args["id"]
+    a = s.current.get()
+    try:
+        found = documents.detail(s.ws, a.dataset, sha256)
+    except documents.NotFound:
+        raise ToolError(NO_DOCUMENT) from None
+    base = _reading(found)
+
+    def apply(s: Session) -> Json:
+        try:
+            if _reading(documents.detail(s.ws, s.current.get().dataset, sha256)) != base:
+                raise StalePlan(STALE_DOCUMENT)
+            status = documents.reparse(s.ws, sha256)
+        except documents.NotFound:
+            raise StalePlan(STALE_DOCUMENT) from None
+        a = s.current.get()  # made again from the new reading
+        try:
+            after: documents.Detail | None = documents.detail(s.ws, a.dataset, sha256)
+        except documents.NotFound:  # a company's document: it went to the system Trash
+            after = None
+        return {
+            "status": status,
+            "statusLabel": label(DocumentStatus(status)),
+            "document": None if after is None else _document_view(after.document, _bank_labels(a)),
+            "rowsBefore": len(found.rows),
+            "rowsAfter": 0 if after is None else len(after.rows),
+            "statementsAfter": 0 if after is None else len(after.checks),
+        }
+
+    shown = {
+        "document": _document_view(found.document, _bank_labels(a)),
+        "readerVersion": found.parser_version or None,
+        "rows": len(found.rows),
+        "statements": len(found.checks),
+        "change": "Belge bugünkü okuyucularla yeniden okunur; ondan okunan satırlar ve ekstreler yeni okumayla "
+        "değişir, defter ve rapor onu izler. Şirket belgesi çıkarsa çöp kutusuna (geri alınabilir) taşınır.",
+    }
+    return Proposal(shown, apply)
 
 
 # --- the feed, the accounts, the net worth and the rates (the Akış, Hesaplar and Döviz screens' use cases) ------------
@@ -1900,6 +2025,19 @@ TOOLS = (
         _get_document,
     ),
     Tool(
+        "reparse_document",
+        "Belgeyi yeniden oku",
+        "Arşivdeki bir belgeyi bugünkü okuyucularla yeniden okutur: geçici bir nedenle okunamamış ya da okuyucusu "
+        "değişmiş bir belge için. Ondan okunan satırlar ve ekstreler yeni okumayla değişir; defter, rapor ve akış onu "
+        "izler. Şirket belgesi çıkarsa çöp kutusuna (geri alınabilir) taşınır. Plan belgenin bugünkü durumunu, "
+        "okuyucusunu ve ondan okunan satır sayısını gösterir. Planlarken id gerekir. " + _TWO_STEPS,
+        _schema(id=_DOCUMENT_ID, plan_id=_PLAN_ID),
+        _two_step("reparse_document", _reparse),
+        read_only=False,
+        destructive=True,
+        writes=_applies,
+    ),
+    Tool(
         "insights",
         "Değerlendirme",
         "Programın yorumu: tam aylar penceresi, öne çıkanlar, önerilen adımlar (aylık etkisiyle), aylık bütçe "
@@ -1965,6 +2103,41 @@ TOOLS = (
         "etiketleri ve düzeltmeleri. Bölünmüş bir satırın parçası satırın kendisini, bütün parçalarıyla verir.",
         _schema(("fingerprint",), fingerprint=_FINGERPRINT),
         _explain,
+    ),
+    Tool(
+        "annotate_transaction",
+        "İşleme not ve düzeltme",
+        "Bir işleme not, etiket, kategori ya da gereklilik düzeltmesi: yalnızca o satır değişir ve belgeler yeniden "
+        'okunsa da parmak iziyle korunur. Verilmeyen alan olduğu gibi kalır; note "" notu siler, tags satırın '
+        'etiketlerini verilen listeyle değiştirir ([] hepsini kaldırır), category ya da necessity "" kararı '
+        "kurallara bırakır. Bir işyerinin bütün işlemleri için add_rule kullanın. Ekstrede görünmeyen dekont satırı "
+        "ve bölünmüş bir satırın kategorisi ya da gerekliliği düzeltilmez. Plan satırı ve her alanın şimdiki ve "
+        "sonraki halini gösterir. Planlarken fingerprint ve en az bir alan gerekir. " + _TWO_STEPS,
+        _schema(
+            fingerprint=_FINGERPRINT,
+            note={"type": "string", "maxLength": 500},
+            tags={
+                "type": "array",
+                "maxItems": 20,
+                "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40,
+                    "pattern": r"[^\x00-\x1f\x7f,]+",
+                    "description": "virgül içermeyen bir etiket",
+                },
+            },
+            category={
+                "type": "string",
+                "maxLength": 100,
+                "description": 'var olan kategori (read_rules → categories); "" kurallara bırakır',
+            },
+            necessity={"type": "string", "enum": [*(n.value for n in Necessity), ""]},
+            plan_id=_PLAN_ID,
+        ),
+        _two_step("annotate_transaction", _annotate),
+        read_only=False,
+        writes=_applies,
     ),
     Tool(
         "regular_payments",

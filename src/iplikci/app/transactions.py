@@ -46,6 +46,7 @@ __all__ = [
     "Actor",
     "CategoryReason",
     "Certainty",
+    "Checked",
     "Detail",
     "Direction",
     "DocumentKind",
@@ -508,7 +509,7 @@ def _changes(ws: Workspace, change: Correction, t: Transaction | None = None) ->
     if change.note is not None:
         values["note"] = change.note.strip()
     if change.tags is not None:
-        values["tags"] = change.tags
+        values["tags"] = annotations.clean_tags(change.tags)
     if change.category is not None:
         try:
             values["category"] = (
@@ -535,22 +536,37 @@ def _labelled(change: Correction) -> bool:
     return bool(change.category) or (change.necessity is not None and not change.clear_necessity)
 
 
-def correct(ws: Workspace, a: Analysis, fingerprint: str, change: Correction, actor: Actor) -> Annotation | None:
-    """Correct one row: its note, tags, category or necessity, bound to its fingerprint so a new reading keeps it.
-    Returns what is kept; None when nothing is (the rules decide again). A split row's category and necessity are its
-    parts': one given to the row itself would not show, so it is refused unless the same change joins the row."""
-    found = _counted(a, fingerprint)
-    t = found.row
+@dataclass(frozen=True, slots=True)
+class Checked:
+    """A correction as correct makes it: the row it goes on (a part's is its row) and the annotation's fields it
+    sets, checked (a category written as the rules write it)."""
+
+    row: Transaction
+    values: dict[str, Any]  # note, tags, category ("" back to the rules), necessity (None back to them), parts
+
+
+def check(ws: Workspace, a: Analysis, fingerprint: str, change: Correction) -> Checked:
+    """What correct would do, nothing written: the MCP server shows it before the user approves it. NotFound and
+    Refused as correct raises them. A split row's category and necessity are its parts': one given to the row itself
+    would not show, so it is refused unless the same change joins the row."""
+    t = _counted(a, fingerprint).row
     split_stays = (t.fingerprint in a.dataset.split and change.parts != ()) or bool(change.parts)
     if split_stays and _labelled(change):
         raise Refused(
             "Bölünmüş satırın kategorisi ve gerekliliği her parçada ayrı seçilir: parçaları düzenleyin ya da önce "
             "bölmeyi kaldırın."
         )
-    values = _changes(ws, change, t)
+    return Checked(t, _changes(ws, change, t))
+
+
+def correct(ws: Workspace, a: Analysis, fingerprint: str, change: Correction, actor: Actor) -> Annotation | None:
+    """Correct one row: its note, tags, category or necessity, bound to its fingerprint so a new reading keeps it.
+    Returns what is kept; None when nothing is (the rules decide again). Refused as check says."""
+    checked = check(ws, a, fingerprint, change)
+    t = checked.row
     label = a.dataset.accounts[t.account].label if t.account in a.dataset.accounts else t.account
     with ws.db() as db:
-        kept = annotations.change(db, t.fingerprint, annotate.subject(t, label), actor, **values)
+        kept = annotations.change(db, t.fingerprint, annotate.subject(t, label), actor, **checked.values)
     background.request_refresh(ws)
     return kept
 

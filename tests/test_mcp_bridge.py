@@ -77,9 +77,12 @@ def test_while_the_service_is_down_a_tool_that_would_change_something_is_refused
 def test_while_the_service_is_down_a_change_is_planned_but_never_applied(read):
     offline = Session(replace(read, offline=True), offline=True)
     before = (fingerprint(read), read.rules.read_text(encoding="utf-8"))
+    [row] = answer(offline, "search", text="kahveci")[0]["transactions"]["rows"]
     for name, arguments in (
         ("add_rule", {"category": "Market & Gıda", "merchant": "Kahveci", "patterns": ["KAHVECI"]}),
         ("alerts", {"action": "add", "name": "X", "event": "transaction.large", "amount": 1}),
+        ("annotate_transaction", {"fingerprint": row["fingerprint"], "note": "kahve molası"}),
+        ("reparse_document", {"id": row["document"]}),
     ):
         planned = offline.call(name, arguments)
         plan = json.loads(planned.text)

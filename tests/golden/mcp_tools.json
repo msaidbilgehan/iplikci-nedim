@@ -260,6 +260,34 @@
     }
   },
   {
+    "name": "reparse_document",
+    "title": "Belgeyi yeniden oku",
+    "description": "Arşivdeki bir belgeyi bugünkü okuyucularla yeniden okutur: geçici bir nedenle okunamamış ya da okuyucusu değişmiş bir belge için. Ondan okunan satırlar ve ekstreler yeni okumayla değişir; defter, rapor ve akış onu izler. Şirket belgesi çıkarsa çöp kutusuna (geri alınabilir) taşınır. Plan belgenin bugünkü durumunu, okuyucusunu ve ondan okunan satır sayısını gösterir. Planlarken id gerekir. İki adımlıdır: plan_id olmadan çağrılınca hiçbir şey değişmez, ne değişeceği bir plan_id ile döner; planı kullanıcıya gösterin. Kullanıcı onaylarsa aynı aracı yalnızca plan_id ile çağırın: plan bir kez ve gösterildiği gibi uygulanır; dayandığı şey o arada değiştiyse uygulanmaz ve yeni plan gerekir. Servis kapalıyken plan alınabilir, uygulanamaz.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "[0-9a-f]{64}",
+          "description": "belgenin kimliği, 64 karakterlik sha256 (search, unprocessed_documents ve explain_transaction verir)"
+        },
+        "plan_id": {
+          "type": "string",
+          "description": "bu aracın plan_id olmadan verdiği planın kimliği; kullanıcı planı onayladıysa yalnızca bununla çağırın"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Belgeyi yeniden oku",
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "insights",
     "title": "Değerlendirme",
     "description": "Programın yorumu: tam aylar penceresi, öne çıkanlar, önerilen adımlar (aylık etkisiyle), aylık bütçe (bugün ve öneri), gelir-gider ortalamaları, varlıklar ve borçlar, harcama eğilimi, düzenli gelir.",
@@ -451,6 +479,64 @@
       "readOnlyHint": true,
       "destructiveHint": false,
       "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "annotate_transaction",
+    "title": "İşleme not ve düzeltme",
+    "description": "Bir işleme not, etiket, kategori ya da gereklilik düzeltmesi: yalnızca o satır değişir ve belgeler yeniden okunsa da parmak iziyle korunur. Verilmeyen alan olduğu gibi kalır; note \"\" notu siler, tags satırın etiketlerini verilen listeyle değiştirir ([] hepsini kaldırır), category ya da necessity \"\" kararı kurallara bırakır. Bir işyerinin bütün işlemleri için add_rule kullanın. Ekstrede görünmeyen dekont satırı ve bölünmüş bir satırın kategorisi ya da gerekliliği düzeltilmez. Plan satırı ve her alanın şimdiki ve sonraki halini gösterir. Planlarken fingerprint ve en az bir alan gerekir. İki adımlıdır: plan_id olmadan çağrılınca hiçbir şey değişmez, ne değişeceği bir plan_id ile döner; planı kullanıcıya gösterin. Kullanıcı onaylarsa aynı aracı yalnızca plan_id ile çağırın: plan bir kez ve gösterildiği gibi uygulanır; dayandığı şey o arada değiştiyse uygulanmaz ve yeni plan gerekir. Servis kapalıyken plan alınabilir, uygulanamaz.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "fingerprint": {
+          "type": "string",
+          "pattern": "[0-9a-f]{20}(-[1-9][0-9]?)?",
+          "description": "işlemin parmak izi (transactions, search ve explain_transaction verir)"
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "tags": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40,
+            "pattern": "[^\\x00-\\x1f\\x7f,]+",
+            "description": "virgül içermeyen bir etiket"
+          }
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "var olan kategori (read_rules → categories); \"\" kurallara bırakır"
+        },
+        "necessity": {
+          "type": "string",
+          "enum": [
+            "required",
+            "optional",
+            "unnecessary",
+            "unknown",
+            ""
+          ]
+        },
+        "plan_id": {
+          "type": "string",
+          "description": "bu aracın plan_id olmadan verdiği planın kimliği; kullanıcı planı onayladıysa yalnızca bununla çağırın"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "İşleme not ve düzeltme",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
       "openWorldHint": false
     }
   },

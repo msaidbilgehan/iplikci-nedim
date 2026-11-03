@@ -12,7 +12,7 @@ import pytest
 from mcp import Client
 
 from iplikci import demo
-from iplikci.app import accounts, rules
+from iplikci.app import accounts, documents, reading, rules, transactions
 from iplikci.app.workspace import BUSY, Busy, Workspace
 from iplikci.domain.codes import Actor, InvoiceKind
 from iplikci.domain.models import Invoice, InvoiceLine
@@ -21,7 +21,18 @@ from iplikci.fakes.files import text_pdf
 from iplikci.invoices import UNPAID_REASON, match
 from iplikci.mcp import tools
 from iplikci.mcp.server import build
-from iplikci.mcp.tools import DATA_NOTE, NO_DOCUMENT, NO_PLAN, NO_ROW, PLANNED, STALE_RULES, TOOLS, Session
+from iplikci.mcp.tools import (
+    DATA_NOTE,
+    NO_DOCUMENT,
+    NO_PLAN,
+    NO_ROW,
+    PLANNED,
+    STALE_DOCUMENT,
+    STALE_ROW,
+    STALE_RULES,
+    TOOLS,
+    Session,
+)
 from iplikci.storage import audit, events
 
 from conftest import FEBRUARY, JANUARY, add, bank_mail, put
@@ -739,6 +750,105 @@ def test_a_plan_the_busy_documents_kept_from_applying_can_be_applied_later(serve
     monkeypatch.setattr(rules, "save", save)
     done, failed = call(server, "add_rule", plan_id=plan["plan_id"])
     assert not failed and done["effect"]["moves"] == MOVED
+
+
+def test_the_tools_that_change_something_say_so_and_change_it_only_with_a_plan(server):
+    hints = {t.name: t for t in TOOLS}
+    for name in ("add_rule", "mark_ended", "write_rules", "alerts", "annotate_transaction", "reparse_document"):
+        tool = hints[name]
+        assert not tool.read_only and not tool.idempotent, name
+        assert not tool.changes({}) and tool.changes({"plan_id": "x"}), name
+    assert hints["reparse_document"].destructive and not hints["annotate_transaction"].destructive
+    readers = ("search", "explain_transaction", "get_document", "unprocessed_documents", "feed")
+    for name in (*readers, "accounts_overview", "net_worth", "fx_rates"):
+        assert hints[name].read_only and not hints[name].changes({}), name
+
+
+# --- a row's correction and a document read again: the writing tools of ADR-0011 ---------------------------------
+
+
+def coffee_row(session) -> dict:
+    [row] = call(session, "search", text="kahveci")[0]["transactions"]["rows"]
+    return row
+
+
+def test_a_rows_correction_is_shown_as_it_would_leave_the_row_then_kept_once_approved(server):
+    fp = coffee_row(server)["fingerprint"]
+    plan, failed = call(
+        server, "annotate_transaction", fingerprint=fp, category="market & gıda", note=" deneme ", tags=["ev", "ev"]
+    )
+    assert not failed and plan["note"] == PLANNED and plan["row"]["fingerprint"] == fp
+    assert plan["changes"] == [
+        {"field": "note", "now": "", "after": "deneme"},
+        {"field": "tags", "now": [], "after": ["ev"]},
+        {"field": "category", "now": "Kafe & Kahve", "after": "Market & Gıda"},  # as the rules write it
+    ]
+    assert call(server, "explain_transaction", fingerprint=fp)[0]["annotation"] is None  # nothing changed yet
+    done, failed = call(server, "annotate_transaction", plan_id=plan["plan_id"])
+    assert not failed and done["annotation"]["by"] == "mcp"
+    assert (done["row"]["category"], done["row"]["note"], done["row"]["tags"]) == ("Market & Gıda", "deneme", ["ev"])
+    assert call(server, "explain_transaction", fingerprint=fp)[0]["category"]["reason"] == "user"
+    back, (undone, failed) = approved(server, "annotate_transaction", fingerprint=fp, category="", note="", tags=[])
+    assert back["changes"][-1] == {
+        "field": "category",
+        "now": "Market & Gıda",
+        "after": None,
+        "note": "kurallar karar verir",
+    }
+    assert not failed and undone["annotation"] is None and undone["row"]["category"] == "Kafe & Kahve"
+
+
+def test_a_correction_the_program_would_refuse_gets_no_plan(server):
+    fp = coffee_row(server)["fingerprint"]
+    text, failed = call(server, "annotate_transaction", fingerprint=fp, category="Kafe ve Kahve")
+    assert failed and "Kafe & Kahve" in text  # the near miss is suggested
+    text, failed = call(server, "annotate_transaction", fingerprint=fp)
+    assert failed and text == "neyin değişeceğini verin: note, tags, category ya da necessity"
+    text, failed = call(server, "annotate_transaction", fingerprint="0" * 20, note="not")
+    assert failed and text == NO_ROW
+    text, failed = call(server, "annotate_transaction", fingerprint=fp, tags=["ev,iş"])
+    assert failed and text == "'tags[]' biçimi uygun değil (virgül içermeyen bir etiket)"
+    text, failed = call(server, "annotate_transaction", note="not")
+    assert failed and text == "gerekli parametre eksik: fingerprint"
+
+
+def test_a_correction_plan_is_not_applied_over_the_users_change_made_since(server, ws):
+    fp = coffee_row(server)["fingerprint"]
+    plan, _ = call(server, "annotate_transaction", fingerprint=fp, note="Claude'un notu")
+    by_hand = transactions.Correction(note="kullanıcının notu")
+    transactions.correct(ws, server.current.get(), fp, by_hand, Actor.USER)  # on the Transactions screen
+    text, failed = call(server, "annotate_transaction", plan_id=plan["plan_id"])
+    assert failed and text == STALE_ROW
+    assert call(server, "explain_transaction", fingerprint=fp)[0]["annotation"]["note"] == "kullanıcının notu"
+
+
+def test_a_document_is_read_again_only_once_the_user_approves_it(server, monkeypatch):
+    sha = coffee_row(server)["document"]
+    read, sent = reading.read, []
+
+    def reading_process(name, data, sha256, origin=""):  # the seam: what goes to the reading process
+        sent.append(sha256)
+        return read(name, data, sha256, origin)
+
+    monkeypatch.setattr(reading, "read", reading_process)
+    plan, failed = call(server, "reparse_document", id=sha)
+    assert not failed and plan["note"] == PLANNED and plan["document"]["id"] == sha
+    assert (plan["rows"], plan["statements"], plan["document"]["status"]) == (2, 1, "processed")
+    assert sent == []  # the plan read nothing
+    done, failed = call(server, "reparse_document", plan_id=plan["plan_id"])
+    assert not failed and (done["status"], done["statusLabel"]) == ("processed", "İşlendi")
+    assert (done["rowsBefore"], done["rowsAfter"], done["statementsAfter"]) == (2, 2, 1)
+    assert sent == [sha]
+    text, failed = call(server, "reparse_document", id="0" * 64)
+    assert failed and text == NO_DOCUMENT
+
+
+def test_a_reparse_plan_is_not_applied_to_a_document_removed_since(server, ws):
+    sha = coffee_row(server)["document"]
+    plan, _ = call(server, "reparse_document", id=sha)
+    documents.remove(ws, sha, Actor.USER)  # the user moved it to the Trash on the Documents screen
+    text, failed = call(server, "reparse_document", plan_id=plan["plan_id"])
+    assert failed and text == STALE_DOCUMENT
 
 
 # --- the contract: what a client sees of the tools ---------------------------------------------------------------
