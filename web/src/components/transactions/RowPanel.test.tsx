@@ -263,6 +263,19 @@ describe("RowPanel: corrections", () => {
     expect(only).toBeDisabled();
   });
 
+  it("says by a transfer's category that it decides where the row counts", async () => {
+    const { why } = transactionDetail();
+    serve(transactionDetail({ why: { ...why, category: "transfer_rule", transfer: "person" } }));
+    const fix = await region("Düzeltmeler");
+    expect(within(fix).getByText(/seçtiğiniz kategori, onun harcama mı, kişilere giden para mı/)).toBeInTheDocument();
+  });
+
+  it("says nothing of the kind by a card's purchase", async () => {
+    serve(transactionDetail());
+    const fix = await region("Düzeltmeler");
+    expect(within(fix).queryByText(/seçtiğiniz kategori, onun harcama mı/)).not.toBeInTheDocument();
+  });
+
   it("gives a corrected category back to the rules", async () => {
     const user = userEvent.setup();
     const corrected = transactionDetail();

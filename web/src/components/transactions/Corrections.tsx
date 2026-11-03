@@ -9,7 +9,7 @@ import { type FormEvent, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useCategoryRules, useCorrection } from "../../api/queries";
-import type { Category, Labels, Necessity, TransactionDetail } from "../../api/types";
+import type { Category, Labels, Necessity, TransactionDetail, TransferStep } from "../../api/types";
 import { labelOf } from "../../lib/labels";
 import { Failure, Loading } from "../QueryState";
 import { Alert } from "../ui/Alert";
@@ -20,6 +20,9 @@ import { RuleForm } from "./RuleForm";
 import { SplitEditor } from "./SplitEditor";
 
 const NECESSITIES: readonly Necessity[] = ["required", "optional", "unnecessary", "unknown"];
+// The ways the ledger resolves a transfer from what it could find (app/annotate): the category the user gives such a
+// row decides where it counts as well. A card's purchase and an own transfer the ledger knows keep their kind.
+const WORKED_OUT: ReadonlySet<TransferStep> = new Set(["rule", "like_named", "uncovered_bank", "person", "income"]);
 const MAX_TAGS = 20;
 const FIELD = [
   "min-h-11 rounded-md border px-3 text-sm",
@@ -160,6 +163,9 @@ function CategoryCorrection({ found, fingerprint, categories }: CategoryCorrecti
         }}
       />
       {own ? <p className={SMALL}>{t("correct.own", { value: own })}</p> : null}
+      {found.why.transfer !== null && WORKED_OUT.has(found.why.transfer) ? (
+        <p className={SMALL}>{t("correct.kindFollows")}</p>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         <Button disabled={!chosen || chosen === current || correction.isPending} onClick={() => save(chosen)}>
           {t("correct.onlyThis")}

@@ -184,6 +184,7 @@ import type {
   TotalsOut,
   TransactionDetailOut,
   TransactionsOut,
+  TransferStep,
   TrendOut,
   UnusualKind,
   UnusualOut,
@@ -298,7 +299,7 @@ export type CategoryRules = CategoryRulesOut;
 export type Category = CategoryOut;
 export type MerchantRule = MerchantRuleIn;
 export type RuleChange = RuleChangeOut;
-export type { Necessity };
+export type { Necessity, TransferStep }; // how the ledger resolved a transfer: whether its category decides its kind
 // The payments the user ended (`_biten`): "İptal ettim" writes one, "Yeniden bekle" takes the user's own back.
 export type EndedPayment = EndedOut;
 export type EndedRule = EndedIn;

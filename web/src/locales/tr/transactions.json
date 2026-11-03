@@ -165,6 +165,7 @@
     "asRule": "Kural olarak…",
     "back": "Kurallara bırak",
     "own": "Sizin düzeltmeniz: {{value}}",
+    "kindFollows": "Bu bir transfer: seçtiğiniz kategori, onun harcama mı, kişilere giden para mı, kendi hesaplarınız arası mı sayılacağını da belirler.",
     "necessity": "Gereklilik",
     "necessityRules": "Kurallara bırak",
     "saveNecessity": "Gerekliliği kaydet",
