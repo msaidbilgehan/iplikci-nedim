@@ -307,6 +307,11 @@ class Categorizer:
         out_kind, in_kind = _KIND_BY_TYPE.get(self.types.get(category, ""), _KIND_BY_TYPE[""])
         return out_kind if amount > 0 else in_kind
 
+    def counts_income(self, category: str) -> bool:
+        """Whether money in, in category, is income: a category of `_tür` gelir or kişi, or one the program keeps for
+        income ("Diğer Gelirler")."""
+        return self.kind_for(category, Decimal(-1)) is TransactionKind.INCOME
+
     def resolve_kind(self, t: Transaction) -> bool:
         """Give a transfer candidate a kind and category when a rule names its party or purpose."""
         rule = self.match(f"{t.description} {t.counterparty}", weak=False)
@@ -344,6 +349,9 @@ class Categorizer:
             _because(txn, CategoryReason.KIND)
         elif txn.kind == TransactionKind.INCOME:
             rule = self.match(f"{txn.description} {txn.counterparty}", weak=False)
+            # Only a category that counts money in as income names an income: a shop's word in an employer's name
+            # makes a salary no purchase.
+            rule = rule if rule and self.counts_income(rule.category) else None
             txn.category = rule.category if rule else OTHER_INCOME
             txn.merchant = (rule.merchant if rule and rule.merchant else "") or display_name(
                 txn.counterparty or txn.description

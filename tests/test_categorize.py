@@ -235,6 +235,21 @@ def test_category_type_decides_transfer_kind(tmp_path):
     assert not cat.resolve_kind(candidate("FAST", 300.0, "Tanımadığım Kişi"))
 
 
+def test_an_income_takes_only_a_category_that_counts_money_in_as_income(tmp_path, cat):
+    # A word of a shop's category in an employer's name makes a salary no electronics purchase.
+    salary = "Maaş Ödemesi: ORNEK ELEKTRONIK ANONIM SIRKETI Kurumun Maas Odemesi"
+    paid = categorize(cat, salary, kind=TransactionKind.INCOME, amount=-50000.0)
+    assert (paid.kind, paid.category) == (TransactionKind.INCOME, OTHER_INCOME)
+    assert paid.reason.category is CategoryReason.INCOME
+    # A category of `_tür` gelir or kişi names it.
+    rules = tmp_path / "kategoriler.yaml"
+    rules.write_text(PEOPLE_RULES + "Gelirler:\n  Maaş:\n    _tür: gelir\n    Örnek Elektronik: [ORNEK ELEKTRONIK]\n")
+    named = categorize(Categorizer(rules), salary, kind=TransactionKind.INCOME, amount=-50000.0)
+    assert (named.category, named.merchant) == ("Maaş", "Örnek Elektronik")
+    family = categorize(Categorizer(rules), "AYSE SOYADOGLU", kind=TransactionKind.INCOME, amount=-500.0)
+    assert family.category == "Aile"
+
+
 def test_groups_keep_file_order_and_other_last(cat):
     assert cat.groups[0] == "Yeme & İçme"
     assert cat.groups[-1] == "Diğer"
