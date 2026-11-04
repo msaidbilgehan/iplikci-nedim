@@ -150,6 +150,7 @@ class Closing:
     saving: Decimal = ZERO  # what went to savings and investments
     people: Decimal = ZERO  # what was sent to people
     debt: Decimal = ZERO  # the loan principal repaid
+    closes_by: date | None = None  # the cut of the last card statement the month waits for (closes_by_day)
 
     @property
     def out(self) -> Decimal:
@@ -423,6 +424,17 @@ def _say_closing(months: list[Closing]) -> str:
     return "; ".join(said) + (f"; diğer {closed} ay kapandı." if closed else ".")
 
 
+def closes_by_day(me: month_end.MonthEnd) -> date | None:
+    """When an ended month should close: the cut of the last card statement it waits for, as each card's next cut is
+    reckoned from its earlier ones. None when no day can be promised: the month waits for an account list the user
+    downloads, misses a document or asks for a check, or a statement it waits for is late."""
+    held = me.open
+    if me.status is not MonthStatus.WAITING or not held:
+        return None
+    cuts = [ac.next_cut for ac in held if ac.status is MonthStatus.WAITING and ac.next_cut and not ac.late]
+    return max(cuts) if len(cuts) == len(held) else None
+
+
 def closing(a: Analysis, today: date) -> LastMonths:
     """The last seven months' closing, as the report's closing card shows it: the current month and the six before it
     with documents."""
@@ -446,6 +458,7 @@ def closing(a: Analysis, today: date) -> LastMonths:
                 saving=me.totals.saving,
                 people=me.totals.people,
                 debt=me.totals.debt,
+                closes_by=closes_by_day(me),
             )
         )
     ended = [c for c in found if c.status is not MonthStatus.RUNNING]

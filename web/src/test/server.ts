@@ -1898,6 +1898,7 @@ function closing(
     provisional: 0,
     unmatched: 0,
     waiting: [],
+    closes_by: null,
     link: { screen: "month", id: month, query: {} },
     ...overrides,
   };

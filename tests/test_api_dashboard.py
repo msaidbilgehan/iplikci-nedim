@@ -341,6 +341,21 @@ def test_the_last_seven_months_closing_leads_to_the_oldest_month_still_open(demo
     assert (months[-1]["income"], months[-1]["link"]) == (None, link("month", "2026-11"))
     assert closing["say"] == "Temmuz 2026'da belge eksik; diğer 5 ay kapandı."
     assert closing["link"] == link("month", "2026-07")
+    # A month a missing list holds open, a closed one and the running one promise no day to close.
+    assert [m["closes_by"] for m in months] == [None] * 7
+
+
+def test_a_month_waiting_for_a_cards_statement_says_by_when_it_closes(garanti_ws):
+    def october(today: date) -> dict[str, object]:
+        return next(m for m in board(garanti_ws, today)["closing"]["months"] if m["month"] == "2026-10")
+
+    # The card's statement of 5 October leaves the month's last days to the next one, cut around 5 November.
+    waiting = october(date(2026, 11, 3))
+    assert (waiting["status"], waiting["closes_by"]) == ("waiting", "2026-11-05")
+    assert [w["account"]["id"] for w in waiting["waiting"]] == [CARD]  # type: ignore[union-attr]
+    # Days after that cut the statement is late: the month still waits for it, but no day is promised.
+    late = october(date(2026, 11, 11))
+    assert (late["status"], late["closes_by"]) == ("waiting", None)
 
 
 def test_freshness_flags_a_card_whose_next_statement_is_late(garanti_ws):

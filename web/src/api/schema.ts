@@ -418,6 +418,7 @@ export interface ClosingOut {
   provisional: number;
   unmatched: number;
   waiting: WaitingOut[];
+  closes_by: string | null;
   link: LinkOut;
 }
 

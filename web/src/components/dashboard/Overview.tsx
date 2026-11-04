@@ -1,7 +1,9 @@
 // The simple view's home (F06), for anyone, with or without finance words: where the money stands, read as pictures
 // first. The last closed month's money in, out, saved and left as figures and one bar, with a sentence saying how it
 // went: out is the spending, the money sent to people and the loan principal repaid, and left is the income less what
-// went out and what was saved, as the month-end page says. The months before as bars above and below a line; where
+// went out and what was saved, as the month-end page says. An ended month after it that has not closed says why the
+// story is not its own: the statements it waits for and by when, or what else holds it, with what it shows so far.
+// The months before as bars above and below a line; where
 // that month's money went, by category; the next 30 days' money as a line with what is to be paid and to come in; and
 // what to do now, each with its button. Every chart says how to read it and has its table (ChartFrame). The figures
 // are the service's: a month's are its closing, the forecast is the calendar's, the advice the assessment's steps;
@@ -259,6 +261,9 @@ function MonthStory({ found, month }: { found: Dashboard; month: MonthClosing | 
           <span>{said}</span>
         </p>
         {month.status === "closed" ? null : <p className={SMALL}>{t("overview.story.partial")}</p>}
+        {heldAfter(found.closing.months, month.month).map((held) => (
+          <HeldMonth key={held.month} month={held} />
+        ))}
         {running && running.month !== month.month ? (
           <p className={SMALL}>
             {running.expense.minor > 0
@@ -269,6 +274,36 @@ function MonthStory({ found, month }: { found: Dashboard; month: MonthClosing | 
         {total}
       </div>
     </Card>
+  );
+}
+
+/** The ended months after the story's that have not closed, oldest first: each says why the story is not its own. */
+function heldAfter(months: readonly MonthClosing[], story: string): MonthClosing[] {
+  return months.filter((m) => m.month > story && m.status !== "closed" && m.status !== "running");
+}
+
+/**
+ * An ended month the story skips, in one sentence: why it is open (the statements it waits for and when the last is
+ * due, a missing document, a check), what was spent in it so far, and the way to its month-end page.
+ */
+function HeldMonth({ month }: { month: MonthClosing }) {
+  const { t } = useTranslation("dashboard");
+  const amount = formatMoney(month.expense);
+  const said =
+    month.status === "waiting"
+      ? t("overview.story.held", {
+          context: month.closes_by ? "" : "undated",
+          count: Math.max(month.waiting.length, 1),
+          month: month.month,
+          day: month.closes_by ?? "",
+          amount,
+        })
+      : t("overview.story.held", { context: month.status, month: month.month, amount });
+  return (
+    <p className={cn("flex flex-wrap items-center gap-x-3 gap-y-1", SMALL)}>
+      <span>{said}</span>
+      <NextStep step={{ link: month.link, label: t("overview.story.heldOpen", { month: month.month }) }} />
+    </p>
   );
 }
 

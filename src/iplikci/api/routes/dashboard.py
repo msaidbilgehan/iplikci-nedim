@@ -136,6 +136,9 @@ class ClosingOut(BaseModel):
     provisional: int  # rows only receipts and notices show
     unmatched: int  # receipt and notice rows the statements covering their days do not show
     waiting: list[WaitingOut]  # the accounts that hold the month open
+    # When an ended month should close: the cut of the last card statement it waits for. Null when no day can be
+    # promised (an account list to download, a missing document, a check, a late statement) and for any other month.
+    closes_by: date | None
     link: LinkOut
 
 
@@ -254,6 +257,7 @@ def _closing(c: dashboard.Closing, labels: dict[str, str]) -> ClosingOut:
         provisional=c.provisional,
         unmatched=c.unmatched,
         waiting=[WaitingOut(account=account_ref(a, labels), waiting_for=why) for a, why in c.waiting],
+        closes_by=c.closes_by,
         link=_link(c.link),
     )
 
