@@ -121,9 +121,15 @@ class ClosingOut(BaseModel):
     month: str  # YYYY-MM
     status: MonthStatus
     summary: str  # the closing in one Turkish sentence, after the status' label
-    expense: MoneyOut
+    expense: MoneyOut  # the spending: purchases, refunds, interest and fees
+    # What went out and is gone: the spending, what was sent to people and the loan principal repaid.
+    out: MoneyOut
+    people: MoneyOut  # what was sent to people, part of out
+    debt: MoneyOut  # the loan principal repaid, part of out
+    saving: MoneyOut  # what went to savings and investments
     income: MoneyOut | None  # null when no account list covers enough of the month to know it
-    left: MoneyOut | None  # the income less what went out; below zero when more went out
+    # The income less what went out and what was saved; below zero when more went out. As the month-end page says.
+    left: MoneyOut | None
     # Where the income comes from, or why it may be short ("gelir eksik olabilir: …"): a month a list covers only in
     # part has an income, but not a certain one.
     income_note: str
@@ -238,6 +244,10 @@ def _closing(c: dashboard.Closing, labels: dict[str, str]) -> ClosingOut:
         status=c.status,
         summary=c.summary,
         expense=money(c.expense),
+        out=money(c.out),
+        people=money(c.people),
+        debt=money(c.debt),
+        saving=money(c.saving),
         income=None if c.income is None else money(c.income),
         left=None if c.left is None else money(c.left),
         income_note=c.income_note,

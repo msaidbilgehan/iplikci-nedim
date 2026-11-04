@@ -12,12 +12,31 @@ const region = (name: string) => screen.findByRole("region", { name });
 
 const tl = (minor: number) => ({ minor, currency: "TRY" });
 
-/** The dashboard with October's money in and out changed: the last closed month the home tells. */
-function withOctober(income: number, expense: number): Dashboard {
+interface October {
+  income: number;
+  expense: number;
+  people?: number;
+  debt?: number;
+  saving?: number;
+}
+
+/** The dashboard with October's money changed, as the service sums it: what went out is the spending, the money
+ * sent to people and the loan principal; what is left is the income less what went out and what was saved. */
+function withOctober({ income, expense, people = 0, debt = 0, saving = 0 }: October): Dashboard {
+  const out = expense + people + debt;
   const months = DASHBOARD.closing.months.map(
     (month): MonthClosing =>
       month.month === "2026-10"
-        ? { ...month, income: tl(income), expense: tl(expense), left: tl(income - expense) }
+        ? {
+            ...month,
+            income: tl(income),
+            expense: tl(expense),
+            people: tl(people),
+            debt: tl(debt),
+            out: tl(out),
+            saving: tl(saving),
+            left: tl(income - out - saving),
+          }
         : month,
   );
   return { ...DASHBOARD, closing: { ...DASHBOARD.closing, months } };
@@ -47,19 +66,49 @@ describe("Overview", () => {
   });
 
   it("says plainly when more went out than came in", async () => {
-    renderScreen(<Overview found={withOctober(1000000, 1200000)} />);
+    renderScreen(<Overview found={withOctober({ income: 1000000, expense: 1200000 })} />);
     const story = await region("Ekim 2026: paranız ne durumda?");
-    expect(within(story).getByText("Fazla harcanan")).toBeInTheDocument();
+    expect(within(story).getByText("Fazla çıkan")).toBeInTheDocument();
     expect(
       within(story).getByText(
-        "Giden para gelenden 2.000,00 TL fazla: bu ay gelirinizden çok harcadınız. " +
+        "Giden para gelenden 2.000,00 TL fazla: bu ay gelirinizden çok para çıktı. " +
           "Aşağıda paranın nereye gittiğine bakın.",
       ),
     ).toBeInTheDocument();
   });
 
+  it("takes off the money sent to people, the loan principal and the saving, as the month-end page does", async () => {
+    const october = withOctober({ income: 4000000, expense: 2000000, people: 750000, debt: 120000, saving: 480000 });
+    renderScreen(<Overview found={october} />);
+    const story = await region("Ekim 2026: paranız ne durumda?");
+    expect(within(story).getByText("28.700,00 TL")).toBeInTheDocument(); // what went out: 20.000 + 7.500 + 1.200
+    expect(
+      within(story).getByText("harcamalar, faturalar, kişilere gönderilen para ve kredi ödemeleri"),
+    ).toBeInTheDocument();
+    expect(within(story).getByText("Birikim")).toBeInTheDocument();
+    expect(within(story).getByText("4.800,00 TL")).toBeInTheDocument();
+    expect(within(story).getByText("6.500,00 TL")).toBeInTheDocument(); // left: 40.000 − 28.700 − 4.800
+    expect(within(story).getByText("gelen paradan giden ve birikim çıkınca")).toBeInTheDocument();
+    expect(
+      within(story).getByText(
+        "Gelen paranın %12'si birikime gitti, %16'sı elinizde kaldı. İyi gidiyor.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("says what went out beyond the money that came in when the saving takes it below zero", async () => {
+    renderScreen(<Overview found={withOctober({ income: 1000000, expense: 900000, saving: 200000 })} />);
+    const story = await region("Ekim 2026: paranız ne durumda?");
+    expect(
+      within(story).getByText(
+        "Giden para ve birikim gelenden 1.000,00 TL fazla: aradaki fark hesaplarınızdaki paradan ya da borçla " +
+          "karşılandı. Aşağıda paranın nereye gittiğine bakın.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("says when only a little of the money that came in is left", async () => {
-    renderScreen(<Overview found={withOctober(4000000, 3800000)} />);
+    renderScreen(<Overview found={withOctober({ income: 4000000, expense: 3800000 })} />);
     const story = await region("Ekim 2026: paranız ne durumda?");
     expect(
       within(story).getByText(
@@ -84,7 +133,10 @@ describe("Overview", () => {
 
   it("counts the closed months that brought in more, when one did not", async () => {
     const months = DASHBOARD.closing.months.map(
-      (month): MonthClosing => (month.month === "2026-05" ? { ...month, expense: tl(4500000) } : month),
+      (month): MonthClosing =>
+        month.month === "2026-05"
+          ? { ...month, expense: tl(4500000), out: tl(4500000), left: tl(-500000) }
+          : month,
     );
     renderScreen(<Overview found={{ ...DASHBOARD, closing: { ...DASHBOARD.closing, months } }} />);
     const chart = await region("Aylara göre gelen ve giden");
@@ -106,9 +158,21 @@ describe("Overview", () => {
     );
     expect(within(october).getByRole("link", { name: "−19.977,99 TL" })).toHaveAttribute(
       "href",
-      `/islemler?${days}&kind=purchase&kind=refund&kind=interest_fee`,
+      `/islemler?${days}&kind=purchase&kind=refund&kind=interest_fee&kind=p2p_transfer&kind=loan_principal`,
     );
     expect(within(october).getAllByRole("link")).toHaveLength(2); // the month alone leads to neither
+  });
+
+  it("draws a month's saving below the line, leading to its savings", async () => {
+    renderScreen(<Overview found={withOctober({ income: 4000000, expense: 2000000, saving: 500000 })} />);
+    const months = await region("Aylara göre gelen ve giden");
+    expect(within(months).getByText(/mavi çubuk birikime ayrılan parayı gösterir/)).toBeInTheDocument();
+    await userEvent.click(within(months).getByRole("tab", { name: "Tablo" }));
+    const october = within(within(months).getByRole("table")).getByRole("row", { name: /^Ekim 2026/ });
+    expect(within(october).getByRole("link", { name: "−5.000,00 TL" })).toHaveAttribute(
+      "href",
+      "/islemler?from=2026-10-01&to=2026-10-31&kind=investment",
+    );
   });
 
   it("shows where the last closed month's money went, asking for that month only", async () => {

@@ -401,8 +401,11 @@ def test_the_to_do_numbers_are_the_to_do_lists(demo_client, demo_board):
 def test_nedim_says_the_last_closed_months_verdict_as_the_pano_does_and_then_its_fees(demo_board):
     october = next(m for m in demo_board["closing"]["months"] if m["month"] == "2026-10")
     assert october["status"] == "closed"
-    left = (october["income"]["minor"] - october["expense"]["minor"]) / october["income"]["minor"]
-    assert round(left * 100) == 49
+    # What is left is the month-end page's: the income less what went out and what was saved.
+    minor = {key: october[key]["minor"] for key in ("income", "expense", "people", "debt", "out", "saving", "left")}
+    assert minor["out"] == minor["expense"] + minor["people"] + minor["debt"]
+    assert minor["left"] == minor["income"] - minor["out"] - minor["saving"]
+    assert round(minor["left"] / minor["income"] * 100) == 49
     first, second, fees = demo_board["sayings"]
     assert (first["situation"], first["mood"], first["reason"]) == (
         "good",

@@ -17,14 +17,16 @@ TODAY = date(2026, 11, 15)
 
 def month(
     income: str = "40000",
-    expense: str = "20400",
+    out: str = "20400",
     *,
     fees: str = "0",
     saving: str = "0",
     foreign: bool = False,
     best: int = 0,
 ) -> MonthFacts:
-    return MonthFacts("2026-10", Decimal(income), Decimal(expense), Decimal(fees), Decimal(saving), foreign, best)
+    """A closed month: what was left is the income less what went out and what was saved, as the month-end page says."""
+    came, went, saved = Decimal(income), Decimal(out), Decimal(saving)
+    return MonthFacts("2026-10", came, went, came - went - saved, Decimal(fees), saved, foreign, best)
 
 
 def facts(
@@ -99,33 +101,42 @@ def test_with_documents_but_no_closed_month_he_still_does_not_know():
 
 
 def test_a_month_that_closed_in_the_red_is_a_dark_future():
-    [first] = choose(facts(story=month(expense="45000")), TODAY)
+    [first] = choose(facts(story=month(out="45000")), TODAY)
     assert (first.situation, first.mood, first.quote.id) == (Situation.OVERSPENT, Mood.CRITICAL, "dark_future")
-    assert first.reason == "Ekim 2026'da harcanan, gelen paradan fazlaydı."
+    assert first.reason == "Ekim 2026'da giden para, gelen paradan fazlaydı."
+    # What was saved is taken off too, as the month-end page takes it.
+    saved = said(facts(story=month(out="36000", saving="4500")))[0]
+    assert saved == (
+        Situation.OVERSPENT,
+        Mood.CRITICAL,
+        "Ekim 2026'da giden ve birikime ayrılan para, gelen paradan fazlaydı.",
+    )
 
 
 def test_little_left_is_a_car_without_an_engine():
-    assert said(facts(story=month(expense="37600"))) == [
+    assert said(facts(story=month(out="37600"))) == [
         (Situation.THIN, Mood.WARNING, "Ekim 2026'da gelen paranın yalnızca %6'sı elde kaldı."),
     ]
-    assert said(facts(story=month(expense="40000"))) == [
-        (Situation.THIN, Mood.WARNING, "Ekim 2026'da gelen paranın hepsi harcandı."),
-    ]
+    assert said(facts(story=month(out="30000", saving="10000")))[0] == (
+        Situation.THIN,
+        Mood.WARNING,
+        "Ekim 2026'da gelen paranın hepsi harcandı ya da ayrıldı.",
+    )
 
 
 def test_a_good_month_says_the_share_left_as_the_pano_does():
     assert said(facts(story=month())) == [(Situation.GOOD, Mood.GOOD, "Ekim 2026'da gelen paranın %49'u elde kaldı.")]
-    assert said(facts(story=month(expense="36000"))) == [
+    assert said(facts(story=month(out="36000"))) == [
         (Situation.GOOD, Mood.GOOD, "Ekim 2026'da gelen paranın %10'u elde kaldı."),  # a tenth is not little
     ]
 
 
 def test_a_month_with_no_income_and_no_spending_is_quiet():
-    for expense in ("0", "-50"):  # a refund alone is no spending
-        assert said(facts(story=month(income="0", expense=expense))) == [
+    for out in ("0", "-50"):  # a refund alone is no spending
+        assert said(facts(story=month(income="0", out=out))) == [
             (Situation.QUIET, Mood.NEUTRAL, "Ekim 2026'da ne gelir geldi ne harcama yapıldı."),
         ]
-    assert said(facts(story=month(income="0", expense="10")))[0][0] is Situation.OVERSPENT
+    assert said(facts(story=month(income="0", out="10")))[0][0] is Situation.OVERSPENT
 
 
 def test_the_best_of_the_closed_months_comes_before_its_verdict():
@@ -148,7 +159,7 @@ def test_the_best_of_the_closed_months_comes_before_its_verdict():
     ],
 )
 def test_a_forecast_below_zero_comes_before_everything(negative, mood, reason):
-    found = said(facts(story=month(expense="45000"), negative=negative, net_worth="-5"))
+    found = said(facts(story=month(out="45000"), negative=negative, net_worth="-5"))
     assert found[0] == (Situation.GOING_NEGATIVE, mood, reason)
     assert [s for s, _, _ in found] == [Situation.GOING_NEGATIVE, Situation.OVERSPENT, Situation.IN_DEBT]
     assert {s.quote.id for s in choose(facts(negative=negative), TODAY)} == {"linden_tree", "two_lindens"}
@@ -177,7 +188,7 @@ def test_a_foreign_income_savings_an_income_a_price_rise_and_fees_follow_the_ver
         (Situation.FOREIGN_INCOME, Mood.GOOD, "Ekim 2026'da döviz hesabınıza gelir girdi."),
         (Situation.SAVING, Mood.GOOD, "Ekim 2026'da birikime ya da yatırıma para ayrıldı."),
         (Situation.INCOME_ARRIVED, Mood.GOOD, "2 gün önce geliriniz hesaba geçti."),
-        (Situation.GOOD, Mood.GOOD, "Ekim 2026'da gelen paranın %49'u elde kaldı."),
+        (Situation.GOOD, Mood.GOOD, "Ekim 2026'da gelen paranın %46'sı elde kaldı."),  # what was saved is not left
         (Situation.PRICE_RISE, Mood.WARNING, "Son 45 günde 2 düzenli ödemenizin tutarı arttı."),
         (Situation.FEES, Mood.WARNING, "Ekim 2026'da bankalara faiz ve ücret ödendi."),
     ]
@@ -206,7 +217,8 @@ months = st.builds(
     MonthFacts,
     month=st.sampled_from(["2025-12", "2026-01", "2026-10"]),
     income=st.decimals(min_value=0, max_value=10**6, places=2, allow_nan=False, allow_infinity=False),
-    expense=money,
+    out=money,
+    left=money,
     fees=money,
     saving=money,
     foreign_income=st.booleans(),

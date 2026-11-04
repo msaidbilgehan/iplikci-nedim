@@ -1882,11 +1882,16 @@ function closing(
   status: MonthClosing["status"],
   overrides: Partial<MonthClosing> = {},
 ): MonthClosing {
+  const expense = overrides.expense ?? tl(1997799);
   return {
     month,
     status,
     summary: "Bütün hesapların belgeleri ayın tamamını kapsıyor ve tutarlı.",
-    expense: tl(1997799),
+    expense,
+    out: expense, // nothing sent to people and no loan principal: what went out is the spending
+    people: tl(0),
+    debt: tl(0),
+    saving: tl(0),
     income: tl(4000000),
     left: tl(2002201),
     income_note: "hesap dökümlerindeki gelen para",

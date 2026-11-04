@@ -408,6 +408,10 @@ export interface ClosingOut {
   status: MonthStatus;
   summary: string;
   expense: MoneyOut;
+  out: MoneyOut;
+  people: MoneyOut;
+  debt: MoneyOut;
+  saving: MoneyOut;
   income: MoneyOut | null;
   left: MoneyOut | null;
   income_note: string;

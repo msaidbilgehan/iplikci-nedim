@@ -1,12 +1,15 @@
 // The simple view's home (F06), for anyone, with or without finance words: where the money stands, read as pictures
-// first. The last closed month's money in, out and left as three figures and one bar, with a sentence saying how it
-// went; the months before as bars above and below a line; where that month's money went, by category; the next 30
-// days' money as a line with what is to be paid and to come in; and what to do now, each with its button. Every chart
-// says how to read it and has its table (ChartFrame). The figures are the service's: a month's are its closing, the
-// forecast is the calendar's, the advice the assessment's steps; nothing typical is reckoned here. Every chart leads
-// on: a month's money in to its income and its money out to its spending, a category to its rows of the month, a day
-// of the next 30 to what the calendar expects on it.
+// first. The last closed month's money in, out, saved and left as figures and one bar, with a sentence saying how it
+// went: out is the spending, the money sent to people and the loan principal repaid, and left is the income less what
+// went out and what was saved, as the month-end page says. The months before as bars above and below a line; where
+// that month's money went, by category; the next 30 days' money as a line with what is to be paid and to come in; and
+// what to do now, each with its button. Every chart says how to read it and has its table (ChartFrame). The figures
+// are the service's: a month's are its closing, the forecast is the calendar's, the advice the assessment's steps;
+// nothing typical is reckoned here. Every chart leads on: a month's money in to its income, its money out to the rows
+// that went out and its saving to its savings, a category to its rows of the month, a day of the next 30 to what the
+// calendar expects on it.
 
+import type { TFunction } from "i18next";
 import { type ReactNode, useId } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -14,8 +17,9 @@ import { useForecast, useInsights, useSpending } from "../../api/queries";
 import type { CalendarItem, Dashboard, Forecast, MonthClosing, OpenAlert } from "../../api/types";
 import { cn } from "../../lib/cn";
 import { addDays, formatDay, formatMoney, formatMonth } from "../../lib/format";
-import { monthDays, monthIncome, monthSpending, rowsLink } from "../../lib/rows";
+import { monthDays, monthIncome, monthOut, monthSaving, rowsLink } from "../../lib/rows";
 import { HBars } from "../charts/HBars";
+import type { StackSeries } from "../charts/layout";
 import { LineChart } from "../charts/LineChart";
 import { SLOT_BG } from "../charts/palette";
 import { StackedBars } from "../charts/StackedBars";
@@ -30,6 +34,7 @@ const HOW = "text-sm text-zinc-700 dark:text-zinc-300";
 const AHEAD_DAYS = 30;
 const IN_SLOT = 3; // as an account's months draw money in (accounts/Sections, MonthsCard)
 const OUT_SLOT = 2;
+const SAVE_SLOT = 1; // what was set aside: blue beside the orange of what went out
 const THIN = 0.1; // less than this share of the income left: said to be little
 
 const tl = (minor: number) => ({ minor, currency: "TRY" });
@@ -61,20 +66,22 @@ interface FigureProps {
   label: string;
   hint: string;
   value: string;
-  tone?: "in" | "out" | "left" | "over";
+  tone?: "in" | "out" | "saved" | "left" | "over";
 }
 
-function Figure({ label, hint, value, tone }: FigureProps) {
+const DOTS: Readonly<Record<NonNullable<FigureProps["tone"]>, string>> = {
+  in: SLOT_BG[IN_SLOT],
+  out: SLOT_BG[OUT_SLOT],
+  saved: SLOT_BG[SAVE_SLOT],
+  left: SLOT_BG[IN_SLOT],
+  over: "bg-status-critical",
+};
+
+function Figure({ label, hint, value, tone = "in" }: FigureProps) {
   return (
     <div className="min-w-0 flex-1 rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800/60">
       <dt className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
-        <span
-          aria-hidden="true"
-          className={cn(
-            "size-2.5 shrink-0 rounded-full",
-            tone === "over" ? "bg-status-critical" : tone === "out" ? SLOT_BG[OUT_SLOT] : SLOT_BG[IN_SLOT],
-          )}
-        />
+        <span aria-hidden="true" className={cn("size-2.5 shrink-0 rounded-full", DOTS[tone])} />
         {label}
       </dt>
       <dd
@@ -91,29 +98,85 @@ function Figure({ label, hint, value, tone }: FigureProps) {
   );
 }
 
+interface Money {
+  moneyIn: number; // minor units, as every figure here
+  moneyOut: number; // spending, money sent to people and loan principal repaid
+  saved: number;
+  left: number; // moneyIn less moneyOut and saved: below zero when more went out
+}
+
 /**
- * Money in as the bar's whole, out and left as its parts, each part named under it with its share; when more went out,
- * out is the whole, what came in a part and the rest is what was spent beyond it. The sentence beside it says the same
- * in words, so the bar itself is hidden from screen readers.
+ * Money in as the bar's whole, and what went out, what was saved and what was left as its parts, each named under it
+ * with its share; when more went out, what went out and was saved is the whole, what came in a part and the rest is
+ * what went out beyond it. The sentence beside it says the same in words, so the bar itself is hidden from screen
+ * readers.
  */
-function MoneyBar({ moneyIn, moneyOut }: { moneyIn: number; moneyOut: number }) {
+function MoneyBar({ moneyIn, moneyOut, saved, left }: Money) {
   const { t } = useTranslation("dashboard");
-  const whole = Math.max(moneyIn, moneyOut, 1);
-  const spent = Math.min(moneyOut, moneyIn) / whole;
-  const rest = Math.abs(moneyIn - moneyOut) / whole;
-  const over = moneyOut > moneyIn;
+  if (left < 0) {
+    const whole = Math.max(moneyOut + saved, 1);
+    const came = Math.max(moneyIn, 0) / whole;
+    const beyond = -left / whole;
+    return (
+      <div aria-hidden="true" className="flex flex-col gap-1">
+        <div className="flex h-4 w-full gap-0.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+          <span className={cn("h-full", SLOT_BG[OUT_SLOT])} style={{ width: `${came * 100}%` }} />
+          <span className="h-full bg-status-critical" style={{ width: `${beyond * 100}%` }} />
+        </div>
+        <div className={cn("flex justify-between gap-3", SMALL)}>
+          <span>{t("overview.story.barIncome", { share: came })}</span>
+          <span>{t("overview.story.barOver", { share: beyond })}</span>
+        </div>
+      </div>
+    );
+  }
+  const whole = Math.max(moneyIn, 1);
+  const parts = [
+    { key: "out", share: moneyOut / whole, fill: SLOT_BG[OUT_SLOT], said: "overview.story.barSpent" },
+    { key: "saved", share: saved / whole, fill: SLOT_BG[SAVE_SLOT], said: "overview.story.barSaved" },
+    { key: "left", share: left / whole, fill: SLOT_BG[IN_SLOT], said: "overview.story.barLeft" },
+  ] as const;
+  const shown = parts.filter((part) => part.key !== "saved" || saved > 0);
   return (
     <div aria-hidden="true" className="flex flex-col gap-1">
       <div className="flex h-4 w-full gap-0.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-        <span className={cn("h-full", SLOT_BG[OUT_SLOT])} style={{ width: `${spent * 100}%` }} />
-        <span className={cn("h-full", over ? "bg-status-critical" : SLOT_BG[IN_SLOT])} style={{ width: `${rest * 100}%` }} />
+        {shown.map((part) => (
+          <span key={part.key} className={cn("h-full", part.fill)} style={{ width: `${part.share * 100}%` }} />
+        ))}
       </div>
-      <div className={cn("flex justify-between gap-3", SMALL)}>
-        <span>{t(over ? "overview.story.barIncome" : "overview.story.barSpent", { share: spent })}</span>
-        <span>{t(over ? "overview.story.barOver" : "overview.story.barLeft", { share: rest })}</span>
+      <div className={cn("flex flex-wrap justify-between gap-x-3", SMALL)}>
+        {shown.map((part) => (
+          <span key={part.key}>{t(part.said, { share: part.share })}</span>
+        ))}
       </div>
     </div>
   );
+}
+
+/** What went out is named by what it holds besides the spending: money sent to people, loan principal or both. */
+function outContext(month: MonthClosing): string {
+  const people = month.people.minor !== 0;
+  const debt = month.debt.minor !== 0;
+  return people && debt ? "both" : people ? "people" : debt ? "debt" : "";
+}
+
+type Tone = "good" | "warning" | "critical";
+
+/** The month's verdict, as İplikçi Nedim's (app.sayings): more went out than came in, little left, or a part left. */
+function verdictOf({ moneyIn, moneyOut, saved, left }: Money, t: TFunction<"dashboard">): { tone: Tone; said: string } {
+  const share = moneyIn > 0 ? left / moneyIn : 0;
+  const context = saved > 0 ? "saved" : "";
+  const savedShare = moneyIn > 0 ? saved / moneyIn : 0;
+  if (moneyIn === 0 && moneyOut === 0 && saved === 0) {
+    return { tone: "good", said: t("overview.story.quiet") };
+  }
+  if (left < 0) {
+    return { tone: "critical", said: t("overview.story.over", { amount: formatMoney(tl(-left)), context }) };
+  }
+  if (moneyIn > 0 && share < THIN) {
+    return { tone: "warning", said: t("overview.story.thin", { share, saved: savedShare, context }) };
+  }
+  return { tone: "good", said: t("overview.story.good", { share, saved: savedShare, context }) };
 }
 
 function MonthStory({ found, month }: { found: Dashboard; month: MonthClosing | null }) {
@@ -133,7 +196,7 @@ function MonthStory({ found, month }: { found: Dashboard; month: MonthClosing | 
       <NextStep step={{ link: worth.link, label: t("overview.story.accounts") }} />
     </p>
   );
-  if (!month || month.income === null) {
+  if (!month || month.income === null || month.left === null) {
     return (
       <Card title={t("overview.story.titleNone")}>
         <div className="flex flex-col gap-3">
@@ -143,19 +206,15 @@ function MonthStory({ found, month }: { found: Dashboard; month: MonthClosing | 
       </Card>
     );
   }
-  const moneyIn = month.income.minor;
-  const moneyOut = month.expense.minor;
-  const left = moneyIn - moneyOut;
-  const share = moneyIn > 0 ? left / moneyIn : 0;
-  const tone = left < 0 ? "critical" : moneyIn > 0 && share < THIN ? "warning" : "good";
-  const verdict =
-    moneyIn === 0 && moneyOut === 0
-      ? t("overview.story.quiet")
-      : tone === "critical"
-        ? t("overview.story.over", { amount: formatMoney(tl(-left)) })
-        : tone === "warning"
-          ? t("overview.story.thin", { share })
-          : t("overview.story.good", { share });
+  // The month-end page's figures: what is left is the income less what went out and what was saved.
+  const money: Money = {
+    moneyIn: month.income.minor,
+    moneyOut: month.out.minor,
+    saved: month.saving.minor,
+    left: month.left.minor,
+  };
+  const { tone, said } = verdictOf(money, t);
+  const over = money.left < 0;
   return (
     <Card title={t("overview.story.title", { month: formatMonth(month.month) })}>
       <div className="flex flex-col gap-4">
@@ -168,18 +227,26 @@ function MonthStory({ found, month }: { found: Dashboard; month: MonthClosing | 
           />
           <Figure
             label={t("overview.story.out")}
-            hint={t("overview.story.outHint")}
-            value={formatMoney(month.expense)}
+            hint={t("overview.story.outHint", { context: outContext(month) })}
+            value={formatMoney(month.out)}
             tone="out"
           />
+          {money.saved > 0 ? (
+            <Figure
+              label={t("overview.story.saved")}
+              hint={t("overview.story.savedHint")}
+              value={formatMoney(month.saving)}
+              tone="saved"
+            />
+          ) : null}
           <Figure
-            label={left < 0 ? t("overview.story.overLabel") : t("overview.story.left")}
-            hint={t("overview.story.leftHint")}
-            value={formatMoney(tl(Math.abs(left)))}
-            tone={left < 0 ? "over" : "left"}
+            label={over ? t("overview.story.overLabel") : t("overview.story.left")}
+            hint={t("overview.story.leftHint", { context: money.saved > 0 ? "saved" : "" })}
+            value={formatMoney(tl(Math.abs(money.left)))}
+            tone={over ? "over" : "left"}
           />
         </dl>
-        <MoneyBar moneyIn={moneyIn} moneyOut={moneyOut} />
+        <MoneyBar {...money} />
         <p
           className={cn(
             "flex items-start gap-2 rounded-lg px-3 py-2 text-base",
@@ -189,7 +256,7 @@ function MonthStory({ found, month }: { found: Dashboard; month: MonthClosing | 
           )}
         >
           {tone === "good" ? null : <ExclamationIcon className="mt-1 size-4 shrink-0" />}
-          <span>{verdict}</span>
+          <span>{said}</span>
         </p>
         {month.status === "closed" ? null : <p className={SMALL}>{t("overview.story.partial")}</p>}
         {running && running.month !== month.month ? (
@@ -213,7 +280,7 @@ function MonthsChart({ months }: { months: readonly MonthClosing[] }) {
     return null;
   }
   const closed = months.filter((m) => m.status === "closed");
-  const ahead = closed.filter((m) => (m.income?.minor ?? 0) > m.expense.minor).length;
+  const ahead = closed.filter((m) => (m.left?.minor ?? 0) > 0).length;
   const say =
     closed.length === 0
       ? t("overview.months.sayNone")
@@ -221,30 +288,47 @@ function MonthsChart({ months }: { months: readonly MonthClosing[] }) {
         ? t("overview.months.sayAll", { count: closed.length })
         : t("overview.months.say", { count: closed.length, ahead });
   const partial = months.filter((m) => m.status !== "closed").map((m) => m.month);
+  const saving = months.some((m) => m.saving.minor !== 0);
+  const series: StackSeries[] = [
+    { key: "in", label: t("overview.months.in"), slot: IN_SLOT },
+    { key: "out", label: t("overview.months.out"), slot: OUT_SLOT },
+  ];
+  if (saving) {
+    series.push({ key: "saved", label: t("overview.months.saved"), slot: SAVE_SLOT });
+  }
   return (
     <Card title={t("overview.months.title")}>
       <div className="flex flex-col gap-2">
-        <p className={HOW}>{t("overview.months.how")}</p>
+        <p className={HOW}>{t("overview.months.how", { context: saving ? "saved" : "" })}</p>
         <StackedBars
           title={t("overview.months.chart")}
           summary={say}
-          series={[
-            { key: "in", label: t("overview.months.in"), slot: IN_SLOT },
-            { key: "out", label: t("overview.months.out"), slot: OUT_SLOT },
-          ]}
+          series={series}
           months={months.map((m) => ({
             month: m.month,
-            values: { in: m.income?.minor ?? 0, out: -m.expense.minor },
+            values: { in: m.income?.minor ?? 0, out: -m.out.minor, ...(saving ? { saved: -m.saving.minor } : {}) },
           }))}
           partial={partial}
           totalLabel={t("overview.months.net")}
           height={240}
           open={{
-            // Money in is the month's income and money out its spending; the month alone leads to neither.
+            // Money in is the month's income, money out the rows that went out, a saving the month's savings; the month
+            // alone leads to none of them.
             link: ({ month, series }) =>
-              series === "in" ? monthIncome(month) : series === "out" ? monthSpending(month) : null,
+              series === "in"
+                ? monthIncome(month)
+                : series === "out"
+                  ? monthOut(month)
+                  : series === "saved"
+                    ? monthSaving(month)
+                    : null,
             hint: t("overview.months.openHint"),
-            what: (s) => (s?.key === "in" ? t("overview.months.openIn") : t("overview.months.openOut")),
+            what: (s) =>
+              s?.key === "in"
+                ? t("overview.months.openIn")
+                : s?.key === "saved"
+                  ? t("overview.months.openSaved")
+                  : t("overview.months.openOut"),
           }}
         />
       </div>

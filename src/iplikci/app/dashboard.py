@@ -138,9 +138,9 @@ class Closing:
     month: str
     status: MonthStatus
     summary: str  # the closing in one sentence (MonthEnd.summary)
-    expense: Decimal
+    expense: Decimal  # purchases, refunds, interest and fees
     income: Decimal | None  # None when no account list covers enough of the month
-    left: Decimal | None
+    left: Decimal | None  # the income less what went out and what was saved (month_end.Totals.left)
     income_note: str  # where the income comes from, or why it may be short (MonthEnd.income_note)
     provisional: int  # rows only receipts and notices show
     unmatched: int  # receipt and notice rows the statements do not show
@@ -148,6 +148,14 @@ class Closing:
     link: Link
     fees: Decimal = ZERO  # interest and fees, part of expense
     saving: Decimal = ZERO  # what went to savings and investments
+    people: Decimal = ZERO  # what was sent to people
+    debt: Decimal = ZERO  # the loan principal repaid
+
+    @property
+    def out(self) -> Decimal:
+        """What went out and is gone: the spending, what was sent to people and the loan principal repaid. With what
+        was saved it is all the month's income is less by (left)."""
+        return self.expense + self.people + self.debt
 
 
 @dataclass(frozen=True, slots=True)
@@ -436,6 +444,8 @@ def closing(a: Analysis, today: date) -> LastMonths:
                 link=Link(Screen.MONTH, me.month),
                 fees=me.totals.fees,
                 saving=me.totals.saving,
+                people=me.totals.people,
+                debt=me.totals.debt,
             )
         )
     ended = [c for c in found if c.status is not MonthStatus.RUNNING]

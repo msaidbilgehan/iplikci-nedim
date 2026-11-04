@@ -1,7 +1,8 @@
 // Where a number's rows are on the İşlemler screen (features.md, "İz": every number leads to the rows it rests on): the
 // screen narrowed by the API's own filters, so the rows it lists add up to the number. A month is its first and last
 // day. Spending is its kinds written out — purchases, refunds, interest and fees (domain.codes.DEFAULT_EXPENSE_KINDS)
-// — so the list keeps no card payment, transfer or saving, which the spending leaves out.
+// — so the list keeps no card payment, transfer or saving, which the spending leaves out; what went out adds the money
+// sent to people and the loan principal repaid, and a month's saving is its savings and investments.
 
 import type { Destination } from "../api/types";
 import { addDays } from "./format";
@@ -29,6 +30,19 @@ export function monthRows(month: string, query: LinkQuery = {}): Destination {
 /** A month's spending: its purchases, refunds, interest and fees, narrowed further by the query given. */
 export function monthSpending(month: string, query: LinkQuery = {}): Destination {
   return monthRows(month, { kind: [...SPENDING_KINDS], ...query });
+}
+
+/** What went out and is gone (the dashboard's closing `out`): the spending, money sent to people and loan principal. */
+export const OUT_KINDS = [...SPENDING_KINDS, "p2p_transfer", "loan_principal"] as const;
+
+/** A month's money gone out: its spending, what was sent to people and the loan principal repaid. */
+export function monthOut(month: string, query: LinkQuery = {}): Destination {
+  return monthRows(month, { kind: [...OUT_KINDS], ...query });
+}
+
+/** What a month set aside: its savings and investments. */
+export function monthSaving(month: string, query: LinkQuery = {}): Destination {
+  return monthRows(month, { kind: "investment", ...query });
 }
 
 /** A month's income, narrowed further by the query given. */

@@ -8,8 +8,9 @@ words and shares only, never an amount, an account or a name: the extension show
 
 The situations are listed most pressing first. The first one's line is the one shown, and it changes with the day
 among that situation's lines; the rest follow in order, for "Başka bir söz". A month's verdict is the Pano's own: the
-newest closed month whose income is known, its money in against its spending, "little left" below a tenth of it
-(web dashboard/Overview). This month against the typical one is the dashboard's comparison, with its conditions.
+newest closed month whose income is known, what was left of its money in once what went out (spending, money sent to
+people, loan principal) and what was saved are taken off, as the month-end page says; "little left" below a tenth of
+it (web dashboard/Overview). This month against the typical one is the dashboard's comparison, with its conditions.
 """
 
 from collections.abc import Iterator
@@ -34,7 +35,7 @@ class Situation(StrEnum):
     """What a line is said about; listed most pressing first."""
 
     GOING_NEGATIVE = "going_negative"  # the forecast goes below zero
-    OVERSPENT = "overspent"  # the month's spending was more than its income
+    OVERSPENT = "overspent"  # more went out of the month (with what was saved) than came in
     IN_DEBT = "in_debt"  # the debts are more than the money in the accounts
     SPENDING_MORE = "spending_more"  # this month so far, more than the typical month's same days
     THIN = "thin"  # little of the month's income was left
@@ -130,8 +131,9 @@ class MonthFacts:
 
     month: str  # YYYY-MM
     income: Decimal
-    expense: Decimal  # purchases, refunds, interest and fees
-    fees: Decimal  # interest and fees, part of expense
+    out: Decimal  # what went out and is gone: spending, money sent to people, loan principal (dashboard.Closing.out)
+    left: Decimal  # the income less what went out and what was saved, as the month-end page says
+    fees: Decimal  # interest and fees, part of the spending
     saving: Decimal  # what went to savings and investments
     foreign_income: bool  # income came into a foreign-currency account in it
     best: int  # how many closed months it left the most money of; 0 when it is not the best of BEST_OF or more
@@ -173,7 +175,7 @@ def _in(month: str) -> str:
 
 
 def _share(m: MonthFacts) -> Decimal:
-    return (m.income - m.expense) / m.income
+    return m.left / m.income
 
 
 def _going_negative(n: Negative) -> tuple[Situation, Mood, str]:
@@ -184,14 +186,17 @@ def _going_negative(n: Negative) -> tuple[Situation, Mood, str]:
 
 
 def _verdict(m: MonthFacts) -> tuple[Situation, Mood, str]:
-    """The month's verdict, as the Pano's: more spent than came in, little left, a part of it left, or nothing moved."""
+    """The month's verdict, as the Pano's: more went out than came in, little left, a part of it left, or nothing
+    moved. What is left is the month-end page's: the income less the spending, the money sent to people, the loan
+    principal repaid and what was saved."""
     at = _in(m.month)
-    if m.expense > m.income:
-        return Situation.OVERSPENT, Mood.CRITICAL, f"{at} harcanan, gelen paradan fazlaydı."
-    if m.income == 0:  # nothing spent either, or refunds only
+    if m.left < 0:
+        saved = " ve birikime ayrılan" if m.saving > 0 else ""
+        return Situation.OVERSPENT, Mood.CRITICAL, f"{at} giden{saved} para, gelen paradan fazlaydı."
+    if m.income == 0:  # nothing went out either, or refunds only
         return Situation.QUIET, Mood.NEUTRAL, f"{at} ne gelir geldi ne harcama yapıldı."
-    if m.expense == m.income:
-        return Situation.THIN, Mood.WARNING, f"{at} gelen paranın hepsi harcandı."
+    if m.left == 0:
+        return Situation.THIN, Mood.WARNING, f"{at} gelen paranın hepsi harcandı ya da ayrıldı."
     if _share(m) < THIN:
         return Situation.THIN, Mood.WARNING, f"{at} gelen paranın yalnızca {pct(_share(m))} elde kaldı."
     return Situation.GOOD, Mood.GOOD, f"{at} gelen paranın {pct(_share(m))} elde kaldı."
@@ -266,13 +271,13 @@ def _story(a: Analysis, closed: list[Closing], today: date) -> MonthFacts | None
     if not known:
         return None
     story, income = known[-1]
-    left = income - story.expense
-    before = [i - c.expense for c, i in known[:-1]]
+    left = income - story.out - story.saving  # Closing.left, which is None only without the income
+    before = [i - c.out - c.saving for c, i in known[:-1]]
     good = income > 0 and left / income >= THIN
     best = len(known) if good and len(known) >= BEST_OF and all(left > b for b in before) else 0
     rows = [row for c in exchange.foreign_income(a.dataset, today).currencies for row in c.rows]
     foreign = any(month_of(row.day) == story.month for row in rows)
-    return MonthFacts(story.month, income, story.expense, story.fees, story.saving, foreign, best)
+    return MonthFacts(story.month, income, story.out, left, story.fees, story.saving, foreign, best)
 
 
 def _negative(board: Dashboard, today: date) -> Negative | None:
