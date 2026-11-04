@@ -54,6 +54,10 @@ def categorize(cat, description, kind=TransactionKind.PURCHASE, bank_category=""
         ("UBER *TRIP HELP.UBER.COM", "Toplu Taşıma & Taksi", "Uber"),
         ("IYZICO/SAHIBINDEN.COM ISTANBUL TR", "Online Alışveriş", "sahibinden.com"),
         ("ORNEK MALI MUSAVIRLIK ANONISTANBUL TR", "Muhasebe & Şirket Hizmetleri", None),
+        # "Turizm" in a name says nothing of the business: a bus company is known by its own name.
+        ("METRO TURIZM SEYAHAT ORG ISTANBUL TR", "Uçak, Tren & Otobüs", "Metro Turizm"),
+        ("ORNEK GIDA TURIZM VE TISTANBUL TR", "Market & Gıda", None),  # its weak "GIDA" alone is left
+        ("ORNEK TURIZM SANAYI TICISTANBUL TU", "Diğer Harcamalar", None),
     ],
 )
 def test_rules(cat, description, category, merchant):

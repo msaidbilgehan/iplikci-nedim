@@ -191,7 +191,16 @@ Eğlence & Seyahat:
     Obilet: [OBILET]
     TCDD: [TCDD]
     Havalimanı: [SABIHA GOKCEN, IGA HAVALIMANI, HAVALIMANI, AIRPORT]
-    _: [TURIZM, SEYAHAT, OTOBUS, AIRLINES]
+    # Otobüs firmaları adlarıyla: "Turizm" tek başına bir işyerinin ne olduğunu söylemez; Türkiye'de lokanta, market,
+    # otel ve seyahat acentesi adlarında da geçer ("ÖRNEK GIDA TURIZM").
+    Metro Turizm: [METRO TURIZM]
+    Pamukkale Turizm: [PAMUKKALE TURIZM]
+    Kâmil Koç: [KAMIL KOC]
+    Varan Turizm: [VARAN TURIZM]
+    Ulusoy: [ULUSOY TURIZM, ULUSOY SEYAHAT]
+    Nilüfer Turizm: [NILUFER TURIZM]
+    Süha Turizm: [SUHA TURIZM]
+    _: [SEYAHAT, OTOBUS, AIRLINES]
   Konaklama:
     Agoda: [AGODA]
     Booking.com: [BOOKING]
