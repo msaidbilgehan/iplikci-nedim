@@ -79,6 +79,10 @@ hareketi taşımaz. V1'de çöpe gitmez; "işlenmedi" durumunda saklanır (K11).
 - Alışverişlerin üstündeki başlık, genel bir başlık değilse bankanın kategorisidir.
 - "NAKİT AVANS BİLGİLERİ" ve "NAKİT ÇEKİM" altındaki satırlar ATM'den nakit çekimdir; yalnızca makinenin yerini
   yazar.
+- Taksitli nakit avans ("Alo Taksitli Nakit Avans 740,00x3=2.220,00 3.Taksit") de bu başlığın altındadır. Ekstre
+  yalnızca taksiti yazar; faizi ayrı yazmaz, avansın kendisini de yazmaz. Avans, alındığı gün vadesiz hesaba gelir:
+  hesabın satırı kartın son dört hanesini yazar ("**** ****1234 CC-03 Taksitli Nakit Avans İşlemi"). Defter
+  taksitleri bu satırla anapara ve faize ayırır ([defter](ledger.md#taksitli-nakit-avans)).
 - "ERTELENEN EKSTRE TUTARI" harcama değil, ertelemedir: `transfer` türündedir ve eşleşen ödeme satırıyla birlikte
   gelir.
 - Taksitler `250,00x12=… 8.Taksit` biçiminde yazar (8/12).

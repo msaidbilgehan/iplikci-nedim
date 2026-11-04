@@ -169,6 +169,21 @@ Para hareketi taşıyan hesap satırları, bütün hesaplar okunana kadar aday k
 
 Kart ödemeleri ve kart tarafındaki alacakları birbirini götürür; asla harcama sayılmaz.
 
+## Taksitli nakit avans
+
+- Kartın verdiği nakit avans bir borçtur: alındığı gün kendi hesabınıza gelir (kendi transferi), taksitlerle geri
+  ödenir. Taksitlerin toplamının avanstan fazlası faiz ve vergidir.
+- İş Bankası her taksidin faizini yazar (`FZ:… VR/FN:…`); okuyucu taksiti anaparaya (`loan_principal`) ve faize
+  (`interest_fee`) ayırır.
+- Garanti yalnızca taksiti yazar ("Alo Taksitli Nakit Avans 740,00x3=2.220,00"). Defter, avansın alındığı gün
+  vadesiz hesaba gelen ve kartın son dört hanesini yazan satırı bulur (`analysis.split_card_advances`). n. taksit
+  avanstan n − 1 ay sonra, en çok 3 gün kayarak yazılır. Her taksit avansın eşit bir payını anapara olarak öder (son
+  taksit yuvarlamadan kalanı); geri kalanı faiz ve vergidir. Örnek: 2.000 TL'lik avans 3 taksitte 2.220 TL
+  ödendiyse taksit başına 666,67 TL anapara (son taksitte 666,66 TL) ve 73,33 TL faizdir; toplam faiz 220 TL.
+- Parçalar taksidin belgedeki yerini taşır ve kendi parmak izlerini alır; ekstrenin toplamı değişmez. Hesabın satırı
+  yoksa taksit nakit avans kalır (v0.9.9'a dek hep öyleydi: faizi gider sayılmıyordu).
+- Anapara Ay sonu'nun Kalan'ından "kredi ödemesi" olarak düşülür; faiz harcamadır.
+
 ## Kur çevirisi
 
 - MVP'de dövizli satırlar belgelerde bulunan en yakın kurla çevrilir: açıklamalardaki `USD:` / `EUR:` ya da

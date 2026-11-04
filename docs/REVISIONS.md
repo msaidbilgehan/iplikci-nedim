@@ -6,10 +6,19 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 | Revizyon | Konu | Durum | Belge |
 |---|---|---|---|
 | V0 | MVP `gider-analizi`: banka belgelerini okuyan, doğrulayan, yorumlayan yerel komut satırı programı, web paneli ve MCP sunucusu | 2026-10-31'de emekliye ayrıldı (K17) | Depo dışında, veri klasöründeki arşivde: `archive/mvp/CLAUDE.md` ve `README.md` |
-| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–6 (v0.1.0–v0.7.0), arayüzün sadeleşmesi (v0.7.1), resimlerle anlatan Pano (v0.7.2), açık sekmeye ulaşan güncellemeler (v0.7.3), içeriğinden tanınan belgeler (v0.7.4), Belge ekle ekranı (v0.7.5), belgelerle denetlenen bildirimler (v0.7.6) ve Aşama 7 (MCP, v0.8.0), Aşama 8 (Döviz, v0.9.0), enflasyondan arındırmanın kartı (v0.9.1), İplikçi Nedim'in sözleri (v0.9.2), düzeltmeler (v0.9.3), grafiklerden işlemlere giden kısayollar (v0.9.4), kuralların yerinde düzeltmeler (v0.9.5), transferin karşılığını önce arayan defter (v0.9.6), sayıldığı yeri de değiştiren tek satırlık düzeltmeler (v0.9.7) ve üç ödeme isteyen dönemsel seriler (v0.9.8) uygulandı; sırada sürüm 1.0'ın koşulları var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
+| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–6 (v0.1.0–v0.7.0), arayüzün sadeleşmesi (v0.7.1), resimlerle anlatan Pano (v0.7.2), açık sekmeye ulaşan güncellemeler (v0.7.3), içeriğinden tanınan belgeler (v0.7.4), Belge ekle ekranı (v0.7.5), belgelerle denetlenen bildirimler (v0.7.6) ve Aşama 7 (MCP, v0.8.0), Aşama 8 (Döviz, v0.9.0), enflasyondan arındırmanın kartı (v0.9.1), İplikçi Nedim'in sözleri (v0.9.2), düzeltmeler (v0.9.3), grafiklerden işlemlere giden kısayollar (v0.9.4), kuralların yerinde düzeltmeler (v0.9.5), transferin karşılığını önce arayan defter (v0.9.6), sayıldığı yeri de değiştiren tek satırlık düzeltmeler (v0.9.7) üç ödeme isteyen dönemsel seriler (v0.9.8) ve Ay sonu'yla aynı Kalan (v0.9.9) uygulandı; sırada sürüm 1.0'ın koşulları var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
 | V2 | Finansal strateji uzmanları ve yapay zekâ asistanı | Gelecek (V1'den sonra) | [`v2/requirements.md`](v2/requirements.md) |
 
 ## Değişiklik kaydı
+
+- 2026-11-04 (39) — Kalan, Ay sonu'ndaki gibi (v0.9.9):
+  - [Özellikler](v1/features.md) F06: Pano'nun Kalan'ı Ay sonu'nunki; Giden harcama, kişilere gönderilen para ve
+    kredi anaparası, birikim ayrıca (kullanıcının isteğiyle).
+  - [Yorumlama](domain/interpretation.md) "Toplamlar": Kalan'ın tanımı ve onu söyleyen yerler.
+  - [Defter](domain/ledger.md#taksitli-nakit-avans) ve [banka biçimleri](domain/bank-formats.md): Garanti'nin
+    taksitli nakit avansı anapara ve faize ayrılır.
+  - [Kategori kuralları](domain/categorization.md): gelir satırı yalnızca gelen parayı gelir sayan bir kategoriyi
+    alır.
 
 - 2026-11-03 (38) — İki ödeme bir dönem yapmaz (v0.9.8):
   - [Yorumlama](domain/interpretation.md) "Dönemsel seriler": `_düzenli` kategorileri dışında dönemsel seri en az

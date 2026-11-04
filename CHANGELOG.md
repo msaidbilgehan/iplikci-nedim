@@ -4,6 +4,26 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.9.9] — 2026-11-04 — Kalan, Ay sonu'ndaki gibi
+
+### Değişenler
+
+- Pano'nun ay hikâyesi artık Ay sonu ekranıyla aynı "Kalan"ı söylüyor. Gelenden yalnızca harcama değil, kişilere
+  gönderilen para, ödenen kredi anaparası ve birikim de düşülüyor. "Giden" harcamayı, kişilere gönderilen parayı
+  ve kredi ödemelerini içeriyor; birikim (BES, döviz, altın, yatırım) ayrı bir rakam olarak gösteriliyor ve
+  cümlede de söyleniyor ("Gelen paranın %12'si birikime gitti, %16'sı elinizde kaldı"). Aylara göre çubuklarda
+  birikim mavi bir çubuk; giden çubuğu o ayın harcamalarına, kişilere gönderilen paraya ve kredi ödemelerine,
+  birikim çubuğu birikim satırlarına götürüyor. İplikçi Nedim'in ay hükmü de aynı hesaba göre.
+
+### Düzeltilenler
+
+- Garanti kartının taksitli nakit avansının faizi hiçbir yerde sayılmıyordu: ekstre yalnızca taksiti yazıyor.
+  Avansın vadesiz hesaba geldiği satır bulununca her taksit artık anapara (kredi ödemesi) ve faiz (harcama) diye
+  ayrılıyor, İş Bankası'nın taksitli avanslarında olduğu gibi. Hesabın satırı yoksa taksit eskisi gibi nakit
+  avans kalıyor.
+- Bir maaş, işverenin adında bir mağaza kategorisinin kelimesi geçtiği için o mağaza kategorisine düşüyordu. Gelir satırı artık yalnızca gelen parayı gelir sayan bir kategoriyi alıyor; öbür türlü
+  "Diğer Gelirler"de kalıyor. Toplamlar değişmiyor: gelir türüyle sayılıyordu.
+
 ## [0.9.8] — 2026-11-03 — İki ödeme bir dönem yapmaz
 
 ### Düzeltilenler

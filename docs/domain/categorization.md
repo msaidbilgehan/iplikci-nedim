@@ -64,6 +64,10 @@ _banka_kategorileri: …          # Garanti'nin ekstrede yazdığı başlıklar�
   ([defter kuralları](ledger.md)). Programın bir tür için tuttuğu kategoriler o türdür: "Hesaplar Arası Transfer"
   kendi transferi, "Nakit Avans & Çekim" nakit, "Kredi & Borç Anapara" borç anaparası, faiz ve ücret kategorileri
   faiz ve ücrettir. Bir kural ya da tek satırlık bir düzeltme bir transferi oraya koyarsa türü bu olur.
+- Okuyucunun gelir diye okuduğu bir satır (maaş ödemesi gibi) yalnızca gelen parayı gelir sayan bir kategoriyi alır
+  (`gelir` ya da `kişi` türünde bir kategori, ya da "Diğer Gelirler"). Başka bir kategorinin kuralı tutarsa satır
+  "Diğer Gelirler"de kalır: işverenin adındaki "ELEKTRONİK" maaşı elektronik alışverişi yapmaz (v0.9.9'a dek
+  yapıyordu).
 - `_hariç`, kategorinin desenleri bir kelimenin başında tutsa da o kategoriye ait olmayan kelimelerdir. Açıklamada
   bu kelimelerden biriyle başlayan yerdeki eşleşme yok sayılır; daha sonra geçen bir eşleşme yine sayılır
   ("KİRALIK DAİRE EKİM KİRASI" kiradır). Kategorinin bütün desenlerine (isimli, genel, `_zayıf`) uygulanır.

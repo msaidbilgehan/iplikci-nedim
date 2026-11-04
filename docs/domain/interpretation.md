@@ -342,6 +342,12 @@ ekstre gelmeden sayılır.
 - Toplamlar takvim ayı başınadır.
 - Gelir yalnızca bir banka listesi (kart ya da yatırım değil) ayın en az yarısını kapsıyorsa gösterilir. İçinde
   bulunulan ayda bu, bugüne kadarki günlerin yarısıdır.
+- Kalan, gelenden harcamanın, kişilere gönderilen paranın, ödenen kredi anaparasının ve birikimin düşülmesiyle bulunur
+  (`month_end.Totals.left`). Pano'nun hikâyesi, aylara göre çubukları ve İplikçi Nedim'in ay hükmü aynı Kalan'ı
+  söyler (v0.9.9'a dek Pano yalnızca harcamayı düşüyordu). Pano'da "Giden" harcama, kişilere gönderilen para ve kredi
+  anaparasıdır; birikim ayrıca gösterilir. Nakit avans ve çekim, kart ödemeleri ve kendi hesaplar arası transferler
+  hiçbirine girmez; taksitli nakit avansın taksitleri anapara ve faiz diye ayrılınca anaparası kredi ödemesi, faizi
+  harcama olur ([defter](ledger.md)).
 - Maaş serisi ayda hiç ödeme yapmadıysa ya da iki kez ödediyse, not bunu söyler (`insights.salary_timing`).
 - Maaşı önceki ayın son günü yatan bir ay gelir 0 ve eksi "kalan" gösterir. Bu beklenen bir durumdur; sayfa ve dizin
   nedenini söyler.

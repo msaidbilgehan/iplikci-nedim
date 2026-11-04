@@ -231,10 +231,17 @@ G7 · Çekirdek
     kırmızı, veri yokken gri. Renk tek başına bir şey söylemez; söz ve cümlesi aynı şeyi söyler.
   - Belge yokken "İsa Muhammed aşkına bilmiyorum." der.
 - **Sade görünüm:** finans bilgisi olmayan biri için resimlerle, yukarıdan aşağı okunan bir hikâye.
-  - Son kapanan ayın gelen, giden ve kalan parası; gelenin harcanan ve kalan payını gösteren bir çubuk ve bir cümlelik
-    hüküm: iyi gidiyor, az kaldı (kalan gelenin %10'undan az) ya da gelirden fazla harcandı. Süren ay ayrıca söylenir.
+  - Son kapanan ayın gelen, giden, birikime ayrılan ve kalan parası; gelenin bunlara giden payını gösteren bir çubuk ve
+    bir cümlelik hüküm: iyi gidiyor, az kaldı (kalan gelenin %10'undan az) ya da gelirden fazla para çıktı. Süren ay
+    ayrıca söylenir.
+    - Giden harcama, kişilere gönderilen para ve ödenen kredi anaparasıdır; birikim (BES, döviz, altın, yatırım)
+      ayrıca gösterilir. Kalan, Ay sonu'nun kalanıdır: gelenden giden ve birikim düşülür (v0.9.9, kullanıcının
+      isteğiyle; önceden yalnızca harcama düşülüyordu ve Ay sonu'yla ayrışabiliyordu).
+    - Hüküm birikimi de söyler: "Gelen paranın %12'si birikime gitti, %16'sı elinizde kaldı."
   - Son belgelere göre hesaplardaki para, neye dayandığıyla: kart borçları düşülünce, bakiyesi bilinmeyen hesaplar.
-  - Aylara göre gelen (yeşil, çizginin üstünde) ve giden (turuncu, altında) çubuklar; kapanmamış aylar soluk.
+  - Aylara göre gelen (yeşil, çizginin üstünde), giden (turuncu, altında) ve birikim (mavi, altında; varsa) çubukları;
+    kapanmamış aylar soluk. Gideni işlemlerine götürür (harcama, kişilere gönderilen, kredi anaparası), birikimi
+    birikim satırlarına.
   - O ay paranın nereye gittiği: harcama türleri tek renkte yatay çubuklarla, her tür işlemlerine götürür.
   - Önümüzdeki 30 gün: hesaptaki paranın günlük tahmini, eksiye düştüğü ilk gün ya da en düşük gün, yaklaşan ödemeler ve
     gelirler. Çizginin son belgelerdeki bakiyeden bugüne nasıl geldiği söylenir.
