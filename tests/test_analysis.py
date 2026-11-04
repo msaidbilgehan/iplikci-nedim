@@ -209,3 +209,67 @@ def test_lists_over_any_dates_count_every_day_s_rows_once(categorizer, days, ran
         lists.append(movement_list(start, end, *[spent(t.date, -int(t.amount * 100)) for d in span for t in truth[d]]))
     expected = sorted((t.date, t.amount) for d in covered for t in truth[d])
     assert counted(ledger(categorizer, *lists)) == expected
+
+
+# --- a card's installment cash advance -------------------------------------------------------------------------------
+
+CARD = Account("garanti-1234", "Garanti Bonus •1234", "Garanti BBVA", AccountType.CREDIT_CARD, number="1234")
+
+
+def advance_installment(d: date, n: int, amount: str) -> Transaction:
+    """An installment as a Garanti card statement prints it: no interest of its own."""
+    return Transaction(
+        d, "Alo Taksitli Nakit Avans", Decimal(amount), TransactionKind.CASH_ADVANCE, CARD.id, installment=f"{n}/3"
+    )
+
+
+def card_statement(cut: date, *rows: Transaction) -> ParseResult:
+    total = sum((r.amount for r in rows), Decimal(0))
+    s = Statement(CARD.id, cut, "TRY", "ekstre.pdf", Decimal(0), total, list(rows), checks_ok=1, checks_total=1)
+    return ParseResult("kart", accounts=[CARD], statements=[s])
+
+
+def advance_ledger(categorizer, *, lent: bool = True):
+    paid_in = Transaction(
+        date(2026, 7, 10),
+        "4000 **** ****1234 CC-03 Taksitli Nakit Avans İşlemi",
+        Decimal(-2000),
+        TransactionKind.TRANSFER_CANDIDATE,
+        LIST_ACCOUNT.id,
+    )
+    cards = [
+        card_statement(date(2026, 7, 25), advance_installment(date(2026, 7, 10), 1, "740.00")),
+        card_statement(date(2026, 8, 25), advance_installment(date(2026, 8, 11), 2, "740.00")),  # a day later
+        card_statement(date(2026, 9, 25), advance_installment(date(2026, 9, 10), 3, "740.00")),
+    ]
+    rows = (paid_in,) if lent else ()
+    return ledger(categorizer, movement_list(date(2026, 7, 1), date(2026, 9, 30), *rows), *cards)
+
+
+def test_an_installment_cash_advance_repays_the_money_lent_and_the_rest_is_its_cost(categorizer):
+    # 2.000 TL came into the account; three installments of 740 TL repay it: 220 TL is its cost.
+    ds = advance_ledger(categorizer)
+    on_card = [(t.date, t.kind, t.amount) for t in ds.transactions if t.account == CARD.id]
+    principal, cost = TransactionKind.LOAN_PRINCIPAL, TransactionKind.INTEREST_FEE
+    assert on_card == [
+        (date(2026, 7, 10), principal, Decimal("666.67")),
+        (date(2026, 7, 10), cost, Decimal("73.33")),
+        (date(2026, 8, 11), principal, Decimal("666.67")),
+        (date(2026, 8, 11), cost, Decimal("73.33")),
+        (date(2026, 9, 10), principal, Decimal("666.66")),  # the last repays what rounding left
+        (date(2026, 9, 10), cost, Decimal("73.34")),
+    ]
+    assert sum(t.amount for t in ds.transactions if t.kind is cost) == Decimal("220.00")
+    fees = {t.category for t in ds.transactions if t.kind is cost}
+    assert fees == {"Kredi Kartı Faizi"}
+    # Each part keeps the row's place in its statement and a fingerprint of its own; the statement still adds up.
+    parts = [t for t in ds.transactions if t.account == CARD.id]
+    assert len({t.fingerprint for t in parts}) == 6
+    september = next(s for s in ds.statements if s.account == CARD.id and s.cut_date == date(2026, 9, 25))
+    assert sum(t.amount for t in september.transactions) == Decimal("740.00")
+
+
+def test_without_the_money_it_lent_an_installment_stays_a_cash_advance(categorizer):
+    ds = advance_ledger(categorizer, lent=False)
+    on_card = [(t.kind, t.amount) for t in ds.transactions if t.account == CARD.id]
+    assert on_card == [(TransactionKind.CASH_ADVANCE, Decimal("740.00"))] * 3

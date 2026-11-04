@@ -39,7 +39,7 @@ from .domain.codes import (
 from .domain.fingerprint import Fingerprints
 from .domain.labels import EVIDENCE_STATUS, format_amount, format_rate
 from .domain.models import TRY, Account, Invoice, ParseResult, Statement, Transaction
-from .domain.money import CENT
+from .domain.money import CENT, round_half_up
 from .domain.text import fold
 from .fx.book import EMPTY, RateBook, to_tl
 from .invoices import InvoiceMatch, one_copy, settled_until
@@ -214,6 +214,78 @@ def one_list_per_day(statements: Sequence[Statement]) -> list[Statement]:
         else s
         for s in statements
     ]
+
+
+_ADVANCE = "TAKSITLI NAKIT AVANS"
+_CARD_DIGITS = re.compile(r"\*{4}\s?(\d{4})\b")  # a card as an account's line names it: "**** ****1234"
+_INSTALLMENT = re.compile(r"(\d+)/(\d+)")
+_ADVANCE_DAYS = 3  # an installment is booked on the advance's day of the month, a weekend or holiday later at most
+
+
+def _lent(statements: Sequence[Statement]) -> list[tuple[str, date, Decimal]]:
+    """(card's last digits, day, amount) of each installment cash advance a card paid into an own account, as the
+    account's line tells it ("… ****1234 … Taksitli Nakit Avans İşlemi")."""
+    found: list[tuple[str, date, Decimal]] = []
+    for s in statements:
+        if not s.is_account:
+            continue
+        for t in s.transactions:
+            f = fold(t.description)
+            if t.amount < 0 and _ADVANCE in f and (card := _CARD_DIGITS.search(f)):
+                found.append((card[1], t.date, -t.amount))
+    return found
+
+
+def split_card_advances(statements: Sequence[Statement], accounts: Mapping[str, Account]) -> list[Statement]:
+    """statements with a card's installment cash advance split into what repays the money it lent and its cost, where
+    the card's statement prints the installment alone (Garanti's "Alo Taksitli Nakit Avans 740,00x3=2.220,00").
+    The money lent is the account's line of the advance's day; each installment repays an equal share of it (the last
+    what rounding left) as loan principal, and the rest is its interest and taxes, as İş Bankası's statements print
+    them (parsers.common.split_interest). Without that line an installment stays a cash advance. A statement given
+    here is never changed: one with a split row is a copy."""
+    lent = _lent(statements)
+    if not lent:
+        return list(statements)
+    out: list[Statement] = []
+    for s in statements:
+        account = accounts.get(s.account)
+        digits = account.number[-4:] if account is not None and account.type in CARD_TYPES else ""
+        rows = [part for t in s.transactions for part in _advance_parts(t, digits, lent)] if digits else s.transactions
+        out.append(replace(s, transactions=rows) if len(rows) != len(s.transactions) else s)
+    return out
+
+
+def _advance_parts(t: Transaction, digits: str, lent: Sequence[tuple[str, date, Decimal]]) -> list[Transaction]:
+    """An installment of a card's cash advance as its principal and its cost; any other row as it is."""
+    shown = _INSTALLMENT.fullmatch(t.installment)
+    if t.kind is not TransactionKind.CASH_ADVANCE or _ADVANCE not in fold(t.description) or shown is None:
+        return [t]
+    n, count = int(shown[1]), int(shown[2])
+    if not 1 <= n <= count:
+        return [t]
+    # The advance this installment repays: the card's, taken n - 1 months before it, the nearest such day.
+    near = [(abs((_months_later(day, n - 1) - t.date).days), amount) for card, day, amount in lent if card == digits]
+    taken = [found for found in near if found[0] <= _ADVANCE_DAYS]
+    if not taken:
+        return [t]
+    principal = min(taken)[1]
+    share = round_half_up(principal / count)
+    if n == count:
+        share = principal - share * (count - 1)  # the last installment repays what rounding left
+    cost = t.amount - share
+    if share <= 0 or cost <= 0:
+        return [t]  # the installments do not add up to more than the money lent: not this advance's
+    return [
+        replace(t, amount=share, kind=TransactionKind.LOAN_PRINCIPAL),
+        replace(t, amount=cost, kind=TransactionKind.INTEREST_FEE, description=f"{t.description} (faiz ve vergi payı)"),
+    ]
+
+
+def _months_later(day: date, months: int) -> date:
+    """The same day so many months later; the month's last day when that month is shorter (upcoming.add_months, which
+    reads the ledger and so cannot be read by it)."""
+    year, month = divmod(day.year * 12 + day.month - 1 + months, 12)
+    return date(year, month + 1, min(day.day, calendar.monthrange(year, month + 1)[1]))
 
 
 def covered_days(statements: list[Statement]) -> dict[str, set[date]]:
@@ -813,6 +885,7 @@ def build(
         accounts.setdefault(a.id, a)
     _drop_told_twice(receipts, notices)
     stmts = sorted(statements.values(), key=lambda s: (s.account, s.cut_date, s.currency))
+    stmts = split_card_advances(stmts, accounts)
     # The rows the ledger counts: a day two lists of an account cover comes from one of them. Fingerprints are given
     # to those rows only, so a row keeps its fingerprint (and the user's notes) whichever list brings it.
     counted = one_list_per_day(stmts)
