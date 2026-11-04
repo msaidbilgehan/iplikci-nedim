@@ -32,6 +32,11 @@ ACCOUNTS = {
         currency="EUR",
         number="9000001",
     ),
+    "garanti-1234567": Account(
+        "garanti-1234567", "Garanti BBVA Vadesiz TL 1234567", "Garanti BBVA", AccountType.CURRENT, number="1234567"
+    ),
+    # A bank the table of printed bank names does not know: matched by the words left of both names.
+    "ykb-5550001": Account("ykb-5550001", "Yapı Kredi Vadesiz TL 5550001", "Yapı Kredi", AccountType.CURRENT),
 }
 
 
@@ -149,7 +154,7 @@ def test_a_bank_only_payment_whose_other_side_names_the_user_is_no_payment_like_
         date(2026, 1, 28),
         "Gelen transfer",
         Decimal(-15000),
-        account="vakifbank-0999000000123456",
+        account="ykb-5550001",
         counterparty="ÖRNEK İSİM SOYADOĞLU",
     )
     bank_only.fingerprint, arrived.fingerprint = "a" * 16, "b" * 16
@@ -161,6 +166,47 @@ def test_a_bank_only_payment_whose_other_side_names_the_user_is_no_payment_like_
     )
     assert bank_only.description == "YAPI VE KREDI BANKASI A.Ş."  # not "(→ Veli Örneksoy)"
     assert named.category == "Kira"
+
+
+def test_of_two_bank_only_payments_of_one_amount_the_one_to_the_receiving_accounts_bank_is_the_own_transfer(cat):
+    # TEB prints only the receivers' banks. The same day 2.500 went to Ziraat, where the user keeps no account, and
+    # 2.500 to Garanti, where the user's account shows it coming in: the first is someone else's, whatever its order.
+    to_ziraat = cand(date(2026, 3, 9), "TÜRKIYE CUMHURIYETI ZIRAAT BANKASI A.Ş.", Decimal(2500))
+    to_garanti = cand(date(2026, 3, 9), "TÜRKIYE GARANTI BANKASI A.Ş.", Decimal(2500))
+    arrived = cand(
+        date(2026, 3, 9),
+        "ÖRNEK İSİM SOYADOĞLU-kart borcu-FAST-123",
+        Decimal(-2500),
+        account="garanti-1234567",
+        counterparty="ÖRNEK İSİM SOYADOĞLU",
+    )
+    to_garanti.fingerprint, arrived.fingerprint = "a" * 16, "b" * 16
+    resolve(cat, [to_ziraat, to_garanti, arrived])
+    assert (to_garanti.kind, to_garanti.reason.pair, arrived.reason.pair) == (
+        TransactionKind.OWN_TRANSFER,
+        "b" * 16,
+        "a" * 16,
+    )
+    assert (to_ziraat.kind, to_ziraat.reason.transfer) == (TransactionKind.P2P_TRANSFER, TransferStep.PERSON)
+
+
+def test_a_named_transfer_pairs_only_at_the_bank_it_names(cat):
+    # A FAST to the user's own Garanti account and one of the same amount reaching their Vakıfbank account the same
+    # day from elsewhere: each side names the user, but the Garanti one cannot have arrived at Vakıfbank.
+    me = "ÖRNEK İSİM SOYADOĞLU"
+    out = cand(
+        date(2026, 4, 14),
+        "FAST Anlık Ödeme: k (14/04/2026 tarihli 1 sorgu no'lu ÖRNEK İSİM SOYADOĞLU hesabından Türkiye Garanti "
+        "Bankası A.Ş. ÖRNEK İSİM SOYADOĞLU hesabına giden FAST ödemesi)",
+        Decimal(1000),
+        account="vakifbank-0999000000123456",
+        counterparty=me,
+    )
+    elsewhere = cand(date(2026, 4, 14), "Gelen havale", Decimal(-1000), account="teb-111222333", counterparty=me)
+    arrived = cand(date(2026, 4, 15), "Gelen FAST", Decimal(-1000), account="garanti-1234567", counterparty=me)
+    out.fingerprint, elsewhere.fingerprint, arrived.fingerprint = "a" * 16, "b" * 16, "c" * 16
+    resolve(cat, [out, elsewhere, arrived])
+    assert (out.reason.pair, arrived.reason.pair, elsewhere.reason.pair) == ("c" * 16, "a" * 16, "")
 
 
 def test_bank_only_payment_outside_coverage_goes_to_own_account(cat):

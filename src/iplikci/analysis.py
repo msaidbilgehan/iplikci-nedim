@@ -477,17 +477,51 @@ def _bank_key(text: str) -> str:
     return "".join(w for w in fold(text).split() if w not in _BANK_NOISE)
 
 
+def _bank_named(printed: str) -> str:
+    """The name accounts give the bank a transfer row prints ("TÜRKIYE GARANTI BANKASI A.Ş." → "Garanti BBVA"), or ""
+    for a bank the table does not know."""
+    folded = fold(printed)
+    return next((name for key, name in _BANK_NAMES if key in folded), "")
+
+
 def _bank_only(t: Transaction) -> bool:
     """TEB prints only the receiver's bank ("TÜRKIYE GARANTI BANKASI A.Ş.") for outgoing transfers."""
     return bool(re.fullmatch(r"[A-ZÇĞİÖŞÜ .]+(?:A\.Ş\.|T\.A\.O\.?)", t.description.strip()))
 
 
-def _receiver_bank(t: Transaction) -> str:
-    """Bank of the receiver: the whole description on TEB, the part before the name elsewhere."""
+def _printed_receiver_bank(t: Transaction) -> str:
+    """The receiver's bank as an outgoing row prints it: the whole description on TEB, the part before the name in
+    "… hesabından <bank> <name> hesabına" elsewhere; "" when the row does not say."""
     m = re.search(r"hesabından\s+(.+?(?:A\.Ş\.|T\.A\.O\.?))\s+.+?\s+hesabına", t.description)
     if m:
-        return _bank_key(m[1])
-    return _bank_key(t.description) if _bank_only(t) else ""
+        return m[1]
+    return t.description if _bank_only(t) else ""
+
+
+def _receiver_bank(t: Transaction) -> str:
+    """Bank of the receiver, as a key to compare rows by."""
+    return _bank_key(_printed_receiver_bank(t))
+
+
+def _at_bank(printed: str, account: Account) -> bool:
+    """Whether account is at the bank a transfer row prints: by the table's name, else by the words left of both names
+    once "Türkiye", "Bankası", "A.Ş." and the like are taken off ("ZIRAAT" of "Ziraat Bankası")."""
+    named = _bank_named(printed)
+    if named:
+        return account.bank == named
+    key, own = _bank_key(printed), _bank_key(account.bank)
+    return bool(key and own) and (key in own or own in key)
+
+
+def _bank_fits(out: Transaction, inc: Transaction, accounts: dict[str, Account]) -> bool:
+    """Whether the incoming side can be where the outgoing side says the money went: a row that names the receiver's
+    bank pairs only with an account at that bank. TEB prints only the bank, so of two transfers of one amount on one
+    day to two banks, the one to the first is not the one that reached an account at the second."""
+    printed = _printed_receiver_bank(out)
+    if not printed:
+        return True
+    account = accounts.get(inc.account)
+    return account is not None and _at_bank(printed, account)
 
 
 def _free_card_payments(card_txns: list[Transaction], account_txns: list[Transaction]) -> list[Transaction]:
@@ -505,9 +539,12 @@ def _in_transfer_days(out: Transaction, inc: Transaction) -> bool:
     return TRANSFER_DAYS[0] <= (inc.date - out.date).days <= TRANSFER_DAYS[1]
 
 
-def _pair_open(rows: list[Transaction], pool: list[Transaction], paired: set[int]) -> None:
+def _pair_open(
+    rows: list[Transaction], pool: list[Transaction], paired: set[int], accounts: dict[str, Account]
+) -> None:
     """Pair each open row with an opposite row of the same amount in another own account from pool, the closest in
-    time within TRANSFER_DAYS: both are an own transfer, each naming the other."""
+    time within TRANSFER_DAYS and at the bank the outgoing side names, if it names one: both are an own transfer, each
+    naming the other."""
     for t in sorted(rows, key=lambda x: x.date):
         if t.kind != TransactionKind.TRANSFER_CANDIDATE or id(t) in paired:
             continue
@@ -517,7 +554,7 @@ def _pair_open(rows: list[Transaction], pool: list[Transaction], paired: set[int
                 continue
             out, inc = (t, other) if t.amount > 0 else (other, t)
             gap = abs((inc.date - out.date).days)
-            if _in_transfer_days(out, inc) and (best is None or gap < best_gap):
+            if _in_transfer_days(out, inc) and _bank_fits(out, inc, accounts) and (best is None or gap < best_gap):
                 best, best_gap = other, gap
         if best:
             t.kind = best.kind = TransactionKind.OWN_TRANSFER
@@ -526,10 +563,11 @@ def _pair_open(rows: list[Transaction], pool: list[Transaction], paired: set[int
             best.reason = replace(best.reason, transfer=best.reason.transfer or TransferStep.PAIRED, pair=t.fingerprint)
 
 
-def _pair_own_sides(found: list[Transaction], paired: set[int]) -> None:
+def _pair_own_sides(found: list[Transaction], paired: set[int], accounts: dict[str, Account]) -> None:
     """Pair the sides of transfers between own accounts that both name the user or an own account: they were found
     by name, so each knows it is an own transfer but not where the money went. An outgoing side takes the incoming
-    one of the same amount in another account, the closest in time within TRANSFER_DAYS."""
+    one of the same amount in another account, the closest in time within TRANSFER_DAYS, at the bank it names if it
+    names one."""
     incoming = sorted((t for t in found if t.amount < 0), key=lambda x: x.date)
     for out in sorted((t for t in found if t.amount > 0), key=lambda x: x.date):
         best, best_gap = None, 0
@@ -537,7 +575,7 @@ def _pair_own_sides(found: list[Transaction], paired: set[int]) -> None:
             if id(inc) in paired or inc.account == out.account or abs(inc.amount + out.amount) > CENT:
                 continue
             gap = abs((inc.date - out.date).days)
-            if _in_transfer_days(out, inc) and (best is None or gap < best_gap):
+            if _in_transfer_days(out, inc) and _bank_fits(out, inc, accounts) and (best is None or gap < best_gap):
                 best, best_gap = inc, gap
         if best:
             paired.update((id(out), id(best)))
@@ -571,8 +609,8 @@ def _resolve_transfers(
     # one that names the user (in another own account, within days): a payment that only looks like a named one must
     # take neither, nor may a stranger's payment of the same amount.
     paired: set[int] = set()
-    _pair_own_sides(found_by_name, paired)
-    _pair_open(open_, found_by_name, paired)
+    _pair_own_sides(found_by_name, paired, accounts)
+    _pair_open(open_, found_by_name, paired, accounts)
 
     # Same receiver bank and amount as a named payment: "YAPI VE KREDI BANKASI A.Ş. -21.000"
     # on one account is the rent that another account pays to the landlord by name.
@@ -600,7 +638,7 @@ def _resolve_transfers(
             still_open.append(t)
 
     # The rest: an open row matched by an opposite open row, or by a card's payment, in another own account.
-    _pair_open(still_open, still_open + card_payments, paired)
+    _pair_open(still_open, still_open + card_payments, paired, accounts)
 
     # A bank-only payment to a bank where the user has an account, on a date none of
     # that bank's statements cover, most likely went to that own account.
@@ -611,7 +649,7 @@ def _resolve_transfers(
     for t in still_open:
         if t.kind != TransactionKind.TRANSFER_CANDIDATE or t.amount <= 0 or not _bank_only(t):
             continue
-        bank = next((name for key, name in _BANK_NAMES if key in fold(t.description)), "")
+        bank = _bank_named(t.description)
         if bank in covered and not any(a <= t.date <= b for a, b in covered[bank]):
             t.kind = TransactionKind.OWN_TRANSFER
             t.description += " (muhtemelen kendi hesabınıza)"
