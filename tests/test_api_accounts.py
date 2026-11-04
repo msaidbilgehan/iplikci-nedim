@@ -2,7 +2,7 @@
 apart, an account's page with its rows, daily balance, months, fees and what its type adds, the name the user gives an
 account, and where the money went between the accounts."""
 
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
@@ -150,6 +150,48 @@ def test_this_months_money_is_not_told_as_none_before_a_document_reaches_the_mon
         "provisional": 0,
         "note": "bu ayın hareketleri henüz hiçbir belgede yok",
     }
+
+
+def test_a_notice_paying_out_more_than_the_list_shows_leaves_the_account_at_zero_and_the_totals_take_it_off(ws):
+    # The list was taken in the morning with the account emptied; the afternoon's notice tells 7.500 TL sent on. The
+    # bank paid it, so the money came in first, which no document tells: an FX sale or a transfer in sends no notice.
+    moves = [
+        Move(date(2026, 10, 5), "ÖRNEK İŞVEREN A.Ş. den gelen havale", Decimal(3000)),
+        Move(date(2026, 10, 6), "MIGROS ORNEK SUBE ISTANBUL", Decimal(-3000)),
+    ]
+    add(ws, "ekim.xls", garanti.account_xls(moves, opening=Decimal(0)))
+    sent = datetime(2026, 10, 31, 16, 5, tzinfo=timezone(timedelta(hours=3)))
+    add(ws, "bildirim.eml", garanti.transfer_notice(sent=sent, amount="7.500,00", note="KART ODEMESI"))
+    client = client_for(ws)
+    found = get(client, "/api/accounts")
+    account = by_id(found)[CURRENT]
+    assert (account["balance"], account["value"], account["certainty"]) == (tl(0), tl(0), "provisional")
+    assert "arada belgelerde olmayan en az 7.500,00 TL girmiş olmalı" in account["note"]
+    [untold] = found["untold"]
+    assert (untold["account"]["id"], untold["value"], untold["day"]) == (CURRENT, tl(750000), "2026-10-31")
+    assert (found["assets"], found["debts"], found["total"]) == (tl(0), tl(0), tl(-750000))  # no debt: money moved
+    board = get(client, "/api/dashboard")
+    worth = get(client, "/api/holdings")["worth"]
+    assert board["net_worth"]["total"] == worth["total"] == found["total"]
+    assert board["net_worth"]["untold"] == worth["untold"] == found["untold"]
+    assert "belgelerde nereden geldiği görünmeyen 7.500,00 TL düşüldü" in board["net_worth"]["say"]
+    assert all(s["situation"] != "in_debt" for s in board["sayings"])  # there is no debt to speak of
+    [start] = get(client, "/api/forecast")["accounts"]
+    assert start["start"]["balance"] == tl(0)
+
+
+def test_an_accounts_day_after_its_list_stays_at_zero_when_a_notice_pays_out_more_than_it_held(ws):
+    moves = [
+        Move(date(2026, 10, 5), "ÖRNEK İŞVEREN A.Ş. den gelen havale", Decimal(3000)),
+        Move(date(2026, 10, 6), "MIGROS ORNEK SUBE ISTANBUL", Decimal(-3000)),
+    ]
+    add(ws, "ekim.xls", garanti.account_xls(moves, opening=Decimal(0)))
+    sent = datetime(2026, 11, 2, 11, 30, tzinfo=timezone(timedelta(hours=3)))
+    add(ws, "bildirim.eml", garanti.transfer_notice(sent=sent, amount="2.000,00", note="KART ODEMESI"))
+    found = get(client_for(ws), f"/api/accounts/{CURRENT}")
+    day = {p["day"]: p for p in found["curve"]}["2026-11-02"]
+    assert (day["balance"], day["certainty"]) == (tl(0), "provisional")
+    assert "bakiye 0 sayıldı" in found["curve_note"]
 
 
 def test_an_account_whose_documents_stopped_long_before_the_others_is_closed_and_in_no_total(ws):

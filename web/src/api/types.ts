@@ -186,6 +186,7 @@ import type {
   TransactionsOut,
   TransferStep,
   TrendOut,
+  UntoldOut,
   UnusualKind,
   UnusualOut,
   UploadOut,
@@ -353,6 +354,8 @@ export type { ForecastPart, HabitStatus, Tone, UnusualKind };
 // Nedim's lines on it, the one to show first.
 export type Dashboard = DashboardOut;
 export type NetWorth = NetWorthOut;
+// Money that came into an account which no document tells yet: the totals take it off (the net worth's, Hesaplar's).
+export type Untold = UntoldOut;
 export type Saying = SayingOut;
 // Döviz (F12, its Phase 6 part): the net worth in TL and the other units, every asset and debt, the currencies' shares
 // and the rates the documents print.

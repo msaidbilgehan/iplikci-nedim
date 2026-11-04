@@ -89,6 +89,35 @@ class Balance:
     through: date  # the newest day the balance knows of
     certainty: Certainty  # confirmed: a document printed it; provisional: receipts and notices moved it since
     note: str  # what it rests on, in Turkish
+    # In TL: money that came in which no document tells yet (forecast.Start.untold): the receipts and notices after
+    # the balance took an account that cannot go below zero this far below it, so the balance is zero. The totals take
+    # it off (app.holdings.worth): the documents most likely still count it where it came from.
+    untold: Decimal = ZERO
+
+
+@dataclass(frozen=True, slots=True)
+class Untold:
+    """Money that came into an account which no document tells yet (Balance.untold): the account paid out more than
+    its documents show it held, so the money came in first, from where the documents most likely still count it
+    (another own account: an FX sale, a transfer). The totals take it off, so it is not counted twice and a transfer
+    between own accounts does not raise them."""
+
+    account: str
+    value: Decimal  # in TL, above zero
+    day: date  # the newest day the account's balance knows of
+
+
+def untold(balances: list[Balance]) -> list[Untold]:
+    """The money in no document tells yet of the balances with a TL value, which the totals take off."""
+    return [Untold(b.account, b.untold, b.through) for b in balances if b.untold > 0 and b.value is not None]
+
+
+# Why the totals take the money in no document tells yet off: the net worth's, the Accounts screen's.
+UNTOLD_NOTE = (
+    "Bir hesap belgelerde görünen bakiyesinden fazlasını ödediyse aradaki para önce o hesaba girmiş olmalı, ama "
+    "henüz hiçbir belgede yok. Başka bir hesabınızdan geldiyse o hesap belgelerde hâlâ eski bakiyesiyle duruyor: iki "
+    "kez sayılmasın diye bu tutar toplamdan düşüldü."
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -224,7 +253,14 @@ def _balance(ds: Dataset, account: str, newest: date | None) -> Balance | Unknow
     value = start.balance if currency == TRY else to_tl(start.balance, rate.rate) if rate else None
     where = "banka bildiriminde" if start.notice else "dökümünde"
     note = f"{_day(start.on)} {where} {_amount(start.stated, currency)}"
-    if start.moves:
+    if start.untold:
+        note += (
+            f"; sonraki {start.moves} dekont ve bildirimle {_signed(start.told - start.stated, currency)}. Ek hesabı "
+            f"olmayan bir hesap eksiye düşmez: arada belgelerde olmayan en az {_amount(start.untold, currency)} "
+            "girmiş olmalı (başka bir hesabınızdan aktarılan para ya da bir döviz alım-satımı olabilir). Bakiye "
+            f"{_amount(start.balance, currency)} sayıldı (geçici: ekstre ya da döküm gelince kesinleşir)"
+        )
+    elif start.moves:
         moved = start.balance - start.stated
         note += (
             f"; sonraki {start.moves} dekont ve bildirimle {_signed(moved, currency)} (geçici: ekstre ya da döküm "
@@ -250,6 +286,7 @@ def _balance(ds: Dataset, account: str, newest: date | None) -> Balance | Unknow
         through=start.through,
         certainty=Certainty.PROVISIONAL if start.moves else Certainty.CONFIRMED,
         note=note,
+        untold=(start.untold if currency == TRY else to_tl(start.untold, rate.rate) if rate else ZERO),
     )
 
 

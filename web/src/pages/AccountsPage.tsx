@@ -7,10 +7,11 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useAccounts, useLabels } from "../api/queries";
-import type { AccountItem, Accounts, Labels } from "../api/types";
+import type { AccountItem, Accounts, Labels, Money } from "../api/types";
 import { AccountList } from "../components/accounts/AccountList";
 import { Combined } from "../components/accounts/Combined";
 import { FlowsSection } from "../components/accounts/Flows";
+import { UntoldNote, untoldTaken } from "../components/accounts/UntoldNote";
 import { Empty, Failure, Loading } from "../components/QueryState";
 import { Card } from "../components/ui/Card";
 import { Explain } from "../components/ui/Explain";
@@ -22,6 +23,8 @@ import { labelOf } from "../lib/labels";
 const DOCUMENTS = { screen: "documents", id: "", query: {} } as const;
 const SMALL = "text-xs text-zinc-600 dark:text-zinc-300";
 const TOTAL = "min-w-36 flex-1 rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900";
+
+type TotalKey = "assets" | "debts" | "untold" | "total";
 
 export default function AccountsPage() {
   const { t } = useTranslation("accounts");
@@ -61,32 +64,36 @@ function AccountMap({ found, labels }: { found: Accounts; labels: Labels }) {
     });
   const open = found.groups.flatMap((group) => group.accounts);
   const picked: AccountItem[] = every.filter((item) => chosen.has(item.account.id));
+  // Money in no document tells yet is taken off the net total: shown as its own figure so the sum adds up.
+  const untold = untoldTaken(found.untold);
+  const totals: [TotalKey, Money][] = [
+    ["assets", found.assets],
+    ["debts", found.debts],
+    ...(untold ? [["untold", untold] as [TotalKey, Money]] : []),
+    ["total", found.total],
+  ];
   return (
     <>
       <section aria-label={t("summary.label")} className="flex flex-col gap-2">
         <Say>
-          {t("say", {
+          {t(untold ? "sayUntold" : "say", {
             assets: formatMoney(found.assets),
             debts: formatMoney(found.debts),
+            untold: untold ? formatMoney({ ...untold, minor: -untold.minor }) : "",
             total: formatMoney(found.total),
           })}
           <LeftOut accounts={open} />
         </Say>
         {/* Side by side while the amounts fit; on a phone the net total takes a row of its own. */}
-        <dl className="flex flex-wrap gap-3 sm:max-w-xl">
-          {(
-            [
-              ["assets", found.assets],
-              ["debts", found.debts],
-              ["total", found.total],
-            ] as const
-          ).map(([key, value]) => (
+        <dl className={`flex flex-wrap gap-3 ${untold ? "sm:max-w-2xl" : "sm:max-w-xl"}`}>
+          {totals.map(([key, value]) => (
             <div key={key} className={TOTAL}>
               <dt className="text-sm text-zinc-600 dark:text-zinc-300">{t(`summary.${key}`)}</dt>
               <dd className="mt-0.5 text-lg font-semibold tabular-nums">{formatMoney(value)}</dd>
             </div>
           ))}
         </dl>
+        <UntoldNote untold={found.untold} className={`flex flex-col gap-1 ${SMALL}`} />
         {found.note ? (
           <Explain>
             <p>{found.note}</p>

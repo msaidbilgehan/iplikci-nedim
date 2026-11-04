@@ -76,5 +76,9 @@
       "ecb": "ECB'nin {{day}} referans kuruyla",
       "frankfurter": "ECB'nin {{day}} referans kuruyla (Frankfurter'dan)"
     }
+  },
+  "untold": {
+    "label": "Belgede görünmeyen giriş",
+    "text": "{{account}} belgelerde görünen bakiyesinden {{amount}} fazla ödedi. Ek hesabı olmayan bir hesap eksiye düşmediği için bu para önce hesaba girmiş olmalı, ama henüz hiçbir belgede yok. Başka bir hesabınızdan geldiyse (bir aktarma ya da döviz satışı) o hesap belgelerde hâlâ eski bakiyesiyle duruyor: iki kez sayılmasın diye toplamdan düşüldü. Yeni dökümler gelince kendiliğinden düzelir."
   }
 }

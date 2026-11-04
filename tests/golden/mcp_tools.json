@@ -816,7 +816,7 @@
   {
     "name": "accounts_overview",
     "title": "Hesap haritası",
-    "description": "Hesap haritası, Hesaplar ekranındaki gibi: açık hesaplar ve kartlar türlerine göre gruplarda (kartlar, vadesiz, vadeli, KMH, döviz, altın, yatırım, krediler), her grubun varlık ve borç toplamıyla. Her hesabın bakiyesi (kendi para biriminde, sıfırın altı borç) ve TL değeri, hangi güne kadar bildiği ve neye dayandığı, kullanıcının verdiği ad (alias), belgelerinin nereye kadar geldiği (son belge, sonraki ekstrenin beklenen günü, gecikti mi, eksik aylar) ve bu ayın girişi ve çıkışı. Kapanmış ya da artık izlenmeyen hesaplar ayrı listelenir; onlar ve TL değeri bilinmeyenler (altın, kuru olmayan döviz) toplamlara girmez.",
+    "description": "Hesap haritası, Hesaplar ekranındaki gibi: açık hesaplar ve kartlar türlerine göre gruplarda (kartlar, vadesiz, vadeli, KMH, döviz, altın, yatırım, krediler), her grubun varlık ve borç toplamıyla. Her hesabın bakiyesi (kendi para biriminde, sıfırın altı borç) ve TL değeri, hangi güne kadar bildiği ve neye dayandığı, kullanıcının verdiği ad (alias), belgelerinin nereye kadar geldiği (son belge, sonraki ekstrenin beklenen günü, gecikti mi, eksik aylar) ve bu ayın girişi ve çıkışı. Kapanmış ya da artık izlenmeyen hesaplar ayrı listelenir; onlar ve TL değeri bilinmeyenler (altın, kuru olmayan döviz) toplamlara girmez. untold: belgelerde görünen bakiyesinden fazlasını ödeyen hesaba önce girmiş olması gereken ama hiçbir belgede olmayan para; hesabın bakiyesi o yüzden sıfırdır, toplam onu düşer.",
     "inputSchema": {
       "type": "object",
       "properties": {},
@@ -834,7 +834,7 @@
   {
     "name": "net_worth",
     "title": "Net varlık",
-    "description": "Net varlık: varlıklar eksi borçlar TL olarak ve EUR, USD, gram altın karşılığı (EUR ve USD kur sağlayıcısının, TCMB ya da ECB, en yeni döviz satış kuruyla, yoksa belgelerdeki en yeni kurla; kurun günü ve kaynağıyla); her varlık ve borç (sıfırın altı borç), değeri, kuru (döviz varlık alış, döviz borç satış kuruyla), kurun günü ve kaynağı (rateSource) ve belgelerin söylediği yerde maliyeti; varlıkların para birimlerine dağılımı (share: TL değeri olanların içindeki payı); TL değeri olmadığı için toplama girmeyenler, nedenleriyle. Altının fiyatı belgelerde yazmadığından TL değeri verilmez.",
+    "description": "Net varlık: varlıklar eksi borçlar TL olarak ve EUR, USD, gram altın karşılığı (EUR ve USD kur sağlayıcısının, TCMB ya da ECB, en yeni döviz satış kuruyla, yoksa belgelerdeki en yeni kurla; kurun günü ve kaynağıyla); her varlık ve borç (sıfırın altı borç), değeri, kuru (döviz varlık alış, döviz borç satış kuruyla), kurun günü ve kaynağı (rateSource) ve belgelerin söylediği yerde maliyeti; varlıkların para birimlerine dağılımı (share: TL değeri olanların içindeki payı); TL değeri olmadığı için toplama girmeyenler, nedenleriyle. Altının fiyatı belgelerde yazmadığından TL değeri verilmez. untold: belgelerde görünen bakiyesinden fazlasını ödeyen hesaba önce girmiş olması gereken ama hiçbir belgede olmayan para; büyük olasılıkla başka bir hesaptan geldi ve o hesap belgelerde hâlâ eski bakiyesiyle sayılıyor, toplam onu düşer.",
     "inputSchema": {
       "type": "object",
       "properties": {},

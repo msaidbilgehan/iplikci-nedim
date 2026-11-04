@@ -15,7 +15,7 @@ from ...app.holdings import AccountGroup, Certainty, RateSource, TradeSide
 from ...app.workspace import Busy
 from ..context import Context, context_of
 from ..guard import Principal
-from ..models import AccountRefOut, MoneyOut, account_ref, money
+from ..models import AccountRefOut, MoneyOut, UntoldOut, account_ref, money, untold_out
 from ..problems import Problem
 from .dashboard import InCurrencyOut, PartOut
 from .deps import only
@@ -128,7 +128,8 @@ class FxIncomeOut(BaseModel):
 
 
 class WorthOut(BaseModel):
-    """The assets less the debts, of what has a TL value: the dashboard's net worth."""
+    """The assets less the debts and the money in no document tells yet (untold), of what has a TL value: the
+    dashboard's net worth."""
 
     total: MoneyOut
     assets: MoneyOut
@@ -138,6 +139,7 @@ class WorthOut(BaseModel):
     left_out: list[UnknownOut]  # the accounts without a TL value, and why
     currencies: list[InCurrencyOut]  # the total in EUR, USD and gram gold, null without a rate
     note: str
+    untold: list[UntoldOut]  # money in no document tells yet, taken off the total
 
 
 class AssetOut(BaseModel):
@@ -329,6 +331,7 @@ def _worth(w: holdings.Worth, labels: dict[str, str]) -> WorthOut:
             for c in w.currencies
         ],
         note=w.note,
+        untold=[untold_out(u, labels) for u in w.untold],
     )
 
 

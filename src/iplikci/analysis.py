@@ -409,6 +409,65 @@ def settle_receipts(
     return lines
 
 
+# --- balances -------------------------------------------------------------------
+
+# The accounts whose balance below zero is a debt in use: an overdraft account's credit (KMH), a card's, a loan's.
+_OWING = (AccountType.OVERDRAFT, AccountType.LOAN, *CARD_TYPES)
+
+
+def _native(t: Transaction) -> Decimal:
+    """A row's amount in its account's currency: the ledger turns a foreign account's rows into TL (_to_tl)."""
+    return t.reason.native if t.reason.native is not None else t.amount
+
+
+def _day_ends(s: Statement) -> Iterable[Decimal]:
+    """A list's balance at the end of each day it has rows on, from its opening balance (as it prints it, else its
+    closing balance before its rows): what its running balance column prints at the day's last row."""
+    if s.previous is not None:
+        balance = s.previous
+    elif s.total is not None:
+        balance = s.total + sum((_native(t) for t in s.transactions), Decimal(0))
+    else:
+        return
+    by_day: dict[date, Decimal] = defaultdict(Decimal)
+    for t in s.transactions:
+        by_day[t.date] += _native(t)
+    for day in sorted(by_day):
+        balance -= by_day[day]
+        yield balance
+
+
+def shown_below_zero(ds: Dataset, account: str) -> bool:
+    """Whether a document shows the account's balance below zero (a current account whose overdraft is in use): a
+    list's opening, closing or month-end balance or its balance at a day's end, or a notice's balance after its row."""
+    for s in ds.statements:
+        if s.account != account:
+            continue
+        printed = [s.previous, s.total, *s.balances.values()]
+        if any(value is not None and value < 0 for value in printed) or (
+            s.is_account and any(balance < 0 for balance in _day_ends(s))
+        ):
+            return True
+    return any(
+        line.txn.account == account and line.txn.balance is not None and line.txn.balance < 0 for line in ds.receipts
+    )
+
+
+def untold_in(ds: Dataset, account: str, balance: Decimal) -> Decimal:
+    """The money that came into an account before it paid out more than it held, which no document tells yet: how far
+    below zero its balance is as the documents tell it (its newest printed balance moved by the receipts and notices
+    after it), on an account that cannot go below zero. A bank pays out no more than an account holds, but the notices
+    tell only some movements: Garanti's only the transfers out above an amount, none for an FX sale or a transfer in.
+    Zero for an account whose balance below zero is a debt in use (an overdraft's credit, a card's, a loan's) and for
+    one a document shows below zero (a current account whose overdraft is in use)."""
+    if balance >= 0:
+        return Decimal(0)
+    found = ds.accounts.get(account)
+    if found is None or found.type in _OWING or shown_below_zero(ds, account):
+        return Decimal(0)
+    return -balance
+
+
 # --- own accounts and transfers -----------------------------------------------
 
 

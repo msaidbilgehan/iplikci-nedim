@@ -171,8 +171,51 @@ def test_a_list_balance_moves_by_the_provisional_rows_of_its_last_days_the_list_
         receipt(date(2026, 10, 29), -100, PROVISIONAL),  # money in, two days before the end
         receipt(date(2026, 10, 30), 2000, CONFIRMED),
     ]
+    ds = dataset(statements=[account_list("cash", date(2026, 5, 1), date(2026, 10, 31), 20000)], receipts=rows)
+    assert start_of(ds, "cash") == Start(
+        Decimal(7600), Decimal(20000), date(2026, 10, 31), False, 2, date(2026, 10, 31)
+    )
+
+
+def test_rows_that_take_an_account_below_zero_it_cannot_go_tell_money_out_only_the_money_in_first_is_untold():
+    # The list was taken at noon with nothing in the account; at three a notice told 12.500 TL sent on. The bank paid
+    # it, so at least 12.400 TL came in first (an FX sale, a transfer in), which no document tells: Garanti notifies
+    # only the transfers out above an amount. The balance is zero, not a debt.
+    rows = [receipt(date(2026, 10, 31), 12500, PROVISIONAL), receipt(date(2026, 10, 29), -100, PROVISIONAL)]
     ds = dataset(statements=[account_list("cash", date(2026, 5, 1), date(2026, 10, 31), 0)], receipts=rows)
-    assert start_of(ds, "cash") == Start(Decimal(-12400), Decimal(0), date(2026, 10, 31), False, 2, date(2026, 10, 31))
+    start = start_of(ds, "cash")
+    assert start == Start(
+        Decimal(0), Decimal(0), date(2026, 10, 31), False, 2, date(2026, 10, 31), untold=Decimal(12400)
+    )
+    assert start.told == Decimal(-12400)
+    [found] = forecast(ds, interpret(ds), date(2026, 11, 1), []).accounts
+    assert found.days[0] == (date(2026, 11, 1), Decimal(0))
+    assert found.notes[0] == (
+        "Başlangıç: 31.10.2026 tarihli hesap dökümünün kapanış bakiyesi 0,00 TL; sonraki 2 dekont ve bildirimle "
+        "−12.400,00 TL. Ek hesabı olmayan bir hesap eksiye düşmez: arada belgelerde olmayan en az 12.400,00 TL girmiş "
+        "olmalı; başlangıç 0,00 TL sayıldı; 31.10.2026 sonrasının hareketleri belgelerde yok."
+    )
+
+
+def test_an_overdraft_or_an_account_a_document_shows_below_zero_may_go_below_it():
+    out = [receipt(date(2026, 10, 31), 12500, PROVISIONAL, "qnb-other")]
+    overdraft = dataset(
+        statements=[account_list("qnb-other", date(2026, 5, 1), date(2026, 10, 31), 0)],
+        receipts=out,
+        accounts=(QNB_OTHER,),
+    )
+    start = start_of(overdraft, "qnb-other")
+    assert start is not None and (start.balance, start.untold) == (Decimal(-12500), Decimal(0))
+    # A current account whose list closed a month below zero has an overdraft it uses.
+    used = account_list("cash", date(2026, 5, 1), date(2026, 10, 31), 0)
+    used.balances = {"2026-08": Decimal(-3000), "2026-09": Decimal(200)}
+    start = start_of(dataset(statements=[used], receipts=[receipt(date(2026, 10, 31), 500, PROVISIONAL)]), "cash")
+    assert start is not None and (start.balance, start.untold) == (Decimal(-500), Decimal(0))
+    # So does one a notice shows below zero.
+    seen = [receipt(date(2026, 10, 20), 800, NO_STATEMENT, "vakif", balance=-300)]
+    seen.append(receipt(date(2026, 10, 25), 400, NO_STATEMENT, "vakif"))
+    start = start_of(dataset(receipts=seen), "vakif")
+    assert start is not None and (start.balance, start.untold) == (Decimal(-700), Decimal(0))
 
 
 def test_a_notice_balance_already_holds_the_rows_of_its_day_and_of_the_days_before():

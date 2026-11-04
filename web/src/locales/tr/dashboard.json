@@ -14,6 +14,7 @@
     "next": "Hesaplara bak",
     "assets": "Varlıklar",
     "debts": "Borçlar",
+    "untold": "Belgede görünmeyen giriş",
     "inOther": "Diğer birimlerle",
     "currency": {
       "EUR": "Euro",
@@ -86,6 +87,7 @@
     "label": "Özet",
     "worth": "Net varlık",
     "worthParts": "Varlık {{assets}} · Borç {{debts}}",
+    "worthUntold": "Belgede görünmeyen giriş {{amount}} düşüldü",
     "leftOut": "{{count}} hesap toplama girmedi",
     "provisional": "Bir kısmı geçici kayıtlardan",
     "month": "Bu ay harcanan",
@@ -145,6 +147,7 @@
       "none": "Henüz kapanan bir ay yok. Bankalarınızın belgeleri geldikçe burada her ayın özeti görünür.",
       "total": "Son belgelere göre hesaplarınızdaki para: {{amount}}.",
       "totalAfterDebts": "Son belgelere göre hesaplarınızdaki para, kart borçları düşülünce: {{amount}}.",
+      "untold": "Belgede görünmeyen {{amount}} giriş de düşüldü.",
       "leftOut_one": "Bakiyesi bilinmeyen {{count}} hesap bu toplamda yok.",
       "leftOut_other": "Bakiyesi bilinmeyen {{count}} hesap bu toplamda yok.",
       "accounts": "Hesaplara bak"

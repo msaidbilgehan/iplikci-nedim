@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { FX_INCOME, FX_RATES, FX_SPREAD, HOLDINGS, server } from "../test/server";
+import { FX_INCOME, FX_RATES, FX_SPREAD, HOLDINGS, server, tl } from "../test/server";
 import { renderScreen } from "../test/render";
 import FxPage from "./FxPage";
 
@@ -58,6 +58,20 @@ describe("FxPage", () => {
     expect(within(summary).getByText("belgelerde USD kuru yok")).toBeInTheDocument();
     expect(within(summary).getByText("gram altının TL fiyatı belgelerde yok")).toBeInTheDocument();
     expect(within(summary).getByText("Garanti BBVA Vadesiz TL:")).toBeInTheDocument(); // left out of the total
+  });
+
+  it("takes money no document tells yet off the net worth, as a figure of its own with the account and why", async () => {
+    const untold = [{ account: { id: "garanti-tl", label: "Örnek Vadesiz TL" }, value: tl(500000), day: "2026-10-31" }];
+    const worth = { ...HOLDINGS.worth, total: tl(23300000), untold };
+    server.use(http.get("/api/holdings", () => HttpResponse.json({ ...HOLDINGS, worth })));
+    renderScreen(<FxPage />);
+    const summary = await screen.findByRole("region", { name: "Toplamlar" });
+    const figure = within(summary).getByText("Belgede görünmeyen giriş").closest("div");
+    expect(figure).not.toBeNull();
+    expect(within(figure as HTMLElement).getByText("−5.000,00 TL")).toBeInTheDocument();
+    expect(
+      within(summary).getByText(/^Örnek Vadesiz TL belgelerde görünen bakiyesinden 5\.000,00 TL fazla ödedi\./),
+    ).toBeInTheDocument();
   });
 
   it("lists every asset and debt in its own unit with its TL value", async () => {

@@ -18,7 +18,8 @@
     "label": "Toplamlar",
     "total": "Net varlık",
     "assets": "Varlıklar",
-    "debts": "Borçlar"
+    "debts": "Borçlar",
+    "untold": "Belgede görünmeyen giriş"
   },
   "inOther": "Diğer birimlerde",
   "noValue": "Kuru bilinmiyor",

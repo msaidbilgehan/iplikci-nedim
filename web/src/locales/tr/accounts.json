@@ -2,6 +2,7 @@
   "title": "Hesaplar",
   "description": "Hesaplarınız gruplarıyla: bakiyeleri, belgelerinin ulaştığı gün, bu ayki giriş ve çıkışları; aralarındaki para akışı.",
   "say": "Varlıklar {{assets}}, borçlar {{debts}}; net {{total}}.",
+  "sayUntold": "Varlıklar {{assets}}, borçlar {{debts}}; belgede görünmeyen giriş {{untold}} düşülünce net {{total}}.",
   "leftOut": {
     "noBalance": "Bakiyesi belgelerde olmayan {{count}} hesap toplamlara girmedi.",
     "noValue": "TL karşılığı bilinmeyen {{count}} hesap toplamlara girmedi.",
@@ -15,7 +16,8 @@
     "label": "Toplamlar",
     "assets": "Varlıklar",
     "debts": "Borçlar",
-    "total": "Net"
+    "total": "Net",
+    "untold": "Belgede görünmeyen giriş"
   },
   "group": {
     "figures": "Varlık {{assets}} · Borç {{debts}}",

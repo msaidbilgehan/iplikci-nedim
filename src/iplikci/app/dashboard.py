@@ -9,7 +9,7 @@ number and the alerts about documents come from the to-do list (app.todos): what
 count here either.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from enum import StrEnum
@@ -84,7 +84,7 @@ class AlertLevel(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class NetWorth:
-    total: Decimal  # the assets less the debts, of what has a TL value
+    total: Decimal  # the assets less the debts and the money in no document tells yet, of what has a TL value
     assets: Decimal
     debts: Decimal  # above zero
     certainty: Certainty  # provisional when a part is
@@ -94,6 +94,7 @@ class NetWorth:
     note: str  # what it rests on
     say: str
     link: Link
+    untold: list[now.Untold] = field(default_factory=list[now.Untold])  # taken off the total (app.holdings.worth)
 
 
 @dataclass(frozen=True, slots=True)
@@ -213,21 +214,23 @@ def _day(d: date) -> str:
 # --- the net worth ---------------------------------------------------------------------------------------------------
 
 
-def _say_net_worth(total: Decimal, provisional: bool, parts: list[Part], left: int) -> str:
-    if not parts:
+def _say_net_worth(w: holdings.Worth) -> str:
+    if not w.parts:
         return "Henüz bakiyesi bilinen bir hesap yok; ekstre ve dökümler geldikçe burada görünür."
+    total = w.total
     said = f"Net varlığınız {_amount(total)}" if total >= 0 else f"Borçlarınız varlıklarınızdan {_amount(-total)} fazla"
-    if provisional:
+    if w.certainty is Certainty.PROVISIONAL:
         said += " (geçici)"
-    if left:
-        said += f"; {left} hesabın TL değeri bilinmediği için toplama girmedi"
+    if w.untold:
+        said += f"; belgelerde nereden geldiği görünmeyen {_amount(w.untold_total)} düşüldü"
+    if w.left_out:
+        said += f"; {len(w.left_out)} hesabın TL değeri bilinmediği için toplama girmedi"
     return said + "."
 
 
 def net_worth(a: Analysis, found: now.Now) -> NetWorth:
     """The balances and the cards' debts of "Şu an", added up in TL (app.holdings.worth)."""
     w = holdings.worth(a.dataset, found.balances, found.cards, found.unknown)
-    provisional = w.certainty is Certainty.PROVISIONAL
     return NetWorth(
         total=w.total,
         assets=w.assets,
@@ -237,8 +240,9 @@ def net_worth(a: Analysis, found: now.Now) -> NetWorth:
         left_out=w.left_out,
         currencies=w.currencies,
         note=w.note,
-        say=_say_net_worth(w.total, provisional, w.parts, len(w.left_out)),
+        say=_say_net_worth(w),
         link=Link(Screen.ACCOUNTS),
+        untold=w.untold,
     )
 
 

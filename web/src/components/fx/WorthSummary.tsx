@@ -1,11 +1,13 @@
-// The net worth at the top of Döviz (F12): the assets less the debts in TL, the same in euros, dollars and grams of gold
-// at the newest rate — TCMB's, else ECB's, else the documents' — with that rate's day and source beside it, and the
-// accounts left out of the total because nothing gives them a TL value. A unit without a rate says so; never zero.
+// The net worth at the top of Döviz (F12): the assets less the debts in TL (and less the money in no document tells yet,
+// with its reason), the same in euros, dollars and grams of gold at the newest rate — TCMB's, else ECB's, else the
+// documents' — with that rate's day and source beside it, and the accounts left out of the total because nothing gives
+// them a TL value. A unit without a rate says so; never zero.
 
 import { useTranslation } from "react-i18next";
 
-import type { Holdings } from "../../api/types";
+import type { Holdings, Money as Amount } from "../../api/types";
 import { formatMoney } from "../../lib/format";
+import { UntoldNote, untoldTaken } from "../accounts/UntoldNote";
 import { Explain } from "../ui/Explain";
 import { Money } from "../ui/Money";
 import { currencyName } from "./currency";
@@ -16,28 +18,31 @@ const TOTAL = "min-w-36 flex-1 rounded-lg border border-zinc-200 bg-white p-3 da
 export function WorthSummary({ found }: { found: Holdings }) {
   const { t } = useTranslation("fx");
   const worth = found.worth;
+  // Money in no document tells yet is taken off the total: shown as its own figure so the sum adds up.
+  const untold = untoldTaken(worth.untold);
+  const parts: ["assets" | "debts" | "untold", Amount][] = [
+    ["assets", worth.assets],
+    ["debts", worth.debts],
+    ...(untold ? [["untold", untold] as ["untold", Amount]] : []),
+  ];
   return (
     <section aria-label={t("summary.label")} className="flex flex-col gap-3">
       {/* Side by side while the amounts fit; on a phone each takes a row of its own. */}
-      <dl className="flex flex-wrap gap-3 sm:max-w-xl">
+      <dl className={`flex flex-wrap gap-3 ${untold ? "sm:max-w-2xl" : "sm:max-w-xl"}`}>
         <div className={TOTAL}>
           <dt className="text-sm text-zinc-600 dark:text-zinc-300">{t("summary.total")}</dt>
           <dd className="mt-0.5 text-lg font-semibold">
             <Money value={worth.total} certainty={worth.certainty} />
           </dd>
         </div>
-        {(
-          [
-            ["assets", worth.assets],
-            ["debts", worth.debts],
-          ] as const
-        ).map(([key, value]) => (
+        {parts.map(([key, value]) => (
           <div key={key} className={TOTAL}>
             <dt className="text-sm text-zinc-600 dark:text-zinc-300">{t(`summary.${key}`)}</dt>
             <dd className="mt-0.5 text-lg font-semibold tabular-nums">{formatMoney(value)}</dd>
           </div>
         ))}
       </dl>
+      <UntoldNote untold={worth.untold} className={`flex flex-col gap-1 ${SMALL}`} />
       <div>
         <h2 className="text-sm font-medium">{t("inOther")}</h2>
         <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">

@@ -4,7 +4,7 @@ import { http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { renderScreen } from "../test/render";
-import { ACCOUNTS, FLOWS, server } from "../test/server";
+import { ACCOUNTS, FLOWS, server, tl } from "../test/server";
 import AccountsPage from "./AccountsPage";
 
 afterEach(() => localStorage.clear());
@@ -23,6 +23,25 @@ describe("AccountsPage: the account map", () => {
     ).toBeInTheDocument();
     const totals = screen.getByRole("region", { name: "Toplamlar" });
     expect(within(totals).getByText("12.500,00 TL")).toBeInTheDocument();
+  });
+
+  it("takes money no document tells yet off the net total, as a figure of its own with the account and why", async () => {
+    const untold = [{ account: { id: "garanti-tl", label: "Örnek Vadesiz TL" }, value: tl(1500000), day: "2026-10-31" }];
+    server.use(http.get("/api/accounts", () => HttpResponse.json({ ...ACCOUNTS, total: tl(-250000), untold })));
+    renderScreen(<AccountsPage />, { path: "/hesaplar" });
+    expect(
+      await screen.findByText(
+        "Varlıklar 19.500,00 TL, borçlar 7.000,00 TL; belgede görünmeyen giriş 15.000,00 TL düşülünce net " +
+          "−2.500,00 TL. Bakiyesi belgelerde olmayan 1 hesap toplamlara girmedi.",
+      ),
+    ).toBeInTheDocument();
+    const totals = screen.getByRole("region", { name: "Toplamlar" });
+    const figure = within(totals).getByText("Belgede görünmeyen giriş").closest("div");
+    expect(figure).not.toBeNull();
+    expect(within(figure as HTMLElement).getByText("−15.000,00 TL")).toBeInTheDocument();
+    expect(
+      within(totals).getByText(/^Örnek Vadesiz TL belgelerde görünen bakiyesinden 15\.000,00 TL fazla ödedi\./),
+    ).toHaveTextContent("iki kez sayılmasın diye toplamdan düşüldü");
   });
 
   it("lists the accounts in their groups, each group with its assets, debts and total", async () => {

@@ -23,11 +23,13 @@ from ..models import (
     MoneyOut,
     PaceOut,
     SayingOut,
+    UntoldOut,
     account_ref,
     link_out,
     money,
     pace_out,
     saying_out,
+    untold_out,
 )
 from ..problems import Problem
 from .accounts import FreshnessOut, freshness_out
@@ -59,7 +61,8 @@ class InCurrencyOut(BaseModel):
 
 
 class NetWorthOut(BaseModel):
-    """The balances of "Şu an" and the cards' debts, added up: the assets less the debts, of what has a TL value."""
+    """The balances of "Şu an" and the cards' debts, added up: the assets less the debts and the money in no document
+    tells yet (untold), of what has a TL value."""
 
     total: MoneyOut
     assets: MoneyOut
@@ -71,6 +74,7 @@ class NetWorthOut(BaseModel):
     note: str  # what it rests on
     say: str
     link: LinkOut  # the accounts
+    untold: list[UntoldOut]  # money in no document tells yet, taken off the total
 
 
 class ThisMonthOut(BaseModel):
@@ -219,6 +223,7 @@ def _net_worth(found: dashboard.NetWorth, labels: dict[str, str]) -> NetWorthOut
         note=found.note,
         say=found.say,
         link=_link(found.link),
+        untold=[untold_out(u, labels) for u in found.untold],
     )
 
 

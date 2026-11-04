@@ -1,11 +1,13 @@
 // The dashboard's net worth (F06, F12): the balances "Şu an" shows and the cards' debts added up in TL, the assets and
-// the debts apart, the same in euros, dollars and grams of gold at the documents' newest rates, and the accounts left
-// out because nothing gives them a TL value. A worth without a rate is "belgelerde yok", never zero.
+// the debts apart, the money in no document tells yet taken off with its reason, the same in euros, dollars and grams
+// of gold at the documents' newest rates, and the accounts left out because nothing gives them a TL value. A worth
+// without a rate is "belgelerde yok", never zero.
 
 import { useTranslation } from "react-i18next";
 
 import type { NetWorth } from "../../api/types";
 import { formatMoney } from "../../lib/format";
+import { UntoldNote, untoldTaken } from "../accounts/UntoldNote";
 import { Detailed } from "../Preferences";
 import { Money } from "../ui/Money";
 import { Table, Td, Th } from "../ui/Table";
@@ -16,6 +18,7 @@ const CURRENCIES = ["EUR", "USD", "GR"] as const;
 
 export function NetWorthCard({ worth }: { worth: NetWorth }) {
   const { t } = useTranslation("dashboard");
+  const untold = untoldTaken(worth.untold);
   const name = (currency: string) =>
     (CURRENCIES as readonly string[]).includes(currency)
       ? t(`netWorth.currency.${currency as (typeof CURRENCIES)[number]}`)
@@ -27,7 +30,9 @@ export function NetWorthCard({ worth }: { worth: NetWorth }) {
       </p>
       <p className={SMALL}>
         {t("netWorth.assets")} {formatMoney(worth.assets)} · {t("netWorth.debts")} {formatMoney(worth.debts)}
+        {untold ? ` · ${t("netWorth.untold")} ${formatMoney(untold)}` : null}
       </p>
+      <UntoldNote untold={worth.untold} className={`mt-1 flex flex-col gap-1 ${SMALL}`} />
       <h3 className="mt-3 text-sm font-medium">{t("netWorth.inOther")}</h3>
       <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
         {worth.currencies.map((c) => (

@@ -20,6 +20,7 @@ import type { CalendarItem, Dashboard, Forecast, MonthClosing, OpenAlert } from 
 import { cn } from "../../lib/cn";
 import { addDays, formatDay, formatMoney, formatMonth } from "../../lib/format";
 import { monthDays, monthIncome, monthOut, monthSaving, rowsLink } from "../../lib/rows";
+import { untoldTotal } from "../accounts/UntoldNote";
 import { HBars } from "../charts/HBars";
 import type { StackSeries } from "../charts/layout";
 import { LineChart } from "../charts/LineChart";
@@ -185,7 +186,9 @@ function MonthStory({ found, month }: { found: Dashboard; month: MonthClosing | 
   const { t } = useTranslation("dashboard");
   const running = found.closing.months.find((m) => m.status === "running");
   const worth = found.net_worth;
-  // The total is said with what it rests on: the last documents, the card debts taken off, the accounts left out.
+  const untold = untoldTotal(worth.untold);
+  // The total is said with what it rests on: the last documents, the card debts and the money in no document tells yet
+  // taken off, the accounts left out.
   const total = (
     <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
       <BankIcon className="size-4 shrink-0 text-teal-800 dark:text-teal-300" />
@@ -193,6 +196,7 @@ function MonthStory({ found, month }: { found: Dashboard; month: MonthClosing | 
         {t(worth.debts.minor > 0 ? "overview.story.totalAfterDebts" : "overview.story.total", {
           amount: formatMoney(worth.total),
         })}
+        {untold ? ` ${t("overview.story.untold", { amount: formatMoney(untold) })}` : null}
         {worth.left_out.length > 0 ? ` ${t("overview.story.leftOut", { count: worth.left_out.length })}` : null}
       </span>
       <NextStep step={{ link: worth.link, label: t("overview.story.accounts") }} />

@@ -25,7 +25,7 @@ from decimal import Decimal
 from itertools import pairwise
 from statistics import median
 
-from .analysis import NOT_ON_STATEMENT, PROVISIONAL, Dataset, DatedRate, ReceiptLine, payments, whole
+from .analysis import NOT_ON_STATEMENT, PROVISIONAL, Dataset, DatedRate, ReceiptLine, payments, untold_in, whole
 from .categorize import FX_CATEGORY
 from .domain.codes import (
     CARD_TYPES,
@@ -896,6 +896,8 @@ class Holding:
     as_of: date
     note: str = ""
     cost: Decimal = ZERO  # TL paid for gold; its market price is not in the documents
+    # In TL: money that came in which no document tells yet (analysis.untold_in); the balance is zero for it.
+    untold: Decimal = ZERO
 
 
 def balance_rate(ds: Dataset, currency: str, amount: Decimal) -> DatedRate | None:
@@ -980,6 +982,21 @@ def _with_receipts(h: "Holding", lines: list[ReceiptLine], rate: Decimal | None)
     h.as_of = max(h.as_of, max(line.txn.date for line in lines))
 
 
+def _with_untold(ds: Dataset, account: str, h: "Holding", rate: Decimal | None) -> None:
+    """Zero for a balance the receipts took below zero on an account that cannot go below it: the money that came in
+    first is in no document yet (analysis.untold_in); Holding.untold keeps it in TL."""
+    untold = untold_in(ds, account, h.amount)
+    if not untold:
+        return
+    h.amount = ZERO
+    if h.currency == TRY:
+        h.value, h.untold, shown = ZERO, untold, tl(untold)
+    else:
+        h.value = ZERO if rate else None
+        h.untold, shown = (round_half_up(untold * rate) if rate else ZERO), f"{format_amount(untold)} {h.currency}"
+    h.note += f"; hesap eksiye düşmediğine göre arada belgelerde olmayan en az {shown} girmiş olmalı, bakiye 0 sayıldı"
+
+
 _STALE_DAYS = 180  # a balance this much older than the newest statement says nothing about today
 
 
@@ -1032,14 +1049,17 @@ def holdings(ds: Dataset) -> list[Holding]:
             lines = waiting.get(account, [])
             # The receipts after the list move the balance (_with_receipts): an asset or a debt is what it comes to.
             after = round_half_up(s.total - round_half_up(sum((line.native for line in lines), ZERO)))
+            after += untold_in(ds, account, after)  # zero, no debt, when money came in that no document tells yet
             rate = balance_rate(ds, a.currency, after)
             value = round_half_up(s.total * rate.rate) if rate else None
             note = _rate_note(rate, after < 0) if rate else "kur bulunamadı"
             h = Holding(a.label, "doviz", a.currency, s.total, value, s.cut_date, note)
             _with_receipts(h, lines, rate.rate if rate else None)
+            _with_untold(ds, account, h, rate.rate if rate else None)
         else:
             h = Holding(a.label, "nakit", TRY, s.total, s.total, s.cut_date)
             _with_receipts(h, waiting.get(account, []), None)
+            _with_untold(ds, account, h, None)
             h.kind = "kmh" if h.amount < 0 or a.type == AccountType.OVERDRAFT else "nakit"
             h.kind = "vadeli" if h.kind == "nakit" and a.type == AccountType.DEPOSIT else h.kind
         if newest and (newest - s.cut_date).days > _STALE_DAYS:
@@ -1200,6 +1220,9 @@ def interpret(ds: Dataset) -> Insights:
     ins = Insights(tl_, series, income, habits(ds, tl_, series), trend(ds, tl_, in_series), flow(ds, tl_), held)
     ins.periodic = periodic_payments(ds, tl_, series)
     savings = sum((h.value or ZERO for h in held if h.kind in SAVINGS), ZERO) + sum((h.cost for h in held), ZERO)
+    # Money in no document tells yet came from where the documents still count it, most likely another own account:
+    # it is taken off, so it is not saved twice and a transfer between own accounts adds nothing.
+    savings -= sum((h.untold for h in held), ZERO)
     debts = -sum((h.value or ZERO for h in held if h.kind in ("kmh", "kart") and (h.value or ZERO) < 0), ZERO)
     ctx = _Context(
         ds, ins, in_series, _expenses(ds, set(tl_.window)), next((s for s in income if s.running), None), savings, debts
@@ -1513,10 +1536,15 @@ def _position_finding(c: _Context) -> None:
             parts.append(f"altın {grams} gr" + (f" (alışta {tl(h.cost)} ödendi)" if h.cost else ""))
         elif h.kind == "yatirim" and h.value:
             parts.append(f"hisse senedi {tl(h.value)} ({_day(h.as_of)} piyasa değeri)")
-    text = (
-        f"{_day(c.ins.timeline.as_of)} itibarıyla " + ", ".join(parts) + f"; ek hesap ve kart borcu {tl(c.debts)}. "
-        "Hesap hesap ayrıntılar Döviz ekranındaki Varlıklar ve borçlar tablosunda."
-    )
+    text = f"{_day(c.ins.timeline.as_of)} itibarıyla " + ", ".join(parts) + f"; ek hesap ve kart borcu {tl(c.debts)}. "
+    for h in held:
+        if h.untold:
+            text += (
+                f"{h.label} belgelerde görünen bakiyesinden {tl(h.untold)} fazla ödedi: hesap eksiye düşmediğine göre "
+                "bu para önce girmiş olmalı, ama hiçbir belgede yok. Kendi hesaplarınızdan birinden geldiyse o hesap "
+                "belgelerde hâlâ eski bakiyesiyle görünür; iki kez sayılmasın diye birikimden düşüldü. "
+            )
+    text += "Hesap hesap ayrıntılar Döviz ekranındaki Varlıklar ve borçlar tablosunda."
     c.ins.findings.append(Finding("iyi" if c.savings > c.debts else "dikkat", "Birikim ve borç durumu", text))
 
 

@@ -20,7 +20,18 @@ from ...app.now import RateSource
 from ...app.workspace import Busy
 from ..context import Context, context_of
 from ..guard import Principal
-from ..models import AccountRefOut, LinkOut, MoneyOut, RowOut, account_ref, link_out, money, row_out
+from ..models import (
+    AccountRefOut,
+    LinkOut,
+    MoneyOut,
+    RowOut,
+    UntoldOut,
+    account_ref,
+    link_out,
+    money,
+    row_out,
+    untold_out,
+)
 from ..problems import Problem
 from .deps import only
 from .feed import NowCardOut, card_out
@@ -108,8 +119,9 @@ class AccountsOut(BaseModel):
     closed: list[AccountOut]  # the newest documents first
     assets: MoneyOut
     debts: MoneyOut
-    total: MoneyOut
+    total: MoneyOut  # the assets less the debts and the money in no document tells yet: the net worth's
     note: str
+    untold: list[UntoldOut]  # money in no document tells yet, taken off the total
 
 
 class CurvePointOut(BaseModel):
@@ -372,6 +384,7 @@ def account_list(request: Request) -> AccountsOut:
         debts=money(found.debts),
         total=money(found.total),
         note=found.note,
+        untold=[untold_out(u, labels) for u in found.untold],
     )
 
 

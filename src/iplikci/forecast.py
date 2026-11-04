@@ -23,7 +23,7 @@ from decimal import Decimal
 from itertools import pairwise
 from statistics import median
 
-from .analysis import NO_STATEMENT, PROVISIONAL, Dataset, ReceiptLine, whole
+from .analysis import NO_STATEMENT, PROVISIONAL, Dataset, ReceiptLine, untold_in, whole
 from .domain.codes import CARD_TYPES, AccountType, PaymentKind, TransactionKind
 from .domain.labels import format_amount
 from .domain.models import TRY
@@ -55,6 +55,14 @@ class Start:
     notice: bool  # a bank notice's balance after its row, not an account list's closing balance
     moves: int  # receipt and notice rows after it, counted in the balance
     through: date  # the newest day the balance knows of
+    # Money that came in which no document tells yet (analysis.untold_in): the rows after the balance took an account
+    # that cannot go below zero this far below it, so the balance is zero and this much came in first.
+    untold: Decimal = ZERO
+
+    @property
+    def told(self) -> Decimal:
+        """The balance as the documents' rows add up, before the money in no document tells yet."""
+        return self.balance - self.untold
 
 
 @dataclass(frozen=True)
@@ -186,7 +194,9 @@ def start_of(ds: Dataset, account: str) -> Start | None:
     list's closing balance before a notice's on the same day (it closes the whole day), moved by the counted receipt
     and notice rows dated after it. Rows of that same day are taken to be in a notice's balance already. A list's
     closing balance holds only the rows the list shows: a provisional row of its last days is one it does not show
-    (settle_receipts: the bank may book it after the list ends), so it moves the balance too, as in the ledger."""
+    (settle_receipts: the bank may book it after the list ends), so it moves the balance too, as in the ledger. Rows
+    that take an account which cannot go below zero below it tell money out only: the money that came in first is in
+    no document yet (analysis.untold_in), so the balance is zero and Start.untold says how much came in."""
     currency = ds.accounts[account].currency
     lists = [s for s in ds.statements if s.account == account and s.is_account and s.currency == currency]
     closing = max((s for s in lists if s.total is not None), key=lambda s: s.cut_date, default=None)
@@ -206,9 +216,10 @@ def start_of(ds: Dataset, account: str) -> Start | None:
         if (line.status in (PROVISIONAL, NO_STATEMENT) and line.txn.date > on)
         or (not notice and line.status == PROVISIONAL and line.txn.date <= on)
     ]
-    moved = -sum((line.native for line in after), ZERO)
+    told = stated - sum((line.native for line in after), ZERO)
     through = max([on, *(line.txn.date for line in after)])
-    return Start(stated + moved, stated, on, notice, len(after), through)
+    untold = untold_in(ds, account, told)
+    return Start(told + untold, stated, on, notice, len(after), through, untold)
 
 
 def _newest_document(ds: Dataset) -> date | None:
@@ -378,7 +389,12 @@ def _notes(start: Start, spend: Spread | None, cards: Spread | None) -> list[str
     where = "banka bildirimindeki bakiye" if start.notice else "hesap dökümünün kapanış bakiyesi"
     first = f"Başlangıç: {_day(start.on)} tarihli {where} {_tl(start.stated)}"
     if start.moves:
-        first += f"; sonraki {start.moves} dekont ve bildirimle {_signed(start.balance - start.stated)}"
+        first += f"; sonraki {start.moves} dekont ve bildirimle {_signed(start.told - start.stated)}"
+    if start.untold:
+        first += (
+            f". Ek hesabı olmayan bir hesap eksiye düşmez: arada belgelerde olmayan en az {_tl(start.untold)} girmiş "
+            f"olmalı; başlangıç {_tl(start.balance)} sayıldı"
+        )
     notes = [f"{first}; {_day(start.through)} sonrasının hareketleri belgelerde yok."]
     if spend is None:
         notes.append("Seri dışı çıkışlar tahmin edilmedi: hesabın belgeleri son tam ayları tam kapsamıyor.")

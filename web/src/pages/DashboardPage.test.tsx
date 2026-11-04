@@ -4,7 +4,7 @@ import { http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { renderScreen } from "../test/render";
-import { DASHBOARD, server } from "../test/server";
+import { DASHBOARD, server, tl } from "../test/server";
 import DashboardPage from "./DashboardPage";
 
 afterEach(() => localStorage.clear());
@@ -109,6 +109,34 @@ describe("DashboardPage", () => {
     expect(within(units).getByText("gram altının TL fiyatı belgelerde yok")).toBeInTheDocument();
     expect(within(units).queryByText(/^0,00/)).not.toBeInTheDocument(); // never a zero for what is not known
     expect(within(worth).getByText("bakiyesi hiçbir belgede yazmıyor")).toBeInTheDocument();
+  });
+
+  it("takes money no document tells yet off the net worth and says which account it came into", async () => {
+    chooseDetailed();
+    const untold = [{ account: { id: "garanti-tl", label: "Örnek Vadesiz TL" }, value: tl(500000), day: "2026-10-31" }];
+    const net_worth = { ...DASHBOARD.net_worth, total: tl(750000), untold };
+    server.use(http.get("/api/dashboard", () => HttpResponse.json({ ...DASHBOARD, net_worth })));
+    renderScreen(<DashboardPage />);
+    const worth = await card("Net varlık");
+    expect(
+      within(worth).getByText("Varlıklar 19.500,00 TL · Borçlar 7.000,00 TL · Belgede görünmeyen giriş −5.000,00 TL"),
+    ).toBeInTheDocument();
+    expect(
+      within(worth).getByText(/^Örnek Vadesiz TL belgelerde görünen bakiyesinden 5\.000,00 TL fazla ödedi\./),
+    ).toBeInTheDocument();
+    const first = screen.getByRole("region", { name: "Özet" });
+    const tile = within(first).getByRole("link", { name: /^Net varlık/ });
+    expect(tile).toHaveTextContent("Belgede görünmeyen giriş 5.000,00 TL düşüldü");
+  });
+
+  it("says in the simple view's story that money no document tells yet was taken off the total", async () => {
+    const untold = [{ account: { id: "garanti-tl", label: "Örnek Vadesiz TL" }, value: tl(500000), day: "2026-10-31" }];
+    const net_worth = { ...DASHBOARD.net_worth, total: tl(750000), untold };
+    server.use(http.get("/api/dashboard", () => HttpResponse.json({ ...DASHBOARD, net_worth })));
+    renderScreen(<DashboardPage />);
+    expect(
+      await screen.findByText(/Belgede görünmeyen 5\.000,00 TL giriş de düşüldü\./),
+    ).toHaveTextContent("kart borçları düşülünce: 7.500,00 TL.");
   });
 
   it("puts the month so far beside the typical month in the detailed view", async () => {

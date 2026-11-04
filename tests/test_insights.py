@@ -6,7 +6,7 @@ from decimal import Decimal
 
 import pytest
 
-from iplikci.analysis import Dataset
+from iplikci.analysis import PROVISIONAL, Dataset, ReceiptLine
 from iplikci.domain.codes import AccountType, Necessity, SeriesPeriod, TransactionKind
 from iplikci.domain.models import Account, Security, Statement, Transaction
 from iplikci.insights import (
@@ -581,6 +581,44 @@ def test_holdings_value_foreign_currency_and_subtract_card_payments_after_the_cu
     assert by_kind["kmh"].amount == pytest.approx(Decimal("-21000.75"))
     # Before its first statement a card counts with that statement's opening balance (50).
     assert debt_at(ds, date(2026, 9, 30)) == pytest.approx(Decimal(19000) + Decimal(50))
+
+
+def test_receipts_paying_out_more_than_an_account_holds_leave_it_at_zero_and_never_make_an_overdraft_debt():
+    # The list closed at zero; a receipt after it tells 7.500 TL sent on, which the bank paid: the money came in first
+    # and no document tells it. No overdraft is in use, so it is no debt: the savings take it off instead.
+    statements = [
+        Statement(
+            account="cash",
+            cut_date=date(2026, 10, 31),
+            currency="TRY",
+            source="v.xls",
+            previous=Decimal(0),
+            total=Decimal(0),
+            start=date(2026, 10, 1),
+        ),
+        Statement(
+            account="usd",
+            cut_date=date(2026, 10, 31),
+            currency="USD",
+            source="u.xls",
+            previous=Decimal(500),
+            total=Decimal(500),
+            start=date(2026, 10, 1),
+        ),
+    ]
+    sent = tx(date(2026, 10, 31), "Giden transfer", Decimal(7500), kind=TransactionKind.OWN_TRANSFER, account="cash")
+    sent.provisional = True
+    ds = dataset([sent], statements)
+    ds.receipts = [ReceiptLine(sent, "cash-20261031", PROVISIONAL, Decimal(7500))]
+    ds.rates = {"USD": [(date(2026, 10, 1), Decimal(40))]}
+    cash = next(h for h in holdings(ds) if h.label == CASH.label)
+    assert (cash.kind, cash.amount, cash.value, cash.untold) == ("nakit", Decimal(0), Decimal(0), Decimal(7500))
+    assert "arada belgelerde olmayan en az 7.500 TL girmiş olmalı, bakiye 0 sayıldı" in cash.note
+    found = interpret(ds)
+    [position] = [f for f in found.findings if f.title == "Birikim ve borç durumu"]
+    assert "ek hesap ve kart borcu 0 TL" in position.text
+    assert "Test Vadesiz TL belgelerde görünen bakiyesinden 7.500 TL fazla ödedi" in position.text
+    assert "iki kez sayılmasın diye birikimden düşüldü" in position.text
 
 
 def test_a_missing_brokerage_statement_leaves_the_month_complete():

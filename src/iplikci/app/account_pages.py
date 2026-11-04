@@ -13,7 +13,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from itertools import groupby
 
-from ..analysis import NO_STATEMENT, PROVISIONAL, Dataset, ReceiptLine, statement_periods
+from ..analysis import NO_STATEMENT, PROVISIONAL, Dataset, ReceiptLine, statement_periods, untold_in
 from ..categorize import FEE_CATEGORIES, FX_CATEGORY
 from ..domain.codes import (
     DEFAULT_EXPENSE_KINDS,
@@ -219,6 +219,7 @@ def curve(ds: Dataset, account: str) -> tuple[list[CurvePoint], str]:
         ),
         key=lambda line: (line.txn.date, line.key),
     )
+    untold = False
     for day, group in groupby(later, key=lambda line: line.txn.date):
         lines = list(group)
         printed: list[tuple[ReceiptLine, Decimal]] = [(x, x.txn.balance) for x in lines if x.txn.balance is not None]
@@ -226,6 +227,8 @@ def curve(ds: Dataset, account: str) -> tuple[list[CurvePoint], str]:
             balance, certainty = last_of_day(printed)[1], Certainty.CONFIRMED
         elif balance is not None:
             balance, certainty = balance - sum((x.native for x in lines), ZERO), Certainty.PROVISIONAL
+            if came_in := untold_in(ds, account, balance):  # money in came first that no document tells yet
+                balance, untold = balance + came_in, True
         else:
             continue  # nothing tells the balance before the first notice that prints one
         points[day] = CurvePoint(day, balance, certainty)
@@ -238,6 +241,11 @@ def curve(ds: Dataset, account: str) -> tuple[list[CurvePoint], str]:
         note = f"Gün sonu bakiyeleri hesap dökümlerinden; son dökümden sonrası bildirim ve dekontlardan ({told})."
     else:
         note = "Gün sonu bakiyeleri hesap dökümlerinden."
+    if untold:
+        note += (
+            " Ek hesabı olmayan bir hesap eksiye düşmez: dekontların gösterdiği çıkışın bakiyeyi aştığı günlerde "
+            "belgelerde olmayan bir giriş var, bakiye 0 sayıldı."
+        )
     return [points[d] for d in sorted(points)], note
 
 

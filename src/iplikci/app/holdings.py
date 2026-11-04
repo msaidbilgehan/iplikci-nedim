@@ -11,7 +11,7 @@ shows its grams and the TL paid for it, never a guessed value. What was paid for
 documents do not tie a purchase in TL to the currency it bought.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 
@@ -28,6 +28,7 @@ from . import now
 from .account_pages import gold_cost
 from .accounts import GROUP_OF
 from .analysis import Analysis
+from .now import UNTOLD_NOTE, Untold
 
 # What the API names from here: the use cases, their records and the codes they carry.
 __all__ = [
@@ -50,6 +51,7 @@ __all__ = [
     "Spread",
     "SpreadRow",
     "TradeSide",
+    "Untold",
     "Worth",
     "foreign_income",
     "holdings",
@@ -87,7 +89,7 @@ class InCurrency:
 
 @dataclass(frozen=True, slots=True)
 class Worth:
-    total: Decimal  # the assets less the debts, of what has a TL value
+    total: Decimal  # the assets less the debts and the money in no document tells yet, of what has a TL value
     assets: Decimal
     debts: Decimal  # above zero
     certainty: Certainty  # provisional when a part is
@@ -95,6 +97,11 @@ class Worth:
     left_out: list[now.Unknown]  # the accounts without a TL value, and why
     currencies: list[InCurrency]
     note: str  # what it rests on
+    untold: list[Untold] = field(default_factory=list[Untold])  # taken off the total
+
+    @property
+    def untold_total(self) -> Decimal:
+        return sum((u.value for u in self.untold), ZERO)
 
 
 @dataclass(frozen=True, slots=True)
@@ -207,14 +214,17 @@ def worth(ds: Dataset, balances: list[now.Balance], cards: list[now.Card], unkno
         left.append(now.Unknown(b.account, f"{_amount(b.balance, b.currency)}; {why}"))
     parts += [Part(c.account, -c.debt, c.certainty) for c in cards if c.debt is not None]
     parts.sort(key=lambda p: -abs(p.value))
+    untold = now.untold(balances)
     assets = sum((p.value for p in parts if p.value > 0), ZERO)
     debts = -sum((p.value for p in parts if p.value < 0), ZERO)
-    total = assets - debts
+    total = assets - debts - sum((u.value for u in untold), ZERO)
     provisional = any(p.certainty == Certainty.PROVISIONAL for p in parts)
     note = (
         "Hesapların son belgelerindeki bakiyeler, sonraki dekont ve bildirimlerle; kart borçları son ekstreden, "
         "kesimden sonraki ödemeler düşülerek. Değeri bilinmeyenler toplama girmedi."
     )
+    if untold:
+        note += f" {UNTOLD_NOTE}"
     return Worth(
         total=total,
         assets=assets,
@@ -224,6 +234,7 @@ def worth(ds: Dataset, balances: list[now.Balance], cards: list[now.Card], unkno
         left_out=left + unknown,
         currencies=[_in_currency(ds, total, c) for c in CURRENCIES],
         note=note,
+        untold=untold,
     )
 
 

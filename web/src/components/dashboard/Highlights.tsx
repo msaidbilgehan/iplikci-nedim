@@ -12,6 +12,7 @@ import { cn } from "../../lib/cn";
 import { formatDay, formatMoney, formatMonth } from "../../lib/format";
 import { labelOf } from "../../lib/labels";
 import { hrefOf } from "../../lib/links";
+import { untoldTotal } from "../accounts/UntoldNote";
 import { PaceMeter } from "../Pace";
 import { BankIcon, CalendarIcon, ChecklistIcon, PulseIcon } from "../ui/Icons";
 
@@ -74,6 +75,7 @@ export function Highlights({ found, labels }: { found: Dashboard; labels: Labels
   // No document reaches the month yet: that nothing was spent is not known, so no zero and no meter are shown.
   const unread = pace.covered === 0 && pace.spent.minor === 0;
   const [first] = due.items;
+  const untold = untoldTotal(worth.untold);
   return (
     <section aria-label={t("highlights.label")} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <Tile
@@ -83,6 +85,7 @@ export function Highlights({ found, labels }: { found: Dashboard; labels: Labels
         link={worth.link}
       >
         {t("highlights.worthParts", { assets: formatMoney(worth.assets), debts: formatMoney(worth.debts) })}
+        {untold ? <span className="block">{t("highlights.worthUntold", { amount: formatMoney(untold) })}</span> : null}
         {worth.certainty === "confirmed" ? null : <span className="block">{t("highlights.provisional")}</span>}
         {worth.left_out.length > 0 ? (
           <span className="block">{t("highlights.leftOut", { count: worth.left_out.length })}</span>

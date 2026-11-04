@@ -584,6 +584,7 @@ export const HOLDINGS: Holdings = {
       },
     ],
     note: "Hesapların son belgelerindeki bakiyeler; değeri bilinmeyenler toplama girmedi.",
+    untold: [],
   },
   holdings: [
     {
@@ -1400,6 +1401,7 @@ export const ACCOUNTS: Accounts = {
   debts: tl(700000),
   total: tl(1250000),
   note: "",
+  untold: [],
 };
 
 /** What the last analysis wrote: the report and the rows; the month-end pages wait for a closed month. */
@@ -1949,6 +1951,7 @@ export const DASHBOARD: Dashboard = {
     note: "Hesapların son belgelerindeki bakiyeler, sonraki dekont ve bildirimlerle. Değeri bilinmeyenler toplama girmedi.",
     say: "Net varlığınız 12.500,00 TL (geçici); 1 hesabın TL değeri bilinmediği için toplama girmedi.",
     link: { screen: "accounts", id: "", query: {} },
+    untold: [],
   },
   month: {
     pace: NOW.pace,

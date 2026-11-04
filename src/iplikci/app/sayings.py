@@ -310,7 +310,9 @@ def facts(a: Analysis, board: Dashboard, today: date) -> Facts:
         documents=bool(board.freshness.accounts or worth.parts),
         month=_story(a, [c for c in board.closing.months if c.status is MonthStatus.CLOSED], today),
         negative=_negative(board, today),
-        net_worth=worth.total if worth.parts and not worth.left_out else None,
+        # The money no document tells yet came from what the accounts hold: taken off, it can leave them empty, but
+        # never more in debt than their debts.
+        net_worth=max(worth.total, -worth.debts) if worth.parts and not worth.left_out else None,
         pace=_comparable(board),
         repriced=len(rises),
         income_days=_income_days(a, today),

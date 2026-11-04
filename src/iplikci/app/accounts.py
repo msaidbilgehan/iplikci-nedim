@@ -10,7 +10,7 @@ left out of the totals, never guessed.
 
 from collections import defaultdict
 from collections.abc import Collection
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 
@@ -186,8 +186,9 @@ class Overview:
     closed: list[AccountView]  # the newest documents first
     assets: Decimal
     debts: Decimal
-    total: Decimal
+    total: Decimal  # the assets less the debts and the money in no document tells yet: the net worth's
     note: str
+    untold: list[now.Untold] = field(default_factory=list[now.Untold])  # taken off the total (now.UNTOLD_NOTE)
 
 
 @dataclass(frozen=True, slots=True)
@@ -408,8 +409,10 @@ def _sums(views: list[AccountView]) -> tuple[Decimal, Decimal]:
 
 
 def overview(ws: Workspace, a: Analysis, today: date) -> Overview:
-    """The open accounts in F07's groups, each group's assets and debts apart, and the closed accounts apart."""
-    views = _views(ws, a, today, _known(a), list(a.dataset.accounts))
+    """The open accounts in F07's groups, each group's assets and debts apart, and the closed accounts apart; the total
+    takes the money in no document tells yet off, as the net worth does (app.holdings.worth)."""
+    known = _known(a)
+    views = _views(ws, a, today, known, list(a.dataset.accounts))
     names = account_labels(a)
     open_ = [v for v in views if not v.closed]
     groups: list[Group] = []
@@ -425,12 +428,16 @@ def overview(ws: Workspace, a: Analysis, today: date) -> Overview:
         (v for v in views if v.closed), key=lambda v: v.freshness.last if v.freshness else date.min, reverse=True
     )
     assets, debts = _sums(open_)
+    untold = now.untold(list(known.balances.values()))
     note = (
         "Bakiyeler hesapların son belgelerinden, sonraki dekont ve bildirimlerle; kart borçları son ekstreden, "
         "kesimden sonraki ödemeler düşülerek. TL değeri bilinmeyenler (altın, kuru olmayan döviz) ve kapanmış "
         "hesaplar toplamlara girmez."
     )
-    return Overview(today, groups, gone, assets, debts, assets - debts, note)
+    if untold:
+        note += f" {now.UNTOLD_NOTE}"
+    total = assets - debts - sum((u.value for u in untold), ZERO)
+    return Overview(today, groups, gone, assets, debts, total, note, untold)
 
 
 # --- an account's page -----------------------------------------------------------------------------------------------

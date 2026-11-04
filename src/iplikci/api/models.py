@@ -11,7 +11,7 @@ from ..app.fx import RateSource
 from ..app.invoices import InvoiceKind, InvoiceStatus
 from ..app.links import Link, Screen
 from ..app.notify import Channel, ChannelStage, DeliveryStatus, DetailLevel, EventKind
-from ..app.now import Pace
+from ..app.now import Pace, Untold
 from ..app.rows import Certainty, Direction, Necessity, RowView, TransactionKind
 from ..app.sayings import Mood, Saying, Situation
 
@@ -41,6 +41,20 @@ class AccountRefOut(BaseModel):
 
 def account_ref(account: str, labels: dict[str, str]) -> AccountRefOut:
     return AccountRefOut(id=account, label=labels.get(account, account))
+
+
+class UntoldOut(BaseModel):
+    """Money that came into an account which no document tells yet: the account paid out more than its documents show
+    it held, so the money came in first, from where the documents most likely still count it (another own account).
+    The totals take it off, so it is not counted twice; the account's balance is zero for it."""
+
+    account: AccountRefOut
+    value: MoneyOut  # in TL, above zero
+    day: date  # the newest day the account's balance knows of
+
+
+def untold_out(found: Untold, labels: dict[str, str]) -> UntoldOut:
+    return UntoldOut(account=account_ref(found.account, labels), value=money(found.value), day=found.day)
 
 
 class LinkOut(BaseModel):

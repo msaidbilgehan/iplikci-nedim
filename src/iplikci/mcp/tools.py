@@ -21,7 +21,20 @@ from decimal import Decimal
 from typing import Any, cast
 
 from .. import month_end
-from ..app import accounts, calls, closing, documents, feed, holdings, intake, invoices, notify, outlook, transactions
+from ..app import (
+    accounts,
+    calls,
+    closing,
+    documents,
+    feed,
+    holdings,
+    intake,
+    invoices,
+    notify,
+    now,
+    outlook,
+    transactions,
+)
 from ..app import mail as email
 from ..app import rules as category_rules
 from ..app.analysis import Analysis, Current, account_labels, document_gaps, summary
@@ -1758,12 +1771,19 @@ def _account_view(v: accounts.AccountView) -> Json:
     }
 
 
+def _untold(found: Sequence[now.Untold], names: Mapping[str, str]) -> list[Json]:
+    """The money in no document tells yet that the totals take off, as the tools tell it."""
+    return [{"account": names.get(u.account, u.account), "valueTL": u.value, "day": u.day} for u in found]
+
+
 def _accounts_overview(s: Session, args: Args) -> Json:
-    found = accounts.overview(s.ws, s.current.get(), s.today())
+    a = s.current.get()
+    found = accounts.overview(s.ws, a, s.today())
     return {
         "today": found.today,
         "assets": found.assets,
         "debts": found.debts,
+        "untold": _untold(found.untold, _bank_labels(a)),
         "total": found.total,
         "groups": [
             {
@@ -1779,7 +1799,8 @@ def _accounts_overview(s: Session, args: Args) -> Json:
         ],
         "closed": [_account_view(v) for v in found.closed],
         "note": f"{found.note} balance hesabın kendi para biriminde (altın GR: gram), sıfırın altı borç; valueTL ve "
-        "toplamlar TL.",
+        "toplamlar TL. untold: bir hesabın belgelerde görünen bakiyesinden fazla ödediği, yani önce girmiş olması "
+        "gereken ama hiçbir belgede olmayan para; total = assets − debts − untold.",
     }
 
 
@@ -1793,6 +1814,7 @@ def _net_worth(s: Session, args: Args) -> Json:
             "total": w.total,
             "assets": w.assets,
             "debts": w.debts,
+            "untold": _untold(w.untold, names),
             "certainty": w.certainty,
             "parts": [{"account": names.get(p.account, p.account), "valueTL": p.value} for p in w.parts],
             "leftOut": [{"account": names.get(u.account, u.account), "reason": u.reason} for u in w.left_out],
@@ -2351,7 +2373,8 @@ TOOLS = (
         "dayandığı, kullanıcının verdiği ad (alias), belgelerinin nereye kadar geldiği (son belge, sonraki "
         "ekstrenin beklenen günü, gecikti mi, eksik aylar) ve bu ayın girişi ve çıkışı. Kapanmış ya da artık "
         "izlenmeyen hesaplar ayrı listelenir; onlar ve TL değeri bilinmeyenler (altın, kuru olmayan döviz) "
-        "toplamlara girmez.",
+        "toplamlara girmez. untold: belgelerde görünen bakiyesinden fazlasını ödeyen hesaba önce girmiş olması gereken "
+        "ama hiçbir belgede olmayan para; hesabın bakiyesi o yüzden sıfırdır, toplam onu düşer.",
         _schema(),
         _accounts_overview,
     ),
@@ -2363,7 +2386,9 @@ TOOLS = (
         "kaynağıyla); her varlık ve borç (sıfırın altı borç), değeri, kuru (döviz varlık alış, döviz borç satış "
         "kuruyla), kurun günü ve kaynağı (rateSource) ve belgelerin söylediği yerde maliyeti; varlıkların para "
         "birimlerine dağılımı (share: TL değeri olanların içindeki payı); TL değeri olmadığı için toplama girmeyenler, "
-        "nedenleriyle. Altının fiyatı belgelerde yazmadığından TL değeri verilmez.",
+        "nedenleriyle. Altının fiyatı belgelerde yazmadığından TL değeri verilmez. untold: belgelerde görünen "
+        "bakiyesinden fazlasını ödeyen hesaba önce girmiş olması gereken ama hiçbir belgede olmayan para; büyük "
+        "olasılıkla başka bir hesaptan geldi ve o hesap belgelerde hâlâ eski bakiyesiyle sayılıyor, toplam onu düşer.",
         _schema(),
         _net_worth,
     ),

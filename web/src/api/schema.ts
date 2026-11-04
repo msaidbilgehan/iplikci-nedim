@@ -75,6 +75,7 @@ export interface AccountsOut {
   debts: MoneyOut;
   total: MoneyOut;
   note: string;
+  untold: UntoldOut[];
 }
 
 export interface AlarmIn {
@@ -1429,7 +1430,10 @@ export type Necessity = "required" | "optional" | "unnecessary" | "unknown";
 /** Where a spending row's necessity comes from (docs/domain/categorization.md, "Gereklilik"). */
 export type NecessityReason = "user" | "merchant" | "category" | "default";
 
-/** The balances of "Şu an" and the cards' debts, added up: the assets less the debts, of what has a TL value. */
+/**
+ * The balances of "Şu an" and the cards' debts, added up: the assets less the debts and the money in no document tells
+ * yet (untold), of what has a TL value.
+ */
 export interface NetWorthOut {
   total: MoneyOut;
   assets: MoneyOut;
@@ -1441,6 +1445,7 @@ export interface NetWorthOut {
   note: string;
   say: string;
   link: LinkOut;
+  untold: UntoldOut[];
 }
 
 /** A payment expected again. */
@@ -2326,6 +2331,17 @@ export interface UnknownOut {
   reason: string;
 }
 
+/**
+ * Money that came into an account which no document tells yet: the account paid out more than its documents show it
+ * held, so the money came in first, from where the documents most likely still count it (another own account). The
+ * totals take it off, so it is not counted twice; the account's balance is zero for it.
+ */
+export interface UntoldOut {
+  account: AccountRefOut;
+  value: MoneyOut;
+  day: string;
+}
+
 /** A movement worth a look (F10). It is only flagged: no row is ever dropped for it. */
 export type UnusualKind = "unusual_amount" | "possible_duplicate" | "new_large" | "unexpected_fee";
 
@@ -2382,7 +2398,10 @@ export interface WindowOut {
   end: string;
 }
 
-/** The assets less the debts, of what has a TL value: the dashboard's net worth. */
+/**
+ * The assets less the debts and the money in no document tells yet (untold), of what has a TL value: the dashboard's
+ * net worth.
+ */
 export interface WorthOut {
   total: MoneyOut;
   assets: MoneyOut;
@@ -2392,6 +2411,7 @@ export interface WorthOut {
   left_out: UnknownOut[];
   currencies: InCurrencyOut[];
   note: string;
+  untold: UntoldOut[];
 }
 
 /** The whole rule file, as the user edited it. */
