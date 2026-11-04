@@ -97,5 +97,8 @@ _banka_kategorileri: …          # Garanti'nin ekstrede yazdığı başlıklar�
 - Genel işyeri bilgisi varsayılan katmana gider:
   - "GETIR ARAC" araç kiralamadır.
   - "UBER EATS" yemek siparişidir, yolculuk değil.
+  - "TURİZM" bir işyerinin ne olduğunu söylemez: Türkiye'de lokanta, market, otel ve seyahat acentesi adlarında da
+    geçer ("ÖRNEK GIDA TURİZM"). Otobüs firmaları adlarıyla tanınır (Metro Turizm, Pamukkale Turizm, …); başka
+    hiçbir kelimesi tutmayan bir "… Turizm" kategorisiz kalır ve sorulur (v0.9.11'e dek otobüs bileti sayılıyordu).
 - Kişiye özgü kararlar kişisel katmana gider: bir işyerinin gerekliliği, bir aboneliğin bittiği, bir kişinin kim olduğu.
 - Kategorisiz kalanlar Yapılacaklar'da sık görülenden seyreğe sıralanır; tek tıkla kural eklenir.

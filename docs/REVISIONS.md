@@ -6,10 +6,15 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 | Revizyon | Konu | Durum | Belge |
 |---|---|---|---|
 | V0 | MVP `gider-analizi`: banka belgelerini okuyan, doğrulayan, yorumlayan yerel komut satırı programı, web paneli ve MCP sunucusu | 2026-10-31'de emekliye ayrıldı (K17) | Depo dışında, veri klasöründeki arşivde: `archive/mvp/CLAUDE.md` ve `README.md` |
-| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–6 (v0.1.0–v0.7.0), arayüzün sadeleşmesi (v0.7.1), resimlerle anlatan Pano (v0.7.2), açık sekmeye ulaşan güncellemeler (v0.7.3), içeriğinden tanınan belgeler (v0.7.4), Belge ekle ekranı (v0.7.5), belgelerle denetlenen bildirimler (v0.7.6) ve Aşama 7 (MCP, v0.8.0), Aşama 8 (Döviz, v0.9.0), enflasyondan arındırmanın kartı (v0.9.1), İplikçi Nedim'in sözleri (v0.9.2), düzeltmeler (v0.9.3), grafiklerden işlemlere giden kısayollar (v0.9.4), kuralların yerinde düzeltmeler (v0.9.5), transferin karşılığını önce arayan defter (v0.9.6), sayıldığı yeri de değiştiren tek satırlık düzeltmeler (v0.9.7) üç ödeme isteyen dönemsel seriler (v0.9.8), Ay sonu'yla aynı Kalan (v0.9.9) ve kapanmayan ayı söyleyen Pano (v0.9.10) uygulandı; sırada sürüm 1.0'ın koşulları var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
+| V1 | Tam teşekküllü kişisel finans analizi ve gelir-gider yorumlama platformu | Aşama 0–6 (v0.1.0–v0.7.0), arayüzün sadeleşmesi (v0.7.1), resimlerle anlatan Pano (v0.7.2), açık sekmeye ulaşan güncellemeler (v0.7.3), içeriğinden tanınan belgeler (v0.7.4), Belge ekle ekranı (v0.7.5), belgelerle denetlenen bildirimler (v0.7.6) ve Aşama 7 (MCP, v0.8.0), Aşama 8 (Döviz, v0.9.0), enflasyondan arındırmanın kartı (v0.9.1), İplikçi Nedim'in sözleri (v0.9.2), düzeltmeler (v0.9.3), grafiklerden işlemlere giden kısayollar (v0.9.4), kuralların yerinde düzeltmeler (v0.9.5), transferin karşılığını önce arayan defter (v0.9.6), sayıldığı yeri de değiştiren tek satırlık düzeltmeler (v0.9.7) üç ödeme isteyen dönemsel seriler (v0.9.8), Ay sonu'yla aynı Kalan (v0.9.9), kapanmayan ayı söyleyen Pano (v0.9.10) ve yazdığı bankaya eşleşen havaleler (v0.9.11) uygulandı; sırada sürüm 1.0'ın koşulları var | [`v1/requirements.md`](v1/requirements.md), [`v1/architecture.md`](v1/architecture.md), [`v1/features.md`](v1/features.md), [`v1/roadmap.md`](v1/roadmap.md), [`v1/migration.md`](v1/migration.md) |
 | V2 | Finansal strateji uzmanları ve yapay zekâ asistanı | Gelecek (V1'den sonra) | [`v2/requirements.md`](v2/requirements.md) |
 
 ## Değişiklik kaydı
+
+- 2026-11-05 (41) — Havale, yazdığı bankaya (v0.9.11):
+  - [Defter](domain/ledger.md#transferler): paranın gittiği bankayı yazan satır yalnızca o bankadaki bir hesapla
+    eşleşir.
+  - [Kategori kuralları](domain/categorization.md#ilkeler): "TURİZM" tek başına otobüs bileti değildir.
 
 - 2026-11-04 (40) — Kapanmayan ay neden anlatılmıyor (v0.9.10):
   - [Özellikler](v1/features.md) F06: Pano'nun hikâyesinden sonra biten ama kapanmayan ay, kaç belge beklediğini,

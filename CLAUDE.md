@@ -6,7 +6,7 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-04): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.10). Between Phases 6 and 7 came
+Status (2026-11-05): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.11). Between Phases 6 and 7 came
 the interface's simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab
 (v0.7.3), documents known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked
 against the documents (v0.7.6). Next is the 1.0 release, whose conditions are partly time-bound (roadmap "Sürüm 1.0"
@@ -186,6 +186,9 @@ says what the waiting must show; check them once their time has passed).
   day the last is due (`dashboard.closes_by_day`, the latest next cut of the cards holding it; none for an account
   list to download, a late statement, a missing document or a check), what was spent in it so far and its month-end
   page. Until then a month waiting for November's card statements was skipped without a word.
+- v0.9.11: a transfer row that names the receiving bank (TEB's bank-only rows, Vakıfbank's FAST) pairs only with an
+  account at that bank (`analysis._bank_fits`): of two same-amount transfers on one day to two banks, the first could otherwise take the other's arrival. The shipped rules no longer read "TURIZM" as a bus ticket:
+  bus companies are named, a "… Turizm" with no other word is uncategorized.
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 

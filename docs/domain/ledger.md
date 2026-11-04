@@ -167,6 +167,13 @@ Para hareketi taşıyan hesap satırları, bütün hesaplar okunana kadar aday k
    bankayı yazan ödeme → kendi transferi.
 7. Kalan giden para → `p2p_transfer`; kalan gelen para → `income`.
 
+Giden satır paranın gittiği bankayı yazıyorsa (TEB'in "TÜRKIYE GARANTI BANKASI A.Ş." satırı, Vakıfbank'ın "…
+hesabından Türkiye Garanti Bankası A.Ş. … hesabına" FAST'ı), 3. ve 5. adımlar onu yalnızca o bankadaki bir hesabın
+gelen parasıyla eşleştirir (`analysis._bank_fits`). Aynı gün aynı tutarda biri Ziraat'e, biri Garanti'ye iki havale
+gittiyse Garanti hesabına gelen para Ziraat'e gidenin karşılığı olamaz; v0.9.11'e dek sırası önce gelen onu alıyordu.
+Banka, programın banka adları tablosunda yoksa adlarının "Türkiye", "Bankası", "A.Ş." gibi kelimeleri atılınca kalan
+kısmıyla karşılaştırılır.
+
 Kart ödemeleri ve kart tarafındaki alacakları birbirini götürür; asla harcama sayılmaz.
 
 ## Taksitli nakit avans

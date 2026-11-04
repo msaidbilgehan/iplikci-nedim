@@ -4,6 +4,21 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.9.11] — 2026-11-05 — Havale, yazdığı bankaya
+
+### Düzeltilenler
+
+- Kendi hesaplarınız arasındaki bir havale, yazdığı bankadan başka bir bankadaki hesabınızın gelen parasıyla
+  eşleşebiliyordu. TEB yalnızca alıcının bankasını yazıyor: aynı gün aynı tutarda biri Ziraat'e, biri Garanti'ye iki
+  havale gidince, Garanti hesabınıza gelen para sırası önce gelen Ziraat havalesinin karşılığı sayılıyordu; Garanti'ye
+  giden "kişilere gönderilen", Ziraat'e giden "kendi hesaplarınız arası" görünüyordu. Vakıfbank'tan aynı gün TEB'e ve
+  Garanti'ye giden iki FAST da çapraz eşleşiyordu. Artık paranın gittiği bankayı yazan bir satır yalnızca o bankadaki
+  bir hesabınızla eşleşiyor. Toplamlar değişmiyor; hangi satırın kime gittiği düzeliyor.
+- Adında "Turizm" geçen her işyeri otobüs bileti ("Uçak, Tren & Otobüs") sayılıyordu; oysa bu kelime lokanta, market
+  ve otel adlarında da geçiyor. Otobüs firmaları artık adlarıyla tanınıyor (Metro Turizm, Pamukkale Turizm, Kâmil Koç,
+  Varan, Ulusoy, Nilüfer, Süha); "… Gıda Turizm" Market & Gıda'ya, başka bir şey söylemeyen "… Turizm" kategorisizlere
+  düşüyor.
+
 ## [0.9.10] — 2026-11-04 — Kapanmayan ay neden anlatılmıyor
 
 ### Düzeltilenler
