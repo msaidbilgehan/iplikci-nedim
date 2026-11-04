@@ -4,6 +4,24 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.9.12] — 2026-11-05 — Eksiye düşemeyen hesap
+
+### Düzeltilenler
+
+- Ek hesabı olmayan bir vadesiz hesap eksi bakiyeyle görünebiliyordu. Garanti yalnızca giden transferleri bildiriyor;
+  döviz satışını ve gelen parayı bildirmiyor. Döküm 0,00 TL'yle alındıktan sonra hesaba para girip transferle
+  çıkınca, bildirim bakiyeyi sıfırın altına indiriyordu; giriş ise hiçbir belgede yoktu. Bu eksi tutar ek hesap borcu
+  sayılıyordu ve borç toplamını, Değerlendirme'nin "ek hesaplarda şu an … borç var" önerisini ve öngörünün
+  başlangıcını bozuyordu.
+- Artık böyle bir hesabın bakiyesi 0 sayılıyor ve notu, belgelerde olmayan en az ne kadar girmiş olması gerektiğini
+  yazıyor. Bu tutar borca girmiyor. Toplamlardan "Belgede görünmeyen giriş" adıyla ayrı bir satırla düşülüyor:
+  Hesaplar'da, Pano'nun net varlığında, Döviz'de ve Değerlendirme'nin birikiminde.
+- Neden düşülüyor: para kendi hesaplarınızdan birinden geldiyse o hesap belgelerde hâlâ eski bakiyesiyle duruyor.
+  Düşülmeseydi aynı para iki kez sayılır, kendi hesaplarınız arasındaki bir aktarma da net varlığı artırırdı. Net
+  varlık değişmiyor; borçlarla varlıkların ayrımı düzeliyor. Yeni dökümler gelince satır kendiliğinden kalkıyor.
+- Hesap sayfasının günlük bakiyesi de dökümden sonraki günlerde böyle bir hesabı sıfırın altına indirmiyor.
+- İplikçi Nedim, borcu olmayan birine "borçlarınız paranızdan fazla" demiyor.
+
 ## [0.9.11] — 2026-11-05 — Havale, yazdığı bankaya
 
 ### Düzeltilenler

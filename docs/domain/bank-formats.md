@@ -109,6 +109,9 @@ de yoktur.
 - Şirket hesabında `Ad Soyad` yerine `Şirket Ünvanı` yazar.
 - `Etiket = Para Transferi` satırları karşı tarafı taşır.
 - Döviz satırları kuru yazar (`EUR:54.44500`).
+- Üst blok indirildiği anı (`İndirme Tarihi | 30/10/2026 09:41`), bakiyeyi ve kullanılabilir bakiyeyi yazar. Son
+  gününü o saate kadar kapsar: aynı gün sonra yapılan bir transferin bildirimi dökümde görünmez, geçici kalır.
+  Okuyucu bu alanları henüz okumuyor.
 
 **Dekont PDF'i** (`garanti.receipt`: "Dekont" + `HESAP NUMARASI` + `SIRA NO`)
 
@@ -157,6 +160,10 @@ de yoktur.
 - Referans numarası yoktur. Bildirim hesabıyla, dakikasıyla ve tutarıyla tanınır.
 - Garanti aynı transferlerin bazıları için dekont da gönderir. Analiz böyle bir hareketi bir kez sayar: aynı hesap, gün
   ve tutar, birbirini tutan adlar. Dekontun satırı kalır, bildirimin satırı düşer.
+- Yalnızca giden transferler bildirilir. Döviz satışı, gelen havale ya da karttan nakit avans için bildirim gelmez.
+  Hesaba önce para girip sonra transferle çıktıysa (ör. döküm 0,00 TL'yle alınmış, sonra döviz bozulup
+  gönderilmiş), bildirim bakiyeyi sıfırın altına indirir. Ek hesabı olmayan bir hesap için bu, belgede görünmeyen bir
+  giriştir: bakiye 0 sayılır ([yorumlama](interpretation.md#varlıklar-ve-borçlar)).
 
 **HGS ekstresi iletisi** ("HGS EKSTRE BİLGİLENDİRME") hiç veri taşımaz. Geçişlerin ve yüklemelerin İnternet/Mobil
 Şube'den görülebileceğini söyler. Tutar içermediği için "ayrıntısı internet şubesinde" diye sınıflanır.

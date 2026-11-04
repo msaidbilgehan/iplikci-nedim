@@ -6,7 +6,7 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-05): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.11). Between Phases 6 and 7 came
+Status (2026-11-05): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.12). Between Phases 6 and 7 came
 the interface's simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab
 (v0.7.3), documents known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked
 against the documents (v0.7.6). Next is the 1.0 release, whose conditions are partly time-bound (roadmap "Sürüm 1.0"
@@ -189,6 +189,12 @@ says what the waiting must show; check them once their time has passed).
 - v0.9.11: a transfer row that names the receiving bank (TEB's bank-only rows, Vakıfbank's FAST) pairs only with an
   account at that bank (`analysis._bank_fits`): of two same-amount transfers on one day to two banks, the first could otherwise take the other's arrival. The shipped rules no longer read "TURIZM" as a bus ticket:
   bus companies are named, a "… Turizm" with no other word is uncategorized.
+- v0.9.12: receipts and notices never take an account below zero when it cannot go there: one that is no overdraft,
+  card or loan and that no document shows below zero (`analysis.shown_below_zero`). Garanti notifies only transfers
+  out, so a list ending at zero and a later transfer out, paid by money no document tells (an FX sale, say), would make a current account negative and an overdraft debt. The balance is zero and the money in is `untold`
+  (`analysis.untold_in`, `forecast.Start.untold`, `now.Balance.untold`). Debts and the KMH advice leave it out; the
+  totals (Hesaplar, the net worth, Döviz, Değerlendirme's savings) take it off as a line of their own, so the money
+  is not counted twice and an own transfer does not raise them.
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 

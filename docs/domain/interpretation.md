@@ -125,6 +125,22 @@ nedenleri arasında sayılmaz.
   - Bir listenin son gününden sonra gelen geçici dekontlar o listenin bakiyesini değiştirir; not, listenin bakiyesini
     ve değişikliği ayrıca yazar.
   - Geçici kart ödemeleri kartın borcunu düşürür.
+- **Belgede görünmeyen giriş** (`analysis.untold_in`)
+  - Banka bir hesaptan, içindekinden fazlasını ödemez. Ek hesap (KMH), kart ya da kredi olmayan ve hiçbir belgesinde
+    sıfırın altında görünmeyen bir hesap eksiye düşmez. Görünmesi, dökümün açılış, kapanış ve ay sonu bakiyelerinde,
+    gün sonlarında ya da bir bildirimin yazdığı bakiyede olur: öyle bir hesabın ek hesabı vardır ve kullanılıyordur.
+  - Dekont ve bildirimler bakiyeyi böyle bir hesapta sıfırın altına indiriyorsa, arada hiçbir belgede olmayan para
+    girmiştir. Bildirimler hareketlerin yalnızca bir kısmını anlatır: Garanti belli bir tutarın üstündeki giden
+    havaleleri bildirir; döviz satışını ve gelen parayı bildirmez. Örnek: döküm 0,00 TL ile alınmış, sonra 12.750 TL giden bir bildirim gelmiş. Bakiye o zaman 0 sayılır (geçici), not da en az ne kadar girmiş olması
+    gerektiğini yazar.
+  - Bu tutar borç değildir: ek hesap borcuna, KMH önerisine ve borç toplamına girmez.
+  - Toplamlar onu ayrı bir satırla düşer: Hesaplar'ın, net varlığın ve Değerlendirme'nin birikimi. Para kendi
+    hesaplarınızdan birinden geldiyse o hesap belgelerde hâlâ eski bakiyesiyle durur. Düşülmezse aynı para iki kez
+    sayılır ve kendi hesaplarınız arasındaki bir aktarma net varlığı artırır.
+  - İplikçi Nedim'in "borçlarınız paranızdan fazla" sözü bu düşüşle borçlardan fazla eksiye inmez: borcu olmayanı
+    borçlu saymaz.
+  - Öngörü hesabı 0'dan başlatır. Hesap sayfasının günlük bakiyesi de dökümden sonraki günlerde sıfırın altına inmez;
+    notu nedenini yazar.
 
 ## Bulgular ve adımlar
 
@@ -152,6 +168,8 @@ nedenleri arasında sayılmaz.
       (banka onları döküm alındıktan sonra işlemiş olabilir; defter onları geçici sayar). Bildirimin bakiyesi ise
       kendi gününün ve önceki günlerin satırlarını zaten içerir. Hesaplar, Şu an, Döviz, net varlık ve öngörü aynı
       bakiyeyi kullanır.
+    - Dekont ve bildirimler eksiye düşemeyen bir hesabı sıfırın altına indiriyorsa başlangıç 0'dır; arada belgelerde
+      olmayan bir giriş vardır (yukarıda, "Belgede görünmeyen giriş").
     - Bakiyesi hiçbir belgede yazmayan, bakiyesi en yeni belgeden 180 günden eski olan ve döviz ya da altın olan
       hesaplar öngörüye girmez; nedenleri yazılır.
     - Bakiyeyi yazan belgenin gününden bugüne kadarki günler de sayılır: döküm 31'inde bitip bugün ayın 2'siyse,
