@@ -6,7 +6,7 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-03): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.9). Between Phases 6 and 7 came
+Status (2026-11-04): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.10). Between Phases 6 and 7 came
 the interface's simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab
 (v0.7.3), documents known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked
 against the documents (v0.7.6). Next is the 1.0 release, whose conditions are partly time-bound (roadmap "Sürüm 1.0"
@@ -181,6 +181,11 @@ says what the waiting must show; check them once their time has passed).
   `analysis.split_card_advances` finds the money it lent on the account's line ("****1234 … Taksitli Nakit Avans")
   and splits each installment into loan principal and interest, as İş Bankası's reader does. An income row takes a
   rule's category only when it counts money in as income (`Categorizer.counts_income`).
+- v0.9.10: the Pano's story tells the last closed month, and an ended month after it that has not closed now says
+  why in its own sentence (`HeldMonth` in `components/dashboard/Overview`): how many documents it waits for and the
+  day the last is due (`dashboard.closes_by_day`, the latest next cut of the cards holding it; none for an account
+  list to download, a late statement, a missing document or a check), what was spent in it so far and its month-end
+  page. Until then a month waiting for November's card statements was skipped without a word.
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 

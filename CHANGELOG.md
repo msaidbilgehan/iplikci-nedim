@@ -4,6 +4,20 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.9.10] — 2026-11-04 — Kapanmayan ay neden anlatılmıyor
+
+### Düzeltilenler
+
+- Pano'nun ay hikâyesi son kapanan ayı anlatıyor, ama ondan sonra biten ve henüz kapanmayan ayı hiç anmıyordu:
+  4 Kasım'da hikâye Eylül'deydi, Ekim'in neden yer almadığı hiçbir yerde yazmıyordu. Artık kapanmayan ay kendi
+  cümlesiyle söyleniyor: "Ekim 2026 henüz kapanmadı: ayın son günlerini kapsayan 2 belge bekleniyor, sonuncusu
+  20.11.2026 civarında gelir. Şimdiye kadar gelen belgelere göre Ekim 2026'da … harcandı; ay kapanınca bu özet o
+  ayı gösterir." Yanında o ayın Ay sonu sayfasına giden bağlantı var. Belgesi eksik ya da bakılması gereken bir ay
+  da kendi sözleriyle söyleniyor; gün verilemeyen durumlarda (indirilecek bir döküm, geciken bir ekstre) gün
+  söylenmiyor.
+- Süren ayda hiçbir belge harcama göstermiyorsa Pano "bu ayın belgeleri henüz gelmedi" diyordu, oysa hesap dökümleri
+  gelmiş olabiliyor. Artık "bu aya ait harcama henüz hiçbir belgede yok; ekstreler geldikçe görünür" diyor.
+
 ## [0.9.9] — 2026-11-04 — Kalan, Ay sonu'ndaki gibi
 
 ### Değişenler

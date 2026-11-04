@@ -234,6 +234,12 @@ G7 · Çekirdek
   - Son kapanan ayın gelen, giden, birikime ayrılan ve kalan parası; gelenin bunlara giden payını gösteren bir çubuk ve
     bir cümlelik hüküm: iyi gidiyor, az kaldı (kalan gelenin %10'undan az) ya da gelirden fazla para çıktı. Süren ay
     ayrıca söylenir.
+    - Hikâyenin ayından sonra biten ama kapanmayan bir ay (ör. 4 Kasım'da Ekim) neden anlatılmadığını bir cümleyle
+      söyler: ayın son günlerini kapsayan kaç belge beklendiği ve sonuncusunun hangi gün geleceği (kartların bir
+      sonraki kesim günü; bir gün verilemiyorsa yalnızca bekleniyor der: indirilecek bir döküm ya da geciken bir
+      ekstre), ya da belgesinin eksik olduğu veya bakılması gerektiği; o aya kadar gelen belgelere göre ne harcandığı
+      ve o ayın Ay sonu sayfasına giden bağlantı (v0.9.10; önceden yalnızca süren ay söyleniyordu ve kapanmayan ay
+      sessizce atlanıyordu).
     - Giden harcama, kişilere gönderilen para ve ödenen kredi anaparasıdır; birikim (BES, döviz, altın, yatırım)
       ayrıca gösterilir. Kalan, Ay sonu'nun kalanıdır: gelenden giden ve birikim düşülür (v0.9.9, kullanıcının
       isteğiyle; önceden yalnızca harcama düşülüyordu ve Ay sonu'yla ayrışabiliyordu).
