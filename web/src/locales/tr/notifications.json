@@ -101,6 +101,7 @@
     "title": "Telegram",
     "say": {
       "ready": "Bildirimler Telegram sohbetinize gidiyor.",
+      "readyDocuments": "Bildirimler Telegram sohbetinize gidiyor; belgelerinizi de oraya gönderebilirsiniz.",
       "readyOff": "Telegram eşleşti, ama kanal kapalı: Kanallar kartında açın.",
       "notPaired": "Botunuz kayıtlı; şimdi Telegram sohbetinizi eşleştirin.",
       "noBot": "Bildirimleri Telegram'dan da almak için kendi botunuzu kurun.",
@@ -108,7 +109,7 @@
       "stopped": "Telegram reddettiği için kanal durdu; belirteci yeniden girin.",
       "unavailable": "Telegram şu an kullanılamıyor."
     },
-    "intro": "Bildirimler kendi Telegram botunuzla size gelir. Telegram iletileri uçtan uca şifreli değildir; ne kadar ayrıntı gideceğini Kanallar kartında seçersiniz.",
+    "intro": "Bildirimler kendi Telegram botunuzla size gelir; bankanızdan indirdiğiniz belgeleri de ona gönderebilirsiniz. Telegram iletileri uçtan uca şifreli değildir; ne kadar ayrıntı gideceğini Kanallar kartında seçersiniz.",
     "stopped": "Telegram reddettiği için kanal durdu; program kendiliğinden yeniden denemez. Bot silindiyse ya da belirteç değiştiyse belirteci yeniden girin. Botu engellediyseniz engeli Telegram'da kaldırıp Kanallar kartından deneme bildirimi gönderin.",
     "botSaved": "@{{bot}} botu kaydedildi",
     "pairNow": "Şimdi botla sohbetinizi eşleştirin.",
@@ -146,7 +147,15 @@
     "code": "Eşleştirme kodu",
     "openChat": "Telegram'da @{{bot}} sohbetini aç",
     "sendThis": "Ya da bota şunu gönderin:",
-    "once": "Tek kullanımlık; {{minutes, number}} dakika içinde gönderin. Kod gelince bu sayfa kendiliğinden güncellenir."
+    "once": "Tek kullanımlık; {{minutes, number}} dakika içinde gönderin. Kod gelince bu sayfa kendiliğinden güncellenir.",
+    "documents": {
+      "title": "Belge gönderme",
+      "on": "Bankanızdan indirdiğiniz belgeleri (kart ekstresi, hesap dökümü, dekont) botla sohbetinize dosya olarak gönderin: ataç simgesi → Dosya. İplikçi Nedim her birini içeriğinden tanır, arşive alır ve ne olduğunu sohbette yazar.",
+      "off": "Kapalı: bota gönderilen dosyalar okunmaz. Açtığınızda son 24 saatte gönderilenler de alınır; Telegram iletileri daha uzun saklamaz.",
+      "take": "Bota gönderilen belgeleri arşive al",
+      "privacy": "Belgeler yalnızca eşleşen sohbetten alınır; başka sohbetlerden gelen dosyalar hiç indirilmez. Gönderdiğiniz belge Telegram'ın sunucularında da durur (uçtan uca şifreli değildir); sohbetten silebilirsiniz. Telegram bir bota en çok 20 MB büyüklüğünde dosya verir; daha büyükleri Belge ekle ekranından ekleyin.",
+      "failed": "Ayar kaydedilemedi"
+    }
   },
   "rules": {
     "title": "Kurallar",

@@ -1503,6 +1503,7 @@ export interface NotifySettingsOut {
   channels: ChannelStateOut[];
   counts: Record<string, number>;
   unread: number;
+  telegram_documents: boolean;
 }
 
 export interface NotifyTestIn {
@@ -2016,7 +2017,7 @@ export interface SliceOut {
 export type Sort = "day" | "amount" | "title" | "category" | "account";
 
 /** How a document reached the archive. */
-export type SourceKind = "email" | "upload" | "inbox" | "import";
+export type SourceKind = "email" | "upload" | "inbox" | "import" | "telegram";
 
 /**
  * Where a row is printed: a PDF page with the line's box (points from the page's top left) or its line in the page's
@@ -2156,6 +2157,10 @@ export interface TableOut {
 
 export interface TelegramCheckOut {
   paired: boolean;
+}
+
+export interface TelegramDocumentsIn {
+  on: boolean;
 }
 
 export interface TelegramPairingOut {

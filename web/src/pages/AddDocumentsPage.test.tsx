@@ -90,6 +90,11 @@ describe("AddDocumentsPage", () => {
     const how = screen.getByRole("region", { name: "Nasıl?" });
     expect(within(how).getAllByRole("listitem")).toHaveLength(4);
     expect(within(how).getByRole("link", { name: "Tarayıcı eklentisi" })).toHaveAttribute("href", "/kurulum/eklenti");
+    expect(within(how).getByText(/Telegram botunuz eşleştiyse belgeyi ona dosya olarak gönderin/)).toBeInTheDocument();
+    expect(within(how).getByRole("link", { name: "Telegram botu" })).toHaveAttribute(
+      "href",
+      "/bildirimler?bolum=kanallar",
+    );
   });
 
   it("sends a chosen folder's files with their places in it, leaving its hidden files out", async () => {

@@ -85,6 +85,7 @@ export const LABELS: Labels = {
     upload: "Yükleme",
     inbox: "Gelen klasörü",
     import: "İçe aktarma",
+    telegram: "Telegram",
   },
   SeriesStatus: {
     active: "Devam ediyor",
@@ -1805,6 +1806,7 @@ export function notifySettings(
     ],
     counts: { pending: 0, sent: 3, held: 1, digested: 1, failed: 1 },
     unread: 2,
+    telegram_documents: true,
   };
 }
 

@@ -20,7 +20,7 @@ import { SearchInput } from "../ui/SearchInput";
 import { NO_READER, narrowsStatus, onTab, tabOf, withoutFilters } from "./query";
 
 const KINDS = ["card_statement", "account_statement", "receipt", "notice", "invoice"];
-const SOURCES = ["email", "upload", "inbox", "import"];
+const SOURCES = ["email", "upload", "telegram", "inbox", "import"];
 const STATUSES = ["processed", "unprocessed", "unreadable"];
 const POPOVERS = ["kind", "source", "account", "bank"] as const;
 

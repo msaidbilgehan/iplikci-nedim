@@ -549,7 +549,61 @@ describe("NotificationsPage", () => {
       ).toBeInTheDocument();
       telegram = TELEGRAM_PAIRED;
       await act(() => client.invalidateQueries());
-      expect(await within(card).findByText("Bildirimler Telegram sohbetinize gidiyor.")).toBeInTheDocument();
+      expect(
+        await within(card).findByText(
+          "Bildirimler Telegram sohbetinize gidiyor; belgelerinizi de oraya gönderebilirsiniz.",
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it("takes the documents the paired chat sends the bot, and turns that off with its switch", async () => {
+      let documents = true;
+      const sent: boolean[] = [];
+      const settings = () => ({ ...notifySettings(TELEGRAM_PAIRED), telegram_documents: documents });
+      server.use(
+        http.get("/api/notify/settings", () => HttpResponse.json(settings())),
+        http.put("/api/notify/telegram/documents", async ({ request }) => {
+          const { on } = (await request.json()) as { on: boolean };
+          sent.push(on);
+          documents = on;
+          return HttpResponse.json(settings());
+        }),
+      );
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kanallar" });
+      const card = await screen.findByRole("region", { name: "Telegram" });
+      const part = await within(card).findByRole("region", { name: "Belge gönderme" });
+      const take = within(part).getByRole("checkbox", { name: "Bota gönderilen belgeleri arşive al" });
+      expect(take).toBeChecked();
+      expect(take).toHaveAccessibleDescription(/botla sohbetinize dosya olarak gönderin/);
+      expect(within(part).getByText(/yalnızca eşleşen sohbetten alınır/)).toBeInTheDocument();
+      await userEvent.click(take);
+      await waitFor(() => expect(take).not.toBeChecked());
+      expect(sent).toEqual([false]);
+      expect(take).toHaveAccessibleDescription(/^Kapalı: bota gönderilen dosyalar okunmaz/);
+      expect(within(card).getByText("Bildirimler Telegram sohbetinize gidiyor.")).toBeInTheDocument();
+    });
+
+    it("shows why the switch for documents could not be saved", async () => {
+      server.use(
+        settingsWith(() => TELEGRAM_PAIRED),
+        http.put("/api/notify/telegram/documents", () =>
+          HttpResponse.json({ code: "settings_invalid", title: "Ayar dosyası okunamadı" }, { status: 409 }),
+        ),
+      );
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kanallar" });
+      const card = await screen.findByRole("region", { name: "Telegram" });
+      await userEvent.click(await within(card).findByRole("checkbox", { name: "Bota gönderilen belgeleri arşive al" }));
+      expect(await within(card).findByText("Ayar kaydedilemedi")).toBeInTheDocument();
+      expect(within(card).getByText("Ayar dosyası okunamadı")).toBeInTheDocument();
+      expect(within(card).getByRole("checkbox", { name: "Bota gönderilen belgeleri arşive al" })).toBeChecked();
+    });
+
+    it("offers documents only once the chat is paired", async () => {
+      server.use(settingsWith(() => TELEGRAM_UNPAIRED));
+      renderScreen(<NotificationsPage />, { path: "/bildirimler?bolum=kanallar" });
+      const card = await screen.findByRole("region", { name: "Telegram" });
+      expect(await within(card).findByText(TELEGRAM_NOTES.unpaired)).toBeInTheDocument();
+      expect(within(card).queryByRole("region", { name: "Belge gönderme" })).toBeNull();
     });
   });
 

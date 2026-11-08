@@ -228,6 +228,8 @@
       "check": "Her dosyanın ne olduğunu listede görün ve “Arşive al”a basın. Arşivde olanlar eşleşir, yenileri eklenir; dosyalarınız yerinde kalır."
     },
     "mail": "E-postayla gelen belgeler tarayıcı eklentisiyle kendiliğinden gelir; burası elle indirdikleriniz için.",
-    "mailLink": "Tarayıcı eklentisi"
+    "mailLink": "Tarayıcı eklentisi",
+    "telegram": "Telefondan: Telegram botunuz eşleştiyse belgeyi ona dosya olarak gönderin; İplikçi Nedim arşive alıp ne olduğunu sohbette yazar.",
+    "telegramLink": "Telegram botu"
   }
 }

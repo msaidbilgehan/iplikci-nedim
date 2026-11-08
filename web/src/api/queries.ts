@@ -926,9 +926,20 @@ export function useStartTelegramPairing() {
   });
 }
 
-/** Whether the open code reached the bot; the service reads the bot's new messages once per call. */
+/** Whether the open code reached the bot; the service reads the bot's new messages once per call, or its ear for the
+ * bot pairs the chat. */
 export function checkTelegramPairing(): Promise<TelegramCheck> {
   return api.post<TelegramCheck>(`${TELEGRAM}/check`);
+}
+
+/** Take the documents the paired chat sends the bot, or not (ADR-0021); while off the service reads none of them. */
+export function useSetTelegramDocuments() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (on: boolean) =>
+      api.put<NotifySettings>(`${TELEGRAM}/documents`, { on }),
+    onSuccess: (saved) => client.setQueryData(keys.notifySettings, saved),
+  });
 }
 
 /** Forget the bot's token and the paired chat. */

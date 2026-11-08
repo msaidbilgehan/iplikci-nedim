@@ -1,7 +1,9 @@
 // Telegram (F13, ADR-0010): the user's own bot. Its token is entered once, checked with Telegram and kept in the
 // keyring; it never comes back to the page, and the page keeps no copy once it is sent. A one-time code then pairs
 // the chat: the user sends it to the bot, and the page asks the service every few seconds whether it came. The
-// channel's stage, as the service names it, says which step is next; the simple view says it in a sentence.
+// channel's stage, as the service names it, says which step is next; the simple view says it in a sentence. Once the
+// chat is paired, the documents it sends the bot are taken into the archive unless the user turns that off
+// (ADR-0021).
 
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useEffectEvent, useId, useRef, useState } from "react";
@@ -14,6 +16,7 @@ import {
   useLabels,
   useNotifySettings,
   useRemoveTelegram,
+  useSetTelegramDocuments,
   useStartTelegramPairing,
 } from "../../api/queries";
 import type { ChannelStage, ChannelState, Labels, TelegramBot, TelegramPairing } from "../../api/types";
@@ -24,7 +27,7 @@ import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { ConfirmDialog } from "../ui/Dialog";
 import { Say } from "../ui/Say";
-import { FIELD, labelOf, LINK, messageOf, MUTED, STAGE_TONES } from "./common";
+import { CHECKBOX, FIELD, labelOf, LINK, messageOf, MUTED, STAGE_TONES } from "./common";
 
 export const CHECK_EVERY_MS = 3000; // how often the page asks whether the code reached the bot
 
@@ -46,19 +49,66 @@ export function TelegramCard() {
   const settings = useNotifySettings();
   const labels = useLabels().data ?? {};
   const state = settings.data?.channels.find((channel) => channel.channel === "telegram");
+  const documents = settings.data?.telegram_documents ?? false;
   return (
     <Card title={t("telegram.title")}>
-      {state ? <TelegramSay state={state} /> : null}
+      {state ? <TelegramSay state={state} documents={documents} /> : null}
       {settings.isPending ? <Loading /> : null}
       {settings.isError ? <Failure error={settings.error} onRetry={() => void settings.refetch()} /> : null}
       {state ? <TelegramSetup state={state} labels={labels} /> : null}
+      {state?.stage === "ready" ? <TelegramDocuments on={documents} /> : null}
     </Card>
   );
 }
 
-function TelegramSay({ state }: { state: ChannelState }) {
+function TelegramSay({ state, documents }: { state: ChannelState; documents: boolean }) {
   const { t } = useTranslation("notifications");
-  return <Say>{t(state.stage === "ready" && !state.on ? "telegram.say.readyOff" : SAYS[state.stage])}</Say>;
+  if (state.stage !== "ready") {
+    return <Say>{t(SAYS[state.stage])}</Say>;
+  }
+  return <Say>{t(!state.on ? "telegram.say.readyOff" : documents ? "telegram.say.readyDocuments" : SAYS.ready)}</Say>;
+}
+
+/**
+ * The documents the paired chat sends the bot (ADR-0021): taken into the archive and answered in the chat, or, turned
+ * off, not read at all. Only the paired chat's are taken; what the user should know before sending one is said here.
+ */
+function TelegramDocuments({ on }: { on: boolean }) {
+  const { t } = useTranslation("notifications");
+  const change = useSetTelegramDocuments();
+  const aboutId = useId();
+  const headingId = useId();
+  const checked = change.isPending ? change.variables : on;
+  return (
+    <section
+      aria-labelledby={headingId}
+      className="flex flex-col gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-700"
+    >
+      <h3 id={headingId} className="text-sm font-semibold">
+        {t("telegram.documents.title")}
+      </h3>
+      <p id={aboutId} className="text-sm text-zinc-700 dark:text-zinc-300">
+        {t(checked ? "telegram.documents.on" : "telegram.documents.off")}
+      </p>
+      <label className="inline-flex min-h-11 items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          className={CHECKBOX}
+          checked={checked}
+          disabled={change.isPending}
+          onChange={(e) => change.mutate(e.target.checked)}
+          aria-describedby={aboutId}
+        />
+        {t("telegram.documents.take")}
+      </label>
+      <p className={MUTED}>{t("telegram.documents.privacy")}</p>
+      {change.isError ? (
+        <Alert tone="critical" title={t("telegram.documents.failed")} live>
+          <p>{change.error.message}</p>
+        </Alert>
+      ) : null}
+    </section>
+  );
 }
 
 function TelegramSetup({ state, labels }: { state: ChannelState; labels: Labels }) {
