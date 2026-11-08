@@ -6,7 +6,7 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-05): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.12). Between Phases 6 and 7 came
+Status (2026-11-08): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.13). Between Phases 6 and 7 came
 the interface's simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab
 (v0.7.3), documents known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked
 against the documents (v0.7.6). Next is the 1.0 release, whose conditions are partly time-bound (roadmap "Sürüm 1.0"
@@ -195,6 +195,20 @@ says what the waiting must show; check them once their time has passed).
   (`analysis.untold_in`, `forecast.Start.untold`, `now.Balance.untold`). Debts and the KMH advice leave it out; the
   totals (Hesaplar, the net worth, Döviz, Değerlendirme's savings) take it off as a line of their own, so the money
   is not counted twice and an own transfer does not raise them.
+- v0.9.13 (K28, ADR-0021): documents sent to the user's Telegram bot from the paired one-to-one chat are taken in like
+  an upload; sending is the consent, as for the inbox.
+  - The service's ear (`ingest/telegram.BotWatcher`) reads the bot's messages by long polling (25 s) while a chat is
+    paired and `[notify] telegram_documents` is on (the default) or a pairing code is open; otherwise it asks neither
+    Telegram nor the keyring.
+  - `app/telegram` handles each message once, in one transaction with the offset, whoever reads it (the ear or a
+    pairing check; Telegram's 409 cuts the waiting read). The pairing moved there from `app/notify`, whose
+    `bot_calls`, `telegram_token`, `stop_channel` and `resume_channel` it uses.
+  - A document queues `telegram.document`; the worker fetches it (`channels.download`, 20 MB at most through
+    `egress.https_get(limit=…)`), plans its upload batch with `SourceKind.TELEGRAM`, applies it and answers the message
+    (`intake.ACTION_DONE`). A fetched file waits in its batch for the next attempt.
+  - Another chat's messages are never fetched or answered; photos, files over 20 MB, non-documents and groups get
+    what to do instead. The switch is on the Telegram card (`PUT /api/notify/telegram/documents`) and
+    `iplikci telegram belgeler ac|kapat`.
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 
@@ -222,12 +236,12 @@ The MVP was retired on 2026-10-31 (K17, ADR-0018): İplikçi Nedim starts with n
 | Document | What it holds |
 |---|---|
 | `docs/README.md` | Map of the docs and reading order |
-| `docs/v1/requirements.md` | Requirements G1–G13, the user's decisions K1–K27, product principles |
+| `docs/v1/requirements.md` | Requirements G1–G13, the user's decisions K1–K28, product principles |
 | `docs/v1/architecture.md` | Target architecture: modules, data model, data dir, API, MCP, security, NFRs |
 | `docs/v1/features.md` | Feature specs with acceptance criteria and the MVP parity checklist |
 | `docs/v1/roadmap.md` | Phases 0–8 and the 1.0 release, exit criteria, MVP module mapping, first-session steps |
 | `docs/v1/migration.md` | What happened to the old workspace, the MVP archive, how V1 builds its own history |
-| `docs/adr/` | Decision records 0001–0018 |
+| `docs/adr/` | Decision records 0001–0021 |
 | `docs/domain/` | Bank formats and traps, ledger, categorization and interpretation rules |
 
 ## Hard rules
@@ -348,7 +362,8 @@ Döviz's parts and the System screen's rates card, and `components/settings/Evds
 v0.9.2 added `app/sayings` (İplikçi Nedim's lines by the money's situation); in `web/`,
 `components/dashboard/NedimSays` shows them, and in `extension/`, `bridge/sayings` asks for them and `ui/nedim` holds
 the faces. v0.9.4 added `components/charts/open` (where a chart's parts lead) and `lib/rows` (where a month's rows
-are) in `web/`.
+are) in `web/`. v0.9.13 added `app/telegram` (the bot's conversation: pairing, its messages, the document job) and
+`ingest/telegram` (the bot's ear).
 The rest keeps the MVP's flat layout (`analysis`, `insights`, `month_end`, `report` with its `templates`, …) until the
 phases in the roadmap's MVP module table move it. Next to them: `fakes` (the fake document builders and every
 reader's specimens, shared with the tests and the demo), `demo` (the demo data folder), `baseline` (the verification
@@ -390,7 +405,7 @@ uv run iplikci servis kur | kaldir | yeniden-baslat   # launchd, systemd or Task
 uv run iplikci yedek al | liste | prova        # backups; geri-yukle restores (--uygula acts, --hedef a new folder)
 uv run iplikci eposta kur | durum | kaldir | al   # the IMAP account; al asks the running service when there is one
 uv run iplikci bildirim durum | kurallar | gecmis | dene <kanal>   # notification channels, rules, history, a test
-uv run iplikci telegram kur | eslestir | kaldir   # the bot's token in a hidden prompt (the user types it), pairing
+uv run iplikci telegram kur | eslestir | belgeler ac|kapat | kaldir   # token (hidden prompt), pairing, documents
 uv run iplikci kurlar al [--gecmis] | durum    # the rates now (asks the running service) and where they stand
 uv run iplikci mcp                             # MCP over stdio: through the service, or read-only while it is down
 uv run iplikci mcp baslik                      # Claude Code's headers helper: the Authorization header as JSON

@@ -93,6 +93,13 @@ Telegram kanalının ayrıntıları:
 - **Ayarlar:** `[notify]` bölümüne `channels` (açık kanallar; varsayılan masaüstü ve Telegram) ve `telegram_chat`
   (eşleşen sohbet) eklendi.
 
+## Not (2026-11-08, ADR-0021)
+
+Telegram botu artık belge de alır. Botun iletilerini servisin dinleyicisi uzun yoklamayla okur: eşleşmiş sohbet
+belge alımı açıkken (varsayılan) ve bir eşleştirme kodu açıkken. Eşleştirme kodunu dinleyici de bulabilir; arayüzün
+denetimi aynı işlemeyi kullanır ve her ileti bir kez işlenir. Okuma 401 alırsa kanal, gönderimdeki gibi durur.
+Karşılama iletisi belge göndermeyi de anlatır. Ayrıntılar [ADR-0021](0021-telegram-documents.md)'de.
+
 ## Değerlendirilen seçenekler
 
 - **Web Push:** PWA'nın telefonda kurulu olmasını gerektirir; şimdilik kullanılmıyor (K5).

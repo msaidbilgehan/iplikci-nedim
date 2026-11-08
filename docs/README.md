@@ -5,7 +5,7 @@ Bütün belgeler Türkçedir; ajan talimatları deponun kökündeki `CLAUDE.md`'
 ## Okuma sırası
 
 1. [Revizyonlar](REVISIONS.md): hangi revizyon nerede, değişiklik kaydı.
-2. [V1 gereksinimleri](v1/requirements.md): kullanıcının istekleri ve yanıtları, ürün ilkeleri, kararlar (K1–K27),
+2. [V1 gereksinimleri](v1/requirements.md): kullanıcının istekleri ve yanıtları, ürün ilkeleri, kararlar (K1–K28),
    gereksinimler (G1–G13).
 3. [V1 mimarisi](v1/architecture.md): bileşenler, veri modeli, veri klasörü, API, MCP, güvenlik, hedefler.
 4. [V1 özellikleri](v1/features.md): ekran ekran davranış, kabul ölçütleri, MVP eşitlik listesi.
@@ -17,7 +17,7 @@ Bütün belgeler Türkçedir; ajan talimatları deponun kökündeki `CLAUDE.md`'
 
 | Belge | İçerik |
 |---|---|
-| [Mimari karar kayıtları](adr/README.md) | ADR-0001 … ADR-0020: neden böyle tasarlandı |
+| [Mimari karar kayıtları](adr/README.md) | ADR-0001 … ADR-0021: neden böyle tasarlandı |
 | [Banka biçimleri](domain/bank-formats.md) | Bankaların belgelerindeki biçimler ve tuzaklar |
 | [Defter kuralları](domain/ledger.md) | İşaret, türler, doğrulama, kanıt uzlaştırma, transferler, kur, kapsama |
 | [Kategori kuralları](domain/categorization.md) | Kural dosyası yapısı, katmanlar, eşleştirme sırası |

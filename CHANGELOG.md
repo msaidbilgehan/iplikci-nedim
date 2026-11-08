@@ -4,6 +4,28 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.9.13] — 2026-11-08 — Telegram'dan belge
+
+### Eklenenler
+
+- Belgeler Telegram'dan da eklenir. Telegram botunuz eşleştiyse, bankanın uygulamasından indirdiğiniz ekstreyi, hesap
+  dökümünü ya da dekontu bota dosya olarak gönderin. İplikçi Nedim belgeyi Belge ekle ekranındaki gibi içeriğinden
+  tanır, arşive alır ve belgeyi getiren iletiye ne olduğunu yazar: arşivdeki adı, ekstre ve dökümlerde satır sayısı
+  ve denetimi; ya da zaten arşivde olduğu, okunamadığı, şirket belgesi olduğu için alınmadığı. Zip ve e-posta dosyası
+  belge belge yanıtlanır. Belgeler ekranında bu belgelerin geliş yolu "Telegram"dır.
+- Yalnızca eşleşen, botla bire bir sohbetten gelen belgeler alınır. Başka sohbetlerden gelen dosyalar hiç indirilmez
+  ve yanıtlanmaz. Fotoğraf, 20 MB'den büyük dosya ve belge olmayan dosya için bot ne yapılacağını yazar.
+- Bildirimler → Kanallar → Telegram kartında "Belge gönderme" bölümü: belge alımını açıp kapatan anahtar ve
+  Telegram'dan geçen belgelerin gizlilik notu. Kapalıyken servis botun iletilerini okumaz. Komut satırında
+  `iplikci telegram belgeler ac|kapat`; `iplikci bildirim durum` belge alımının açık olup olmadığını da yazar.
+- Belge ekle ekranı bu yolu da anlatır ve Telegram kartına götürür.
+
+### Değişenler
+
+- Servis eşleşmiş botun iletilerini sürekli okur (her okuma Telegram'da en çok 25 saniye bekler). Eşleştirme kodu
+  arayüz açık olmasa da işlenir; karşılama iletisi belge göndermeyi de anlatır.
+- Telegram okumayı ya da indirmeyi belirteç yüzünden reddederse kanal, bildirim gönderiminde olduğu gibi durur.
+
 ## [0.9.12] — 2026-11-05 — Eksiye düşemeyen hesap
 
 ### Düzeltilenler

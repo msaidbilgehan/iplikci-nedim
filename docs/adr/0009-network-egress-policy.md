@@ -57,3 +57,10 @@ Kur sağlayıcılarının sunucuları, 2026-11-03'te denenmiş adresleriyle:
   okuduğu kök sertifika dosyasında Sectigo'nun E46 kökü yok, sunucu da oraya götüren ara sertifikayı göndermiyor.
   Güven ayarı değiştirilmedi. Bu yüzden TCMB'ye ulaşılamazsa ECB'nin kurları önce Frankfurter'den istenir; ayarlardaki
   varsayılan sıra `document`, `tcmb`, `frankfurter`, `ecb`.
+
+## Not (2026-11-08, ADR-0021)
+
+Telegram bağlantısı belge de getirir: eşleşmiş sohbetin bota gönderdiği belgeler, uzun yoklamayla okunan iletilerden
+bulunup `api.telegram.org`'un dosya sunucusundan (`/file/bot…`) indirilir. Sunucu aynıdır, izin listesi değişmez.
+Telegram'a giden veri okuma istekleri ve yanıtlar kadar genişler; yanıtlar tutar taşımaz. `egress.https_get`'in yanıt
+sınırını çağıran verebilir: belge indirmesi 20 MB'ye kadar alır, kurlar 1 MB'yle sınırlı kalır.

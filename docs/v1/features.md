@@ -146,6 +146,16 @@ G1 · Çekirdek
   bildirimle söylenir.
 - **Kopya:** aynı içerik ikinci kez gelirse yalnızca yeni kaynak eklenir; aynı ekstrenin başka bir dosyası defterde
   birleştirilir. Aynı hesabın tarihleri çakışan listelerinde her gün bir kez sayılır.
+- **Telegram (v0.9.13, K28, [ADR-0021](../adr/0021-telegram-documents.md)):** eşleşmiş sohbetten bota dosya olarak
+  gönderilen belge, Belge ekle ekranındaki bir yükleme gibi alınır; göndermek onaydır, plan gösterilmez.
+  - Bot belgeyi getiren iletiye yanıt verir: arşivdeki adı ve ne olduğu; ekstre ve hesap dökümünde satır sayısı ve
+    denetimi. Zip ve e-posta dosyası belge belge yanıtlanır. Belgenin kaynağı "Telegram"dır.
+  - Fotoğraf, 20 MB'den büyük dosya, belge olmayan dosya ve gruptan gelen belge alınmaz; bot ne yapılacağını yazar.
+    Başka bir sohbetten gelen hiçbir şey indirilmez ya da yanıtlanmaz (test edilir).
+  - Her ileti bir kez işlenir; bir belge iki kez kuyruğa girmez, yarıda kalan indirme yeniden denenir (test edilir).
+  - Bildirimler → Kanallar → Telegram kartındaki anahtarla (`[notify] telegram_documents`, baştan açık) ya da
+    `iplikci telegram belgeler kapat` ile kapatılır; kapalıyken servis botun iletilerini okumaz. Belge ekle ekranı
+    Telegram kartına götüren bir satırla bu yolu da anlatır.
 
 ## F03 — Belge arşivi ve görüntüleyici
 
@@ -464,6 +474,9 @@ G12, K10 · Çekirdek
     karşılaştırılır.
   - Ek hesapların (KMH) ve kendi hesaplarından para aktarılan hesapların eksi günleri, hesapların toplamı eksiye düşmese de "Hesap eksiye düşecek" diye bildirilebiliyordu. Artık bu hesaplar uyarmaz; toplam izlenir.
   - Kural "Abonelik zammı" adıyla faturaları ve kirayı da kapsıyordu; adı "Düzenli ödeme zammı" oldu.
+- **Telegram'dan belge (v0.9.13, 2026-11-08):** eşleşmiş sohbet bota belge de gönderebilir (F02, ADR-0021). Servis
+  botun iletilerini uzun yoklamayla okur; eşleştirme kodunu da bu okuma bulabilir. Karşılama iletisi belge göndermeyi
+  anlatır; kart, belge alımını açıp kapatan anahtarı ve Telegram'dan geçen belgenin gizlilik notunu taşır.
 - **Yönüyle fiyat değişimi (v0.9.8, 2026-11-03):** yarım yıl arayla gelen iki ödeme (ör. iki bağış) dönemsel ödeme sayılabiliyor, ikincisinin düşük tutarı "Düzenli ödeme zammı" diye bildirilebiliyordu. Dönemsel seri artık taahhüt kategorileri
   dışında üç ödeme ister (F08). Fiyatı düşen bir düzenli ödemenin bildirimi "Düzenli ödeme ucuzladı" başlığını
   taşır, özeti "ucuzladı" der. Kuralın adı "Düzenli ödeme tutarı değişti" oldu.

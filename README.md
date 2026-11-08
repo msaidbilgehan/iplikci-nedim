@@ -80,7 +80,7 @@ Aşama 5 (Bildirimler, v0.6.0) önemli olayları kullanıcıya ulaştırır:
   Bildirimler ekranından değiştirilir ve bir kuralın son 30 günde kaç kez konuşacağı önceden görülür.
 - Kanallar: uygulamadaki bildirim kutusu, masaüstü, Telegram (kendi botunuzla) ve kendinize e-posta (uygulama şifresine
   izin veren hesaplarda). Telegram botu Bildirimler ekranından bağlanır: BotFather'ın verdiği belirteç bir kez girilir,
-  bota gönderilen kodla sohbet eşleşir.
+  bota gönderilen kodla sohbet eşleşir. Eşleşen sohbetten bota belge de gönderilebilir (v0.9.13).
 - Bir olay için her kanala tek bildirim gider. Gönderilemeyen bildirim yeniden denenir; sessiz saatte gelenler sabah
   tek bir özetle gider. Gönderilen her bildirim teslim kaydında görünür.
 
@@ -166,6 +166,17 @@ Grafikler birer kısayoldur (v0.9.4):
   giderleri listelenir; Takvim'in öngörüsünde bir güne tıklayınca o gün beklenenler gösterilir.
 - Telefonda ilk dokunuş değeri gösterir, ikinci dokunuş ya da ipucundaki "Aç" açar. Klavyeyle aynı yerlere grafiğin
   tablo görünümündeki bağlantılarla gidilir.
+
+Belgeler Telegram'dan da eklenir (v0.9.13):
+
+- Telegram botunuz eşleştiyse, bankanın uygulamasından indirdiğiniz ekstreyi, hesap dökümünü ya da dekontu bota dosya
+  olarak gönderin (ataç → Dosya). İplikçi Nedim belgeyi Belge ekle ekranındaki gibi içeriğinden tanır, arşive alır ve
+  ne olduğunu sohbette yazar: arşive alındı, zaten arşivde, okunamadı ya da neden alınmadığı.
+- Belgeler yalnızca eşleşen sohbetten alınır; başka sohbetlerden gelen dosyalar hiç indirilmez. Fotoğraf okunmaz;
+  Telegram bir bota en çok 20 MB büyüklüğünde dosya verir, daha büyükleri Belge ekle ekranından eklenir.
+- Telegram iletileri uçtan uca şifreli değildir: gönderdiğiniz belge Telegram'ın sunucularında da durur. İsterseniz
+  Bildirimler → Kanallar → Telegram kartındaki "Bota gönderilen belgeleri arşive al" anahtarıyla kapatabilirsiniz;
+  kapalıyken servis botun iletilerini okumaz.
 
 Açık kalanlar: servisin yedi gün kendi başına çalışması (K19). Windows ve Linux'ta denemeler bekletiliyor (K25).
 

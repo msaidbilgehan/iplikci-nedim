@@ -176,7 +176,7 @@ Python paketi `iplikci`, `src/iplikci/` altındadır:
 | `settings` | Veri klasörünü bulmak, `settings.toml`, anahtar zinciri, ortam değişkenleri. |
 | `storage` | SQLite bağlantısı, göçler, depo modülleri, FTS. |
 | `vault` | Nesne deposu, `staging`, türetilmiş veriler, çöp kutusuna taşıma, bütünlük denetimi. |
-| `ingest` | E-posta bağlayıcıları (IMAP IDLE ve tarayıcı eklentisi köprüsünün alım ucu, ADR-0016) ve güven kuralı; yükleme; gelen klasörü; içe aktarma; zip ve mbox açma. |
+| `ingest` | E-posta bağlayıcıları (IMAP IDLE ve tarayıcı eklentisi köprüsünün alım ucu, ADR-0016) ve güven kuralı; yükleme; gelen klasörü; Telegram botunun dinleyicisi (ADR-0021); içe aktarma; zip ve mbox açma. |
 | `parsers` | Kayıt defteri, sözleşme, okuyucular; PDF, tablo, HTML ve e-posta yardımcıları; OCR. |
 | `ledger` | Birleştirme, maskeli hesap çözümü, kanıt uzlaştırma, transferler, kur çevirisi, fatura eşleştirme, kapsama. |
 | `categorize` | Kural katmanları, eşleştirme, gereklilik, kural dosyasını doğrulayarak düzenleme. |
@@ -237,6 +237,13 @@ sequenceDiagram
 **Elle ekleme:** yükleme, `staging`'e yazılır ve okunur; kullanıcıya plan gösterilir (hangi belge, hangi hesap, ne
 olacak); kullanıcı onaylayınca arşive alınır. Gelen klasörüne bırakılan dosyalar klasör 20 sn sessiz kalınca aynı
 yoldan, onaysız alınır. MCP'den içe aktarma planı Claude'un kullanıcıya göstermesi için döner.
+
+**Telegram'dan belge** (ADR-0021): servisin dinleyicisi (`ingest.telegram`) botun iletilerini uzun yoklamayla okur,
+her okuma en çok 25 sn bekler. `app.telegram` her iletiyi kaldığı yerle aynı işlemde bir kez işler: eşleştirme kodu
+sohbeti eşleştirir; eşleşmiş özel sohbetin belgesi `telegram.document` işi olur, başka sohbetlerinki yok sayılır. İşçi
+dosyayı Telegram'ın dosya sunucusundan indirir (`egress.https_get`, 20 MB'ye kadar), yükleme alanına koyar ve
+arayüzdeki yükleme gibi planlayıp onaysız uygular (kaynak `telegram`). Sonra belgeyi getiren iletiye ne olduğunu
+yazar.
 
 **Okuyucu güncellemesi:** açılışta kayıt defterindeki sürümler okunan belgelerinkilerle karşılaştırılır; değişen
 okuyucunun belgeleri ve işlenmeyen belgeler yeniden okunur; defter baştan hesaplanır; değişen satırlar olay olur.
@@ -602,7 +609,7 @@ Ayrıntılar [ADR-0010](../adr/0010-notification-channels.md)'un uygulama notund
 | `GET/PUT /api/rules/alerts`, `POST /api/rules/alerts/preview` | bildirim kuralları, izlenebilecek olaylar ve izin verdikleri koşullar; bir kuralın son 30 günde kaç kez konuşacağı |
 | `GET /api/notifications`, `POST /api/notifications/read` | gönderilen bildirimler (kanal kanal ya da hepsi; sonraki sayfanın başladığı yerle), uygulama içi kutunun okunmamış sayısı; kutuyu okundu sayma |
 | `GET/PUT /api/notify/settings`, `POST /api/notify/test` | sessiz saat, kanal başına ayrıntı düzeyi, açık kanallar ve her kanalın neye ihtiyacı olduğu; bir kanala deneme bildirimi |
-| `POST /api/notify/telegram/token`, `POST /api/notify/telegram/pairing`, `POST /api/notify/telegram/check`, `DELETE /api/notify/telegram` | Telegram botunun belirteci (anahtar zincirine; geri dönmez), eşleştirme kodu, kodun gelip gelmediği, botu unutma (ADR-0010) |
+| `POST /api/notify/telegram/token`, `POST /api/notify/telegram/pairing`, `POST /api/notify/telegram/check`, `PUT /api/notify/telegram/documents`, `DELETE /api/notify/telegram` | Telegram botunun belirteci (anahtar zincirine; geri dönmez), eşleştirme kodu, kodun gelip gelmediği, eşleşmiş sohbetin bota gönderdiği belgelerin alınıp alınmayacağı (ADR-0021), botu unutma (ADR-0010) |
 | `POST /api/mail/fetch` | e-postayı şimdi al; e-postanın durumu `GET /api/system`'dadır |
 | `POST /api/bridge/pairings`, `POST /api/bridge/pair`, `GET /api/bridge/hello`, `GET /api/bridge`, `DELETE /api/bridge/{id}`, `POST /api/bridge/login-link`, `GET /api/bridge/sayings` | tarayıcı eklentisi: eşleştirme kodu, kodun belirtece dönmesi, servisin kanıtı (HMAC), eşleşmeler, iptal (ADR-0016); eklentinin "İplikçi Nedim'i aç" düğmesi için tek kullanımlık giriş bağlantısı (ADR-0019) ve penceresinin gösterdiği, Pano'nunkiyle aynı sözler (ADR-0020), ikisi de yalnızca etkin bir eklentinin belirteciyle |
 | `GET /api/ingest/mail/cursor`, `POST /api/ingest/mail`, `POST /api/ingest/mail/known`, `POST /api/ingest/mail/scanned`, `POST /api/ingest/mail/alarm` | eklentinin konumu ve geçmişin taranması gerekip gerekmediği, ham iletilerin teslimi, taramanın bulduğu iletilerden eksik olanlar, biten bir taramanın neyi aradığı, bir katmanın biçim alarmı; yalnızca eklenti belirteciyle |
@@ -760,7 +767,7 @@ Kullanıcı komutları Türkçedir; geliştirici komutları `dev` altında İngi
 | `iplikci uygulama` | kurulan uygulamanın açılışta çalıştırdığı: servis kaydı, sürüm denetimi, arayüz; geliştirme kopyasında çalışmaz |
 | `iplikci servis kur \| kaldir \| durum \| yeniden-baslat \| calistir` | arka plan servisi (`calistir` ön planda çalıştırır) |
 | `iplikci eposta kur \| durum \| kaldir` | e-posta bağlantısı; şifre gizli istemle girilir, hiçbir yere yazılmaz |
-| `iplikci telegram kur \| kaldir` | bot belirteci ve sohbet eşleştirmesi |
+| `iplikci telegram kur \| eslestir \| belgeler ac\|kapat \| kaldir` | bot belirteci ve sohbet eşleştirmesi; bota gönderilen belgelerin alınması (ADR-0021) |
 | `iplikci ekle <yol>…` | belge ekleme planı ve onay |
 | `iplikci dogrula [--taban] [--arsiv] [--yeniden-kur]` | doğrulama tabanı; arşiv bütünlüğü; veritabanını yeniden kurma |
 | `iplikci yedek al \| geri-yukle <dosya>` | yedek |
@@ -811,6 +818,7 @@ quiet_hours = "23:00-08:00"
 detail = {email = "full", telegram = "summary", desktop = "summary"}
 channels = ["desktop", "telegram"]  # uygulama içi kutuya ek olarak açık kanallar
 telegram_chat = 0                   # eşleştirmenin yazdığı sohbet; 0: eşleşme yok
+telegram_documents = true           # eşleşen sohbetin bota gönderdiği belgeler arşive alınır (ADR-0021)
 
 [fx]
 providers = ["document", "tcmb", "frankfurter", "ecb"]
