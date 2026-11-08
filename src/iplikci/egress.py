@@ -14,7 +14,8 @@ from collections.abc import Mapping
 
 from .settings.config import Settings
 
-TELEGRAM = "api.telegram.org"  # the notifications' Telegram channel (ADR-0010)
+# The user's own bot: the notifications (ADR-0010), and the documents its paired chat sends it (ADR-0021).
+TELEGRAM = "api.telegram.org"
 # The exchange rates (architecture §15): asked with a day only, by GET (ADR-0009, its note for Phase 8).
 TCMB = "www.tcmb.gov.tr"  # the Central Bank of Turkey's daily bulletin
 ECB = "www.ecb.europa.eu"  # the euro reference rates, when TCMB cannot be reached
@@ -24,7 +25,8 @@ EVDS = "evds3.tcmb.gov.tr"
 # ADR-0009's fixed hosts.
 FIXED_HOSTS: frozenset[str] = frozenset({TELEGRAM, TCMB, ECB, FRANKFURTER, EVDS})
 # An answer larger than this is cut: the services asked answer in a few kilobytes, ECB's whole history in 642 KB.
-_ANSWER_LIMIT = 1 << 20
+# A caller that fetches a file (a document sent to the Telegram bot) names its own limit.
+ANSWER_LIMIT = 1 << 20
 
 
 class Refused(Exception):
@@ -71,17 +73,22 @@ def https_post(
     answer's status and body, an error status too. Unreachable when no answer came."""
     check(host, settings)
     request = urllib.request.Request(_url(host, path), data=urllib.parse.urlencode(form).encode(), method="POST")
-    return _send(host, request, timeout)
+    return _send(host, request, timeout, ANSWER_LIMIT)
 
 
 def https_get(
-    host: str, path: str, settings: Settings, headers: Mapping[str, str] | None = None, timeout: float = 30.0
+    host: str,
+    path: str,
+    settings: Settings,
+    headers: Mapping[str, str] | None = None,
+    timeout: float = 30.0,
+    limit: int = ANSWER_LIMIT,
 ) -> tuple[int, bytes]:
     """A GET over HTTPS to an allowed host (certificate and host name checked, no redirect followed); the answer's
-    status and body, an error status too. Unreachable when no answer came."""
+    status and body, an error status too, its body cut after limit bytes. Unreachable when no answer came."""
     check(host, settings)
     request = urllib.request.Request(_url(host, path), headers=dict(headers or {}), method="GET")
-    return _send(host, request, timeout)
+    return _send(host, request, timeout, limit)
 
 
 def _url(host: str, path: str) -> str:
@@ -92,13 +99,13 @@ def _url(host: str, path: str) -> str:
     return f"https://{host}{path}"
 
 
-def _send(host: str, request: urllib.request.Request, timeout: float) -> tuple[int, bytes]:
+def _send(host: str, request: urllib.request.Request, timeout: float, limit: int) -> tuple[int, bytes]:
     opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ssl.create_default_context()), _NoRedirect)
     try:
         with opener.open(request, timeout=timeout) as answer:
-            return int(answer.status), answer.read(_ANSWER_LIMIT)
+            return int(answer.status), answer.read(limit)
     except urllib.error.HTTPError as exc:
         with exc:
-            return int(exc.code), exc.read(_ANSWER_LIMIT)
+            return int(exc.code), exc.read(ANSWER_LIMIT)
     except (urllib.error.URLError, OSError, http.client.HTTPException) as exc:
         raise Unreachable(f"{host} adresine ulaşılamadı ({type(exc).__name__})") from None

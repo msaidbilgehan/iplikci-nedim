@@ -10,10 +10,8 @@ A refused login (SMTP) or token (Telegram) stops its channel until the user sets
 trying again from a program may get an account locked.
 """
 
-import hmac
 import logging
 import re
-import secrets as tokens
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
@@ -26,7 +24,7 @@ from ..domain.labels import EVENT_KIND
 from ..ingest.mail.imap import clean_password
 from ..notify import content, timing
 from ..notify import rules as alert_rules
-from ..notify.channels import Desktop, Email, Post, Sender, SendError, Telegram, bot_name, starts
+from ..notify.channels import Desktop, Email, Post, Sender, SendError, Telegram, bot_name
 from ..notify.content import Message
 from ..notify.rules import DEFAULTS, AlertRule, Condition, RulesError, Seen
 from ..settings import config, secrets
@@ -56,7 +54,6 @@ __all__ = [
     "Message",
     "Notification",
     "NotifyError",
-    "Pairing",
     "Preview",
     "Rules",
     "RulesError",
@@ -65,7 +62,6 @@ __all__ = [
     "Status",
     "TokenSet",
     "channel_states",
-    "check_pairing",
     "check_rules",
     "deliver",
     "event_catalog",
@@ -80,7 +76,6 @@ __all__ = [
     "send_test",
     "set_preferences",
     "set_telegram_token",
-    "start_pairing",
     "status",
     "take_events",
     "unread",
@@ -90,10 +85,9 @@ __all__ = [
 CURSOR = "notify.cursor"  # the last event the notifications looked at
 STOPPED = "notify.stopped"  # channel → why a refused login or token stopped it
 BOT = "notify.telegram_bot"  # the bot's user name, as Telegram gave it when the token was entered
-PAIRING = "notify.telegram_pairing"  # the open pairing: its code and when it ends
+PAIRING = "notify.telegram_pairing"  # the open pairing: its code, when it ends, and whether it paired
 OFFSET = "notify.telegram_offset"  # the first Telegram update not read yet
 EVENTS_PER_RUN = 500
-PAIRING_TIME = timedelta(minutes=10)
 SMTP_PORT = 465
 PUSH = (Channel.DESKTOP, Channel.TELEGRAM, Channel.EMAIL)  # the channels that leave the app
 RULES_CHANGED = "rules.alerts_changed"
@@ -223,39 +217,45 @@ def event_target(n: Notification) -> str:
 # --- the channels --------------------------------------------------------------------------------------
 
 
-def _stopped(db: Database) -> dict[str, str]:
+def stopped_channels(db: Database) -> dict[str, str]:
+    """The channels a refused login or token stopped, each with why."""
     found = feed_state.load(db, STOPPED)
     return {str(k): str(v) for k, v in cast(dict[str, Any], found).items()} if isinstance(found, dict) else {}
 
 
-def _stop(db: Database, channel: Channel, reason: str) -> None:
-    stopped = _stopped(db)
+def stop_channel(db: Database, channel: Channel, reason: str) -> None:
+    """A refused login or token stops the channel until the user sets it up anew or turns it on again."""
+    stopped = stopped_channels(db)
     if stopped.get(channel) != reason:
         feed_state.save(db, STOPPED, stopped | {channel.value: reason})
     log.warning("the %s channel stopped: a refused login or token", channel)
 
 
-def _resume(db: Database, channel: Channel) -> None:
-    stopped = _stopped(db)
+def resume_channel(db: Database, channel: Channel) -> None:
+    stopped = stopped_channels(db)
     if channel in stopped:
         feed_state.save(db, STOPPED, {k: v for k, v in stopped.items() if k != channel})
 
 
-def _telegram_token() -> str:
+def telegram_token() -> str:
+    """The bot's token from the keyring; "" when none is kept or the keyring cannot be read."""
     try:
         return secrets.load(secrets.TELEGRAM_BOT) or ""
     except secrets.SecretError:
         return ""
 
 
-def _post_for(settings: config.Settings) -> PostFor:
-    def post_for(token: str) -> Post:
+def bot_calls(settings: config.Settings, timeout: float = 30.0) -> PostFor:
+    """The Bot API calls of a bot, by its token. timeout: how long a call may take; a read that waits for the bot's
+    messages takes longer than its wait."""
+
+    def calls(token: str) -> Post:
         def post(method: str, form: Mapping[str, str]) -> tuple[int, bytes]:
-            return egress.https_post(egress.TELEGRAM, f"/bot{token}/{method}", form, settings)
+            return egress.https_post(egress.TELEGRAM, f"/bot{token}/{method}", form, settings, timeout)
 
         return post
 
-    return post_for
+    return calls
 
 
 @dataclass(frozen=True)
@@ -294,7 +294,7 @@ def _telegram_state(db: Database, settings: config.Settings, on: bool, stopped: 
     bot = feed_state.load(db, BOT)  # kept when a token was entered
     name = bot if isinstance(bot, str) else ""
     chat = settings.notify.telegram_chat
-    token = _telegram_token() if chat and bot is not None else ""
+    token = telegram_token() if chat and bot is not None else ""
     if Channel.TELEGRAM in stopped:
         return ChannelState(Channel.TELEGRAM, on, ChannelStage.STOPPED, f"Durdu: {stopped[Channel.TELEGRAM]}")
     if bot is None:
@@ -335,7 +335,7 @@ def channel_states(ws: Workspace, db: Database, settings: config.Settings, full:
     """Every channel, whether it is on and what stands in its way, with a word on it. full: the e-mail channel is
     looked at also while it is off (it reads the keyring)."""
     on = set(settings.notify.channels)
-    stopped = _stopped(db)
+    stopped = stopped_channels(db)
     return [
         ChannelState(Channel.IN_APP, True, ChannelStage.READY, "Arayüzdeki bildirim kutusu; her zaman açık."),
         _desktop_state(Channel.DESKTOP in on, stopped),
@@ -354,7 +354,7 @@ def open_senders(ws: Workspace, db: Database, settings: config.Settings, every: 
         if state.channel is Channel.DESKTOP:
             found[Channel.DESKTOP] = Desktop()
         elif state.channel is Channel.TELEGRAM:
-            post = _post_for(settings)(_telegram_token())
+            post = bot_calls(settings)(telegram_token())
             found[Channel.TELEGRAM] = Telegram(post, settings.notify.telegram_chat)
         else:
             found[Channel.EMAIL] = _email(ws, settings)
@@ -512,7 +512,7 @@ def _send(db: Database, n: Notification, carriers: dict[Channel, Sender], quiet:
         out.failed += 1
         if exc.refused:
             stored.fail(db, n.id, str(exc))
-            _stop(db, channel, str(exc))
+            stop_channel(db, channel, str(exc))
             del carriers[channel]
         elif n.attempts + 1 >= timing.MAX_ATTEMPTS:
             stored.fail(db, n.id, str(exc))
@@ -544,7 +544,7 @@ def _digest(db: Database, channel: Channel, carriers: dict[Channel, Sender], at:
         if exc.refused or attempts >= timing.MAX_ATTEMPTS:
             stored.give_up(db, ids, str(exc))
             if exc.refused:
-                _stop(db, channel, str(exc))
+                stop_channel(db, channel, str(exc))
                 del carriers[channel]
         else:
             stored.held_failed(db, ids, str(exc), _iso(at + timing.backoff(attempts)))
@@ -571,6 +571,7 @@ class Status:
     counts: dict[DeliveryStatus, int]
     unread: int  # in the interface's box
     rules: Rules
+    telegram_documents: bool  # the documents the paired chat sends the bot are taken in (ADR-0021)
 
 
 def status(ws: Workspace) -> Status:
@@ -587,6 +588,7 @@ def status(ws: Workspace) -> Status:
         {s: counts.get(s.value, 0) for s in DeliveryStatus},
         unread,
         load_rules(ws),
+        settings.notify.telegram_documents,
     )
 
 
@@ -627,7 +629,7 @@ def set_preferences(
     saved = config.update(ws.layout.settings, "notify", values)
     with ws.db() as db:
         for channel in channels:
-            _resume(db, channel)
+            resume_channel(db, channel)
         audit.record(db, Actor.USER, SETTINGS_CHANGED, "notify", channels=len(values["channels"]))
     return saved
 
@@ -661,7 +663,7 @@ def send_test(ws: Workspace, channel: Channel, senders: Mapping[Channel, Sender]
         if channel is Channel.IN_APP:
             stored.add(db, _tested(channel, DetailLevel.FULL))
             return
-        _resume(db, channel)
+        resume_channel(db, channel)
         carriers = dict(senders) if senders is not None else open_senders(ws, db, settings, every=True)
         sender = carriers.get(channel)
         if sender is None:  # nothing was tried: the channel's note says what it still needs
@@ -672,7 +674,7 @@ def send_test(ws: Workspace, channel: Channel, senders: Mapping[Channel, Sender]
             sender.send(_TEST)
         except SendError as exc:
             if exc.refused:
-                _stop(db, channel, str(exc))
+                stop_channel(db, channel, str(exc))
             stored.add(db, _tested(channel, detail, str(exc)))
             raise NotifyError(str(exc)) from None
         stored.add(db, _tested(channel, detail))
@@ -695,7 +697,7 @@ def set_telegram_token(ws: Workspace, token: str, actor: Actor, post_for: PostFo
         raise NotifyError("Bu bir Telegram bot belirteci değil: BotFather'ın verdiği '123456789:AA…' biçiminde olmalı.")
     settings = _settings(ws)
     try:
-        name = bot_name((post_for or _post_for(settings))(token))
+        name = bot_name((post_for or bot_calls(settings))(token))
     except SendError as exc:
         raise NotifyError(f"Belirteç denenemedi: {exc}") from None
     try:
@@ -707,64 +709,9 @@ def set_telegram_token(ws: Workspace, token: str, actor: Actor, post_for: PostFo
             config.update(ws.layout.settings, "notify", {"telegram_chat": 0})
         feed_state.save(db, BOT, name)
         feed_state.save(db, OFFSET, 0)
-        _resume(db, Channel.TELEGRAM)
+        resume_channel(db, Channel.TELEGRAM)
         audit.record(db, actor, TELEGRAM_SET, "telegram")
     return TokenSet(name, kept)
-
-
-@dataclass(frozen=True)
-class Pairing:
-    code: str
-    expires: str  # UTC
-    bot: str
-    link: str  # opens the chat with the bot, the code ready to send; "" when the bot's name is not known
-
-
-def start_pairing(ws: Workspace, at: datetime | None = None) -> Pairing:
-    """A code the user sends the bot as "/start <code>" within ten minutes; the chat it comes from is then the one
-    the notifications go to."""
-    with ws.db() as db:
-        bot = feed_state.load(db, BOT)
-        if bot is None or not _telegram_token():
-            raise NotifyError("Önce Telegram bot belirtecini girin.")
-        code = tokens.token_hex(4)
-        expires = _iso((at or _now()) + PAIRING_TIME)
-        feed_state.save(db, PAIRING, {"code": code, "expires": expires})
-    name = bot if isinstance(bot, str) else ""
-    return Pairing(code, expires, name, f"https://t.me/{name}?start={code}" if name else "")
-
-
-def check_pairing(ws: Workspace, at: datetime | None = None, post_for: PostFor | None = None) -> bool:
-    """Whether the code came: the bot's new messages are read once (nothing waits). The chat that sent the open
-    code is paired and greeted; any other message is passed over."""
-    settings = _settings(ws)
-    token = _telegram_token()
-    with ws.db() as db:
-        pairing = feed_state.load(db, PAIRING)
-        if not isinstance(pairing, dict) or str(cast(dict[str, Any], pairing).get("expires", "")) < _iso(at or _now()):
-            raise NotifyError("Açık bir eşleştirme kodu yok ya da süresi doldu; yeni bir kod alın.")
-        code = str(cast(dict[str, Any], pairing)["code"])
-        if not token:
-            raise NotifyError("Önce Telegram bot belirtecini girin.")
-        post = (post_for or _post_for(settings))(token)
-        offset = feed_state.load(db, OFFSET)
-        try:
-            found, after = starts(post, offset if isinstance(offset, int) else 0)
-        except SendError as exc:
-            raise NotifyError(str(exc)) from None
-        feed_state.save(db, OFFSET, after)
-        chat = next((s.chat for s in found if hmac.compare_digest(s.code, code)), None)
-        if chat is None:
-            return False
-        config.update(ws.layout.settings, "notify", {"telegram_chat": chat})
-        feed_state.save(db, PAIRING, None)
-        _resume(db, Channel.TELEGRAM)
-        audit.record(db, Actor.USER, TELEGRAM_PAIRED, "telegram")
-    try:
-        Telegram(post, chat).send(Message("Telegram bağlandı", "İplikçi Nedim bildirimleri artık bu sohbete gelecek."))
-    except SendError:
-        log.warning("the greeting after pairing could not be sent")  # the pairing holds; the next notification tells
-    return True
 
 
 def remove_telegram(ws: Workspace, actor: Actor) -> None:
@@ -774,5 +721,5 @@ def remove_telegram(ws: Workspace, actor: Actor) -> None:
     with ws.db() as db:
         for name in (BOT, PAIRING, OFFSET):
             feed_state.save(db, name, None)
-        _resume(db, Channel.TELEGRAM)
+        resume_channel(db, Channel.TELEGRAM)
         audit.record(db, actor, TELEGRAM_REMOVED, "telegram")

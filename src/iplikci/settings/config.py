@@ -84,6 +84,9 @@ class Notify:
     # with the IMAP connector's app password: on an account under Advanced Protection the defaults are these two.
     channels: tuple[str, ...] = ("desktop", "telegram")
     telegram_chat: int = 0  # the chat that paired with the user's bot ("/start <code>"); 0: none
+    # The documents the paired chat sends the bot are taken into the archive (ADR-0021); while this is on and a chat
+    # is paired, the service reads the bot's messages as they come.
+    telegram_documents: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -282,7 +285,13 @@ _SCHEMA: dict[str, tuple[type, dict[str, Check]]] = {
     ),
     "notify": (
         Notify,
-        {"quiet_hours": _quiet_hours, "detail": _detail, "channels": _channels, "telegram_chat": _chat},
+        {
+            "quiet_hours": _quiet_hours,
+            "detail": _detail,
+            "channels": _channels,
+            "telegram_chat": _chat,
+            "telegram_documents": _flag,
+        },
     ),
     "fx": (Fx, {"providers": _providers, "evds": _flag}),
     "privacy": (Privacy, {"mcp_masking": _one_of("off", "accounts", "accounts_and_names")}),

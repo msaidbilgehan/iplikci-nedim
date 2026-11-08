@@ -1,6 +1,6 @@
 """`iplikci bildirim` and `iplikci telegram`: the notifications' channels, rules and history, a test on a channel,
-and the Telegram bot set up with its token in a hidden prompt (F13, ADR-0010). The interface's Bildirimler screen
-does the same."""
+the Telegram bot set up with its token in a hidden prompt (F13, ADR-0010), and whether it takes the documents its
+chat sends it (ADR-0021). The interface's Bildirimler screen does the same."""
 
 import argparse
 import getpass
@@ -8,8 +8,8 @@ import sys
 import time
 from datetime import datetime
 
-from ..app import notify
-from ..app.notify import Actor, Channel, NotifyError, RulesError
+from ..app import notify, telegram
+from ..app.notify import Actor, Channel, NotifyError, RulesError, SettingsError
 from ..app.workspace import Workspace
 from ..domain.labels import CHANNEL, DELIVERY_STATUS, DETAIL_LEVEL, EVENT_KIND, format_amount
 from ..notify.channels import SendError
@@ -20,7 +20,9 @@ Telegram bildirimleri sizin oluşturduğunuz bir bottan gelir:
   1. Telegram'da @BotFather ile konuşun ve /newbot yazın; bota bir ad ve "_bot" ile biten bir kullanıcı adı verin.
   2. BotFather'ın verdiği belirteci (123456789:AA… biçiminde) aşağıya yapıştırın.
 Belirteç bu bilgisayarın anahtar zincirinde saklanır; ayar dosyasına ya da kayıtlara yazılmaz.
-Ardından bir eşleştirme kodu gösterilir: bota "/start <kod>" gönderin; bildirimler o sohbete gelir."""
+Ardından bir eşleştirme kodu gösterilir: bota "/start <kod>" gönderin; bildirimler o sohbete gelir.
+O sohbetten bota dosya olarak gönderdiğiniz banka belgeleri de arşive alınır (kapatmak için: iplikci telegram
+belgeler kapat)."""
 
 CHECK_EVERY = 3.0  # seconds between two looks at the bot's messages while a pairing code is open
 _CHANNELS = {
@@ -72,6 +74,7 @@ def _status_lines(found: notify.Status) -> list[str]:
         lines.append(f"  {CHANNEL[state.channel]}: {mark}{level} — {state.note}")
     counts = ", ".join(f"{DELIVERY_STATUS[s].lower()} {n}" for s, n in found.counts.items() if n)
     lines.append(f"Bildirimler: {counts or 'henüz yok'}; kutuda okunmamış {found.unread}")
+    lines.append(f"Telegram'dan belge alma: {'açık' if found.telegram_documents else 'kapalı'}")
     if found.rules.problem:
         lines.append(f"Kural dosyası okunamadı, uygulamayla gelen kurallar geçerli: {found.rules.problem}")
     return lines
@@ -120,6 +123,13 @@ def telegram_command(argv: list[str]) -> int:
         "gönderilecek eşleştirme kodu gösterilir.",
     )
     commands.add_parser("eslestir", help="yeni bir eşleştirme kodu al", description="Yeni bir eşleştirme kodu.")
+    documents = commands.add_parser(
+        "belgeler",
+        help="eşleşen sohbetin bota gönderdiği belgeleri al ya da alma",
+        description="Eşleşen sohbetten bota dosya olarak gönderilen banka belgeleri arşive alınır; kapalıyken servis "
+        "botun iletilerini okumaz.",
+    )
+    documents.add_argument("durum", choices=["ac", "kapat"])
     commands.add_parser("kaldir", help="belirteci ve sohbeti unut", description="Belirteci ve sohbeti unutur.")
     args = parser.parse_args(argv)
     ws = open_workspace(parser)
@@ -128,10 +138,15 @@ def telegram_command(argv: list[str]) -> int:
             return _set_up(ws)
         if args.komut == "eslestir":
             return _pair(ws)
+        if args.komut == "belgeler":
+            on = args.durum == "ac"
+            telegram.set_documents(ws, on, Actor.USER)
+            print("Telegram'dan belge alma açıldı." if on else "Telegram'dan belge alma kapatıldı.")
+            return 0
         notify.remove_telegram(ws, Actor.USER)
         print("Telegram belirteci ve eşleşen sohbet unutuldu.")
         return 0
-    except (NotifyError, SendError) as exc:
+    except (NotifyError, SendError, SettingsError) as exc:
         print(f"Olmadı: {exc}", file=sys.stderr)
         return 1
     except (EOFError, KeyboardInterrupt):
@@ -155,7 +170,7 @@ def _set_up(ws: Workspace) -> int:
 
 
 def _pair(ws: Workspace) -> int:
-    pairing = notify.start_pairing(ws)
+    pairing = telegram.start_pairing(ws)
     print(f"Telegram'da @{pairing.bot} botuna şunu gönderin: /start {pairing.code}")
     if pairing.link:
         print(f"Ya da bu bağlantıyı açın: {pairing.link}")
@@ -165,7 +180,7 @@ def _pair(ws: Workspace) -> int:
         file=sys.stderr,
     )
     while datetime.now().astimezone() < ends:
-        if notify.check_pairing(ws):
+        if telegram.check_pairing(ws):
             print("Eşleşti: bildirimler artık bu sohbete gelecek.")
             return 0
         time.sleep(CHECK_EVERY)

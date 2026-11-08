@@ -3,7 +3,8 @@ notifications kept in the database. Each channel says why it failed in Turkish, 
 
 - Desktop: macOS's `osascript`, or `notify-send` on Linux; the text goes as arguments, never into a script.
 - Telegram: the user's own bot sends to the one chat that paired with it. The bot's token is in the keyring; the
-  calls go through egress to the Bot API.
+  calls go through egress to the Bot API. The bot's messages are read here too: the pairing's code, and the documents
+  the paired chat sends it (ADR-0021), fetched from Telegram's file server.
 - E-mail: to the user's own address, over the mail server's SMTP with the IMAP connector's app password. A refused
   login stops the channel: trying again from a program may get the account locked.
 """
@@ -13,6 +14,7 @@ import shutil
 import smtplib
 import subprocess
 import sys
+import urllib.parse
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from email.message import EmailMessage
@@ -23,19 +25,25 @@ from .content import APP, Message
 
 type Run = Callable[[list[str]], int]  # a program's arguments → its exit status
 type Post = Callable[[str, Mapping[str, str]], tuple[int, bytes]]  # a Bot API method and its form → status, body
+type Fetch = Callable[[str], tuple[int, bytes]]  # a file's path on Telegram's file server → status, body
 type Connect = Callable[[], smtplib.SMTP]  # an open, encrypted connection to the mail server that sends
 
 TELEGRAM_LIMIT = 4096  # characters in a Telegram message
+FILE_LIMIT = 20 << 20  # the largest file the Bot API lets a bot download
+CONFLICT = 409  # Telegram's answer to a read while another one waits for the same bot's messages
+TOO_LARGE = 413  # the status of a file larger than a bot may fetch (Telegram itself refuses one with a 400)
 _FOOTER = "Ayrıntılar İplikçi Nedim'in Bildirimler ekranında."
 
 
 class SendError(Exception):
-    """A notification that could not be sent: the message says why. refused: the channel must not be tried again
-    until the user sets it up anew (a refused login)."""
+    """A notification, or another call on the bot, that could not be made: the message says why. refused: the
+    channel must not be tried again until the user sets it up anew (a refused login or token). status: the HTTP status
+    Telegram answered with; 0 when none came."""
 
-    def __init__(self, message: str, refused: bool = False) -> None:
+    def __init__(self, message: str, refused: bool = False, status: int = 0) -> None:
         super().__init__(message)
         self.refused = refused
+        self.status = status
 
 
 class Sender(Protocol):
@@ -96,8 +104,16 @@ def call(post: Post, method: str, form: Mapping[str, str]) -> Any:
         raise SendError(f"Telegram anlaşılmayan bir yanıt verdi (HTTP {status})") from None
     if not answer.get("ok"):
         reason = str(answer.get("description", f"HTTP {status}"))[:200]
-        raise SendError(f"Telegram reddetti: {reason}", refused=status in (401, 403, 404))
+        raise SendError(f"Telegram reddetti: {reason}", refused=status in (401, 403, 404), status=status)
     return answer.get("result")
+
+
+def reply(post: Post, chat: int, text: str, to: int = 0) -> None:
+    """A message to the chat; to: the chat's message it answers (0: none), quoted when Telegram still has it."""
+    form = {"chat_id": str(chat), "text": text[:TELEGRAM_LIMIT], "disable_web_page_preview": "true"}
+    if to:
+        form["reply_parameters"] = json.dumps({"message_id": to, "allow_sending_without_reply": True})
+    call(post, "sendMessage", form)
 
 
 @dataclass(frozen=True)
@@ -106,8 +122,7 @@ class Telegram:
     chat: int
 
     def send(self, message: Message) -> None:
-        text = f"{message.title}\n{message.body}"[:TELEGRAM_LIMIT]
-        call(self.post, "sendMessage", {"chat_id": str(self.chat), "text": text, "disable_web_page_preview": "true"})
+        reply(self.post, self.chat, f"{message.title}\n{message.body}")
 
 
 def bot_name(post: Post) -> str:
@@ -117,30 +132,98 @@ def bot_name(post: Post) -> str:
 
 
 @dataclass(frozen=True, slots=True)
-class Start:
-    """A "/start <code>" a chat sent the bot."""
+class FileInfo:
+    """A file a chat sent the bot as a document."""
 
-    update: int
+    id: str  # what getFile takes
+    name: str  # the name it was sent with; "" when Telegram gives none
+    size: int  # in bytes, as Telegram tells it; 0 when it does not
+
+
+@dataclass(frozen=True, slots=True)
+class Update:
+    """A message the bot received."""
+
+    update: int  # Telegram's number for it: the next read starts after it
     chat: int
-    code: str
+    private: bool  # a one-to-one chat with the bot, never a group or a channel
+    sender: int  # the user who sent it; 0 when Telegram names none (a channel's post)
+    message: int  # its number in the chat, for a reply
+    text: str = ""
+    document: FileInfo | None = None
+    photo: bool = False  # a picture sent as a photo, not as a file
+
+    @property
+    def start_code(self) -> str:
+        """The code of a "/start <code>" (or "/start@bot <code>"); "" for anything else."""
+        command, _, code = self.text.strip().partition(" ")
+        return code.strip() if command.split("@")[0] == "/start" else ""
 
 
-def starts(post: Post, offset: int) -> tuple[list[Start], int]:
-    """The "/start <code>" messages the bot received since offset, and the offset that follows them (Telegram then
-    forgets them). Nothing waits: the call returns at once."""
-    found = call(post, "getUpdates", {"offset": str(offset), "timeout": "0", "allowed_updates": '["message"]'})
-    updates = cast(list[dict[str, Any]], found) if isinstance(found, list) else []
-    out: list[Start] = []
+def updates(post: Post, offset: int, wait: int = 0) -> tuple[list[Update], int]:
+    """The messages the bot received since offset, and the offset after them: reading from there tells Telegram it
+    may forget them. wait: how many seconds Telegram may hold the call for a first message (long polling); 0 answers
+    at once. What is no message is passed over, its number counted."""
+    found = call(post, "getUpdates", {"offset": str(offset), "timeout": str(wait), "allowed_updates": '["message"]'})
+    out: list[Update] = []
     after = offset
-    for update in updates:
-        number = int(update.get("update_id", 0))
+    for update in cast(list[dict[str, Any]], found) if isinstance(found, list) else []:
+        number = update.get("update_id")
+        if not isinstance(number, int):
+            continue
         after = max(after, number + 1)
-        message = cast(dict[str, Any], update.get("message") or {})
-        text, chat = str(message.get("text", "")), cast(dict[str, Any], message.get("chat") or {})
-        command, _, code = text.strip().partition(" ")
-        if command.split("@")[0] == "/start" and code.strip() and isinstance(chat.get("id"), int):
-            out.append(Start(number, int(chat["id"]), code.strip()))
+        message = update.get("message")
+        heard = _message(number, cast(dict[str, Any], message)) if isinstance(message, dict) else None
+        if heard is not None:
+            out.append(heard)
     return out, after
+
+
+def _message(number: int, message: dict[str, Any]) -> Update | None:
+    chat = cast(dict[str, Any], message.get("chat") or {})
+    sender = cast(dict[str, Any], message.get("from") or {})
+    if not isinstance(chat.get("id"), int):
+        return None
+    document = message.get("document")
+    file = None
+    if isinstance(document, dict):
+        d = cast(dict[str, Any], document)
+        size = d.get("file_size")
+        file = FileInfo(str(d.get("file_id", "")), str(d.get("file_name", "")), size if isinstance(size, int) else 0)
+    return Update(
+        update=number,
+        chat=int(chat["id"]),
+        private=chat.get("type") == "private",
+        sender=int(sender["id"]) if isinstance(sender.get("id"), int) else 0,
+        message=int(message["message_id"]) if isinstance(message.get("message_id"), int) else 0,
+        text=str(message.get("text", "")),
+        document=file if file and file.id else None,
+        photo=bool(message.get("photo")),
+    )
+
+
+def download(post: Post, fetch: Fetch, file: str, limit: int = FILE_LIMIT) -> bytes:
+    """The bytes of a file a chat sent the bot. getFile names its place on Telegram's file server, valid for an hour;
+    fetch brings it from there. SendError when Telegram refuses it, a file larger than limit among others, or cannot
+    be reached; its message never holds the file's address, which carries the token."""
+    found = call(post, "getFile", {"file_id": file})
+    info = cast(dict[str, Any], found) if isinstance(found, dict) else {}
+    path, size = str(info.get("file_path", "")), info.get("file_size")
+    if not path:
+        raise SendError("Telegram dosyanın yerini vermedi")
+    if isinstance(size, int) and size > limit:
+        raise SendError(f"dosya {limit >> 20} MB sınırından büyük", status=TOO_LARGE)
+    try:
+        status, body = fetch(urllib.parse.quote(path, safe="/"))
+    except (egress.Unreachable, egress.Refused) as exc:  # their messages name the host only, never the path
+        raise SendError(f"Telegram'a ulaşılamadı: {exc}") from None
+    except Exception as exc:  # noqa: BLE001 - anything else the network raises: its kind only, the path holds the token
+        raise SendError(f"Telegram'a ulaşılamadı ({type(exc).__name__})") from None
+    if status != 200:
+        raise SendError(f"Telegram dosyayı vermedi (HTTP {status})", status=status)
+    if len(body) > limit:
+        raise SendError(f"dosya {limit >> 20} MB sınırından büyük", status=TOO_LARGE)
+    return body
 
 
 @dataclass(frozen=True)

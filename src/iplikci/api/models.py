@@ -518,6 +518,7 @@ class NotifySettingsOut(BaseModel):
     channels: list[ChannelStateOut]
     counts: dict[DeliveryStatus, int]
     unread: int
+    telegram_documents: bool  # the documents the paired chat sends the bot are taken in (ADR-0021)
 
 
 class NotifySettingsIn(BaseModel):
@@ -544,6 +545,10 @@ class TelegramPairingOut(BaseModel):
 
 class TelegramCheckOut(BaseModel):
     paired: bool
+
+
+class TelegramDocumentsIn(BaseModel):
+    on: bool  # take the documents the paired chat sends the bot
 
 
 class NotifyTestIn(BaseModel):

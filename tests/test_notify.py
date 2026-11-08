@@ -12,7 +12,7 @@ from decimal import Decimal
 import pytest
 
 from iplikci import cli, egress
-from iplikci.app import bridge, notify, rebuild
+from iplikci.app import bridge, notify, rebuild, telegram
 from iplikci.cli import notify as notify_cli
 from iplikci.domain.codes import Actor, Channel, ChannelStage, DeliveryStatus, DetailLevel, EventKind
 from iplikci.notify import channels, content, timing
@@ -236,18 +236,6 @@ def test_a_telegram_call_that_cannot_reach_the_api_never_shows_the_token():
     with pytest.raises(SendError) as failed:
         Telegram(broken, 42).send(Message("t", "b"))
     assert TOKEN not in str(failed.value) and not failed.value.refused
-
-
-def test_only_a_start_with_a_code_is_taken_from_the_bots_messages():
-    updates = [
-        {"update_id": 7, "message": {"text": "/start ab12cd34", "chat": {"id": 42}}},
-        {"update_id": 8, "message": {"text": "merhaba", "chat": {"id": 43}}},
-        {"update_id": 9, "message": {"text": "/start@ornek_bot ef56", "chat": {"id": 44}}},
-        {"update_id": 10, "message": {"text": "/start", "chat": {"id": 45}}},
-    ]
-    found, after = channels.starts(lambda m, f: answer(updates), 7)
-    assert [(s.chat, s.code) for s in found] == [(42, "ab12cd34"), (44, "ef56")]
-    assert after == 11
 
 
 @dataclass
@@ -541,22 +529,6 @@ class FakeBot:
         return post
 
 
-def test_a_bot_is_paired_by_the_code_its_chat_sends(ws, keyring):
-    bot = FakeBot()
-    assert notify.set_telegram_token(ws, TOKEN, Actor.USER, bot.post_for) == notify.TokenSet("ornek_bot", True)
-    assert keyring == {"telegram-bot": TOKEN}
-    pairing = notify.start_pairing(ws, NOON)
-    assert pairing.link == f"https://t.me/ornek_bot?start={pairing.code}"
-    bot.updates = [{"update_id": 1, "message": {"text": "/start yanlis", "chat": {"id": 7}}}]
-    assert not notify.check_pairing(ws, NOON, bot.post_for)
-    bot.updates.append({"update_id": 2, "message": {"text": f"/start {pairing.code}", "chat": {"id": 42}}})
-    assert notify.check_pairing(ws, NOON, bot.post_for)
-    assert config.load(ws.layout.settings).notify.telegram_chat == 42
-    assert bot.sent[-1]["chat_id"] == "42"  # greeted
-    state = {s.channel: s for s in notify.status(ws).channels}[Channel.TELEGRAM]
-    assert state.ready and state.note == "@ornek_bot botuyla eşleşti."
-
-
 def test_the_telegram_channel_names_the_step_its_setup_waits_for(ws, keyring):
     def stage() -> ChannelStage:
         return {s.channel: s for s in notify.status(ws).channels}[Channel.TELEGRAM].stage
@@ -568,14 +540,6 @@ def test_the_telegram_channel_names_the_step_its_setup_waits_for(ws, keyring):
     assert stage() is ChannelStage.READY
     keyring.clear()  # the keychain entry went missing
     assert stage() is ChannelStage.TOKEN_LOST
-
-
-def test_a_pairing_code_lasts_ten_minutes(ws, keyring):
-    bot = FakeBot()
-    notify.set_telegram_token(ws, TOKEN, Actor.USER, bot.post_for)
-    notify.start_pairing(ws, NOON)
-    with pytest.raises(notify.NotifyError, match="süresi doldu"):
-        notify.check_pairing(ws, NOON + timedelta(minutes=11), bot.post_for)
 
 
 def test_what_is_no_bot_token_is_refused_before_it_is_tried(ws, keyring):
@@ -676,7 +640,7 @@ def test_the_commands_show_the_channels_the_rules_and_the_history(ws, desk, monk
 def test_telegram_is_set_up_with_the_token_read_from_a_line_never_an_argument(ws, keyring, monkeypatch, capsys):
     monkeypatch.setenv("IPLIKCI_HOME", str(ws.home))
     bot = FakeBot()
-    monkeypatch.setattr(notify, "_post_for", lambda settings: bot.post_for)
+    monkeypatch.setattr(notify, "bot_calls", lambda settings, timeout=30.0: bot.post_for)
     monkeypatch.setattr(notify_cli.sys, "stdin", io.StringIO(TOKEN + "\n"))
     looked: list[bool] = []
 
@@ -684,7 +648,7 @@ def test_telegram_is_set_up_with_the_token_read_from_a_line_never_an_argument(ws
         looked.append(True)
         return len(looked) == 2  # the code comes at the second look
 
-    monkeypatch.setattr(notify, "check_pairing", check)
+    monkeypatch.setattr(telegram, "check_pairing", check)
     monkeypatch.setattr(notify_cli.time, "sleep", lambda seconds: None)
     assert cli.main(["telegram", "kur"]) == 0
     out = capsys.readouterr().out

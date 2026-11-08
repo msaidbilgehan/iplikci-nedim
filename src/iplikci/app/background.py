@@ -3,7 +3,8 @@ cases ask for them. The analysis is made again after new documents and once a da
 can end a month); each time the feed compares it with the last one and records the difference as events, and the
 notifications follow at once (they also run every five minutes). A backup is made every night and its restore
 rehearsed every month. The exchange rates are fetched every day from 16:30, the history's missing days with them,
-and TÜFE every day at 10:30 when the user gave an EVDS key."""
+and TÜFE every day at 10:30 when the user gave an EVDS key. A document sent to the Telegram bot is fetched and taken in
+as its own job, queued by the service's ear for the bot (ADR-0021)."""
 
 import sqlite3
 from datetime import UTC, date, datetime, time, timedelta
@@ -14,9 +15,19 @@ from ..jobs.schedule import Periodic, daily, every, monthly
 from ..jobs.worker import Handler
 from ..storage import audit, events, feed_state, jobs
 from ..vault import trash
-from . import access, backup, bridge, fx, intake, mail, notify, outlook, prices, uploads
+from . import access, backup, bridge, fx, intake, mail, notify, outlook, prices, telegram, uploads
 from .analysis import analyze
-from .kinds import BACKUP_DAILY, BACKUP_NOW, BACKUP_REHEARSAL, BRIDGE_CHECK, INBOX_TAKE, NOTIFY, PURGE, REFRESH
+from .kinds import (
+    BACKUP_DAILY,
+    BACKUP_NOW,
+    BACKUP_REHEARSAL,
+    BRIDGE_CHECK,
+    INBOX_TAKE,
+    NOTIFY,
+    PURGE,
+    REFRESH,
+    TELEGRAM_DOCUMENT,
+)
 from .workspace import Busy, Workspace
 
 SNAPSHOT = "snapshot"
@@ -55,6 +66,7 @@ def handlers(ws: Workspace) -> dict[str, Handler]:
         BRIDGE_CHECK: lambda _payload: bridge.check_silence(ws),
         fx.FETCH_JOB: lambda payload: fetch_rates(ws, history=bool(payload.get("history", True))),
         prices.FETCH_JOB: lambda _payload: prices.fetch(ws),
+        TELEGRAM_DOCUMENT: lambda payload: telegram.take_document(ws, payload),
     }
 
 

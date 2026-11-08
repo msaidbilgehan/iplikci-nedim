@@ -68,6 +68,13 @@ def test_a_get_brings_the_answer_and_its_status_an_error_status_too(https):
     assert [r.get_method() for r in https.requests] == ["GET", "GET"]
 
 
+def test_a_get_cuts_its_answer_at_the_limit_it_names(https):
+    https.answers = [(200, {}, b"x" * (2 << 20)), (200, {}, b"0123456789")]
+    status, body = HTTPS_GET(egress.TELEGRAM, "/file/bot1:a/documents/x.pdf", SETTINGS, limit=3 << 20)
+    assert (status, len(body)) == (200, 2 << 20)  # a document larger than the rates' megabyte comes whole
+    assert HTTPS_GET(egress.TELEGRAM, "/file/bot1:a/documents/y.pdf", SETTINGS, limit=4) == (200, b"0123")
+
+
 def test_a_get_carries_the_headers_it_is_given(https):
     https.answers = [(200, {}, b"{}")]
     HTTPS_GET(egress.FRANKFURTER, "/v1/latest", SETTINGS, headers={"Accept": "application/json"})

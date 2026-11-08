@@ -172,6 +172,18 @@ def test_the_channels_settings_say_what_each_channel_needs_and_are_changed_from_
     assert (settings.channels, settings.detail["telegram"]) == (("telegram",), "minimal")
 
 
+def test_documents_from_the_telegram_bot_are_turned_off_and_on_from_the_own_pages_only(client, ws):
+    assert client.get("/api/notify/settings", headers=bearer()).json()["telegram_documents"] is True
+    refused = client.put("/api/notify/telegram/documents", json={"on": False}, headers=bearer())
+    assert refused.status_code == 403
+    signed_in(client)
+    off = client.put("/api/notify/telegram/documents", json={"on": False}, headers=OWN_PAGE)
+    assert off.status_code == 200 and off.json()["telegram_documents"] is False
+    assert config.load(ws.layout.settings).notify.telegram_documents is False
+    on = client.put("/api/notify/telegram/documents", json={"on": True}, headers=OWN_PAGE).json()
+    assert on["telegram_documents"] is True
+
+
 @dataclass
 class FakeBot:
     updates: list[dict[str, object]] = field(default_factory=list)
@@ -194,7 +206,7 @@ def test_a_telegram_bot_is_set_up_and_paired_from_the_own_pages(client, ws, monk
     monkeypatch.setattr(secrets, "load", lambda secret: kept.get(secret.account))
     monkeypatch.setattr(secrets, "delete", lambda secret: kept.pop(secret.account, None))
     bot = FakeBot()
-    monkeypatch.setattr(notify, "_post_for", lambda settings: bot.post_for)
+    monkeypatch.setattr(notify, "bot_calls", lambda settings, timeout=30.0: bot.post_for)
     signed_in(client)
     refused = client.post("/api/notify/telegram/token", json={"token": "parola"}, headers=OWN_PAGE)
     assert refused.status_code == 400 and "bot belirteci değil" in refused.json()["title"]

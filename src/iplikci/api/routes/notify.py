@@ -1,13 +1,13 @@
 """The notifications (F13, ADR-0010): the interface's box and the history, the alert rules with their preview, the
-channels' settings, the Telegram bot and its pairing, and a test on a channel. The browser changes them only from
-the service's own pages (the guard); the API token reads them. A bot's token goes to the keyring, never to the log
-or back to the browser."""
+channels' settings, the Telegram bot, its pairing and whether it takes documents (ADR-0021), and a test on a channel.
+The browser changes them only from the service's own pages (the guard); the API token reads them. A bot's token goes
+to the keyring, never to the log or back to the browser."""
 
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 
-from ...app import notify
+from ...app import notify, telegram
 from ...app.notify import Actor, AlertRule, Channel, Condition, Notification, NotifyError, RulesError, SettingsError
 from ..context import context_of
 from ..guard import Principal
@@ -29,6 +29,7 @@ from ..models import (
     NotifySettingsOut,
     NotifyTestIn,
     TelegramCheckOut,
+    TelegramDocumentsIn,
     TelegramPairingOut,
     TelegramTokenIn,
     TelegramTokenOut,
@@ -113,6 +114,7 @@ def _settings_out(request: Request) -> NotifySettingsOut:
         ],
         counts=dict(found.counts),
         unread=found.unread,
+        telegram_documents=found.telegram_documents,
     )
 
 
@@ -200,7 +202,7 @@ def telegram_token(request: Request, body: TelegramTokenIn) -> TelegramTokenOut:
 def telegram_pairing(request: Request) -> TelegramPairingOut:
     """A code to send the bot as "/start <code>" within ten minutes."""
     try:
-        found = notify.start_pairing(context_of(request).ws)
+        found = telegram.start_pairing(context_of(request).ws)
     except NotifyError as exc:
         raise _refused(exc) from exc
     return TelegramPairingOut(code=found.code, expires=found.expires, bot=found.bot, link=found.link)
@@ -208,11 +210,22 @@ def telegram_pairing(request: Request) -> TelegramPairingOut:
 
 @router.post("/api/notify/telegram/check", dependencies=WRITE)
 def telegram_check(request: Request) -> TelegramCheckOut:
-    """Whether the code came: the bot's new messages are read once."""
+    """Whether the code came: the bot's new messages are read once, unless the service's ear for the bot is reading
+    them (then it pairs the chat)."""
     try:
-        return TelegramCheckOut(paired=notify.check_pairing(context_of(request).ws))
+        return TelegramCheckOut(paired=telegram.check_pairing(context_of(request).ws))
     except NotifyError as exc:
         raise _refused(exc) from exc
+
+
+@router.put("/api/notify/telegram/documents", dependencies=WRITE)
+def telegram_documents(request: Request, body: TelegramDocumentsIn) -> NotifySettingsOut:
+    """Take the documents the paired chat sends the bot, or not (ADR-0021)."""
+    try:
+        telegram.set_documents(context_of(request).ws, body.on, Actor.USER)
+    except SettingsError as exc:
+        raise Problem(409, "settings_invalid", str(exc)) from exc
+    return _settings_out(request)
 
 
 @router.delete("/api/notify/telegram", status_code=204, dependencies=WRITE)

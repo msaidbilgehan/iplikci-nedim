@@ -18,10 +18,11 @@ import uvicorn
 from .. import __version__
 from ..api.app import create_app
 from ..api.context import Context
-from ..app import access, background, calls, extension, fx, lifecycle, mail
+from ..app import access, background, calls, extension, fx, lifecycle, mail, telegram
 from ..app.workspace import Workspace
 from ..ingest.inbox import InboxWatcher
 from ..ingest.mail.idle import IdleWatcher
+from ..ingest.telegram import BotWatcher, Heard
 from ..jobs.worker import Worker
 from . import instance, logs
 
@@ -126,6 +127,16 @@ def inbox_watcher(ws: Workspace, jobs: Worker) -> InboxWatcher:
     return InboxWatcher(ws.inbox, settled)
 
 
+def bot_watcher(ws: Workspace, jobs: Worker) -> BotWatcher:
+    def listen() -> Heard:
+        heard = telegram.listen(ws)
+        if heard is Heard.READ:
+            jobs.wake()  # a document sent to the bot may wait in the queue now
+        return heard
+
+    return BotWatcher(listen)
+
+
 def run(ws: Workspace, announce: Callable[[str], None] = _say) -> int:
     """Serve until interrupted (KeyboardInterrupt) or ended from the interface; the exit code (app.lifecycle).
     instance.AlreadyRunning when another process serves this data folder. A stop the system asks for (SIGTERM, as
@@ -176,7 +187,7 @@ def _serve(ws: Workspace, announce: Callable[[str], None]) -> int:
     terminal, never into a file. The worker starts first: the jobs a stop interrupted run again, the analysis is made
     again in case the readers changed since the last run, and the exchange rates' history is fetched where days are
     missing. The IMAP watcher waits for a set-up account and then for its new mail; the inbox watcher hands over what
-    is dropped into the inbox folder."""
+    is dropped into the inbox folder, and the Telegram bot's ear what its paired chat sends it."""
     life = Life()
     ctx = context(ws, life)
     calls.take_waiting(ws)  # the MCP calls answered while the service was down, into the audit log
@@ -189,6 +200,8 @@ def _serve(ws: Workspace, announce: Callable[[str], None]) -> int:
     ear.start()
     inbox = inbox_watcher(ws, jobs)
     inbox.start()
+    bot = bot_watcher(ws, jobs)
+    bot.start()
     program = ProgramWatch(life)
     program.start()
     announce(f"İplikçi Nedim servisi http://{HOST}:{ws.port} adresinde çalışıyor (durdurmak için Ctrl+C).")
@@ -211,6 +224,7 @@ def _serve(ws: Workspace, announce: Callable[[str], None]) -> int:
         life.server.run()
     finally:
         program.stop()
+        bot.stop()
         inbox.stop()
         ear.stop()
         jobs.stop()

@@ -125,6 +125,7 @@ class SourceKind(StrEnum):
     UPLOAD = "upload"
     INBOX = "inbox"
     IMPORT = "import"
+    TELEGRAM = "telegram"  # sent to the user's own bot from the chat paired with it (ADR-0021)
 
 
 class MonthStatus(StrEnum):

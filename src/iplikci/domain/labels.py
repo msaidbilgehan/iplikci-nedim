@@ -132,6 +132,7 @@ SOURCE_KIND: dict[SourceKind, str] = {
     SourceKind.UPLOAD: "Yükleme",
     SourceKind.INBOX: "Gelen klasörü",
     SourceKind.IMPORT: "İçe aktarma",
+    SourceKind.TELEGRAM: "Telegram",
 }
 
 # A month as a whole, and one account within a month: the same codes read differently.

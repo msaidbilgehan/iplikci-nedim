@@ -70,6 +70,18 @@ ACTION_LABELS = {
     Verdict.ARCHIVE: "arşiv dosyası — içindekiler alınacak, kendisi çöp kutusuna",
 }
 
+# What became of a plan item once the plan was applied, by its action: the Telegram bot's answer (ADR-0021).
+ACTION_DONE = {
+    DocumentStatus.PROCESSED: "arşive alındı",
+    COPY: "aynı belgenin başka bir dosyası; arşive alındı, defterde birleşir",
+    DocumentStatus.UNREADABLE: "okunamadı; arşive alındı, Belgeler ekranında elle bakın",
+    DocumentStatus.UNPROCESSED: "para hareketi yok; arşive alındı",
+    Verdict.KNOWN: "zaten arşivde",
+    Verdict.BUSINESS: "şirket belgesi; alınmadı",
+    Verdict.NOT_DOCUMENT: "belge değil; alınmadı",
+    Verdict.ARCHIVE: "arşiv dosyası; içindekiler alındı",
+}
+
 
 @dataclass
 class Candidate:
@@ -306,16 +318,16 @@ def plan_paths(ws: Workspace, paths: Sequence[str | Path]) -> Plan:
     return _plan(ws, [c for path in resolved for c in _walk(path, SourceKind.IMPORT, None, in_inbox=False)])
 
 
-def plan_upload(ws: Workspace, folder: Path) -> Plan:
+def plan_upload(ws: Workspace, folder: Path, kind: SourceKind = SourceKind.UPLOAD) -> Plan:
     """What taking in a batch of uploads would do; its files, copies in the staging area, leave it once the plan is
-    applied (ADR-0007)."""
+    applied (ADR-0007). kind: how they came, through the interface or to the Telegram bot (ADR-0021)."""
     files = [
         p
         for p in sorted(folder.rglob("*"))
         if p.is_file() and not any(part.startswith(".") for part in p.relative_to(folder).parts)
     ]
     _check_size(files)
-    return _plan(ws, [c for f in files for c in _walk(f, SourceKind.UPLOAD, folder, in_inbox=True)])
+    return _plan(ws, [c for f in files for c in _walk(f, kind, folder, in_inbox=True)])
 
 
 def plan_documents(ws: Workspace, incoming: Iterable[Incoming]) -> Plan:
