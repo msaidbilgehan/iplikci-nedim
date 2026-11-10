@@ -1,5 +1,13 @@
-# The installers (ADR-0017): each built on its own system's runner by packaging/build.py, unsigned (K22), and kept
-# as the run's artifacts for two weeks. They are built for a version tag and on request; nothing is published.
+# The installers, the program's update files and the browser extension's store package (ADR-0017, ADR-0022), each
+# system's built on its own runner. packaging/build.py starts the service from the installed program and unpacks each
+# update file as the installed program would: a package that cannot start is never made.
+#
+# A version tag publishes them as a GitHub release: its notes are the changelog's section, and a manifest signed with
+# the UPDATE_SIGNING_KEY secret names every file with its size and SHA-256; the installed copies install nothing before
+# that signature checks. vars.RELEASE_REPO names another repository to publish in, with the RELEASE_TOKEN secret: the
+# installed copies download without an account, so the releases must be public. The extension then goes to the Chrome
+# Web Store once its item is set up there (vars.CWS_PUBLISHER_ID and vars.CWS_ITEM_ID, secret CWS_SERVICE_ACCOUNT_KEY).
+# Run by hand, the workflow only builds, and keeps the files for two weeks.
 name: Paketler
 
 on:
@@ -9,6 +17,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: paketler-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   APPIMAGETOOL_VERSION: "1.9.1"
@@ -59,13 +71,92 @@ jobs:
           $iscc = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { choco install innosetup --no-progress -y }
       - name: Package
-        run: uv run python packaging/build.py
+        run: uv run --locked python packaging/build.py
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: paket-${{ runner.os }}
           path: |
             dist/paket/*.dmg
+            dist/paket/*.zip
             dist/paket/*.AppImage
+            dist/paket/*.tar.gz
             dist/paket/*.exe
           if-no-files-found: error
           retention-days: 14
+
+  eklenti:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Type check
+        run: npm run typecheck
+      - name: Test
+        run: npm test
+      - name: Package for the Chrome Web Store
+        run: npm run package
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: eklenti
+          path: extension/iplikci-kopru-*.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  surum:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [paket, eklenti]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      RELEASE_REPO: ${{ vars.RELEASE_REPO || github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: dist/surum
+          merge-multiple: true
+      - name: Manifest, signature and notes
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+        run: >-
+          uv run --locked python packaging/release.py --tag "$GITHUB_REF_NAME" --files dist/surum
+          --notes dist/notlar.md --title dist/baslik.txt
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+        run: |
+          ls -l dist/surum
+          gh release create "$GITHUB_REF_NAME" dist/surum/* \
+            --repo "$RELEASE_REPO" --title "$(cat dist/baslik.txt)" --notes-file dist/notlar.md
+
+  magaza:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && vars.CWS_ITEM_ID != ''
+    needs: [surum]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: eklenti
+          path: dist/eklenti
+      - name: Chrome Web Store
+        env:
+          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+          CWS_ITEM_ID: ${{ vars.CWS_ITEM_ID }}
+          CWS_SERVICE_ACCOUNT_KEY: ${{ secrets.CWS_SERVICE_ACCOUNT_KEY }}
+        run: uv run --locked python packaging/chrome_store.py dist/eklenti/iplikci-kopru-*.zip

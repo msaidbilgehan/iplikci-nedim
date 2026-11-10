@@ -109,6 +109,22 @@ def sign(manifest: bytes, private_key_pem: bytes, key_name: str) -> bytes:
     return (json.dumps({"key": key_name, "signature": signature}, sort_keys=True) + "\n").encode()
 
 
+def key_name(private_key_pem: bytes, trusted: Mapping[str, str] | None = None) -> str | None:
+    """The name the program trusts this private key's public key under (keys.TRUSTED by default); None when it does
+    not trust it. A release is signed under the name of the key that signs it, so a key being replaced still signs
+    the release that brings its successor."""
+    trusted = keys.TRUSTED if trusted is None else trusted
+    try:
+        key = serialization.load_pem_private_key(private_key_pem, password=None)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(key, Ed25519PrivateKey):
+        return None
+    raw = key.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+    public = base64.b64encode(raw).decode()
+    return next((name for name, value in trusted.items() if value == public), None)
+
+
 def verify(manifest: bytes, signature: bytes, trusted: Mapping[str, str] | None = None) -> Manifest:
     """The manifest, once its signature checks with a key of `trusted` (the program's own, keys.TRUSTED, by
     default); ManifestError otherwise, before anything of the manifest is believed."""
