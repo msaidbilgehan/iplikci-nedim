@@ -139,6 +139,44 @@ def test_a_strangers_payment_of_the_same_amount_does_not_take_a_side_that_names_
     assert gift.kind == TransactionKind.INCOME and gift.reason.pair == ""
 
 
+def test_a_payment_that_names_someone_else_never_takes_the_place_of_an_own_transfers_other_side(cat):
+    # The user's FAST to their TEB account arrived at a TEB account no document shows; the day before, someone else
+    # paid the same amount into the TEB account a document does show. That payment is theirs, not the FAST's arrival.
+    me = "ÖRNEK İSİM SOYADOĞLU"
+    sent = cand(
+        date(2026, 11, 3),
+        "FAST Anlık Ödeme: ödeme (03/11/2026 tarihli 1 sorgu no'lu ÖRNEK İSİM SOYADOĞLU hesabından Türk Ekonomi Bankası "
+        "A.Ş. ÖRNEK İSİM SOYADOĞLU hesabına giden FAST ödemesi)",
+        Decimal(750),
+        account="vakifbank-0999000000123456",
+        counterparty=me,
+    )
+    someone = "Deniz Yılmazer"
+    paid_in = cand(date(2026, 11, 2), f"{someone} den gelen havale tutarı", Decimal(-750), counterparty=someone)
+    sent_out = cand(date(2026, 11, 2), "Cem Örnektepe'ye giden havale", Decimal(750), counterparty="Cem Örnektepe")
+    came_in = cand(date(2026, 11, 2), "Gelen FAST", Decimal(-750), account="garanti-1234567")
+    for row, mark in zip((sent, paid_in, sent_out, came_in), "abcd", strict=True):
+        row.fingerprint = mark * 16
+    resolve(cat, [sent, paid_in, sent_out, came_in])
+    assert (sent.kind, sent.reason.pair) == (TransactionKind.OWN_TRANSFER, "")  # its other side is in no document
+    assert (paid_in.kind, paid_in.reason.transfer, paid_in.reason.pair) == (
+        TransactionKind.INCOME,
+        TransferStep.INCOME,
+        "",
+    )
+    # Neither pairs with an open row that names nobody either: sent to a person, and money in from someone.
+    assert (sent_out.kind, sent_out.reason.transfer, sent_out.reason.pair) == (
+        TransactionKind.P2P_TRANSFER,
+        TransferStep.PERSON,
+        "",
+    )
+    assert (came_in.kind, came_in.reason.transfer, came_in.reason.pair) == (
+        TransactionKind.INCOME,
+        TransferStep.INCOME,
+        "",
+    )
+
+
 def test_a_bank_only_payment_whose_other_side_names_the_user_is_no_payment_like_a_named_one(cat):
     # The landlord is paid by name at Yapı Kredi; months before, the same amount went to the user's own account there.
     named = cand(

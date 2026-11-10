@@ -154,21 +154,25 @@ Para hareketi taşıyan hesap satırları, bütün hesaplar okunana kadar aday k
    - `kişi` → `p2p_transfer` ya da `income`,
    - `borç` → `loan_principal`,
    - `yatırım` → `investment`.
-3. Eşleştirme, en sağlam işaretten başlar (`TRANSFER_DAYS`, −1…+4 gün):
+3. Başka birinin adını yazan satır ("Deniz Yılmazer den gelen havale tutarı", "… hesabından … hesabına" FAST'ında
+   başka bir ad) o kişiden gelen ya da ona giden paradır: tutarı ve günü kendi aktarmanızın öbür ucuna ne kadar
+   uysa da onunla eşleşmez, 8. adıma kalır. v0.9.14'e dek eşleşebiliyordu: bir hesaba bir gün önce başkasından
+   gelen para, aynı bankadaki başka bir hesabınıza gönderdiğiniz paranın yerini alabiliyordu.
+4. Eşleştirme, en sağlam işaretten başlar (`TRANSFER_DAYS`, −1…+4 gün):
    - İki ucu da kendi adınızı yazan satırlar birbirine bağlanır (`Reason.pair`).
    - Açık bir satır, başka bir kendi hesabında aynı tutarda ters ve kendi adınızı yazan bir satırla eşleşirse →
-     `own_transfer`. Bu, 4. adımdan önce gelir: aynı tutarda adıyla yapılmış bir ödemeye benzemek, hesabınızdaki
+     `own_transfer`. Bu, 5. adımdan önce gelir: aynı tutarda adıyla yapılmış bir ödemeye benzemek, hesabınızdaki
      birebir karşılıktan zayıf bir işarettir.
-4. Yalnızca alıcı bankayı yazan bir satır, aynı bankaya aynı tutarda adıyla yapılmış ödemenin türünü alır. Örnek:
+5. Yalnızca alıcı bankayı yazan bir satır, aynı bankaya aynı tutarda adıyla yapılmış ödemenin türünü alır. Örnek:
    TEB'den ödenen kira.
-5. Kalan açık satırlar, başka bir kendi hesabındaki aynı tutarda ters bir açık satırla → `own_transfer`. Yalnızca kart
+6. Kalan açık satırlar, başka bir kendi hesabındaki aynı tutarda ters bir açık satırla → `own_transfer`. Yalnızca kart
    ekstresinde görünen kart ödemeleri de eşleşir.
-6. Kullanıcının hesabı olan bir bankaya, o bankanın hiçbir listesinin kapsamadığı bir tarihte yapılmış ve yalnızca
+7. Kullanıcının hesabı olan bir bankaya, o bankanın hiçbir listesinin kapsamadığı bir tarihte yapılmış ve yalnızca
    bankayı yazan ödeme → kendi transferi.
-7. Kalan giden para → `p2p_transfer`; kalan gelen para → `income`.
+8. Kalan giden para → `p2p_transfer`; kalan gelen para → `income`.
 
 Giden satır paranın gittiği bankayı yazıyorsa (TEB'in "TÜRKIYE GARANTI BANKASI A.Ş." satırı, Vakıfbank'ın "…
-hesabından Türkiye Garanti Bankası A.Ş. … hesabına" FAST'ı), 3. ve 5. adımlar onu yalnızca o bankadaki bir hesabın
+hesabından Türkiye Garanti Bankası A.Ş. … hesabına" FAST'ı), 4. ve 6. adımlar onu yalnızca o bankadaki bir hesabın
 gelen parasıyla eşleştirir (`analysis._bank_fits`). Aynı gün aynı tutarda biri Ziraat'e, biri Garanti'ye iki havale
 gittiyse Garanti hesabına gelen para Ziraat'e gidenin karşılığı olamaz; v0.9.11'e dek sırası önce gelen onu alıyordu.
 Banka, programın banka adları tablosunda yoksa adlarının "Türkiye", "Bankası", "A.Ş." gibi kelimeleri atılınca kalan

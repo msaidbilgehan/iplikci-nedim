@@ -683,7 +683,8 @@ def _resolve_transfers(
 ) -> None:
     candidates = [t for t in txns if t.kind == TransactionKind.TRANSFER_CANDIDATE]
     found_by_name: list[Transaction] = []  # own transfers whose other side may still be open
-    open_: list[Transaction] = []
+    open_: list[Transaction] = []  # rows that name nobody: the other side may be in another own account
+    strangers: list[Transaction] = []  # rows that name someone else, whom no rule names
     for t in candidates:
         if own.is_self(t.counterparty) or own.mentions_own_account(t.description):
             t.kind = TransactionKind.OWN_TRANSFER
@@ -692,6 +693,11 @@ def _resolve_transfers(
             found_by_name.append(t)
         elif categorizer.resolve_kind(t):
             t.reason = replace(t.reason, transfer=TransferStep.RULE)  # a rule named the receiver/sender: rent, ...
+        elif t.counterparty:
+            # "<name> den gelen havale": the money came from that person, or went to them. It is no side of a transfer
+            # between own accounts, however well its amount and day fit one: otherwise someone's payment into an account
+            # could take the place of an own FAST that reached another account at the same bank.
+            strangers.append(t)
         else:
             open_.append(t)
 
@@ -745,7 +751,7 @@ def _resolve_transfers(
             t.description += " (muhtemelen kendi hesabınıza)"
             t.reason = replace(t.reason, transfer=TransferStep.UNCOVERED_BANK)
 
-    for t in still_open:
+    for t in [*still_open, *strangers]:
         if t.kind == TransactionKind.TRANSFER_CANDIDATE:
             income = t.amount < 0
             t.kind = TransactionKind.INCOME if income else TransactionKind.P2P_TRANSFER
