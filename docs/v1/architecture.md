@@ -364,6 +364,7 @@ MVP'nin okuyucularından çıkar:
 | `teb.bonus_card` | Bonus kart ekstresi (PDF; sayfa resmi olanlar OCR ile) | `parsers/teb.py` |
 | `teb.card_payment_receipt` | Kart ödeme dekontu (PDF) | `parsers/teb.py` |
 | `teb.account_html` | Hesap hareketleri (`.xls` adlı HTML) | `parsers/hesaplar.py` |
+| `teb.passbook` | Dijital hesap cüzdanı (PDF) | — (V1, v0.9.14) |
 | `qnb.card_pdf` | Kredi kartı ekstre hareketleri (PDF) | `parsers/qnb_pdf.py` |
 | `qnb.account_pdf` | Ek hesap / hesap hareketleri (PDF) | `parsers/qnb_pdf.py` |
 | `qnb.edekont` | e-dekont (HTML, PDF) | `parsers/qnb.py` |

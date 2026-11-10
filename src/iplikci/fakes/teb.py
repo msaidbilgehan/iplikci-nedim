@@ -1,5 +1,5 @@
 """TEB's documents: the Bonus card statement (with a text layer, or as OCR reads a scanned one), the card payment
-receipt and the CEPTETEB account export."""
+receipt, the CEPTETEB account export and the digital passbook ("Dijital Hesap Cüzdanı")."""
 
 from collections.abc import Sequence
 from datetime import date, timedelta
@@ -198,6 +198,78 @@ ACCOUNT_MOVES: tuple[Move, ...] = (
 )
 
 
+# The overdraft account's November in the cüzdan: the month's interest and its taxes, a friend's transfer that clears
+# the debt and the rest sent on, then a transfer out with its fees, which the account's own sibling covers.
+PASSBOOK_MOVES = (
+    Move(date(2026, 11, 2), "Kredi Faiz Tutarı", Decimal("-120.00")),
+    Move(date(2026, 11, 2), "KKDF Tutarı", Decimal("-18.00")),
+    Move(date(2026, 11, 2), "BSMV Tutarı", Decimal("-18.00")),
+    Move(date(2026, 11, 2), "VELİ ÖRNEKSOY den gelen havale tutarı", Decimal("1500.00")),
+    Move(date(2026, 11, 3), "101234567 no.lu hesaba gönderilmiştir.", Decimal("-1044.00")),
+    Move(date(2026, 11, 5), "123456789 no.lu hesaba gönderilmiştir.", Decimal("400.00")),
+    Move(date(2026, 11, 5), "QNB BANK A.Ş.", Decimal("-400.00")),
+    Move(date(2026, 11, 5), "FAST Ücreti", Decimal("-7.97")),
+    Move(date(2026, 11, 5), "FAST Ücreti BSMV", Decimal("-0.40")),
+    Move(date(2026, 11, 5), "123456789 no.lu hesaba gönderilmiştir.", Decimal("8.37")),
+)
+
+
+def passbook(
+    moves: Sequence[Move] = PASSBOOK_MOVES,
+    opening: Decimal = Decimal(-300),
+    number: str = "123456789",
+    holder: str = HOLDER,
+    period: tuple[date, date] = (date(2026, 11, 1), date(2026, 11, 10)),
+    kind: str = "Vadesiz",
+) -> bytes:
+    """A TEB "Dijital Hesap Cüzdanı": the account's "label: value" lines and its movements oldest first on the
+    first page, the deposit terms on the second. A move's text may hold a line break: the rest goes below its row,
+    inside the description column."""
+    rows = with_balances(moves, opening)
+    closing = rows[-1][1] if rows else opening
+    start, end = period
+    info = [
+        ("Raporlama Tarihi:", f"{end:%d/%m/%Y}"),
+        ("Hesap Hareketi Tarih Aralığı:", f"{start:%d/%m/%Y} - {end:%d/%m/%Y}"),
+        ("Cüzdan Numarası:", "10000001"),
+        ("Müşteri Adı - Soyadı:", holder),
+        ("Müşteri Numarası:", "10000002"),
+        ("Şube:", "Deneme Şubesi - 999"),
+        ("Hesap Numarası:", number),
+        ("IBAN:", f"TR00000320000000000{number[-7:]}"),
+        ("Hesap Sahibi Sayısı:", "1"),
+        ("Hesap Türü:", kind),
+        ("Para Kodu:", "TL"),
+        ("Hesap Açılış Tarihi:", "24/06/2024"),
+        ("Bakiye:", format_amount(closing)),
+    ]
+    runs: list[Run] = [(297, 48, "Dijital Hesap Cüzdanı")]
+    for i, (label, value) in enumerate(info):
+        runs += [(31, 108 + 20 * i, label), (173, 108 + 20 * i, value)]
+    runs += [(47, 444, "Sıra No"), (121, 444, "Tarih"), (246, 444, "Açıklama"), (391, 444, "İşlem Tutarı")]
+    runs.append((502, 444, "Bakiye"))
+    y = 472.0
+    for i, (move, balance) in enumerate(rows, 1):
+        text, _, rest = move.text.partition("\n")
+        runs += [(59, y, str(i)), (109, y, f"{move.day:%d/%m/%Y}"), (170, y, text)]
+        runs += [(425, y, format_amount(move.amount)), (520, y, format_amount(balance))]
+        if rest:
+            y += 10
+            runs.append((170, y, rest))
+        y += 20
+    footer = "Türk Ekonomi Bankası A.Ş. Ticaret Sicil:000000 Deneme Mah. Örnek Cad. No: 1 İstanbul www.teb.com.tr"
+    first = [*runs, (502, 784, "Rev.No:0001 1 / 2"), (23, 801, footer)]
+    terms: list[Run] = [
+        (40, 21, "Değerli Müşterimiz, lütfen aşağıdaki hususları dikkatle okuyunuz."),
+        (40, 44, "1- Bu cüzdanın mevduat hesabınızdan yapacağınız her türlü işlem sırasında Bankamıza ibrazı gerekir."),
+        (40, 67, "2- Farklılık olması halinde Bankamız kayıtları esas alınır."),
+        (40, 400, "Tasarruf Mevduatı Sigortası Hakkında Duyuru:"),
+        (502, 784, "Rev.No:0001 2 / 2"),
+        (23, 801, footer),
+    ]
+    return text_pdf(first, terms)
+
+
 def specimens() -> list[Specimen]:
     payment = card_payment_receipt(Decimal(3250), date(2026, 10, 15))
     export = account_export(running_rows(list(ACCOUNT_MOVES)))
@@ -205,4 +277,5 @@ def specimens() -> list[Specimen]:
         Specimen("teb-bonus-ekstre.pdf", bonus_statement(), "teb.bonus_card", "teb-1234", 7),
         Specimen("teb-kart-odeme-dekontu.pdf", payment, "teb.card_payment_receipt", "teb-1234", 1),
         Specimen("teb-hesap-hareketlerim.xls", export, "teb.account_html", "teb-123456789", 4),
+        Specimen("teb-dijital-hesap-cuzdani.pdf", passbook(), "teb.passbook", "teb-123456789", 10),
     ]

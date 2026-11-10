@@ -16,6 +16,12 @@ from ..text import parse_dmy
 ID = "teb.account_html"
 
 
+def sender_of(description: str) -> str:
+    """Who sent the money in, as TEB writes it: "<Ad Soyad> den gelen havale tutarı"; "" for any other row."""
+    sender = re.match(r"(.+?)\s+den gelen", description)
+    return sender[1] if sender else ""
+
+
 def holder_info(rows: list[list[Any]]) -> dict[str, str]:
     """The export's "label | value" rows at the top: Hesap, IBAN, Hesap Türü, Hesap Sahibi…"""
     return key_values(r for r in rows[:20] if len(r) == 2)
@@ -35,9 +41,7 @@ def read(doc: SourceDocument) -> ParseResult:
         if amount is None:
             continue
         desc = r[3]
-        sender = re.match(r"(.+?)\s+den gelen", desc)
-        party = sender[1] if sender else ""
-        moves.append(Movement(parse_dmy(r[0]), desc, amount, to_number(r[5]), "", party, doc.row_ref(i)))
+        moves.append(Movement(parse_dmy(r[0]), desc, amount, to_number(r[5]), "", sender_of(desc), doc.row_ref(i)))
     if not number:
         raise Skipped("TEB hesap bilgisi yok")
     # A TL account that runs below zero is the overdraft (KMH) account.

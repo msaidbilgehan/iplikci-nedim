@@ -12,7 +12,7 @@ from iplikci.app import intake
 from iplikci.app.analysis import analyze
 from iplikci.domain.codes import AccountType, TransactionKind
 from iplikci.domain.models import Account, ParseResult, SourceRef, Statement
-from iplikci.fakes import HOLDER, garanti, isbank, qnb, teb, vakifbank
+from iplikci.fakes import HOLDER, Move, garanti, isbank, qnb, teb, vakifbank
 from iplikci.fakes.files import text_pdf
 from iplikci.parsers.common import not_a_statement, set_business_names
 from iplikci.parsers.contract import Document
@@ -190,6 +190,75 @@ def test_vakifbank_passbook_reads_the_account_page_after_the_terms():
         [],
         True,
     )
+
+
+# --- TEB dijital hesap cüzdanı ----------------------------------------------------------------------
+
+
+def test_teb_passbook_reads_the_overdraft_accounts_movements_and_checks_every_balance():
+    r = read(teb.passbook())
+    [account], [s] = r.accounts, r.statements
+    # The bank calls it "Vadesiz"; it runs below zero, so it is the overdraft account the CEPTETEB export names.
+    assert (account.id, account.type, account.label) == (
+        "teb-123456789",
+        AccountType.OVERDRAFT,
+        "TEB Ek Hesap 123456789",
+    )
+    assert (s.start, s.cut_date, s.previous, s.total, s.verified, s.one_off) == (
+        date(2026, 11, 1),
+        date(2026, 11, 10),
+        Decimal("-300.00"),
+        Decimal("0.00"),
+        True,
+        False,
+    )
+    # The first row has no balance before it to check against: nine checks for ten rows.
+    assert (s.checks_ok, s.checks_total, len(s.transactions), r.holder) == (9, 9, 10, HOLDER)
+    interest, *_ = s.transactions
+    assert (interest.date, interest.amount, interest.kind) == (
+        date(2026, 11, 2),
+        Decimal("120.00"),
+        TransactionKind.INTEREST_FEE,
+    )
+    [received] = [t for t in s.transactions if t.counterparty]
+    assert (received.amount, received.kind, received.counterparty) == (
+        Decimal("-1500.00"),
+        TransactionKind.TRANSFER_CANDIDATE,
+        "VELİ ÖRNEKSOY",
+    )
+
+
+def test_teb_passbook_keeps_a_description_that_runs_on_below_its_row():
+    long = Move(date(2026, 11, 6), "VELİ ÖRNEKSOY den gelen havale tutarı\nKASIM AYI PAYI", Decimal(250))
+    r = read(teb.passbook([*teb.PASSBOOK_MOVES, long]))
+    [s] = r.statements
+    last = s.transactions[-1]
+    assert (last.description, last.counterparty, last.amount) == (
+        "VELİ ÖRNEKSOY den gelen havale tutarı KASIM AYI PAYI",
+        "VELİ ÖRNEKSOY",
+        Decimal(-250),
+    )
+    assert s.verified and len(s.transactions) == 11
+
+
+def test_teb_passbook_of_a_positive_term_account_is_a_deposit():
+    moves = [Move(date(2026, 11, 3), "Vade Sonu Faiz", Decimal("85.00"))]
+    r = read(teb.passbook(moves, opening=Decimal(10000), kind="Vadeli"))
+    [account] = r.accounts
+    assert (account.type, account.label) == (AccountType.DEPOSIT, "TEB Vadeli TL 123456789")
+
+
+def test_teb_passbook_without_movements_says_so():
+    with pytest.raises(parsers.Skipped, match="hareket yok") as found:
+        read(teb.passbook([]))
+    assert not found.value.business
+
+
+def test_teb_passbook_of_a_company_stays_out_of_scope():
+    set_business_names(["Örnek Teknoloji A.Ş."])
+    with pytest.raises(parsers.Skipped) as found:
+        read(teb.passbook(holder="ÖRNEK TEKNOLOJİ ANONİM ŞİRKETİ"))
+    assert found.value.business
 
 
 # --- Garanti BBVA Yatırım ---------------------------------------------------------------------------

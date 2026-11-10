@@ -45,6 +45,8 @@ SHIPPED = {
     "vakifbank.notice.transfer",
     # Phase 4: the readers of non-bank senders' documents (F14).
     "invoice.ubl_tr",
+    # v0.9.14: TEB's digital passbook, which the user sends the Telegram bot.
+    "teb.passbook",
 }
 
 

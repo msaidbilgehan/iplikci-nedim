@@ -247,6 +247,19 @@ yapılan ödemedir.
 - "… no.lu hesaba gönderilmiştir", alıcı tarafta bile kendi hesabını adlandırır.
 - "Müşteriye TL karşılığı Altın satışı", kullanıcının altın almasıdır.
 
+**Dijital hesap cüzdanı PDF'i** (`teb.passbook`): TEB'in uygulamalarının istek üzerine verdiği, bir hesabın iki gün
+arasındaki hareketleri. Kullanıcı onu çoğunlukla Telegram botuna gönderir; TEB hesap hareketlerini e-postayla
+göndermez.
+
+- 1. sayfada "Etiket: değer" satırları vardır: `Hesap Numarası`, `IBAN`, `Hesap Türü`, `Para Kodu`, `Bakiye`,
+  `Raporlama Tarihi` ve `Hesap Hareketi Tarih Aralığı`. Altında hareketler eskiden yeniye sıralanır: `Sıra No |
+  Tarih | Açıklama | İşlem Tutarı | Bakiye`. Son sayfa mevduat koşullarıdır.
+- KMH hesabının türü burada da "Vadesiz" yazar. CEPTETEB dökümündeki gibi eksiye düşen TL hesabı KMH sayılır; hesap
+  numarası iki belgede aynıdır (`teb-<numara>`).
+- `Bakiye` raporlama günündeki bakiyedir. Aralık o günden önce bitiyorsa son satırın bakiyesiyle tutmayabilir.
+- Sütuna sığmayan açıklama satırın altında, aynı sütunda sürer. Okuyucu bu satırı açıklamaya ekler.
+- İlk satırın öncesinde bakiye yazmaz. Bu yüzden on satırda dokuz bakiye denetlenir.
+
 ## Vakıfbank
 
 **Hesap XLSX'i** (`VB MUSTERI NO`)
