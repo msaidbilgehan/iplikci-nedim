@@ -4,6 +4,18 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.9.15] — 2026-11-10 — Başkasının parası kendi aktarmanız sayılmaz
+
+### Düzeltilenler
+
+- Başka birinden gelen para, kendi hesaplarınız arası bir aktarmanın öbür ucu sayılabiliyordu. Başka bir bankadaki
+  hesabınıza gönderdiğiniz para belgesi olmayan bir hesabınıza girdiyse, bir gün önce başka birinin belgeli hesabınıza
+  gönderdiği aynı tutar onun karşılığı sanılabiliyordu. Böylece başkasının parası "kendi hesaplarınız arası"
+  görünüyor ve gönderdiğiniz paranın nereye girdiği belli sanılıyordu.
+- Artık başka birinin adını yazan satır ("… den gelen havale", başka bir ada giden FAST) kendi aktarmanızla hiçbir
+  zaman eşleşmez: gelen para gelir, giden para kişilere gönderilen sayılır. Gönderdiğiniz paranın girdiği hesap
+  belgelerde yoksa, o bankadaki hesabınızın bakiye notu bunu söyler.
+
 ## [0.9.14] — 2026-11-10 — Okunan iletiler ve TEB cüzdanı
 
 ### Eklenenler

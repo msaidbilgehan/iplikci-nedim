@@ -6,7 +6,7 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-10): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.14). Between Phases 6 and 7 came
+Status (2026-11-10): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.15). Between Phases 6 and 7 came
 the interface's simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab
 (v0.7.3), documents known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked
 against the documents (v0.7.6). Next is the 1.0 release, whose conditions are partly time-bound (roadmap "Sürüm 1.0"
@@ -225,6 +225,8 @@ says what the waiting must show; check them once their time has passed).
     the own transfers sent after its day to its account, or only to its bank (`analysis.sent_after`,
     `insights.sent_after_note`): money that left one account and is in no document of the other. The overdraft step
     dates a debt an older document tells ("… itibarıyla").
+- v0.9.15: a transfer row that names someone else whom no rule names (`analysis._resolve_transfers`'s strangers)
+  never pairs by amount as an own transfer's other side; it ends as income or money sent to a person. Otherwise someone's payment into a documented account could take the place of an own FAST that reached an account no document shows; that account's balance note tells the FAST (`analysis.sent_after`).
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 
