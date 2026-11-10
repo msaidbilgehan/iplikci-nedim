@@ -4,6 +4,32 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.9.16] — 2026-11-10 — Uygulamadan paylaşılan dekontlar ve TEB cüzdanı
+
+### Eklenenler
+
+- Vakıfbank'ın uygulamasından paylaşılan dekont (PDF) okunur. Önceden "ekstre veya hesap hareketi değil" diye arşive
+  alınıyor, içindeki para hareketi okunmuyordu. Dekontu Belge ekle ekranından, gelen klasöründen ya da Telegram botuna
+  göndererek ekleyin. Dekont, hesap dökümü gelmeden önce parayı gösterir; döküm gelince onun satırı sayılır. Aynı
+  FAST'in e-posta bildirimi ya da aynı dekontun ikinci bir kopyası da gelirse hareket bir kez sayılır.
+- TEB'in iki TEB hesabınız arasındaki havalenin dekontu ("Banka İçi Para Transfer Dekontu") okunur. Aynı yollarla
+  eklenir.
+- Daha önce eklenip okunmayan dekontlar güncellemeyle kendiliğinden okunur.
+
+### Düzeltilenler
+
+- TEB'in Dijital Hesap Cüzdanı'nda iki satıra bölünen açıklamalar okunmuyordu ("… den gelen" / "havale tutarı",
+  "… no.lu Kredi Kartına Ödenen" / "Tutar"). TEB böyle bir açıklamanın bir satırını hareketin üstüne, öbürünü altına
+  yazar. Okuyucu bu hareketleri atlıyor, üstteki satırı bir önceki hareketin açıklamasına ekliyordu. Bu yüzden hesaba
+  gelen havaleler ve karta yapılan ödemeler eksik kalıyordu. Vadeli hesaba aktarılan para da kişilere gönderilmiş
+  görünüyordu; cüzdan doğrulanmıyor, okuyucu biçim alarmı veriyordu. Artık her açıklama satırı kendi hareketine
+  verilir. Daha önce eklenen cüzdanlar güncellemeyle kendiliğinden yeniden okunur.
+- Faiz işleyen TEB hesabı (ör. CEPTETEB Marifetli) vadeli hesap sayılır. Türünde "Vadeli" yazmasa da cüzdanı
+  bakiyenin altına yıllık brüt faiz oranını yazar; bu yeter.
+- Bir hesabın türü ve adı artık, önce bir dekont gelmiş olsa da, o hesabın ekstresinden ya da dökümünden gelir.
+  Önceden hesabı ilk anlatan belge geçerliydi. Örneğin cüzdandan önce gelen bir havale dekontu, vadeli hesabı
+  "Vadesiz" gösterecekti.
+
 ## [0.9.15] — 2026-11-10 — Başkasının parası kendi aktarmanız sayılmaz
 
 ### Düzeltilenler

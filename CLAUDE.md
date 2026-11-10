@@ -6,7 +6,7 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-10): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.15). Between Phases 6 and 7 came
+Status (2026-11-10): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.16). Between Phases 6 and 7 came
 the interface's simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab
 (v0.7.3), documents known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked
 against the documents (v0.7.6). Next is the 1.0 release, whose conditions are partly time-bound (roadmap "Sürüm 1.0"
@@ -227,6 +227,18 @@ says what the waiting must show; check them once their time has passed).
     dates a debt an older document tells ("… itibarıyla").
 - v0.9.15: a transfer row that names someone else whom no rule names (`analysis._resolve_transfers`'s strangers)
   never pairs by amount as an own transfer's other side; it ends as income or money sent to a person. Otherwise someone's payment into a documented account could take the place of an own FAST that reached an account no document shows; that account's balance note tells the FAST (`analysis.sent_after`).
+- v0.9.16: the receipts the banks' apps share, and TEB's cüzdan as the bank lays it out.
+  - The cüzdan centres a row's cells on its height: a description of two lines prints one above and one below the
+    line of the row's number, day and amounts, which holds none of its words. `parsers/teb/passbook` (v2) gives every
+    line of the description column to the nearest row; v1 dropped such rows and glued the line above to the row
+    before. An account that prints `Brüt Faiz Oranı (Yıllık)` earns interest and is a deposit (CEPTETEB Marifetli).
+  - A list's account takes the place of one a receipt that came first named (`analysis.build`): a receipt knows less
+    of an account than a list, a notice less than a receipt.
+  - `vakifbank.receipt` reads the app's FAST dekont: two label and value pairs a row, cells wrapped in their column
+    and centred on their row (`parsers.pdf.cells` splits a line into its cells). It names no account of the sender,
+    so `resolve_masked` moves its row; its key is the İŞLEM NO, so its Telegram and e-mail copies are one.
+    `teb.transfer_receipt` reads "Banka İçi Para Transfer Dekontu": one account's movement with its sign, keyed by the
+    account and the İşlem No.
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 
@@ -382,7 +394,8 @@ v0.9.2 added `app/sayings` (İplikçi Nedim's lines by the money's situation); i
 the faces. v0.9.4 added `components/charts/open` (where a chart's parts lead) and `lib/rows` (where a month's rows
 are) in `web/`. v0.9.13 added `app/telegram` (the bot's conversation: pairing, its messages, the document job) and
 `ingest/telegram` (the bot's ear). v0.9.14 added `parsers/teb/passbook` and, in `extension/`, the content script
-(`content.ts`, `gmail/visible`) with `bridge/seen` and `bridge/turns`.
+(`content.ts`, `gmail/visible`) with `bridge/seen` and `bridge/turns`. v0.9.16 added `parsers/teb/transfer_receipt`
+and `parsers/vakifbank/receipt`.
 The rest keeps the MVP's flat layout (`analysis`, `insights`, `month_end`, `report` with its `templates`, …) until the
 phases in the roadmap's MVP module table move it. Next to them: `fakes` (the fake document builders and every
 reader's specimens, shared with the tests and the demo), `demo` (the demo data folder), `baseline` (the verification

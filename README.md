@@ -193,6 +193,14 @@ Gmail açıkken okunan banka iletileri de alınır (v0.9.14):
 - Bir hesabın bakiyesi son belgesinin günündedir. O günden sonra o hesaba ya da o bankadaki bir hesabınıza
   gönderdiğiniz para bakiyenin notunda yazar.
 
+Uygulamalardan paylaşılan dekontlar da okunur (v0.9.16):
+
+- Vakıfbank'ın uygulamasından paylaşılan dekont ve TEB'in iki TEB hesabınız arasındaki havalenin dekontu ("Banka İçi
+  Para Transfer Dekontu") okunur. Onları Belge ekle ekranından ya da Telegram botuna göndererek ekleyin. Dekont,
+  hesap dökümü gelmeden önce parayı gösterir. Döküm gelince onun satırı sayılır; aynı hareket iki kez sayılmaz.
+- TEB'in hesap cüzdanında iki satıra bölünen açıklamalar artık okunur. Önceden bu hareketler atlanıyor, cüzdan
+  doğrulanmıyordu. Faiz işleyen TEB hesabı (ör. CEPTETEB Marifetli) vadeli hesap sayılır.
+
 Açık kalanlar: servisin yedi gün kendi başına çalışması (K19). Windows ve Linux'ta denemeler bekletiliyor (K25).
 
 MVP 2026-10-31'de emekliye ayrıldı. İplikçi Nedim onun kodundan başlar ama verisini devralmaz; belgeleri kendisi toplar.
