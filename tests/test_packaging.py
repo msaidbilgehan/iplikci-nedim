@@ -2,6 +2,7 @@
 script. Nothing here builds a package; the app's executable runs against a stand-in for its Python."""
 
 import importlib.util
+import io
 import shutil
 import subprocess
 import sys
@@ -299,3 +300,15 @@ def test_leaving_out_what_the_program_never_uses_keeps_the_standard_library_on_e
     build.prune(unix)
     assert (unix / "lib" / "python3.13" / "threading.py").is_file()
     assert not (unix / "lib" / "thread2.8.9").exists() and not (unix / "lib" / "python3.13" / "idlelib").exists()
+
+
+def test_the_build_writes_its_turkish_messages_on_a_console_whose_code_page_has_no_dotless_i(monkeypatch):
+    # The Windows runner's console encodes with cp1252: "Servis … açıldı" had ended the build after the service answered.
+    console = io.BytesIO()
+    stdout = io.TextIOWrapper(console, encoding="cp1252")
+    monkeypatch.setattr(sys, "stdout", stdout)
+    monkeypatch.setattr(sys, "stderr", io.TextIOWrapper(io.BytesIO(), encoding="cp1252"))
+    build_script().speak_utf8()
+    print("Servis açıldı ve yanıt verdi")
+    stdout.flush()
+    assert console.getvalue().decode("utf-8") == "Servis açıldı ve yanıt verdi\n"

@@ -19,6 +19,7 @@ The web interface must be built first (`npm run build` in web/). This is a devel
 system's packaging tools and, for the interpreter, uv's download; it never touches the data folder."""
 
 import argparse
+import io
 import json
 import os
 import platform
@@ -592,7 +593,16 @@ def windows(python_root: Path, out: Path, work: Path) -> Path:
     return out / f"{SLUG}-{version()}-windows-{arch()}.exe"
 
 
+def speak_utf8() -> None:
+    """Write the Turkish messages as UTF-8: a Windows console (and the Windows runner) encodes with its code page,
+    which has no "ı", and a message would end the build."""
+    for stream in (sys.stdout, sys.stderr):
+        if isinstance(stream, io.TextIOWrapper):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+
+
 def main() -> None:
+    speak_utf8()
     parser = argparse.ArgumentParser(description="Bu sistemin kurulum paketini dist/paket/ klasörüne üretir.")
     parser.add_argument("--cikti", type=Path, default=ROOT / "dist" / "paket", help="paketin yazılacağı klasör")
     args = parser.parse_args()
