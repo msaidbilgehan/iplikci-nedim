@@ -100,6 +100,19 @@ belge alımı açıkken (varsayılan) ve bir eşleştirme kodu açıkken. Eşle�
 denetimi aynı işlemeyi kullanır ve her ileti bir kez işlenir. Okuma 401 alırsa kanal, gönderimdeki gibi durur.
 Karşılama iletisi belge göndermeyi de anlatır. Ayrıntılar [ADR-0021](0021-telegram-documents.md)'de.
 
+## Not (2026-11-11, v0.9.18)
+
+Özet düzeyindeki bir bildirim hangi ödemeden söz ettiğini söylemiyordu: "İptal ettiğiniz bir abonelikten ödeme
+alındı: 249,90 TL." Kullanıcı hangisi olduğunu bilemiyordu. Artık özet, olayın neyle ilgili olduğunu da yazar:
+
+- Ödeme, gelir ve harcamada kategorisini: "İptal ettiğiniz bir abonelikten ödeme alındı (İnternet & Telefon): 249,90
+  TL."
+- Kartın son ödemesinde, kredi taksitinde, bir hesabın öngörüsünde ve dekontta hesabın bankasını: "Kart son ödemesi
+  (TEB) yarın: …".
+
+İşyerinin ya da kişinin adı ve hesabın son haneleri özet düzeyinde yine yazmaz; onlar tam düzeyindedir. Bu sürümden
+önce kaydedilmiş olaylar bu bilgiyi taşımaz ve özetleri eskisi gibidir. Alan mimarinin 13. bölümünde (`about`).
+
 ## Değerlendirilen seçenekler
 
 - **Web Push:** PWA'nın telefonda kurulu olmasını gerektirir; şimdilik kullanılmıyor (K5).

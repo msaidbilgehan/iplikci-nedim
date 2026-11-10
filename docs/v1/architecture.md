@@ -474,6 +474,10 @@ Aşama 5'in olaylarını her analizden sonra `feed/news.py` bulur. `target` bild
 saydığı gibi), tarihler ISO biçimindedir. `title` kullanıcının tanıdığı addır (işyeri, alıcı, ödeyen, satıcı ya da
 hesap), `account` hesap kimliğidir (bilinmiyorsa "").
 
+Her olay, adı olmadan neyle ilgili olduğunu da söyler (`about`, v0.9.18). Ödeme, gelir ve harcamada bu kategoridir
+("İnternet & Telefon", "Maaş"). Kartın son ödemesinde, kredi taksitinde, bir hesabın öngörüsünde ve dekontta hesabın
+bankasıdır ("TEB"). Kanalların özet düzeyi bunu yazar (ADR-0010). Kategorisi ya da bankası bilinmeyen olayda alan yoktur.
+
 | Olay | `target` | `detail` |
 |---|---|---|
 | `payment.due_soon` | `tür\|hesap\|başlık\|gün` | `payment` (`PaymentKind`), `title`, `account`, `due`, `days`, `amount`; kart son ödemesinde `minimum` |

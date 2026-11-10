@@ -153,6 +153,7 @@ def test_a_payment_is_told_a_week_three_days_and_a_day_before_and_on_its_day_onc
                 "days": 7,
                 "amount": "12500.75",
                 "minimum": "2500.15",
+                "about": "TEB",  # a card's due date is about its bank: its digits are the full level's
             },
         )
     ]
@@ -176,6 +177,7 @@ def test_a_regular_payment_is_due_soon_without_a_minimum_and_income_never():
         "due": "2026-12-03",
         "days": 7,
         "amount": "15000.00",
+        "about": "Kira",  # a payment is about its category: its payee is the full level's
     }
 
 
@@ -211,7 +213,14 @@ def test_a_balance_below_zero_names_the_account_its_first_day_and_the_balance_th
     (negative,) = finds(news.NEGATIVE, ds, date(2026, 11, 15))
     assert (negative.target, negative.detail) == (
         "cash|2026-12-03",
-        {"account": "cash", "title": "Örnek Vadesiz TL", "day": "2026-12-03", "days": 18, "balance": "-14000.00"},
+        {
+            "account": "cash",
+            "title": "Örnek Vadesiz TL",
+            "day": "2026-12-03",
+            "days": 18,
+            "balance": "-14000.00",
+            "about": "TEB",
+        },
     )
 
 
@@ -255,7 +264,7 @@ def test_a_payment_is_missing_when_the_documents_go_past_its_day_and_grace_witho
     (missing,) = finds(news.MISSING, dataset(RENT, lists, [LATER]), date(2026, 11, 20))
     assert (missing.target, missing.detail) == (
         f"{RENT[0].fingerprint}|2026-11-03",
-        {"title": "Ev kirası", "expected": "2026-11-03", "amount": "15000.00", "period": "month"},
+        {"title": "Ev kirası", "expected": "2026-11-03", "amount": "15000.00", "period": "month", "about": "Kira"},
     )
     # A list that covers the grace's last day tells it too, though the series now reads as ended (insights.settle).
     november = dataset(RENT, [*lists, account_list(date(2026, 11, 13), start=date(2026, 11, 1))])
@@ -297,7 +306,13 @@ def test_a_yearly_payment_that_did_not_come_names_its_period():
     # A year after the last, with as much grace as its period allows: until 10 December.
     ds = dataset(insurance, [account_list(date(2026, 10, 31))], [notice(date(2026, 12, 11), 500)])
     (missing,) = finds(news.MISSING, ds, date(2026, 12, 20))
-    assert missing.detail == {"title": "Örnek Sigorta", "expected": "2026-11-05", "amount": "4400.00", "period": "year"}
+    assert missing.detail == {
+        "title": "Örnek Sigorta",
+        "expected": "2026-11-05",
+        "amount": "4400.00",
+        "period": "year",
+        "about": "Sigorta",
+    }
 
 
 def test_an_income_is_late_when_the_documents_go_past_its_day_and_grace_without_it():
@@ -306,7 +321,7 @@ def test_an_income_is_late_when_the_documents_go_past_its_day_and_grace_without_
     (late,) = finds(news.LATE, dataset(SALARY, lists, [later]), date(2026, 11, 15))
     assert (late.target, late.detail) == (
         f"{SALARY[0].fingerprint}|2026-11-01",
-        {"title": "Örnek İşveren", "expected": "2026-11-01", "amount": "40000.00"},
+        {"title": "Örnek İşveren", "expected": "2026-11-01", "amount": "40000.00", "about": "Maaş"},
     )
     paid = tx(date(2026, 11, 1), "Örnek İşveren", -40000, "Maaş", INCOME)
     assert finds(news.LATE, dataset([*SALARY, paid], lists, [later]), date(2026, 11, 15)) == []
@@ -332,7 +347,13 @@ def test_a_new_price_is_told_once_from_the_payment_that_shows_it_holds():
             Change(
                 news.REPRICED,
                 f"{gym[0].fingerprint}|2026-07-05",
-                {"title": "Örnek Spor", "old": "1500.00", "new": "1640.00", "since": "2026-07-05"},
+                {
+                    "title": "Örnek Spor",
+                    "old": "1500.00",
+                    "new": "1640.00",
+                    "since": "2026-07-05",
+                    "about": "Dijital Abonelikler",
+                },
             )
         ],
         [],
@@ -379,7 +400,13 @@ def test_a_payment_after_the_cancellation_month_is_told_once_at_the_latest_one()
             Change(
                 news.PAID_AFTER_CANCEL,
                 f"{magazine[0].fingerprint}|2026-10-09",
-                {"title": "Örnek Dergi", "amount": "50.00", "date": "2026-10-09", "cancelled": "2026-08"},
+                {
+                    "title": "Örnek Dergi",
+                    "amount": "50.00",
+                    "date": "2026-10-09",
+                    "cancelled": "2026-08",
+                    "about": "Dijital Abonelikler",
+                },
             )
         ],
         [],
@@ -402,7 +429,13 @@ def test_a_new_row_of_a_regular_income_is_told_once_and_other_income_is_not():
             Change(
                 news.INCOME,
                 SALARY[5].fingerprint,
-                {"title": "Örnek İşveren", "amount": "40000.00", "account": "cash", "date": "2026-10-01"},
+                {
+                    "title": "Örnek İşveren",
+                    "amount": "40000.00",
+                    "account": "cash",
+                    "date": "2026-10-01",
+                    "about": "Maaş",
+                },
             )
         ],
         [],
@@ -444,7 +477,13 @@ def test_a_large_single_purchase_of_the_last_week_is_told_once():
             Change(
                 news.LARGE,
                 big.fingerprint,
-                {"title": "Örnek Elektronik", "amount": "12000.00", "account": "card", "date": "2026-11-10"},
+                {
+                    "title": "Örnek Elektronik",
+                    "amount": "12000.00",
+                    "account": "card",
+                    "date": "2026-11-10",
+                    "about": "Elektronik",
+                },
             )
         ],
         [],
@@ -482,7 +521,14 @@ def test_a_receipt_row_is_told_once_when_the_statement_covering_its_days_does_no
             Change(
                 news.UNMATCHED,
                 "cash:VELİ ÖRNEKSOY:2026-11-05",
-                {"title": "VELİ ÖRNEKSOY", "amount": "2500.00", "account": "cash", "date": "2026-11-05"},
+                # A receipt row is about its account's bank: the person it names is the full level's.
+                {
+                    "title": "VELİ ÖRNEKSOY",
+                    "amount": "2500.00",
+                    "account": "cash",
+                    "date": "2026-11-05",
+                    "about": "TEB",
+                },
             )
         ],
         [],
@@ -493,7 +539,13 @@ def test_an_unmatched_row_of_a_foreign_currency_account_is_valued_at_the_nearest
     line = notice(date(2026, 11, 6), 100, account="euro", status=NOT_ON_STATEMENT)
     rates = {"EUR": [(date(2026, 11, 1), Decimal("36.50")), (date(2026, 11, 20), Decimal("37.00"))]}
     (valued,) = news.unmatched(dataset(receipts=[line], rates=rates))
-    assert valued.detail == {"title": "VELİ ÖRNEKSOY", "amount": "3650.00", "account": "euro", "date": "2026-11-06"}
+    assert valued.detail == {
+        "title": "VELİ ÖRNEKSOY",
+        "amount": "3650.00",
+        "account": "euro",
+        "date": "2026-11-06",
+        "about": "TEB",
+    }
     (unvalued,) = news.unmatched(dataset(receipts=[line]))  # no rate printed anywhere: the amount stays in euros
     assert (unvalued.detail["amount"], unvalued.detail["currency"]) == ("100.00", "EUR")
 

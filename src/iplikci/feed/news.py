@@ -21,6 +21,10 @@ match. Each finder returns what it finds with what its notification says; the sn
 - `evidence.unmatched`: a receipt's or a bank notice's row the statement covering its days does not show.
 
 Amounts are TL with two decimals, as strings, money out above zero as the ledger counts it; days are ISO dates.
+Besides its title (the payee, the payer, the account) an event says what it is about in words that name no merchant,
+no person and no account's number (`about`, ADR-0010's note of v0.9.18): its category for a payment, an income or a
+purchase ("İnternet & Telefon", "Maaş"), its bank for a card's due date, a loan's installment, an account's forecast and
+a receipt row. A channel's summary level tells that much; without a category or a bank the event has no `about`.
 """
 
 from collections import defaultdict
@@ -93,9 +97,12 @@ def find(ds: Dataset, ins: Insights, today: date, dues: Sequence[CardDue] = ()) 
     statements."""
     items = upcoming(ds, ins, today, dues, since=counted_from(ds, today))
     confirmed = _confirmed(ds)
+    banks = {a.id: a.bank for a in ds.accounts.values()}
+    categories = {t.fingerprint: t.category for t in ds.transactions if t.fingerprint and t.category}
+    cards = {a.id for a in ds.accounts.values() if a.type in CARD_TYPES}
     return [
-        *due_soon(items, today, {a.id for a in ds.accounts.values() if a.type in CARD_TYPES}),
-        *negatives(forecast(ds, ins, today, items)),
+        *due_soon(items, today, cards, banks, categories),
+        *negatives(forecast(ds, ins, today, items), banks),
         *missing(ds, ins, today),
         *late(ds, ins, today),
         *repriced(ins, today),
@@ -106,13 +113,32 @@ def find(ds: Dataset, ins: Insights, today: date, dues: Sequence[CardDue] = ()) 
     ]
 
 
+def _about(detail: dict[str, Any], about: str) -> dict[str, Any]:
+    """The detail with what the event is about, when there is a word for it."""
+    return {**detail, "about": about} if about else detail
+
+
+def _category(s: Series) -> str:
+    """What a series is about without its payee's name: its last payment's category."""
+    return s.payments[-1].category if s.payments else ""
+
+
 # --- the days ahead ----------------------------------------------------------------------------------------------
 
 
-def due_soon(items: Iterable[Due], today: date, cards: Iterable[str] = ()) -> list[Found]:
+def due_soon(
+    items: Iterable[Due],
+    today: date,
+    cards: Iterable[str] = (),
+    banks: Mapping[str, str] | None = None,
+    categories: Mapping[str, str] | None = None,
+) -> list[Found]:
     """The items of the calendar the user has to see to (TO_PAY) a week or less away, each at the tightest of DUE_DAYS
-    its days left reach; a regular or periodic payment last made by one of the cards is the card's to pay."""
+    its days left reach; a regular or periodic payment last made by one of the cards is the card's to pay. banks:
+    each account's bank, categories: each row's category (by fingerprint), for what an item is about: a card's due date
+    and a loan's installment their bank, a payment the category of the newest row it rests on."""
     by_card = set(cards)
+    banks, categories = banks or {}, categories or {}
     found: list[Found] = []
     for item in items:
         days = (item.day - today).days
@@ -129,15 +155,21 @@ def due_soon(items: Iterable[Due], today: date, cards: Iterable[str] = ()) -> li
         }
         if item.kind == PaymentKind.CARD_DUE and item.minimum is not None:
             detail["minimum"] = money(item.minimum)
+        if item.kind in (PaymentKind.CARD_DUE, PaymentKind.LOAN):
+            about = banks.get(item.account, "")
+        else:
+            about = next((categories[fp] for fp in reversed(item.rows) if fp in categories), "")
         target = f"{item.kind}|{item.account}|{item.title}|{item.day.isoformat()}"
-        found.append(Found(DUE_SOON, target, detail, threshold=threshold))
+        found.append(Found(DUE_SOON, target, _about(detail, about), threshold=threshold))
     return found
 
 
-def negatives(fc: Forecast) -> list[Found]:
+def negatives(fc: Forecast, banks: Mapping[str, str] | None = None) -> list[Found]:
     """The bank accounts whose forecast goes below zero within its days and warns of it (AccountForecast.warning), at
-    the first such day; and the accounts' total, when it goes below zero after today."""
+    the first such day; and the accounts' total, when it goes below zero after today. An account's is about its bank
+    (banks: each account's)."""
     labels = {account.account: account.label for account in fc.accounts}
+    banks = banks or {}
     found: list[Found] = []
     for account, (day, balance) in fc.warnings:
         title = labels[account] if account else TOTAL
@@ -148,7 +180,9 @@ def negatives(fc: Forecast) -> list[Found]:
             "days": (day - fc.today).days,
             "balance": money(balance),
         }
-        found.append(Found(NEGATIVE, f"{account or 'toplam'}|{day.isoformat()}", detail))
+        found.append(
+            Found(NEGATIVE, f"{account or 'toplam'}|{day.isoformat()}", _about(detail, banks.get(account, "")))
+        )
     return found
 
 
@@ -196,7 +230,7 @@ def missing(ds: Dataset, ins: Insights, today: date) -> list[Found]:
             "amount": money(expected_amount(s)),
             "period": str(period),
         }
-        found.append(Found(MISSING, f"{series_id(s)}|{expected.isoformat()}", detail))
+        found.append(Found(MISSING, f"{series_id(s)}|{expected.isoformat()}", _about(detail, _category(s))))
     return found
 
 
@@ -209,7 +243,7 @@ def late(ds: Dataset, ins: Insights, today: date) -> list[Found]:
             "expected": expected.isoformat(),
             "amount": money(income_amount(s)),
         }
-        found.append(Found(LATE, f"{series_id(s)}|{expected.isoformat()}", detail))
+        found.append(Found(LATE, f"{series_id(s)}|{expected.isoformat()}", _about(detail, _category(s))))
     return found
 
 
@@ -223,7 +257,7 @@ def repriced(ins: Insights, today: date) -> list[Found]:
             continue
         old, new, since = change
         detail: dict[str, Any] = {"title": s.merchant, "old": money(old), "new": money(new), "since": since.isoformat()}
-        found.append(Found(REPRICED, f"{series_id(s)}|{since.isoformat()}", detail))
+        found.append(Found(REPRICED, f"{series_id(s)}|{since.isoformat()}", _about(detail, _category(s))))
     return found
 
 
@@ -249,7 +283,7 @@ def paid_after_cancelling(ds: Dataset, ins: Insights) -> list[Found]:
             "date": last.date.isoformat(),
             "cancelled": ds.ended[fold(s.merchant)],
         }
-        found.append(Found(PAID_AFTER_CANCEL, f"{series_id(s)}|{last.date.isoformat()}", detail))
+        found.append(Found(PAID_AFTER_CANCEL, f"{series_id(s)}|{last.date.isoformat()}", _about(detail, _category(s))))
     return found
 
 
@@ -280,7 +314,8 @@ def income_received(ins: Insights, today: date, confirmed: Mapping[str, tuple[st
                 "account": t.account,
                 "date": t.date.isoformat(),
             }
-            found.append(Found(INCOME, t.fingerprint, detail, rows=(t.fingerprint, *confirmed.get(t.fingerprint, ()))))
+            rows = (t.fingerprint, *confirmed.get(t.fingerprint, ()))
+            found.append(Found(INCOME, t.fingerprint, _about(detail, t.category or _category(s)), rows=rows))
     return sorted(found, key=lambda f: (f.detail["date"], f.target))
 
 
@@ -302,7 +337,8 @@ def large(ds: Dataset, ins: Insights, today: date, confirmed: Mapping[str, tuple
                 "account": t.account,
                 "date": t.date.isoformat(),
             }
-            found.append(Found(LARGE, t.fingerprint, detail, rows=(t.fingerprint, *confirmed.get(t.fingerprint, ()))))
+            rows = (t.fingerprint, *confirmed.get(t.fingerprint, ()))
+            found.append(Found(LARGE, t.fingerprint, _about(detail, t.category), rows=rows))
     return found
 
 
@@ -325,6 +361,8 @@ def unmatched(ds: Dataset) -> list[Found]:
         }
         account = ds.accounts.get(t.account)
         currency = account.currency if account is not None else TRY
+        if account is not None and account.bank:
+            detail["about"] = account.bank
         if currency != TRY:
             rate = row_rate(ds.rates, ds.book, currency, t)
             if rate is None:

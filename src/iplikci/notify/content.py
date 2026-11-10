@@ -1,7 +1,10 @@
 """What a notification says, at each level of detail (ADR-0010): in full the event, the amount, the merchant or other
-party and the account's last digits; in summary the event and the amount; at the least only the kind of event, the
-rest being in the app. The texts are Turkish and are made from the event alone (its kind, target and detail, as the
-feed writes them: architecture §13), so a notification says what was true when it happened."""
+party and the account's last digits; in summary the event, the amount and what it is about in words that name no
+merchant, person or account number (the event's `about`: a category, a bank), so that "a subscription" says which;
+at the least only the kind of event, the rest being in the app. The texts are Turkish and are made from the event
+alone (its kind, target and detail, as the feed writes them: architecture §13), so a notification says what was true
+when it happened; an event an older version wrote has no `about`, and its summary says only the event and the
+amount."""
 
 import re
 from collections.abc import Mapping, Sequence
@@ -102,50 +105,57 @@ def _where(d: Mapping[str, Any]) -> str:
     return f" ({', '.join(parts)})" if parts else ""
 
 
+def _about(d: Mapping[str, Any]) -> str:
+    """What the event is about, in brackets: " (İnternet & Telefon)", " (TEB)"; "" when the event does not say."""
+    about = str(d.get("about", "")).strip()
+    return f" ({about})" if about else ""
+
+
 def _text(kind: EventKind, target: str, d: Mapping[str, Any], full: bool) -> str:
     # A row of a foreign-currency account no rate values stays in its currency, which the event names (§13).
     title, amount = str(d.get("title", "")), _tl(d.get("amount", ""), str(d.get("currency") or "TL"))
     if kind is E.PAYMENT_DUE_SOON:
         when, payment = _when(d.get("days")), _payment(d.get("payment"))
         if not full:
-            return f"{payment} {when}: {amount}."
+            return f"{payment}{_about(d)} {when}: {amount}."
         minimum = f" Asgari ödeme {_tl(d['minimum'])}." if d.get("minimum") else ""
         return f"{title} · {payment}: {when} ({_day(d.get('due'))}), {amount}.{minimum}"
     if kind is E.BALANCE_FORECAST_NEGATIVE:
         when, balance = _when(d.get("days")), _tl(d.get("balance", ""))
         if not full:
-            return f"Öngörüye göre bakiye {when} eksiye düşüyor: {balance}."
+            subject = f"bakiye{_about(d)}" if d.get("account") else "hesaplarınızın toplamı"
+            return f"Öngörüye göre {subject} {when} eksiye düşüyor: {balance}."
         return f"{title}: öngörüye göre bakiye {_day(d.get('day'))} günü ({when}) {balance} olacak."
     if kind is E.EXPECTED_PAYMENT_MISSING:
         if not full:
-            return f"Beklenen bir ödeme görünmedi: {amount}."
+            return f"Beklenen bir ödeme görünmedi{_about(d)}: {amount}."
         return f"{title}: {_day(d.get('expected'))} günü beklenen {amount} ödeme görünmedi."
     if kind is E.INCOME_RECEIVED:
-        return f"{title}: {amount} geldi{_where(d)}." if full else f"Gelir geldi: {amount}."
+        return f"{title}: {amount} geldi{_where(d)}." if full else f"Gelir geldi{_about(d)}: {amount}."
     if kind is E.INCOME_LATE:
         if not full:
-            return f"Beklenen bir gelir gecikti: {amount}."
+            return f"Beklenen bir gelir gecikti{_about(d)}: {amount}."
         return f"{title}: {_day(d.get('expected'))} günü beklenen {amount} henüz gelmedi."
     if kind is E.SUBSCRIPTION_PRICE_CHANGED:
         old, new = _tl(d.get("old", "")), _tl(d.get("new", ""))
         if not full:
             rose = _rose(d)
             if rose is None:
-                return f"Bir düzenli ödemenin tutarı değişti: {old} yerine {new}."
-            return f"Bir düzenli ödeme {'zamlandı' if rose else 'ucuzladı'}: {old} yerine {new}."
+                return f"Bir düzenli ödemenin tutarı değişti{_about(d)}: {old} yerine {new}."
+            return f"Bir düzenli ödeme {'zamlandı' if rose else 'ucuzladı'}{_about(d)}: {old} yerine {new}."
         return f"{title}: {_day(d.get('since'))} gününden beri {old} yerine {new} ödeniyor."
     if kind is E.SUBSCRIPTION_PAID_AFTER_CANCEL:
         if not full:
-            return f"İptal ettiğiniz bir abonelikten ödeme alındı: {amount}."
+            return f"İptal ettiğiniz bir abonelikten ödeme alındı{_about(d)}: {amount}."
         return (
             f"{title}: kurallarınızda {_month(str(d.get('cancelled', '')))} sonunda bittiği yazıyor, ama "
             f"{_day(d.get('date'))} günü {amount} ödendi. Aboneliği kontrol edin."
         )
     if kind is E.TRANSACTION_LARGE:
-        return f"{title}: {amount}{_where(d)}." if full else f"Büyük harcama: {amount}."
+        return f"{title}: {amount}{_where(d)}." if full else f"Büyük harcama{_about(d)}: {amount}."
     if kind is E.EVIDENCE_UNMATCHED:
         if not full:
-            return f"Bir dekont ekstrede görünmüyor: {amount}."
+            return f"Bir dekont ekstrede görünmüyor{_about(d)}: {amount}."
         return f"{title}: {amount} tutarındaki dekont kapsayan ekstrede görünmüyor{_where(d)}."
     return _plain(kind, target, d)
 

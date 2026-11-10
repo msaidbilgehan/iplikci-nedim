@@ -118,7 +118,8 @@ def test_a_due_date_is_told_in_full_in_summary_or_only_by_its_kind():
         "TEB Bonus •1234 · Kart son ödemesi: 3 gün sonra (20.11.2026), 1.234,56 TL. Asgari ödeme 246,91 TL.",
     )
     summary = content.render(E.PAYMENT_DUE_SOON, "k", due(1).detail, DetailLevel.SUMMARY)
-    assert summary.body == "Kart son ödemesi yarın: 1.234,56 TL."  # no merchant, no account
+    # No merchant, no account; an event an older version wrote says nothing of what it is about either.
+    assert summary.body == "Kart son ödemesi yarın: 1.234,56 TL."
     minimal = content.render(E.PAYMENT_DUE_SOON, "k", due(0).detail, DetailLevel.MINIMAL)
     assert minimal.body == "Son ödeme yaklaşıyor — ayrıntı uygulamada."
 
@@ -149,6 +150,75 @@ def test_a_regular_payments_new_price_says_whether_it_rose_or_fell(old, new, tit
     assert minimal.body == f"{title} — ayrıntı uygulamada."
     # A detail without both prices is titled by the kind alone.
     assert content.title(E.SUBSCRIPTION_PRICE_CHANGED, {"title": "Örnek Dernek"}) == "Düzenli ödeme tutarı değişti"
+
+
+@pytest.mark.parametrize(
+    ("kind", "detail", "summary"),
+    [
+        (
+            E.SUBSCRIPTION_PAID_AFTER_CANCEL,
+            {"title": "ÖRNEK İNTERNET", "amount": "249.90", "date": "2026-11-10", "cancelled": "2026-10"},
+            "İptal ettiğiniz bir abonelikten ödeme alındı (İnternet & Telefon): 249,90 TL.",
+        ),
+        (
+            E.SUBSCRIPTION_PRICE_CHANGED,
+            {"title": "ÖRNEK İNTERNET", "old": "199.90", "new": "249.90", "since": "2026-10-10"},
+            "Bir düzenli ödeme zamlandı (İnternet & Telefon): 199,90 TL yerine 249,90 TL.",
+        ),
+        (
+            E.PAYMENT_DUE_SOON,
+            {"payment": "card_due", "title": "TEB Bonus •1234", "account": "teb-1234", "days": 1, "amount": "1234.56"},
+            "Kart son ödemesi (TEB) yarın: 1.234,56 TL.",
+        ),
+        (
+            E.EXPECTED_PAYMENT_MISSING,
+            {"title": "VELİ ÖRNEKSOY", "expected": "2026-11-03", "amount": "15000", "about": "Kira"},
+            "Beklenen bir ödeme görünmedi (Kira): 15.000,00 TL.",
+        ),
+        (
+            E.INCOME_RECEIVED,
+            {"title": "ÖRNEK İŞVEREN", "amount": "40000", "account": "teb-1234", "date": "2026-11-01", "about": "Maaş"},
+            "Gelir geldi (Maaş): 40.000,00 TL.",
+        ),
+        (
+            E.INCOME_LATE,
+            {"title": "ÖRNEK İŞVEREN", "expected": "2026-11-01", "amount": "40000", "about": "Maaş"},
+            "Beklenen bir gelir gecikti (Maaş): 40.000,00 TL.",
+        ),
+        (
+            E.TRANSACTION_LARGE,
+            {
+                "title": "ÖRNEK MAĞAZA",
+                "amount": "6500",
+                "account": "teb-1234",
+                "date": "2026-11-01",
+                "about": "Elektronik",
+            },
+            "Büyük harcama (Elektronik): 6.500,00 TL.",
+        ),
+        (
+            E.EVIDENCE_UNMATCHED,
+            {"title": "VELİ ÖRNEKSOY", "amount": "2500", "account": "teb-1234", "date": "2026-11-05"},
+            "Bir dekont ekstrede görünmüyor (TEB): 2.500,00 TL.",
+        ),
+    ],
+)
+def test_a_summary_says_what_its_event_is_about_and_never_whom(kind, detail, summary):
+    # The event's `about` is a category or a bank (feed.news): enough to tell which, without the payee or the digits.
+    about = "TEB" if kind in (E.PAYMENT_DUE_SOON, E.EVIDENCE_UNMATCHED) else "İnternet & Telefon"
+    said = content.render(kind, "k", {"about": about, **detail}, DetailLevel.SUMMARY).body
+    assert said == summary
+    assert detail["title"] not in said and "•" not in said
+
+
+def test_a_balance_below_zero_is_told_in_summary_by_its_bank_or_as_the_total():
+    account = {"account": "teb-1234", "title": "TEB Vadesiz TL 1234", "day": "2026-11-20", "days": 3, "about": "TEB"}
+    said = content.render(E.BALANCE_FORECAST_NEGATIVE, "k", {**account, "balance": "-500"}, DetailLevel.SUMMARY)
+    assert said.body == "Öngörüye göre bakiye (TEB) 3 gün sonra eksiye düşüyor: -500,00 TL."
+    total = {"account": "", "title": "Hesaplarınızın toplamı", "day": "2026-11-20", "days": 3, "balance": "-500"}
+    assert content.render(E.BALANCE_FORECAST_NEGATIVE, "k", total, DetailLevel.SUMMARY).body == (
+        "Öngörüye göre hesaplarınızın toplamı 3 gün sonra eksiye düşüyor: -500,00 TL."
+    )
 
 
 def test_a_month_and_one_event_for_many_are_told_plainly():
