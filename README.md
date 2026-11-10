@@ -201,6 +201,12 @@ Uygulamalardan paylaşılan dekontlar da okunur (v0.9.16):
 - TEB'in hesap cüzdanında iki satıra bölünen açıklamalar artık okunur. Önceden bu hareketler atlanıyor, cüzdan
   doğrulanmıyordu. Faiz işleyen TEB hesabı (ör. CEPTETEB Marifetli) vadeli hesap sayılır.
 
+Bildirimler neyle ilgili olduğunu söyler (v0.9.18):
+
+- Telegram'a ve masaüstüne giden her bildirim, işyerinin adını yazmadan neyle ilgili olduğunu söyler: ödemede
+  kategorisini ("İnternet & Telefon"), kart son ödemesinde bankasını ("TEB"). Adları da görmek isterseniz
+  Bildirimler → Kanallar'da Telegram'ın ayrıntısını "Tam" seçin.
+
 Açık kalanlar: servisin yedi gün kendi başına çalışması (K19). Windows ve Linux'ta denemeler bekletiliyor (K25).
 
 MVP 2026-10-31'de emekliye ayrıldı. İplikçi Nedim onun kodundan başlar ama verisini devralmaz; belgeleri kendisi toplar.

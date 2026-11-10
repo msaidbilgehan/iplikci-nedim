@@ -4,6 +4,20 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.9.18] — 2026-11-11 — Bildirimler neyle ilgili olduğunu söyler
+
+### Düzeltilenler
+
+- Telegram'a ve masaüstüne giden bildirimler hangi ödemeden söz ettiğini söylemiyordu: "İptal ettiğiniz bir
+  abonelikten ödeme alındı: 249,90 TL." Artık her bildirim neyle ilgili olduğunu da yazar. Ödemelerde, gelirlerde ve
+  harcamalarda kategorisini ("İnternet & Telefon", "Maaş"), kart son ödemesinde, kredi taksitinde, bakiye öngörüsünde
+  ve dekontlarda bankasını ("TEB") yazar. Örneğin: "İptal ettiğiniz bir abonelikten ödeme alındı (İnternet & Telefon):
+  249,90 TL."
+- Hesaplarınızın toplamı eksiye düşecekse bildirim bunu "hesaplarınızın toplamı" diye söyler.
+- İşyerinin ya da kişinin adı ve hesap numarası bu bildirimlerde yine yazmaz, çünkü Telegram iletileri uçtan uca
+  şifreli değildir. Adları da görmek isterseniz Bildirimler → Kanallar'da Telegram'ın ayrıntısını "Tam" seçin.
+- Güncellemeden önce gönderilmiş bildirimler değişmez.
+
 ## [0.9.17] — 2026-11-10 — İş Bankası'nda hesaplarınız arası aktarma
 
 ### Düzeltilenler
