@@ -293,11 +293,29 @@ def test_the_app_command_opens_the_browser_or_says_why_it_could_not(ws, monkeypa
     monkeypatch.setenv("IPLIKCI_HOME", str(ws.home))
     monkeypatch.setattr(dialog, "say", lambda text, *args, **kwargs: said.append(text))
     monkeypatch.setattr("webbrowser.open", lambda url: browsed.append(url) or True)
-    monkeypatch.setattr(launcher, "open_app", lambda *args: launcher.Opened("http://127.0.0.1/giris", True, True))
+    monkeypatch.setattr(
+        launcher, "open_app", lambda *args, **kwargs: launcher.Opened("http://127.0.0.1/giris", True, True)
+    )
     assert main(["uygulama"]) == 0 and browsed == ["http://127.0.0.1/giris"] and said == []
 
-    def refused(*args):
+    def refused(*args, **kwargs):
         raise launcher.LaunchError("İplikçi Nedim'i önce Uygulamalar klasörüne taşıyın.")
 
     monkeypatch.setattr(launcher, "open_app", refused)
     assert main(["uygulama"]) == 1 and said == ["İplikçi Nedim'i önce Uygulamalar klasörüne taşıyın."]
+
+
+def test_the_quiet_app_command_starts_the_service_without_a_login_link_or_a_browser(ws, monkeypatch):
+    # The Windows setup runs it at the end of a silent update (ADR-0022): no window, no browser, no login link.
+    links: list[str] = []
+    browsed: list[str] = []
+    monkeypatch.setenv("IPLIKCI_HOME", str(ws.home))
+    monkeypatch.setattr("webbrowser.open", lambda url: browsed.append(url) or True)
+
+    def open_app(service_ws, *args, login=None, **kwargs):
+        links.append(login(service_ws))
+        return launcher.Opened(links[-1], True, True)
+
+    monkeypatch.setattr(launcher, "open_app", open_app)
+    assert main(["uygulama", "--sessiz"]) == 0
+    assert links == [""] and browsed == []

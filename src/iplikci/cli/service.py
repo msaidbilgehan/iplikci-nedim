@@ -318,18 +318,31 @@ def app_command(argv: list[str]) -> int:
         "açılışta kurulum sihirbazı açılır. Kurulum paketinin başlatıcısı bunu çalıştırır ve sorunları bir pencerede "
         "söyler.",
     )
-    parser.parse_args(argv)
+    parser.add_argument(
+        "--sessiz",
+        action="store_true",
+        help="tarayıcıyı açma: yalnızca servisi kaydet ve başlat (Windows'ta sessiz güncellemenin sonunda)",
+    )
+    args = parser.parse_args(argv)
     from ..service import dialog, launcher
 
     try:
         ws = Workspace.load()
-        opened = launcher.open_app(ws, manager.for_platform(), sys.platform, Path(sys.executable))
+        opened = launcher.open_app(
+            ws,
+            manager.for_platform(),
+            sys.platform,
+            Path(sys.executable),
+            login=(lambda _ws: "") if args.sessiz else None,
+        )
     except (OSError, SettingsError) as exc:
         dialog.say(f"Veri klasörü açılamadı: {exc}")
         return 1
     except (launcher.LaunchError, manager.ManagerError) as exc:  # a development copy is refused here too
         dialog.say(str(exc))
         return 1
+    if args.sessiz:
+        return 0
     if not webbrowser.open(opened.url):
         dialog.say(f"Tarayıcı açılamadı. Arayüzü açmak için bu adresi tarayıcınıza yapıştırın:\n{opened.url}")
     return 0

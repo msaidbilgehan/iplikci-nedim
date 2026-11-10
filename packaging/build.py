@@ -5,9 +5,15 @@ exactly as an installed copy runs them.
 
     uv run python packaging/build.py        # into dist/paket/
 
-- macOS: "İplikçi Nedim.app" (ad-hoc signed, not notarized: K22) in a disk image.
-- Linux: an AppImage; appimagetool on the PATH or in APPIMAGETOOL.
-- Windows: the program's folder and an Inno Setup script, compiled into a setup program when ISCC is found.
+- macOS: "İplikçi Nedim.app" (ad-hoc signed, not notarized: K22) in a disk image, and the app archived by ditto as
+  the update file the installed program unpacks (ADR-0022).
+- Linux: an AppImage (appimagetool on the PATH or in APPIMAGETOOL), and its Python folder as a .tar.gz, the update file.
+- Windows: the program's folder and an Inno Setup script, compiled into a setup program when ISCC is found; the setup
+  program is also the update file, run without a window.
+
+Before anything is packaged, the installed program starts the service on an empty data folder and must answer with
+its version; each update file is then unpacked as the installed program would unpack it and its Python must say the
+version too. An update that cannot start is never made.
 
 The web interface must be built first (`npm run build` in web/). This is a development tool: it runs uv, the
 system's packaging tools and, for the interpreter, uv's download; it never touches the data folder."""
@@ -19,13 +25,21 @@ import platform
 import plistlib
 import posixpath
 import re
+import secrets
 import shutil
+import socket
 import subprocess
 import sys
+import tarfile
 import tempfile
+import time
 import tomllib
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any
+
+from iplikci.update import install as updater
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "packaging" / "assets"
@@ -35,6 +49,8 @@ NAME = "İplikçi Nedim"
 SLUG = "iplikci-nedim"
 BUNDLE_ID = "com.iplikci.app"
 LAUNCH = ("-I", "-X", "utf8", "-m", "iplikci", "uygulama")
+QUIET = "--sessiz"  # the app opened at the end of a silent update: the service registered, no browser (ADR-0022)
+SMOKE_SECONDS = 120.0  # how long the installed program may take to start the service and answer
 INSTALLED = (  # what the installed program must import; its last line is where it carries the extension
     "import iplikci.api.app, iplikci.parsers.registry; from iplikci.app import extension; "
     "print('iplikci', iplikci.__version__); print(extension.BUILT)"
@@ -206,6 +222,88 @@ def _named_in(manifest: dict[str, Any]) -> set[str]:
     }
 
 
+def free_port() -> int:
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return int(s.getsockname()[1])
+
+
+SMOKE_SETTINGS = """[server]
+port = {port}
+
+[notify]
+channels = []
+
+[fx]
+providers = ["document"]
+
+[updates]
+mode = "off"
+"""
+
+
+def smoke(python: Path, work: Path) -> None:
+    """The installed program starts the service on an empty data folder of its own and answers with its version
+    (ADR-0022: an update that cannot start is never published). Nothing leaves the computer: no channel, no rate
+    provider, no update check, a made-up API token instead of the keychain's."""
+    home = work / "deneme-veri"
+    home.mkdir()
+    port = free_port()
+    (home / "settings.toml").write_text(SMOKE_SETTINGS.format(port=port), encoding="utf-8")
+    env = {**os.environ, "IPLIKCI_HOME": str(home), "IPLIKCI_API_TOKEN": secrets.token_urlsafe(24)}
+    command = [str(python), "-I", "-X", "utf8", "-m", "iplikci", "servis", "calistir", "--ev", str(home)]
+    print("+", " ".join(command), flush=True)
+    log = (work / "deneme-servis.log").open("wb")
+    service = subprocess.Popen(command, env=env, stdout=log, stderr=subprocess.STDOUT)
+    try:
+        deadline = time.monotonic() + SMOKE_SECONDS
+        while not _answers(port):
+            if service.poll() is not None or time.monotonic() > deadline:
+                sys.exit(f"Kurulan program servisi başlatamadı:\n{_tail(work / 'deneme-servis.log')}")
+            time.sleep(0.5)
+        holder = json.loads((home / "run" / "servis.json").read_text(encoding="utf-8"))
+        if holder.get("version") != version():
+            sys.exit(f"Kurulan programın servisi {holder.get('version')!r} sürümü, {version()} değil")
+        print(f"Servis {version()} açıldı ve yanıt verdi (port {port})", flush=True)
+    finally:
+        service.terminate()
+        try:
+            service.wait(timeout=30)
+        except subprocess.TimeoutExpired:
+            service.kill()
+            service.wait(timeout=30)
+        log.close()
+
+
+def _answers(port: int) -> bool:
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/healthz", timeout=2) as answer:
+            return answer.status == 200
+    except (urllib.error.URLError, OSError):
+        return False
+
+
+def _tail(path: Path, lines: int = 40) -> str:
+    try:
+        return "\n".join(path.read_text(encoding="utf-8", errors="replace").splitlines()[-lines:])
+    except OSError:
+        return ""
+
+
+def check_update_file(unpack: updater.Unpack, archive: Path, python_inside: str, work: Path) -> None:
+    """The update file unpacks as the installed program unpacks it (update.install), and its Python says this
+    version."""
+    into = work / "guncelleme-denemesi"
+    shutil.rmtree(into, ignore_errors=True)
+    into.mkdir()
+    unpack(archive, into)
+    said = updater.probe(into / python_inside)
+    if said != version():
+        sys.exit(f"Güncelleme dosyasındaki program {said!r} sürümü, {version()} değil: {archive.name}")
+    print(f"Güncelleme dosyası açıldı ve {said} sürümünü söyledi: {archive.name}", flush=True)
+    shutil.rmtree(into, ignore_errors=True)
+
+
 MISPLACED = (  # as service/launcher.misplaced says it, for an app that cannot run its Python from where it is
     "İplikçi Nedim'i önce Uygulamalar klasörüne taşıyın, sonra oradan açın. Disk görüntüsünden ya da indirildiği "
     "yerden açılan uygulama her açılışta başka bir yerde çalışır; arka plan servisi onu bulamaz."
@@ -270,6 +368,10 @@ def macos(python_root: Path, out: Path, work: Path) -> Path:
         )
     )
     run("codesign", "--force", "--deep", "--sign", "-", app)  # ad-hoc: no Apple account, nothing notarized (K22)
+    update = out / f"{SLUG}-{version()}-macos-{arch()}.zip"  # the update file: the app with its attributes (ADR-0022)
+    update.unlink(missing_ok=True)
+    run("ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", app, update)
+    check_update_file(updater.unpack_app, update, f"{app.name}/Contents/Resources/python/bin/python3", work)
     staging = work / "dmg"
     staging.mkdir()
     shutil.move(app, staging / app.name)
@@ -302,7 +404,17 @@ if [ -z "$version" ]; then
     say "İplikçi Nedim açılamadı: indirilen paket bozuk. Paketi yeniden indirip açın."
     exit 1
 fi
-target="$HOME/.local/lib/iplikci/$version"
+copies="$HOME/.local/lib/iplikci"
+# The program updates itself into a copy of a newer version beside this one (ADR-0022): this AppImage, kept where the
+# user opens it from, then runs the newest whole copy rather than copying an older Python again.
+newest="$(ls -1 "$copies" 2>/dev/null | grep -E '^[0-9]+(\\.[0-9]+)*$' | sort -t. -k1,1n -k2,2n -k3,3n -k4,4n | tail -n 1)"
+if [ -n "$newest" ] && [ "$newest" != "$version" ] && [ -x "$copies/$newest/bin/python3" ]; then
+    highest="$(printf '%s\\n%s\\n' "$newest" "$version" | sort -t. -k1,1n -k2,2n -k3,3n -k4,4n | tail -n 1)"
+    if [ "$highest" = "$newest" ]; then
+        exec "$copies/$newest/bin/python3" LAUNCH
+    fi
+fi
+target="$copies/$version"
 if [ ! -x "$target/bin/python3" ]; then
     rm -rf "$target"  # a copy without its Python (cut short, or partly removed) is made again whole
     temp="$target.yeni.$$"  # this start's own: a start beside it copies into a folder of its own
@@ -338,7 +450,18 @@ def apprun() -> str:
     return APPRUN.replace("LAUNCH", " ".join(LAUNCH))
 
 
+def copy_archive(python_root: Path, archive: Path) -> None:
+    """The Python folder as the Linux update file: its entries at the archive's root, links kept as links."""
+    archive.unlink(missing_ok=True)
+    with tarfile.open(archive, "w:gz") as tar:
+        for entry in sorted(python_root.iterdir()):
+            tar.add(entry, arcname=entry.name)
+
+
 def linux(python_root: Path, out: Path, work: Path) -> Path:
+    update = out / f"{SLUG}-{version()}-linux-{arch()}.tar.gz"  # the update file (ADR-0022)
+    copy_archive(python_root, update)
+    check_update_file(updater.unpack_copy, update, "bin/python3", work)
     appdir = work / "AppDir"
     appdir.mkdir()
     shutil.copytree(python_root, appdir / "python", symlinks=True)
@@ -397,8 +520,10 @@ Name: "{{userdesktop}}\\İplikçi Nedim"; Filename: "{{app}}\\python\\pythonw.ex
 IconFilename: "{{app}}\\iplikci.ico"; Tasks: desktopicon
 
 [Run]
-; Always: after an update the app registers the service again.
+; Always: after an update the app registers the service again. Run by hand, it opens the interface too; run silently by
+; the program's own update (ADR-0022), it registers and starts the service without a browser.
 Filename: "{{app}}\\python\\pythonw.exe"; Parameters: "{launch}"; Flags: nowait skipifsilent
+Filename: "{{app}}\\python\\pythonw.exe"; Parameters: "{launch} {quiet}"; Flags: nowait runhidden; Check: WizardSilent
 
 [UninstallRun]
 Filename: "{{app}}\\python\\python.exe"; Parameters: "-I -X utf8 -m iplikci servis kaldir"; Flags: runhidden; \
@@ -438,6 +563,7 @@ def inno_script(out: Path | str, source: Path | str) -> str:
         icon=ASSETS / "iplikci.ico",
         source=source,
         launch=" ".join(LAUNCH),
+        quiet=QUIET,
         stopped=SERVICE_NOT_STOPPED,
     )
 
@@ -477,6 +603,7 @@ def main() -> None:
         python_root = standalone_python(work)
         install_program(interpreter(python_root), work)
         prune(python_root)
+        smoke(interpreter(python_root), work)
         if sys.platform == "darwin":
             made = macos(python_root, out, work)
         elif sys.platform.startswith("linux"):

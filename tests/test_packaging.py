@@ -11,6 +11,7 @@ from types import ModuleType
 import pytest
 
 from iplikci.service import launcher
+from iplikci.update import install as updater
 
 BUILD = Path(__file__).resolve().parents[1] / "packaging" / "build.py"
 MARK = "com.apple.quarantine"
@@ -144,6 +145,64 @@ def test_an_appimage_that_cannot_copy_its_python_says_so_in_the_desktops_window(
     shown = (tmp_path / "masaustu" / "zenity.gosterdi").read_text(encoding="utf-8")
     assert "--error" in shown and "İplikçi Nedim açılamadı: çalışma ortamı" in shown
     assert not list((tmp_path / "ev" / ".local" / "lib" / "iplikci").iterdir())  # nothing half made stays
+
+
+@POSIX
+def test_an_older_appimage_runs_the_newest_copy_the_program_updated_itself_into(tmp_path):
+    script, env = appimage(tmp_path)  # version 9.9.9
+    copies = tmp_path / "ev" / ".local" / "lib" / "iplikci"
+    newer = copies / "9.10.0" / "bin" / "python3"
+    newer.parent.mkdir(parents=True)
+    newer.write_text('#!/bin/sh\necho "yeni: $0 $*"\n', encoding="utf-8")
+    newer.chmod(0o755)
+    (copies / "9.11.0.yeni.42" / "bin").mkdir(parents=True)  # an unpacking under way is no copy
+    done = start(script, env)
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.strip() == f"yeni: {newer} -I -X utf8 -m iplikci uygulama"
+    assert sorted(p.name for p in copies.iterdir()) == ["9.10.0", "9.11.0.yeni.42"]  # its own Python was not copied
+
+
+@POSIX
+def test_a_newer_appimage_copies_its_own_python_over_older_copies(tmp_path):
+    script, env = appimage(tmp_path)  # version 9.9.9
+    copies = tmp_path / "ev" / ".local" / "lib" / "iplikci"
+    older = copies / "9.8.0" / "bin" / "python3"
+    older.parent.mkdir(parents=True)
+    older.write_text('#!/bin/sh\necho "eski"\n', encoding="utf-8")
+    older.chmod(0o755)
+    done = start(script, env)
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.strip() == f"çalıştı: {copies}/9.9.9/bin/python3 -I -X utf8 -m iplikci uygulama"
+
+
+def test_a_silent_windows_update_opens_the_app_without_a_browser():
+    script = build_script().inno_script("C:\\cikti", "C:\\kaynak")
+    run = script[script.index("[Run]") : script.index("[UninstallRun]")]
+    lines = [line for line in run.splitlines() if line.startswith("Filename:")]
+    assert len(lines) == 2
+    assert "skipifsilent" in lines[0] and "--sessiz" not in lines[0]
+    assert '-m iplikci uygulama --sessiz"' in lines[1] and "Check: WizardSilent" in lines[1]
+
+
+def test_the_linux_update_file_holds_the_python_folder_at_its_root_with_its_links(tmp_path):
+    build = build_script()
+    root = tmp_path / "python"
+    (root / "bin").mkdir(parents=True)
+    (root / "bin" / "python3.13").write_text("python", encoding="utf-8")
+    (root / "bin" / "python3").symlink_to("python3.13")
+    (root / "lib").mkdir()
+    archive = tmp_path / "kopya.tar.gz"
+    build.copy_archive(root, archive)
+    into = tmp_path / "acilan"
+    into.mkdir()
+    updater.unpack_copy(archive, into)  # as the installed program unpacks it
+    assert (into / "bin" / "python3").is_symlink() and (into / "bin" / "python3").read_text() == "python"
+    assert sorted(p.name for p in into.iterdir()) == ["bin", "lib"]
+
+
+def test_the_smoke_settings_keep_the_trial_service_off_the_network():
+    text = build_script().SMOKE_SETTINGS.format(port=1234)
+    assert 'mode = "off"' in text and 'providers = ["document"]' in text and "channels = []" in text
 
 
 def test_a_windows_update_takes_the_service_off_and_replaces_the_whole_python():
