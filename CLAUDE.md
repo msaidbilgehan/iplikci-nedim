@@ -449,7 +449,7 @@ Fill this in as the phases land.
 
 ```bash
 uv sync                                        # Python 3.13 and the locked dependencies
-uv run pre-commit install                      # ruff and gitleaks on every commit
+uv run pre-commit install                      # ruff and gitleaks on every commit; in the main checkout only
 uv run pytest -q                               # includes the demo workspace's golden baseline
 uv run ruff check && uv run ruff format --check
 uv run pyright                                 # strict on the V1 packages and the new parsers modules
@@ -488,7 +488,9 @@ uv run iplikci dev api-tipleri web/src/api/schema.ts   # the interface's API typ
 (cd extension && npm run package)              # the store package iplikci-kopru-<version>.zip
 ```
 
-`packaging/build.py` needs `web/` and `extension/` built first.
+`packaging/build.py` needs `web/` and `extension/` built first. The worktrees share `.git/hooks`: `pre-commit install`
+run in a worktree points the hook at that worktree's Python, and once the worktree is removed every commit fails
+with "`pre-commit` not found". Install it from the main checkout only.
 
 The service never runs from this folder when registered: `servis kur` needs a fixed copy (`uv tool install --reinstall
 --python 3.13 .`, built web interface included; without `--python` uv takes its newest Python), so a checked-out branch

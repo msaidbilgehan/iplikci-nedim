@@ -276,7 +276,7 @@ sürümü).
 
 ```bash
 uv sync                                          # Python 3.13 ve kilitli bağımlılıklar
-uv run pre-commit install                        # her commit'ten önce ruff ve gitleaks
+uv run pre-commit install                        # her commit'ten önce ruff ve gitleaks; yalnızca ana klasörde
 uv run pytest -q                                 # testler; demo çalışma alanının altın tabanı dahil
 uv run ruff check && uv run ruff format --check  # biçim ve kod denetimi
 uv run pyright                                   # yeni paketlerde katı tip denetimi
