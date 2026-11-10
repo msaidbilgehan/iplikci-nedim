@@ -26,6 +26,7 @@ const START: Cursor = {
   startDay: "2026-01-01",
   senders: [BANK, "isbank.com.tr"],
   historyDue: false,
+  carried: "",
 };
 
 describe("proof", () => {
@@ -80,6 +81,7 @@ function fakeService(options: ServiceOptions = {}) {
         start_day: where.startDay,
         senders: where.senders,
         history_due: where.historyDue,
+        extension_version: where.carried,
       });
     }
     if (url.pathname === "/api/ingest/mail") {
@@ -190,6 +192,13 @@ describe("deliverNew", () => {
     expect(scansFirst({ ...store.current, paired: null }, "0.2.0")).toBe(false);
     await deliverNew(environment(fakeGmail([]).fetcher, fakeService().fetcher).env, store);
     expect(scansFirst(store.current, "0.2.0")).toBe(false); // scanned meanwhile
+  });
+
+  it("keeps the version of the extension the program carries, as the cursor says it", async () => {
+    const store = memoryStore({ paired: PAIRED });
+    const carrying = fakeService({ cursor: { ...START, carried: "0.9.0" } });
+    await deliverNew(environment(fakeGmail([]).fetcher, carrying.fetcher).env, store);
+    expect(store.current.carried).toBe("0.9.0");
   });
 
   it("takes a service that says nothing of the history as having none to scan", async () => {

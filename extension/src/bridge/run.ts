@@ -86,7 +86,12 @@ async function attempt(env: RunEnvironment, store: Store, state: BridgeState): P
     const [outcome, detail] = serviceProblem(error) ?? ["failed", unexpected(error)];
     return done(outcome, detail);
   }
-  await store.update({ historyDue: where.historyDue, startDay: where.startDay, senders: where.senders });
+  await store.update({
+    historyDue: where.historyDue,
+    startDay: where.startDay,
+    senders: where.senders,
+    carried: where.carried,
+  });
   try {
     const originals = new Originals(env, store);
     let delivered = feed ? await deliverFresh(env, store, state, paired, where, originals) : 0;

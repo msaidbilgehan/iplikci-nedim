@@ -3,13 +3,15 @@
  * bank messages to the paired service, and those an open Gmail tab showed, read or not, as its content script tells
  * it; it pairs with a code typed into the extension's settings page and then scans Gmail for the history the service
  * lacks; it opens the service's interface for "İplikçi Nedim'i aç" (ADR-0019); it asks the service for İplikçi
- * Nedim's lines on the money the window shows (ADR-0020); and it runs the ADR-0016 verification for its own page. All
- * network work happens here, never in a page or a content script. The toolbar button opens the extension's window
- * (popup.html); its settings page is options.html.
+ * Nedim's lines on the money the window shows (ADR-0020); it runs the ADR-0016 verification for its own page; and,
+ * loaded unpacked, it loads itself again when the program carries a newer version of it (ADR-0022). All network work
+ * happens here, never in a page or a content script. The toolbar button opens the extension's window (popup.html); its
+ * settings page is options.html.
  */
 
 import { type Request, type Status, type TabRequest, asRequest, asTabRequest } from "./bridge/messages";
 import { openPanel } from "./bridge/panel";
+import { shouldRenew } from "./bridge/renew";
 import { type RunEnvironment, deliverNew } from "./bridge/run";
 import { hear } from "./bridge/sayings";
 import { scanGmail } from "./bridge/scan";
@@ -36,11 +38,11 @@ chrome.runtime.onInstalled.addListener(({ reason }) => {
 });
 chrome.runtime.onStartup.addListener(() => {
   void schedule();
-  void turns.run();
+  void runThenRenew();
 });
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === ALARM) {
-    void turns.run();
+    void runThenRenew();
   }
 });
 void schedule(); // an alarm may be gone after a browser restart
@@ -189,6 +191,29 @@ async function status(problem: string): Promise<Status> {
   };
 }
 
+/** A delivery run, then, once it is over, a newer version of this extension loaded if the program carries one. */
+async function runThenRenew(): Promise<void> {
+  await turns.run().catch(() => null);
+  await renewIfOlder();
+}
+
+/**
+ * Loaded unpacked and older than the version the program carries: load the extension again from its folder, which
+ * the service brought up to date (ADR-0022). Never during a scan of Gmail, and once for a version.
+ */
+async function renewIfOlder(): Promise<void> {
+  if (turns.scanning) {
+    return;
+  }
+  const state = await chromeStore.get();
+  const self = await chrome.management.getSelf();
+  if (!shouldRenew(state, chrome.runtime.getManifest().version, self.installType === "development")) {
+    return;
+  }
+  await chromeStore.update({ reloadedFor: state.carried });
+  chrome.runtime.reload();
+}
+
 /**
  * Pair with a code; the problem in Turkish, "" when it worked. The new service proves itself before it is kept, and
  * says whether it lacks the history.
@@ -208,6 +233,7 @@ async function pairWith(code: string): Promise<string> {
       historyDue: where.historyDue,
       startDay: where.startDay,
       senders: where.senders,
+      carried: where.carried,
       seen: [], // what the bridge knew of the messages was the service's paired before
       known: [],
     });

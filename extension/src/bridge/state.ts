@@ -76,6 +76,10 @@ export interface BridgeState {
   readonly senders: readonly string[];
   /** Gmail ids (decimal) of listed senders' messages an open Gmail tab showed, waiting for the next run. */
   readonly seen: readonly string[];
+  /** The version of this extension the program carries, as the service's cursor said last (ADR-0022). */
+  readonly carried: string;
+  /** The carried version this unpacked extension last loaded itself again for: never twice for one (renew.ts). */
+  readonly reloadedFor: string;
   /**
    * Gmail ids of messages there is nothing more to do for, lately: delivered by the bridge, or held already as the
    * service said. Neither an open Gmail tab's report nor the inbox feed downloads them again.
@@ -97,6 +101,8 @@ export const INITIAL: BridgeState = {
   startDay: "",
   senders: [],
   seen: [],
+  carried: "",
+  reloadedFor: "",
   known: [],
 };
 

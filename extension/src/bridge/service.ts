@@ -31,6 +31,9 @@ export interface Cursor {
   readonly senders: readonly string[];
   /** No finished scan of Gmail searched this start day and these senders (false from a service that does not say). */
   readonly historyDue: boolean;
+  /** The version of this extension the program carries ("" from a service that does not say): an older unpacked
+   * extension loads itself again from its folder (renew.ts). */
+  readonly carried: string;
 }
 
 /** How the money stands, as İplikçi Nedim's face is coloured by it. */
@@ -198,6 +201,7 @@ export async function cursor(fetcher: Fetcher, paired: Paired): Promise<Cursor> 
     startDay: typeof found["start_day"] === "string" ? found["start_day"] : "",
     senders,
     historyDue: found["history_due"] === true,
+    carried: typeof found["extension_version"] === "string" ? found["extension_version"] : "",
   };
 }
 
