@@ -7,7 +7,7 @@ packages' jobs built:
   iplikci-nedim-<version>-<system>-<arch>.<zip|tar.gz|exe> and .<dmg|AppImage|exe>; the browser extension's store
   package iplikci-kopru-<version>.zip goes in too when it is there.
 - The manifest (iplikci-nedim-surum.json) names each file with its size and SHA-256 and carries the changelog's section
-  of the version as its notes, which the installed program shows before it installs.
+  of the version as its notes, which the installed program shows before it installs, and the day its heading gives.
 - With UPDATE_SIGNING_KEY in the environment (the Ed25519 private key as PEM, the workflow's secret) the manifest is
   signed (iplikci-nedim-surum.json.sig) and the signature checked with the keys the program trusts: a secret that is
   not the program's key never publishes a release the installed copies would refuse. Without it nothing is signed and
@@ -68,6 +68,16 @@ def title(changelog: str, version: str) -> str:
     return f"İplikçi Nedim {version}"
 
 
+def changelog_day(changelog: str, version: str) -> str | None:
+    """The day the changelog's heading gives the version ("## [X.Y.Z] — YYYY-MM-DD — title"): the release's day as
+    its notes say it, while the workflow's clock (UTC) may still be on the day before."""
+    for line in changelog.splitlines():
+        if line.startswith(f"## [{version}]"):
+            found = re.search(r"\b\d{4}-\d{2}-\d{2}\b", line)
+            return found.group(0) if found else None
+    return None
+
+
 def entry(path: Path) -> Entry:
     digest = hashlib.sha256()
     with path.open("rb") as f:
@@ -120,7 +130,7 @@ def make(
     release = Manifest(
         version=version,
         tag=tag,
-        date=day or datetime.now(UTC).date().isoformat(),
+        date=day or changelog_day(changelog, version) or datetime.now(UTC).date().isoformat(),
         notes=notes(changelog, version),
         updates=updates,
         installers=installers,

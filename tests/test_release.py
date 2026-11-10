@@ -97,6 +97,13 @@ def test_the_release_names_every_file_and_is_signed_with_the_trusted_key(root, f
     assert found.notes.startswith("### Eklenenler")
 
 
+def test_the_release_is_dated_as_its_changelog_heading_says(root, files):
+    # The workflow runs on UTC: a release tagged after midnight in Turkey would otherwise carry the day before.
+    release, _ = RELEASE.make("v1.2.3", files, CHANGELOG, {}, None, root)
+    assert release.date == "2026-11-11"
+    assert RELEASE.changelog_day("## [1.2.4] — Başlıksız\n", "1.2.4") is None
+
+
 def test_a_key_the_program_does_not_trust_never_signs_a_release(root, files, signing):
     other = Ed25519PrivateKey.generate().private_bytes(
         serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
