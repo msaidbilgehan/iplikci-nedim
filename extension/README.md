@@ -111,9 +111,18 @@ Geliştirme sırasında `dist/` klasörü tarayıcıda "Paketlenmemiş öğe yü
 tarayıcının eklentiler sayfasında eklentiyi yeniden yükleyin; bunu bir tarama sürerken yapmayın. Açık Gmail
 sekmelerindeki eski içerik betiği o zaman kendiliğinden durur ve eklenti yeni sürümünkini o sekmelere hemen koyar.
 
-Eklenti mağazada yayımlanana dek ([K20](../docs/v1/requirements.md#kararlar)) kullanıcılar da onu paketlenmemiş
-yükler. Kurulum paketi derlenmiş eklentiyi taşır (`src/iplikci/browser_extension`, `npm run build` yazar). Tarayıcı
-eklentisi ekranındaki "Eklenti klasörünü aç" servisten onu veri klasörünün `extension/` klasörüne kopyalamasını ve
-klasörü dosya yöneticisinde göstermesini ister; ekran tarayıcıya yüklemeyi adım adım anlatır. Program güncellenince
-servis bir sonraki açılışında klasörü yeniler; tarayıcı yeniden açılınca yeni sürüm çalışır. Mağaza metni, gizlilik
-politikası ve yayın adımları [store/](store/README.md) klasöründedir.
+Eklenti mağazada yayımlanana dek kullanıcılar da onu paketlenmemiş yükler; yayımlamayı kullanıcı yapacak
+([K29](../docs/v1/requirements.md#kararlar)). Kurulum paketi derlenmiş eklentiyi taşır (`src/iplikci/browser_extension`,
+`npm run build` yazar). Tarayıcı eklentisi ekranındaki "Eklenti klasörünü aç" servisten onu veri klasörünün
+`extension/` klasörüne kopyalamasını ve klasörü dosya yöneticisinde göstermesini ister; ekran tarayıcıya yüklemeyi adım
+adım anlatır. Program güncellenince servis bir sonraki açılışında klasörü yeniler.
+
+**Kendini yenileme** (0.8.0, [ADR-0022](../docs/adr/0022-releases-and-updates.md)): servisin imleci
+(`/api/ingest/mail/cursor`, `extension_version`) programın taşıdığı eklentinin sürümünü söyler. Paketlenmemiş yüklenen
+eklenti (`chrome.management.getSelf`: `development`) bundan eskiyse, bir teslim çalışmasının ardından ve tarama yokken
+kendini yeniden yükler (`chrome.runtime.reload`, `bridge/renew.ts`). Bir sürüm için bir kez: başka bir klasörden
+yüklenmiş, değişmeyen bir eklenti tekrar tekrar yüklenmez. Mağazadan kurulan eklentiyi mağaza günceller.
+
+Mağaza paketi `npm run package` ile yapılır (`iplikci-kopru-<sürüm>.zip`); sürüm iş akışı onu GitHub sürümüne koyar ve
+mağaza ayarları varsa mağazaya yükler. Mağaza metni, gizlilik politikası ve yayın adımları [store/](store/README.md)
+klasöründedir.

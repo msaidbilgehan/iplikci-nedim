@@ -77,7 +77,10 @@ G1, G10, G13 · Çekirdek
     - Eklenti mağazada olmadığı sürece ([K20](requirements.md#kararlar)) sihirbaz ve Tarayıcı eklentisi ekranı
       eklentinin klasörünü hazırlatır ve dosya yöneticisinde açtırır.
     - Klasörün yeri ve eklentiler sayfasının adresi kopyalanabilir; paketlenmemiş yükleme adım adım anlatılır.
-    - Program güncellenince servis klasördeki eklentiyi yeniler (test edilir).
+    - Program güncellenince servis klasördeki eklentiyi yeniler; paketlenmemiş eklenti, servisin taşıdığı sürüm
+      kendininkinden yeniyse kendini bir kez yeniden yükler (test edilir, [F21](#f21--güncellemeler)).
+    - Kullanıcı eklentiyi mağazada yayımlayınca ([K29](requirements.md#kararlar)) ekran önce mağaza sayfasını gösterir;
+      klasörden yükleme adımları altında katlanır.
   - `imap`: adres ve uygulama şifresi girilir; şifre anahtar zincirine yazılır.
   - Bağlantı denenir ve sonucu gösterilir. Giriş reddedilirse yeniden denemeden durur.
   - Uygulama hesabın kendi şifresini hiçbir zaman istemez.
@@ -632,6 +635,37 @@ Veri kalitesi · Çekirdek
 - **Yedek:** her gün kendiliğinden alınır ve 14 gün saklanır; elle de alınıp geri yüklenebilir.
 - **V1+:** uygulama düzeyinde şifreli, taşınabilir yedek. **Sonra:** düz metin muhasebe dışa aktarımı (hledger,
   beancount).
+
+## F21 — Güncellemeler
+
+G4, G6 · Çekirdek · [K29](requirements.md#kararlar), [ADR-0022](../adr/0022-releases-and-updates.md)
+
+- **Yayın:** bir sürüm etiketinde "Paketler" iş akışı üç sistemin kurulum paketini ve güncelleme dosyasını, eklentinin
+  mağaza paketini bir GitHub sürümüne koyar. Notu `CHANGELOG.md`'nin bölümüdür; bildirge her dosyanın boyutunu ve
+  SHA-256'sını yazar ve Ed25519 ile imzalıdır.
+  - Ölçüt: kurulan program servisi başlatıp yanıt vermiyorsa ya da güncelleme dosyası kurulu programın açacağı gibi
+    açılmıyorsa sürüm yayımlanmaz.
+  - Ölçüt: imzalayan sır programın güvendiği anahtar değilse sürüm yayımlanmaz.
+- **Denetim:** servis her gün 05.00'ten sonraki ilk fırsatta son sürümün bildirgesine bakar. "Şimdi denetle" her zaman
+  bakar.
+  - Ölçüt: imzası programın taşıdığı anahtarla doğrulanmayan bildirgeye inanılmaz; sorun Ayarlar'da yazar.
+  - Ölçüt: yalnızca daha yeni bir sürüm "yeni" sayılır; eski bir bildirge sürümü geri döndüremez.
+  - Ölçüt: ayar "Denetleme" iken GitHub'a hiç sorulmaz (demo veri klasörü böyle kurulur, testler ağa çıkmaz).
+- **Kurulum:** ayar "Kendiliğinden kur" (varsayılan) ise yeni sürüm kendiliğinden, "Önce bana sor" ise "Şimdi güncelle"
+  ile kurulur. Önce bir yedek alınır (neden: güncelleme öncesi). Dosya bildirgedeki boyut ve özetle denetlenir, yeni
+  sürüm yerine konmadan kendi Python'uyla açılıp sürümünü söyler; servis yeni sürümle yeniden başlar.
+  - macOS: uygulamanın yolu değişmez, `Contents` tek adımda yer değiştirir.
+  - Linux: yeni kopya `~/.local/lib/iplikci/<sürüm>`'e açılır, servis ondan başlar; eski AppImage en yeni kopyayı
+    çalıştırır.
+  - Windows: kurulum programı penceresiz çalışır, servisi kendisi durdurur ve uygulamayı tarayıcı açmadan yeniden
+    açar.
+  - Ölçüt: yeni sürüm açılınca sonucu söyler (hangi sürümden hangisine, ne zaman) ve eskinin dosyalarını kaldırır.
+  - Ölçüt: açılmayan bir sürüm kendiliğinden iki kezden fazla denenmez; kullanıcı yine de kurabilir.
+  - Ölçüt: elle kurulan kopya (uv tool, geliştirme kopyası) kendini güncellemez; yeni sürümü ve sayfasını gösterir.
+- **Arayüz:** Ayarlar'daki Güncellemeler kartı çalışan sürümü, son denetimi, yeni sürümü ve notunu, son kurulumu ve
+  ayarı gösterir; Sistem ekranı servis kartında yeni sürüm olup olmadığını söyler. `iplikci guncelleme` aynısını yapar.
+- **Eklenti:** mağazadaki eklentiyi tarayıcı günceller; iş akışı yeni sürümünü mağazaya yükler (mağazadakinden yeni
+  değilse yüklemez). Paketlenmemiş eklenti programla birlikte yenilenir.
 
 ## MVP eşitlik listesi
 

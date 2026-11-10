@@ -30,6 +30,7 @@ Proje: İplikçi Nedim · Durum: son hâli, uygulamaya hazır · Tarih: 2026-10-
 | 6 — Arayüz | v0.7.0 | Bütün ekranlar, PWA, MVP raporuyla eşitlik, kurulum paketleri (terminalsiz kurulum) |
 | 7 — MCP | v0.8.0 | Resmî SDK, HTTP ve stdio, yeni araçlar, kaynaklar, istemler |
 | 8 — Döviz | v0.9.0 | Kur sağlayıcıları, kur makası, çoklu para birimi |
+| Ara — Sürümler ve güncellemeler | v0.10.0 | GitHub'da sürüm, kendini güncelleyen program, mağazaya giden eklenti (K29, [aşağıda](#ara-sürüm--sürümler-ve-güncellemeler)) |
 | Sürüm 1.0 | v1.0.0 | Eşitlik listesi tamam, bir ay kapanmış, servis iki hafta kesintisiz ([aşağıda](#sürüm-10)) |
 
 ## Aşama 0 — Zemin
@@ -421,6 +422,31 @@ sağlayıcılarının adresleri ADR-0009'da listelidir; `egress` onları ancak b
 
 - F12 ölçütleri sağlanır.
 - Ağ yokken belgelerdeki kurlarla çalışır (test).
+
+## Ara sürüm — Sürümler ve güncellemeler
+
+v0.10.0 · [K29](requirements.md#kararlar) · [ADR-0022](../adr/0022-releases-and-updates.md) ·
+[F21](features.md#f21--güncellemeler)
+
+Kullanıcının isteği (2026-11-10): uygulama ve tarayıcı eklentisi GitHub'da derlenip kendiliğinden güncellenmeli;
+eklentiyi kullanıcı Chrome Web Store'da yayımlayacak.
+
+**Teslimler**
+
+- "Paketler" iş akışı sürüm etiketinde paketleri, güncelleme dosyalarını, eklentinin mağaza paketini ve imzalı
+  bildirgeyi bir GitHub sürümüne koyar; mağaza ayarları varsa eklentiyi mağazaya yükler.
+- Paketler yayımlanmadan önce kurulan programla servisi başlatıp denenir.
+- Servis günde bir yeni sürüme bakar; ayara göre kurar ya da haber verir. Ayarlar'da Güncellemeler kartı, Sistem'de
+  durum, `iplikci guncelleme`.
+- Eklenti 0.8.0: paketlenmemiş eklenti programın taşıdığı daha yeni sürüm için kendini yeniden yükler; mağaza
+  kimliği bilinince arayüz mağazayı gösterir.
+
+**Kullanıcıda kalanlar**
+
+- Sürümlerin herkese açık nerede duracağı: kod deposunu açmak ya da ayrı bir sürüm deposu. Karar verilene dek kurulu
+  kopyalar yeni sürümü indiremez.
+- Chrome Web Store'daki ilk yayın ve iş akışının mağazaya yüklemesi için servis hesabı ([sürüm yayını](../yayin.md)).
+- Windows ve Linux'ta güncellemenin denenmesi, o sistemlerin denemeleriyle (K25).
 
 ## Sürüm 1.0
 

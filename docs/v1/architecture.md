@@ -109,6 +109,8 @@ flowchart LR
   gmail[(Gmail<br/>IMAP ve SMTP)]
   tg[(Telegram Bot API)]
   fx[(TCMB, ECB<br/>kur servisleri)]
+  gh[(GitHub<br/>sürümler)]
+  cws[(Chrome Web Store)]
   ts{{Tailscale<br/>isteğe bağlı}}
   user -- "HTTP, 127.0.0.1" --> svc
   claude -- "MCP: HTTP ya da stdio" --> svc
@@ -120,6 +122,8 @@ flowchart LR
   svc -- "SMTP, bildirim" --> gmail
   svc -- "bildirim" --> tg
   svc -- "günlük kurlar" --> fx
+  svc -- "günde bir: yeni sürüm" --> gh
+  cws -. "eklentinin güncellemesi" .-> ext
   tg -- "bildirim" --> phone
   phone -. "uzaktan erişim" .-> ts -.-> svc
 ```
@@ -187,6 +191,7 @@ Python paketi `iplikci`, `src/iplikci/` altındadır:
 | `notify` | Bildirim kural motoru, kanallar, teslim kaydı. |
 | `jobs` | İş kuyruğu, zamanlayıcı, işçiler. |
 | `egress` | İzin verilen dış bağlantılar (ADR-0009). |
+| `update` | Programın kendi güncellemesi (ADR-0022): sürüm bildirgesi ve Ed25519 imzası, güvenilen anahtarlar, sürümlerin yeri, kopyayı hangi kurulumun koyduğu ve yeni sürümün yerine konması (macOS'ta `Contents`, Linux'ta yeni kopya, Windows'ta sessiz kurulum programı). Depoya ve ağa dokunmaz; indirmeyi ve durumu `app/update` yapar. |
 | `app` | Kullanım durumları (e-postayı şimdi al, planla, uygula, not ekle…); `api`, `mcp` ve `cli`'nin ortak giriş noktası. |
 | `api` | FastAPI uygulaması, kimlik doğrulama, SSE, PWA dosyaları. |
 | `mcp` | MCP sunucusu ve stdio köprüsü. |
@@ -338,7 +343,8 @@ Durumların kuralları [domain/ledger.md](../domain/ledger.md)'dedir.
 ├── extension/             # tarayıcı eklentisinin dosyaları, tarayıcı buradan yükler (K20); istenince yapılır,
 │                          #   program güncellenince servis açılırken yenilenir
 ├── archive/mvp/           # MVP'nin kodu, testleri, kuralları ve ayarları (2026-10-31); salt başvuru, V1 okumaz
-└── run/                   # kilit, servis durumu
+└── run/                   # kilit, servis durumu; guncelleme.json: son sürüm denetimi, bulduğu sürüm, süren ve son
+                           #   kurulum (ADR-0022)
 ```
 
 Klasörün izni 0700, dosyalarınki 0600'dür. Uygulamayla gelen genel kategori kuralları paketin içindedir
@@ -628,7 +634,8 @@ Ayrıntılar [ADR-0010](../adr/0010-notification-channels.md)'un uygulama notund
 | `GET /api/system`, `GET /api/system/log` | sağlık, işler, okuyucu sağlığı, e-posta, yedekler, kurların durumu; servisin günlüğü, kişisel olabilecek yollar, adlar, adresler ve numaralar çıkarılmış |
 | `GET /api/backups`, `POST /api/backups`, `POST /api/backups/{ad}/restore` | yedekler; şimdi yedek al; bir yedeği geri yükleme: yedek hemen denetlenir, servis yeniden başlarken veritabanı açılmadan yerine konur |
 | `GET /api/service`, `POST /api/service/stop`, `POST /api/service/restart`, `POST /api/service/remove` | servisin kendisi (ADR-0017): bilgisayar onu başlatıyor mu; durdurma, yeniden başlatma (yalnızca kayıtlı servis), bilgisayardan kaldırma (veri klasörü istenirse sonunda çöp kutusuna); önce yanıt verilir, servis sonra biter; yalnızca arayüz |
-| `GET /api/extension`, `POST /api/extension/folder` | tarayıcı eklentisinin klasörü (K20): program eklentiyi taşıyor mu, klasör güncel mi; klasörü yapma ya da yenileme ve dosya yöneticisinde gösterme |
+| `GET /api/extension`, `POST /api/extension/folder` | tarayıcı eklentisinin klasörü (K20): program eklentiyi taşıyor mu, klasör güncel mi, mağaza sayfası (`store`, K29: yayımlanınca); klasörü yapma ya da yenileme ve dosya yöneticisinde gösterme |
+| `GET /api/update`, `POST /api/update/check`, `POST /api/update/install`, `PUT /api/update/mode` | programın güncellemeleri (ADR-0022): çalışan sürüm, kopyayı hangi kurulumun koyduğu, ayar (`auto`, `ask`, `off`), son denetim ve bulduğu sürüm (notuyla), süren ve son kurulum; şimdi denetle; bulunan sürümü şimdi kur (yalnızca kendini güncelleyebilen kopyada, 409 değilse); ayarı yalnızca arayüz değiştirir |
 | `GET /api/exports`, `POST /api/exports`, `GET /api/exports/{tür}` | CSV, XLSX, tek dosyalık rapor, ay sonu sayfaları: üretme ve indirme |
 | `/mcp` | MCP Streamable HTTP (Aşama 7) |
 
@@ -736,12 +743,22 @@ Teknoloji ADR-0008'dedir. Ekranlar ve davranışları [features.md](features.md)
   - Windows: oturum açılışında başlayan görev,
   - Linux: kullanıcı systemd birimi.
 - Servis kurulu sürümü çalıştırır, geliştirme klasörünü asla çalıştırmaz.
-- Güncellemek için yeni paket açılır; servis yeni sürümle yeniden başlar.
+- Program kendini günceller (ADR-0022, `app/update`): her gün 05.00'ten sonra GitHub'daki son sürümün imzalı
+  bildirgesine bakar; ayar `auto` ise yeni sürümü indirir, boyutunu ve SHA-256'sını denetler, yedek alır, yerine koyar
+  ve 75 koduyla yeniden başlar. Yeni sürüm açılırken sonucu `run/guncelleme.json`'a yazar ve eskinin dosyalarını
+  kaldırır. Elle kurulan kopya yalnızca haber verir. Yeni paketi elle açmak da güncellemedir.
 - Geliştiriciler servisi `uv run iplikci servis calistir` ile ön planda çalıştırır.
 - Tek kopya kilidi veri klasöründedir.
 - **Paket:** `packaging/build.py` her sistemin paketini o sistemin kendi makinesinde üretir; CI'da "Paketler" iş akışı
   bir sürüm etiketinde ya da istenince çalışır. Pakette taşınabilir CPython ve içine kurulmuş program vardır;
   derlenmiş arayüz ve tarayıcı eklentisi de içindedir (ADR-0017, "Paketleme biçimi").
+  - Her sistemin güncelleme dosyası da yapılır: macOS'ta `ditto` ile sıkıştırılmış `.app`, Linux'ta Python
+    klasörünün `.tar.gz`'si, Windows'ta kurulum programının kendisi.
+  - Paketlemeden önce kurulan program servisi boş bir veri klasöründe başlatır ve sürümüyle yanıt vermelidir;
+    güncelleme dosyası, kurulu programın açacağı gibi açılır ve Python'u aynı sürümü söylemelidir.
+  - Sürüm etiketinde iş akışı dosyaları bir GitHub sürümüne koyar: notu `CHANGELOG.md`'nin bölümü, bildirgesi
+    (`packaging/release.py`) `UPDATE_SIGNING_KEY` sırrıyla imzalı. Eklentinin mağaza paketi, mağaza ayarları varsa
+    Chrome Web Store'a yüklenir (`packaging/chrome_store.py`). Ayrıntılar [sürüm yayını](../yayin.md)'ndadır.
 - **Uygulamanın açılışı:** uygulama `python -I -X utf8 -m iplikci uygulama` çalıştırır (`service/launcher`).
   - Kayıt bu kopyanın değilse servisi yeniden kaydeder ve başlatır.
   - Çalışan servisin sürümü eskiyse servisi yeniden başlatır. Daha yeni bir sürümün servisi çalışıyorsa ya da veri
@@ -760,7 +777,9 @@ Teknoloji ADR-0008'dedir. Ekranlar ve davranışları [features.md](features.md)
     açılışta, veritabanı açılmadan yerine konur. Kaldırma veri klasörünü de istediyse klasör (`kaldir.json`)
     çalışmanın sonunda çöp kutusuna taşınır.
 - **Eklentinin klasörü** (`app/extension`, K20): servis açılırken veri klasöründeki `extension/` klasörünü programın
-  taşıdığı eklentiyle karşılaştırır ve farklıysa yeniler; kullanıcının istemediği klasörü yapmaz.
+  taşıdığı eklentiyle karşılaştırır ve farklıysa yeniler; kullanıcının istemediği klasörü yapmaz. Servisin imleci
+  programın taşıdığı sürümü söyler; paketlenmemiş eklenti daha eskiyse kendini bir kez yeniden yükler. Mağazaya
+  çıkınca (K29) eklentiyi tarayıcı günceller.
 
 **Komutlar**
 
@@ -780,6 +799,7 @@ Kullanıcı komutları Türkçedir; geliştirici komutları `dev` altında İngi
 | `iplikci yedek al \| geri-yukle <dosya>` | yedek |
 | `iplikci disa-aktar csv \| xlsx \| rapor \| ay-sonu` | dışa aktarım |
 | `iplikci mcp` | MCP stdio köprüsü |
+| `iplikci guncelleme durum \| denetle \| kur \| mod otomatik\|sor\|kapali` | programın güncellemeleri (ADR-0022); servis çalışıyorsa ona sorar |
 | `iplikci dev demo \| parser probe \| parser debug \| parser test` | geliştirici araçları |
 
 **Yedek**
@@ -865,6 +885,7 @@ komut satırı argümanına ya da günlüğe yazılmaz.
 | Hizmet engelleme | Dev ya da kötü niyetli belge | Alt süreçte süre ve bellek sınırı; boyut sınırları; zip bombasına karşı üye sınırı |
 | Yetki yükseltme | Belgedeki "talimat" | Belge metni veridir; yazan araçlar yalnızca kullanıcı onayıyla; `eval`, `shell=True` yok |
 | Yetki yükseltme | Eklenti belirtecinin çalınması | Belirteç e-posta alım uçlarına ve tek kullanımlık giriş bağlantısına yetkili (ADR-0019: profili okuyabilen bu kullanıcı veri klasörünü de okur); arayüzden iptal edilir |
+| Kurcalama | Sürüme başka birinin dosya koyması (GitHub'a sızan bir belirteç) ya da indirmenin bozulması | Bildirge programın taşıdığı Ed25519 anahtarıyla imzalı; her dosyanın boyutu ve SHA-256'sı bildirgede; yalnızca daha yeni sürüm; yeni sürüm yerine konmadan kendi Python'uyla açılıp sürümünü söyler; önce yedek (ADR-0022) |
 
 Bağımlılıklar kilit dosyasıyla sabitlenir; CI'da güvenlik açığı taraması (pip-audit, `npm audit`) ve gitleaks çalışır.
 
@@ -898,6 +919,8 @@ Bağımlılıklar kilit dosyasıyla sabitlenir; CI'da güvenlik açığı tarama
 - **CI (GitHub Actions):**
   - Linux: ruff, pyright, pytest, ön yüz testleri, gitleaks.
   - macOS: OCR testleri.
+  - Paketler (sürüm etiketinde): üç sistemin paketi; her biri kurulan programla servisi başlatıp yanıt alır, güncelleme
+    dosyasını kurulu programın açacağı gibi açar (ADR-0022).
 
 ## 24. Ölçek ve performans
 
@@ -929,6 +952,9 @@ rahattır. İlk darboğaz büyük olasılıkla defterin baştan kurulması olur;
 | Telegram erişilemiyor | Artan aralıklarla yeniden denenir; uygulama içi bildirim her zaman yazılır. |
 | Bilgisayar uyudu | Kaçırılan işler uyanınca bir kez çalışır. |
 | Disk doldu | Alım durur, sistem olayı üretilir; arşiv yazımı yarım kalmaz (`staging` + tek işlem). |
+| GitHub'a ulaşılamıyor ya da sürüm herkese açık değil | Denetim sorunu Ayarlar'da ve Sistem'de söyler; ertesi gün yeniden dener; program olduğu gibi çalışır. |
+| İmzası tutmayan bildirge ya da özeti tutmayan dosya | Hiçbir şey kurulmaz; neden Ayarlar'da yazar. |
+| Kurulan sürüm açılmadı | Açılan sürüm sonucu hata olarak yazar; aynı sürüm kendiliğinden iki kezden fazla denenmez. Güncellemeden önceki yedek Ayarlar'dan geri yüklenir. |
 
 ## 26. Riskler
 
