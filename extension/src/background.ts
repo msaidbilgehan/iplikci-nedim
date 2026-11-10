@@ -17,7 +17,7 @@ import { unhandled, watchFor } from "./bridge/seen";
 import { NotTheService, Refused, ServiceDown, cursor, pair, prove } from "./bridge/service";
 import { type ScanSummary, chromeStore } from "./bridge/state";
 import { scansFirst } from "./bridge/steps";
-import { chromePanelTabs, chromeTabs } from "./bridge/tabs";
+import { chromePanelTabs, chromeTabs, reachOpenGmail } from "./bridge/tabs";
 import { Turns } from "./bridge/turns";
 import { type Watch, accountOf } from "./gmail/visible";
 import { type Environment, verify } from "./verify/run";
@@ -28,7 +28,12 @@ const PANEL_WAIT_MS = 5000;
 /** One delivery run or scan at a time; the ids the Gmail tabs tell wait there for the next run. */
 const turns = new Turns(async (shown) => deliverNew(await environment(), chromeStore, shown));
 
-chrome.runtime.onInstalled.addListener(() => void schedule());
+chrome.runtime.onInstalled.addListener(({ reason }) => {
+  void schedule();
+  if (reason === "install" || reason === "update") {
+    void reachOpenGmail(); // a Gmail tab kept open is watched without a reload
+  }
+});
 chrome.runtime.onStartup.addListener(() => {
   void schedule();
   void turns.run();
@@ -40,6 +45,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 void schedule(); // an alarm may be gone after a browser restart
 void forgetUnfinishedScan();
+void keepStorageOurs();
 
 chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
   const reply = (work: Promise<unknown>): true => {
@@ -100,6 +106,18 @@ async function checkNow(from: number | undefined): Promise<void> {
     return;
   }
   await turns.run();
+}
+
+/**
+ * What the extension keeps (the pairing's token among it) is for its own pages and this worker only. The content
+ * script runs in Gmail's page and needs none of it, so a page that broke out of its own sandbox finds none of it there.
+ */
+async function keepStorageOurs(): Promise<void> {
+  try {
+    await chrome.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" });
+  } catch {
+    // A browser that cannot narrow this area leaves it as it was; the content script still never reads it.
+  }
 }
 
 /** A scan that was under way when the worker stopped (the browser closed, the extension reloaded) is over. */

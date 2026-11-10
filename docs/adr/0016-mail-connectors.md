@@ -267,7 +267,9 @@ Sonuca göre:
 - **Neden güvenli:**
   - Sekmeden yalnızca listedeki göndericilerin iletilerinin Gmail kimlikleri çıkar, o da yalnızca eklentinin servis
     çalışanına. İçerik betiği kendisi hiçbir istek yapmaz ve tarayıcının deposunu okumaz; neye bakacağını (gönderici
-    alan adlarını) servis çalışanından alır.
+    alan adlarını) servis çalışanından alır. Depo (eşleştirmenin anahtarı orada) yalnızca eklentinin kendi sayfalarına
+    ve servis çalışanına açıktır (`chrome.storage.local.setAccessLevel`, `TRUSTED_CONTEXTS`): Gmail'in sayfasında
+    çalışan betiğe kapalıdır.
   - Servis çalışanı bir Gmail sekmesinden yalnızca iki şey kabul eder: neye bakılacağını sormak ve ondalık ileti
     kimlikleri bildirmek. Eşleştirme, hesap seçimi ya da başka bir istek sekmeden yapılamaz.
   - Bildirim yalnızca eklentinin okuduğu hesabın sekmesinden alınır: sekmenin adresindeki `/mail/u/<n>/`, eklentide
@@ -291,9 +293,10 @@ Sonuca göre:
   - Eklenti, teslim ettiği ya da servisin zaten tuttuğu son 1000 iletinin kimliğini hatırlar. Akış bunları yeniden
     indirmez; bir sekmenin yeniden bildirdikleri servise sorulmaz.
   - Katmanlar ayrı bozulur: bu yol 2. ve 3. katman durmadıkça çalışır, 1. katman durmuşken de.
-  - Eklenti yeniden yüklenince açık bir Gmail sekmesindeki eski betik kendiliğinden durur. Yeni sürümünki sekme
-    yenilenince ya da tarayıcı yeniden açılınca çalışır; program güncellemesinde eklenti zaten tarayıcı yeniden
-    açılınca yenilenir.
+  - Chrome bir içerik betiğini yalnızca eklenti kurulduktan ya da güncellendikten sonra yüklenen sayfalara verir; Gmail
+    sekmesi ise günlerce açık kalabilir. Bu yüzden eklenti kurulunca ya da güncellenince açık Gmail sekmelerine betiği
+    kendisi koyar (`chrome.scripting`, var olan izinle); sekmeyi yenilemek gerekmez. Eski sürümün betiği kendiliğinden
+    durur; aynı sayfaya iki kez konan betikten yalnızca yenisi çalışır.
 - **Biçim:** satırı ya da iletiyi tanınmayan bir sayfadan hiçbir şey bildirilmez ve alarm üretilmez. Gmail listesini
   değiştirirse bunu aynı satırları okuyan taramanın biçim alarmı gösterir.
 - **Elle taramaya kalanlar:** açık bir Gmail görünümünde hiç görünmeyen iletiler.

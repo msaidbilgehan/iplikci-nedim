@@ -79,11 +79,13 @@ açık Gmail oturumuyla okuyup bu bilgisayardaki İplikçi Nedim servisine taş�
 
 ## İlkeler
 
-- İzinler yalnızca `alarms`, `scripting` (taramada Gmail sekmesindeki listeyi okumak için) ve `storage`, artı üç
+- İzinler yalnızca `alarms`, `scripting` (taramada Gmail sekmesindeki listeyi okumak ve eklenti kurulunca ya da
+  güncellenince açık Gmail sekmelerine içerik betiğini koymak için) ve `storage`, artı üç
   adres: `https://mail.google.com/*`, Gmail'in ek sunucusu `https://mail-attachment.googleusercontent.com/*` ve
   `http://127.0.0.1:8643/*`. Gmail sekmelerindeki içerik betiği ilk adresin izniyle çalışır; yeni bir izin istemez.
-- İçerik betiği istek yapmaz ve tarayıcının deposunu okumaz. Servis çalışanı bir Gmail sekmesinden yalnızca iki şey
-  kabul eder: neye bakılacağını sormak ve ondalık ileti kimlikleri bildirmek.
+- İçerik betiği istek yapmaz ve tarayıcının deposunu okumaz; depo yalnızca eklentinin kendi sayfalarına ve servis
+  çalışanına açıktır. Servis çalışanı bir Gmail sekmesinden yalnızca iki şey kabul eder: neye bakılacağını sormak ve
+  ondalık ileti kimlikleri bildirmek.
 - `tabs` izni yoktur. "İplikçi Nedim'i aç" açık sekmelerden yalnızca `http://127.0.0.1:8643/` adresindekilerin adresini
   ve başlığını görür; bunu adres izni sağlar. Eklenti oturum çerezini okumaz ve servise çerez göndermez.
 - "Orijinali göster" eklerin içeriğini boş verir. Bu yüzden bir dosya adı geçen ileti "Orijinali indir" ile, bayt bayt
@@ -106,8 +108,8 @@ npm run package     # dist/ ve mağazaya yüklenecek iplikci-kopru.zip (macOS ve
 ```
 
 Geliştirme sırasında `dist/` klasörü tarayıcıda "Paketlenmemiş öğe yükle" ile yüklenir. `dist/` yeniden derlenince
-tarayıcının eklentiler sayfasında eklentiyi yeniden yükleyin; bunu bir tarama sürerken yapmayın. Açık bir Gmail
-sekmesindeki eski içerik betiği o zaman kendiliğinden durur; yeni sürümünki sekme yenilenince çalışır.
+tarayıcının eklentiler sayfasında eklentiyi yeniden yükleyin; bunu bir tarama sürerken yapmayın. Açık Gmail
+sekmelerindeki eski içerik betiği o zaman kendiliğinden durur ve eklenti yeni sürümünkini o sekmelere hemen koyar.
 
 Eklenti mağazada yayımlanana dek ([K20](../docs/v1/requirements.md#kararlar)) kullanıcılar da onu paketlenmemiş
 yükler. Kurulum paketi derlenmiş eklentiyi taşır (`src/iplikci/browser_extension`, `npm run build` yazar). Tarayıcı

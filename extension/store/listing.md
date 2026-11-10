@@ -38,7 +38,7 @@ Gmail'deki banka iletilerini, kullanıcının kendi bilgisayarında çalışan �
 | İzin | Gerekçe |
 |---|---|
 | `alarms` | Yeni banka iletilerine dakikada bir bakmak. |
-| `scripting` | "Gmail'de eksikleri tara" sırasında, eklentinin kendi açtığı Gmail sekmesindeki arama listesinden yalnızca konuşma kimliklerini ve konuşmaların okunup okunmadığını okumak. Bu izinle başka bir sayfada betik çalıştırılmaz; Gmail sekmelerindeki içerik betiği `https://mail.google.com/*` satırındadır. |
+| `scripting` | "Gmail'de eksikleri tara" sırasında, eklentinin kendi açtığı Gmail sekmesindeki arama listesinden yalnızca konuşma kimliklerini ve konuşmaların okunup okunmadığını okumak. Eklenti kurulunca ya da güncellenince, açık Gmail sekmelerine içerik betiğini (content.js) de bu izinle koyar; sekmenin yenilenmesi gerekmez. Bu izinle başka bir sayfada betik çalıştırılmaz; içerik betiğinin ne okuduğu `https://mail.google.com/*` satırındadır. |
 | `storage` | Eşleşmeyi, okunacak Gmail hesabının sırasını, son denetimin özetini, listedeki göndericilerin alan adlarını ve son banka iletilerinin Gmail kimliklerini tarayıcıda saklamak. E-posta adresi saklanmaz. |
 | `https://mail.google.com/*` | Gelen kutusu akışını, "Orijinali göster" sayfasını, arama listesini ve baştan sona okunmuş konuşmaların yazdırma görünümünü kullanıcının oturumuyla okumak. Yalnızca okuma (GET) istekleri. Kullanıcının açık Gmail sekmelerinde çalışan içerik betiği, görünen konuşma listesinden ve açılmış konuşmadan yalnızca listedeki bankaların iletilerinin kimliklerini eklentiye bildirir; göndericinin adresine yalnızca alan adı için bakar, konu, metin ve ad okumaz, istek yapmaz. |
 | `https://mail-attachment.googleusercontent.com/*` | Eki olan bir iletinin tamamını "Orijinali indir" ile almak: Gmail bu indirmeyi kendi ek sunucusuna yönlendirir, "Orijinali göster" ise eklerin içeriğini boş verir. Yalnızca okuma (GET). |
@@ -67,8 +67,10 @@ Uzaktan kod: yok. Bütün kod pakettedir ve küçültülmemiştir.
 > tab shows the Gmail account the extension reads, it tells the extension's service worker the Gmail ids of the
 > listed banks' messages the conversation list or an opened conversation shows, read or not, so that a message read
 > before the next check is still delivered. It looks at a sender's address only for its domain; it reads no subject,
-> snippet, body or name, makes no request and does not read the extension's storage. The service worker accepts only
-> two requests from a Gmail tab: what to look for, and decimal message ids.
+> snippet, body or name, makes no request and does not read the extension's storage, which the service worker
+> restricts to trusted contexts (chrome.storage.local.setAccessLevel). When the extension is installed or updated it
+> injects the same script into the Gmail tabs already open (chrome.scripting), so they need no reload. The service
+> worker accepts only two requests from a Gmail tab: what to look for, and decimal message ids.
 >
 > Without the local app the extension stays unpaired and sends nothing. Its verification page (verify.html, linked
 > from the options page) shows how it reads Gmail without changing anything. Pairing uses a one-time code from the

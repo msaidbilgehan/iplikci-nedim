@@ -6,12 +6,17 @@
  */
 
 import type { TabRequest } from "./bridge/messages";
-import { type Watch, asWatch, watchGmail } from "./gmail/visible";
+import { type Watch, type Watcher, asWatch, watchGmail } from "./gmail/visible";
 
+// The extension also puts this script into the Gmail tabs open when it is installed or updated (bridge/tabs.ts): a
+// page it reaches twice is watched by the newer script only.
+const world = globalThis as typeof globalThis & { iplikciGmail?: Watcher };
+world.iplikciGmail?.stop();
 const watcher = watchGmail(document, {
   watch: () => ask({ kind: "gmail-watch" }),
   seen: (ids) => ask({ kind: "gmail-seen", ids }),
 });
+world.iplikciGmail = watcher;
 
 async function ask(request: TabRequest): Promise<Watch | null> {
   try {

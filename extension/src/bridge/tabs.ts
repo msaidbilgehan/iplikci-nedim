@@ -6,6 +6,7 @@
  *   touched, as the manifest's host permission allows; on any other address the tab is not read.
  * - The interface's tabs, for "İplikçi Nedim'i aç": the host permission for the service's address lets their address
  *   and title be read, and no others'; the extension has no "tabs" permission.
+ * - The Gmail tabs already open when the extension is installed or updated: the content script is put into them.
  */
 
 import { FormatError } from "../gmail/errors";
@@ -102,6 +103,19 @@ export const chromePanelTabs: PanelTabs = {
     await chrome.tabs.create({ url, active: true });
   },
 };
+
+/**
+ * Put the content script (content.ts) into the Gmail tabs already open. Chrome gives a manifest's content script only
+ * to pages loaded after the extension was installed or updated, and a Gmail tab often stays open for days. A tab that
+ * refuses it (an error page, a tab Chrome discarded) gets it from the manifest when it loads again.
+ */
+export async function reachOpenGmail(): Promise<void> {
+  for (const tab of await chrome.tabs.query({ url: `${ORIGIN}/*` })) {
+    if (tab.id !== undefined) {
+      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] }).catch(() => undefined);
+    }
+  }
+}
 
 /** Run a script in the tab; a tab showing an error page (Gmail did not load) refuses scripts. */
 async function inject<T>(run: () => Promise<T>): Promise<T> {
