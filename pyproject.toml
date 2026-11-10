@@ -8,6 +8,7 @@ license-files = ["LICENSE.txt"]
 requires-python = ">=3.13"
 dependencies = [
     "beautifulsoup4==4.15.0",
+    "cryptography==50.0.2",
     "fastapi==0.162.0",
     "keyring==25.7.0",
     "mcp==2.3.0",
@@ -93,7 +94,9 @@ include = [
     "src/iplikci/settings",
     "src/iplikci/storage",
     "src/iplikci/upcoming.py",
+    "src/iplikci/update",
     "src/iplikci/vault",
+    "src/iplikci/versions.py",
     "src/iplikci/viewer",
 ]
 strict = [
@@ -129,7 +132,9 @@ strict = [
     "src/iplikci/settings",
     "src/iplikci/storage",
     "src/iplikci/upcoming.py",
+    "src/iplikci/update",
     "src/iplikci/vault",
+    "src/iplikci/versions.py",
     "src/iplikci/viewer",
 ]
 # An ignore comment that hides nothing is noise, like an unused import.

@@ -4,7 +4,6 @@ one-time login link for the browser; on the first run the interface opens the se
 needs a terminal: a problem is said in the system's own window (dialog.py)."""
 
 import os
-import re
 import shutil
 import time
 from collections.abc import Callable, Generator
@@ -17,6 +16,7 @@ from .. import __version__
 from ..app.workspace import Workspace
 from ..settings import locks
 from ..storage import db as database
+from ..versions import newer, version_key
 from . import client, instance
 from .manager import Program, ServiceManager, installed_program
 
@@ -127,24 +127,6 @@ def _refuse_older(ws: Workspace, running: instance.Holder | None) -> None:
         )
     if database.written_by_newer(ws.layout.database) is not None:
         raise LaunchError("Bu veri klasörünü İplikçi Nedim'in daha yeni bir sürümü açmış; yeni sürümü açın.")
-
-
-def version_key(text: str) -> tuple[int, ...] | None:
-    """A version's numbers, compared as numbers ("0.10.0" after "0.9.1"), the zeros at its end left out ("1.0" is
-    "1.0.0"); None for what is no version. What follows the numbers (a pre-release, ".yeni") does not count."""
-    found = re.match(r"\d+(?:\.\d+)*", text)
-    if found is None:
-        return None
-    numbers = [int(part) for part in found.group().split(".")]
-    while len(numbers) > 1 and numbers[-1] == 0:
-        numbers.pop()
-    return tuple(numbers)
-
-
-def newer(version: str, than: str) -> bool:
-    """Whether version is newer than `than`; never when either is no version."""
-    mine, theirs = version_key(version), version_key(than)
-    return mine is not None and theirs is not None and mine > theirs
 
 
 def _replaced(now: instance.Holder | None, before: instance.Holder | None) -> bool:
