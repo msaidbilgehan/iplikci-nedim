@@ -18,7 +18,8 @@ finans asistanıdır. Bu eklenti onun Gmail köprüsüdür. Tarayıcınızdaki a
 iletilerini okur ve bu bilgisayarda çalışan İplikçi Nedim'e taşır.
 
 - Gmail'de hiçbir şeyi değiştirmez: iletiler okunmamış kalır, taşınmaz, silinmez, etiketlenmez.
-- Yalnızca İplikçi Nedim'deki listede olan bankaların iletilerini alır.
+- Yalnızca İplikçi Nedim'deki listede olan bankaların iletilerini alır. Gmail açıkken sekmede görünen banka iletilerini,
+  okunmuş olsalar da kendiliğinden alır.
 - Yalnızca Gmail'e (mail.google.com ve eklerin indirildiği mail-attachment.googleusercontent.com) ve bu bilgisayardaki
   İplikçi Nedim'e bağlanır. Şifre istemez, başka bir sunucuya veri göndermez, uzaktan kod yüklemez.
 - İplikçi Nedim ile tek kullanımlık bir kodla eşleşir. Her teslimden önce, karşıdaki programın eşleştiği İplikçi Nedim
@@ -37,9 +38,9 @@ Gmail'deki banka iletilerini, kullanıcının kendi bilgisayarında çalışan �
 | İzin | Gerekçe |
 |---|---|
 | `alarms` | Yeni banka iletilerine dakikada bir bakmak. |
-| `scripting` | "Gmail'de eksikleri tara" sırasında, eklentinin kendi açtığı Gmail sekmesindeki arama listesinden yalnızca konuşma kimliklerini ve konuşmaların okunup okunmadığını okumak. Başka bir sayfada betik çalışmaz. |
-| `storage` | Eşleşmeyi, okunacak Gmail hesabının sırasını ve son denetimin özetini tarayıcıda saklamak. E-posta adresi saklanmaz. |
-| `https://mail.google.com/*` | Gelen kutusu akışını, "Orijinali göster" sayfasını, arama listesini ve baştan sona okunmuş konuşmaların yazdırma görünümünü kullanıcının oturumuyla okumak. Yalnızca okuma (GET) istekleri. |
+| `scripting` | "Gmail'de eksikleri tara" sırasında, eklentinin kendi açtığı Gmail sekmesindeki arama listesinden yalnızca konuşma kimliklerini ve konuşmaların okunup okunmadığını okumak. Bu izinle başka bir sayfada betik çalıştırılmaz; Gmail sekmelerindeki içerik betiği `https://mail.google.com/*` satırındadır. |
+| `storage` | Eşleşmeyi, okunacak Gmail hesabının sırasını, son denetimin özetini, listedeki göndericilerin alan adlarını ve son banka iletilerinin Gmail kimliklerini tarayıcıda saklamak. E-posta adresi saklanmaz. |
+| `https://mail.google.com/*` | Gelen kutusu akışını, "Orijinali göster" sayfasını, arama listesini ve baştan sona okunmuş konuşmaların yazdırma görünümünü kullanıcının oturumuyla okumak. Yalnızca okuma (GET) istekleri. Kullanıcının açık Gmail sekmelerinde çalışan içerik betiği, görünen konuşma listesinden ve açılmış konuşmadan yalnızca listedeki bankaların iletilerinin kimliklerini eklentiye bildirir; göndericinin adresine yalnızca alan adı için bakar, konu, metin ve ad okumaz, istek yapmaz. |
 | `https://mail-attachment.googleusercontent.com/*` | Eki olan bir iletinin tamamını "Orijinali indir" ile almak: Gmail bu indirmeyi kendi ek sunucusuna yönlendirir, "Orijinali göster" ise eklerin içeriğini boş verir. Yalnızca okuma (GET). |
 | `http://127.0.0.1:8643/*` | İletileri bu bilgisayardaki İplikçi Nedim servisine teslim etmek. "İplikçi Nedim'i aç" ile servisin arayüzünü açmak: bu adreste açık bir sekme varsa onu bulup öne getirmek (yalnızca bu adresteki sekmelerin adresi ve başlığı görülür), yoksa servisten tek kullanımlık bir giriş bağlantısı isteyip açmak. |
 
@@ -61,6 +62,13 @@ Uzaktan kod: yok. Bütün kod pakettedir ve küçültülmemiştir.
 > hosts are mail.google.com and its attachment server mail-attachment.googleusercontent.com, where Gmail's "Download
 > original" leads (GET requests only; nothing is marked read, moved, labelled or deleted), and 127.0.0.1.
 > There is no remote code, analytics or third-party request.
+>
+> A content script runs in the user's Gmail tabs (content.js, within the mail.google.com host permission). While the
+> tab shows the Gmail account the extension reads, it tells the extension's service worker the Gmail ids of the
+> listed banks' messages the conversation list or an opened conversation shows, read or not, so that a message read
+> before the next check is still delivered. It looks at a sender's address only for its domain; it reads no subject,
+> snippet, body or name, makes no request and does not read the extension's storage. The service worker accepts only
+> two requests from a Gmail tab: what to look for, and decimal message ids.
 >
 > Without the local app the extension stays unpaired and sends nothing. Its verification page (verify.html, linked
 > from the options page) shows how it reads Gmail without changing anything. Pairing uses a one-time code from the

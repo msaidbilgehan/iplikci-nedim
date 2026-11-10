@@ -38,6 +38,19 @@ açık Gmail oturumuyla okuyup bu bilgisayardaki İplikçi Nedim servisine taş�
   hâliyle teslim eder.
   - Güven kuralını (DMARC) servis uygular. Teslimin nerede kaldığını da servis tutar.
   - Servisin hiç alamayacağı bir ileti (boş ya da 40 MB'tan büyük) atlanır ve yeniden indirilmez.
+- **Gmail'de görünen iletiler** (0.7.0, ADR-0016'nın 2026-11-10 notu): Gmail bu tarayıcıda açıkken sekmesinde görünen
+  banka iletileri, okunmuş olsun olmasın, kendiliğinden alınır. Akış yalnızca okunmamış iletileri gösterdiği için,
+  bir sonraki denetimden önce okunan ileti önceden ancak taramayla gelirdi.
+  - Gmail sekmelerinde çalışan içerik betiği (`src/content.ts`, sayfayı okuyan kısmı `src/gmail/visible.ts`) konuşma
+    listesinin satırlarından konuşmanın ve son iletinin kimliğini, açılmış bir konuşmadan iletilerin kimliklerini
+    okur. Göndericinin adresine yalnızca alan adı için bakar; konu, önizleme, metin ve ad okumaz.
+  - Yalnızca listedeki bankaların iletilerinin kimliklerini, yalnızca eklentinin okuduğu hesabın sekmesinden ve
+    yalnızca eklentiye bildirir. Sayfayı yalnızca sekme görünürken ve en çok beş saniyede bir okur.
+  - Kimlikler bir sonraki teslim turunu bekler. Tur önce gelen kutusu akışını okur; sonra servisin tutmadıklarını
+    "Orijinali göster" yoluyla, en eskiden başlayarak, saniyede bir indirir. Bunların tarihi yoktur; servisin konumu
+    yerinde kalır.
+  - Konuşmaların ortasındaki iletiler ve açık bir Gmail sekmesinde hiç görünmeyenler (bu bilgisayar kapalıyken
+    telefonda okunup arşivlenenler gibi) taramaya kalır.
 - **Sorunlar:**
   - Tanınmayan bir Gmail sayfası o katmanı durdurur ve servise bir kez bildirilir (biçim alarmı). Düzeltme eklentinin
     yeni sürümüyle gelir.
@@ -47,7 +60,8 @@ açık Gmail oturumuyla okuyup bu bilgisayardaki İplikçi Nedim servisine taş�
   - Gmail yavaşlamayı isterse ya da başka bir sorun çıkarsa sonraki deneme her seferinde daha geç yapılır: önce bir
     dakika sonra, en geç bir saat sonra.
 - **Geçmiş ve kaçan iletiler ("Gmail'de eksikleri tara"):** doğrulamada tam tarama (3. madde) tutmadı; Gmail'in konu
-  listesi adresi oturum açma sayfasına yönlendiriyor. Bu yüzden ADR-0016'nın yedek yolu kullanılır:
+  listesi adresi oturum açma sayfasına yönlendiriyor. Bu yüzden ADR-0016'nın yedek yolu kullanılır. Açık sekmede
+  görünenler kendiliğinden alındığı için düğme eski ya da arşivlenmiş iletiler içindir:
   - Ayarlar sayfasındaki düğme Gmail'i yeni bir sekmede açar ve listedeki bankaların başlangıç gününden beri gelen
     iletilerini arar.
   - Sekmede çalışan küçük bir betik sonuç listesinden yalnızca konuşma kimliklerini okur; konu, adres ya da metin
@@ -67,7 +81,9 @@ açık Gmail oturumuyla okuyup bu bilgisayardaki İplikçi Nedim servisine taş�
 
 - İzinler yalnızca `alarms`, `scripting` (taramada Gmail sekmesindeki listeyi okumak için) ve `storage`, artı üç
   adres: `https://mail.google.com/*`, Gmail'in ek sunucusu `https://mail-attachment.googleusercontent.com/*` ve
-  `http://127.0.0.1:8643/*`.
+  `http://127.0.0.1:8643/*`. Gmail sekmelerindeki içerik betiği ilk adresin izniyle çalışır; yeni bir izin istemez.
+- İçerik betiği istek yapmaz ve tarayıcının deposunu okumaz. Servis çalışanı bir Gmail sekmesinden yalnızca iki şey
+  kabul eder: neye bakılacağını sormak ve ondalık ileti kimlikleri bildirmek.
 - `tabs` izni yoktur. "İplikçi Nedim'i aç" açık sekmelerden yalnızca `http://127.0.0.1:8643/` adresindekilerin adresini
   ve başlığını görür; bunu adres izni sağlar. Eklenti oturum çerezini okumaz ve servise çerez göndermez.
 - "Orijinali göster" eklerin içeriğini boş verir. Bu yüzden bir dosya adı geçen ileti "Orijinali indir" ile, bayt bayt
@@ -90,7 +106,8 @@ npm run package     # dist/ ve mağazaya yüklenecek iplikci-kopru.zip (macOS ve
 ```
 
 Geliştirme sırasında `dist/` klasörü tarayıcıda "Paketlenmemiş öğe yükle" ile yüklenir. `dist/` yeniden derlenince
-tarayıcının eklentiler sayfasında eklentiyi yeniden yükleyin; bunu bir tarama sürerken yapmayın.
+tarayıcının eklentiler sayfasında eklentiyi yeniden yükleyin; bunu bir tarama sürerken yapmayın. Açık bir Gmail
+sekmesindeki eski içerik betiği o zaman kendiliğinden durur; yeni sürümünki sekme yenilenince çalışır.
 
 Eklenti mağazada yayımlanana dek ([K20](../docs/v1/requirements.md#kararlar)) kullanıcılar da onu paketlenmemiş
 yükler. Kurulum paketi derlenmiş eklentiyi taşır (`src/iplikci/browser_extension`, `npm run build` yazar). Tarayıcı

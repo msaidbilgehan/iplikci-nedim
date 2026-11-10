@@ -246,6 +246,63 @@ Sonuca göre:
   durumuna göre renk alır, söz altındaki balonda durur; "Başka bir söz" o gün doğru olan öbür sözleri gösterir. Söz ve
   cümlesi tutar, hesap ya da ad taşımaz. İzinler değişmedi.
 
+## Uygulama notu (eklenti 0.7.0, 2026-11-10): açık Gmail sekmesinde görünen iletiler
+
+- **Neden:** 1. katman yalnızca okunmamış iletileri görür. 2026-11-10'da gelen, ekli bir banka iletisini kullanıcı aynı
+  tarayıcıda açık Gmail'de, eklentinin bir sonraki dakikalık denetiminden önce okudu. Akış onu hiç okunmamış görmedi;
+  ileti ancak elle başlatılan "Gmail'de eksikleri tara" ile geldi. Kullanıcı, Gmail açıkken okuduğu banka iletilerinin
+  de kendiliğinden alınmasını bekliyor.
+- **Karar:** 2. katman tutmadığında öngörülen yol ("açık bir Gmail sekmesinde içerik betiği görünen iletileri toplar")
+  artık kendiliğinden de çalışır. Eklentinin içerik betiği (`extension/src/content.ts`, Gmail'e dokunan kısmı
+  `extension/src/gmail/visible.ts`) kullanıcının Gmail sekmelerinde çalışır ve görünen banka iletilerini, okunmuş olsun
+  olmasın, eklentinin servis çalışanına bildirir. "Gmail'de eksikleri tara" olduğu gibi kalır.
+- **Ne okur:** yalnızca şunları.
+  - Konuşma listesinin satırlarından (`tr.zA`): konuşmanın kimliği (`data-thread-id`, `#thread-f:<ondalık>`; konuşmanın
+    ilk iletisinin kimliği), son iletinin kimliği (`data-legacy-last-message-id`, onaltılık) ve göndericilerin adresleri
+    (`span[email]`).
+  - Açılmış bir konuşmadan: her iletinin kimliği (`data-message-id`, `#msg-f:<ondalık>`) ve göndericisinin adresi
+    (`span.gD[email]`).
+  - Adrese yalnızca alan adı için bakılır. Satır ya da ileti listedeki bir göndericinin değilse onun hakkında hiçbir şey
+    tutulmaz. Konu, önizleme, ileti metni ve ad okunmaz. Gmail'in arkada gizli tuttuğu görünümler okunmaz.
+- **Neden güvenli:**
+  - Sekmeden yalnızca listedeki göndericilerin iletilerinin Gmail kimlikleri çıkar, o da yalnızca eklentinin servis
+    çalışanına. İçerik betiği kendisi hiçbir istek yapmaz ve tarayıcının deposunu okumaz; neye bakacağını (gönderici
+    alan adlarını) servis çalışanından alır.
+  - Servis çalışanı bir Gmail sekmesinden yalnızca iki şey kabul eder: neye bakılacağını sormak ve ondalık ileti
+    kimlikleri bildirmek. Eşleştirme, hesap seçimi ya da başka bir istek sekmeden yapılamaz.
+  - Bildirim yalnızca eklentinin okuduğu hesabın sekmesinden alınır: sekmenin adresindeki `/mail/u/<n>/`, eklentide
+    seçilen hesap olmalıdır. Başka bir hesabın, devredilmiş bir kutunun ya da sayfanın içindeki bir çerçevenin
+    bildirimi alınmaz.
+  - Gmail'de hiçbir şey değişmez ve hiçbir konuşma açılmaz; betik yalnızca kullanıcının gördüğünü okur. İletiler yine
+    "Orijinali göster" ile, saniyede en çok bir istekle ve 3. katmanın kurallarıyla indirilir: 40 MB sınırı, atlanan
+    iletiler, sorundan sonra artan bekleme, biçim alarmı.
+  - Sayfa yalnızca sekme görünürken ve en çok beş saniyede bir okunur: Gmail'in ana alanı değişince, adresin `#`'ten
+    sonraki kısmı değişince (bir kez de beş saniye sonra, Gmail görünümü geç çizdiği için) ve sekme yeniden görününce.
+- **İzinler:** yeni bir adres ya da izin eklenmedi. İçerik betiği var olan `https://mail.google.com/*` adres izninin
+  içinde çalışır; `tabs` izni yoktur.
+- **Teslim:**
+  - Kimlikler servis çalışanında bekler ve tarayıcının deposuna yazılır. Bir teslim turu sürerken gelenler, tur biter
+    bitmez başlayan bir sonraki tura kalır. Tarama sürerken sekmelerden kimlik alınmaz: taramanın kendi sekmesi de bir
+    Gmail sekmesidir ve tarama aradığı iletileri zaten alır.
+  - Tur önce gelen kutusu akışını okur. Akıştaki okunmamış bir ileti kendi tarihiyle teslim edilir ve servisin konumu
+    ilerler.
+  - Sonra bekleyen kimliklerden servisin tutmadıkları `POST /api/ingest/mail/known` ile sorulur. Eksikler en eskiden
+    başlayarak 3. katmanla indirilir. Bu teslimlerin tarihi yoktur; taramanınkiler gibi konumu yerinde bırakır.
+  - Eklenti, teslim ettiği ya da servisin zaten tuttuğu son 1000 iletinin kimliğini hatırlar. Akış bunları yeniden
+    indirmez; bir sekmenin yeniden bildirdikleri servise sorulmaz.
+  - Katmanlar ayrı bozulur: bu yol 2. ve 3. katman durmadıkça çalışır, 1. katman durmuşken de.
+  - Eklenti yeniden yüklenince açık bir Gmail sekmesindeki eski betik kendiliğinden durur. Yeni sürümünki sekme
+    yenilenince ya da tarayıcı yeniden açılınca çalışır; program güncellemesinde eklenti zaten tarayıcı yeniden
+    açılınca yenilenir.
+- **Biçim:** satırı ya da iletiyi tanınmayan bir sayfadan hiçbir şey bildirilmez ve alarm üretilmez. Gmail listesini
+  değiştirirse bunu aynı satırları okuyan taramanın biçim alarmı gösterir.
+- **Elle taramaya kalanlar:** açık bir Gmail görünümünde hiç görünmeyen iletiler.
+  - Bu bilgisayar kapalıyken telefonda okunup arşivlenen iletiler.
+  - Konuşmaların ortasındaki iletiler: liste bir konuşmanın yalnızca ilk ve son iletisini adlandırır. Kullanıcı
+    konuşmayı Gmail'de açarsa açık konuşmanın gösterdiği iletiler alınır. Yazdırma görünümü bu yolda istenmez: her
+    görünen konuşma için Gmail'e arka planda bir istek daha olurdu ve sayfanın iletileri okundu yapıp yapmadığı
+    bilinmiyor.
+
 ## Sonuçlar
 
 - Olumlu:
