@@ -4,6 +4,16 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.9.17] — 2026-11-10 — İş Bankası'nda hesaplarınız arası aktarma
+
+### Düzeltilenler
+
+- İş Bankası'nda bir hesabınızdan öbürüne yaptığınız aktarma ("… HESABA <adınız> Hesaplar Arası Akt") kişilere
+  gönderilen para sayılıyordu. Hesap özeti bu satırda parayı alanın adını yazar; okuyucu bu adı okumuyordu. Artık ad
+  okunur ve sizin adınızsa aktarma kendi hesaplarınız arası sayılır. Daha önce eklenen hesap özetleri güncellemeyle
+  kendiliğinden yeniden okunur.
+- Parayı alan hesabın kendi hesap özeti de gelince iki uç eşleşir ve o hesabın bakiyesi toplamlara girer.
+
 ## [0.9.16] — 2026-11-10 — Uygulamadan paylaşılan dekontlar ve TEB cüzdanı
 
 ### Eklenenler
