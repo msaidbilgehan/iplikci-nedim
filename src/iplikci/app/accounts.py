@@ -15,7 +15,7 @@ from datetime import date
 from decimal import Decimal
 
 from .. import month_end
-from ..analysis import Dataset
+from ..analysis import Dataset, start_of
 from ..domain.codes import (
     CARD_TYPES,
     AccountGroup,
@@ -27,7 +27,6 @@ from ..domain.codes import (
     PaymentKind,
 )
 from ..domain.models import Security
-from ..forecast import start_of
 from ..insights import FULL, month_of, payments_after, shift
 from ..storage import aliases, documents
 from ..storage.documents import DocumentRow

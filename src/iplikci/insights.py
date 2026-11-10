@@ -25,7 +25,19 @@ from decimal import Decimal
 from itertools import pairwise
 from statistics import median
 
-from .analysis import NOT_ON_STATEMENT, PROVISIONAL, Dataset, DatedRate, ReceiptLine, payments, untold_in, whole
+from .analysis import (
+    NOT_ON_STATEMENT,
+    PROVISIONAL,
+    Dataset,
+    DatedRate,
+    ReceiptLine,
+    Start,
+    payments,
+    sent_after,
+    start_of,
+    untold_in,
+    whole,
+)
 from .categorize import FX_CATEGORY
 from .domain.codes import (
     CARD_TYPES,
@@ -997,6 +1009,52 @@ def _with_untold(ds: Dataset, account: str, h: "Holding", rate: Decimal | None) 
     h.note += f"; hesap eksiye düşmediğine göre arada belgelerde olmayan en az {shown} girmiş olmalı, bakiye 0 sayıldı"
 
 
+def _from_notice(label: str, kind: str, currency: str, start: Start, rate: Decimal | None) -> Holding:
+    """A balance a bank notice prints after the account's newest list (analysis.start_of, as Hesaplar and the forecast
+    take it), moved by the receipt and notice rows after it."""
+    shown = (lambda x: tl(x)) if currency == TRY else (lambda x: f"{format_amount(x)} {currency}")
+    value = start.balance if currency == TRY else round_half_up(start.balance * rate) if rate else None
+    note = f"{_day(start.on)} banka bildiriminde {shown(start.stated)}"
+    moved = start.told - start.stated
+    if start.moves:
+        sign = "−" if moved > 0 else "+"  # rows are money out when positive
+        note += (
+            f"; sonraki {start.moves} dekont ve bildirimle {sign}{shown(abs(moved))} (geçici, döküm gelince kesinleşir)"
+        )
+    h = Holding(label, kind, currency, start.balance, value, start.through, note)
+    if start.untold:
+        h.untold = start.untold if currency == TRY else round_half_up(start.untold * rate) if rate else ZERO
+        h.note += (
+            f"; hesap eksiye düşmediğine göre arada belgelerde olmayan en az {shown(start.untold)} girmiş olmalı, "
+            "bakiye 0 sayıldı"
+        )
+    return h
+
+
+def sent_after_note(ds: Dataset, account: str, day: date) -> str:
+    """The own transfers sent to this account, or to one at its bank, after its balance's day that no document of it
+    shows yet (analysis.sent_after), as a note says them; "" for none."""
+    a = ds.accounts[account]
+    parts = []
+    for t, here in sent_after(ds, account, day):
+        amount = f"{format_amount(t.amount)} {'TL' if a.currency == TRY else a.currency}"
+        source = f"{ds.accounts[t.account].label} hesabından"
+        if here:
+            parts.append(f"{_day(t.date)} tarihinde bu hesaba {amount} gönderildi ({source}); bakiyede henüz yok")
+        else:
+            parts.append(
+                f"{_day(t.date)} tarihinde {a.bank} hesaplarınızdan birine {amount} gönderildi ({source}); hangisine "
+                "girdiği belgelerde yok"
+            )
+    return "; ".join(parts)
+
+
+def _with_sent_after(ds: Dataset, account: str, h: Holding) -> None:
+    extra = sent_after_note(ds, account, h.as_of)
+    if extra:
+        h.note = f"{h.note}; {extra}" if h.note else extra
+
+
 _STALE_DAYS = 180  # a balance this much older than the newest statement says nothing about today
 
 
@@ -1046,20 +1104,32 @@ def holdings(ds: Dataset) -> list[Holding]:
             )
             h = Holding(a.label, "altin", "gr", s.total, None, s.cut_date, note, max(ZERO, paid))
         elif a.currency != TRY:
-            lines = waiting.get(account, [])
-            # The receipts after the list move the balance (_with_receipts): an asset or a debt is what it comes to.
-            after = round_half_up(s.total - round_half_up(sum((line.native for line in lines), ZERO)))
-            after += untold_in(ds, account, after)  # zero, no debt, when money came in that no document tells yet
-            rate = balance_rate(ds, a.currency, after)
-            value = round_half_up(s.total * rate.rate) if rate else None
-            note = _rate_note(rate, after < 0) if rate else "kur bulunamadı"
-            h = Holding(a.label, "doviz", a.currency, s.total, value, s.cut_date, note)
-            _with_receipts(h, lines, rate.rate if rate else None)
-            _with_untold(ds, account, h, rate.rate if rate else None)
+            start = start_of(ds, account)
+            if start is not None and start.notice:
+                rate = balance_rate(ds, a.currency, start.balance)
+                h = _from_notice(a.label, "doviz", a.currency, start, rate.rate if rate else None)
+                h.note += "; " + (_rate_note(rate, start.balance < 0) if rate else "kur bulunamadı")
+            else:
+                lines = waiting.get(account, [])
+                # The receipts after the list move the balance (_with_receipts): an asset or a debt is what it comes to.
+                after = round_half_up(s.total - round_half_up(sum((line.native for line in lines), ZERO)))
+                after += untold_in(ds, account, after)  # zero, no debt, when money came in that no document tells yet
+                rate = balance_rate(ds, a.currency, after)
+                value = round_half_up(s.total * rate.rate) if rate else None
+                note = _rate_note(rate, after < 0) if rate else "kur bulunamadı"
+                h = Holding(a.label, "doviz", a.currency, s.total, value, s.cut_date, note)
+                _with_receipts(h, lines, rate.rate if rate else None)
+                _with_untold(ds, account, h, rate.rate if rate else None)
+            _with_sent_after(ds, account, h)
         else:
-            h = Holding(a.label, "nakit", TRY, s.total, s.total, s.cut_date)
-            _with_receipts(h, waiting.get(account, []), None)
-            _with_untold(ds, account, h, None)
+            start = start_of(ds, account)
+            if start is not None and start.notice:
+                h = _from_notice(a.label, "nakit", TRY, start, None)
+            else:
+                h = Holding(a.label, "nakit", TRY, s.total, s.total, s.cut_date)
+                _with_receipts(h, waiting.get(account, []), None)
+                _with_untold(ds, account, h, None)
+            _with_sent_after(ds, account, h)
             h.kind = "kmh" if h.amount < 0 or a.type == AccountType.OVERDRAFT else "nakit"
             h.kind = "vadeli" if h.kind == "nakit" and a.type == AccountType.DEPOSIT else h.kind
         if newest and (newest - s.cut_date).days > _STALE_DAYS:
@@ -1625,14 +1695,18 @@ def _write_steps(c: _Context) -> None:
     ins, window, steps = c.ins, c.window, c.ins.steps
     interest = c.recent_avg(lambda t: t.category in INTEREST)
     if interest >= 1:
-        overdraft = -sum((h.amount for h in ins.holdings if h.kind == "kmh" and h.amount < 0), ZERO)
+        debts = [h for h in ins.holdings if h.kind == "kmh" and h.amount < 0]
+        overdraft = -sum((h.amount for h in debts), ZERO)
+        # A debt is as old as the document that tells it: a list of days ago may be paid since.
+        oldest = min((h.as_of for h in debts), default=ins.timeline.as_of)
+        when = "şu an" if oldest >= ins.timeline.as_of else f"{_day(oldest)} itibarıyla"
         text = (
             f"Son 3 ayda faize ayda {tl(interest)} gitti. Kart ekstresinin her ay tamamını ödeyin, ek hesabı "
             "sıfırlayıp eksiye düşürmeyin."
         )
         if overdraft >= 1 and c.savings >= overdraft:
             text += (
-                f" Ek hesaplarda şu an {tl(overdraft)} borç var; birikiminizin bir kısmıyla kapatmak, o paranın "
+                f" Ek hesaplarda {when} {tl(overdraft)} borç var; birikiminizin bir kısmıyla kapatmak, o paranın "
                 "getirisinden daha yüksek bir faizi keser."
             )
         steps.append(Step("Faiz ödemeyi bırakın", text, interest))

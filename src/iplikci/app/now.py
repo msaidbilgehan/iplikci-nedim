@@ -15,14 +15,23 @@ from enum import StrEnum
 from statistics import median
 
 from .. import month_end
-from ..analysis import Dataset, DatedRate, statement_periods
+from ..analysis import Dataset, DatedRate, start_of, statement_periods
 from ..domain.codes import CARD_TYPES, DEFAULT_EXPENSE_KINDS, AccountType, Certainty, RateSource
 from ..domain.labels import format_amount, format_rate
 from ..domain.models import TRY, Statement, Transaction
 from ..domain.money import round_half_up
-from ..forecast import STALE_DAYS, start_of
+from ..forecast import STALE_DAYS
 from ..fx.book import to_tl
-from ..insights import balance_rate, complete_months, month_name, month_of, payments_after, pct, provider_rate_said
+from ..insights import (
+    balance_rate,
+    complete_months,
+    month_name,
+    month_of,
+    payments_after,
+    pct,
+    provider_rate_said,
+    sent_after_note,
+)
 from ..upcoming import Due, add_months
 from . import outlook, reach
 from .analysis import Analysis
@@ -270,6 +279,8 @@ def _balance(ds: Dataset, account: str, newest: date | None) -> Balance | Unknow
         note += "; güncel altın fiyatı belgelerde yok"
     elif currency != TRY:
         note += f"; kur {rate_text(rate, start.balance < 0)}" if rate else "; kur bulunamadı"
+    if sent := sent_after_note(ds, account, start.through):
+        note += f"; {sent}"
     return Balance(
         account=account,
         type=found.type,

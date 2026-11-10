@@ -6,7 +6,7 @@ from decimal import Decimal
 
 import pytest
 
-from iplikci.analysis import PROVISIONAL, Dataset, ReceiptLine
+from iplikci.analysis import PROVISIONAL, Dataset, ReceiptLine, sent_after
 from iplikci.domain.codes import AccountType, Necessity, SeriesPeriod, TransactionKind
 from iplikci.domain.models import Account, Security, Statement, Transaction
 from iplikci.insights import (
@@ -24,6 +24,7 @@ from iplikci.insights import (
     pct,
     periodic_payments,
     regular_payments,
+    sent_after_note,
     since,
     timeline,
 )
@@ -621,6 +622,84 @@ def test_receipts_paying_out_more_than_an_account_holds_leave_it_at_zero_and_nev
     assert "iki kez sayılmasın diye birikimden düşüldü" in position.text
 
 
+def test_holdings_take_the_balance_a_notice_prints_after_the_list():
+    # The list ended on 3 November at zero; the salary came in after it, and only the notice of a transfer out on the
+    # 9th tells the balance: the ledger's own row would take the account below zero and call the money in untold.
+    statements = [
+        Statement(
+            account="cash",
+            cut_date=date(2026, 11, 3),
+            currency="TRY",
+            source="v.xlsx",
+            previous=Decimal(0),
+            total=Decimal(0),
+            start=date(2026, 10, 3),
+        )
+    ]
+    sent = tx(date(2026, 11, 9), "Giden FAST", Decimal(4500), kind=TransactionKind.OWN_TRANSFER, account="cash")
+    sent.balance, sent.provisional = Decimal("84250.37"), True
+    ds = dataset([sent], statements)
+    ds.receipts = [ReceiptLine(sent, "cash-20261109-1", PROVISIONAL, Decimal(4500))]
+    cash = next(h for h in holdings(ds) if h.label == CASH.label)
+    assert (cash.kind, cash.amount, cash.value, cash.untold, cash.as_of) == (
+        "nakit",
+        Decimal("84250.37"),
+        Decimal("84250.37"),
+        Decimal(0),
+        date(2026, 11, 9),
+    )
+    assert cash.note == "09.11.2026 banka bildiriminde 84.250 TL"
+
+
+def test_a_balance_tells_the_own_transfers_sent_to_its_account_or_bank_after_its_day():
+    teb = Account("teb-101", "Test TEB Vadesiz", "TEB", AccountType.CURRENT, number="12345678")
+    vakif = Account("vakif", "Test Vakıfbank Maaş", "Vakıfbank", AccountType.CURRENT, number="0158000000000001")
+    listed = Statement(
+        account="teb-101",
+        cut_date=date(2026, 11, 2),
+        currency="TRY",
+        source="t.xls",
+        previous=Decimal(0),
+        total=Decimal(0),
+        start=date(2026, 10, 1),
+    )
+    own = TransactionKind.OWN_TRANSFER
+    named = tx(
+        date(2026, 11, 3),
+        "Ek hesaptan",
+        Decimal("412.35"),
+        kind=own,
+        account="cash",
+        description=("12345678 no.lu hesaba gönderilmiştir."),
+    )
+    to_bank = tx(
+        date(2026, 11, 3),
+        "FAST",
+        Decimal(750),
+        kind=own,
+        account="vakif",
+        description=(
+            "FAST Anlık Ödeme: ödeme (03/11/2026 tarihli 1 sorgu no'lu ÖRNEK KULLANICI hesabından Türk Ekonomi "
+            "Bankası A.Ş. ÖRNEK KULLANICI hesabına giden FAST ödemesi)"
+        ),
+    )
+    before = replace(to_bank, date=date(2026, 11, 1))  # the list holds that day
+    paired = replace(to_bank, amount=Decimal(250))  # its other side is on a list
+    paired.reason = replace(paired.reason, pair="0123456789abcdef0123")
+    ds = dataset([named, to_bank, before, paired], [listed])
+    ds.accounts |= {a.id: a for a in (teb, vakif)}
+    assert sent_after(ds, "teb-101", date(2026, 11, 2)) == [(named, True), (to_bank, False)]
+    assert sent_after_note(ds, "teb-101", date(2026, 11, 2)) == (
+        "03.11.2026 tarihinde bu hesaba 412,35 TL gönderildi (Test Vadesiz TL hesabından); bakiyede henüz yok; "
+        "03.11.2026 tarihinde TEB hesaplarınızdan birine 750,00 TL gönderildi (Test Vakıfbank Maaş hesabından); "
+        "hangisine girdiği belgelerde yok"
+    )
+    assert sent_after(ds, "teb-101", date(2026, 11, 3)) == []  # a balance of that day holds them
+    assert sent_after(ds, "vakif", date(2026, 10, 31)) == []  # Vakıfbank was not where the money went
+    teb_holding = next(h for h in holdings(ds) if h.label == teb.label)
+    assert teb_holding.note.startswith("03.11.2026 tarihinde bu hesaba 412,35 TL gönderildi")
+
+
 def test_a_missing_brokerage_statement_leaves_the_month_complete():
     coverage = {
         "card": full_coverage("card", "2026-01", "2026-10", 0.45),
@@ -717,7 +796,8 @@ def test_waiting_rows_too_small_to_name_leave_no_empty_list_in_the_sentence():
     assert "1 işlem şimdiden işlendi (31.10.2026). Bakiyeler" in text and ": ." not in text
 
 
-def test_interpretation_prices_the_steps_and_balances_the_budget():
+def _steps_case() -> tuple[list[Transaction], list[Statement], dict]:
+    """Eleven months of salary, rent, groceries and overdraft interest; the current account ends October overdrawn."""
     statements = card_statements(date(2025, 12, 14), 11, total=Decimal(5000)) + [
         Statement(
             account="cash",
@@ -767,6 +847,11 @@ def test_interpretation_prices_the_steps_and_balances_the_budget():
         )
         for d in monthly(date(2025, 12, 28), 10)
     ]
+    return txns, statements, coverage
+
+
+def test_interpretation_prices_the_steps_and_balances_the_budget():
+    txns, statements, coverage = _steps_case()
     ins = interpret(dataset(txns, statements, coverage=coverage))
     titles = [f.title for f in ins.findings]
     assert (
@@ -778,6 +863,24 @@ def test_interpretation_prices_the_steps_and_balances_the_budget():
     assert income.now == Decimal(100000)
     assert left.now == pytest.approx(income.now - sum(line.now for line in spent))
     assert left.plan - left.now == pytest.approx(sum(line.now - line.plan for line in spent))
+
+
+def test_the_overdraft_step_dates_a_debt_that_an_older_list_tells():
+    # A term deposit listed ten days after the overdrawn account: the debt is the one its list told on 31 October, and
+    # the user may have paid it since.
+    txns, statements, coverage = _steps_case()
+    term = Statement(
+        account="vadeli",
+        cut_date=date(2026, 11, 10),
+        currency="TRY",
+        source="d.pdf",
+        previous=Decimal(100000),
+        total=Decimal(100000),
+        start=date(2026, 11, 1),
+    )
+    ins = interpret(dataset(txns, [*statements, term], coverage=coverage))
+    [step] = [s for s in ins.steps if s.title == "Faiz ödemeyi bırakın"]
+    assert "Ek hesaplarda 31.10.2026 itibarıyla 20.000 TL borç var" in step.text
 
 
 def _account_months(extra: list[Transaction]) -> Dataset:

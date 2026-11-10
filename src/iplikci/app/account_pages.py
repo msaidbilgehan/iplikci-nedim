@@ -13,7 +13,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from itertools import groupby
 
-from ..analysis import NO_STATEMENT, PROVISIONAL, Dataset, ReceiptLine, statement_periods, untold_in
+from ..analysis import NO_STATEMENT, PROVISIONAL, Dataset, ReceiptLine, last_of_day, statement_periods, untold_in
 from ..categorize import FEE_CATEGORIES, FX_CATEGORY
 from ..domain.codes import (
     DEFAULT_EXPENSE_KINDS,
@@ -27,7 +27,7 @@ from ..domain.codes import (
 from ..domain.models import TRY, Security, Statement
 from ..domain.money import round_half_up
 from ..domain.text import fold
-from ..forecast import CARD_PAYMENTS, IN_FULL, last_of_day
+from ..forecast import CARD_PAYMENTS, IN_FULL
 from ..insights import FULL, complete_months, month_of, payments_after, shift
 from ..upcoming import Due, Installment, installment_items, installments_left
 from . import now, outlook

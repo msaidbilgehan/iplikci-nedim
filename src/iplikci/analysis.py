@@ -583,6 +583,37 @@ def _bank_fits(out: Transaction, inc: Transaction, accounts: dict[str, Account])
     return account is not None and _at_bank(printed, account)
 
 
+# TEB names the account a transfer went to: "12345678 no.lu hesaba gönderilmiştir".
+_TO_ACCOUNT = re.compile(r"(\d{6,})\s+no\.?\s*lu\s+hesaba", re.IGNORECASE)
+
+
+def sent_after(ds: Dataset, account: str, day: date) -> list[tuple[Transaction, bool]]:
+    """Own transfers after day that another account's documents tell left for this account, or for an account at its
+    bank, whose other side no document shows: a balance of day does not hold them. (row, True) when the row names this
+    account ("<number> no.lu hesaba"), (row, False) when it names only the bank, which may hold other accounts."""
+    target = ds.accounts[account]
+    if target.type not in _BANK_ACCOUNTS:
+        return []
+    found: list[tuple[Transaction, bool]] = []
+    for t in ds.transactions:
+        if t.account == account or t.date <= day or t.amount <= 0:
+            continue
+        source = ds.accounts.get(t.account)
+        if t.kind is not TransactionKind.OWN_TRANSFER or t.reason.pair or source is None:
+            continue
+        if source.currency != target.currency:
+            continue
+        named = _TO_ACCOUNT.search(t.description)
+        if named:
+            if named[1] == target.number:
+                found.append((t, True))
+            continue
+        printed = _printed_receiver_bank(t)
+        if printed and _at_bank(printed, target):
+            found.append((t, False))
+    return found
+
+
 def _free_card_payments(card_txns: list[Transaction], account_txns: list[Transaction]) -> list[Transaction]:
     """Card payments seen on a card statement but not as a card-payment row of any account:
     paid by a transfer from another bank, so they can pair with that transfer."""
@@ -1037,3 +1068,71 @@ def build(
         invoices=invoices,
         book=book,
     )
+
+
+# --- an account's balance today ----------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Start:
+    """Where an account's forecast starts."""
+
+    balance: Decimal  # today's balance as far as the documents tell
+    stated: Decimal  # the balance the document printed
+    on: date  # the day of that balance
+    notice: bool  # a bank notice's balance after its row, not an account list's closing balance
+    moves: int  # receipt and notice rows after it, counted in the balance
+    through: date  # the newest day the balance knows of
+    # Money that came in which no document tells yet (analysis.untold_in): the rows after the balance took an account
+    # that cannot go below zero this far below it, so the balance is zero and this much came in first.
+    untold: Decimal = Decimal(0)
+
+    @property
+    def told(self) -> Decimal:
+        """The balance as the documents' rows add up, before the money in no document tells yet."""
+        return self.balance - self.untold
+
+
+def last_of_day(found: list[tuple[ReceiptLine, Decimal]]) -> tuple[ReceiptLine, Decimal]:
+    """Of the notices one day brought (row, balance after it), the one printed last: the one no other row goes on
+    from (its balance less the other row's amount gives the other's balance). When the order cannot be told, the one
+    with the largest receipt key (a Vakıfbank notice's key ends in its query number)."""
+    last = [
+        (line, balance)
+        for line, balance in found
+        if not any(abs(balance - other.native - after) <= CENT for other, after in found if other is not line)
+    ]
+    return last[0] if len(last) == 1 else max(found, key=lambda pair: pair[0].key)
+
+
+def start_of(ds: Dataset, account: str) -> Start | None:
+    """Today's balance of an account as far as the documents tell: the newest balance a document prints, an account
+    list's closing balance before a notice's on the same day (it closes the whole day), moved by the counted receipt
+    and notice rows dated after it. Rows of that same day are taken to be in a notice's balance already. A list's
+    closing balance holds only the rows the list shows: a provisional row of its last days is one it does not show
+    (settle_receipts: the bank may book it after the list ends), so it moves the balance too, as in the ledger. Rows
+    that take an account which cannot go below zero below it tell money out only: the money that came in first is in
+    no document yet (analysis.untold_in), so the balance is zero and Start.untold says how much came in."""
+    currency = ds.accounts[account].currency
+    lists = [s for s in ds.statements if s.account == account and s.is_account and s.currency == currency]
+    closing = max((s for s in lists if s.total is not None), key=lambda s: s.cut_date, default=None)
+    lines = [line for line in ds.receipts if line.txn.account == account]
+    printed = [(line, line.txn.balance) for line in lines if line.txn.balance is not None]
+    newest = max((line.txn.date for line, _ in printed), default=None)
+    if closing is not None and closing.total is not None and (newest is None or closing.cut_date >= newest):
+        on, stated, notice = closing.cut_date, closing.total, False
+    elif newest is not None:
+        _, stated = last_of_day([(line, balance) for line, balance in printed if line.txn.date == newest])
+        on, notice = newest, True
+    else:
+        return None
+    after = [
+        line
+        for line in lines
+        if (line.status in (PROVISIONAL, NO_STATEMENT) and line.txn.date > on)
+        or (not notice and line.status == PROVISIONAL and line.txn.date <= on)
+    ]
+    told = stated - sum((line.native for line in after), Decimal(0))
+    through = max([on, *(line.txn.date for line in after)])
+    untold = untold_in(ds, account, told)
+    return Start(told + untold, stated, on, notice, len(after), through, untold)

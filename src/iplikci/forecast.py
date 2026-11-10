@@ -23,11 +23,11 @@ from decimal import Decimal
 from itertools import pairwise
 from statistics import median
 
-from .analysis import NO_STATEMENT, PROVISIONAL, Dataset, ReceiptLine, untold_in, whole
+from .analysis import Dataset, Start, start_of, whole
 from .domain.codes import CARD_TYPES, AccountType, PaymentKind, TransactionKind
 from .domain.labels import format_amount
 from .domain.models import TRY
-from .domain.money import CENT, round_half_up
+from .domain.money import round_half_up
 from .domain.text import fold
 from .insights import FULL, Insights, Series, month_name, month_of, pct
 from .upcoming import HORIZON, Due, horizon_end
@@ -43,26 +43,6 @@ GAP_DAYS = HORIZON  # the days before today a forecast fills in at most, as many
 _BASE_MONTHS = 6  # the complete months the money spread over the days is the median month of
 _STATEMENTS = 6  # the card statements whose payments tell how the user pays the card
 IN_FULL = Decimal("0.99")  # a statement paid this much of before the next cut was paid in full
-
-
-@dataclass(frozen=True)
-class Start:
-    """Where an account's forecast starts."""
-
-    balance: Decimal  # today's balance as far as the documents tell
-    stated: Decimal  # the balance the document printed
-    on: date  # the day of that balance
-    notice: bool  # a bank notice's balance after its row, not an account list's closing balance
-    moves: int  # receipt and notice rows after it, counted in the balance
-    through: date  # the newest day the balance knows of
-    # Money that came in which no document tells yet (analysis.untold_in): the rows after the balance took an account
-    # that cannot go below zero this far below it, so the balance is zero and this much came in first.
-    untold: Decimal = ZERO
-
-    @property
-    def told(self) -> Decimal:
-        """The balance as the documents' rows add up, before the money in no document tells yet."""
-        return self.balance - self.untold
 
 
 @dataclass(frozen=True)
@@ -175,51 +155,6 @@ def _window(months: Sequence[str]) -> str:
 
 
 # --- the start ---------------------------------------------------------------------------------------------------
-
-
-def last_of_day(found: list[tuple[ReceiptLine, Decimal]]) -> tuple[ReceiptLine, Decimal]:
-    """Of the notices one day brought (row, balance after it), the one printed last: the one no other row goes on
-    from (its balance less the other row's amount gives the other's balance). When the order cannot be told, the one
-    with the largest receipt key (a Vakıfbank notice's key ends in its query number)."""
-    last = [
-        (line, balance)
-        for line, balance in found
-        if not any(abs(balance - other.native - after) <= CENT for other, after in found if other is not line)
-    ]
-    return last[0] if len(last) == 1 else max(found, key=lambda pair: pair[0].key)
-
-
-def start_of(ds: Dataset, account: str) -> Start | None:
-    """Today's balance of an account as far as the documents tell: the newest balance a document prints, an account
-    list's closing balance before a notice's on the same day (it closes the whole day), moved by the counted receipt
-    and notice rows dated after it. Rows of that same day are taken to be in a notice's balance already. A list's
-    closing balance holds only the rows the list shows: a provisional row of its last days is one it does not show
-    (settle_receipts: the bank may book it after the list ends), so it moves the balance too, as in the ledger. Rows
-    that take an account which cannot go below zero below it tell money out only: the money that came in first is in
-    no document yet (analysis.untold_in), so the balance is zero and Start.untold says how much came in."""
-    currency = ds.accounts[account].currency
-    lists = [s for s in ds.statements if s.account == account and s.is_account and s.currency == currency]
-    closing = max((s for s in lists if s.total is not None), key=lambda s: s.cut_date, default=None)
-    lines = [line for line in ds.receipts if line.txn.account == account]
-    printed = [(line, line.txn.balance) for line in lines if line.txn.balance is not None]
-    newest = max((line.txn.date for line, _ in printed), default=None)
-    if closing is not None and closing.total is not None and (newest is None or closing.cut_date >= newest):
-        on, stated, notice = closing.cut_date, closing.total, False
-    elif newest is not None:
-        _, stated = last_of_day([(line, balance) for line, balance in printed if line.txn.date == newest])
-        on, notice = newest, True
-    else:
-        return None
-    after = [
-        line
-        for line in lines
-        if (line.status in (PROVISIONAL, NO_STATEMENT) and line.txn.date > on)
-        or (not notice and line.status == PROVISIONAL and line.txn.date <= on)
-    ]
-    told = stated - sum((line.native for line in after), ZERO)
-    through = max([on, *(line.txn.date for line in after)])
-    untold = untold_in(ds, account, told)
-    return Start(told + untold, stated, on, notice, len(after), through, untold)
 
 
 def _newest_document(ds: Dataset) -> date | None:
