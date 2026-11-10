@@ -4,6 +4,37 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.9.14] — 2026-11-10 — Okunan iletiler ve TEB cüzdanı
+
+### Eklenenler
+
+- Gmail açıkken görünen banka iletileri, okunmuş olsalar da, kendiliğinden alınır (tarayıcı eklentisi 0.7.0).
+  Eklenti eskiden her dakika yalnızca okunmamış iletileri alıyordu. Bir sonraki denetimden önce Gmail'de açtığınız
+  ileti ancak "Gmail'de eksikleri tara" ile geliyordu. Artık Gmail'in listesinde ya da açtığınız konuşmada görünen,
+  listedeki bankaların iletileri alınır. Eklenti bunun için yalnızca iletilerin kimliklerine ve göndericinin alan
+  adına bakar; konu, metin ve ad okumaz, Gmail'de hiçbir şeyi değiştirmez. Eklenti güncellenince açık Gmail sekmesini
+  yenilemek gerekmez.
+- Gmail'in hiç göstermediği iletiler için "Gmail'de eksikleri tara" kalır. Örneğin bilgisayar kapalıyken telefonda
+  okunup arşivlenen iletiler ya da bir konuşmanın ortasındaki iletiler.
+- TEB'in "Dijital Hesap Cüzdanı" PDF'i okunur. Bu belge TEB'in uygulamasından bir hesabın iki gün arasındaki
+  hareketleriyle indirilir. Belge ekle ekranından, gelen klasöründen ya da Telegram botuna gönderilerek eklenir; her
+  satırın bakiyesi bir öncekiyle denetlenir. TEB hareketleri e-postayla bildirmediği için TEB hesaplarının güncel
+  bakiyesi bu belgeyle ya da CEPTETEB'in hesap hareketleri dökümüyle gelir. Daha önce eklenip okunamayan cüzdanlar
+  güncellemeyle kendiliğinden okunur.
+- Bir hesabın bakiyesinin gününden sonra o hesaba gönderdiğiniz para bakiyenin notunda yazar: "… tarihinde bu hesaba
+  … gönderildi (… hesabından); bakiyede henüz yok". Paranın yalnızca bankası belliyse not onu söyler: "… TEB
+  hesaplarınızdan birine … gönderildi; hangisine girdiği belgelerde yok". Not, Akış'ın "Şu an" bölümünde ve
+  Değerlendirme'nin varlıklarında görünür.
+
+### Düzeltilenler
+
+- Değerlendirme bir hesabın bakiyesini son dökümden alıyordu. Dökümden sonra gelen banka bildiriminin yazdığı bakiyeyi
+  görmüyordu. Hesaplar ve öngörü gelen parayı gösterirken Değerlendirme eski bakiyeyi ve ona göre önerileri
+  gösteriyordu. Artık her ekran en yeni basılı bakiyeyi alıyor. Değerlendirme'nin notu bakiyeyi yazan bildirimin
+  gününü söylüyor.
+- "Ek hesaplarda şu an … borç var" önerisi eski bir dökümün borcunu bugünkü gibi söylüyordu. Borcu söyleyen belge
+  eskiyse öneri artık onun gününü yazıyor: "Ek hesaplarda 31.10.2026 itibarıyla … borç var".
+
 ## [0.9.13] — 2026-11-08 — Telegram'dan belge
 
 ### Eklenenler

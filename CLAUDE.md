@@ -6,7 +6,7 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-08): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.13). Between Phases 6 and 7 came
+Status (2026-11-10): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.14). Between Phases 6 and 7 came
 the interface's simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab
 (v0.7.3), documents known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked
 against the documents (v0.7.6). Next is the 1.0 release, whose conditions are partly time-bound (roadmap "Sürüm 1.0"
@@ -209,6 +209,22 @@ says what the waiting must show; check them once their time has passed).
   - Another chat's messages are never fetched or answered; photos, files over 20 MB, non-documents and groups get
     what to do instead. The switch is on the Telegram card (`PUT /api/notify/telegram/documents`) and
     `iplikci telegram belgeler ac|kapat`.
+- v0.9.14: the open Gmail's bank messages, TEB's cüzdan and the balances after a list.
+  - Extension 0.7.0: a bank message read in the open Gmail before the next minute's run had waited for the scan by
+    hand. Its content script (`content.ts`, `gmail/visible`) tells the service worker the listed senders' message ids
+    the user's Gmail tab shows, read or not (rows' first and last, an opened conversation's messages; ids and sender
+    domains only). The next run reads the feed first, then asks the service which waiting ids it lacks
+    (`bridge/seen`) and fetches them through "Show original", dateless. `bridge/turns` keeps one run or scan at a time.
+    On install and update the script is put into the open Gmail tabs; `chrome.storage.local` is for trusted contexts
+    only. The scan stays for what no Gmail view shows (ADR-0016's note of 2026-11-10).
+  - TEB's "Dijital Hesap Cüzdanı" PDF (`parsers/teb/passbook`, an account's movements between two days from the
+    bank's app, also sent through the Telegram bot) is read. TEB mails no movements: its balances come from it or
+    CEPTETEB's export. A document no reader took is read again when the readers change (`reading.stale`).
+  - `start_of` and `last_of_day` moved from `forecast` to `analysis`, so Değerlendirme's holdings take the balance a
+    notice prints after the list (`insights._from_notice`), as Hesaplar and the forecast do. A balance's note tells
+    the own transfers sent after its day to its account, or only to its bank (`analysis.sent_after`,
+    `insights.sent_after_note`): money that left one account and is in no document of the other. The overdraft step
+    dates a debt an older document tells ("… itibarıyla").
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 
@@ -363,7 +379,8 @@ v0.9.2 added `app/sayings` (İplikçi Nedim's lines by the money's situation); i
 `components/dashboard/NedimSays` shows them, and in `extension/`, `bridge/sayings` asks for them and `ui/nedim` holds
 the faces. v0.9.4 added `components/charts/open` (where a chart's parts lead) and `lib/rows` (where a month's rows
 are) in `web/`. v0.9.13 added `app/telegram` (the bot's conversation: pairing, its messages, the document job) and
-`ingest/telegram` (the bot's ear).
+`ingest/telegram` (the bot's ear). v0.9.14 added `parsers/teb/passbook` and, in `extension/`, the content script
+(`content.ts`, `gmail/visible`) with `bridge/seen` and `bridge/turns`.
 The rest keeps the MVP's flat layout (`analysis`, `insights`, `month_end`, `report` with its `templates`, …) until the
 phases in the roadmap's MVP module table move it. Next to them: `fakes` (the fake document builders and every
 reader's specimens, shared with the tests and the demo), `demo` (the demo data folder), `baseline` (the verification

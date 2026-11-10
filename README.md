@@ -42,7 +42,8 @@ Aşama 3 (Servis, v0.4.0) uygulamayı bilgisayarda kendi başına çalışan bir
 - E-posta iki yoldan gelir:
   - Uygulama şifresi olan hesaplar IMAP ile okunur: yalnızca okuma, yeni ileti IDLE ile anında.
   - Uygulama şifresi olmayan hesaplar, örneğin Gelişmiş Koruma'daki Gmail, tarayıcı eklentisiyle okunur. Eklenti
-    Gmail'in açık oturumunu kullanır ve Gmail'de hiçbir şeyi değiştirmez. Geçmişi "Gmail'de eksikleri tara" ile okur.
+    Gmail'in açık oturumunu kullanır ve Gmail'de hiçbir şeyi değiştirmez. Gmail açıkken görünen banka iletilerini,
+    okunmuş olsalar da, alır. Geçmişi "Gmail'de eksikleri tara" ile okur.
   - İki yolda da yalnızca listedeki bankaların, DMARC'tan geçen iletileri alınır. İleti ekleriyle birlikte saklanır;
     şirket iletileri saklanmaz.
 - Gelen klasörüne bırakılan dosyalar kendiliğinden alınır. Arayüzden yüklenenlerde ise önce ne olacağı gösterilir;
@@ -177,6 +178,20 @@ Belgeler Telegram'dan da eklenir (v0.9.13):
 - Telegram iletileri uçtan uca şifreli değildir: gönderdiğiniz belge Telegram'ın sunucularında da durur. İsterseniz
   Bildirimler → Kanallar → Telegram kartındaki "Bota gönderilen belgeleri arşive al" anahtarıyla kapatabilirsiniz;
   kapalıyken servis botun iletilerini okumaz.
+
+Gmail açıkken okunan banka iletileri de alınır (v0.9.14):
+
+- Eklenti eskiden her dakika yalnızca okunmamış iletileri alıyordu. Bir sonraki denetimden önce Gmail'de açtığınız
+  ileti ancak "Gmail'de eksikleri tara" ile geliyordu. Artık Gmail bu tarayıcıda açıkken listede ya da açtığınız
+  konuşmada görünen banka iletileri, okunmuş olsalar da, kendiliğinden alınır. Eklenti bunun için yalnızca iletilerin
+  kimliklerine ve göndericinin alan adına bakar; konu ve metin okumaz.
+- Gmail'de hiç görünmeyen iletiler için "Gmail'de eksikleri tara" kalır. Örneğin bilgisayar kapalıyken telefonda
+  okunup arşivlenen iletiler.
+- TEB'in "Dijital Hesap Cüzdanı" PDF'i de okunur. TEB hesap hareketlerini e-postayla bildirmez; TEB hesaplarınızın
+  güncel bakiyesi bu belgeyle gelir. Belgeyi TEB'in uygulamasından indirip Belge ekle ekranından ya da Telegram
+  botuna göndererek ekleyin.
+- Bir hesabın bakiyesi son belgesinin günündedir. O günden sonra o hesaba ya da o bankadaki bir hesabınıza
+  gönderdiğiniz para bakiyenin notunda yazar.
 
 Açık kalanlar: servisin yedi gün kendi başına çalışması (K19). Windows ve Linux'ta denemeler bekletiliyor (K25).
 
