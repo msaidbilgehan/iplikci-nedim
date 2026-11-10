@@ -36,6 +36,7 @@ BANK_SENDERS = (
 )
 CHANNELS = ("email", "telegram", "desktop")
 DETAIL_LEVELS = ("full", "summary", "minimal")
+UPDATE_MODES = ("auto", "ask", "off")
 _DOMAIN = re.compile(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+")
 _ADDRESS = re.compile(r"[^@\s\"\\]+@[a-z0-9.-]+\.[a-z]{2,}", re.IGNORECASE)
 _HOURS = re.compile(r"([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d")
@@ -111,6 +112,13 @@ class Backup:
 
 
 @dataclass(frozen=True, slots=True)
+class Updates:
+    # ADR-0022: "auto" checks once a day and installs a new version by itself, "ask" checks and waits for the user,
+    # "off" never asks GitHub unless the user does.
+    mode: str = "auto"
+
+
+@dataclass(frozen=True, slots=True)
 class Settings:
     identity: Identity = Identity()
     server: Server = Server()
@@ -119,6 +127,7 @@ class Settings:
     fx: Fx = Fx()
     privacy: Privacy = Privacy()
     backup: Backup = Backup()
+    updates: Updates = Updates()
 
 
 # --- reading ------------------------------------------------------------------------------------------
@@ -296,6 +305,7 @@ _SCHEMA: dict[str, tuple[type, dict[str, Check]]] = {
     "fx": (Fx, {"providers": _providers, "evds": _flag}),
     "privacy": (Privacy, {"mcp_masking": _one_of("off", "accounts", "accounts_and_names")}),
     "backup": (Backup, {"keep_days": _days, "folder": _location}),
+    "updates": (Updates, {"mode": _one_of(*UPDATE_MODES)}),
 }
 
 

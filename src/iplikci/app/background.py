@@ -4,9 +4,11 @@ can end a month); each time the feed compares it with the last one and records t
 notifications follow at once (they also run every five minutes). A backup is made every night and its restore
 rehearsed every month. The exchange rates are fetched every day from 16:30, the history's missing days with them,
 and TÜFE every day at 10:30 when the user gave an EVDS key. A document sent to the Telegram bot is fetched and taken in
-as its own job, queued by the service's ear for the bot (ADR-0021)."""
+as its own job, queued by the service's ear for the bot (ADR-0021). Once a day from 05:00 the service checks whether
+a newer version is released and, as the settings say, installs it (ADR-0022)."""
 
 import sqlite3
+from collections.abc import Callable
 from datetime import UTC, date, datetime, time, timedelta
 
 from ..domain.codes import Actor, BackupReason
@@ -15,7 +17,7 @@ from ..jobs.schedule import Periodic, daily, every, monthly
 from ..jobs.worker import Handler
 from ..storage import audit, events, feed_state, jobs
 from ..vault import trash
-from . import access, backup, bridge, fx, intake, mail, notify, outlook, prices, telegram, uploads
+from . import access, backup, bridge, fx, intake, mail, notify, outlook, prices, telegram, update, uploads
 from .analysis import analyze
 from .kinds import (
     BACKUP_DAILY,
@@ -49,11 +51,17 @@ PERIODIC = (
     Periodic(fx.FETCH_JOB, daily(fx.DAILY_AT), {"history": True}),
     # The month's TÜFE, with the user's EVDS key only; without one the job asks nothing.
     Periodic(prices.FETCH_JOB, daily(prices.DAILY_AT)),
+    # Whether a newer version is released (ADR-0022); with [updates] mode = "off" the job asks nothing.
+    Periodic(update.CHECK_JOB, daily(update.DAILY_AT)),
 )
 
 
-def handlers(ws: Workspace) -> dict[str, Handler]:
-    """What each kind of job does in ws."""
+def _no_restart() -> None:
+    """Outside the service there is nothing to start again: the next start runs the new version."""
+
+
+def handlers(ws: Workspace, restart: Callable[[], None] = _no_restart) -> dict[str, Handler]:
+    """What each kind of job does in ws; restart ends the service to start again, as an installed update needs."""
     return {
         REFRESH: lambda _payload: (refresh(ws), request_notify(ws)),
         NOTIFY: lambda _payload: notify.run(ws),
@@ -67,6 +75,8 @@ def handlers(ws: Workspace) -> dict[str, Handler]:
         fx.FETCH_JOB: lambda payload: fetch_rates(ws, history=bool(payload.get("history", True))),
         prices.FETCH_JOB: lambda _payload: prices.fetch(ws),
         TELEGRAM_DOCUMENT: lambda payload: telegram.take_document(ws, payload),
+        update.CHECK_JOB: lambda payload: update.check(ws, forced=bool(payload.get("forced", False))),
+        update.INSTALL_JOB: lambda payload: update.install_update(ws, restart, asked=bool(payload.get("asked", False))),
     }
 
 

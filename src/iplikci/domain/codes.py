@@ -161,6 +161,7 @@ class BackupReason(StrEnum):
     DAILY = "daily"
     MANUAL = "manual"  # asked for by the user
     BEFORE_RESTORE = "before_restore"  # what was there before a restore, so the restore can be undone
+    BEFORE_UPDATE = "before_update"  # what was there before the program updated itself (ADR-0022)
 
 
 class SeriesStatus(StrEnum):

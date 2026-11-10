@@ -166,6 +166,7 @@ BACKUP_REASON: dict[BackupReason, str] = {
     BackupReason.DAILY: "Günlük",
     BackupReason.MANUAL: "Elle",
     BackupReason.BEFORE_RESTORE: "Geri yükleme öncesi",
+    BackupReason.BEFORE_UPDATE: "Güncelleme öncesi",
 }
 
 SERIES_STATUS: dict[SeriesStatus, str] = {

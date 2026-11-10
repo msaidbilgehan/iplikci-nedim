@@ -39,6 +39,10 @@ business_names = ["Örnek Teknoloji A.Ş."]
 # Kurlar demonun kendi sahte TCMB bültenlerinden: demo ağdan kur istemez.
 [fx]
 providers = ["document"]
+
+# Demo yeni sürümü de sormaz (ADR-0022).
+[updates]
+mode = "off"
 """
 
 

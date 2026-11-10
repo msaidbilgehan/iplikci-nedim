@@ -18,7 +18,7 @@ import uvicorn
 from .. import __version__
 from ..api.app import create_app
 from ..api.context import Context
-from ..app import access, background, calls, extension, fx, lifecycle, mail, telegram
+from ..app import access, background, calls, extension, fx, lifecycle, mail, telegram, update
 from ..app.workspace import Workspace
 from ..ingest.inbox import InboxWatcher
 from ..ingest.mail.idle import IdleWatcher
@@ -107,8 +107,10 @@ def context(ws: Workspace, life: Life | None = None) -> Context:
     return Context(ws=ws, token=access.ensure_api_token(), lifecycle=life)
 
 
-def worker(ws: Workspace) -> Worker:
-    return Worker(ws.connect, background.handlers(ws), background.PERIODIC)
+def worker(ws: Workspace, life: "Life | None" = None) -> Worker:
+    """The job worker; an update it installs ends the service through life, to start again with the new version."""
+    restart = (lambda: life.end(lifecycle.RESTART)) if life is not None else (lambda: None)
+    return Worker(ws.connect, background.handlers(ws, restart), background.PERIODIC)
 
 
 def watcher(ws: Workspace, jobs: Worker) -> IdleWatcher:
@@ -144,7 +146,8 @@ def run(ws: Workspace, announce: Callable[[str], None] = _say) -> int:
     otherwise raise the signal again after its own shutdown and end the process before that. What the service
     creates is the user's alone, and its log goes to logs/ (architecture §22). A backup a restore asked for is put
     back first, before anything opens the database, and the service goes on with the backup's settings; the browser
-    extension's folder, once made, is brought up to date with the program. A removal that asked for it moves the data
+    extension's folder, once made, is brought up to date with the program, and an update that ended the last run is
+    told and its leftovers removed. A removal that asked for it moves the data
     folder to the Trash last, once the lock, the log and the output file have let go of it."""
     output = _console_to_file(ws)
     holder = instance.Holder(os.getpid(), ws.port, datetime.now(UTC).isoformat(timespec="seconds"), __version__)
@@ -160,6 +163,7 @@ def run(ws: Workspace, announce: Callable[[str], None] = _say) -> int:
                 holder = replace(holder, port=ws.port)
                 instance.say(ws.run, holder)
             extension.refresh(ws)
+            update.finish(ws)  # how the update that ended the last run went; the old version's files go
             try:
                 code = _serve(ws, announce)
             except Exception:
@@ -192,7 +196,7 @@ def _serve(ws: Workspace, announce: Callable[[str], None]) -> int:
     ctx = context(ws, life)
     calls.take_waiting(ws)  # the MCP calls answered while the service was down, into the audit log
     app = create_app(ctx)
-    jobs = worker(ws)
+    jobs = worker(ws, life)
     background.request_refresh(ws)
     fx.request_missing(ws)
     jobs.start()

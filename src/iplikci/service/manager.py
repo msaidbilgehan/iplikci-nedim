@@ -361,6 +361,13 @@ class Systemd:
         for args in (["daemon-reload"], ["enable", f"{UNIT}.service"], ["restart", f"{UNIT}.service"]):
             self._systemctl(*args)
 
+    def retarget(self, program: Program) -> None:
+        """The unit starts program from its next start on; the running service is left alone. The service that
+        installs an update of itself does this, then ends with the code that has systemd start it again (ADR-0022)."""
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.write_text(self.unit(program), encoding="utf-8")
+        self._systemctl("daemon-reload")
+
     def uninstall(self) -> bool:
         if not self.path.exists():
             return False

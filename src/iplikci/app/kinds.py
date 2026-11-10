@@ -13,6 +13,8 @@ NOTIFY = "notify.deliver"  # the new events into notifications, and what is due 
 FX_RATES = "fx.rates"  # the day's exchange rates and the history's missing days (architecture §15)
 PRICES = "prices.fetch"  # TÜFE from EVDS, with the user's key (F12's V1+ part)
 TELEGRAM_DOCUMENT = "telegram.document"  # a document the paired chat sent the bot, fetched and taken in (ADR-0021)
+UPDATE_CHECK = "update.check"  # whether a newer version is released (ADR-0022)
+UPDATE_INSTALL = "update.install"  # a newer version downloaded, checked and put in place (ADR-0022)
 
 # What each kind is, for the System screen (Turkish, as all user-facing text).
 LABELS = {
@@ -28,4 +30,6 @@ LABELS = {
     FX_RATES: "Döviz kurlarının çekilmesi",
     PRICES: "TÜFE'nin çekilmesi (EVDS)",
     TELEGRAM_DOCUMENT: "Telegram'dan gelen belge",
+    UPDATE_CHECK: "Yeni sürüm denetimi",
+    UPDATE_INSTALL: "Yeni sürümün kurulması",
 }

@@ -109,9 +109,10 @@ def sign(manifest: bytes, private_key_pem: bytes, key_name: str) -> bytes:
     return (json.dumps({"key": key_name, "signature": signature}, sort_keys=True) + "\n").encode()
 
 
-def verify(manifest: bytes, signature: bytes, trusted: Mapping[str, str] = keys.TRUSTED) -> Manifest:
-    """The manifest, once its signature checks with a key of `trusted`; ManifestError otherwise, before anything of
-    the manifest is believed."""
+def verify(manifest: bytes, signature: bytes, trusted: Mapping[str, str] | None = None) -> Manifest:
+    """The manifest, once its signature checks with a key of `trusted` (the program's own, keys.TRUSTED, by
+    default); ManifestError otherwise, before anything of the manifest is believed."""
+    trusted = keys.TRUSTED if trusted is None else trusted
     try:
         found: object = json.loads(signature.decode("utf-8"))
     except (UnicodeDecodeError, ValueError):
