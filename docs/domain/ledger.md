@@ -176,6 +176,11 @@ kısmıyla karşılaştırılır.
 
 Kart ödemeleri ve kart tarafındaki alacakları birbirini götürür; asla harcama sayılmaz.
 
+**Yeri belli olmayan transfer** (`analysis.sent_after`): kendi transferinizin karşı tarafı hiçbir belgede yoksa ve
+satır alıcı hesabı ya da yalnızca bankayı adlandırıyorsa, o hesabın (ya da o bankadaki hesapların) bakiyesi bu parayı
+belgesinin gününden sonra henüz içermez. Defter bakiyeyi değiştirmez; notlar bunu söyler
+([yorumlama](interpretation.md#varlıklar-ve-borçlar)).
+
 ## Taksitli nakit avans
 
 - Kartın verdiği nakit avans bir borçtur: alındığı gün kendi hesabınıza gelir (kendi transferi), taksitlerle geri

@@ -109,7 +109,18 @@ nedenleri arasında sayılmaz.
 
 ## Varlıklar ve borçlar
 
-- **Hesaplar:** hesap listelerinin kapanış bakiyesi.
+- **Hesaplar:** bakiyeyi yazan en yeni belge: hesap listesinin kapanış bakiyesi ya da listeden sonraki bir banka
+  bildiriminin bakiyesi (`analysis.start_of`). Hesaplar, Şu an, Döviz, net varlık, öngörü ve Değerlendirme aynı
+  bakiyeyi kullanır.
+- **Bakiyeden sonra giden para** (`analysis.sent_after`)
+  - Bir hesabın bakiyesi belgesinin gününe aittir. O günden sonra başka bir hesabın belgesi bu hesaba ya da bu hesabın
+    bankasına kendi transferinizle para gittiğini söylüyorsa, ama karşı tarafı hiçbir belgede yoksa, bakiye onu henüz
+    içermez.
+  - Hesabın notu her birini günü, tutarı ve çıktığı hesapla yazar. Satır hesabı adlandırıyorsa ("12345678 no.lu
+    hesaba gönderilmiştir") "bu hesaba", yalnızca bankayı yazıyorsa "<banka> hesaplarınızdan birine" der ve hangisine
+    girdiğinin belgelerde olmadığını ekler.
+  - Değerlendirme'nin "Faiz ödemeyi bırakın" adımı, ek hesap borcunu yazan belge en yeni belgeden eskiyse borcu
+    "şu an" diye değil, o günün tarihiyle söyler: borç sonradan ödenmiş olabilir.
 - **Kartlar:** ekstre borcundan kesimden sonra yapılan ödemeler düşülür.
 - **Döviz** (V1, [mimari §15](../v1/architecture.md#15-döviz))
   - Kur sağlayıcısının en yeni kuruyla (TCMB; ulaşılamadığı günlerde ECB): varlık döviz alış, borç (eksi bakiye) döviz
