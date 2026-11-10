@@ -63,3 +63,6 @@ e2e/test-results/
 
 # The test browser's Chrome profile (agent-browser): it holds a real Gmail session and is never committed
 .tarayici-profili/
+
+# Temp directory
+temp/
