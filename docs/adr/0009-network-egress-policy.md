@@ -64,3 +64,18 @@ Telegram bağlantısı belge de getirir: eşleşmiş sohbetin bota gönderdiği 
 bulunup `api.telegram.org`'un dosya sunucusundan (`/file/bot…`) indirilir. Sunucu aynıdır, izin listesi değişmez.
 Telegram'a giden veri okuma istekleri ve yanıtlar kadar genişler; yanıtlar tutar taşımaz. `egress.https_get`'in yanıt
 sınırını çağıran verebilir: belge indirmesi 20 MB'ye kadar alır, kurlar 1 MB'yle sınırlı kalır.
+
+## Not (2026-11-10, ADR-0022)
+
+"Güncelleme denetimi yoktur" maddesinin yerini [ADR-0022](0022-releases-and-updates.md) aldı (K29). İzin listesine
+GitHub'ın sürüm sunucuları girdi:
+
+| Amaç | Sunucu | Yol | Giden veri |
+|---|---|---|---|
+| Sürüm bildirgesi ve güncelleme dosyası | `github.com` | `/<depo>/releases/latest/download/iplikci-nedim-surum.json` (ve `.sig`), `/<depo>/releases/download/<etiket>/<dosya>` | hiçbir şey |
+| GitHub'ın yönlendirdiği dosya sunucuları | `release-assets.githubusercontent.com`, `objects.githubusercontent.com` | GitHub'ın verdiği adres | hiçbir şey |
+
+- Yalnızca GET. `egress` bu iki sunucuya giden yönlendirmeleri izler, başkasına gideni izlemez; her adım yine izin
+  listesinden ve sertifika denetiminden geçer.
+- Güncelleme dosyası diske akışla iner; bildirgenin söylediği boyutu aşan yanıt kesilir.
+- `[updates] mode = "off"` iken GitHub'a hiç sorulmaz (demo veri klasörü böyle kurulur).

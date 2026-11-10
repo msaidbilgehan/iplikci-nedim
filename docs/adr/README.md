@@ -30,5 +30,6 @@ kullanıcı aksini söylemedikçe geçerlidir.
 | [0019](0019-bridge-login-link.md) | Eşleşmiş tarayıcı eklentisi arayüzü tek kullanımlık giriş bağlantısıyla açar | K14, tasarım |
 | [0020](0020-bridge-sayings.md) | Eşleşmiş tarayıcı eklentisi İplikçi Nedim'in sözlerini servisten alır | K26, tasarım |
 | [0021](0021-telegram-documents.md) | Eşleşmiş Telegram sohbetinden bota gönderilen belgeler arşive alınır | K28 |
+| [0022](0022-releases-and-updates.md) | Sürümler GitHub'da yayımlanır; uygulama imzalı bildirgeyle kendini, eklentiyi mağaza günceller | K29, K14, K22 |
 
 Yeni kayıt: sıradaki numarayla `NNNN-kisa-ad.md`; başlık karar cümlesi olur; bu tabloya eklenir.

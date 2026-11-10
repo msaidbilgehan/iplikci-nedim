@@ -181,3 +181,12 @@ parçasıdır.
 - **Electron ya da Tauri kabuğu:** Electron ağırdır, Tauri yeni bir araç zinciri (Rust) ister. Arayüz zaten tarayıcıda
   çalıştığı için gereksizdir.
 - **Docker:** terminal ister; anahtar zincirine ve OCR'ye erişim zordur.
+
+## Not (2026-11-10, ADR-0022)
+
+Güncelleme artık kendiliğindendir (K29, [ADR-0022](0022-releases-and-updates.md)): sürümler GitHub'da yayımlanır,
+kurulu uygulama imzalı bildirgeyle yeni sürümü bulur, önce yedek alır, sonra macOS'ta `.app`'in `Contents`'ini
+değiştirir, Linux'ta yeni kopyayı `~/.local/lib/iplikci/<sürüm>`'e açar, Windows'ta kurulum programını sessiz
+çalıştırır. Yukarıdaki elle güncelleme yolları geçerlidir. Paketler sürümden önce kendi Python'larıyla servisi
+başlatıp denenir. Eklenti mağazadan gelir ve tarayıcıyla güncellenir; mağazaya geçene dek paketlenmemiş eklenti
+programla birlikte yenilenir.

@@ -135,6 +135,15 @@ Yanıt: MVP aynı gün emekliye ayrıldı.
 
 Ayrıntılar: [K17](#kararlar), [ADR-0018](../adr/0018-retire-mvp-clean-start.md) ve [geçiş](migration.md).
 
+### Sürümler ve güncellemeler (2026-11-10)
+
+> Uygulamanın ve browser eklentisinin github workflow'da derlenip otomatik güncelleme almalarını sağlayabilmek
+> istiyorum. Devamında eklentiyi chrome eklenti sayfasında publish edeceğim.
+
+Yanıt: her sürüm etiketinde paketler ve eklentinin mağaza paketi bir GitHub sürümüne konur; kurulu uygulama yeni
+sürümü imzalı bir bildirgeyle bulup kurar, eklentiyi mağaza günceller. Karar [K29](#kararlar), tasarım
+[ADR-0022](../adr/0022-releases-and-updates.md)'de.
+
 ## Ürün ilkeleri
 
 Kullanıcının koyduğu ilkeler (2026-10-31):
@@ -174,7 +183,7 @@ Kullanıcının koyduğu ilkeler (2026-10-31):
 | K17 | İplikçi Nedim veriyi kendisi toplar. Kullanıcının elle taşıdığı belgelerle (`Bankalar/`), MVP'nin diğer klasörleriyle (`Gelen Belgeler/`, `gider-analizi/`) ve taşıma kayıtlarıyla (`belge-duzenleme-kaydi *.csv`) çalışmaz; bunlar kaldırılır. 2026-10-31'de çöp kutusuna taşındılar ve MVP emekliye ayrıldı. Neyin alındığı ve geçmişin nasıl kurulduğu [ADR-0018](../adr/0018-retire-mvp-clean-start.md)'dedir. | G1, G2 |
 | K18 | Depo GitHub'da özel (private) kalır; lisansı [BSD 3-Clause](../../LICENSE.txt)'tır (2026-11-01). Depo yine de herkese açıkmış gibi yazılır: kişisel veri girmez, her commit'ten önce ve CI'da gitleaks çalışır. | G6 |
 | K19 | Önce macOS (2026-11-01). Kod üç işletim sisteminde çalışacak biçimde kalır, ama deneme ve cilalama şimdilik yalnızca macOS'ta yapılır; Windows'ta deneme sonra gelir. Aşama 3, Windows denemesi ve servisin yedi günlük çalışması açık koşul olarak yazılıp kapatıldı ([yol haritası](roadmap.md#aşama-3--servis)). | G1, G4 |
-| K20 | Tarayıcı eklentisi şimdilik Chrome Web Store'da yayımlanmaz; geliştirici modunda, paketlenmemiş yüklenir (2026-11-01). Mağaza metinleri ve gizlilik politikası `extension/store/`'da hazırdır. Yayın ücretli bir hesap kararıdır; kullanıcıya sorulmadan yapılmaz. | G1, G6 |
+| K20 | Tarayıcı eklentisi şimdilik Chrome Web Store'da yayımlanmaz; geliştirici modunda, paketlenmemiş yüklenir (2026-11-01). Mağaza metinleri ve gizlilik politikası `extension/store/`'da hazırdır. Yayın ücretli bir hesap kararıdır; kullanıcıya sorulmadan yapılmaz. K29 (2026-11-10) ile değişti: eklentiyi kullanıcı mağazada yayımlar. | G1, G6 |
 | K21 | Banka e-postayla göndermiyorsa döküm kullanıcıdan istenmez; hesabın hareketleri bankanın e-postalarından (bildirimler, e-cüzdan) kendiliğinden çıkarılır (2026-11-01). Kullanıcının sözü: "Bunun otomatik algılanması gerekiyor." Ayrıntılar [yorum kurallarında](../domain/interpretation.md#ay-sonu-kapanışı). | G1, G10 |
 | K22 | Kurulum paketleri şimdilik imzalanmaz (2026-11-02). Kullanıcının sözü: "Eğer gerekli bir durum yoksa, şimdilik geliştirme ile devam edelim." İmzasız paket ilk açılışta işletim sisteminin uyarısını verir; kurulum rehberi uyarının nasıl geçileceğini gösterir. Windows'taki temiz kurulum denemesini kullanıcı istediğinde kendisi yapar. macOS'ta temiz kurulum bir Mac'te, eski kurulum kaldırılarak denenir; veri klasörü silinmez, deneme boyunca kenara alınıp sonra geri konur. | G4, G6 |
 | K23 | Claude'u terminal açmadan bağlamanın yolu kullanıcının kendi projesi claude-SAK'tır (2026-11-02): SAK bir MCP sunucusunu Claude profillerine adresiyle ve bir başlık yardımcısıyla (`headersHelper`) ekler, belirteç komut satırına yazılmaz. Bu yüzden İplikçi Nedim'de Claude'un ayar dosyasını kendisi yazan bir ekran olmaz. İplikçi Nedim herkes için, SAK'ı olmayanlar için de, bağlantı bilgisini arayüzde gösterir ve kopyalatır: MCP adresi, API belirteci ve SAK'ın "MCP JSON" içe aktarmasına, Claude Code'a ve Claude Desktop'a uyan hazır yapılandırma. Belirteç arayüzde gösterilebilir; kullanıcının sözü: "Gösterilebilir." Günlüğe, dosyaya ve depoya yine yazılmaz. İplikçi Nedim'i kullanıcının Claude'una eklemek bağlantının parçasıdır, ayrıca onay istemez; kullanıcının sözü: "Zaten AI bağlantısında bunun da eklenmesi gerekmiyor mu?" | G9, K14 |
@@ -183,9 +192,10 @@ Kullanıcının koyduğu ilkeler (2026-10-31):
 | K26 | İplikçi Nedim'in dizideki sözleri arayüzde ve tarayıcı eklentisinin penceresinde, paranın durumuna göre ve İplikçi Nedim'in yüzüyle (logo) gösterilir (2026-11-03). Kullanıcının sözü: "Web platformuna ve extension arayüzüne … sözlerini maddi duruma göre iplikçi nedim'in yüzü (logo) ile göster." Sözlerin listesi ve hangi durumda söylendikleri [İplikçi Nedim'in sözleri](../İplikçi_Nedim_Sözler.md) belgesindedir; eklentinin sözleri servisten nasıl aldığı [ADR-0020](../adr/0020-bridge-sayings.md)'dedir. | G7, K14 |
 | K27 | Grafikler kısayoldur (2026-11-03): bir grafiğin parçasına tıklayınca o parçanın dayandığı işlemler listelenir. Kullanıcının sözü: "Grafikteki bir bar'a tıkladığımda o ayın giderlerinin listelenmesini istiyorum. Diğer grafiklerde de benzer kısayolların olması lazım." Açılan liste parçanın rakamını toplar: aynı günler, aynı türler, aynı süzgeçler. Ayların sütunu ya da dilimi, sıralı çubuklar, çizgilerin günleri ve akış diyagramının bantları böyledir; dokunmatik ekranda ilk dokunuş değeri gösterir, ikinci dokunuş ya da ipucundaki bağlantı açar; klavye aynı yerlere tablo görünümündeki bağlantılarla gider ([F06](features.md#f06--pano) ve ortak kurallar). | G2, G7 |
 | K28 | Belgeler Telegram botuyla da eklenir (2026-11-08). Kullanıcının sözü: "Belge yüklemeyi telegram bot üzerinden de yapabilmek istiyorum." Eşleşmiş sohbetten bota dosya olarak gönderilen banka belgeleri, Belge ekle ekranındaki yüklemeler gibi içeriklerinden tanınıp arşive alınır ve bot her birine ne olduğunu yazar. Başka sohbetlerden gelen dosyalar indirilmez. Bildirimler ekranındaki Telegram kartından kapatılabilir ([ADR-0021](../adr/0021-telegram-documents.md), [F02](features.md#f02--elle-ekleme-ve-gelen-klasörü)). | G1, G12 |
+| K29 | Uygulama ve tarayıcı eklentisi GitHub'da derlenir ve kendiliğinden güncellenir; eklentiyi kullanıcı Chrome Web Store'da yayımlar (2026-11-10). Kullanıcının sözü: "Uygulamanın ve browser eklentisinin github workflow'da derlenip otomatik güncelleme almalarını sağlayabilmek istiyorum. Devamında eklentiyi chrome eklenti sayfasında publish edeceğim." Her sürüm etiketinde kurulum paketleri, güncelleme dosyaları ve eklentinin mağaza paketi imzalı bir bildirgeyle bir GitHub sürümüne konur. Kurulu uygulama yeni sürümü günde bir arar, bildirgenin imzasını ve dosyanın özetini doğrular, yedek alıp kurar; Ayarlar'dan "önce sor" ya da kapalı yapılır. Elle kurulan kopya yalnızca haber verir. Mağazadaki ilk yayını kullanıcı yapar; sonraki sürümleri iş akışı yükler, tarayıcı günceller. K20'nin yerini alır. Kurulu kopyalar sürümleri kimlik bilgisi olmadan indirdiği için sürümlerin durduğu depo herkese açık olmalıdır; kod deposu özel kalacaksa (K18) sürümler ayrı bir depoya konur, bu karar kullanıcıdadır ([ADR-0022](../adr/0022-releases-and-updates.md), [F21](features.md#f21--güncellemeler)). | G4, G6 |
 
 Mühendislik kararları (veri klasörü, veritabanı, API, ön yüz, bildirim içeriği, MVP'den geçiş…) gerekçeleriyle
-[ADR-0001 … ADR-0018](../adr/README.md)'dedir. Kullanıcı aksini söylemedikçe geçerlidirler.
+[ADR-0001 … ADR-0022](../adr/README.md)'dedir. Kullanıcı aksini söylemedikçe geçerlidirler.
 
 ## Gereksinimler
 
@@ -268,6 +278,7 @@ Kararlar:
 
 - K5: PWA şimdilik yalnızca bu bilgisayarda; uzaktan erişim gerektiğinde Tailscale.
 - K14: kurulum ve kullanım terminal gerektirmez ([ADR-0017](../adr/0017-no-terminal-install.md)).
+- K29: uygulama ve eklenti kendiliğinden güncellenir ([ADR-0022](../adr/0022-releases-and-updates.md)).
 
 ### G5 — Modüler okuyucular (parser)
 
@@ -430,9 +441,12 @@ isterse değiştirir:
 
 Hâlâ kullanıcıda olanlar:
 
-- Ücretli hesaplar ([ADR-0017](../adr/0017-no-terminal-install.md)): eklenti için Chrome Web Store geliştirici kaydı
-  (tek seferlik); kurulum paketleri için Apple ve Windows imzası. İmzasız paket ilk açılışta uyarı verir.
+- Ücretli hesaplar ([ADR-0017](../adr/0017-no-terminal-install.md)): kurulum paketleri için Apple ve Windows
+  imzası. İmzasız paket ilk açılışta uyarı verir. Chrome Web Store geliştirici kaydını kullanıcı yapacak (K29).
 - EVDS API anahtarının alınıp alınmayacağı (isteğe bağlı).
+- Sürümlerin nerede herkese açık duracağı (K29): kod deposunu herkese açmak ya da sürümler için ayrı, herkese açık
+  bir depo ([ADR-0022](../adr/0022-releases-and-updates.md)). Karar verilene dek kurulu kopyalar yeni sürümü
+  indiremez.
 - V2'deki "uzmanlar"ın anlamı (V2'ye başlarken).
 
 ## Kapsam dışı

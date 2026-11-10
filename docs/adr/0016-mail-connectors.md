@@ -353,3 +353,11 @@ Sonuca göre:
 - Chrome eklentilerinde çerezler: <https://developer.chrome.com/docs/extensions/develop/concepts/storage-and-cookies>
 - Chrome eklentilerinde başka sitelere istek: <https://developer.chrome.com/docs/extensions/mv3/xhr/>
 - Güvenli Tarama'nın gelişmiş korumasında eklenti uyarısı: <https://support.google.com/chrome/answer/2664769>
+
+## Not (2026-11-10, K29)
+
+K20'nin yerini K29 aldı: eklentiyi kullanıcı Chrome Web Store'da (listelenmemiş) yayımlar; sonraki sürümleri sürüm iş
+akışı mağazaya yükler, tarayıcı günceller ([ADR-0022](0022-releases-and-updates.md)). Mağaza kimliği bilinene dek
+paketlenmemiş yükleme sürer. Paketlenmemiş eklenti, servisin taşıdığı sürüm kendininkinden yeniyse kendini bir kez
+yeniden yükler (eklenti 0.8.0). Mağazadan kurulan eklentinin kimliği farklıdır; eşleştirme kodla yapıldığı için bu bir
+şey değiştirmez. Mağazadakini kurduktan sonra paketlenmemiş olan kaldırılmalıdır: ikisi aynı iletileri getirir.
