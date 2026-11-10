@@ -6,7 +6,7 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-11): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.9.18). Between Phases 6 and 7 came
+Status (2026-11-11): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.10.0). Between Phases 6 and 7 came
 the interface's simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab
 (v0.7.3), documents known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked
 against the documents (v0.7.6). Next is the 1.0 release, whose conditions are partly time-bound (roadmap "Sürüm 1.0"
@@ -27,8 +27,9 @@ says what the waiting must show; check them once their time has passed).
   (`baseline.json` in the data dir): from now on `iplikci dogrula --taban` must stay free of regressions locally.
 - Phase 3 closed with two open conditions (K19): the service's 7-day run (earliest 2026-11-08) and the Windows check.
   macOS comes first; keep the code cross-platform. The Windows and Linux checks wait (K25, 2026-11-03): don't block on
-  them; whether 1.0 waits for them is asked once its other conditions hold. The extension stays unpacked (K20):
-  publishing it on the Chrome Web Store is a paid account decision, ask first.
+  them; whether 1.0 waits for them is asked once its other conditions hold. K29 (2026-11-11) replaced K20: the user
+  publishes the extension on the Chrome Web Store with their own developer account (`extension/store/`); until its
+  page is in `app/extension.STORE_URL` the extension is loaded unpacked.
 - Phase 4 (the whole mailbox) reads the message bodies.
   - The bank notices are evidence like receipts: VakıfBank's, Garanti's and QNB's transfer notices and İş Bankası's
     card debt collection. A movement a notice and a receipt both tell counts once.
@@ -53,7 +54,8 @@ says what the waiting must show; check them once their time has passed).
   and what differs on purpose).
   - The installers (ADR-0017, unsigned per K22) carry a portable CPython with the program installed into it, the
     built interface and the browser extension; the app registers the service for its own copy and a first run opens
-    the setup wizard. The extension is installed from the data dir's `extension/` folder the service keeps (K20).
+    the setup wizard. The extension is installed from the data dir's `extension/` folder the service keeps (K20)
+    until it is in the Chrome Web Store (K29).
   - Restarting, restoring and removing the service from Ayarlar work only for the service registered for this data
     folder; a service run by hand refuses them.
   - The e2e tests run every screen in both themes with axe and at phone width; `e2e/tests/firstRun.spec.ts` starts its
@@ -246,6 +248,26 @@ says what the waiting must show; check them once their time has passed).
   `about`: the category of a payment, an income or a purchase, the bank of a card's due date, a loan, an account's
   forecast or a receipt row; never a payee, a person or an account's digits, which stay at the full level.
   `notify.content` prints it in brackets ("… (İnternet & Telefon): …"). Events stored before have none.
+- v0.10.0 (K29, ADR-0022, `docs/yayin.md`): releases on GitHub and updates the program installs itself.
+  - A version tag runs the Paketler workflow. Each system's installer and update file (the .app as a ditto zip, the
+    Linux copy's Python as a tar.gz, the Windows setup) is tried before it is made: `packaging/build.py` starts the
+    packaged service on an empty data folder and unpacks each update file as the program would. `packaging/release.py`
+    writes the manifest `iplikci-nedim-surum.json` (every file with its size and SHA-256, the changelog's section as
+    notes) and signs it with the `UPDATE_SIGNING_KEY` secret (Ed25519, key `2026-11` in `update/keys.TRUSTED`; its
+    backup is in the owner's keychain). `gh release create` publishes it in `vars.RELEASE_REPO` or this repo, and
+    `packaging/chrome_store.py` sends the extension to the store once `vars.CWS_ITEM_ID` is set.
+  - The service looks daily from 05:00 (job `update.check`) at
+    `github.com/<update.source.REPO>/releases/latest/download/…` through `egress.https_download`, which follows
+    redirects to GitHub's file hosts only. Nothing whose signature, size or digest fails is installed. By
+    `[updates] mode` (`auto` by default, `ask`, `off`; the demo's is off) job `update.install` takes a backup
+    (`before_update`), probes the new Python, puts it in place (macOS: the bundle's `Contents` swapped by
+    `renamex_np`; Linux: a copy in `~/.local/lib/iplikci/<version>` and the unit retargeted; Windows: the setup run
+    silently) and restarts. A uv tool install or a development copy (kind MANUAL) only reports.
+    Ayarlar → Güncellemeler and Sistem show it; `iplikci guncelleme` is its command.
+  - The installed copies download without an account, so the releases must be public. The repo is private (K18):
+    where they go is the user's decision (`docs/yayin.md`); until then a check says no release is public yet.
+  - Extension 0.8.0: an unpacked copy reloads itself once the program carries a newer one (`bridge/renew`, the
+    cursor's `extension_version`), never during a run or a scan.
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 
@@ -273,12 +295,13 @@ The MVP was retired on 2026-10-31 (K17, ADR-0018): İplikçi Nedim starts with n
 | Document | What it holds |
 |---|---|
 | `docs/README.md` | Map of the docs and reading order |
-| `docs/v1/requirements.md` | Requirements G1–G13, the user's decisions K1–K28, product principles |
+| `docs/v1/requirements.md` | Requirements G1–G13, the user's decisions K1–K29, product principles |
 | `docs/v1/architecture.md` | Target architecture: modules, data model, data dir, API, MCP, security, NFRs |
 | `docs/v1/features.md` | Feature specs with acceptance criteria and the MVP parity checklist |
 | `docs/v1/roadmap.md` | Phases 0–8 and the 1.0 release, exit criteria, MVP module mapping, first-session steps |
 | `docs/v1/migration.md` | What happened to the old workspace, the MVP archive, how V1 builds its own history |
-| `docs/adr/` | Decision records 0001–0021 |
+| `docs/adr/` | Decision records 0001–0022 |
+| `docs/yayin.md` | How a version is released, the signing key, the workflow's secrets, the Chrome Web Store |
 | `docs/domain/` | Bank formats and traps, ledger, categorization and interpretation rules |
 
 ## Hard rules
@@ -302,10 +325,10 @@ The MVP was retired on 2026-10-31 (K17, ADR-0018): İplikçi Nedim starts with n
   extension). The CLI is for developers and power users. Instructions written for the user (README, help, messages,
   chat) never require a terminal; when the MVP needs a command, offer to run it for the user.
 - **Network:** only the connections ADR-0009 lists (IMAP read-only, SMTP to the user's own address, the Telegram Bot
-  API, exchange rates from TCMB/ECB/Frankfurter, optional EVDS), all through the `egress` module. The browser extension
-  talks only to `mail.google.com`, Gmail's attachment server `mail-attachment.googleusercontent.com` (where "Download
-  original" leads) and 127.0.0.1, with read-only requests (ADR-0016). No telemetry, no external fonts or scripts. A new
-  outbound host needs a new ADR.
+  API, exchange rates from TCMB/ECB/Frankfurter, optional EVDS, GitHub's releases per ADR-0022), all through the
+  `egress` module. The browser extension talks only to `mail.google.com`, Gmail's attachment server
+  `mail-attachment.googleusercontent.com` (where "Download original" leads) and 127.0.0.1, with read-only requests
+  (ADR-0016). No telemetry, no external fonts or scripts. A new outbound host needs a new ADR.
 - **E-mail:**
   - Read-only: `EXAMINE` and `BODY.PEEK[]`; nothing is flagged, moved or deleted.
   - Trust: the sender domain is on an allowlist and the topmost `Authentication-Results` shows DMARC pass for the From
@@ -346,7 +369,7 @@ The MVP was retired on 2026-10-31 (K17, ADR-0018): İplikçi Nedim starts with n
 
 | Path | Content |
 |---|---|
-| `src/iplikci/` | Python package: `domain`, `settings`, `storage`, `vault`, `ingest`, `parsers`, `ledger`, `categorize`, `insights`, `month_end`, `fx`, `exchange`, `inflation`, `feed`, `notify`, `jobs`, `egress`, `app`, `api`, `mcp`, `cli`, `export`, `service` (architecture §6) |
+| `src/iplikci/` | Python package: `domain`, `settings`, `storage`, `vault`, `ingest`, `parsers`, `ledger`, `categorize`, `insights`, `month_end`, `fx`, `exchange`, `inflation`, `feed`, `notify`, `jobs`, `egress`, `update`, `versions`, `app`, `api`, `mcp`, `cli`, `export`, `service` (architecture §6) |
 | `src/iplikci/rules/default.yaml` | Generic category rules shipped with the app; the user's rules live in the data dir |
 | `web/` | React + TypeScript + Vite + Tailwind PWA (ADR-0008) |
 | `extension/` | Chromium browser extension, Manifest V3, TypeScript: the e-mail bridge of ADR-0016 |
@@ -382,9 +405,10 @@ stream's start. `viewer` makes a document's page images, cells and e-mail view i
 `service/launcher` is what the installed app runs when opened (registers this copy, restarts an older one, opens the
 interface; refuses a development copy) and `service/dialog` the system's own windows; `app/lifecycle` stops, restarts,
 restores and removes the service from the interface, and `app/extension` keeps the browser extension's folder in the
-data dir (K20: loaded unpacked). `packaging/build.py` builds the installers (ADR-0017) and `packaging/icons.py` draws
-every icon (the interface's, the extension's, the installers') from the logo, `packaging/logo/white.png` (its lines in
-white on a transparent ground; `black.png` beside it has them in black); in `web/`, `components/ui/SectionTabs` splits
+data dir (K20: loaded unpacked until the store's, K29). `packaging/build.py` builds the installers (ADR-0017) and
+`packaging/icons.py` draws every icon (the interface's, the extension's, the installers') from the logo,
+`packaging/logo/white.png` (its lines in white on a transparent ground; `black.png` beside it has them in black); in
+`web/`, `components/ui/SectionTabs` splits
 a long screen into parts. Phase 7 moved the MCP server into `mcp`, on the official SDK: `tools` (the registry and the
 session that checks the arguments, keeps the plans, masks the answers and records every call), `server` (the SDK's
 low-level server with the Turkish instructions), `resources`, `prompts`, `masking`, `http` (Streamable HTTP at `/mcp`
@@ -402,7 +426,11 @@ the faces. v0.9.4 added `components/charts/open` (where a chart's parts lead) an
 are) in `web/`. v0.9.13 added `app/telegram` (the bot's conversation: pairing, its messages, the document job) and
 `ingest/telegram` (the bot's ear). v0.9.14 added `parsers/teb/passbook` and, in `extension/`, the content script
 (`content.ts`, `gmail/visible`) with `bridge/seen` and `bridge/turns`. v0.9.16 added `parsers/teb/transfer_receipt`
-and `parsers/vakifbank/receipt`.
+and `parsers/vakifbank/receipt`. v0.10.0 added `versions` (comparing versions), `update` (`keys` the trusted signing
+keys, `source` where the releases are, `manifest` the signed manifest, `install` putting a version in place on each
+system), `app/update` (the daily check, the install job, their state in `run/guncelleme.json`), `api/routes/update`
+and `cli/update`; `packaging/release.py` (the signed manifest) and `packaging/chrome_store.py` (the store's upload);
+in `web/`, `components/settings/UpdatesCard`; in `extension/`, `bridge/renew` and `package.mjs` (the store package).
 The rest keeps the MVP's flat layout (`analysis`, `insights`, `month_end`, `report` with its `templates`, …) until the
 phases in the roadmap's MVP module table move it. Next to them: `fakes` (the fake document builders and every
 reader's specimens, shared with the tests and the demo), `demo` (the demo data folder), `baseline` (the verification
@@ -450,11 +478,17 @@ uv run iplikci mcp                             # MCP over stdio: through the ser
 uv run iplikci mcp baslik                      # Claude Code's headers helper: the Authorization header as JSON
 (cd web && npm ci && npm run typecheck && npm test && npm run build)         # the interface, built into the package
 (cd e2e && npm ci && npx playwright test)      # end-to-end on a demo data folder, both themes, axe; build web/ first
-uv run python packaging/build.py               # this system's installer into dist/paket/; build web/, extension/ first
+uv run python packaging/build.py               # this system's installer and update file into dist/paket/, tried first
+uv run python packaging/release.py --tag vX.Y.Z --files dist/surum --notes dist/notlar.md   # the signed manifest
+uv run python packaging/chrome_store.py iplikci-kopru-X.Y.Z.zip --deneme   # what the store upload would do
+uv run iplikci guncelleme durum | denetle | kur | mod otomatik|sor|kapali   # updates: state, check, install, mode
 uv run iplikci uygulama                        # what the installed app runs when opened; refuses a development copy
 uv run iplikci dev api-tipleri web/src/api/schema.ts   # the interface's API types from the OpenAPI document (ADR-0007)
 (cd extension && npm ci && npm run typecheck && npm test && npm run build)   # the extension; load extension/dist
+(cd extension && npm run package)              # the store package iplikci-kopru-<version>.zip
 ```
+
+`packaging/build.py` needs `web/` and `extension/` built first.
 
 The service never runs from this folder when registered: `servis kur` needs a fixed copy (`uv tool install --reinstall
 --python 3.13 .`, built web interface included; without `--python` uv takes its newest Python), so a checked-out branch
@@ -463,7 +497,7 @@ a temp folder and `IPLIKCI_API_TOKEN` to a made-up token, so the keychain is not
 the user's computer without asking. Once a uv tool copy is registered, a change reaches it only through an update with the service stopped, as reinstalling replaces the
 package under a running process: `~/.local/bin/iplikci servis kaldir` (it waits until the process has ended and exits 1
 if it does not), then the `uv tool install` above, then `~/.local/bin/iplikci servis kur`. Update only while no scan of
-the browser extension is running; it delivers to the service.
+the browser extension is running; it delivers to the service. Such a copy is a MANUAL install: it reports new releases but never installs them itself; moving a computer to the packaged app is its user's decision.
 
 `dogrula --taban` saves the baseline in the data dir (`baseline.json`) and keeps the saved one when it finds a
 regression; `--kabul` saves it anyway, for a deliberate change only. `dogrula --arsiv` and `--yeniden-kur` exit 1 on

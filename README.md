@@ -207,15 +207,29 @@ Bildirimler neyle ilgili olduğunu söyler (v0.9.18):
   kategorisini ("İnternet & Telefon"), kart son ödemesinde bankasını ("TEB"). Adları da görmek isterseniz
   Bildirimler → Kanallar'da Telegram'ın ayrıntısını "Tam" seçin.
 
+İplikçi Nedim kendini günceller (v0.10.0):
+
+- Her gün yeni bir sürüm olup olmadığına bakar. Bulunca önce verilerinizin yedeğini alır, sonra yeni sürümü kurar ve
+  yeniden açılır. İndirilen dosya İplikçi Nedim'in imzasıyla ve özetiyle doğrulanmadan kurulmaz.
+- Ayarlar → Güncellemeler kartı çalışan sürümü, son denetimi ve yeni sürümün neler getirdiğini gösterir. Yeni sürüm
+  çıkınca ne olacağını siz seçersiniz: kendiliğinden kur (önerilen), önce bana sor ya da hiç denetleme.
+- Tarayıcıya klasöründen yüklenen eklenti, İplikçi Nedim güncellenince kendini yeni sürümle yeniden yükler. Eklenti
+  Chrome Web Store'da yayımlanınca Tarayıcı eklentisi ekranı önce mağazayı gösterir; mağazadan kurulan eklentiyi
+  tarayıcı kendisi günceller.
+- Her sürüm GitHub'da yayımlanır: üç sistemin kurulum paketleri, güncelleme dosyaları ve eklentinin mağaza paketi.
+  Paketler yayımlanmadan önce açılıp denenir. Nasıl yayımlandıkları [Sürüm yayını ve güncellemeler](docs/yayin.md)
+  belgesindedir.
+
 Açık kalanlar: servisin yedi gün kendi başına çalışması (K19). Windows ve Linux'ta denemeler bekletiliyor (K25).
+Sürümler henüz herkese açık bir yerde değil; kurulu kopyalar güncellemeyi ancak o zaman indirebilir (K29).
 
 MVP 2026-10-31'de emekliye ayrıldı. İplikçi Nedim onun kodundan başlar ama verisini devralmaz; belgeleri kendisi toplar.
 
 ## Kurulum
 
 İplikçi Nedim her işletim sistemi için bir kurulum paketiyle gelir; Python ya da başka bir program kurmanız gerekmez.
-Paketler şimdilik imzasızdır ve bir mağazada ya da indirme sayfasında yayımlanmıyor: her sürümde bu deponun "Paketler"
-iş akışı üretir.
+Paketler şimdilik imzasızdır. Her sürümde bu deponun "Paketler" iş akışı onları üretir ve deponun GitHub'daki sürümler
+sayfasında yayımlar.
 
 1. Paketi açın:
    - **macOS:** `.dmg` dosyasını açın ve İplikçi Nedim'i Uygulamalar klasörüne sürükleyin; uygulamayı oradan açın. İlk
@@ -230,14 +244,19 @@ iş akışı üretir.
    eşleştikten sonra arayüzü eklentinin penceresindeki "İplikçi Nedim'i aç" düğmesiyle de açabilirsiniz.
 3. Sihirbaz adlarınızı, e-postanın nasıl geleceğini, bankaları ve bildirimleri sorar. Gmail hesabınız uygulama
    şifresine izin vermiyorsa (örneğin Gelişmiş Koruma'daysa) e-postalar tarayıcı eklentisiyle gelir. Eklenti
-   programla gelir: sihirbaz eklentinin klasörünü açar ve tarayıcıya nasıl yükleneceğini adım adım gösterir.
+   programla gelir: sihirbaz eklentinin klasörünü açar ve tarayıcıya nasıl yükleneceğini adım adım gösterir. Eklenti
+   Chrome Web Store'da yayımlandığında sihirbaz önce mağazadaki sayfasını gösterir.
 4. Claude'la kullanmak isterseniz Kurulum → Claude bağlantısı ekranını açın. Ekran, İplikçi Nedim'in Claude Code'a
    claude-SAK ile, Claude Desktop'a ise ayar dosyası yoluyla nasıl ekleneceğini adım adım gösterir. Yapılandırmayı
    kopyalayıp yapıştırmanız yeter.
 
-Güncellemek için yeni paketi aynı yoldan açın; verileriniz yerinde kalır. Kaldırmak için önce Ayarlar'daki "Kaldır"
-servisi bilgisayardan kaldırır; veri klasörü yalnızca siz isterseniz çöp kutusuna taşınır. Sonra uygulamayı sisteminizin
-olağan yoluyla kaldırın: macOS'ta çöp kutusuna sürükleyerek, Windows'ta Ayarlar → Uygulamalar'dan.
+İplikçi Nedim kendini günceller: her gün yeni sürüm var mı bakar, varsa önce verilerinizin yedeğini alır, sonra kurar
+ve yeniden açılır. Ne zaman kurulacağını Ayarlar → Güncellemeler'den seçersiniz; "Şimdi güncelle" beklemeden kurar.
+Yeni paketi aynı yoldan açarak da güncelleyebilirsiniz; verileriniz yerinde kalır.
+
+Kaldırmak için önce Ayarlar'daki "Kaldır" servisi bilgisayardan kaldırır; veri klasörü yalnızca siz isterseniz çöp
+kutusuna taşınır. Sonra uygulamayı sisteminizin olağan yoluyla kaldırın: macOS'ta çöp kutusuna sürükleyerek, Windows'ta
+Ayarlar → Uygulamalar'dan.
 
 ## Belgeler
 
@@ -246,6 +265,7 @@ olağan yoluyla kaldırın: macOS'ta çöp kutusuna sürükleyerek, Windows'ta A
 - [Mimari](docs/v1/architecture.md) · [Özellikler](docs/v1/features.md) · [Yol haritası](docs/v1/roadmap.md) ·
   [MVP'den geçiş](docs/v1/migration.md)
 - [Mimari karar kayıtları](docs/adr/README.md)
+- [Sürüm yayını ve güncellemeler](docs/yayin.md)
 - Geliştiriciler ve ajanlar için kurallar: [`CLAUDE.md`](CLAUDE.md)
 
 ## Geliştiriciler için
@@ -285,9 +305,18 @@ uv run iplikci eposta kur | durum | kaldir | al  # IMAP hesabı; şifre yalnızc
 uv run iplikci kurlar al [--gecmis] | durum   # döviz kurları: şimdi çek (servis çalışıyorsa ona sorar), durumu
 uv run iplikci mcp                               # MCP'nin stdio köprüsü: servis çalışıyorsa ona, değilse salt okunur
 uv run iplikci mcp baslik                        # Claude Code'un başlık yardımcısı: belirteçli Authorization başlığı
+uv run iplikci guncelleme durum | denetle | kur  # yeni sürüm: durum, şimdi denetle (servise sorar), şimdi kur
+uv run iplikci guncelleme mod otomatik | sor | kapali   # yeni sürüm çıkınca ne olacağı
 (cd extension && npm ci && npm test && npm run build)   # eklenti; extension/dist ve pakete giren kopyası
-uv run python packaging/build.py                 # bu sistemin kurulum paketi dist/paket/'e; önce web/ ve extension/
+(cd extension && npm run package)                # eklentinin mağaza paketi: iplikci-kopru-<sürüm>.zip
+uv run python packaging/build.py                 # bu sistemin kurulum paketi ve güncelleme dosyası dist/paket/'e
+uv run python packaging/release.py --tag vX.Y.Z --files dist/surum --notes dist/notlar.md   # imzalı sürüm bildirgesi
+uv run python packaging/chrome_store.py iplikci-kopru-X.Y.Z.zip --deneme   # mağazaya ne yükleneceği, göndermeden
 ```
+
+`packaging/build.py`'den önce `web/` ve `extension/` derlenir; paket yapılmadan önce kurulan programla servis açılıp
+denenir. Bir sürümün yayını, imza anahtarı, iş akışının sırları ve Chrome Web Store adımları
+[`docs/yayin.md`](docs/yayin.md)'dedir.
 
 `iplikci servis kur | kaldir | yeniden-baslat` servisi sistemin servis yöneticisine kaydeder. `kur` geliştirme
 klasöründen çalışmaz: servis, `uv tool install` ile kurulmuş sabit bir kopyayı çalıştırır. Böylece bir dal değişince ya
@@ -302,7 +331,8 @@ depoya hiç girmez: testler ve demo, kodla üretilen sahte belgelerle ve kendi k
 
 - Banka akışları esastır: her para hareketi bir banka belgesine dayanır; diğer e-postalar kanıt ve bilgi katmanıdır.
 - Yerel öncelik: belgeler ve veriler bu bilgisayarda, deponun dışındaki veri klasöründe durur. Ağa yalnızca e-posta
-  okumak, döviz kurlarını (ve anahtar girildiyse TÜFE'yi) almak ve bildirim göndermek için çıkılır.
+  okumak, döviz kurlarını (ve anahtar girildiyse TÜFE'yi) almak, bildirim göndermek ve GitHub'da yeni sürüm olup
+  olmadığına bakmak için çıkılır.
 - Yalnızca kişisel para hareketleri; şirket belgeleri kapsam dışıdır.
 - Hiçbir belge kalıcı silinmez.
 - Finanstan anlayan da anlamayan da kullanmak istemeli.

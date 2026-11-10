@@ -4,6 +4,31 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.10.0] — 2026-11-11 — Sürümler ve güncellemeler
+
+### Eklenenler
+
+- İplikçi Nedim kendini günceller. Her gün yeni bir sürüm olup olmadığına bakar; bulunca önce verilerinizin yedeğini
+  alır, sonra yeni sürümü kurar ve kendiliğinden yeniden açılır. İndirilen dosya, İplikçi Nedim'in imzasıyla ve
+  özetiyle doğrulanmadan kurulmaz.
+- Ayarlar'da "Güncellemeler" kartı: çalışan sürüm, son denetim, yeni sürümün neler getirdiği ve "Şimdi güncelle". Yeni
+  sürüm çıkınca ne olacağını siz seçersiniz: kendiliğinden kur (önerilen), önce bana sor ya da hiç denetleme.
+  "Şimdi denetle" her zaman bakar. Sistem ekranı da yeni sürüm olup olmadığını söyler.
+- Paketlenmemiş yüklenen tarayıcı eklentisi (0.8.0), İplikçi Nedim güncellenince kendini yeni sürümle yeniden yükler;
+  eklentiler sayfasında bir şey yapmanız gerekmez.
+- Eklenti Chrome Web Store'da yayımlanınca Tarayıcı eklentisi ekranı önce mağazayı gösterir; mağazadan kurulan
+  eklentiyi tarayıcı kendisi günceller.
+- Her sürüm GitHub'da yayımlanır: macOS, Windows ve Linux için kurulum paketleri, güncelleme dosyaları ve eklentinin
+  mağaza paketi. Paketler yayımlanmadan önce açılıp denenir.
+
+### Bilinmesi gerekenler
+
+- Güncelleme denetimi yalnızca GitHub'daki sürüm sayfasına bakar; hesaplarınızdan ya da belgelerinizden hiçbir bilgi
+  gitmez. Ayarlar'dan kapatılabilir.
+- Elle kurulmuş bir kopya (ör. geliştiricinin kurduğu) kendini güncellemez; yeni sürümü haber verir.
+- Kurulu kopyaların güncellemeyi indirebilmesi için sürümlerin herkese açık bir yerde durması gerekir; bu sürümde
+  sürümler henüz herkese açık değil.
+
 ## [0.9.18] — 2026-11-11 — Bildirimler neyle ilgili olduğunu söyler
 
 ### Düzeltilenler
