@@ -1,4 +1,10 @@
-"""İş Bankası account summaries ("Hesap Özeti", XLS)."""
+"""İş Bankası account summaries ("Hesap Özeti", XLS).
+
+A FAST, EFT or havale row names the other side first ("<AD SOYAD>*<açıklama>*…"). A transfer between two accounts at
+the bank ("Para Transferi") names the account it went to and its holder: "1234/0123456 HESABA <AD SOYAD> Hesaplar
+Arası Akt"; the user's own name there makes it a transfer between own accounts, whether or not a document of the other
+account has come.
+"""
 
 import re
 
@@ -12,6 +18,18 @@ from ..movements import Movement, build_statement
 from ..sheet import cells, key_values, to_date, to_number
 
 ID = "isbank.account_xls"
+
+
+def _receiver(desc: str) -> str:
+    """Whom a transfer between two accounts at the bank went to: the words between "HESABA" and "Hesaplar Arası"; ""
+    for any other text."""
+    words = desc.split()
+    folded = [fold(w) for w in words]
+    if "HESABA" not in folded:
+        return ""
+    start = folded.index("HESABA") + 1
+    end = next((j for j in range(start, len(folded) - 1) if folded[j : j + 2] == ["HESAPLAR", "ARASI"]), start)
+    return " ".join(words[start:end])
 
 
 def read(doc: SourceDocument) -> ParseResult:
@@ -43,7 +61,8 @@ def read(doc: SourceDocument) -> ParseResult:
             continue
         desc = " ".join(str(v).strip() for v in r[desc_start:desc_end] if str(v).strip())
         label = str(r[col["İşlem Tipi"]]).strip()
-        counterparty = desc.split("*")[0].strip() if label in ("FAST", "EFT", "Havale") and "*" in desc else ""
+        named = label in ("FAST", "EFT", "Havale") and "*" in desc
+        counterparty = desc.split("*")[0].strip() if named else _receiver(desc)
         moves.append(Movement(d, desc, amount, to_number(r[col["Bakiye"]]), label, counterparty, doc.row_ref(i)))
     start, end = period_of(info.get("Sorgulama Kriterleri", ""))
     stmt = build_statement(doc, account, moves, start, end, oldest_first=False)
@@ -52,7 +71,7 @@ def read(doc: SourceDocument) -> ParseResult:
 
 class AccountXls:
     id = ID
-    version = 1
+    version = 2
     bank = "İş Bankası"
     name = "İş Bankası hesap özeti (XLS)"
     document_type = DocumentKind.ACCOUNT_STATEMENT

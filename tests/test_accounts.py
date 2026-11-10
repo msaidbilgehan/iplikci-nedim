@@ -7,7 +7,7 @@ import pytest
 
 from iplikci.domain.codes import AccountType, TransactionKind
 from iplikci.domain.models import ParseResult
-from iplikci.fakes import HOLDER, garanti, isbank, qnb, vakifbank
+from iplikci.fakes import HOLDER, Move, garanti, isbank, qnb, vakifbank
 from iplikci.parsers import Skipped, parse_document
 from iplikci.parsers.accounts import bank_from_iban
 from iplikci.parsers.common import set_business_names
@@ -145,6 +145,23 @@ def test_isbank_account_xls_finds_branch_and_account_at_the_end_of_the_iban():
     sent = next(t for t in s.transactions if t.amount == 15000)
     assert (sent.counterparty, sent.kind) == ("VELİ ÖRNEKSOY", TransactionKind.TRANSFER_CANDIDATE)  # "AD*" FAST text
     assert next(t for t in s.transactions if t.amount == Decimal("8.86")).kind == TransactionKind.INTEREST_FEE
+
+
+def test_isbank_account_xls_names_whom_a_transfer_between_accounts_at_the_bank_went_to():
+    moves = [
+        (Move(date(2026, 10, 3), "VELİ ÖRNEKSOY*EKİM KİRA ÖDEMESİ", Decimal(-15000)), "FAST"),
+        (
+            Move(date(2026, 10, 3), f"1234/0654321 HESABA {HOLDER} Hesaplar Arası Akt", Decimal("-5000.50")),
+            "Para Transferi",
+        ),
+        (Move(date(2026, 10, 4), "0143/12345678-MUHASEBE HESABINA KRE.KART BORÇ ÖDEME", Decimal(-100)), "Para Çekme"),
+    ]
+    [s] = _read("HesapOzeti.xls", isbank.account_xls(moves, opening=Decimal(30000))).statements
+    by_amount = {t.amount: t for t in s.transactions}
+    moved = by_amount[Decimal("5000.50")]
+    # The user's own name makes it an own transfer in the ledger, though the other account has no document.
+    assert (moved.counterparty, moved.kind) == (HOLDER, TransactionKind.TRANSFER_CANDIDATE)
+    assert (by_amount[Decimal(15000)].counterparty, by_amount[Decimal(100)].counterparty) == ("VELİ ÖRNEKSOY", "")
 
 
 def test_vakifbank_account_xlsx_names_the_employer_and_the_other_side_of_a_transfer():

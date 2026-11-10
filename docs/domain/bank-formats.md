@@ -196,6 +196,10 @@ de yoktur.
 - IBAN şube (4) ve hesap (7) haneleriyle biter.
 - Para birimi `Mevcut Bakiye`'den gelir.
 - FAST, EFT ve havale açıklamaları `AD*` ile başlar.
+- Bankadaki iki hesap arası aktarma (`İşlem Tipi` "Para Transferi") gittiği hesabı ve sahibini yazar: "1234/0123456
+  HESABA <AD SOYAD> Hesaplar Arası Akt". Karşı taraf, `HESABA` ile "Hesaplar Arası" arasındaki addır. Ad
+  kullanıcınınsa öbür hesabın belgesi gelmemiş olsa da aktarma kendi hesaplar arasıdır (v0.9.17'ye dek ad okunmuyor,
+  aktarma kişilere gönderilen sayılıyordu).
 
 **FAST/EFT dekont PDF'i** (`isbank.receipt`)
 
