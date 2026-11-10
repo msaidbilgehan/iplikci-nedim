@@ -53,6 +53,16 @@ describe("InstallCard", () => {
     expect(screen.getByRole("button", { name: "Eklenti klasörünü aç" })).toBeDisabled();
   });
 
+  it("leads to the store once the extension is published there, the folder's steps folded", async () => {
+    const page = "https://chromewebstore.google.com/detail/iplikci-nedim-koprusu/abcdefghijklmnopabcdefghijklmnop";
+    server.use(http.get("/api/extension", () => HttpResponse.json({ ...EXTENSION, store: page })));
+    renderScreen(<InstallCard />);
+    const link = await screen.findByRole("link", { name: "Chrome Web Store'da aç (yeni sekmede açılır)" });
+    expect(link).toHaveAttribute("href", page);
+    expect(screen.getByText(/klasörden yüklediyseniz eklentiler sayfasından onu kaldırın/)).toBeInTheDocument();
+    expect(screen.getByText("Mağazayı kullanamıyorsanız: klasörden yükleyin")).toBeInTheDocument();
+  });
+
   it("says when the folder holds an older extension than the program", async () => {
     server.use(http.get("/api/extension", () => HttpResponse.json({ ...EXTENSION, folder: EXTENSION_FOLDER })));
     renderScreen(<InstallCard />);

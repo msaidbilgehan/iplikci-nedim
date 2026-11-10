@@ -15,6 +15,7 @@ import {
   useOtherSenders,
   useSetOtherSenders,
   useSystem,
+  useUpdate,
 } from "../api/queries";
 import type { Bridge, ExportKind, Labels, MailCoverage, RefusedMail, SystemStatus } from "../api/types";
 import { RatesStatusCard } from "../components/fx/RatesStatusCard";
@@ -60,6 +61,7 @@ function SystemCards({ status, labels }: { status: SystemStatus; labels: Labels 
           <Facts
             items={[
               [t("service.version"), status.service.version],
+              [t("service.update"), <UpdateFact key="update" />],
               [t("service.started"), formatTime(status.service.started_at)],
               [t("service.process"), String(status.service.pid)],
               [t("service.home"), <code key="home">{status.service.home}</code>],
@@ -92,6 +94,32 @@ function SystemCards({ status, labels }: { status: SystemStatus; labels: Labels 
       </Card>
       <ReadersCard status={status} />
     </div>
+  );
+}
+
+/** Whether a newer version is out, in a few words, and where the updates are set (Ayarlar, ADR-0022). */
+function UpdateFact() {
+  const { t } = useTranslation("system");
+  const found = useUpdate().data;
+  let said = "";
+  if (found?.installing) {
+    said = t("service.updateInstalling", { version: found.installing });
+  } else if (found?.available) {
+    said = t("service.updateNew", { version: found.available.version });
+  } else if (found?.check_error) {
+    said = t("service.updateFailed");
+  } else if (found && !found.checked_at) {
+    said = found.mode === "off" ? t("service.updateOff") : t("service.updateNever");
+  } else if (found) {
+    said = t("service.updateCurrent");
+  }
+  return (
+    <span className="flex flex-wrap items-baseline gap-x-2">
+      <span>{said || "…"}</span>
+      <Link to="/ayarlar" className={STEP}>
+        {t("service.updateSettings")}
+      </Link>
+    </span>
   );
 }
 

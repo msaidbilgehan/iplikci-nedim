@@ -3,11 +3,25 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
-import { server, systemStatus } from "../test/server";
+import { server, systemStatus, UPDATE_FOUND } from "../test/server";
 import { renderScreen } from "../test/render";
 import SystemPage from "./SystemPage";
 
 describe("SystemPage", () => {
+  it("says whether a newer version is out and leads to where updates are set", async () => {
+    renderScreen(<SystemPage />);
+    const card = await screen.findByRole("region", { name: "Servis" });
+    expect(await within(card).findByText("Güncel")).toBeInTheDocument();
+    expect(within(card).getByRole("link", { name: "Ayarlar'da" })).toHaveAttribute("href", "/ayarlar");
+  });
+
+  it("names the newer version the last check found", async () => {
+    server.use(http.get("/api/update", () => HttpResponse.json(UPDATE_FOUND)));
+    renderScreen(<SystemPage />);
+    const card = await screen.findByRole("region", { name: "Servis" });
+    expect(await within(card).findByText("Yeni sürüm hazır: 0.11.0")).toBeInTheDocument();
+  });
+
   it("offers the exports the last analysis wrote, each to download, and makes them again on request", async () => {
     const user = userEvent.setup();
     let asked = 0;

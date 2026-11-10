@@ -8,7 +8,15 @@
     "started": "Başlangıç",
     "process": "Süreç",
     "home": "Veri klasörü",
-    "logNote": "Bir sorun olduğunda günlüğü gönderebilirsiniz: kişisel olabilecek yollar, adlar, adresler, IBAN'lar ve uzun numaralar indirilen dosyadan çıkarılır."
+    "logNote": "Bir sorun olduğunda günlüğü gönderebilirsiniz: kişisel olabilecek yollar, adlar, adresler, IBAN'lar ve uzun numaralar indirilen dosyadan çıkarılır.",
+    "update": "Güncelleme",
+    "updateCurrent": "Güncel",
+    "updateNew": "Yeni sürüm hazır: {{version}}",
+    "updateInstalling": "{{version}} kuruluyor",
+    "updateFailed": "Son denetim yapılamadı",
+    "updateOff": "Denetlenmiyor",
+    "updateNever": "Henüz denetlenmedi",
+    "updateSettings": "Ayarlar'da"
   },
   "mail": {
     "title": "E-posta",

@@ -1755,6 +1755,10 @@ export interface QueueOut {
   failures: FailedJobOut[];
 }
 
+export interface QueuedOut {
+  queued: boolean;
+}
+
 /** A line of İplikçi Nedim's; a dialogue's lines in turn, his first. */
 export interface QuoteOut {
   id: string;
@@ -2391,6 +2395,11 @@ export interface UpdateOut {
   page: string;
 }
 
+export interface UpdateQueuedOut {
+  queued: boolean;
+  version?: string;
+}
+
 export interface UploadOut {
   batch: string;
   status: "eklendi" | "zaten-var" | "reddedildi";
@@ -2457,13 +2466,4 @@ export interface WorthOut {
 export interface WriteRulesIn {
   action: "write";
   content: string;
-}
-
-export interface iplikci__api__routes__backups__QueuedOut {
-  queued: boolean;
-}
-
-export interface iplikci__api__routes__update__QueuedOut {
-  queued: boolean;
-  version?: string;
 }

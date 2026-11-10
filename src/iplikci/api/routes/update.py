@@ -55,7 +55,7 @@ class ModeIn(BaseModel):
     mode: Mode
 
 
-class QueuedOut(BaseModel):
+class UpdateQueuedOut(BaseModel):
     queued: bool
     version: str = ""  # the version an install was asked for
 
@@ -85,21 +85,21 @@ def where_it_stands(request: Request) -> UpdateOut:
 
 
 @router.post("/api/update/check", status_code=202, dependencies=[Depends(only(Principal.BROWSER, Principal.CLIENT))])
-def check_now(request: Request) -> QueuedOut:
+def check_now(request: Request) -> UpdateQueuedOut:
     """Ask the worker to check now, whatever the mode says; /api/update tells what it found within seconds."""
     update.request_check(context_of(request).ws)
-    return QueuedOut(queued=True)
+    return UpdateQueuedOut(queued=True)
 
 
 @router.post("/api/update/install", status_code=202, dependencies=[Depends(only(Principal.BROWSER, Principal.CLIENT))])
-def install_now(request: Request) -> QueuedOut:
+def install_now(request: Request) -> UpdateQueuedOut:
     """Ask the worker to install the newer version the last check found. A backup comes first; then the service
     starts again with the new version, and the interface finds it back within a minute."""
     try:
         version = update.request_install(context_of(request).ws, Actor.USER)
     except UpdateError as exc:
         raise Problem(409, "update_unavailable", str(exc)) from exc
-    return QueuedOut(queued=True, version=version)
+    return UpdateQueuedOut(queued=True, version=version)
 
 
 @router.put("/api/update/mode", dependencies=[Depends(only(Principal.BROWSER))])

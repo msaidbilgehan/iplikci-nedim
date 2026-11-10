@@ -21,8 +21,13 @@
     "stepLoad": "“Paketlenmemiş öğe yükle” (İngilizcesi “Load unpacked”) düğmesine basın ve açılan pencerede bu klasörü seçin. Klasörü dosya yöneticisinden eklentiler sayfasının üstüne sürükleyip bırakmak da olur.",
     "stepLoadHint": "Pencerede klasörü bulamazsanız klasörün yerini yapıştırın; macOS'ta önce ⇧⌘G tuşlarına basın.",
     "stepDone": "Eklenti “İplikçi Nedim Köprüsü” adıyla listede görünür. Ardından aşağıdan eşleştirin.",
-    "keep": "Klasörü silmeyin ve taşımayın: tarayıcı eklentiyi oradan çalıştırır. İplikçi Nedim güncellenince klasördeki eklenti de yenilenir; yeni sürüm, tarayıcı yeniden açılınca çalışır.",
-    "stale": "Klasördeki eklenti uygulamanın taşıdığından eski. “Klasörü yeniden aç” yenisini yazar; ardından eklentiler sayfasında eklentinin yenileme düğmesine basın."
+    "keep": "Klasörü silmeyin ve taşımayın: tarayıcı eklentiyi oradan çalıştırır. İplikçi Nedim güncellenince klasördeki eklenti de yenilenir ve eklenti kendini yeni sürümle yeniden yükler.",
+    "stale": "Klasördeki eklenti uygulamanın taşıdığından eski. “Klasörü yeniden aç” yenisini yazar; ardından eklentiler sayfasında eklentinin yenileme düğmesine basın.",
+    "storeIntro": "Eklenti Chrome Web Store'da. Oradan eklerseniz tarayıcı onu kendisi günceller; geliştirici modu gerekmez.",
+    "storeLink": "Chrome Web Store'da aç",
+    "newTab": "(yeni sekmede açılır)",
+    "storeOnce": "Mağaza sayfasında “Chrome'a ekle”ye basın. Eklentiyi daha önce klasörden yüklediyseniz eklentiler sayfasından onu kaldırın: ikisi birden aynı iletileri getirir. Ardından aşağıdan eşleştirin.",
+    "folderInstead": "Mağazayı kullanamıyorsanız: klasörden yükleyin"
   },
   "pairing": {
     "title": "Eşleştir",

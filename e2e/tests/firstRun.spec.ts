@@ -59,10 +59,10 @@ test.beforeAll(async ({}, testInfo) => {
   rmSync(home, { recursive: true, force: true });
   mkdirSync(home, { recursive: true });
   // Its port and no channel, nothing else: no name, no e-mail account and no document is what a first run is.
-  // No channel and no rate provider: nothing leaves the computer while the tests run.
+  // No channel, no rate provider and no update check: nothing leaves the computer while the tests run.
   writeFileSync(
     join(home, "settings.toml"),
-    `[server]\nport = ${port}\n\n[notify]\nchannels = []\n\n[fx]\nproviders = ["document"]\n`,
+    `[server]\nport = ${port}\n\n[notify]\nchannels = []\n\n[fx]\nproviders = ["document"]\n\n[updates]\nmode = "off"\n`,
   );
   const log = openSync(join(STATE_DIR, `ilk-acilis-${testInfo.project.name}.log`), "a");
   service = spawn("uv", ["run", "iplikci", "servis", "calistir", "--ev", home], {

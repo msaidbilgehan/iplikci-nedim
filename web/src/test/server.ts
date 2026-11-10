@@ -64,6 +64,7 @@ import type {
   TransactionDetail,
   TransactionPage,
   McpConnection,
+  UpdateState,
 } from "../api/types";
 
 export const LABELS: Labels = {
@@ -1622,6 +1623,7 @@ export const EXTENSION: ExtensionInfo = {
   version: "0.4.0",
   folder: "",
   current: false,
+  store: "",
 };
 
 export function notification(
@@ -3948,6 +3950,35 @@ export const BACKUPS: BackupItem[] = [
 ];
 
 // TÜFE from EVDS (F12's V1+ part): no key yet, and a key kept with the months that came.
+// The program's own updates (ADR-0022): an installed app that is up to date, and one that found a newer version.
+export const UPDATE_CURRENT: UpdateState = {
+  version: "0.10.0",
+  mode: "auto",
+  installation: "macos_app",
+  automatic: true,
+  platform: "macos-aarch64",
+  checked_at: "2026-11-11T05:00:00+00:00",
+  check_error: "",
+  available: null,
+  installing: "",
+  last: null,
+  page: "https://github.com/sahip/depo/releases/latest",
+};
+
+export const UPDATE_FOUND: UpdateState = {
+  ...UPDATE_CURRENT,
+  mode: "ask",
+  available: {
+    version: "0.11.0",
+    tag: "v0.11.0",
+    date: "2026-11-20",
+    notes: "### Eklenenler\n\n- Yeni bir ekran.\n  İki satırlık bir madde.\n\n### Düzeltilenler\n\n- `Kalan` doğru.",
+    size: 75_000_000,
+    page: "https://github.com/sahip/depo/releases/tag/v0.11.0",
+  },
+  page: "https://github.com/sahip/depo/releases/tag/v0.11.0",
+};
+
 export const EVDS_NONE: EvdsState = {
   has_key: false,
   months: 0,
@@ -4126,6 +4157,13 @@ export const handlers = [
     "/api/settings/mail/imap",
     () => new HttpResponse(null, { status: 204 }),
   ),
+  http.get("/api/update", () => HttpResponse.json(UPDATE_CURRENT)),
+  http.post("/api/update/check", () => HttpResponse.json({ queued: true, version: "" }, { status: 202 })),
+  http.post("/api/update/install", () => HttpResponse.json({ queued: true, version: "0.11.0" }, { status: 202 })),
+  http.put("/api/update/mode", async ({ request }) => {
+    const body = (await request.json()) as { mode: UpdateState["mode"] };
+    return HttpResponse.json({ ...UPDATE_CURRENT, mode: body.mode });
+  }),
   http.get("/api/settings/evds", () => HttpResponse.json(EVDS_NONE)),
   http.put("/api/settings/evds", () => HttpResponse.json(EVDS_KEPT)),
   http.delete("/api/settings/evds", () => new HttpResponse(null, { status: 204 })),

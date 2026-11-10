@@ -84,6 +84,9 @@ import type {
   Todos,
   TransactionDetail,
   TransactionPage,
+  UpdateMode,
+  UpdateQueued,
+  UpdateState,
 } from "./types";
 
 export const keys = {
@@ -131,6 +134,7 @@ export const keys = {
   notificationLog: ["notifications", "all"] as const,
   notifySettings: ["notify", "settings"] as const,
   alertRules: ["rules", "alerts"] as const,
+  update: ["update"] as const,
 };
 
 const OTHER_SENDERS = "/api/settings/mail/other-senders";
@@ -744,6 +748,48 @@ export function useFetchRates() {
   return useMutation({
     mutationFn: (history: boolean) => api.post<RatesQueued>("/api/fx/fetch", { history }),
     onSuccess: () => void client.invalidateQueries({ queryKey: keys.system }),
+  });
+}
+
+const UPDATE = "/api/update";
+
+/**
+ * The program's own updates (ADR-0022): the running version, the mode, the last check and what it found. The worker
+ * writes them without an event, so the card asks again every few seconds while a check it asked for is under way,
+ * and once a minute otherwise.
+ */
+export function useUpdate(waiting = false) {
+  return useQuery({
+    queryKey: keys.update,
+    queryFn: () => api.get<UpdateState>(UPDATE),
+    refetchInterval: waiting ? 2000 : 60_000,
+  });
+}
+
+/** Ask the service to check for a new version now, whatever the mode says. */
+export function useCheckUpdate() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<UpdateQueued>(`${UPDATE}/check`),
+    onSuccess: () => void client.invalidateQueries({ queryKey: keys.update }),
+  });
+}
+
+/** Ask the service to install the new version it found: a backup first, then it starts again with the new one. */
+export function useInstallUpdate() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<UpdateQueued>(`${UPDATE}/install`),
+    onSuccess: () => void client.invalidateQueries({ queryKey: keys.update }),
+  });
+}
+
+/** Whether a new version is installed by itself, only told, or never asked for. */
+export function useUpdateMode() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (mode: UpdateMode) => api.put<UpdateState>(`${UPDATE}/mode`, { mode }),
+    onSuccess: (found) => client.setQueryData(keys.update, found),
   });
 }
 
