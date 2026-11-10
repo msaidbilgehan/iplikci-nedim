@@ -1,8 +1,11 @@
 """The browser extension's files for the browser to load (ADR-0016, K20). Until the extension is in a store, the
 browser loads it unpacked, from a folder that must stay where it is. The program carries the built extension; when
 the user asks, the service copies it into the data folder's extension/ and shows that folder in the system's file
-manager. The copy keeps up with the program: a newer program rewrites it at the service's next start, and the browser
-runs the new version once it starts again."""
+manager. The copy keeps up with the program: a newer program rewrites it at the service's next start, and the
+extension, told the version the program carries, loads itself again (ADR-0022).
+
+Once the user has published the extension on the Chrome Web Store (K29), STORE_URL holds its page and the interface
+shows it first; the store then updates the extension."""
 
 import hashlib
 import json
@@ -18,6 +21,8 @@ from .workspace import Workspace
 
 BUILT = Path(__file__).resolve().parent.parent / "browser_extension"  # written by `npm run build` in extension/
 MANIFEST = "manifest.json"
+# The extension's page on the Chrome Web Store, set once the user has published it there (K29); "" until then.
+STORE_URL = ""
 
 log = logging.getLogger("iplikci.extension")
 
@@ -36,6 +41,7 @@ class ExtensionState:
     version: str  # the carried extension's version; "" when there is none
     folder: Path | None  # the data folder's copy, once made
     current: bool  # the copy holds the carried files
+    store: str  # the extension's page on the Chrome Web Store; "" before it is published there
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,7 +65,14 @@ def state(ws: Workspace, built: Path | None = None) -> ExtensionState:
         version=_version(built) if available else "",
         folder=folder if made else None,
         current=available and made and _same(folder, built),
+        store=STORE_URL,
     )
+
+
+def carried_version(built: Path | None = None) -> str:
+    """The version of the extension this program carries; "" when it carries none. An unpacked extension older than
+    it loads itself again from its folder, which the service brought up to date at its start."""
+    return _version(_carried(built))
 
 
 def prepare(ws: Workspace, built: Path | None = None) -> Path:

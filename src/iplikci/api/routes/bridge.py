@@ -57,6 +57,7 @@ class CursorOut(BaseModel):
     start_day: str
     senders: list[str]
     history_due: bool  # no finished scan of Gmail searched this start day and these senders: the extension scans
+    extension_version: str = ""  # the extension the program carries: an older unpacked one loads itself again
 
 
 GmailId = Annotated[str, StringConstraints(pattern=r"^[0-9]{1,25}$")]  # Gmail's message id, in decimal
@@ -112,6 +113,7 @@ class ExtensionOut(BaseModel):
     version: str  # "" when it carries none
     folder: str  # where the browser loads it from, once made; "" before
     current: bool  # the folder holds the files of this version
+    store: str  # its page on the Chrome Web Store; "" before it is published there (K29)
 
 
 class ExtensionFolderOut(BaseModel):
@@ -133,6 +135,7 @@ def extension_state(request: Request) -> ExtensionOut:
         version=found.version,
         folder=str(found.folder) if found.folder else "",
         current=found.current,
+        store=found.store,
     )
 
 
@@ -227,6 +230,7 @@ def cursor(request: Request) -> CursorOut:
         start_day=found.start_day,
         senders=list(found.senders),
         history_due=found.history_due,
+        extension_version=extension.carried_version(),
     )
 
 

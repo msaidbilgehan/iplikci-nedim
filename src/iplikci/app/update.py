@@ -33,7 +33,7 @@ from ..update import install, source
 from ..update.install import Installation, InstallError, Kind
 from ..update.manifest import Entry, Manifest, ManifestError, platform_key, verify
 from ..versions import newer
-from . import backup, lifecycle
+from . import backup
 from .kinds import UPDATE_CHECK, UPDATE_INSTALL
 from .workspace import Busy, Workspace
 
@@ -281,6 +281,8 @@ def latest(settings: config.Settings) -> Manifest:
 
 
 def _must_install_here(ws: Workspace, found: Installation) -> None:
+    from . import lifecycle  # here, not above: lifecycle's setup imports background, which imports this module
+
     if not found.automatic or found.root is None:
         raise UpdateError(f"Bu kopya elle kuruldu; kendini güncelleyemez. Yeni sürümü indirip kurun: {source.page()}")
     if found.kind is not Kind.WINDOWS_SETUP and not lifecycle.registration(ws).registered:

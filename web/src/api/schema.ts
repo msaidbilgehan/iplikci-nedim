@@ -210,6 +210,15 @@ export interface AttachmentOut {
   name: string;
 }
 
+export interface AvailableOut {
+  version: string;
+  tag: string;
+  date: string;
+  notes: string;
+  size: number;
+  page: string;
+}
+
 export interface BackupHealthOut {
   last: string;
   next: string;
@@ -485,6 +494,7 @@ export interface CursorOut {
   start_day: string;
   senders: string[];
   history_due: boolean;
+  extension_version?: string;
 }
 
 export interface CurvePointOut {
@@ -700,6 +710,7 @@ export interface ExtensionOut {
   version: string;
   folder: string;
   current: boolean;
+  store: string;
 }
 
 export interface FailedJobOut {
@@ -1259,6 +1270,10 @@ export interface MerchantRuleIn {
   necessity?: Necessity | null;
 }
 
+export interface ModeIn {
+  mode: "auto" | "ask" | "off";
+}
+
 /**
  * An amount in its currency's smallest unit: {"minor": 123456, "currency": "TRY"} is 1.234,56 TL. The interface formats
  * it (architecture §16).
@@ -1574,6 +1589,15 @@ export interface OtherSendersOut {
   domains: string[];
 }
 
+export interface OutcomeOut {
+  from_version: string;
+  to_version: string;
+  at: string;
+  ok: boolean;
+  error: string;
+  tries: number;
+}
+
 export interface OverdraftOut {
   limit: MoneyOut | null;
   used: MoneyOut;
@@ -1729,10 +1753,6 @@ export interface QueueOut {
   counts: Record<string, number>;
   next_run: string;
   failures: FailedJobOut[];
-}
-
-export interface QueuedOut {
-  queued: boolean;
 }
 
 /** A line of İplikçi Nedim's; a dialogue's lines in turn, his first. */
@@ -2357,6 +2377,20 @@ export interface UnusualOut {
   link: LinkOut;
 }
 
+export interface UpdateOut {
+  version: string;
+  mode: "auto" | "ask" | "off";
+  installation: "macos_app" | "linux_copy" | "windows_setup" | "manual";
+  automatic: boolean;
+  platform: string;
+  checked_at: string;
+  check_error: string;
+  available: AvailableOut | null;
+  installing: string;
+  last: OutcomeOut | null;
+  page: string;
+}
+
 export interface UploadOut {
   batch: string;
   status: "eklendi" | "zaten-var" | "reddedildi";
@@ -2423,4 +2457,13 @@ export interface WorthOut {
 export interface WriteRulesIn {
   action: "write";
   content: string;
+}
+
+export interface iplikci__api__routes__backups__QueuedOut {
+  queued: boolean;
+}
+
+export interface iplikci__api__routes__update__QueuedOut {
+  queued: boolean;
+  version?: string;
 }

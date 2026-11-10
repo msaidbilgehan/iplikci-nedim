@@ -360,3 +360,33 @@ def test_the_jobs_queue_keeps_one_waiting_check(ws):
     update.request_check(ws)
     with ws.db() as db:
         assert jobs.counts(db).get("queued", 0) == 1
+
+
+# --- the command line -----------------------------------------------------------------------------------------------
+
+
+def test_the_command_checks_here_when_no_service_runs(ws, github, monkeypatch, capsys):
+    from iplikci import cli
+
+    monkeypatch.setenv("IPLIKCI_HOME", str(ws.home))
+    github.publish()
+    assert cli.main(["guncelleme", "denetle"]) == 0
+    out = capsys.readouterr().out
+    assert f"Sürüm: {__version__}" in out and f"Yeni sürüm: {NEXT} (2026-11-11)" in out
+    assert cli.main(["guncelleme", "mod", "kapali"]) == 0
+    assert "yeni sürüm denetlenmez" in capsys.readouterr().out
+    assert config.load(ws.layout.settings).updates.mode == "off"
+
+
+def test_the_command_asks_the_running_service(ws, monkeypatch, capsys):
+    from iplikci import cli
+    from iplikci.service import client, instance
+
+    monkeypatch.setenv("IPLIKCI_HOME", str(ws.home))
+    asked: list[tuple[str, str]] = []
+    monkeypatch.setattr(client, "call", lambda ws, method, path, body=None: asked.append((method, path)) or {})
+    with instance.held(ws.run, instance.Holder(111, ws.port, "", "")):
+        assert cli.main(["guncelleme", "denetle"]) == 0
+        assert cli.main(["guncelleme", "kur"]) == 0
+    assert asked == [("POST", "/api/update/check"), ("POST", "/api/update/install")]
+    assert "Servis yeni sürümü kuruyor" in capsys.readouterr().out

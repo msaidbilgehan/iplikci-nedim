@@ -39,6 +39,7 @@ from .routes import (
     system,
     todos,
     transactions,
+    update,
     uploads,
 )
 
@@ -54,6 +55,7 @@ ROUTERS = (
     exports,
     mail,
     rates,
+    update,
     settings,
     claude,
     documents,

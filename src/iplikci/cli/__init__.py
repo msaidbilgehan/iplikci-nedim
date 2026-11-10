@@ -11,6 +11,7 @@ iplikci eposta kur|durum|kaldir|al   IMAP hesabı (uygulama şifresine izin vere
 iplikci bildirim durum|kurallar|gecmis|dene   bildirim kanalları, kuralları, gönderilenler, deneme bildirimi
 iplikci telegram kur|eslestir|kaldir   Telegram botunun belirteci (gizli istemle) ve sohbet eşleştirmesi
 iplikci kurlar al [--gecmis]|durum   döviz kurlarını şimdi çek (--gecmis: geçmişin eksik günleri); kurların durumu
+iplikci guncelleme durum|denetle|kur|mod   sürüm ve güncellemeler: şimdi denetle, bulunanı kur, kendiliğinden mi
 iplikci mcp                     Claude için MCP sunucusu (istemci başlatır)
 iplikci servis calistir         servisi ön planda çalıştır (API, 127.0.0.1)
 iplikci servis kur|kaldir|durum|yeniden-baslat   arka plan servisi (launchd, systemd, Görev Zamanlayıcı)
@@ -37,6 +38,7 @@ from .rates import rates_command
 from .report import month_end_command, report
 from .service import app_command, open_command, service_command
 from .transactions import transaction_command
+from .update import update_command
 from .verify import verify_command
 
 COMMANDS: dict[str, Callable[[list[str]], int]] = {
@@ -45,6 +47,7 @@ COMMANDS: dict[str, Callable[[list[str]], int]] = {
     "bildirim": notify_command,
     "telegram": telegram_command,
     "kurlar": rates_command,
+    "guncelleme": update_command,
     "mcp": mcp_command,
     "aysonu": month_end_command,
     "islem": transaction_command,

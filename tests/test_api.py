@@ -666,6 +666,7 @@ def test_a_new_sender_list_makes_the_extension_read_the_history_again(client, co
     signed_in(client).put("/api/settings/mail/other-senders", json={"domains": ["fatura.example"]}, headers=OWN_PAGE)
     cursor = extension.get("/api/ingest/mail/cursor", headers=bearer(token)).json()
     assert cursor["history_due"] and "fatura.example" in cursor["senders"]
+    assert cursor["extension_version"] == ""  # the tests' program carries no built extension
     assert client.get("/api/system").json()["mail"]["history_due"]
 
 

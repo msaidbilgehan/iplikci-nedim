@@ -49,7 +49,7 @@ def test_the_folder_is_made_only_when_asked_and_holds_the_carried_extension(ws, 
     found = extension.show(ws)
     assert (found.folder, found.version, found.opened, shown) == (ws.layout.extension, "0.4.0", True, [found.folder])
     assert (found.folder / "icons" / "128.png").read_bytes() == b"\x89PNG sahte"
-    assert extension.state(ws) == extension.ExtensionState(True, "0.4.0", ws.layout.extension, True)
+    assert extension.state(ws) == extension.ExtensionState(True, "0.4.0", ws.layout.extension, True, "")
 
 
 def test_only_the_user_can_read_the_copy(ws, carried, shown):
@@ -88,7 +88,7 @@ def test_a_copy_kept_busy_is_tried_again_at_the_next_start(ws, carried, monkeypa
 
 
 def test_a_program_without_the_extension_says_so(ws):
-    assert extension.state(ws) == extension.ExtensionState(False, "", None, False)
+    assert extension.state(ws) == extension.ExtensionState(False, "", None, False, "")
     with pytest.raises(extension.ExtensionError, match="eklentisini taşımıyor"):
         extension.prepare(ws)
 
@@ -135,7 +135,7 @@ def client(ws) -> TestClient:
 def test_the_page_makes_the_folder_and_learns_where_it_is(client, ws, carried, shown):
     bearer = {"Authorization": f"Bearer {TOKEN}"}
     before = client.get("/api/extension", headers=bearer).json()
-    assert before == {"available": True, "version": "0.4.0", "folder": "", "current": False}
+    assert before == {"available": True, "version": "0.4.0", "folder": "", "current": False, "store": ""}
     assert client.post("/api/extension/folder", headers=bearer).status_code == 403  # the token reads, never opens
     made = client.post("/api/extension/folder", headers=OWN_PAGE)
     assert made.json() == {"folder": str(ws.layout.extension), "version": "0.4.0", "opened": True}
@@ -180,3 +180,15 @@ def test_a_file_renamed_only_in_case_keeps_its_new_name(ws, carried, tmp_path, m
     assert extension.refresh(ws) is True
     assert sorted(p.name for p in folder.iterdir() if p.is_file()) == ["Background.js", extension.MANIFEST]
     assert extension.state(ws).current and extension.refresh(ws) is False  # and it is not rewritten at every start
+
+
+def test_the_store_page_is_shown_once_the_extension_is_published_there(client, carried, monkeypatch):
+    bearer = {"Authorization": f"Bearer {TOKEN}"}
+    page = "https://chromewebstore.google.com/detail/iplikci-nedim-koprusu/abcdefghijklmnopabcdefghijklmnop"
+    monkeypatch.setattr(extension, "STORE_URL", page)
+    assert client.get("/api/extension", headers=bearer).json()["store"] == page
+
+
+def test_the_cursor_tells_the_extension_the_version_the_program_carries(carried, tmp_path):
+    assert extension.carried_version() == "0.4.0"
+    assert extension.carried_version(tmp_path / "yok") == ""
