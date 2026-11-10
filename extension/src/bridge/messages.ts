@@ -1,5 +1,9 @@
-/** What the extension's own pages ask its service worker, checked before anything is done with it. */
+/**
+ * What the extension's own pages and its content script in Gmail's tabs ask its service worker, checked before
+ * anything is done with it. A Gmail tab may only ask what to look for and tell the ids it shows.
+ */
 
+import { PER_MESSAGE } from "../gmail/visible";
 import type { RunSummary, ScanSummary } from "./state";
 
 export type Request =
@@ -55,4 +59,31 @@ export function asRequest(message: unknown): Request | null {
     default:
       return null;
   }
+}
+
+/**
+ * What the content script in a Gmail tab asks (content.ts): what to look for, or it tells the Gmail ids (decimal) of
+ * the listed senders' messages the tab shows. Both are answered with what to look for (gmail/visible.ts's Watch), or
+ * null while the bridge takes nothing from that tab.
+ */
+export type TabRequest =
+  | { readonly kind: "gmail-watch" }
+  | { readonly kind: "gmail-seen"; readonly ids: readonly string[] };
+
+/** Gmail's message id in decimal, as "Show original" and the service take it. */
+const GMAIL_ID = /^[0-9]{1,25}$/;
+
+export function asTabRequest(message: unknown): TabRequest | null {
+  if (typeof message !== "object" || message === null) {
+    return null;
+  }
+  const { kind, ids } = message as Record<string, unknown>;
+  if (kind === "gmail-watch") {
+    return { kind };
+  }
+  if (kind !== "gmail-seen" || !Array.isArray(ids) || ids.length > PER_MESSAGE) {
+    return null;
+  }
+  const found = ids.filter((id): id is string => typeof id === "string" && GMAIL_ID.test(id));
+  return found.length === ids.length ? { kind, ids: found } : null;
 }

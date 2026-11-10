@@ -29,14 +29,23 @@ let turn = 0;
 
 const UNPAIRED = "Eşleştirme kodunu girmek için “Eşleştirme ve ayarlar”ı açın.";
 const HISTORY_DUE = "Geçmiş iletiler taranmayı bekliyor: “Şimdi denetle” önce Gmail'i yeni bir sekmede tarar.";
+const WATCHING = "Gmail açıkken görünen banka iletileri, okunmuş olsalar da, kendiliğinden alınır.";
 
 function show(status: Status | null): void {
   draw(card, describe(status, UNPAIRED));
   const busy = status !== null && scanning(status.scan);
   now.disabled = status === null || !status.paired || busy; // a scan delivers the new messages too
-  const due = status !== null && status.paired && status.historyDue && !busy;
-  say(note, due ? HISTORY_DUE : "");
-  note.hidden = !due;
+  say(note, status === null || !status.paired || busy ? "" : noteFor(status));
+  note.hidden = note.textContent === "";
+}
+
+/** What the window adds under the status: the history still to scan, else what an open Gmail tab brings. */
+function noteFor(status: Status): string {
+  if (status.historyDue) {
+    return HISTORY_DUE;
+  }
+  // the list and "Show original" (layers 2 and 3) take what a Gmail tab shows
+  return status.stopped.includes("2") || status.stopped.includes("3") ? "" : WATCHING;
 }
 
 open.addEventListener("click", () => {

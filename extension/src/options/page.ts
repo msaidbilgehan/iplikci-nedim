@@ -40,7 +40,8 @@ function show(status: Status | null): void {
     pairSummary,
     status.paired
       ? "Bu tarayıcı İplikçi Nedim ile eşleşti. Yeni bir kodla yeniden eşleşebilir ya da eşleşmeyi unutabilirsiniz."
-      : "Eklenti İplikçi Nedim ile tek kullanımlık bir kodla eşleşir; sonra yeni banka iletileri her dakika taşınır.",
+      : "Eklenti İplikçi Nedim ile tek kullanımlık bir kodla eşleşir; sonra yeni banka iletileri her dakika, " +
+          "Gmail'de görünenler de hemen taşınır.",
   );
   say(pairButton, status.paired ? "Yeniden eşleştir" : "Eşleştir");
   showScan(status, busy);
@@ -109,7 +110,7 @@ async function pairNow(): Promise<void> {
 function paired(status: Status): string {
   return status.historyDue
     ? "Eşleşti. Geçmiş iletiler için Gmail yeni bir sekmede aranıyor; sekme arama bitince kendiliğinden kapanır."
-    : "Eşleşti. Yeni banka iletileri her dakika taşınır.";
+    : "Eşleşti. Yeni banka iletileri her dakika, Gmail'de görünenler de hemen taşınır.";
 }
 
 open.addEventListener("click", () => {

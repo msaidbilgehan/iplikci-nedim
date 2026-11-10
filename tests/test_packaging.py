@@ -188,13 +188,13 @@ def test_the_extension_the_program_carries_is_checked_file_by_file_from_its_mani
     build = build_script()
     static = BUILD.parents[1] / "extension" / "static"
     assert build.extension_files(static) == [  # what `npm run build` makes and every package must carry
-        "background.js", "icons/icon-128.png", "icons/icon-16.png", "icons/icon-32.png", "icons/icon-48.png",
-        "manifest.json", "options.html", "options.js", "popup.html", "popup.js", "style.css", "verify.html",
-        "verify.js",
+        "background.js", "content.js", "icons/icon-128.png", "icons/icon-16.png", "icons/icon-32.png",
+        "icons/icon-48.png", "manifest.json", "options.html", "options.js", "popup.html", "popup.js", "style.css",
+        "verify.html", "verify.js",
     ]  # fmt: skip
     built = tmp_path / "eklenti"
     shutil.copytree(static, built)
-    for name in ("background.js", "popup.js", "options.js", "verify.js"):
+    for name in ("background.js", "content.js", "popup.js", "options.js", "verify.js"):
         (built / name).write_text("// derlenmiş\n", encoding="utf-8")
     assert build.missing_extension_files(built) == []
     (built / "verify.js").unlink()  # a build cut short

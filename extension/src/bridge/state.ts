@@ -1,7 +1,8 @@
 /**
  * What the extension keeps in the browser (chrome.storage.local): its pairing, which Google account to read, what the
- * last run did and which layers stopped. Where delivery stands, and whether the history was scanned, lives in the
- * service (ADR-0016: the extension keeps no position); the account's address is never kept.
+ * last run did and which layers stopped, and the Gmail ids of the bank messages it dealt with lately or that wait for
+ * the next run. Where delivery stands, and whether the history was scanned, lives in the service (ADR-0016: the
+ * extension keeps no position); the account's address is never kept.
  */
 
 import type { Paired } from "./service";
@@ -71,6 +72,15 @@ export interface BridgeState {
    */
   readonly historyDue: boolean;
   readonly startDay: string;
+  /** The sender domains the service delivers, as its cursor said last: what the open Gmail tab looks for. */
+  readonly senders: readonly string[];
+  /** Gmail ids (decimal) of listed senders' messages an open Gmail tab showed, waiting for the next run. */
+  readonly seen: readonly string[];
+  /**
+   * Gmail ids of messages there is nothing more to do for, lately: delivered by the bridge, or held already as the
+   * service said. Neither an open Gmail tab's report nor the inbox feed downloads them again.
+   */
+  readonly known: readonly string[];
 }
 
 export const INITIAL: BridgeState = {
@@ -85,14 +95,26 @@ export const INITIAL: BridgeState = {
   scan: null,
   historyDue: false,
   startDay: "",
+  senders: [],
+  seen: [],
+  known: [],
 };
+
+/** A change to the state: what to set, or how to work it out from the state as it is when it is made. */
+export type Change = Partial<BridgeState> | ((state: BridgeState) => Partial<BridgeState>);
 
 export interface Store {
   get(): Promise<BridgeState>;
-  update(patch: Partial<BridgeState>): Promise<BridgeState>;
+  update(change: Change): Promise<BridgeState>;
 }
 
 const KEY = "kopru";
+/** The updates in turn: each one reads the state the one before it wrote, so none is lost. */
+let writing: Promise<unknown> = Promise.resolve();
+
+function applied(state: BridgeState, change: Change): BridgeState {
+  return { ...state, ...(typeof change === "function" ? change(state) : change) };
+}
 
 /** The state in chrome.storage.local, under one key. */
 export const chromeStore: Store = {
@@ -100,9 +122,13 @@ export const chromeStore: Store = {
     const found = (await chrome.storage.local.get(KEY))[KEY] as Partial<BridgeState> | undefined;
     return { ...INITIAL, ...found };
   },
-  async update(patch) {
-    const next = { ...(await this.get()), ...patch };
-    await chrome.storage.local.set({ [KEY]: next });
+  update(change) {
+    const next = writing.then(async () => {
+      const state = applied(await chromeStore.get(), change);
+      await chrome.storage.local.set({ [KEY]: state });
+      return state;
+    });
+    writing = next.catch(() => undefined);
     return next;
   },
 };
@@ -114,8 +140,8 @@ export function memoryStore(start: Partial<BridgeState> = {}): Store & { current
     async get() {
       return store.current;
     },
-    async update(patch: Partial<BridgeState>) {
-      store.current = { ...store.current, ...patch };
+    async update(change: Change) {
+      store.current = applied(store.current, change);
       return store.current;
     },
   };

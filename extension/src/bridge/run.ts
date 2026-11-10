@@ -1,16 +1,17 @@
 /**
  * One delivery run (ADR-0016, layers 1 and 3): the inbox feed shows the unread messages; those from a listed bank
- * that the service has not taken yet are downloaded through "Show original" and delivered raw. The service applies the
- * trust rule (DMARC) and keeps where delivery stands. Requests to Gmail go one at a time, a second apart; when Gmail
- * asks to slow down, the bridge waits longer each time. A Gmail page it does not know stops that layer and tells the
- * service once (the fix comes with an update). A message the service can never take (too large, empty) is skipped
- * and remembered; any other trouble stops the run and the next one waits longer each time. Nothing in Gmail changes:
- * GETs only.
+ * that the service has not taken yet are downloaded through "Show original" and delivered raw. Then the messages an
+ * open Gmail tab showed, read or not, that the service lacks (seen.ts). The service applies the trust rule (DMARC)
+ * and keeps where delivery stands. Requests to Gmail go one at a time, a second apart; when Gmail asks to slow down,
+ * the bridge waits longer each time. A Gmail page it does not know stops that layer and tells the service once (the
+ * fix comes with an update). A message the service can never take (too large, empty) is skipped and remembered; any
+ * other trouble stops the run and the next one waits longer each time. Nothing in Gmail changes: GETs only.
  */
 
 import { type FeedEntry, readFeed } from "../gmail/feed";
 import { HttpError, Redirected } from "../gmail/http";
 import { listed } from "../mail/headers";
+import { deliverSeen, keep } from "./seen";
 import { type Cursor, MAX_MESSAGE_BYTES, type Paired, Refused, cursor, prove } from "./service";
 import type { BridgeState, Outcome, RunSummary, Store } from "./state";
 import {
@@ -38,10 +39,19 @@ const LONGEST_CALM_MS = 60 * 60_000;
 const STOPPED = "Gmail'in bir sayfası tanınmadı; eklentinin güncellenmesi bekleniyor.";
 
 /**
- * Run once: deliver the new bank messages of the inbox; what happened, kept for the extension's window. While the
- * bridge waits after a trouble, nothing is asked of Gmail or the service and the last run's summary stands.
+ * Run once: deliver the new bank messages of the inbox, then those an open Gmail tab showed; what happened, kept for
+ * the extension's window. `shown` are the ids the Gmail tabs told since the last run: they are kept first, so they
+ * wait for a later run when this one asks nothing. While the bridge waits after a trouble, nothing is asked of Gmail
+ * or the service and the last run's summary stands.
  */
-export async function deliverNew(env: RunEnvironment, store: Store): Promise<RunSummary> {
+export async function deliverNew(
+  env: RunEnvironment,
+  store: Store,
+  shown: readonly string[] = [],
+): Promise<RunSummary> {
+  if (shown.length > 0) {
+    await keep(store, shown);
+  }
   const state = await store.get();
   if (state.paired !== null && state.lastRun !== null && env.now().getTime() < state.calmUntil) {
     return state.lastRun;
@@ -62,7 +72,10 @@ async function attempt(env: RunEnvironment, store: Store, state: BridgeState): P
   if (paired === null) {
     return done("unpaired", "Eklenti henüz İplikçi Nedim ile eşleşmedi.");
   }
-  if (stoppedNow(state, env.version, 1, 3)) {
+  // The layers break apart (ADR-0016): the feed needs layers 1 and 3, what a Gmail tab showed layers 2 and 3.
+  const feed = !stoppedNow(state, env.version, 1, 3);
+  const seen = state.seen.length > 0 && !stoppedNow(state, env.version, 2, 3);
+  if (!feed && !seen) {
     return done("stopped", STOPPED);
   }
   let where: Cursor;
@@ -73,13 +86,21 @@ async function attempt(env: RunEnvironment, store: Store, state: BridgeState): P
     const [outcome, detail] = serviceProblem(error) ?? ["failed", unexpected(error)];
     return done(outcome, detail);
   }
-  await store.update({ historyDue: where.historyDue, startDay: where.startDay });
+  await store.update({ historyDue: where.historyDue, startDay: where.startDay, senders: where.senders });
   try {
-    const { delivered, unshown } = await deliverFresh(env, store, state, paired, where);
+    const originals = new Originals(env, store);
+    let delivered = feed ? await deliverFresh(env, store, state, paired, where, originals) : 0;
+    if (seen) {
+      delivered += await deliverSeen(env, store, paired, state.account, originals);
+    }
+    await originals.settle();
     await store.update({ calmUntil: 0, failures: 0 });
     const taken = delivered === 0 ? "" : `${delivered} yeni ileti İplikçi Nedim'e teslim edildi.`;
-    if (unshown > 0) {
-      return done("unshown", `${taken}${unshownSentence(unshown)}`.trim(), delivered);
+    if (!feed) {
+      return done("stopped", `${taken} ${STOPPED}`.trim(), delivered);
+    }
+    if (originals.unshown > 0) {
+      return done("unshown", `${taken}${unshownSentence(originals.unshown)}`.trim(), delivered);
     }
     return delivered === 0 ? done("nothing-new", "Yeni banka iletisi yok.") : done("delivered", taken, delivered);
   } catch (error) {
@@ -93,12 +114,13 @@ async function deliverFresh(
   state: BridgeState,
   paired: Paired,
   where: Cursor,
-): Promise<{ delivered: number; unshown: number }> {
+  originals: Originals,
+): Promise<number> {
   const feed = await layer(1, () => readFeed(env.gmail, state.account));
+  const dealt = new Set([...state.known, ...state.skipped]);
   const fresh = feed.entries
-    .filter((entry) => listed(entry.senderDomain, where.senders) && isNew(entry, where, state.skipped))
+    .filter((entry) => listed(entry.senderDomain, where.senders) && !dealt.has(entry.id) && isNew(entry, where))
     .sort((a, b) => a.issued.localeCompare(b.issued)); // oldest first: the service's position only moves forward
-  const originals = new Originals(env, store);
   let delivered = 0;
   for (const entry of fresh) {
     await env.sleep(PACE_MS);
@@ -115,8 +137,7 @@ async function deliverFresh(
       delivered += 1;
     }
   }
-  await originals.settle();
-  return { delivered, unshown: originals.unshown };
+  return delivered;
 }
 
 function unexpected(error: unknown): string {
@@ -124,8 +145,8 @@ function unexpected(error: unknown): string {
 }
 
 /** Whether the service has not taken the entry yet: newer than its position, and from the start day on. */
-function isNew(entry: FeedEntry, where: Cursor, skipped: readonly string[]): boolean {
-  if (skipped.includes(entry.id) || entry.issued.slice(0, 10) < where.startDay) {
+function isNew(entry: FeedEntry, where: Cursor): boolean {
+  if (entry.issued.slice(0, 10) < where.startDay) {
     return false;
   }
   return entry.issued > where.lastDate || (entry.issued === where.lastDate && entry.id !== where.lastId);

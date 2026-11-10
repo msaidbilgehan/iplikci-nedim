@@ -1,6 +1,7 @@
 /**
- * What the delivery run and the scan of Gmail share: the account key, the layers a Gmail page it does not know stops,
- * the delivery of one message, and how trouble reads in Turkish. Requests to Gmail go one at a time, a second apart.
+ * What the delivery run, the messages an open Gmail tab showed and the scan of Gmail share: the account key, the layers
+ * a Gmail page it does not know stops, the delivery of one message, what the bridge remembers of the messages, and how
+ * trouble reads in Turkish. Requests to Gmail go one at a time, a second apart.
  */
 
 import { FormatError } from "../gmail/errors";
@@ -28,6 +29,7 @@ export interface Environment {
 
 export const PACE_MS = 1000;
 const SKIPPED_KEPT = 500;
+const KNOWN_KEPT = 1000;
 /** The service's answers for a message it can never take: retrying would only download it again. */
 const UNTAKEABLE: ReadonlySet<string> = new Set(["message_too_large", "message_empty"]);
 /** Whether the service no longer knows the pairing: it refuses the token, or says so when asked to prove itself. */
@@ -71,7 +73,7 @@ export function scansFirst(state: BridgeState, version: string): boolean {
 
 /** Stop a layer for this version and tell the service once; the stop holds even when the service does not hear. */
 export async function stopLayer(env: Environment, store: Store, paired: Paired, stop: LayerStopped): Promise<void> {
-  await store.update({ stopped: { ...(await store.get()).stopped, [String(stop.layer)]: env.version } });
+  await store.update((state) => ({ stopped: { ...state.stopped, [String(stop.layer)]: env.version } }));
   try {
     await alarm(env.service, paired, stop.layer, env.version, stop.page);
   } catch {
@@ -159,13 +161,14 @@ export async function accountKey(env: Environment, store: Store, account: number
   if (found === null) {
     return null;
   }
-  await store.update({ keys: { ...(await store.get()).keys, [String(account)]: found.ik } });
+  await store.update((state) => ({ keys: { ...state.keys, [String(account)]: found.ik } }));
   return found.ik;
 }
 
 /**
  * Deliver one message; false when the service can never take it (too large, empty), so it is skipped and remembered
- * rather than downloaded again. gmailDate "" leaves the service's cursor where it is.
+ * rather than downloaded again. A delivered message is known: it is not downloaded again for the inbox feed or an
+ * open Gmail tab. gmailDate "" leaves the service's cursor where it is.
  */
 export async function deliverOne(
   env: Environment,
@@ -177,19 +180,36 @@ export async function deliverOne(
 ): Promise<boolean> {
   try {
     await deliver(env.service, paired, raw, gmailId, gmailDate);
-    return true;
   } catch (error) {
     if (!(error instanceof Refused && UNTAKEABLE.has(error.code))) {
       throw error;
     }
+    await skip(store, gmailId);
+    return false;
   }
-  await skip(store, gmailId);
-  return false;
+  await remember(store, [gmailId]);
+  return true;
 }
 
 /** Remember a message the service can never take, so it is not downloaded again and again. */
 export async function skip(store: Store, gmailId: string): Promise<void> {
-  await store.update({ skipped: [...(await store.get()).skipped, gmailId].slice(-SKIPPED_KEPT) });
+  await store.update((state) => ({ skipped: [...state.skipped, gmailId].slice(-SKIPPED_KEPT) }));
+}
+
+/** Remember messages there is nothing more to do for (delivered, or held by the service), the newest kept last. */
+export async function remember(store: Store, gmailIds: readonly string[]): Promise<void> {
+  if (gmailIds.length === 0) {
+    return;
+  }
+  const fresh = new Set(gmailIds);
+  await store.update((state) => ({
+    known: [...state.known.filter((id) => !fresh.has(id)), ...fresh].slice(-KNOWN_KEPT),
+  }));
+}
+
+/** Gmail ids in decimal, oldest first: Gmail's ids grow with time. */
+export function oldestFirst(gmailIds: Iterable<string>): string[] {
+  return [...gmailIds].sort((a, b) => (BigInt(a) < BigInt(b) ? -1 : BigInt(a) > BigInt(b) ? 1 : 0));
 }
 
 /** How a service error reads, with its outcome; null when the error is not the service's. */

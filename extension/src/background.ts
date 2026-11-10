@@ -1,50 +1,58 @@
 /**
  * The bridge's service worker (ADR-0016): every minute (and when the browser starts) it delivers the inbox's new
- * bank messages to the paired service; it pairs with a code typed into the extension's settings page and then scans
- * Gmail for the history the service lacks; it opens the service's interface for "İplikçi Nedim'i aç" (ADR-0019); it
- * asks the service for İplikçi Nedim's lines on the money the window shows (ADR-0020); and it runs the ADR-0016
- * verification for its own page. All network work happens here, never in a page or a content
- * script. The toolbar button opens the extension's window (popup.html); its settings page is options.html.
+ * bank messages to the paired service, and those an open Gmail tab showed, read or not, as its content script tells
+ * it; it pairs with a code typed into the extension's settings page and then scans Gmail for the history the service
+ * lacks; it opens the service's interface for "İplikçi Nedim'i aç" (ADR-0019); it asks the service for İplikçi
+ * Nedim's lines on the money the window shows (ADR-0020); and it runs the ADR-0016 verification for its own page. All
+ * network work happens here, never in a page or a content script. The toolbar button opens the extension's window
+ * (popup.html); its settings page is options.html.
  */
 
-import { type Request, type Status, asRequest } from "./bridge/messages";
+import { type Request, type Status, type TabRequest, asRequest, asTabRequest } from "./bridge/messages";
 import { openPanel } from "./bridge/panel";
 import { type RunEnvironment, deliverNew } from "./bridge/run";
 import { hear } from "./bridge/sayings";
 import { scanGmail } from "./bridge/scan";
+import { unhandled, watchFor } from "./bridge/seen";
 import { NotTheService, Refused, ServiceDown, cursor, pair, prove } from "./bridge/service";
-import { type RunSummary, type ScanSummary, chromeStore } from "./bridge/state";
+import { type ScanSummary, chromeStore } from "./bridge/state";
 import { scansFirst } from "./bridge/steps";
 import { chromePanelTabs, chromeTabs } from "./bridge/tabs";
+import { Turns } from "./bridge/turns";
+import { type Watch, accountOf } from "./gmail/visible";
 import { type Environment, verify } from "./verify/run";
 
 const ALARM = "yeni-iletiler";
 /** How long "İplikçi Nedim'i aç" waits for the service: a service that does not answer counts as not running. */
 const PANEL_WAIT_MS = 5000;
-let running: Promise<RunSummary> | null = null;
-let scanning: Promise<ScanSummary> | null = null;
+/** One delivery run or scan at a time; the ids the Gmail tabs tell wait there for the next run. */
+const turns = new Turns(async (shown) => deliverNew(await environment(), chromeStore, shown));
 
 chrome.runtime.onInstalled.addListener(() => void schedule());
 chrome.runtime.onStartup.addListener(() => {
   void schedule();
-  void runOnce();
+  void turns.run();
 });
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === ALARM) {
-    void runOnce();
+    void turns.run();
   }
 });
 void schedule(); // an alarm may be gone after a browser restart
 void forgetUnfinishedScan();
 
 chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
-  const fromOwnPage = sender.id === chrome.runtime.id && sender.url?.startsWith(chrome.runtime.getURL("")) === true;
-  const request = fromOwnPage ? asRequest(message) : null;
-  if (request === null) {
-    return false;
+  const reply = (work: Promise<unknown>): true => {
+    work.then(sendResponse, () => sendResponse(null));
+    return true; // the answer comes later
+  };
+  if (sender.id === chrome.runtime.id && sender.url?.startsWith(chrome.runtime.getURL("")) === true) {
+    const request = asRequest(message);
+    return request !== null && reply(answer(request, sender.tab?.id));
   }
-  answer(request, sender.tab?.id).then(sendResponse, () => sendResponse(null));
-  return true; // the answer comes later
+  const account = gmailTab(sender);
+  const told = account === null ? null : asTabRequest(message);
+  return told !== null && account !== null && reply(answerTab(told, account));
 });
 
 async function schedule(): Promise<void> {
@@ -54,33 +62,31 @@ async function schedule(): Promise<void> {
 }
 
 /**
- * One delivery run at a time: an alarm that comes during a run joins it. While a scan of Gmail runs, the scan holds
- * Gmail's one request a second and delivers in the meantime: no run starts.
+ * The scan of Gmail ("Gmail'de eksikleri tara"), one at a time; a delivery run under way finishes first. The window
+ * that started it is shown again when the scan's tab closes.
  */
-function runOnce(): Promise<RunSummary | null> {
-  if (scanning !== null) {
-    return Promise.resolve(null);
-  }
-  running ??= environment()
-    .then((env) => deliverNew(env, chromeStore))
-    .finally(() => {
-      running = null;
-    });
-  return running;
+function scanOnce(returnTo: number | undefined): Promise<ScanSummary> {
+  return turns.scan(async () => scanGmail({ ...(await environment()), tabs: chromeTabs(returnTo) }, chromeStore));
+}
+
+/** The Google account of the Gmail tab whose content script sent a message, from its top frame's address. */
+function gmailTab(sender: chrome.runtime.MessageSender): number | null {
+  const ours = sender.id === chrome.runtime.id && sender.tab !== undefined && sender.frameId === 0;
+  return ours ? accountOf(sender.url ?? "") : null;
 }
 
 /**
- * One scan of Gmail at a time ("Gmail'de eksikleri tara"); a delivery run under way finishes first. The window that
- * started it is shown again when the scan's tab closes.
+ * A Gmail tab's request: what to look for while the bridge takes messages from that tab (paired, the account it
+ * reads, the layers running, no scan: the scan reads Gmail itself, its own tab included); the ids the tab shows that
+ * the bridge has not dealt with wait for the next run.
  */
-function scanOnce(returnTo: number | undefined): Promise<ScanSummary> {
-  scanning ??= (async () => {
-    await running?.catch(() => undefined);
-    return scanGmail({ ...(await environment()), tabs: chromeTabs(returnTo) }, chromeStore);
-  })().finally(() => {
-    scanning = null;
-  });
-  return scanning;
+async function answerTab(request: TabRequest, account: number): Promise<Watch | null> {
+  const state = await chromeStore.get();
+  const watch = turns.scanning ? null : watchFor(state, chrome.runtime.getManifest().version, account);
+  if (watch !== null && request.kind === "gmail-seen") {
+    turns.seen(unhandled(state, request.ids));
+  }
+  return watch;
 }
 
 /**
@@ -93,13 +99,13 @@ async function checkNow(from: number | undefined): Promise<void> {
     void scanOnce(from);
     return;
   }
-  await runOnce();
+  await turns.run();
 }
 
 /** A scan that was under way when the worker stopped (the browser closed, the extension reloaded) is over. */
 async function forgetUnfinishedScan(): Promise<void> {
   const { scan } = await chromeStore.get();
-  if (scanning === null && scan !== null && (scan.phase === "searching" || scan.phase === "downloading")) {
+  if (!turns.scanning && scan !== null && (scan.phase === "searching" || scan.phase === "downloading")) {
     await chromeStore.update({
       scan: { ...scan, phase: "stopped", detail: "Tarama yarıda kaldı; yeniden başlatılabilir, kaldığı yerden sürer." },
     });
@@ -120,8 +126,10 @@ async function answer(request: Request, from: number | undefined): Promise<unkno
       return status(problem);
     }
     case "account":
-      // another account starts afresh: a wait Gmail asked for was for the one before
-      await chromeStore.update({ account: request.account, calmUntil: 0, failures: 0 });
+      // another account starts afresh: a wait Gmail asked for was for the one before, and Gmail's ids are each
+      // mailbox's own
+      turns.forget();
+      await chromeStore.update({ account: request.account, calmUntil: 0, failures: 0, seen: [], known: [] });
       return status("");
     case "run":
       // asked for by hand: the wait after a trouble does not hold back a single check
@@ -132,7 +140,8 @@ async function answer(request: Request, from: number | undefined): Promise<unkno
       void scanOnce(from); // it runs for minutes: the window follows it through the stored state
       return status("");
     case "forget":
-      await chromeStore.update({ paired: null, lastRun: null });
+      turns.forget();
+      await chromeStore.update({ paired: null, lastRun: null, seen: [], known: [] });
       return status("");
     case "open-panel":
       return openPanel({ service: answeringSoon, tabs: chromePanelTabs }, (await chromeStore.get()).paired);
@@ -180,7 +189,11 @@ async function pairWith(code: string): Promise<string> {
       lastRun: null,
       historyDue: where.historyDue,
       startDay: where.startDay,
+      senders: where.senders,
+      seen: [], // what the bridge knew of the messages was the service's paired before
+      known: [],
     });
+    turns.forget();
   } catch (error) {
     if (error instanceof ServiceDown) {
       return "İplikçi Nedim bu bilgisayarda çalışmıyor; açıp yeniden deneyin.";

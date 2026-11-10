@@ -1,8 +1,8 @@
-// Builds the extension into dist/: the service worker and the pages' scripts bundled by esbuild (the window from the
-// toolbar button, the settings page and the verification page), the manifest with the package's version, and the
-// static files. The bundles stay readable (no minification): a store review and the user can read what the extension
-// does. The program carries a copy (src/iplikci/browser_extension), which the service puts in the data folder for the
-// browser to load unpacked until the extension is in a store (K20).
+// Builds the extension into dist/: the service worker, the pages' scripts (the window from the toolbar button, the
+// settings page and the verification page) and the content script in Gmail's tabs bundled by esbuild, the manifest
+// with the package's version, and the static files. The bundles stay readable (no minification): a store review and
+// the user can read what the extension does. The program carries a copy (src/iplikci/browser_extension), which the
+// service puts in the data folder for the browser to load unpacked until the extension is in a store (K20).
 //
 // Everything is built in a folder of its own (.yapim-*) and each result takes the old one's place whole: a build that
 // fails or is cut short never leaves dist/ or the program's copy half written, and the service copies the program's
@@ -22,20 +22,19 @@ const work = await mkdtemp(WORK); // beside dist/ and the program: a rename move
 try {
   const fresh = join(work, "dist");
   await mkdir(fresh);
+  const bundled = { bundle: true, target: "chrome120", outdir: fresh, legalComments: "none", logLevel: "warning" };
   await build({
+    ...bundled,
     entryPoints: {
       background: "src/background.ts",
       popup: "src/popup/page.ts",
       options: "src/options/page.ts",
       verify: "src/verify/page.ts",
     },
-    bundle: true,
     format: "esm",
-    target: "chrome120",
-    outdir: fresh,
-    legalComments: "none",
-    logLevel: "warning",
   });
+  // A content script runs as a classic script, never as a module.
+  await build({ ...bundled, entryPoints: { content: "src/content.ts" }, format: "iife" });
   const manifest = JSON.parse(await readFile("static/manifest.json", "utf8"));
   manifest.version = pkg.version;
   await writeFile(join(fresh, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);

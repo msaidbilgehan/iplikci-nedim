@@ -24,6 +24,17 @@
     "service_worker": "background.js",
     "type": "module"
   },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://mail.google.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
   "action": {
     "default_title": "İplikçi Nedim Köprüsü",
     "default_popup": "popup.html",

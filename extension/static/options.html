@@ -58,7 +58,8 @@
       <section class="card stack" aria-labelledby="eslestir-baslik">
         <h2 id="eslestir-baslik">Eşleştirme</h2>
         <p class="hint" id="pair-summary">
-          Eklenti İplikçi Nedim ile tek kullanımlık bir kodla eşleşir; sonra yeni banka iletileri her dakika taşınır.
+          Eklenti İplikçi Nedim ile tek kullanımlık bir kodla eşleşir; sonra yeni banka iletileri her dakika, Gmail'de
+          görünenler de hemen taşınır.
         </p>
         <form id="pair-form" class="field-row">
           <div class="field">
@@ -84,13 +85,14 @@
       <section class="card stack" aria-labelledby="gecmis-baslik">
         <h2 id="gecmis-baslik">Geçmiş ve kaçan iletiler</h2>
         <p class="hint">
-          Gelen kutusu akışı yalnızca en yeni okunmamış iletileri gösterir. Bu tarama Gmail'i yeni bir sekmede açar,
-          listedeki bankaların başlangıç gününden beri gelen iletilerini arar ve İplikçi Nedim'de olmayanları taşır.
-          Eşleşince kendiliğinden başlar; başlangıç günü ya da banka listesi değişince "Şimdi denetle" yeniden tarar.
+          Gmail bu tarayıcıda açıkken, sekmesinde görünen banka iletileri, okunmuş olsun olmasın, kendiliğinden alınır.
+          Bu düğme eski ya da arşivlenmiş iletiler içindir.
         </p>
         <p class="hint">
-          Hiçbir konuşma açılmaz, Gmail'de hiçbir şey değişmez; sekme iş bitince kendiliğinden kapanır. İletiler
-          saniyede bir indirildiği için uzun sürebilir.
+          Tarama Gmail'i yeni bir sekmede açar, listedeki bankaların başlangıç gününden beri gelen iletilerini arar ve
+          İplikçi Nedim'de olmayanları taşır. Eşleşince kendiliğinden başlar; başlangıç günü ya da banka listesi
+          değişince "Şimdi denetle" yeniden tarar. Hiçbir konuşma açılmaz, Gmail'de hiçbir şey değişmez; sekme iş
+          bitince kendiliğinden kapanır. İletiler saniyede bir indirildiği için uzun sürebilir.
         </p>
         <div class="actions">
           <button id="scan" type="button" class="button secondary">Gmail'de eksikleri tara</button>
@@ -110,8 +112,8 @@
             <option value="4">5. hesap</option>
           </select>
           <p class="hint" id="account-hint">
-            Tarayıcıda birden çok Google hesabı varsa, Gmail'in sağ üstündeki hesap listesindeki sırasını seçin. Adres
-            hiçbir yere gönderilmez.
+            Tarayıcıda birden çok Google hesabı varsa, Gmail'in sağ üstündeki hesap listesindeki sırasını seçin. Açık
+            Gmail sekmelerinden de yalnızca bu hesabınki okunur. Adres hiçbir yere gönderilmez.
           </p>
         </form>
       </section>
