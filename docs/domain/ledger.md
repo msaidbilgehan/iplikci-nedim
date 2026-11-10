@@ -141,6 +141,9 @@ Dekontlar (ve V1'de e-posta gövdesindeki banka bildirimleri), gün gün hesabı
 - Kanıttaki transfer satırları adaydır (`aday`) ve liste satırlarıyla birlikte çözülür.
 - Maskeli bir hesap numarası ("1234/****567"), o bankada ve o para biriminde, gösterilen hanelerle biten tek hesaba
   bağlanır (`analysis.resolve_masked`).
+- Bir hesabı en iyi listesi bilir: hesabın türü ve adı, önce bir dekont gelmiş olsa da ekstresinden ya da dökümünden
+  gelir. Dekont da bildirimden iyi bilir. Örneğin TEB'in havale dekontu hesabın vadeli olduğunu söylemez, cüzdanı
+  söyler.
 - Kart harcama bildirimi (V1) bir kart kanıtıdır: kart ekstresindeki aynı tutarlı satırla aynı pencerede eşleşir.
 
 ## Transferler

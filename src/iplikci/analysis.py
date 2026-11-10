@@ -978,6 +978,7 @@ def build(
     foreign rows."""
     accounts: dict[str, Account] = {}
     told: dict[str, Account] = {}  # accounts as only bank notices name them
+    listed: set[str] = set()  # the accounts a statement or list named
     statements: dict[tuple, Statement] = {}
     receipts: dict[str, list[Transaction]] = {}
     notices: set[str] = set()  # the keys of receipts that are bank notices
@@ -991,10 +992,15 @@ def build(
             documents.append(DocumentStatus(doc.name, doc.origin, status[0], status[1]))
             continue
         # A notice knows less of an account than a list or a receipt does (QNB's does not say whether it is an overdraft
-        # account): the account as they name it stands.
+        # account): the account as they name it stands. A receipt knows less than a list (TEB's does not say whether
+        # the account earns interest): a list's account takes the place of one a receipt that came first named.
         named = told if document_type(result.parser) is DocumentKind.NOTICE else accounts
         for a in result.accounts:
-            named.setdefault(a.id, a)
+            if result.statements and a.id not in listed:
+                accounts[a.id] = a
+                listed.add(a.id)
+            else:
+                named.setdefault(a.id, a)
         if result.holder:
             holders.add(result.holder)
         for s in result.statements:

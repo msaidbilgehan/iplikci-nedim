@@ -358,3 +358,18 @@ def test_a_notice_gives_way_to_what_a_receipt_says_of_the_account(cat):
     told = row(date(2026, 3, 2), "Giden Transfer → VELİ ÖRNEKSOY", Decimal(1000), named, who="VELİ ÖRNEKSOY")
     ds = analyse(cat, notice("n1", named, told), receipt("r1", OVERDRAFT))
     assert (ds.accounts[OVERDRAFT.id].type, ds.accounts[OVERDRAFT.id].label) == (AccountType.OVERDRAFT, OVERDRAFT.label)
+
+
+def test_a_receipt_gives_way_to_what_a_list_says_of_the_account(cat):
+    # TEB's transfer receipt names the account by its number alone; the cüzdan that came after says it earns interest.
+    saving = Account("teb-123456789", "TEB Vadeli TL 123456789", "TEB", AccountType.DEPOSIT, number="123456789")
+    named = Account("teb-123456789", "TEB Vadesiz TL 123456789", "TEB", AccountType.CURRENT, number="123456789")
+    came = row(date(2026, 11, 10), "Gelen Havale ← ÖRNEK İSİM SOYADOĞLU", Decimal(-2500), named, who=HOLDER)
+    listed = row(date(2026, 11, 10), "vadeli para yatırma", Decimal(-2500), saving)
+    ds = analyse(
+        cat,
+        receipt("r1", named, came),
+        listing(saving, date(2026, 11, 10), date(2026, 11, 10), listed, closing=Decimal(2500)),
+    )
+    assert (ds.accounts[saving.id].type, ds.accounts[saving.id].label) == (AccountType.DEPOSIT, saving.label)
+    assert statuses(ds) == [("Gelen Havale ← ÖRNEK İSİM SOYADOĞLU", CONFIRMED)]
