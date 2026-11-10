@@ -2,6 +2,7 @@
 followed. HTTPS is answered here by a handler in place of urllib's own, so nothing leaves the computer."""
 
 import email.message
+import hashlib
 import io
 import urllib.error
 import urllib.request
@@ -16,6 +17,7 @@ from iplikci.settings import config
 # The real functions, taken before the tests' guard (conftest) puts its refusal in their place.
 HTTPS_GET = egress.https_get
 HTTPS_POST = egress.https_post
+HTTPS_DOWNLOAD = egress.https_download
 SETTINGS = config.Settings()
 
 
@@ -117,3 +119,92 @@ def test_the_tests_refuse_every_get_as_they_refuse_posts():
         egress.https_get(egress.TCMB, "/kurlar/today.xml", SETTINGS)
     with pytest.raises(AssertionError, match="network"):
         egress.https_post(egress.TELEGRAM, "/bot1:a/getMe", {}, SETTINGS)
+    with pytest.raises(AssertionError, match="network"):
+        egress.https_download(
+            egress.GITHUB, "/a/b/releases/latest/download/x", SETTINGS, io.BytesIO(), follow=frozenset(), limit=1
+        )
+
+
+# --- the program's releases (ADR-0022) -------------------------------------------------------------------------------
+
+LATEST = "/sahip/depo/releases/latest/download/iplikci-nedim-surum.json"
+TAGGED = "https://github.com/sahip/depo/releases/download/v1.2.3/iplikci-nedim-surum.json"
+FILE_SERVER = "https://release-assets.githubusercontent.com/github-production-release-asset/1/abc?sp=r&sig=x"
+
+
+def test_github_and_its_file_servers_are_on_the_allowlist():
+    hosts = egress.allowed_hosts(SETTINGS)
+    assert {"github.com", "release-assets.githubusercontent.com", "objects.githubusercontent.com"} <= hosts
+    assert "api.github.com" not in hosts  # the releases are read from their download addresses, never the API
+
+
+def test_a_download_follows_github_to_its_file_server_and_writes_the_body_with_its_digest(https):
+    body = b'{"version": "1.2.3"}'
+    https.answers = [
+        (302, {"Location": TAGGED}, b""),
+        (302, {"Location": FILE_SERVER}, b""),
+        (200, {}, body),
+    ]
+    into = io.BytesIO()
+    done = HTTPS_DOWNLOAD(egress.GITHUB, LATEST, SETTINGS, into, follow=egress.GITHUB_FILES, limit=1 << 20)
+    assert done == egress.Downloaded(200, len(body), hashlib.sha256(body).hexdigest())
+    assert into.getvalue() == body
+    assert https.asked == [f"https://github.com{LATEST}", TAGGED, FILE_SERVER]
+    assert [r.get_method() for r in https.requests] == ["GET", "GET", "GET"]
+
+
+def test_a_download_never_follows_a_redirect_to_a_host_it_was_not_told_to_follow(https):
+    https.answers = [(302, {"Location": "https://dosyalar.example/x.zip"}, b""), (200, {}, b"zararli")]
+    into = io.BytesIO()
+    with pytest.raises(egress.Refused):
+        HTTPS_DOWNLOAD(egress.GITHUB, LATEST, SETTINGS, into, follow=egress.GITHUB_FILES, limit=100)
+    assert https.asked == [f"https://github.com{LATEST}"] and into.getvalue() == b""
+
+
+@pytest.mark.parametrize(
+    "location",
+    [
+        "http://release-assets.githubusercontent.com/x",  # not HTTPS
+        "https://kim@release-assets.githubusercontent.com/x",  # a user name
+        "https://release-assets.githubusercontent.com:8443/x",  # another port
+        "//release-assets.githubusercontent.com/x",  # no scheme of its own
+    ],
+)
+def test_a_download_refuses_a_redirect_that_is_not_plain_https_to_the_file_server(https, location):
+    https.answers = [(302, {"Location": location}, b"")]
+    with pytest.raises(egress.Refused):
+        HTTPS_DOWNLOAD(egress.GITHUB, LATEST, SETTINGS, io.BytesIO(), follow=egress.GITHUB_FILES, limit=100)
+    assert len(https.asked) == 1
+
+
+def test_a_followed_host_must_also_be_on_the_allowlist(https):
+    https.answers = [(302, {"Location": "https://baska.example/x"}, b"")]
+    with pytest.raises(egress.Refused):
+        HTTPS_DOWNLOAD(egress.GITHUB, LATEST, SETTINGS, io.BytesIO(), follow=frozenset({"baska.example"}), limit=100)
+    assert len(https.asked) == 1
+
+
+def test_a_download_that_is_not_found_writes_nothing(https):
+    https.answers = [(404, {}, b"Not Found")]
+    into = io.BytesIO()
+    done = HTTPS_DOWNLOAD(egress.GITHUB, LATEST, SETTINGS, into, follow=egress.GITHUB_FILES, limit=100)
+    assert done == egress.Downloaded(404, 0, "") and into.getvalue() == b""
+
+
+def test_a_download_larger_than_its_limit_is_refused(https):
+    https.answers = [(200, {}, b"x" * 101)]
+    with pytest.raises(egress.TooLarge):
+        HTTPS_DOWNLOAD(egress.GITHUB, LATEST, SETTINGS, io.BytesIO(), follow=egress.GITHUB_FILES, limit=100)
+
+
+def test_a_download_stops_after_too_many_redirects(https):
+    https.answers = [(302, {"Location": TAGGED}, b"")] * (egress.REDIRECTS + 1)
+    with pytest.raises(egress.Unreachable):
+        HTTPS_DOWNLOAD(egress.GITHUB, LATEST, SETTINGS, io.BytesIO(), follow=egress.GITHUB_FILES, limit=100)
+    assert len(https.asked) == egress.REDIRECTS + 1
+
+
+def test_a_download_that_gets_no_answer_is_unreachable(https):
+    https.failure = urllib.error.URLError("zaman aşımı")
+    with pytest.raises(egress.Unreachable):
+        HTTPS_DOWNLOAD(egress.GITHUB, LATEST, SETTINGS, io.BytesIO(), follow=egress.GITHUB_FILES, limit=100)

@@ -101,7 +101,7 @@ def no_business_names():
 
 @pytest.fixture(autouse=True)
 def no_keyring_or_network(monkeypatch, tmp_path_factory):
-    def refuse(*args):
+    def refuse(*args, **kwargs):
         raise AssertionError("a test reached the system keyring, the service manager or the network")
 
     monkeypatch.setattr(secrets, "_keyring", refuse)
@@ -109,6 +109,7 @@ def no_keyring_or_network(monkeypatch, tmp_path_factory):
     monkeypatch.setattr(egress, "smtp", refuse)
     monkeypatch.setattr(egress, "https_post", refuse)
     monkeypatch.setattr(egress, "https_get", refuse)  # the exchange rate providers
+    monkeypatch.setattr(egress, "https_download", refuse)  # the program's releases (ADR-0022)
     monkeypatch.setattr(channels, "_run", refuse)  # a desktop notification on the screen
     monkeypatch.setattr(manager, "run_tool", refuse)  # launchctl, systemctl, schtasks
     monkeypatch.setattr(manager, "spawn_detached", refuse)  # the Windows helper that runs the task again
