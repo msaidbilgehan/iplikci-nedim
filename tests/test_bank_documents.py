@@ -7,7 +7,7 @@ from decimal import Decimal
 import pytest
 
 from iplikci import parsers
-from iplikci.analysis import resolve_masked
+from iplikci.analysis import CONFIRMED, resolve_masked
 from iplikci.app import intake
 from iplikci.app.analysis import analyze
 from iplikci.domain.codes import AccountType, TransactionKind
@@ -220,25 +220,31 @@ def test_teb_passbook_reads_the_overdraft_accounts_movements_and_checks_every_ba
         Decimal("120.00"),
         TransactionKind.INTEREST_FEE,
     )
+    # Its description wraps around the row's line, one line above it and one below.
     [received] = [t for t in s.transactions if t.counterparty]
-    assert (received.amount, received.kind, received.counterparty) == (
+    assert (received.amount, received.kind, received.counterparty, received.description) == (
         Decimal("-1500.00"),
         TransactionKind.TRANSFER_CANDIDATE,
         "VELİ ÖRNEKSOY",
+        "VELİ ÖRNEKSOY den gelen havale tutarı",
     )
 
 
-def test_teb_passbook_keeps_a_description_that_runs_on_below_its_row():
-    long = Move(date(2026, 11, 6), "VELİ ÖRNEKSOY den gelen havale tutarı\nKASIM AYI PAYI", Decimal(250))
-    r = read(teb.passbook([*teb.PASSBOOK_MOVES, long]))
-    [s] = r.statements
-    last = s.transactions[-1]
-    assert (last.description, last.counterparty, last.amount) == (
-        "VELİ ÖRNEKSOY den gelen havale tutarı KASIM AYI PAYI",
-        "VELİ ÖRNEKSOY",
-        Decimal(-250),
-    )
-    assert s.verified and len(s.transactions) == 11
+def test_teb_passbook_gives_each_line_of_a_wrapped_description_to_the_nearest_row():
+    moves = [
+        Move(date(2026, 11, 6), "FAST Ücreti", Decimal("-7.97")),
+        Move(date(2026, 11, 6), "VELİ ÖRNEKSOY den gelen\nhavale tutarı\nKASIM AYI PAYI", Decimal(250)),
+        Move(date(2026, 11, 6), "123456788 no.lu hesaba\ngönderilmiştir.", Decimal("-242.03")),
+        Move(date(2026, 11, 7), "FAST Ücreti BSMV", Decimal("-0.40")),
+    ]
+    [s] = read(teb.passbook(moves, opening=Decimal(100))).statements
+    assert [(t.description, t.counterparty) for t in s.transactions] == [
+        ("FAST Ücreti", ""),
+        ("VELİ ÖRNEKSOY den gelen havale tutarı KASIM AYI PAYI", "VELİ ÖRNEKSOY"),
+        ("123456788 no.lu hesaba gönderilmiştir.", ""),
+        ("FAST Ücreti BSMV", ""),
+    ]
+    assert s.verified and (s.checks_ok, s.checks_total) == (3, 3)
 
 
 def test_teb_passbook_of_a_positive_term_account_is_a_deposit():
@@ -246,6 +252,26 @@ def test_teb_passbook_of_a_positive_term_account_is_a_deposit():
     r = read(teb.passbook(moves, opening=Decimal(10000), kind="Vadeli"))
     [account] = r.accounts
     assert (account.type, account.label) == (AccountType.DEPOSIT, "TEB Vadeli TL 123456789")
+
+
+def test_teb_passbook_of_an_account_that_earns_interest_is_a_deposit_whatever_its_name():
+    # CEPTETEB Marifetli: no "Vadeli" in its type, but it prints its interest rate below the balance.
+    day = date(2026, 11, 10)
+    moves = [Move(day, "vadeli para yatırma", Decimal("2500.00"))]
+    passbook = teb.passbook(
+        moves, Decimal(0), period=(day, day), kind="CEPTETEB Marifetli", rate="Değişken faizlidir.", opened=day
+    )
+    r = read(passbook)
+    [account], [s] = r.accounts, r.statements
+    assert (account.type, account.label) == (AccountType.DEPOSIT, "TEB Vadeli TL 123456789")
+    # Opened on the cüzdan's first day, the account starts from zero: its one row is checked too.
+    assert s.verified and (s.checks_ok, s.checks_total, s.previous) == (1, 1, Decimal(0))
+
+
+def test_teb_passbook_of_a_current_account_that_stays_above_zero_is_a_current_account():
+    moves = [Move(date(2026, 11, 3), "vadeli para yatırma", Decimal("-2500.00"))]
+    [account] = read(teb.passbook(moves, opening=Decimal(3000))).accounts
+    assert (account.type, account.label) == (AccountType.CURRENT, "TEB Vadesiz TL 123456789")
 
 
 def test_teb_passbook_without_movements_says_so():
@@ -259,6 +285,81 @@ def test_teb_passbook_of_a_company_stays_out_of_scope():
     with pytest.raises(parsers.Skipped) as found:
         read(teb.passbook(holder="ÖRNEK TEKNOLOJİ ANONİM ŞİRKETİ"))
     assert found.value.business
+
+
+# --- TEB banka içi havale dekontu --------------------------------------------------------------------
+
+
+def test_teb_transfer_receipt_tells_the_money_in_and_who_paid_it():
+    r = read(teb.transfer_receipt(Decimal("2500.00"), date(2026, 11, 10), payer="VELİ ÖRNEKSOY"))
+    [account], [came] = r.accounts, r.transactions
+    # The receipt does not say what the account is: the ledger takes that from its lists.
+    assert (account.id, account.type) == ("teb-123456789", AccountType.CURRENT)
+    assert (came.date, came.amount, came.kind, came.counterparty, came.description) == (
+        date(2026, 11, 10),
+        Decimal("-2500.00"),
+        TransactionKind.TRANSFER_CANDIDATE,
+        "VELİ ÖRNEKSOY",
+        "Gelen Havale ← VELİ ÖRNEKSOY — vadeli para yatırma",
+    )
+    assert (r.title, r.holder, r.receipt_key) == ("Gelen Havale", HOLDER, "teb-havale-123456789-00012345")
+    assert came.ref is not None and came.ref.page == 1
+
+
+def test_teb_transfer_receipt_of_a_company_stays_out_of_scope():
+    set_business_names(["Örnek Teknoloji A.Ş."])
+    with pytest.raises(parsers.Skipped) as found:
+        read(teb.transfer_receipt(Decimal(100), date(2026, 11, 10), holder="ÖRNEK TEKNOLOJİ ANONİM ŞİRKETİ"))
+    assert found.value.business
+
+
+# --- Vakıfbank dekontu ------------------------------------------------------------------------------
+
+
+def test_vakifbank_receipt_reads_the_wrapped_names_and_leaves_the_account_to_the_ledger():
+    r = read(vakifbank.receipt())
+    [account], [sent] = r.accounts, r.transactions
+    # It names no account of the sender: the ledger moves its row to the one Vakıfbank account of its currency.
+    assert (account.id, account.label) == ("vakifbank-****", "Vakıfbank Vadesiz TL")
+    assert (sent.date, sent.amount, sent.kind, sent.counterparty, sent.description) == (
+        date(2026, 10, 20),
+        Decimal("1000.00"),
+        TransactionKind.TRANSFER_CANDIDATE,
+        HOLDER,
+        f"Giden FAST → {HOLDER} (QNB Bank A.Ş.) — KİRA",
+    )
+    assert (r.title, r.holder, r.receipt_key) == ("Giden FAST", HOLDER, "vakifbank-dekont-2026000000000001")
+
+
+def test_vakifbank_receipt_books_its_fee_and_reads_an_empty_note_as_none():
+    r = read(vakifbank.receipt(fee="5,25 TL", note=""))
+    sent, fee = r.transactions
+    assert sent.description == f"Giden FAST → {HOLDER} (QNB Bank A.Ş.)"
+    assert (fee.amount, fee.kind, fee.account, fee.description) == (
+        Decimal("5.25"),
+        TransactionKind.INTEREST_FEE,
+        "vakifbank-****",
+        "Giden FAST masrafı",
+    )
+
+
+def test_vakifbank_receipt_of_a_company_stays_out_of_scope():
+    set_business_names(["Örnek Teknoloji A.Ş."])
+    with pytest.raises(parsers.Skipped) as found:
+        read(vakifbank.receipt(sender="ÖRNEK TEKNOLOJİ\nANONİM ŞİRKETİ"))
+    assert found.value.business
+
+
+def test_vakifbank_receipt_goes_to_the_listed_account_and_the_lists_row_stands_for_it(ws):
+    day = date(2026, 10, 20)
+    sent = Move(day, "Hesabınızdan QNB Bank A.Ş. Örnek Kullanıcı hesabına FAST ile gönderildi", Decimal(-1000))
+    put(ws.inbox / "Hesap Hareketleri.xlsx", vakifbank.account_xlsx([(sent, "FAST")]))
+    put(ws.inbox / "dekont.pdf", vakifbank.receipt())
+    intake.apply(ws, intake.plan_inbox(ws))
+    ds = analyze(ws).dataset
+    [line] = ds.receipts
+    assert (line.status, line.txn.account) == (CONFIRMED, "vakifbank-0158000001234567")
+    assert [t.amount for t in ds.transactions if t.date == day] == [Decimal(1000)]
 
 
 # --- Garanti BBVA Yatırım ---------------------------------------------------------------------------

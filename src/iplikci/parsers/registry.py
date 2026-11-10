@@ -35,8 +35,10 @@ from .teb import account_html as teb_account_html
 from .teb import bonus_card as teb_bonus_card
 from .teb import card_payment_receipt as teb_card_payment_receipt
 from .teb import passbook as teb_passbook
+from .teb import transfer_receipt as teb_transfer_receipt
 from .vakifbank import account_xlsx as vakifbank_account_xlsx
 from .vakifbank import passbook as vakifbank_passbook
+from .vakifbank import receipt as vakifbank_receipt
 from .vakifbank.notice import transfer as vakifbank_notice_transfer
 
 GROUP = "iplikci.parsers"
@@ -59,12 +61,14 @@ BUILTIN: tuple[Parser, ...] = (
     teb_card_payment_receipt.PARSER,
     teb_account_html.PARSER,
     teb_passbook.PARSER,
+    teb_transfer_receipt.PARSER,
     qnb_card_pdf.PARSER,
     qnb_account_pdf.PARSER,
     qnb_edekont.PARSER,
     qnb_notice_transfer.PARSER,
     vakifbank_account_xlsx.PARSER,
     vakifbank_passbook.PARSER,
+    vakifbank_receipt.PARSER,
     vakifbank_notice_transfer.PARSER,
     invoice_ubl_tr.PARSER,
 )

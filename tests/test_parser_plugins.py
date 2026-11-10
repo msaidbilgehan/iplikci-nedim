@@ -47,6 +47,9 @@ SHIPPED = {
     "invoice.ubl_tr",
     # v0.9.14: TEB's digital passbook, which the user sends the Telegram bot.
     "teb.passbook",
+    # v0.9.16: the receipts the banks' apps share, sent the same way.
+    "teb.transfer_receipt",
+    "vakifbank.receipt",
 }
 
 

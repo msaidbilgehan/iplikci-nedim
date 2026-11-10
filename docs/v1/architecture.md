@@ -380,6 +380,8 @@ V1'in eklediği okuyucular:
 | `qnb.notice.transfer` | FAST, havale/EFT ve para çıkışı bildirimi (e-posta gövdesi) | 4 |
 | `vakifbank.notice.transfer` | FAST ve para çıkışı bildirimi (e-posta gövdesi) | 4 |
 | `invoice.ubl_tr` | e-Fatura ve e-Arşiv faturası (UBL-TR XML) | 4 |
+| `teb.transfer_receipt` | Banka içi havale dekontu (PDF) | v0.9.16 |
+| `vakifbank.receipt` | Uygulamanın paylaştığı transfer dekontu (PDF) | v0.9.16 |
 
 Bir e-posta bütün olarak saklanır; ekleri kendi biçimlerinin okuyucularına gider. Gövdeyi `Format.EMAIL` okuyucuları
 okur: seçici onlara gönderenin alan adını, konuyu ve gövdenin görünen metnini gösterir (`parsers/mail.py`). Bir

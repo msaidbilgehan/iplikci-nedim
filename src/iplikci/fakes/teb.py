@@ -1,5 +1,6 @@
 """TEB's documents: the Bonus card statement (with a text layer, or as OCR reads a scanned one), the card payment
-receipt, the CEPTETEB account export and the digital passbook ("Dijital Hesap Cüzdanı")."""
+receipt, the CEPTETEB account export, the digital passbook ("Dijital Hesap Cüzdanı") and the receipt of a transfer
+between two TEB accounts."""
 
 from collections.abc import Sequence
 from datetime import date, timedelta
@@ -199,12 +200,13 @@ ACCOUNT_MOVES: tuple[Move, ...] = (
 
 
 # The overdraft account's November in the cüzdan: the month's interest and its taxes, a friend's transfer that clears
-# the debt and the rest sent on, then a transfer out with its fees, which the account's own sibling covers.
+# the debt and the rest sent on (its description wraps around its row's line), then a transfer out with its fees, which
+# the account's own sibling covers.
 PASSBOOK_MOVES = (
     Move(date(2026, 11, 2), "Kredi Faiz Tutarı", Decimal("-120.00")),
     Move(date(2026, 11, 2), "KKDF Tutarı", Decimal("-18.00")),
     Move(date(2026, 11, 2), "BSMV Tutarı", Decimal("-18.00")),
-    Move(date(2026, 11, 2), "VELİ ÖRNEKSOY den gelen havale tutarı", Decimal("1500.00")),
+    Move(date(2026, 11, 2), "VELİ ÖRNEKSOY den gelen\nhavale tutarı", Decimal("1500.00")),
     Move(date(2026, 11, 3), "101234567 no.lu hesaba gönderilmiştir.", Decimal("-1044.00")),
     Move(date(2026, 11, 5), "123456789 no.lu hesaba gönderilmiştir.", Decimal("400.00")),
     Move(date(2026, 11, 5), "QNB BANK A.Ş.", Decimal("-400.00")),
@@ -214,6 +216,10 @@ PASSBOOK_MOVES = (
 )
 
 
+# The distance between the lines of a description in the cüzdan, and half a row's height for each of its lines.
+_PASSBOOK_WRAP, _PASSBOOK_HALF = 12.6, 5.0
+
+
 def passbook(
     moves: Sequence[Move] = PASSBOOK_MOVES,
     opening: Decimal = Decimal(-300),
@@ -221,10 +227,13 @@ def passbook(
     holder: str = HOLDER,
     period: tuple[date, date] = (date(2026, 11, 1), date(2026, 11, 10)),
     kind: str = "Vadesiz",
+    rate: str = "",
+    opened: date = date(2024, 6, 24),
 ) -> bytes:
     """A TEB "Dijital Hesap Cüzdanı": the account's "label: value" lines and its movements oldest first on the
-    first page, the deposit terms on the second. A move's text may hold a line break: the rest goes below its row,
-    inside the description column."""
+    first page, the deposit terms on the second. rate is the yearly gross interest rate an account that earns interest
+    prints below its balance ("Değişken faizlidir."). A move's text may hold line breaks: its lines are centred on the
+    row's line, as the bank's are, so a description of two lines prints one above it and one below."""
     rows = with_balances(moves, opening)
     closing = rows[-1][1] if rows else opening
     start, end = period
@@ -240,23 +249,23 @@ def passbook(
         ("Hesap Sahibi Sayısı:", "1"),
         ("Hesap Türü:", kind),
         ("Para Kodu:", "TL"),
-        ("Hesap Açılış Tarihi:", "24/06/2024"),
+        ("Hesap Açılış Tarihi:", f"{opened:%d/%m/%Y}"),
         ("Bakiye:", format_amount(closing)),
+        *([("Brüt Faiz Oranı (Yıllık):", rate)] if rate else []),
     ]
     runs: list[Run] = [(297, 48, "Dijital Hesap Cüzdanı")]
     for i, (label, value) in enumerate(info):
         runs += [(31, 108 + 20 * i, label), (173, 108 + 20 * i, value)]
     runs += [(47, 444, "Sıra No"), (121, 444, "Tarih"), (246, 444, "Açıklama"), (391, 444, "İşlem Tutarı")]
     runs.append((502, 444, "Bakiye"))
-    y = 472.0
+    y = 462.0
     for i, (move, balance) in enumerate(rows, 1):
-        text, _, rest = move.text.partition("\n")
-        runs += [(59, y, str(i)), (109, y, f"{move.day:%d/%m/%Y}"), (170, y, text)]
+        parts = move.text.split("\n")
+        y += _PASSBOOK_HALF * (len(parts) + 1)
+        runs += [(59, y, str(i)), (109, y, f"{move.day:%d/%m/%Y}")]
         runs += [(425, y, format_amount(move.amount)), (520, y, format_amount(balance))]
-        if rest:
-            y += 10
-            runs.append((170, y, rest))
-        y += 20
+        runs += [(170, y + _PASSBOOK_WRAP * (k - (len(parts) - 1) / 2), part) for k, part in enumerate(parts)]
+        y += _PASSBOOK_HALF * (len(parts) + 1)
     footer = "Türk Ekonomi Bankası A.Ş. Ticaret Sicil:000000 Deneme Mah. Örnek Cad. No: 1 İstanbul www.teb.com.tr"
     first = [*runs, (502, 784, "Rev.No:0001 1 / 2"), (23, 801, footer)]
     terms: list[Run] = [
@@ -270,12 +279,54 @@ def passbook(
     return text_pdf(first, terms)
 
 
+def transfer_receipt(
+    amount: Decimal,
+    day: date,
+    number: str = "123456789",
+    holder: str = HOLDER,
+    payer: str = HOLDER,
+    text: str = "vadeli para yatırma",
+) -> bytes:
+    """A TEB "Banka İçi Para Transfer Dekontu" of the account the money came into: the amount with its sign, the
+    paying account named only by its holder and branch."""
+    paid = format_amount(amount)
+    return text_pdf(
+        [
+            (44, 97, "Türk Ekonomi Bankası A.Ş."),
+            (44, 109, "Ticaret Sicil:000000,Mersis:0000000000000000"),
+            (44, 132, "Deneme Mah. Örnek Cad. No: 1 Ümraniye 34768/İSTANBUL|www.teb.com.tr"),
+            (199, 161, "BANKA İÇİ PARA TRANSFER DEKONTU"),
+            (287, 179, f"Tarih-Saat: {day:%d/%m/%Y} 21.48"),
+            (289, 188, "İşlem No: 00012345 SYS"),
+            (48, 221, "Müşteri Numarası:10000002"),
+            (169, 221, f"Hesap Sahibi:{holder}"),
+            (48, 232, f"Hesap Numarası:{number}-TL"),
+            (169, 232, "Hesap Şubesi:CEPTETEB-999"),
+            (48, 242, f"IBAN:TR00 0003 2000 0000 0{number[:3]} {number[3:7]} {number[7:]}"),
+            (48, 285, f"{text}:"),
+            (287, 285, f"Valör:{day:%d/%m/%y}"),
+            (368, 285, "TL"),
+            (437, 285, f"{paid}+"),
+            (48, 295, f"Hesaba toplam TL.{paid} ödeme yapılmıştır."),
+            (48, 379, f"Borçlu Hesap Sahibi:{payer}"),
+            (48, 390, "Hesap Şubesi:CEPTETEB-999"),
+            (48, 429, f"Sayın {holder}"),
+            (298, 429, f"Açıklama: {text}"),
+            (298, 492, "İşlem Yeri: CEPTETEB Mobil Bankacılık Uygulaması"),
+            (44, 577, "Elektronik olarak onaylanmıştır."),
+        ],
+        size=6.75,
+    )
+
+
 def specimens() -> list[Specimen]:
     payment = card_payment_receipt(Decimal(3250), date(2026, 10, 15))
     export = account_export(running_rows(list(ACCOUNT_MOVES)))
+    transfer = transfer_receipt(Decimal(2500), date(2026, 11, 10))
     return [
         Specimen("teb-bonus-ekstre.pdf", bonus_statement(), "teb.bonus_card", "teb-1234", 7),
         Specimen("teb-kart-odeme-dekontu.pdf", payment, "teb.card_payment_receipt", "teb-1234", 1),
         Specimen("teb-hesap-hareketlerim.xls", export, "teb.account_html", "teb-123456789", 4),
         Specimen("teb-dijital-hesap-cuzdani.pdf", passbook(), "teb.passbook", "teb-123456789", 10),
+        Specimen("teb-banka-ici-havale-dekontu.pdf", transfer, "teb.transfer_receipt", "teb-123456789", 1),
     ]

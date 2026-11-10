@@ -257,8 +257,32 @@ göndermez.
 - KMH hesabının türü burada da "Vadesiz" yazar. CEPTETEB dökümündeki gibi eksiye düşen TL hesabı KMH sayılır; hesap
   numarası iki belgede aynıdır (`teb-<numara>`).
 - `Bakiye` raporlama günündeki bakiyedir. Aralık o günden önce bitiyorsa son satırın bakiyesiyle tutmayabilir.
-- Sütuna sığmayan açıklama satırın altında, aynı sütunda sürer. Okuyucu bu satırı açıklamaya ekler.
-- İlk satırın öncesinde bakiye yazmaz. Bu yüzden on satırda dokuz bakiye denetlenir.
+- Faiz işleyen hesap, bakiyenin altına yıllık brüt faiz oranını yazar (`Brüt Faiz Oranı (Yıllık)`). Vadeli hesap da
+  CEPTETEB Marifetli de bu satırı taşır; Marifetli'nin türü "CEPTETEB Marifetli" yazar, "Vadeli" yazmaz. Vadesiz ve
+  KMH hesapları bu satırı yazmaz. Bu satırı taşıyan hesap vadeli hesap sayılır.
+- Bir satırın hücreleri satırın yüksekliğine ortalanır. Sütuna sığmayan açıklama kendi sütununda kaydırılır. İki
+  satırlık bir açıklamanın ilk satırı numaranın, tarihin ve tutarların yazdığı satırın üstünde, ikincisi altındadır.
+  O satırda açıklamadan hiç kelime kalmaz ("<Ad Soyad> den gelen" / "havale tutarı", "<kart> no.lu Kredi Kartına
+  Ödenen" / "Tutar"). Okuyucu, açıklama sütunundaki her satırı en yakın hareketin açıklamasına verir.
+  - v0.9.14'ün okuyucusu yalnızca alta süren açıklamayı biliyordu. Kelimesi kalmayan satırları atlıyor, üstteki
+    satırı bir önceki hareketin açıklamasına ekliyordu. Bu yüzden cüzdan doğrulanmıyor, biçim alarmı veriyordu
+    (v0.9.16'da düzeldi).
+- İlk satırın öncesinde bakiye yazmaz. Bu yüzden on satırda dokuz bakiye denetlenir. Hesap cüzdanın ilk günü
+  açıldıysa (`Hesap Açılış Tarihi`) sıfırdan başlar; ilk satır da denetlenir.
+
+**Banka içi havale dekontu PDF'i** (`teb.transfer_receipt`, "BANKA İÇİ PARA TRANSFER DEKONTU"): CEPTETEB'in
+uygulamasının paylaştığı, iki TEB hesabı arasındaki aktarmanın dekontu.
+
+- Hücreler "Etiket:değer" biçimindedir ("Hesap Sahibi:…"); bir satırın hücreleri birbirinden uzaktır.
+- Dekont tek bir hesabı numarası ve para birimiyle yazar: `Hesap Numarası:123456789-TL`. Hareketi şu satır söyler:
+  "<hareketin metni>: Valör:<gün> TL <tutar><işaret>" ("vadeli para yatırma: Valör:02/11/26 TL 2.500,00+"). `+`
+  hesaba giren paradır.
+- Öbür hesabın numarası yazmaz; yalnızca sahibi (`Borçlu Hesap Sahibi`, parayı gönderen) ve şubesi yazar.
+- Dekont hesabın türünü (vadeli mi, KMH mi) söylemez. Hesabın türü cüzdanından ya da dökümünden gelir: analiz,
+  önce gelen dekontun hesabının yerine listenin hesabını koyar.
+- Dekont anahtarı hesap numarası ile `İşlem No`'dur. Böylece bir aktarmanın iki ucunun dekontları iki ayrı dekont
+  sayılır.
+- Şimdiye dek yalnızca parayı alan hesabın dekontu görüldü.
 
 ## Vakıfbank
 
@@ -272,6 +296,22 @@ göndermez.
 
 **e-cüzdan PDF'i** (`vakifbank.passbook`): mevduat koşulları 1. sayfada, hesap (`Cüzdan Seri No`, satırlar
 `NO tarih tutar bakiye metin`) sonraki sayfalarda.
+
+**Dekont PDF'i** (`vakifbank.receipt`): Vakıfbank'ın uygulamasının paylaştığı transfer dekontu.
+
+- "İŞLEM BİLGİLERİ" başlığının altında her satırda iki etiket-değer çifti vardır: `İŞLEM TÜRÜ` ("FAST Giden Anlık
+  Ödeme") ve `İŞLEM TARİHİ`, `ALICI BANKA` ve `SORGU NO`, `İŞLEM TUTARI` ve `MASRAF TUTARI`, gönderenin ve alıcının
+  adı, alıcının IBAN'ı ve `İŞLEM NO`. Kullanıcının yazdığı açıklama `İŞLEM AÇIKLAMASI` başlığının altındadır.
+- Hücrenin metni kendi sütununda kaydırılır: "GÖNDEREN AD SOYAD /" + "UNVAN", uzun adlar ve IBAN iki satırdır. Bir
+  satırın hücreleri satırın yüksekliğine ortalanır. Bir etiketin değeri, sağındaki, ortası onunkiyle aynı hizada olan
+  hücredir. Boş değerin hücresi yoktur (masrafsız FAST'te `MASRAF TUTARI`).
+- Dekont gönderenin hesabını yazmaz. Satır, Vakıfbank'ın o para birimindeki tek banka hesabına geçer
+  (`analysis.resolve_masked`).
+- Aynı FAST'in e-posta bildirimi de gelirse hareket bir kez sayılır: dekontun satırı kalır, bildirimin bakiyesini
+  alır.
+- Dekont anahtarı `İŞLEM NO`'dur. Aynı dekontun iki kopyası (Telegram'dan ve Belge ekle'den) bir kez sayılır.
+- Şimdiye dek yalnızca giden FAST'in dekontu görüldü. "Gelen" yazan bir dekont aynı tabloyla okunur. Yönü
+  yazmayan bir dekont okunmaz ve biçim alarmı verir.
 
 **Transfer bildirimleri** (`vakifbank.notice.transfer`, e-posta gövdesi, `vakifbank.com.tr`)
 

@@ -144,6 +144,17 @@ def label_values(lines: list[Line]) -> dict[str, str]:
     return out
 
 
+def cells(line: Line, gap: float) -> list[Line]:
+    """The line's cells: its runs of words less than gap points apart, each a line of its own."""
+    found: list[Line] = []
+    for w in line.words:
+        if found and w.x0 - found[-1].words[-1].x1 < gap:
+            found[-1].words.append(w)
+        else:
+            found.append(Line(line.top, [w], line.page))
+    return found
+
+
 def find_word(line: Line, *names: str) -> Word | None:
     """First word on the line whose folded text equals (or starts with) one of names."""
     for w in line.words:

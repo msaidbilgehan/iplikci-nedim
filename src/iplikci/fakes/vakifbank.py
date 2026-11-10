@@ -1,4 +1,5 @@
-"""Vakıfbank's documents: the account list as an XLSX export, the e-cüzdan, and the transfer notices it e-mails."""
+"""Vakıfbank's documents: the account list as an XLSX export, the e-cüzdan, the transfer notices it e-mails and the
+receipts its app shares."""
 
 from collections.abc import Sequence
 from datetime import date, datetime, timedelta, timezone
@@ -6,7 +7,7 @@ from decimal import Decimal
 from html import escape
 
 from . import HOLDER, Move, Specimen, with_balances
-from .files import html_mail, text_pdf, xlsx_file
+from .files import Run, html_mail, text_pdf, xlsx_file
 
 # A month on a current account, oldest first: salary with the employer in its code, rent sent by FAST with its
 # fee, a bill, money received by EFT and euros bought into an own account, each with the bank's transaction type.
@@ -205,6 +206,52 @@ def outflow(sent: datetime = datetime(2026, 10, 25, 11, 0, tzinfo=_ISTANBUL), am
     )
 
 
+# The receipt's table: its columns' left edges (a label, its value, a label, its value), a row's height for a line of
+# text and the distance between the lines of a cell.
+_RECEIPT_COLUMNS = (75, 190, 305, 420)
+_RECEIPT_ROW, _RECEIPT_WRAP = 21.75, 9.75
+
+
+def receipt(
+    sent: datetime = datetime(2026, 10, 20, 9, 30, tzinfo=_ISTANBUL),
+    amount: str = "1.000,00 TL",
+    fee: str = "",
+    receiver: str = "ÖRNEK\nKULLANICI",
+    sender: str = "ÖRNEK\nKULLANICI",
+    note: str = "KİRA",
+) -> bytes:
+    """A FAST payment sent to the user's own account at another bank, as the bank's app shares its receipt: a table of
+    two label and value pairs a row, every cell centred on its row's height, a value's lines (split at its line
+    breaks) inside its column; the user's text under its heading, the bank's registry lines under it."""
+    rows = [
+        ("İŞLEM TÜRÜ", "FAST Giden Anlık Ödeme", "İŞLEM TARİHİ", f"{sent:%d.%m.%Y %H:%M:%S}"),
+        ("ALICI BANKA", "QNB Bank A.Ş.", "SORGU NO", "1234567891"),
+        ("İŞLEM TUTARI", amount, "MASRAF TUTARI", fee),
+        ("GÖNDEREN AD SOYAD /\nUNVAN", sender, "ALICI AD SOYAD/UNVAN", receiver),
+        ("ALICI HESAP NO / IBAN", "TR00 0011 1000 0000 0012\n3456 78", "İŞLEM NO", "2026000000000001"),
+        ("FİŞ NO", "", "", ""),
+    ]
+    runs: list[Run] = [(274, 99, "VAKIFBANK"), (75, 123, "İŞLEM BİLGİLERİ")]
+    top = 144.75
+    for row in rows:
+        parts = [cell.split("\n") if cell else [] for cell in row]
+        height = max(len(p) for p in parts)
+        for x, lines in zip(_RECEIPT_COLUMNS, parts, strict=True):
+            first = top + (height - len(lines)) * _RECEIPT_WRAP / 2
+            runs += [(x, first + _RECEIPT_WRAP * k, line) for k, line in enumerate(lines)]
+        top += _RECEIPT_ROW + _RECEIPT_WRAP * (height - 1)
+    runs += [
+        (75, 312, "İŞLEM AÇIKLAMASI"),
+        *([(75, 346.5, note)] if note else []),
+        (75, 385.5, "Sicil Numarası: 000000"),
+        (75, 395.25, "Ticaret Ünvanı: Türkiye Vakıflar Bankası T.A.O"),
+        (75, 405, "Ticaret Merkezi Adresi: Örnek Mahallesi Deneme Caddesi No:1 İSTANBUL"),
+        (75, 414.75, "İnternet Sitesi Adresi: www.vakifbank.com.tr"),
+        (91, 453.75, "Bu dekont bilgilendirme amaçlı hazırlanmıştır."),
+    ]
+    return text_pdf(runs, size=7.5)
+
+
 def specimens() -> list[Specimen]:
     notices = "vakifbank.notice.transfer"
     return [
@@ -219,4 +266,5 @@ def specimens() -> list[Specimen]:
         Specimen("vakifbank-fast-gelen.eml", fast_in(), notices, "vakifbank-****1234", 1),
         Specimen("vakifbank-fast-giden.eml", fast_out(), notices, "vakifbank-****1234", 1),
         Specimen("vakifbank-para-cikisi.eml", outflow(), notices, "vakifbank-****1234", 1),
+        Specimen("vakifbank-dekont.pdf", receipt(), "vakifbank.receipt", "vakifbank-****", 1),
     ]
