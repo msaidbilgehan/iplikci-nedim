@@ -4,6 +4,36 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.10.1] — 2026-11-11 — Pano biten ayı hemen anlatır, İşlemler'de dönem süzgeci
+
+### Düzeltilenler
+
+- Pano, bir ayın bütün belgeleri gelene dek bir önceki ayı anlatıyordu. Kartların ayın son günlerini kapsayan
+  ekstresi haftalar sonra geldiği için Kasım ortasında hâlâ Eylül görünüyordu. Artık biten ay hemen anlatılır.
+  Rakamları ve hükmü "şimdilik"tir: "Şimdilik kalan", "Gelen paranın şimdilik %40'ı elinizde kaldı." Altında
+  ayın son günlerini kapsayan kaç belgenin beklendiği ve sonuncusunun hangi gün geleceği yazar. Belgeler geldikçe giden
+  artabilir, kalan azalabilir. "Paranız nereye gitti?" de o ay için "şimdiye kadar" der.
+- Pano'da başlığın yanındaki oklarla önceki aylara gidilir; ay adreste kalır, geri düğmesi de çalışır.
+- İplikçi Nedim her gün aynı sözü söylüyordu. Her söz tek bir duruma bağlıydı ve durumların yarısından çoğunun tek
+  sözü vardı. Pano'nun ayı haftalarca aynı kalınca söz de değişmiyordu. Artık her durumun en az iki sözü var ve söz
+  günden güne değişir; bir söz anlamına uyan birden çok durumda söylenebilir. "Başka bir söz" her sözü bir kez gösterir.
+  Ayın hükmü de Pano'nunki gibi biten son aydır; ay henüz kapanmadıysa "şimdilik" der.
+- Kurulum sihirbazında "Bitir" yalnızca Pano'ya götürüyordu. Sihirbaz yeniden açılınca son adımda, henüz
+  kullanılamayan uzaktan erişimde, bitmemiş gibi duruyordu. Artık "Bitir" kurulumun özetini gösterir: hepsi tamamsa
+  "Kurulum tamamlandı", değilse hangi adımların beklediği, her biri kendi adımına giden bir bağlantıyla. Kullanmadığınız
+  isteğe bağlı adımlar ayrıca yazar. Sihirbaz gerekli adım kalmayınca bu özetle açılır.
+- İşlemler'in hesap süzgeci uzun hesap adlarını kesiyordu: yalnızca son haneleri ayrı iki hesap birbirinden ayırt
+  edilemiyordu. Süzgecin penceresi artık en uzun ad kadar geniş.
+
+### Eklenenler
+
+- İşlemler'de dönem süzgeci aramanın yanında: Tüm zamanlar, Bu ay, Geçen ay, Son 30 gün, Son 3 ay, Bu yıl, Geçen yıl
+  ya da seçtiğiniz iki gün. Kaydettiğiniz bir görünümün "Bu ay"ı zamanla ilerler. Başka bir ekrandan gelen bir ayın
+  günleri ayın adıyla yazılır ("Haziran 2026").
+- Süzgeçler'de yön (yalnızca giren ya da yalnızca çıkan para) ve tutar (en az, en çok). Tutar Türkçe yazıldığı gibi
+  girilir: "1.500" ya da "1.500,50".
+- Etiket alanı satırlarınıza verdiğiniz etiketleri en çok kullanılandan başlayarak önerir; birine basınca süzülür.
+
 ## [0.10.0] — 2026-11-11 — Sürümler ve güncellemeler
 
 ### Eklenenler

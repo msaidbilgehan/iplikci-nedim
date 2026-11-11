@@ -6,7 +6,7 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-11): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.10.0). Between Phases 6 and 7 came
+Status (2026-11-11): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.10.1). Between Phases 6 and 7 came
 the interface's simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab
 (v0.7.3), documents known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked
 against the documents (v0.7.6). Next is the 1.0 release, whose conditions are partly time-bound (roadmap "Sürüm 1.0"
@@ -268,6 +268,22 @@ says what the waiting must show; check them once their time has passed).
     where they go is the user's decision (`docs/yayin.md`); until then a check says no release is public yet.
   - Extension 0.8.0: an unpacked copy reloads itself once the program carries a newer one (`bridge/renew`, the
     cursor's `extension_version`), never during a run or a scan.
+- v0.10.1: on 11 November the user found the Pano still telling September, the same saying every day, a wizard that
+  looked unfinished after Bitir and no "this month" on İşlemler.
+  - The Pano's story and İplikçi Nedim's month are the newest ended month whose income is known, closed or not: an
+    open month's figures and verdict say "şimdilik" with what it waits for and by when (`OpenMonth` in
+    `components/dashboard/Overview`); the arrows beside the title go to the months before (`?ay=`). Only an ended month
+    whose income is unknown still gets the held sentence. `app/sayings._story` takes the same month
+    (`MonthFacts.closed`); the best month is a closed one's.
+  - `app/sayings.LINES` gives a line to every situation it fits; every situation but no data has two or more, so the
+    day turns them, and `choose` says each line once, with the most pressing situation.
+  - İşlemler: a named period beside the search (`period`, `app/transactions.Period`, its days reckoned from the
+    service's today, so a kept view moves with time), money in or out (`direction`), the amount's bounds (`min`, `max`,
+    typed as `lib/amount.parseLira` reads them) and the tags the rows carry (`GET /api/tags`, not under
+    `/api/transactions/`, whose next part is a fingerprint). Değerlendirme keeps its own presets (`Filters`' `rows`).
+    The filter popovers are as wide as their longest option.
+  - The wizard's Bitir leads to its summary (`/kurulum?adim=ozet`); the wizard opens there once no required step is
+    left.
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 

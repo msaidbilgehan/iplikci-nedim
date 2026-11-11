@@ -56,6 +56,20 @@ Durum: Kabul edildi · Tarih: 2026-11-03 · Dayanak: K26, tasarım · [ADR-0016]
   - Pencere her açılışta servise iki istek gönderir (kanıt ve sözler); servis her seferinde Pano'yu hesaplar.
   - Sözler dizinin dilindedir; bazıları kaba ya da şakacıdır. Kapatma seçeneği yoktur.
 
+## Not (2026-11-11, v0.10.1)
+
+Kullanıcı Pano'da sürekli aynı sözü gördüğünü söyledi. İki nedeni vardı: her söz tek bir duruma bağlıydı ve 15
+durumun 8'inin tek sözü vardı; ayın hükmü yalnızca kapanmış ayı anlattığı için Eylül 2026 haftalarca Pano'nun ayı
+kaldı ve "az kaldı" durumu her gün aynı sözü söyletti. Karar değişmeden kalır (sözleri servis seçer, eklenti aynı uçtan
+alır); seçimin kuralları şöyle değişti:
+
+- Bir söz anlamına uyan birden çok durumda söylenebilir. "Veri yok" dışında her durumun en az iki sözü vardır, böylece
+  aynı durum sürdükçe söz günden güne değişir. "Başka bir söz" her sözü bir kez, en acil durumuyla gösterir.
+- Ayın hükmü Pano'nun ayıdır: gelirin bilindiği, biten en yeni ay. Ay belgelerini hâlâ bekliyorsa cümle "şimdilik"
+  der; en iyi ay yalnızca kapanmış aylar arasından seçilir.
+
+Listenin kendisi ve durumların sözleri [İplikçi Nedim'in sözleri](../İplikçi_Nedim_Sözler.md) belgesindedir.
+
 ## Değerlendirilen seçenekler
 
 - **Sözleri eklentide tutup durumu servisten istemek:** sözler iki yerde, arayüzde ve eklentide yaşardı ve birbirinden

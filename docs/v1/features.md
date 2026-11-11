@@ -193,7 +193,15 @@ G2, K4 · Çekirdek
 
 - **Tablo**
   - Sıralama ve sayfalama; tam metin arama.
-  - Süzgeçler: dönem, hesap, tür, kategori, gereklilik, kesinlik, etiket.
+  - Süzgeçler: dönem, hesap, tür, kategori, gereklilik, kesinlik, etiket, yön (giren ya da çıkan para) ve tutar
+    (en az, en çok).
+    - Dönem aramanın yanında her zaman görünür: Tüm zamanlar, Bu ay, Geçen ay, Son 30 gün, Son 3 ay, Bu yıl, Geçen yıl
+      ya da seçilen iki gün. Adıyla seçilen dönemin günlerini servis bugünden sayar (`period`), bu yüzden kayıtlı bir
+      görünümün "Bu ay"ı zamanla ilerler. Başka bir ekrandan gelen günler adıyla yazılır: bir ayın tamamı "Haziran
+      2026" olur (v0.10.1; önceden yalnızca iki tarih alanı vardı ve "bu ay" elle seçiliyordu).
+    - Tutar Türkçe yazıldığı gibi girilir ("1.500" ya da "1.500,50"), alan bırakılınca ya da Enter'a basılınca sorulur.
+    - Etiket listesi satırlara verilmiş etiketleri en çok kullanılandan başlayarak önerir (`GET /api/tags`).
+    - Hesap süzgeci en uzun hesap adı kadar geniştir: yalnızca son haneleri ayrı iki hesap okunur.
   - Kayıtlı görünümler; CSV indirme.
 - **Satır ayrıntısı**
   - Belge önizlemesi, satırı vurgulanmış.
@@ -239,24 +247,32 @@ G7 · Çekirdek
     ([İplikçi Nedim'in sözleri](../İplikçi_Nedim_Sözler.md)). Durumlar en acilinden başlar: öngörü eksiye düşüyor,
     ay eksiyle kapandı, borç varlıktan fazla, bu ay tipik aydan fazla harcanıyor, az kaldı, en iyi ay, döviz geliri,
     bu ay tipik aydan az harcanıyor, birikim, gelir geldi, iyi bir ay, zam, faiz ve ücret, sessiz ay, veri yok.
-  - Ayın hükmü Pano'nunkiyle aynıdır: gelirin bilindiği en yeni kapanmış ay, kalan gelenin %10'undan azsa "az kaldı".
-    Bu ayın tipik ayla karşılaştırması da Pano'nun koşullarıyla yapılır.
+  - Ayın hükmü Pano'nunkiyle aynıdır: gelirin bilindiği, biten en yeni ay, kalan gelenin %10'undan azsa "az kaldı".
+    Ay belgelerini hâlâ bekliyorsa hüküm "şimdilik" der; en iyi ay yalnızca kapanmış aylar arasından seçilir. Bu ayın
+    tipik ayla karşılaştırması da Pano'nun koşullarıyla yapılır.
+  - Bir söz birden çok duruma uyabilir; "veri yok" dışında her durumun en az iki sözü vardır (v0.10.1; önceden 15
+    durumun 8'i tek söze bağlıydı ve aynı durum haftalarca sürünce her gün aynı söz görünüyordu).
   - Gösterilen söz en acil durumunkidir ve o durumun sözleri arasında günden güne değişir; gün içinde aynı kalır.
-    "Başka bir söz" o gün doğru olan öbür durumların sözlerini sırayla gösterir.
+    "Başka bir söz" o gün doğru olan öbür durumların sözlerini sırayla gösterir; her söz bir kez gelir.
   - Sözün altında hangi durum için söylendiği bir cümleyle yazar: yalnızca sözcük, gün ve pay, tutar ya da ad yok.
   - Yüz durumun rengini alır: iyi giderken logonun kendisi (yeşil), dikkat isteyen durumda turuncu, kritik durumda
     kırmızı, veri yokken gri. Renk tek başına bir şey söylemez; söz ve cümlesi aynı şeyi söyler.
   - Belge yokken "İsa Muhammed aşkına bilmiyorum." der.
 - **Sade görünüm:** finans bilgisi olmayan biri için resimlerle, yukarıdan aşağı okunan bir hikâye.
-  - Son kapanan ayın gelen, giden, birikime ayrılan ve kalan parası; gelenin bunlara giden payını gösteren bir çubuk ve
-    bir cümlelik hüküm: iyi gidiyor, az kaldı (kalan gelenin %10'undan az) ya da gelirden fazla para çıktı. Süren ay
-    ayrıca söylenir.
-    - Hikâyenin ayından sonra biten ama kapanmayan bir ay (ör. 4 Kasım'da Ekim) neden anlatılmadığını bir cümleyle
-      söyler: ayın son günlerini kapsayan kaç belge beklendiği ve sonuncusunun hangi gün geleceği (kartların bir
-      sonraki kesim günü; bir gün verilemiyorsa yalnızca bekleniyor der: indirilecek bir döküm ya da geciken bir
-      ekstre), ya da belgesinin eksik olduğu veya bakılması gerektiği; o aya kadar gelen belgelere göre ne harcandığı
-      ve o ayın Ay sonu sayfasına giden bağlantı (v0.9.10; önceden yalnızca süren ay söyleniyordu ve kapanmayan ay
-      sessizce atlanıyordu).
+  - Gelirin bilindiği, biten en yeni ayın gelen, giden, birikime ayrılan ve kalan parası; gelenin bunlara giden payını
+    gösteren bir çubuk ve bir cümlelik hüküm: iyi gidiyor, az kaldı (kalan gelenin %10'undan az) ya da gelirden fazla
+    para çıktı. Süren ay ayrıca söylenir.
+    - Ay bitmiş ama belgelerini hâlâ bekliyorsa (kartların ayın son günlerini kapsayan ekstresi haftalar sonra gelir)
+      hemen anlatılır, rakamları ve hükmü "şimdilik"tir: "Şimdilik kalan", "Gelen paranın şimdilik %54'ü elinizde
+      kaldı." Altındaki cümle ayın son günlerini kapsayan kaç belge beklendiğini ve sonuncusunun hangi gün geleceğini
+      (kartların bir sonraki kesim günü; bir gün verilemiyorsa yalnızca bekleniyor der), ya da belgesinin eksik olduğunu
+      veya bakılması gerektiğini, rakamların değişebileceğini söyler ve o ayın Ay sonu sayfasına götürür. v0.10.1'e
+      dek hikâye yalnızca kapanmış ayı anlatıyordu: 11 Kasım'da Eylül gösteriliyordu, Ekim ancak son kart ekstresi
+      gelince (24 Kasım) anlatılacaktı.
+    - Başlığın yanındaki oklar önceki ve sonraki aylara gider; ay adreste durur (`?ay=2026-09`), en yeni ayın adresi
+      yalındır. Süren ay oklarda yoktur; hikâye onu yalnızca henüz biten bir ay yokken anlatır.
+    - Biten ama geliri henüz bilinmeyen bir ay (hesap dökümleri ayın yarısını kapsamıyor) neden anlatılmadığını bir
+      cümleyle söyler: o aya kadar gelen belgelere göre ne harcandığı ve o ayın Ay sonu sayfasına giden bağlantı.
     - Giden harcama, kişilere gönderilen para ve ödenen kredi anaparasıdır; birikim (BES, döviz, altın, yatırım)
       ayrıca gösterilir. Kalan, Ay sonu'nun kalanıdır: gelenden giden ve birikim düşülür (v0.9.9, kullanıcının
       isteğiyle; önceden yalnızca harcama düşülüyordu ve Ay sonu'yla ayrışabiliyordu).
@@ -265,7 +281,8 @@ G7 · Çekirdek
   - Aylara göre gelen (yeşil, çizginin üstünde), giden (turuncu, altında) ve birikim (mavi, altında; varsa) çubukları;
     kapanmamış aylar soluk. Gideni işlemlerine götürür (harcama, kişilere gönderilen, kredi anaparası), birikimi
     birikim satırlarına.
-  - O ay paranın nereye gittiği: harcama türleri tek renkte yatay çubuklarla, her tür işlemlerine götürür.
+  - Hikâyenin ayında paranın nereye gittiği: harcama türleri tek renkte yatay çubuklarla, her tür işlemlerine götürür;
+    kapanmamış ay için "şimdiye kadar" der.
   - Önümüzdeki 30 gün: hesaptaki paranın günlük tahmini, eksiye düştüğü ilk gün ya da en düşük gün, yaklaşan ödemeler ve
     gelirler. Çizginin son belgelerdeki bakiyeden bugüne nasıl geldiği söylenir.
   - "Ne yapmalısınız?": açık uyarılar düzeyi sözle yazılarak, ardından Değerlendirme'nin önerilen adımları (en çok
@@ -593,6 +610,12 @@ G9, K9 · Çekirdek
   7. Bildirim kanalları: Telegram bot yönergesi ve eşleştirme; e-posta (gönderici hesap varsa).
   8. Servisin durumu (servisi kurulum paketi kurar; ADR-0017).
   9. Uzaktan erişim yönergesi (Tailscale; isteğe bağlı).
+- **Kurulumun özeti** (`/kurulum?adim=ozet`): son adımdaki "Bitir" buraya götürür. Gerekli adımların hepsi tamamsa
+  "Kurulum tamamlandı" der; değilse bekleyen adımları, her biri kendi adımına giden bir bağlantıyla, sayar.
+  Kullanılmayan isteğe bağlı adımlar notlarıyla ayrıca listelenir; Pano'ya ve Ayarlar'a giden düğmeler vardır.
+  Sihirbaz adımsız açılınca bekleyen ilk gerekli adımda, gerekli adım kalmamışsa bu özette açılır (v0.10.1;
+  önceden "Bitir" yalnızca Pano'ya götürüyor, sihirbaz yeniden açılınca hiç tamamlanamayan son isteğe bağlı adımda,
+  uzaktan erişimde, bitmemiş gibi duruyordu).
 - **Terminal yok:** kurulumun hiçbir adımı terminal istemez; yardım metinlerinde terminal komutu yoktur (K14).
 - **Ayarlar ekranı:** aynı alanlar. Sırlar yalnızca girilir, asla gösterilmez.
 - **Ölçüt:** yeni bir kullanıcı sihirbazdan sonra hiçbir dosyayı elle düzenlemeden ilk değerlendirmesini görür.

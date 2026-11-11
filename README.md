@@ -107,7 +107,7 @@ Aşama 6 (Arayüz, v0.7.0) uygulamayı terminal açmadan kurulan ve kullanılan 
 
 Aşama 6'nın ardından arayüz sadeleşti ve hesap kitabı daha açık anlatır oldu:
 
-- Pano'nun sade görünümü paranızı resimlerle anlatır: son kapanan ayda gelen, giden ve kalan para; aylara göre gelen
+- Pano'nun sade görünümü paranızı resimlerle anlatır: biten son ayda gelen, giden ve kalan para; aylara göre gelen
   ve giden; paranın nereye gittiği; önümüzdeki 30 günde hesabınızda ne kalacağı ve ne yapmanız gerektiği. Her
   grafiğin üstünde nasıl okunacağı yazar. Ayrıntılı görünümde ilk satır dört rakamı gösterir, kartlar tablolarıyla.
 - Menü simgeli, logo her yerde; görünüm ve tema üst çubuktaki tek menüde. Sade görünümde menü sık kullanılan sekiz
@@ -219,6 +219,15 @@ Bildirimler neyle ilgili olduğunu söyler (v0.9.18):
 - Her sürüm GitHub'da yayımlanır: üç sistemin kurulum paketleri, güncelleme dosyaları ve eklentinin mağaza paketi.
   Paketler yayımlanmadan önce açılıp denenir. Nasıl yayımlandıkları [Sürüm yayını ve güncellemeler](docs/yayin.md)
   belgesindedir.
+
+Pano biten ayı hemen anlatır (v0.10.1):
+
+- Biten ay, kartların son ekstresi gelmeden de Pano'da anlatılır; rakamları ve hükmü o güne dek "şimdilik"tir ve
+  hangi belgelerin ne zaman beklendiği yazar. Başlığın yanındaki oklar önceki aylara gider.
+- İplikçi Nedim'in her durumda birden çok sözü var; söz günden güne değişir.
+- İşlemler'de dönem süzgeci aramanın yanında (Bu ay, Geçen ay, Son 30 gün, Son 3 ay, Bu yıl, Geçen yıl ya da iki gün);
+  Süzgeçler'de yön, tutar ve önerilen etiketler.
+- Kurulum sihirbazının "Bitir"i kurulumun özetini gösterir: tamamlandı mı, hangi adımlar bekliyor.
 
 Açık kalanlar: servisin yedi gün kendi başına çalışması (K19). Windows ve Linux'ta denemeler bekletiliyor (K25).
 Sürümler henüz herkese açık bir yerde değil; kurulu kopyalar güncellemeyi ancak o zaman indirebilir (K29).

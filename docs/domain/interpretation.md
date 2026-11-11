@@ -381,6 +381,9 @@ ekstre gelmeden sayılır.
 - Maaşı önceki ayın son günü yatan bir ay gelir 0 ve eksi "kalan" gösterir. Bu beklenen bir durumdur; sayfa ve dizin
   nedenini söyler.
 - Yalnızca kapanmış aylar birbiriyle karşılaştırılır: açık bir ayda, ekstrelerin henüz ulaşmadığı günler eksiktir.
+- Pano'nun hikâyesi ve İplikçi Nedim'in ay hükmü gelirin bilindiği, biten en yeni ayı anlatır; ay kapanmamışsa
+  rakamları ve hükmü "şimdilik"tir ve neyi beklediği yazar (v0.10.1). Tek bir ayın kendi hükmü bir karşılaştırma
+  değildir; o ayı başka aylarla kıyaslayan "en iyi ay" yalnızca kapanmış bir ay için söylenir.
 
 **Sayfalar**
 
