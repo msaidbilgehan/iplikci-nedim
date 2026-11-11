@@ -1,5 +1,6 @@
-"""İplikçi Nedim's lines (app.sayings): every line belongs to a situation the documents show, the most pressing
-situation's line comes first and the day turns it, and the sentence that says the situation carries no amount."""
+"""İplikçi Nedim's lines (app.sayings): every line fits a situation the documents show and every situation has lines
+to turn, the most pressing situation's line comes first and the day turns it, each line comes once, and the sentence
+that says the situation carries no amount."""
 
 import re
 from datetime import date, timedelta
@@ -23,10 +24,12 @@ def month(
     saving: str = "0",
     foreign: bool = False,
     best: int = 0,
+    closed: bool = True,
 ) -> MonthFacts:
-    """A closed month: what was left is the income less what went out and what was saved, as the month-end page says."""
+    """An ended month, closed unless said: what was left is the income less what went out and what was saved, as the
+    month-end page says."""
     came, went, saved = Decimal(income), Decimal(out), Decimal(saving)
-    return MonthFacts("2026-10", came, went, came - went - saved, Decimal(fees), saved, foreign, best)
+    return MonthFacts("2026-10", came, went, came - went - saved, Decimal(fees), saved, foreign, best, closed)
 
 
 def facts(
@@ -62,11 +65,37 @@ def said(f: Facts, today: date = TODAY) -> list[tuple[Situation, Mood, str]]:
 # --- the lines -------------------------------------------------------------------------------------------------------
 
 
-def test_every_line_belongs_to_one_situation_and_every_situation_has_lines():
-    owned = [id for ids in LINES.values() for id in ids]
-    assert sorted(owned) == sorted(QUOTES)  # each line once
+def test_every_line_fits_a_situation_and_every_situation_has_lines_to_turn():
     assert set(LINES) == set(Situation)
+    assert {id for ids in LINES.values() for id in ids} == set(QUOTES)  # no line left unsaid, none unknown
     assert len(QUOTES) == 21  # the user's list, the twice-written one once
+    for situation, ids in LINES.items():
+        assert len(set(ids)) == len(ids), situation  # a line once within its situation
+        # Two lines at least, so the line shown changes from day to day; nothing known yet is said one way only.
+        assert len(ids) >= (1 if situation is Situation.NO_DATA else 2), situation
+
+
+def test_the_lines_that_fit_several_situations_stay_with_their_meaning():
+    """A few lines fit more than one situation; each stays where its words point."""
+    assert {"dark_future", "linden_tree", "two_lindens"} <= set(
+        LINES[Situation.GOING_NEGATIVE]
+    )  # nerves, a dark future
+    assert "bride" in LINES[Situation.IN_DEBT] and "bride" not in LINES[Situation.GOOD]  # someone else's money
+    assert "generosity" in LINES[Situation.SPENDING_MORE] and "generosity" not in LINES[Situation.SPENDING_LESS]
+    assert "tough_man" in LINES[Situation.SPENDING_LESS]
+    assert {"toilet", "no_mercy"} == set(LINES[Situation.FEES]) == set(LINES[Situation.PRICE_RISE])
+    good = {Situation.GOOD, Situation.BEST_MONTH, Situation.SAVING, Situation.INCOME_ARRIVED, Situation.FOREIGN_INCOME}
+    gloomy = {
+        "dark_future",
+        "bride",
+        "engineless_car",
+        "linden_tree",
+        "two_lindens",
+        "no_mercy",
+        "toilet",
+        "generosity",
+    }
+    assert not gloomy & {id for situation in good for id in LINES[situation]}  # no gloom on good news
 
 
 def test_the_lines_keep_turkish_letters_and_the_dialogue_its_turns():
@@ -91,9 +120,9 @@ def test_without_documents_he_does_not_know():
     assert only.reason == "Henüz belge yok; paranın nasıl gittiği bilinmiyor."
 
 
-def test_with_documents_but_no_closed_month_he_still_does_not_know():
+def test_with_documents_but_no_ended_month_he_still_does_not_know():
     assert said(facts()) == [
-        (Situation.NO_DATA, Mood.NEUTRAL, "Henüz kapanan bir ayın geleni ve gideni bilinmiyor."),
+        (Situation.NO_DATA, Mood.NEUTRAL, "Henüz biten bir ayın geleni ve gideni bilinmiyor."),
     ]
 
 
@@ -101,8 +130,12 @@ def test_with_documents_but_no_closed_month_he_still_does_not_know():
 
 
 def test_a_month_that_closed_in_the_red_is_a_dark_future():
-    [first] = choose(facts(story=month(out="45000")), TODAY)
-    assert (first.situation, first.mood, first.quote.id) == (Situation.OVERSPENT, Mood.CRITICAL, "dark_future")
+    found = choose(facts(story=month(out="45000")), TODAY)
+    first = found[0]
+    assert (first.situation, first.mood) == (Situation.OVERSPENT, Mood.CRITICAL)
+    lines = LINES[Situation.OVERSPENT]
+    assert first.quote.id == lines[TODAY.toordinal() % len(lines)]  # the day's line
+    assert {s.quote.id for s in found} == set(LINES[Situation.OVERSPENT])  # the dark future among them
     assert first.reason == "Ekim 2026'da giden para, gelen paradan fazlaydı."
     # What was saved is taken off too, as the month-end page takes it.
     saved = said(facts(story=month(out="36000", saving="4500")))[0]
@@ -147,6 +180,52 @@ def test_the_best_of_the_closed_months_comes_before_its_verdict():
     assert QUOTES[LINES[Situation.BEST_MONTH][0]].id == "who_is_bigger"
 
 
+@pytest.mark.parametrize(
+    ("story", "situation", "mood", "reason"),
+    [
+        (month(closed=False), Situation.GOOD, Mood.GOOD, "Ekim 2026'da gelen paranın şimdilik %49'u elde kaldı."),
+        (
+            month(out="37600", closed=False),
+            Situation.THIN,
+            Mood.WARNING,
+            "Ekim 2026'da gelen paranın şimdilik yalnızca %6'sı elde kaldı.",
+        ),
+        (
+            month(out="30000", saving="10000", closed=False),
+            Situation.THIN,
+            Mood.WARNING,
+            "Ekim 2026'da gelen paranın şimdilik hepsi harcandı ya da ayrıldı.",
+        ),
+        (
+            month(out="45000", closed=False),
+            Situation.OVERSPENT,
+            Mood.CRITICAL,
+            "Ekim 2026'da giden para, şimdiden gelen paradan fazla.",
+        ),
+        (
+            month(out="36000", saving="4500", closed=False),
+            Situation.OVERSPENT,
+            Mood.CRITICAL,
+            "Ekim 2026'da giden ve birikime ayrılan para, şimdiden gelen paradan fazla.",
+        ),
+        (
+            month(income="0", out="0", closed=False),
+            Situation.QUIET,
+            Mood.NEUTRAL,
+            "Ekim 2026'da şimdilik ne gelir geldi ne harcama yapıldı.",
+        ),
+    ],
+)
+def test_a_month_still_waiting_for_documents_says_its_verdict_for_now(story, situation, mood, reason):
+    """Its card statements' last days may still add spending: what is left is so far, what went out beyond the money
+    in already did."""
+    assert said(facts(story=story))[0] == (situation, mood, reason)
+
+
+def test_a_month_still_open_is_never_the_best_one():
+    assert [s for s, _, _ in said(facts(story=month(best=6, closed=False)))] == [Situation.GOOD]
+
+
 # --- what else stands -------------------------------------------------------------------------------------------------
 
 
@@ -162,7 +241,7 @@ def test_a_forecast_below_zero_comes_before_everything(negative, mood, reason):
     found = said(facts(story=month(out="45000"), negative=negative, net_worth="-5"))
     assert found[0] == (Situation.GOING_NEGATIVE, mood, reason)
     assert [s for s, _, _ in found] == [Situation.GOING_NEGATIVE, Situation.OVERSPENT, Situation.IN_DEBT]
-    assert {s.quote.id for s in choose(facts(negative=negative), TODAY)} == {"linden_tree", "two_lindens"}
+    assert {s.quote.id for s in choose(facts(negative=negative), TODAY)} == set(LINES[Situation.GOING_NEGATIVE])
 
 
 def test_debts_larger_than_the_money_are_a_wedding_on_borrowed_means():
@@ -205,9 +284,32 @@ def test_the_day_turns_a_situations_lines_and_keeps_them_through_the_day():
     good = facts(story=month())
     days = [TODAY + timedelta(days=n) for n in range(4)]
     firsts = [choose(good, d)[0].quote.id for d in days]
-    assert firsts[0] != firsts[1] and firsts[0] == firsts[2] and firsts[1] == firsts[3]  # two lines, in turn
-    assert {s.quote.id for s in choose(good, TODAY)} == set(LINES[Situation.GOOD])  # the other follows
+    assert len(set(firsts[:3])) == 3 and firsts[0] == firsts[3]  # three lines, in turn
+    assert {s.quote.id for s in choose(good, TODAY)} == set(LINES[Situation.GOOD])  # the others follow
     assert [s.quote.id for s in choose(good, TODAY)] == [s.quote.id for s in choose(good, TODAY)]
+
+
+@pytest.mark.parametrize("situation", [s for s in Situation if s is not Situation.NO_DATA])
+def test_while_the_money_stands_the_same_the_line_shown_changes_from_one_day_to_the_next(situation):
+    """The user saw one line for weeks while a month with little left stayed the Pano's: every situation that leads
+    has two lines at least, so the next day brings another."""
+    lines = LINES[situation]
+    firsts = [lines[(TODAY + timedelta(days=n)).toordinal() % len(lines)] for n in range(len(lines))]
+    assert sorted(firsts) == sorted(lines)
+
+
+def test_a_line_that_fits_several_situations_comes_once_with_the_most_pressing():
+    # A price rise and fees share their lines: the fees still say their sentence, with the day's line again.
+    found = choose(facts(story=month(fees="50"), repriced=1), TODAY)
+    ids = [s.quote.id for s in found]
+    rise = [s.quote.id for s in found if s.situation is Situation.PRICE_RISE]
+    fees = [s for s in found if s.situation is Situation.FEES]
+    assert sorted(rise) == ["no_mercy", "toilet"]
+    assert len(fees) == 1 and fees[0].reason == "Ekim 2026'da bankalara faiz ve ücret ödendi."
+    assert len(ids) == len(set(ids)) + 1  # that one line, said twice, is the only repeat
+    # An income that came and a good month share "never_say_no": it comes once, with the income.
+    shared = choose(facts(story=month(), income_days=2), TODAY)
+    assert [s.situation for s in shared if s.quote.id == "never_say_no"] == [Situation.INCOME_ARRIVED]
 
 
 # --- whatever the facts -----------------------------------------------------------------------------------------------
@@ -223,6 +325,7 @@ months = st.builds(
     saving=money,
     foreign_income=st.booleans(),
     best=st.sampled_from([0, 3, 7]),
+    closed=st.booleans(),
 )
 every_facts = st.builds(
     Facts,
@@ -243,8 +346,17 @@ def test_every_situations_lines_come_once_in_order_and_no_sentence_names_an_amou
     order = list(Situation)
     positions = [order.index(s.situation) for s in found]
     assert positions == sorted(positions)  # the most pressing first
-    for situation in {s.situation for s in found}:
-        assert sorted(s.quote.id for s in found if s.situation is situation) == sorted(LINES[situation])
+    situations = list(dict.fromkeys(s.situation for s in found))
+    # Every line of the situations told comes, a line several fit once, with the first of them; a situation whose
+    # every line came before says its sentence once more with its day's line.
+    assert {s.quote.id for s in found} == {id for situation in situations for id in LINES[situation]}
+    said: set[str] = set()
+    for situation in situations:
+        mine = [s.quote.id for s in found if s.situation is situation]
+        fresh = [id for id in LINES[situation] if id not in said]
+        assert sorted(mine) == sorted(fresh) if fresh else len(mine) == 1
+        said.update(mine)
+    assert found[0].quote.id == LINES[found[0].situation][today.toordinal() % len(LINES[found[0].situation])]
     assert all("TL" not in s.reason and "₺" not in s.reason for s in found)
     if f.negative is not None:
         assert found[0].situation is Situation.GOING_NEGATIVE

@@ -1,16 +1,21 @@
 """İplikçi Nedim's word on the money (F06, and the browser extension's window): one of his lines from the series,
 chosen by what the documents show of the user's money today, with his face coloured by it.
 
-Every line belongs to a situation the dashboard tells: a forecast that goes below zero, a month that closed in the
+Every situation the dashboard tells has lines that fit it: a forecast that goes below zero, a month that ended in the
 red or with little left, debts larger than the money, more or less spent than in a typical month, a price rise, fees,
-a foreign income, money set aside, an income that came. Each comes with its situation in a sentence of its own, in
-words and shares only, never an amount, an account or a name: the extension shows it too (ADR-0020).
+a foreign income, money set aside, an income that came. A line may fit more than one situation, and every situation
+but "nothing known yet" has at least two, so the line shown is not the same day after day while the money stands the
+same. Each comes with its
+situation in a sentence of its own, in words and shares only, never an amount, an account or a name: the extension
+shows it too (ADR-0020).
 
 The situations are listed most pressing first. The first one's line is the one shown, and it changes with the day
-among that situation's lines; the rest follow in order, for "Başka bir söz". A month's verdict is the Pano's own: the
-newest closed month whose income is known, what was left of its money in once what went out (spending, money sent to
-people, loan principal) and what was saved are taken off, as the month-end page says; "little left" below a tenth of
-it (web dashboard/Overview). This month against the typical one is the dashboard's comparison, with its conditions.
+among that situation's lines; the rest follow in order, for "Başka bir söz", each line once. A month's verdict is the
+Pano's own: the newest ended month whose income is known, closed or still waiting for its documents, what was left of
+its money in once what went out (spending, money sent to people, loan principal) and what was saved are taken off, as
+the month-end page says; "little left" below a tenth of it (web dashboard/Overview). A month still open says "for now"
+("şimdilik"), and only a closed one is compared with the closed months before it. This month against the typical one is
+the dashboard's comparison, with its conditions.
 """
 
 from collections.abc import Iterator
@@ -105,29 +110,50 @@ QUOTES: dict[str, Quote] = {
     )
 }
 
-# Each situation's lines; every line belongs to one.
+# The lines that fit each situation, the closest first; a line may fit several, and every one fits at least one.
 LINES: dict[Situation, tuple[str, ...]] = {
-    Situation.GOING_NEGATIVE: ("linden_tree", "two_lindens"),  # nerves
-    Situation.OVERSPENT: ("dark_future",),
-    Situation.IN_DEBT: ("bride",),  # living on someone else's money
-    Situation.SPENDING_MORE: ("generosity",),
-    Situation.THIN: ("engineless_car",),
-    Situation.BEST_MONTH: ("who_is_bigger",),
-    Situation.FOREIGN_INCOME: ("never_enough_currency", "moustached_foreigners", "loves_growth"),
-    Situation.SPENDING_LESS: ("tough_man",),
-    Situation.SAVING: ("hide_your_goods", "money_or_life"),
-    Situation.INCOME_ARRIVED: ("safe_door", "no_to_money"),
-    Situation.GOOD: ("money_for_the_able", "never_say_no"),
-    Situation.PRICE_RISE: ("no_mercy",),
-    Situation.FEES: ("toilet",),  # paying for nothing
-    Situation.QUIET: ("cakir_dear",),
+    # Nerves and a dark future; a debt on someone else's money is near.
+    Situation.GOING_NEGATIVE: ("linden_tree", "two_lindens", "dark_future", "bride"),
+    # A dark future; generosity that kills, power without money, nerves, someone else's money.
+    Situation.OVERSPENT: ("dark_future", "generosity", "engineless_car", "linden_tree", "bride"),
+    # Living on someone else's money; power without money; a dark future.
+    Situation.IN_DEBT: ("bride", "engineless_car", "dark_future"),
+    # Generosity that kills; nerves.
+    Situation.SPENDING_MORE: ("generosity", "two_lindens", "linden_tree"),
+    # Power without money; generosity that kills; money is life.
+    Situation.THIN: ("engineless_car", "generosity", "money_or_life"),
+    # Who is bigger; money is for the able; growth.
+    Situation.BEST_MONTH: ("who_is_bigger", "money_for_the_able", "loves_growth"),
+    # Foreign currency and hot money; never a no to money.
+    Situation.FOREIGN_INCOME: (
+        "never_enough_currency",
+        "moustached_foreigners",
+        "loves_growth",
+        "no_to_money",
+        "never_say_no",
+    ),
+    # The tough man who spends little; goods kept hidden.
+    Situation.SPENDING_LESS: ("tough_man", "hide_your_goods"),
+    # Goods kept hidden; money is life; the safe's door.
+    Situation.SAVING: ("hide_your_goods", "money_or_life", "safe_door"),
+    # The safe's door; never a no to money.
+    Situation.INCOME_ARRIVED: ("safe_door", "no_to_money", "never_say_no"),
+    # Money is for the able; never a no to money; goods kept hidden.
+    Situation.GOOD: ("money_for_the_able", "never_say_no", "hide_your_goods"),
+    # No mercy left; a price for nothing.
+    Situation.PRICE_RISE: ("no_mercy", "toilet"),
+    # Paying for nothing; no mercy left.
+    Situation.FEES: ("toilet", "no_mercy"),
+    # Nothing came in, nothing went out: a sigh, or a shrug.
+    Situation.QUIET: ("cakir_dear", "dont_know"),
+    # Nothing known yet: he says so, and only so.
     Situation.NO_DATA: ("dont_know",),
 }
 
 
 @dataclass(frozen=True, slots=True)
 class MonthFacts:
-    """The newest closed month whose income is known: the Pano's story month."""
+    """The newest ended month whose income is known: the Pano's story month."""
 
     month: str  # YYYY-MM
     income: Decimal
@@ -137,6 +163,9 @@ class MonthFacts:
     saving: Decimal  # what went to savings and investments
     foreign_income: bool  # income came into a foreign-currency account in it
     best: int  # how many closed months it left the most money of; 0 when it is not the best of BEST_OF or more
+    # Every document of it came and checks out; an open month's figures are the documents' so far: its card statements'
+    # last days may still add spending.
+    closed: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,25 +217,29 @@ def _going_negative(n: Negative) -> tuple[Situation, Mood, str]:
 def _verdict(m: MonthFacts) -> tuple[Situation, Mood, str]:
     """The month's verdict, as the Pano's: more went out than came in, little left, a part of it left, or nothing
     moved. What is left is the month-end page's: the income less the spending, the money sent to people, the loan
-    principal repaid and what was saved."""
+    principal repaid and what was saved. A month still open says it for now: the documents still to come can only add
+    to what went out, so what went out beyond the money in already did ("şimdiden")."""
     at = _in(m.month)
+    now = "" if m.closed else "şimdilik "
     if m.left < 0:
         saved = " ve birikime ayrılan" if m.saving > 0 else ""
-        return Situation.OVERSPENT, Mood.CRITICAL, f"{at} giden{saved} para, gelen paradan fazlaydı."
+        more = "gelen paradan fazlaydı" if m.closed else "şimdiden gelen paradan fazla"
+        return Situation.OVERSPENT, Mood.CRITICAL, f"{at} giden{saved} para, {more}."
     if m.income == 0:  # nothing went out either, or refunds only
-        return Situation.QUIET, Mood.NEUTRAL, f"{at} ne gelir geldi ne harcama yapıldı."
+        return Situation.QUIET, Mood.NEUTRAL, f"{at} {now}ne gelir geldi ne harcama yapıldı."
     if m.left == 0:
-        return Situation.THIN, Mood.WARNING, f"{at} gelen paranın hepsi harcandı ya da ayrıldı."
+        return Situation.THIN, Mood.WARNING, f"{at} gelen paranın {now}hepsi harcandı ya da ayrıldı."
     if _share(m) < THIN:
-        return Situation.THIN, Mood.WARNING, f"{at} gelen paranın yalnızca {pct(_share(m))} elde kaldı."
-    return Situation.GOOD, Mood.GOOD, f"{at} gelen paranın {pct(_share(m))} elde kaldı."
+        return Situation.THIN, Mood.WARNING, f"{at} gelen paranın {now}yalnızca {pct(_share(m))} elde kaldı."
+    return Situation.GOOD, Mood.GOOD, f"{at} gelen paranın {now}{pct(_share(m))} elde kaldı."
 
 
 def _month(m: MonthFacts) -> Iterator[tuple[Situation, Mood, str]]:
-    """The month's verdict, whether it was the best one, and what else came in or went out in it."""
+    """The month's verdict, whether it was the best one (a closed month only), and what else came in or went out in
+    it."""
     at = _in(m.month)
     yield _verdict(m)
-    if m.best:
+    if m.best and m.closed:
         reason = f"{month_name(m.month)}, kapanan son {m.best} ay içinde en çok paranın kaldığı ay oldu."
         yield Situation.BEST_MONTH, Mood.GOOD, reason
     if m.foreign_income:
@@ -244,40 +277,51 @@ def _situations(f: Facts) -> Iterator[tuple[Situation, Mood, str]]:
 
 def choose(facts: Facts, today: date) -> list[Saying]:
     """Every line the facts call for, the situations in Situation's order, most pressing first. Within a situation
-    the day decides which line leads, so the line shown changes from one day to the next and stays through a day."""
+    the day decides which line leads, so the line shown changes from one day to the next and stays through a day.
+
+    A line that fits several situations comes once, with the most pressing of them; a situation whose every line came
+    before keeps its day's line, so each situation is still told."""
     order = list(Situation)
     found = sorted(_situations(facts), key=lambda item: order.index(item[0]))
     if not found:
         reason = (
-            "Henüz kapanan bir ayın geleni ve gideni bilinmiyor."
+            "Henüz biten bir ayın geleni ve gideni bilinmiyor."
             if facts.documents
             else "Henüz belge yok; paranın nasıl gittiği bilinmiyor."
         )
         found = [(Situation.NO_DATA, Mood.NEUTRAL, reason)]
     out: list[Saying] = []
+    said: set[str] = set()
     for situation, mood, reason in found:
         lines = LINES[situation]
         turn = today.toordinal() % len(lines)
-        out += [Saying(situation, mood, reason, QUOTES[id]) for id in lines[turn:] + lines[:turn]]
+        turned = lines[turn:] + lines[:turn]
+        fresh = [id for id in turned if id not in said] or turned[:1]
+        said.update(fresh)
+        out += [Saying(situation, mood, reason, QUOTES[id]) for id in fresh]
     return out
 
 
 # --- the facts, from the dashboard ------------------------------------------------------------------------------------
 
 
-def _story(a: Analysis, closed: list[Closing], today: date) -> MonthFacts | None:
-    """The newest closed month whose income is known, and whether it left the most money of the closed months."""
-    known = [(c, c.income) for c in closed if c.income is not None]
+def _story(a: Analysis, months: list[Closing], today: date) -> MonthFacts | None:
+    """The Pano's story month: the newest ended month whose income is known, closed or still open, as the Pano tells
+    it (web dashboard/Overview). A closed one is the best when it left the most money of the closed months; an open one
+    is compared with none, as its last days may still add spending."""
+    known = [(c, c.income) for c in months if c.status is not MonthStatus.RUNNING and c.income is not None]
     if not known:
         return None
     story, income = known[-1]
     left = income - story.out - story.saving  # Closing.left, which is None only without the income
-    before = [i - c.out - c.saving for c, i in known[:-1]]
+    closed = story.status is MonthStatus.CLOSED
+    before = [i - c.out - c.saving for c, i in known[:-1] if c.status is MonthStatus.CLOSED]
     good = income > 0 and left / income >= THIN
-    best = len(known) if good and len(known) >= BEST_OF and all(left > b for b in before) else 0
+    count = len(before) + 1
+    best = count if closed and good and count >= BEST_OF and all(left > b for b in before) else 0
     rows = [row for c in exchange.foreign_income(a.dataset, today).currencies for row in c.rows]
     foreign = any(month_of(row.day) == story.month for row in rows)
-    return MonthFacts(story.month, income, story.out, left, story.fees, story.saving, foreign, best)
+    return MonthFacts(story.month, income, story.out, left, story.fees, story.saving, foreign, best, closed)
 
 
 def _negative(board: Dashboard, today: date) -> Negative | None:
@@ -308,7 +352,7 @@ def facts(a: Analysis, board: Dashboard, today: date) -> Facts:
     rises = [f for f in repriced(a.insights, today) if Decimal(f.detail["new"]) > Decimal(f.detail["old"])]
     return Facts(
         documents=bool(board.freshness.accounts or worth.parts),
-        month=_story(a, [c for c in board.closing.months if c.status is MonthStatus.CLOSED], today),
+        month=_story(a, board.closing.months, today),
         negative=_negative(board, today),
         # The money no document tells yet came from what the accounts hold: taken off, it can leave them empty, but
         # never more in debt than their debts.

@@ -421,25 +421,34 @@ def test_nedim_says_the_last_closed_months_verdict_as_the_pano_does_and_then_its
     assert minor["out"] == minor["expense"] + minor["people"] + minor["debt"]
     assert minor["left"] == minor["income"] - minor["out"] - minor["saving"]
     assert round(minor["left"] / minor["income"] * 100) == 49
-    first, second, fees = demo_board["sayings"]
+    found = demo_board["sayings"]
+    first = found[0]
     assert (first["situation"], first["mood"], first["reason"]) == (
         "good",
         "good",
         "Ekim 2026'da gelen paranın %49'u elde kaldı.",
     )
-    assert second["situation"] == "good" and {first["quote"]["id"], second["quote"]["id"]} == {
-        "money_for_the_able",
-        "never_say_no",
-    }
-    assert fees == {
-        "situation": "fees",
-        "mood": "warning",
-        "reason": "Ekim 2026'da bankalara faiz ve ücret ödendi.",
-        "quote": {
-            "id": "toilet",
-            "lines": ["Allah belasını versin büyük Ortadoğu'nun… Tuvalet mi canım bu? Küçük bin, büyük iki bin."],
-        },
-    }
+    good = [s for s in found if s["situation"] == "good"]
+    assert {s["quote"]["id"] for s in good} == {"money_for_the_able", "never_say_no", "hide_your_goods"}
+    fees = [s for s in found if s["situation"] == "fees"]
+    assert {s["reason"] for s in fees} == {"Ekim 2026'da bankalara faiz ve ücret ödendi."}
+    assert {s["mood"] for s in fees} == {"warning"}
+    toilet = next(s["quote"] for s in fees if s["quote"]["id"] == "toilet")
+    assert toilet["lines"] == [
+        "Allah belasını versin büyük Ortadoğu'nun… Tuvalet mi canım bu? Küçük bin, büyük iki bin."
+    ]
+    assert [s["situation"] for s in found] == ["good"] * len(good) + ["fees"] * len(fees)
+    assert len({s["quote"]["id"] for s in found}) == len(found)  # each line once
+
+
+def test_nedim_tells_the_month_that_ended_before_its_cards_statement_comes_for_now(garanti_ws):
+    """October waits for the card's statement that covers its last days: it is the month he speaks of, as the Pano
+    tells it, and what is left is so far."""
+    found = board(garanti_ws, date(2026, 11, 3))
+    october = next(m for m in found["closing"]["months"] if m["month"] == "2026-10")
+    assert october["status"] == "waiting"
+    first = found["sayings"][0]
+    assert (first["situation"], first["reason"]) == ("good", "Ekim 2026'da gelen paranın şimdilik %60'ı elde kaldı.")
 
 
 def test_a_forecast_below_zero_is_what_nedim_says_first_and_the_extension_hears_the_same(ws):
@@ -451,7 +460,7 @@ def test_a_forecast_below_zero_is_what_nedim_says_first_and_the_extension_hears_
         "warning",  # 40 days away: a week or less is critical
         "Öngörüye göre hesaplarınızdan biri 40 gün sonra eksiye düşecek.",
     )
-    assert first["quote"]["id"] in {"linden_tree", "two_lindens"}
+    assert first["quote"]["id"] in {"linden_tree", "two_lindens", "dark_future", "bride"}  # nerves, a dark future
     extension = bridge.pair(ws, "Chrome")
     heard = client_for(ws, today).get("/api/bridge/sayings", headers={"Authorization": f"Bearer {extension.token}"})
     assert heard.status_code == 200, heard.text
