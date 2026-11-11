@@ -23,3 +23,18 @@ test("Pano'da İplikçi Nedim yüzüyle paranın durumuna göre konuşur ve baş
   await said.getByRole("button", { name: "Başka bir söz" }).click();
   await expect(line).not.toHaveText(first);
 });
+
+test("Pano'nun hikâyesi biten son ayı anlatır ve oklarla önceki aya gider", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("status", { name: "Yükleniyor…" })).toHaveCount(0, { timeout: 15_000 });
+  const story = page.getByRole("region", { name: /: paranız ne durumda\?$/ });
+  await expect(story).toBeVisible();
+  const title = await story.getByRole("heading", { level: 2 }).innerText();
+  const before = story.getByRole("navigation", { name: "Aylar" }).getByRole("link", { name: /^Önceki ay: / });
+  const name = (await before.innerText()).replace(/^Önceki ay:\s*/, "").trim(); // the words after its hidden lead
+  await before.click();
+  await expect(page).toHaveURL(/\/\?ay=\d{4}-\d{2}$/);
+  await expect(page.getByRole("region", { name: `${name}: paranız ne durumda?` })).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole("region", { name: title })).toBeVisible();
+});

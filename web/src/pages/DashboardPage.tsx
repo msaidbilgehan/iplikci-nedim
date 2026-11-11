@@ -1,6 +1,7 @@
 // The Pano screen (F06), the home page. İplikçi Nedim has his say first, in both views (dashboard/NedimSays). The
-// simple view tells the money in pictures, for anyone: the last closed month's money in, out and left, the months as
-// bars, where the money went, the next 30 days and what to do now (dashboard/Overview). The detailed view gives the
+// simple view tells the money in pictures, for anyone: the newest ended month's money in, out and left (for now while
+// it waits for documents), the months as bars, where the money went, the next 30 days and what to do now
+// (dashboard/Overview). The detailed view gives the
 // net worth, this month against the typical month, the payments due within a week, the open alerts, the last seven
 // months' closing, how fresh each account's documents are and how much there is to see to: four of them as figures
 // first, then every card with its table, each saying in one sentence what it shows (the service's `say`) and leading

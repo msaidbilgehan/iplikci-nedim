@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
@@ -118,7 +118,9 @@ describe("Overview", () => {
     ).toBeInTheDocument();
   });
 
-  it("says why an ended month after the story's is not told yet, by when it closes and what it shows so far", async () => {
+  it("tells the newest ended month before it closes, for now, with what it waits for and by when", async () => {
+    // On 11 November October still waits for the card statements that cover its last days: it is told at once, not
+    // September for weeks more.
     const card = (label: string, waiting_for: string) => ({ account: { id: label, label }, waiting_for });
     const months = DASHBOARD.closing.months.map(
       (month): MonthClosing =>
@@ -135,12 +137,13 @@ describe("Overview", () => {
           : month,
     );
     renderScreen(<Overview found={{ ...DASHBOARD, closing: { ...DASHBOARD.closing, months } }} />);
-    const story = await region("Eylül 2026: paranız ne durumda?");
+    const story = await region("Ekim 2026: paranız ne durumda?");
+    expect(within(story).getByText("Şimdilik kalan")).toBeInTheDocument();
+    expect(within(story).getByText("Gelen paranın şimdilik %50'si elinizde kaldı. İyi gidiyor.")).toBeInTheDocument();
     expect(
       within(story).getByText(
         "Ekim 2026 henüz kapanmadı: ayın son günlerini kapsayan 2 belge bekleniyor, sonuncusu 24.11.2026 civarında " +
-          "gelir. Şimdiye kadar gelen belgelere göre Ekim 2026'da 19.977,99 TL harcandı; ay kapanınca bu özet o " +
-          "ayı gösterir.",
+          "gelir. Rakamlar şimdiye kadar gelen belgelere göre; belgeler gelince giden artabilir, kalan azalabilir.",
       ),
     ).toBeInTheDocument();
     expect(within(story).getByRole("link", { name: "Ekim 2026 için ne bekleniyor?" })).toHaveAttribute(
@@ -149,6 +152,27 @@ describe("Overview", () => {
     );
     // The month that runs is told after it, as before.
     expect(within(story).getByText("Kasım 2026 sürüyor: şimdiye kadar 4.200,00 TL harcandı.")).toBeInTheDocument();
+    const where = await region("Paranız nereye gitti?");
+    expect(
+      await within(where).findByText("Ekim 2026'da şimdiye kadar 110.700,00 TL harcandı; en çok Kira: 75.000,00 TL."),
+    ).toBeInTheDocument();
+  });
+
+  it("says what went out beyond the money in already, while the month waits for its documents", async () => {
+    const months = DASHBOARD.closing.months.map(
+      (month): MonthClosing =>
+        month.month === "2026-10"
+          ? { ...month, status: "waiting", expense: tl(4200000), out: tl(4200000), left: tl(-200000) }
+          : month,
+    );
+    renderScreen(<Overview found={{ ...DASHBOARD, closing: { ...DASHBOARD.closing, months } }} />);
+    const story = await region("Ekim 2026: paranız ne durumda?");
+    expect(
+      within(story).getByText(
+        "Giden para şimdiden gelenden 2.000,00 TL fazla: bu ay gelirinizden çok para çıktı. " +
+          "Aşağıda paranın nereye gittiğine bakın.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("says a month held open without a day to promise, or by a missing document, in its own words", async () => {
@@ -160,20 +184,73 @@ describe("Overview", () => {
             ? { ...month, status: "waiting", waiting: [{ account: CASH_REF, waiting_for: "25–31 Ekim hesap dökümü" }] }
             : month,
     );
-    renderScreen(<Overview found={{ ...DASHBOARD, closing: { ...DASHBOARD.closing, months } }} />);
+    const { location } = renderScreen(<Overview found={{ ...DASHBOARD, closing: { ...DASHBOARD.closing, months } }} />);
+    const story = await region("Ekim 2026: paranız ne durumda?");
+    expect(
+      within(story).getByText(
+        "Ekim 2026 henüz kapanmadı: ayın son günlerini kapsayan bir belge bekleniyor. Rakamlar şimdiye kadar gelen " +
+          "belgelere göre; belge gelince giden artabilir, kalan azalabilir.",
+      ),
+    ).toBeInTheDocument();
+    await userEvent.click(within(story).getByRole("link", { name: "Önceki ay: Eylül 2026" }));
+    expect(location()).toBe("/?ay=2026-09");
+    const september = await region("Eylül 2026: paranız ne durumda?");
+    expect(
+      within(september).getByText(
+        "Eylül 2026 kapanmadı: ayın bazı günlerinin belgesi eksik. Rakamlar şimdiye kadar gelen belgelere göre; " +
+          "eksik belgeler eklenince değişebilir.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("goes to the months before and back to the newest, keeping the month in the address", async () => {
+    let asked = "";
+    server.use(
+      http.get("/api/spending", ({ request }) => {
+        asked = new URL(request.url).search;
+        return HttpResponse.json(SPENDING);
+      }),
+    );
+    const { location } = renderScreen(<Overview found={DASHBOARD} />, { path: "/?ay=2026-08" });
     const story = await region("Ağustos 2026: paranız ne durumda?");
+    await waitFor(() => expect(asked).toBe("?from=2026-08-01&to=2026-08-31")); // where that month's money went
+    const months = within(story).getByRole("navigation", { name: "Aylar" });
+    expect(within(months).getByRole("link", { name: "Önceki ay: Temmuz 2026" })).toHaveAttribute("href", "/?ay=2026-07");
+    // The newest is the Pano's own: its address needs no month.
+    await userEvent.click(within(months).getByRole("link", { name: "Sonraki ay: Eylül 2026" }));
+    expect(location()).toBe("/?ay=2026-09");
+    const next = within(await region("Eylül 2026: paranız ne durumda?")).getByRole("link", {
+      name: "Sonraki ay: Ekim 2026",
+    });
+    expect(next).toHaveAttribute("href", "/");
+    await userEvent.click(next);
+    expect(location()).toBe("/");
+    const newest = await region("Ekim 2026: paranız ne durumda?");
+    expect(within(newest).queryByRole("link", { name: /^Sonraki ay/ })).not.toBeInTheDocument();
+  });
+
+  it("opens on the newest ended month when the address names one the story cannot tell", async () => {
+    renderScreen(<Overview found={DASHBOARD} />, { path: "/?ay=2026-11" }); // the month that runs is none of them
+    expect(await region("Ekim 2026: paranız ne durumda?")).toBeInTheDocument();
+  });
+
+  it("says why an ended month whose money in is not known yet is not told, and what it shows so far", async () => {
+    const months = DASHBOARD.closing.months.map(
+      (month): MonthClosing =>
+        month.month === "2026-10" ? { ...month, status: "waiting", income: null, left: null } : month,
+    );
+    renderScreen(<Overview found={{ ...DASHBOARD, closing: { ...DASHBOARD.closing, months } }} />);
+    const story = await region("Eylül 2026: paranız ne durumda?");
     expect(
       within(story).getByText(
-        "Eylül 2026 kapanmadı: ayın bazı günlerinin belgesi eksik. Şimdiye kadar gelen belgelere göre Eylül 2026'da " +
-          "19.977,99 TL harcandı; eksik belgeler eklenince bu özet o ayı gösterir.",
+        "Ekim 2026: gelen para henüz bilinmiyor, çünkü hesap dökümleri ayın yarısını kapsamıyor; dökümler gelince bu " +
+          "özet o ayı gösterir. Şimdiye kadar gelen belgelere göre Ekim 2026'da 19.977,99 TL harcandı.",
       ),
     ).toBeInTheDocument();
-    expect(
-      within(story).getByText(
-        "Ekim 2026 henüz kapanmadı: ayın son günlerini kapsayan bir belge bekleniyor. Şimdiye kadar gelen belgelere " +
-          "göre Ekim 2026'da 19.977,99 TL harcandı; ay kapanınca bu özet o ayı gösterir.",
-      ),
-    ).toBeInTheDocument();
+    expect(within(story).getByRole("link", { name: "Ekim 2026 için ne bekleniyor?" })).toHaveAttribute(
+      "href",
+      "/ay-sonu/2026-10",
+    );
   });
 
   it("says plainly that no document shows the running month's spending yet", async () => {
@@ -189,11 +266,11 @@ describe("Overview", () => {
     ).toBeInTheDocument();
   });
 
-  it("waits for the first closed month before telling one", async () => {
+  it("waits for a month whose money in is known before telling one", async () => {
     const months = DASHBOARD.closing.months.map((month): MonthClosing => ({ ...month, income: null }));
     renderScreen(<Overview found={{ ...DASHBOARD, closing: { ...DASHBOARD.closing, months } }} />);
     const story = await region("Paranız ne durumda?");
-    expect(within(story).getByText(/^Henüz kapanan bir ay yok\./)).toBeInTheDocument();
+    expect(within(story).getByText(/^Henüz gelen parası bilinen bir ay yok\./)).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Aylara göre gelen ve giden" })).not.toBeInTheDocument();
   });
 

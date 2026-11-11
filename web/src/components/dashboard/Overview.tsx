@@ -1,19 +1,22 @@
 // The simple view's home (F06), for anyone, with or without finance words: where the money stands, read as pictures
-// first. The last closed month's money in, out, saved and left as figures and one bar, with a sentence saying how it
+// first. The newest ended month's money in, out, saved and left as figures and one bar, with a sentence saying how it
 // went: out is the spending, the money sent to people and the loan principal repaid, and left is the income less what
-// went out and what was saved, as the month-end page says. An ended month after it that has not closed says why the
-// story is not its own: the statements it waits for and by when, or what else holds it, with what it shows so far.
-// The months before as bars above and below a line; where
-// that month's money went, by category; the next 30 days' money as a line with what is to be paid and to come in; and
-// what to do now, each with its button. Every chart says how to read it and has its table (ChartFrame). The figures
-// are the service's: a month's are its closing, the forecast is the calendar's, the advice the assessment's steps;
-// nothing typical is reckoned here. Every chart leads on: a month's money in to its income, its money out to the rows
-// that went out and its saving to its savings, a category to its rows of the month, a day of the next 30 to what the
-// calendar expects on it.
+// went out and what was saved, as the month-end page says. A month that ended but still waits for documents (a card's
+// statement covers its last days weeks later) is told at once, its figures and its verdict "for now" (şimdilik), with
+// what it waits for and by when; until v0.10.1 the story waited for the month to close and told the one before it
+// for weeks. The arrows beside its title go to the months before (?ay=). An ended month whose money in is not known
+// yet (its account lists cover too little of it) says so in its own sentence. Then the months as bars above and below
+// a line; where the story month's money went, by category; the next 30 days' money as a line with what is to be paid
+// and to come in; and what to do now, each with its button. Every chart says how to read it and has its table
+// (ChartFrame). The figures are the service's: a month's are its closing, the forecast is the calendar's, the advice
+// the assessment's steps; nothing typical is reckoned here. Every chart leads on: a month's money in to its income,
+// its money out to the rows that went out and its saving to its savings, a category to its rows of the month, a day of
+// the next 30 to what the calendar expects on it.
 
 import type { TFunction } from "i18next";
 import { type ReactNode, useId } from "react";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router";
 
 import { useForecast, useInsights, useSpending } from "../../api/queries";
 import type { CalendarItem, Dashboard, Forecast, MonthClosing, OpenAlert } from "../../api/types";
@@ -28,7 +31,16 @@ import { SLOT_BG } from "../charts/palette";
 import { StackedBars } from "../charts/StackedBars";
 import { Failure, Loading } from "../QueryState";
 import { Card } from "../ui/Card";
-import { ArrowRightIcon, BankIcon, ChecklistIcon, ExclamationIcon, LightbulbIcon, UploadIcon } from "../ui/Icons";
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  BankIcon,
+  ChecklistIcon,
+  ExclamationIcon,
+  LightbulbIcon,
+  UploadIcon,
+} from "../ui/Icons";
+import { LinkButton } from "../ui/LinkButton";
 import { INCOMING } from "../ui/Money";
 import { AddressStep, NextStep, ScreenLink } from "../ui/Say";
 
@@ -42,20 +54,27 @@ const THIN = 0.1; // less than this share of the income left: said to be little
 
 const tl = (minor: number) => ({ minor, currency: "TRY" });
 
-/** The months whose money in is known, oldest first; the newest closed one is the story's. */
+/** The months whose money in is known, oldest first. */
 function knownMonths(months: readonly MonthClosing[]): MonthClosing[] {
   return months.filter((m) => m.income !== null);
 }
 
+const MONTH = "ay"; // the address names a month of the story's other than the newest (?ay=2026-09)
+
 export function Overview({ found }: { found: Dashboard }) {
+  const [params] = useSearchParams();
   const months = knownMonths(found.closing.months);
-  const story = [...months].reverse().find((m) => m.status === "closed") ?? months.at(-1) ?? null;
+  // The months the story tells: those that ended, their money in known, closed or still waiting for documents. The
+  // newest is told unless the address names another; a month that runs is told only while none has ended.
+  const ended = months.filter((m) => m.status !== "running");
+  const latest = ended.at(-1) ?? months.at(-1) ?? null;
+  const story = ended.find((m) => m.month === params.get(MONTH)) ?? latest;
   return (
     <div className="flex flex-col gap-6">
-      <MonthStory found={found} month={story} />
+      <MonthStory found={found} month={story} months={ended} isLatest={story === latest} />
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <MonthsChart months={months} />
-        {story ? <WhereItWent month={story.month} /> : null}
+        {story ? <WhereItWent month={story.month} isOpen={story.status !== "closed"} /> : null}
       </div>
       <NextDays />
       <WhatToDo found={found} />
@@ -63,7 +82,7 @@ export function Overview({ found }: { found: Dashboard }) {
   );
 }
 
-// --- the last closed month ----------------------------------------------------------------------------------------
+// --- the story's month ---------------------------------------------------------------------------------------------
 
 interface FigureProps {
   label: string;
@@ -165,24 +184,41 @@ function outContext(month: MonthClosing): string {
 
 type Tone = "good" | "warning" | "critical";
 
-/** The month's verdict, as İplikçi Nedim's (app.sayings): more went out than came in, little left, or a part left. */
-function verdictOf({ moneyIn, moneyOut, saved, left }: Money, t: TFunction<"dashboard">): { tone: Tone; said: string } {
+/**
+ * The month's verdict, as İplikçi Nedim's (app.sayings): more went out than came in, little left, or a part left. A
+ * month still open says it for now: its documents to come can only add to what went out.
+ */
+function verdictOf(
+  { moneyIn, moneyOut, saved, left }: Money,
+  isOpen: boolean,
+  t: TFunction<"dashboard">,
+): { tone: Tone; said: string } {
   const share = moneyIn > 0 ? left / moneyIn : 0;
   const context = saved > 0 ? "saved" : "";
   const savedShare = moneyIn > 0 ? saved / moneyIn : 0;
   if (moneyIn === 0 && moneyOut === 0 && saved === 0) {
-    return { tone: "good", said: t("overview.story.quiet") };
+    return { tone: "good", said: t(isOpen ? "overview.story.quietOpen" : "overview.story.quiet") };
   }
   if (left < 0) {
-    return { tone: "critical", said: t("overview.story.over", { amount: formatMoney(tl(-left)), context }) };
+    const amount = formatMoney(tl(-left));
+    return { tone: "critical", said: t(isOpen ? "overview.story.overOpen" : "overview.story.over", { amount, context }) };
   }
   if (moneyIn > 0 && share < THIN) {
-    return { tone: "warning", said: t("overview.story.thin", { share, saved: savedShare, context }) };
+    const said = t(isOpen ? "overview.story.thinOpen" : "overview.story.thin", { share, saved: savedShare, context });
+    return { tone: "warning", said };
   }
-  return { tone: "good", said: t("overview.story.good", { share, saved: savedShare, context }) };
+  const said = t(isOpen ? "overview.story.goodOpen" : "overview.story.good", { share, saved: savedShare, context });
+  return { tone: "good", said };
 }
 
-function MonthStory({ found, month }: { found: Dashboard; month: MonthClosing | null }) {
+interface MonthStoryProps {
+  found: Dashboard;
+  month: MonthClosing | null;
+  months: readonly MonthClosing[]; // the ended months the story can tell, oldest first
+  isLatest: boolean; // the newest of them, as the Pano opens on
+}
+
+function MonthStory({ found, month, months, isLatest }: MonthStoryProps) {
   const { t } = useTranslation("dashboard");
   const running = found.closing.months.find((m) => m.status === "running");
   const worth = found.net_worth;
@@ -207,6 +243,12 @@ function MonthStory({ found, month }: { found: Dashboard; month: MonthClosing | 
       <Card title={t("overview.story.titleNone")}>
         <div className="flex flex-col gap-3">
           <p className="text-base">{t("overview.story.none")}</p>
+          {/* Why none is told yet: the newest ended month, whose money in is not known yet. */}
+          {heldAfter(found.closing.months, "")
+            .slice(-1)
+            .map((held) => (
+              <HeldMonth key={held.month} month={held} />
+            ))}
           {total}
         </div>
       </Card>
@@ -219,10 +261,14 @@ function MonthStory({ found, month }: { found: Dashboard; month: MonthClosing | 
     saved: month.saving.minor,
     left: month.left.minor,
   };
-  const { tone, said } = verdictOf(money, t);
+  const isOpen = month.status !== "closed";
+  const { tone, said } = verdictOf(money, isOpen, t);
   const over = money.left < 0;
   return (
-    <Card title={t("overview.story.title", { month: formatMonth(month.month) })}>
+    <Card
+      title={t("overview.story.title", { month: formatMonth(month.month) })}
+      action={<MonthNav months={months} current={month.month} />}
+    >
       <div className="flex flex-col gap-4">
         <dl className="flex flex-col gap-3 sm:flex-row">
           <Figure
@@ -246,7 +292,7 @@ function MonthStory({ found, month }: { found: Dashboard; month: MonthClosing | 
             />
           ) : null}
           <Figure
-            label={over ? t("overview.story.overLabel") : t("overview.story.left")}
+            label={over ? t("overview.story.overLabel") : t(isOpen ? "overview.story.leftOpen" : "overview.story.left")}
             hint={t("overview.story.leftHint", { context: money.saved > 0 ? "saved" : "" })}
             value={formatMoney(tl(Math.abs(money.left)))}
             tone={over ? "over" : "left"}
@@ -264,10 +310,10 @@ function MonthStory({ found, month }: { found: Dashboard; month: MonthClosing | 
           {tone === "good" ? null : <ExclamationIcon className="mt-1 size-4 shrink-0" />}
           <span>{said}</span>
         </p>
-        {month.status === "closed" ? null : <p className={SMALL}>{t("overview.story.partial")}</p>}
-        {heldAfter(found.closing.months, month.month).map((held) => (
-          <HeldMonth key={held.month} month={held} />
-        ))}
+        {isOpen ? <OpenMonth month={month} /> : null}
+        {isLatest
+          ? heldAfter(found.closing.months, month.month).map((held) => <HeldMonth key={held.month} month={held} />)
+          : null}
         {running && running.month !== month.month ? (
           <p className={SMALL}>
             {running.expense.minor > 0
@@ -281,31 +327,89 @@ function MonthStory({ found, month }: { found: Dashboard; month: MonthClosing | 
   );
 }
 
-/** The ended months after the story's that have not closed, oldest first: each says why the story is not its own. */
-function heldAfter(months: readonly MonthClosing[], story: string): MonthClosing[] {
-  return months.filter((m) => m.month > story && m.status !== "closed" && m.status !== "running");
+/**
+ * The months before and after the one told, as links: the address keeps the month (?ay=), so the back button and a
+ * new tab follow it; the newest needs none. Hidden while the story has one month only.
+ */
+function MonthNav({ months, current }: { months: readonly MonthClosing[]; current: string }) {
+  const { t } = useTranslation("dashboard");
+  const [params] = useSearchParams();
+  const index = months.findIndex((m) => m.month === current);
+  const before = index > 0 ? months[index - 1] : undefined;
+  const after = index >= 0 ? months[index + 1] : undefined;
+  if (!before && !after) {
+    return null;
+  }
+  const to = (month: string, newest: boolean) => {
+    const next = new URLSearchParams(params);
+    if (newest) {
+      next.delete(MONTH);
+    } else {
+      next.set(MONTH, month);
+    }
+    const query = next.toString();
+    return { search: query ? `?${query}` : "" };
+  };
+  const PAGE = "min-h-10 px-3"; // beside the title: a little lower than a form's buttons
+  return (
+    <nav aria-label={t("overview.story.months")} className="flex flex-wrap gap-2">
+      {before ? (
+        <LinkButton to={to(before.month, false)} preventScrollReset className={PAGE}>
+          <ArrowLeftIcon className="size-4" />
+          <span className="sr-only">{t("overview.story.before")}</span> {formatMonth(before.month)}
+        </LinkButton>
+      ) : null}
+      {after ? (
+        <LinkButton to={to(after.month, index + 1 === months.length - 1)} preventScrollReset className={PAGE}>
+          <span className="sr-only">{t("overview.story.after")}</span> {formatMonth(after.month)}
+          <ArrowRightIcon className="size-4" />
+        </LinkButton>
+      ) : null}
+    </nav>
+  );
 }
 
 /**
- * An ended month the story skips, in one sentence: why it is open (the statements it waits for and when the last is
- * due, a missing document, a check), what was spent in it so far, and the way to its month-end page.
+ * The story's month ended but has not closed: what it waits for and by when, a missing document or a check, and that
+ * its figures are the documents' so far; with the way to its month-end page.
  */
-function HeldMonth({ month }: { month: MonthClosing }) {
+function OpenMonth({ month }: { month: MonthClosing }) {
   const { t } = useTranslation("dashboard");
-  const amount = formatMoney(month.expense);
   const said =
     month.status === "waiting"
-      ? t("overview.story.held", {
+      ? t("overview.story.open", {
           context: month.closes_by ? "" : "undated",
           count: Math.max(month.waiting.length, 1),
           month: month.month,
           day: month.closes_by ?? "",
-          amount,
         })
-      : t("overview.story.held", { context: month.status, month: month.month, amount });
+      : month.status === "running"
+        ? t("overview.story.partial")
+        : t("overview.story.open", { context: month.status, month: month.month });
   return (
     <p className={cn("flex flex-wrap items-center gap-x-3 gap-y-1", SMALL)}>
       <span>{said}</span>
+      {month.status === "running" ? null : (
+        <NextStep step={{ link: month.link, label: t("overview.story.heldOpen", { month: month.month }) }} />
+      )}
+    </p>
+  );
+}
+
+/**
+ * The ended months after the story's whose money in is not known yet, oldest first: the story cannot tell them, and
+ * each says why. A month whose money in is known is the story's itself, closed or not.
+ */
+function heldAfter(months: readonly MonthClosing[], story: string): MonthClosing[] {
+  return months.filter((m) => m.month > story && m.status !== "running" && m.income === null);
+}
+
+/** An ended month the story cannot tell yet, in one sentence: what was spent in it so far, and its month-end page. */
+function HeldMonth({ month }: { month: MonthClosing }) {
+  const { t } = useTranslation("dashboard");
+  return (
+    <p className={cn("flex flex-wrap items-center gap-x-3 gap-y-1", SMALL)}>
+      <span>{t("overview.story.held", { month: month.month, amount: formatMoney(month.expense) })}</span>
       <NextStep step={{ link: month.link, label: t("overview.story.heldOpen", { month: month.month }) }} />
     </p>
   );
@@ -377,7 +481,8 @@ function MonthsChart({ months }: { months: readonly MonthClosing[] }) {
 
 // --- where the money went ------------------------------------------------------------------------------------------
 
-function WhereItWent({ month }: { month: string }) {
+/** Where the story month's money went; a month still open says so far. */
+function WhereItWent({ month, isOpen }: { month: string; isOpen: boolean }) {
   const { t } = useTranslation("dashboard");
   const range = monthDays(month);
   const spending = useSpending(new URLSearchParams(range).toString());
@@ -394,13 +499,13 @@ function WhereItWent({ month }: { month: string }) {
             title={t("overview.where.chart", { month: formatMonth(month) })}
             summary={
               found.categories[0]
-                ? t("overview.where.say", {
+                ? t(isOpen ? "overview.where.sayOpen" : "overview.where.say", {
                     month,
                     total: formatMoney(found.tiles.total),
                     name: found.categories[0].category,
                     amount: formatMoney(found.categories[0].total),
                   })
-                : t("overview.where.none", { month })
+                : t(isOpen ? "overview.where.noneOpen" : "overview.where.none", { month })
             }
             itemName={t("overview.where.item")}
             items={found.categories.slice(0, 8).map((line) => ({
