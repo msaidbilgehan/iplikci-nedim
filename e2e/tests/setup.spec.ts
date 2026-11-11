@@ -40,3 +40,16 @@ test("e-posta adımında uygulama şifresi seçilince form açılır ve erişile
   const found = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   expect(found.violations.map((v) => `${v.id}: ${v.nodes[0]?.target.join(" ")}`)).toEqual([]);
 });
+
+test("son adımdaki Bitir kurulumun özetini gösterir ve özet erişilebilirlik denetiminden geçer", async ({ page }) => {
+  await page.goto("/kurulum?adim=remote");
+  await expect(page.getByRole("status", { name: "Yükleniyor…" })).toHaveCount(0, { timeout: 15_000 });
+  await page.getByRole("button", { name: "Bitir" }).click();
+  await expect(page).toHaveURL(/\/kurulum\?adim=ozet$/);
+  const summary = page.getByRole("region", { name: /^Kurulum(da \d+ adım bekliyor| tamamlandı)$/ });
+  await expect(summary.getByRole("heading", { level: 2 })).toBeFocused();
+  await expect(summary.getByText(/^\d adımın \d tanesi tamam$/)).toBeVisible();
+  await expect(summary.getByRole("link", { name: "Pano'ya git" })).toHaveAttribute("href", "/");
+  const found = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  expect(found.violations.map((v) => `${v.id}: ${v.nodes[0]?.target.join(" ")}`)).toEqual([]);
+});

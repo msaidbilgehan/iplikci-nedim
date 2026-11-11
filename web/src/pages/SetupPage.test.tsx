@@ -43,7 +43,8 @@ describe("SetupPage: the steps", () => {
     expect(within(step).getByText("Henüz ad yok.")).toBeInTheDocument(); // the service's note
     const list = screen.getByRole("navigation", { name: "Kurulum adımları" });
     const links = within(list).getAllByRole("link");
-    expect(links).toHaveLength(9);
+    expect(links).toHaveLength(10); // the nine steps and the summary
+    expect(links[9]).toHaveTextContent("Kurulumun özeti");
     expect(links[0]).toHaveTextContent("Veri klasörüTamam");
     expect(links[1]).toHaveAttribute("aria-current", "step");
     expect(links[2]).toHaveTextContent("Şirket adlarıİsteğe bağlı");
@@ -63,6 +64,53 @@ describe("SetupPage: the steps", () => {
     expect(within(business).getByRole("button", { name: "Atla" })).toBeInTheDocument(); // an optional step
     await user.click(within(business).getByRole("button", { name: "Geri" }));
     expect(location()).toBe("/kurulum?adim=names");
+  });
+
+  it("leads from the last step's Bitir to where the setup stands: the required steps that wait, each a link", async () => {
+    serve();
+    const user = userEvent.setup();
+    const { location } = renderScreen(<SetupPage />, { path: "/kurulum?adim=remote" });
+    const remote = await panel("Uzaktan erişim");
+    await user.click(within(remote).getByRole("button", { name: "Bitir" }));
+    expect(location()).toBe("/kurulum?adim=ozet");
+    const summary = await screen.findByRole("region", { name: "Kurulumda 3 adım bekliyor" });
+    await waitFor(() => expect(within(summary).getByRole("heading", { level: 2 })).toHaveFocus());
+    expect(within(summary).getByText("9 adımın 3 tanesi tamam")).toBeInTheDocument();
+    const waiting = within(summary).getByRole("heading", { level: 3, name: "Bekleyen adımlar" }).nextElementSibling;
+    expect(within(waiting as HTMLElement).getAllByRole("link").map((link) => link.textContent)).toEqual([
+      "Adınız",
+      "E-posta",
+      "Eski belgeler",
+    ]);
+    expect(within(summary).getByRole("link", { name: "Adınız" })).toHaveAttribute("href", "/kurulum?adim=names");
+    expect(within(summary).getByRole("link", { name: "Pano'ya git" })).toHaveAttribute("href", "/");
+    expect(within(summary).getByRole("link", { name: "Ayarlar'a git" })).toHaveAttribute("href", "/ayarlar");
+    const list = screen.getByRole("navigation", { name: "Kurulum adımları" });
+    expect(within(list).getByRole("link", { name: "Kurulumun özeti" })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("opens on 'Kurulum tamamlandı' once every required step is done, the optional ones not used listed", async () => {
+    serve();
+    server.use(
+      http.get("/api/setup", () =>
+        HttpResponse.json({
+          ...SETUP,
+          steps: SETUP.steps.map((step) => (step.optional ? step : { ...step, done: true })),
+        }),
+      ),
+    );
+    renderScreen(<SetupPage />, { path: "/kurulum" });
+    const summary = await screen.findByRole("region", { name: "Kurulum tamamlandı" });
+    expect(within(summary).getByText(/^İplikçi Nedim belgelerinizi kendiliğinden toplayıp yorumluyor\./)).toBeInTheDocument();
+    expect(within(summary).queryByRole("heading", { name: "Bekleyen adımlar" })).not.toBeInTheDocument();
+    const unused = within(summary).getByRole("heading", { level: 3, name: "Kullanmadığınız isteğe bağlı adımlar" });
+    expect(within(unused.nextElementSibling as HTMLElement).getAllByRole("listitem").map((i) => i.textContent)).toEqual([
+      "Şirket adlarıYok.",
+      "BildirimlerYalnızca uygulama içi.",
+      "Uzaktan erişimKapalı: yalnızca bu bilgisayardan.",
+    ]);
+    // The last, optional step is no longer where the wizard opens, as if nothing had been finished.
+    expect(screen.queryByRole("region", { name: /^Adım 9\/9/ })).not.toBeInTheDocument();
   });
 
   it("shows the data folder, the banks read and the senders taken in", async () => {
@@ -99,7 +147,7 @@ describe("SetupPage: the steps", () => {
     expect(within(remote).getByText(/^Telefonunuzdan Tailscale ile .* gelecek;/)).toBeInTheDocument();
     expect(within(remote).getByText("İsteğe bağlı")).toBeInTheDocument();
     await user.click(within(remote).getByRole("button", { name: "Bitir" }));
-    expect(location()).toBe("/");
+    expect(location()).toBe("/kurulum?adim=ozet"); // where the setup stands, not the Pano as if nothing changed
   });
 
   it("says what a service not registered with the computer means, with no command to type", async () => {

@@ -14,6 +14,19 @@
   "later": "Şimdilik geç",
   "finish": "Bitir",
   "laterHint": "Bu adım gerekli: tamamlanmadan ilk değerlendirme eksik kalır. Şimdilik geçip sonra dönebilirsiniz.",
+  "summary": {
+    "link": "Kurulumun özeti",
+    "title": "Kurulum tamamlandı",
+    "titleLeft_one": "Kurulumda {{count}} adım bekliyor",
+    "titleLeft_other": "Kurulumda {{count}} adım bekliyor",
+    "count": "{{total}} adımın {{done}} tanesi tamam",
+    "text": "İplikçi Nedim belgelerinizi kendiliğinden toplayıp yorumluyor. Bir şeyi değiştirmek isterseniz adımı listeden seçin ya da Ayarlar ekranına gidin.",
+    "textLeft": "Aşağıdaki adımlar tamamlanınca ilk değerlendirme eksiksiz olur. Birine şimdi dönebilir ya da sonraya bırakabilirsiniz.",
+    "left": "Bekleyen adımlar",
+    "unused": "Kullanmadığınız isteğe bağlı adımlar",
+    "dashboard": "Pano'ya git",
+    "settings": "Ayarlar'a git"
+  },
   "about": {
     "data_folder": "Belgeleriniz, ayarlarınız ve veritabanı bu klasörde; uygulamanın kendisinden ayrı durur. Yedekler de bu klasörden alınır.",
     "names": "Kendi hesaplarınız arasındaki transferleri tanımak için adınız ve soyadınız gerekir.",
