@@ -54,3 +54,25 @@ test("bir satırın paneli erişilebilirlik denetiminden geçer, not kalır, sat
   await expect(panel.getByText(/parçaya bölünmüş/)).toHaveCount(0, SETTLES);
   await expect(fix.getByRole("button", { name: "Parçalara böl…" })).toBeVisible();
 });
+
+test("dönem aramanın yanında seçilir; yön ve tutar süzgeçlerde, hepsi erişilebilirlik denetiminden geçer", async ({
+  page,
+}) => {
+  await page.goto("/islemler");
+  await expect(page.getByRole("status", { name: "Yükleniyor…" })).toHaveCount(0, { timeout: 15_000 });
+  await page.getByLabel("Dönem", { exact: true }).selectOption({ label: "Son 3 ay" });
+  await expect(page).toHaveURL(/\/islemler\?period=last_3_months$/);
+  await page.getByRole("button", { name: /^Süzgeçler/ }).click();
+  await page.getByLabel("Yön", { exact: true }).selectOption({ label: "Yalnızca çıkan para" });
+  await expect(page).toHaveURL(/direction=out/);
+  const least = page.getByLabel("En az (TL)", { exact: true });
+  await least.fill("1.000");
+  await least.press("Enter");
+  await expect(page).toHaveURL(/min=1000/);
+  await expect(page.getByRole("button", { name: "Tutar süzgecini kaldır" })).toBeVisible();
+  // The account filter's options read whole, numbers and all.
+  await page.getByRole("button", { name: /^Hesap:/ }).click();
+  await expect(page.getByRole("dialog", { name: "Hesap" })).toBeVisible();
+  const found = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  expect(found.violations.map((v) => `${v.id}: ${v.nodes[0]?.target.join(" ")}`)).toEqual([]);
+});

@@ -78,6 +78,7 @@ import type {
   Spending,
   Subscriptions,
   SystemStatus,
+  TagCount,
   TelegramBot,
   TelegramCheck,
   TelegramPairing,
@@ -106,6 +107,7 @@ export const keys = {
   transactions: (query: string) => ["transactions", "list", query] as const,
   transaction: (fingerprint: string) =>
     ["transactions", "row", fingerprint] as const,
+  tags: ["transactions", "tags"] as const, // a correction or a new analysis moves them, as it moves the rows
   views: ["views", "transactions"] as const, // the user's own, which no analysis moves
   allSpending: ["spending"] as const, // the Değerlendirme screen's cards, every filter's: a new analysis moves them
   spending: (query: string) => ["spending", query] as const,
@@ -435,6 +437,14 @@ export function useBulkCorrection() {
       tags?: string[];
     }) => api.post<BulkResult>(`${TRANSACTIONS}/bulk`, change),
     onSettled: () => refreshTransactions(client),
+  });
+}
+
+/** The tags the user gave rows, the most used first: the tag filter offers them. */
+export function useTransactionTags() {
+  return useQuery({
+    queryKey: keys.tags,
+    queryFn: () => api.get<TagCount[]>("/api/tags"),
   });
 }
 

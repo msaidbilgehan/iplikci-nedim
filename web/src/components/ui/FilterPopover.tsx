@@ -91,9 +91,11 @@ export function FilterPopover({ label, options, selected, onChange }: FilterPopo
           align="start"
           sideOffset={6}
           collisionPadding={8}
+          // As wide as its longest option, so two accounts that differ only in their numbers' last digits read apart;
+          // never wider than the screen, where a name too long for it ends in "…".
           className={cn(
-            "z-50 max-h-[60vh] w-72 overflow-y-auto rounded-lg border p-2 text-sm shadow-lg",
-            "border-zinc-200 bg-white text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100",
+            "z-50 max-h-[60vh] w-max min-w-72 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-lg border p-2 text-sm",
+            "border-zinc-200 bg-white text-zinc-900 shadow-lg dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100",
           )}
         >
           <div className="mb-1 flex items-center justify-between gap-2 border-b border-zinc-200 px-2 pb-2 dark:border-zinc-600">

@@ -91,8 +91,100 @@ describe("TransactionsPage: the list", () => {
     await table();
     expect(asked[0]!.getAll("kind")).toEqual(["purchase", "refund", "interest_fee"]);
     expect(screen.getByText("Giderler (harcama, iade, faiz ve ücret)")).toBeInTheDocument();
-    expect(screen.getByText("01.06.2026 – 30.06.2026")).toBeInTheDocument();
+    expect(screen.getByText("Haziran 2026")).toBeInTheDocument(); // a whole month by its name
     expect(screen.getByRole("button", { name: "Tür süzgecini kaldır" })).toBeInTheDocument();
+    // Its days show in the two day fields beside the period, which reads as days of one's own.
+    expect(screen.getByLabelText("Dönem")).toHaveValue("custom");
+    expect(screen.getByLabelText("Başlangıç")).toHaveValue("2026-06-01");
+    expect(screen.getByLabelText("Bitiş")).toHaveValue("2026-06-30");
+  });
+
+  it("offers the periods by name beside the search and asks for the one chosen", async () => {
+    const asked = listen();
+    const user = userEvent.setup();
+    const { location } = renderScreen(<TransactionsPage />, { path: "/islemler?offset=50" });
+    await table();
+    const period = screen.getByLabelText("Dönem");
+    expect(period).toHaveValue("");
+    expect(within(period).getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "Tüm zamanlar",
+      "Bu ay",
+      "Geçen ay",
+      "Son 30 gün",
+      "Son 3 ay",
+      "Bu yıl",
+      "Geçen yıl",
+      "Tarih aralığı seç…",
+    ]);
+    await user.selectOptions(period, "Bu ay");
+    expect(location()).toBe("/islemler?period=this_month"); // the first page again
+    await waitFor(() => expect(asked.at(-1)?.get("period")).toBe("this_month"));
+    expect(screen.getByRole("button", { name: "Dönem süzgecini kaldır" }).closest("li")).toHaveTextContent(
+      "Dönem:Bu ay",
+    );
+    expect(screen.queryByLabelText("Başlangıç")).not.toBeInTheDocument(); // a named period has no day fields
+    await user.selectOptions(period, "Tüm zamanlar");
+    expect(location()).toBe("/islemler");
+  });
+
+  it("opens two day fields for days of one's own, which take the place of a named period", async () => {
+    const user = userEvent.setup();
+    const { location } = renderScreen(<TransactionsPage />, { path: "/islemler?period=last_month" });
+    await table();
+    await user.selectOptions(screen.getByLabelText("Dönem"), "Tarih aralığı seç…");
+    expect(location()).toBe("/islemler");
+    const start = screen.getByLabelText("Başlangıç");
+    await user.type(start, "2026-10-05");
+    await waitFor(() => expect(location()).toBe("/islemler?from=2026-10-05"));
+    expect(screen.getByLabelText("Bitiş")).toHaveAttribute("min", "2026-10-05"); // the end never before the start
+    expect(screen.getByLabelText("Dönem")).toHaveValue("custom");
+    await user.click(screen.getByRole("button", { name: "Dönem süzgecini kaldır" }));
+    expect(location()).toBe("/islemler");
+    expect(screen.queryByLabelText("Başlangıç")).not.toBeInTheDocument();
+  });
+
+  it("keeps the money in or out alone and an amount's bounds, said in the chips", async () => {
+    const asked = listen();
+    const user = userEvent.setup();
+    const { location } = renderScreen(<TransactionsPage />, { path: "/islemler" });
+    await table();
+    await user.click(screen.getByRole("button", { name: /^Süzgeçler/ }));
+    await user.selectOptions(screen.getByLabelText("Yön"), "Yalnızca çıkan para");
+    expect(location()).toBe("/islemler?direction=out");
+    const least = screen.getByLabelText("En az (TL)");
+    await user.type(least, "1500,5");
+    expect(location()).toBe("/islemler?direction=out"); // not at every key
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(location()).toBe("/islemler?direction=out&min=1500.5"));
+    await waitFor(() => expect(asked.at(-1)?.get("min")).toBe("1500.5"));
+    expect(asked.at(-1)?.get("direction")).toBe("out");
+    expect(screen.getByRole("button", { name: "Yön süzgecini kaldır" }).closest("li")).toHaveTextContent("Yön:Çıkan");
+    expect(screen.getByRole("button", { name: "Tutar süzgecini kaldır" }).closest("li")).toHaveTextContent(
+      "Tutar:en az 1.500,50 TL",
+    );
+    await user.click(screen.getByRole("button", { name: "Tutar süzgecini kaldır" }));
+    expect(location()).toBe("/islemler?direction=out");
+    expect(least).toHaveValue(""); // the field follows the address
+    // An amount that is no amount is said so, and asks nothing.
+    await user.type(least, "bin lira{Enter}");
+    expect(least).toHaveAttribute("aria-invalid", "true");
+    expect(least).toHaveAccessibleDescription("Tutarı 1.500 ya da 1.500,50 gibi yazın.");
+    expect(location()).toBe("/islemler?direction=out");
+  });
+
+  it("offers the tags the rows carry, the most used first, so one is chosen rather than guessed", async () => {
+    const user = userEvent.setup();
+    const { location } = renderScreen(<TransactionsPage />, { path: "/islemler" });
+    await table();
+    await user.click(screen.getByRole("button", { name: /^Süzgeçler/ }));
+    const offered = await screen.findAllByRole("button", { name: /etiketiyle süz/ });
+    expect(offered.map((button) => button.getAttribute("aria-label"))).toEqual([
+      "iş etiketiyle süz (3 işlem)",
+      "tatil etiketiyle süz (1 işlem)",
+    ]);
+    await user.click(offered[0]!);
+    expect(location()).toBe("/islemler?tag=i%C5%9F");
+    expect(screen.getAllByRole("button", { name: /etiketiyle süz/ })).toHaveLength(1); // a chosen tag is not offered
   });
 
   it("starts again at the first page when a filter changes", async () => {

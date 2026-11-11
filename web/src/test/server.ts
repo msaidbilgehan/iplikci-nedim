@@ -59,6 +59,7 @@ import type {
   Spending,
   Subscriptions,
   SystemStatus,
+  TagCount,
   TodoItem,
   Todos,
   TransactionDetail,
@@ -3999,6 +4000,12 @@ export const EVDS_KEPT: EvdsState = {
   behind: false,
 };
 
+/** The tags the user gave rows, the most used first (GET /api/tags). */
+export const TAGS: TagCount[] = [
+  { tag: "iş", count: 3 },
+  { tag: "tatil", count: 1 },
+];
+
 export const handlers = [
   http.get("/api/labels", () => HttpResponse.json(LABELS)),
   http.get("/api/dashboard", () => HttpResponse.json(DASHBOARD)),
@@ -4037,6 +4044,7 @@ export const handlers = [
         : transactionDetail(),
     ),
   ),
+  http.get("/api/tags", () => HttpResponse.json(TAGS)),
   http.get("/api/rules/categories", () => HttpResponse.json(CATEGORY_RULES)),
   http.get("/api/documents/:sha256/view", ({ params }) =>
     String(params["sha256"]) === LOCKED

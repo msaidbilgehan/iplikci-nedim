@@ -21,6 +21,35 @@
     "q": "Ara",
     "qHint": "Açıklama, işyeri, not ya da etiket",
     "period": "Dönem",
+    "periodAll": "Tüm zamanlar",
+    "periodOwn": "Tarih aralığı seç…",
+    "periods": {
+      "this_month": "Bu ay",
+      "last_month": "Geçen ay",
+      "last_30_days": "Son 30 gün",
+      "last_3_months": "Son 3 ay",
+      "this_year": "Bu yıl",
+      "last_year": "Geçen yıl"
+    },
+    "direction": "Yön",
+    "directionAll": "Giren ve çıkan",
+    "directions": {
+      "in": "Yalnızca giren para",
+      "out": "Yalnızca çıkan para"
+    },
+    "directionChip": {
+      "in": "Giren",
+      "out": "Çıkan"
+    },
+    "amount": "Tutar",
+    "least": "En az (TL)",
+    "most": "En çok (TL)",
+    "amountLeast": "en az {{amount}}",
+    "amountMost": "en çok {{amount}}",
+    "amountBetween": "{{least}} – {{most}}",
+    "amountWrong": "Tutarı 1.500 ya da 1.500,50 gibi yazın.",
+    "tagsKnown": "Etiketleriniz:",
+    "tagChoose": "{{tag}} etiketiyle süz ({{count}} işlem)",
     "closed": "kapalı",
     "more": "Süzgeçler",
     "setCount": "{{count}} etkin",

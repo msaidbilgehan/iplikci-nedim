@@ -139,6 +139,7 @@ import type {
   PaidStatus,
   PairingOut,
   PaymentOut,
+  Period,
   PeriodOut,
   PlanOut,
   PrintedOut,
@@ -172,6 +173,7 @@ import type {
   StepOut,
   SubscriptionsOut,
   SystemOut,
+  TagOut,
   TelegramCheckOut,
   TelegramPairingOut,
   TelegramTokenOut,
@@ -299,6 +301,8 @@ export type TransactionDetail = TransactionDetailOut;
 export type Annotation = AnnotationOut;
 export type Correction = CorrectionIn;
 export type SavedView = ViewModel;
+export type TagCount = TagOut; // a tag the user gave rows, with how many carry it
+export type { Period }; // a period the filters name: its days are reckoned from the service's today
 export type BulkResult = BulkOut;
 export type CategoryRules = CategoryRulesOut;
 export type Category = CategoryOut;

@@ -10,10 +10,13 @@ import {
   listQuery,
   orderingOf,
   paramsOfView,
+  periodOf,
   sortedBy,
   viewQuery,
+  withPeriod,
   withRow,
 } from "./query";
+import { daysInWords } from "./Filters";
 import { partNumber } from "./RowsTable";
 import { suggestedPattern } from "./RuleForm";
 
@@ -58,6 +61,30 @@ describe("the Transactions screen's address", () => {
     const query = viewQuery(params);
     expect(query).toEqual({ category: ["Market", "Kafe"], sort: ["amount"], order: ["desc"] });
     expect(paramsOfView(query).toString()).toBe("category=Market&category=Kafe&sort=amount&order=desc");
+  });
+
+  it("keeps a named period's name, in place of its days, so a kept view moves with time", () => {
+    expect(periodOf(at("period=this_month"))).toBe("this_month");
+    expect(periodOf(at("period=yarin"))).toBeNull(); // no period the screen names
+    expect(withPeriod(at("from=2026-10-01&to=2026-10-31&q=kira&offset=50"), "last_month").toString()).toBe(
+      "q=kira&period=last_month",
+    );
+    expect(withPeriod(at("period=this_year&q=kira"), "").toString()).toBe("q=kira");
+    const params = at("min=1500.5&period=this_month&direction=out&max=2000");
+    expect(filtersOf(params, false).toString()).toBe("period=this_month&direction=out&min=1500.5&max=2000");
+    expect(viewQuery(params)).toEqual({
+      period: ["this_month"],
+      direction: ["out"],
+      min: ["1500.5"],
+      max: ["2000"],
+    });
+    expect(isFiltered(at("direction=in"))).toBe(true);
+  });
+
+  it("says chosen days in words: a whole month by its name", () => {
+    expect(daysInWords("2026-02-01", "2026-02-28")).toBe("Şubat 2026");
+    expect(daysInWords("2026-02-01", "2026-02-27")).toBe("01.02.2026 – 27.02.2026");
+    expect(daysInWords("2026-02-01", "")).toBe("01.02.2026 – …");
   });
 
   it("opens and closes a row's detail, keeping the filters", () => {

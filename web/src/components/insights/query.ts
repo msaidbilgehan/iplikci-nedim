@@ -66,8 +66,11 @@ export function presetRange(preset: Preset, first: string, last: string): Range 
   }
 }
 
-/** The preset the address's period is, if it is one. */
+/** The preset the address's period is, if it is one; a period the İşlemler screen names ("Bu ay") is none of them. */
 export function presetOf(params: URLSearchParams, first: string, last: string): Preset | null {
+  if (params.has("period")) {
+    return null;
+  }
   const from = params.get("from") ?? "";
   const to = params.get("to") ?? "";
   if (!from && !to) {
@@ -84,6 +87,7 @@ export function presetOf(params: URLSearchParams, first: string, last: string): 
 /** The address with a preset's period. */
 export function withRange(params: URLSearchParams, range: Range | null): URLSearchParams {
   const next = new URLSearchParams(params);
+  next.delete("period"); // a preset's days take the place of a named period
   if (range) {
     next.set("from", range.from);
     next.set("to", range.to);

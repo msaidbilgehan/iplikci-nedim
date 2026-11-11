@@ -6,9 +6,35 @@ import type { Sort } from "../../api/schema";
 
 /** The filters with many values: each value a choice of its own (?account=a&account=b). */
 export const MANY = ["account", "kind", "category", "group", "necessity", "certainty", "tag"] as const;
-/** The filters with one value. */
-export const ONE = ["from", "to", "merchant", "q"] as const;
+/**
+ * The filters with one value: a named period (its days reckoned by the service from today, so a kept view moves with
+ * time) or the days from and to, which way the money goes and the amount's bounds in TL.
+ */
+export const ONE = ["period", "from", "to", "merchant", "direction", "min", "max", "q"] as const;
 export type FilterName = (typeof MANY)[number] | (typeof ONE)[number];
+
+/** The periods the screen names, in the order it offers them; "" is every day. */
+export const PERIODS = ["this_month", "last_month", "last_30_days", "last_3_months", "this_year", "last_year"] as const;
+export type PeriodName = (typeof PERIODS)[number];
+
+/** The named period the address holds, if it is one the screen knows. */
+export function periodOf(params: URLSearchParams): PeriodName | null {
+  const period = params.get("period");
+  return PERIODS.find((name) => name === period) ?? null;
+}
+
+/** The address with a named period, every day ("") or chosen days: a period takes the place of from and to. */
+export function withPeriod(params: URLSearchParams, period: PeriodName | ""): URLSearchParams {
+  const next = new URLSearchParams(params);
+  next.delete("period");
+  next.delete("from");
+  next.delete("to");
+  if (period) {
+    next.set("period", period);
+  }
+  next.delete("offset");
+  return next;
+}
 
 export const PAGE_SIZE = 50;
 export const ROW = "satir"; // the row whose detail is open

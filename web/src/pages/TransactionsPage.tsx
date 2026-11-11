@@ -1,8 +1,9 @@
-// The İşlemler screen (F04): every row of the ledger, filtered by period, account, kind, category, necessity,
-// certainty, tag and text, sorted by any column and paged, with what the rows add up to; the filters kept as views and
-// downloaded as CSV. A row's name opens its detail at the side: why it is what it is, where it is printed and the
-// corrections it may carry. Rows can be chosen for one category or a tag at once. The address holds it all, in the
-// API's names, so other screens link here narrowed and the back button undoes a step.
+// The İşlemler screen (F04): every row of the ledger, filtered by a named period ("Bu ay", "Geçen ay", …) or days of
+// one's own, account, kind, category, necessity, certainty, tag, which way the money goes, the amount and text, sorted
+// by any column and paged, with what the rows add up to; the filters kept as views and downloaded as CSV. A row's name
+// opens its detail at the side: why it is what it is, where it is printed and the corrections it may carry. Rows can
+// be chosen for one category or a tag at once. The address holds it all, in the API's names, so other screens link
+// here narrowed and the back button undoes a step.
 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -109,6 +110,7 @@ export default function TransactionsPage() {
         labels={labels}
         accounts={accountOptions(accounts.data, labels, t("filters.closed"))}
         rules={rules.data}
+        rows
       />
       {none ? <Empty title={t("table.empty")}>{resetButton}</Empty> : null}
       {!none && list.isPending ? <Loading label={tc("loading")} /> : null}
