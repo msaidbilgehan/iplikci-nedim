@@ -1683,6 +1683,9 @@ export interface PaymentOut {
   certainty: Certainty;
 }
 
+/** A period the screen offers by name; its days are reckoned from today, so a view kept with it moves with time. */
+export type Period = "this_month" | "last_month" | "last_30_days" | "last_3_months" | "this_year" | "last_year";
+
 export interface PeriodOut {
   start: string;
   end: string;
@@ -2177,6 +2180,11 @@ export interface TableOut {
   name: string;
   rows: string[][];
   more: boolean;
+}
+
+export interface TagOut {
+  tag: string;
+  count: number;
 }
 
 export interface TelegramCheckOut {

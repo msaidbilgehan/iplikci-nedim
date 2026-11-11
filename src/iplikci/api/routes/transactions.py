@@ -1,7 +1,8 @@
 """The Transactions screen (F04): the ledger's rows filtered, sorted and paged with the totals of what the filters
-keep, as CSV too; one row with why it is what it is; corrections on one row or many; the views the user keeps.
-Reading needs a session or the token; changing, the service's own pages. The filters' names are the screen's
-address query: from, to, account, kind, category, group, necessity, certainty, tag, merchant, q."""
+keep, as CSV too; one row with why it is what it is; corrections on one row or many; the views the user keeps; the
+tags the rows carry. Reading needs a session or the token; changing, the service's own pages. The filters' names are
+the screen's address query: period, from, to, account, kind, category, group, necessity, certainty, tag, merchant,
+direction, min, max, q. A named period stands for its days, from and to, reckoned from the service's today."""
 
 from datetime import date
 from decimal import Decimal
@@ -18,12 +19,14 @@ from ...app.transactions import (
     Actor,
     CategoryReason,
     Certainty,
+    Direction,
     DocumentKind,
     EvidenceStatus,
     Filter,
     Necessity,
     NecessityReason,
     Order,
+    Period,
     Printed,
     RateSource,
     RuleLayer,
@@ -72,6 +75,8 @@ def _analysis(context: Context) -> Analysis:
 
 
 def filters(
+    request: Request,
+    period: Period | None = None,
     start: Annotated[date | None, Query(alias="from")] = None,
     end: Annotated[date | None, Query(alias="to")] = None,
     account: Annotated[list[str] | None, Many] = None,
@@ -82,8 +87,13 @@ def filters(
     certainty: Annotated[list[Certainty] | None, Many] = None,
     tag: Annotated[list[str] | None, Many] = None,
     merchant: Annotated[str, Query(max_length=200)] = "",
+    direction: Direction | None = None,
+    least: Annotated[Decimal | None, Query(alias="min", ge=0, max_digits=14, decimal_places=2)] = None,
+    most: Annotated[Decimal | None, Query(alias="max", ge=0, max_digits=14, decimal_places=2)] = None,
     q: Annotated[str, Query(max_length=200)] = "",
 ) -> Filter:
+    if period is not None:  # a named period stands for its days
+        start, end = transactions.period_days(period, context_of(request).today())
     return Filter(
         start=start,
         end=end,
@@ -96,6 +106,9 @@ def filters(
         tags=frozenset(tag or ()),
         merchant=merchant.strip(),
         text=q.strip(),
+        direction=direction,
+        least=least,
+        most=most,
     )
 
 
@@ -183,6 +196,18 @@ def transaction_view_remove(request: Request, name: Annotated[str, FastPath(max_
     if found is None:
         raise Problem(404, "view_not_found", "Bu adla saklanmış bir görünüm yok.")
     return _views(found)
+
+
+class TagOut(BaseModel):
+    tag: str
+    count: int  # the rows that carry it
+
+
+@router.get("/api/tags", dependencies=READ)
+def transaction_tags(request: Request) -> list[TagOut]:
+    """The tags the user gave rows, the most used first: the tag filter offers them. Not under /api/transactions/,
+    whose next part is a row's fingerprint."""
+    return [TagOut(tag=tag, count=count) for tag, count in transactions.tag_counts(_analysis(context_of(request)))]
 
 
 # --- one row --------------------------------------------------------------------------------------------------

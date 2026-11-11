@@ -13,7 +13,7 @@ from iplikci.api.app import create_app
 from iplikci.api.context import Context
 from iplikci.api.models import link_out
 from iplikci.app.analysis import analyze
-from iplikci.app.transactions import Filter, TransactionKind, rows_link
+from iplikci.app.transactions import Direction, Filter, Period, TransactionKind, period_days, rows_link
 from iplikci.app.workspace import Workspace
 from iplikci.fakes import teb
 
@@ -95,6 +95,72 @@ def test_the_filters_take_the_names_the_other_screens_link_with(client):
     assert client.get("/api/transactions", params={"kind": "faks"}, headers=bearer()).status_code == 422
 
 
+def rows_of(client: TestClient, **params: str) -> dict:
+    response = client.get("/api/transactions", params={"limit": "500", **params}, headers=bearer())
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+@pytest.mark.parametrize(
+    ("period", "today", "first", "last"),
+    [
+        ("this_month", date(2026, 11, 15), date(2026, 11, 1), date(2026, 11, 30)),
+        ("last_month", date(2026, 11, 15), date(2026, 10, 1), date(2026, 10, 31)),
+        ("last_month", date(2026, 1, 10), date(2025, 12, 1), date(2025, 12, 31)),  # across the year's turn
+        ("last_30_days", date(2026, 3, 1), date(2026, 1, 31), date(2026, 3, 1)),
+        ("last_3_months", date(2026, 2, 28), date(2025, 12, 1), date(2026, 2, 28)),
+        ("last_3_months", date(2028, 2, 1), date(2027, 12, 1), date(2028, 2, 29)),  # a leap year's February
+        ("this_year", date(2026, 11, 15), date(2026, 1, 1), date(2026, 12, 31)),
+        ("last_year", date(2026, 11, 15), date(2025, 1, 1), date(2025, 12, 31)),
+    ],
+)
+def test_a_named_period_is_its_days_reckoned_from_today(period, today, first, last):
+    assert period_days(Period(period), today) == (first, last)
+
+
+def test_a_named_period_keeps_its_days_as_the_screen_names_them(client):
+    # The demo's today is 15 November 2026.
+    october = rows_of(client, period="last_month")
+    assert october["rows"] and {r["day"][:7] for r in october["rows"]} == {"2026-10"}
+    assert october["totals"] == rows_of(client, **{"from": "2026-10-01", "to": "2026-10-31"})["totals"]
+    recent = {r["day"] for r in rows_of(client, period="last_30_days")["rows"]}
+    assert recent and min(recent) >= "2026-10-17" and max(recent) <= "2026-11-15"
+    three = {r["day"][:7] for r in rows_of(client, period="last_3_months")["rows"]}
+    assert three and three <= {"2026-09", "2026-10", "2026-11"} and "2026-09" in three
+    assert {r["day"][:4] for r in rows_of(client, period="this_year")["rows"]} == {"2026"}
+    # The period stands for its days: a from or a to beside it changes nothing.
+    assert rows_of(client, period="last_month", **{"from": "2026-03-01"})["totals"] == october["totals"]
+    assert client.get("/api/transactions", params={"period": "gecen_ay"}, headers=bearer()).status_code == 422
+
+
+def test_the_money_in_or_out_alone_and_an_amounts_bounds_keep_their_rows_and_the_totals_follow(client):
+    came, went = rows_of(client, direction="in"), rows_of(client, direction="out")
+    assert {r["direction"] for r in came["rows"]} == {"in"} and {r["direction"] for r in went["rows"]} == {"out"}
+    assert came["totals"]["money_out"]["minor"] == 0 < came["totals"]["money_in"]["minor"]
+    assert went["totals"]["money_in"]["minor"] == 0 < went["totals"]["money_out"]["minor"]
+    assert came["totals"]["count"] + went["totals"]["count"] == rows_of(client)["totals"]["count"]
+    # The amount is the row's own, whichever way it goes, in TL as the list shows it.
+    window = rows_of(client, min="100", max="500.50")
+    amounts = [r["amount"]["minor"] for r in window["rows"]]
+    assert amounts and all(10000 <= a <= 50050 for a in amounts)
+    every = [r["amount"]["minor"] for r in rows_of(client)["rows"]]
+    assert len(amounts) == sum(10000 <= a <= 50050 for a in every)
+    assert rows_of(client, min="100", direction="out")["totals"]["count"] <= went["totals"]["count"]
+    for bad in ({"min": "-1"}, {"max": "on"}, {"direction": "sideways"}):
+        assert client.get("/api/transactions", params=bad, headers=bearer()).status_code == 422
+
+
+def test_the_tags_given_rows_are_offered_the_most_used_first(own):
+    fingerprints = [r["fingerprint"] for r in coffee(own)][:3]
+    for tags, rows in ((["iş"], fingerprints), (["tatil"], fingerprints[:1])):
+        body = {"fingerprints": rows, "tags": tags}
+        assert own.post("/api/transactions/bulk", json=body, headers=OWN_PAGE).status_code == 200
+    assert own.get("/api/tags", headers=bearer()).json() == [
+        {"tag": "iş", "count": 3},
+        {"tag": "tatil", "count": 1},
+    ]
+
+
 def test_a_filter_written_as_a_links_query_opens_the_list_on_the_same_rows(client):
     kinds = frozenset({TransactionKind.PURCHASE, TransactionKind.REFUND, TransactionKind.INTEREST_FEE})
     f = Filter(start=date(2026, 8, 1), end=date(2026, 10, 31), kinds=kinds, categories=frozenset({"Kafe & Kahve"}))
@@ -108,6 +174,13 @@ def test_a_filter_written_as_a_links_query_opens_the_list_on_the_same_rows(clien
     }
     found = client.get("/api/transactions", params=link.query, headers=bearer()).json()
     assert found["totals"]["count"] == 3 and {r["day"][:7] for r in found["rows"]} == {"2026-08", "2026-09", "2026-10"}
+    # The way the money goes and the amount's bounds go into a link too.
+    bounded = Filter(direction=Direction.OUT, least=Decimal(100), most=Decimal("500.50"))
+    assert bounded.query() == (("direction", "out"), ("min", "100"), ("max", "500.50"))
+    assert (
+        rows_of(client, **dict(bounded.query()))["totals"]
+        == rows_of(client, direction="out", min="100", max="500.50")["totals"]
+    )
 
 
 def test_the_csv_holds_every_row_the_filters_keep_for_turkish_excel(client):

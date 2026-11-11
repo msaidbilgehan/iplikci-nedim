@@ -9,9 +9,10 @@ corrections are its row's."""
 
 import csv
 import io
+from collections import Counter
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from enum import StrEnum
 from typing import Any, cast
@@ -36,6 +37,8 @@ from ..domain.codes import (
 from ..domain.labels import CERTAINTY, KIND, NECESSITY, currency_label
 from ..domain.models import Reason, Transaction
 from ..domain.text import fold, spreadsheet_text
+from ..insights import month_of, shift
+from ..month_end import first_day, last_day
 from ..storage import annotations, audit, documents, feed_state
 from ..storage.annotations import Annotation
 from . import annotate, background
@@ -57,6 +60,7 @@ __all__ = [
     "Necessity",
     "NecessityReason",
     "Page",
+    "Period",
     "Printed",
     "RateSource",
     "RowView",
@@ -65,6 +69,8 @@ __all__ = [
     "Totals",
     "TransactionKind",
     "TransferStep",
+    "period_days",
+    "tag_counts",
 ]
 
 MAX_PAGE = 500
@@ -89,6 +95,36 @@ class Sort(StrEnum):
     ACCOUNT = "account"
 
 
+class Period(StrEnum):
+    """A period the screen offers by name; its days are reckoned from today, so a view kept with it moves with time."""
+
+    THIS_MONTH = "this_month"
+    LAST_MONTH = "last_month"
+    LAST_30_DAYS = "last_30_days"  # today and the 29 days before it
+    LAST_3_MONTHS = "last_3_months"  # this month and the two before it
+    THIS_YEAR = "this_year"
+    LAST_YEAR = "last_year"
+
+
+def period_days(period: Period, today: date) -> tuple[date, date]:
+    """The first and the last day of a named period, both in it."""
+    month = month_of(today)
+    match period:
+        case Period.THIS_MONTH:
+            return first_day(month), last_day(month)
+        case Period.LAST_MONTH:
+            before = shift(month, -1)
+            return first_day(before), last_day(before)
+        case Period.LAST_30_DAYS:
+            return today - timedelta(days=29), today
+        case Period.LAST_3_MONTHS:
+            return first_day(shift(month, -2)), last_day(month)
+        case Period.THIS_YEAR:
+            return date(today.year, 1, 1), date(today.year, 12, 31)
+        case Period.LAST_YEAR:
+            return date(today.year - 1, 1, 1), date(today.year - 1, 12, 31)
+
+
 @dataclass(frozen=True, slots=True)
 class Filter:
     """What the screen's filters keep; an empty set keeps everything."""
@@ -104,6 +140,9 @@ class Filter:
     tags: frozenset[str] = frozenset()
     merchant: str = ""  # one merchant or person, as the rules name it
     text: str = ""  # every word in the row's names, its description, category, note, tags or account
+    direction: Direction | None = None  # money in or money out only
+    least: Decimal | None = None  # the row's amount at least, whichever way it goes (in TL, as the list shows it)
+    most: Decimal | None = None  # and at most
 
     def keeps(self, row: RowView, label: str) -> bool:
         return (
@@ -117,6 +156,9 @@ class Filter:
             and (not self.certainties or row.certainty in self.certainties)
             and (not self.tags or not self.tags.isdisjoint(row.tags))
             and (not self.merchant or fold(row.merchant) == fold(self.merchant))
+            and (self.direction is None or row.direction is self.direction)
+            and (self.least is None or row.amount >= self.least)
+            and (self.most is None or row.amount <= self.most)
             and (not self.text or _has_words(row, label, self.text))
         )
 
@@ -141,6 +183,12 @@ class Filter:
             pairs += [(name, value) for value in sorted(values)]
         if self.merchant:
             pairs.append(("merchant", self.merchant))
+        if self.direction is not None:
+            pairs.append(("direction", self.direction.value))
+        if self.least is not None:
+            pairs.append(("min", str(self.least)))
+        if self.most is not None:
+            pairs.append(("max", str(self.most)))
         if self.text:
             pairs.append(("q", self.text))
         return tuple(pairs)
@@ -200,6 +248,13 @@ def every_row(a: Analysis) -> list[RowView]:
 def select(a: Analysis, f: Filter) -> list[RowView]:
     names = labels(a)
     return [r for r in every_row(a) if f.keeps(r, names.get(r.account, r.account))]
+
+
+def tag_counts(a: Analysis) -> list[tuple[str, int]]:
+    """The tags the user gave rows, each with how many rows carry it: the most used first, then by name. The tag
+    filter offers them, so a tag is chosen rather than guessed."""
+    found = Counter(tag for row in every_row(a) for tag in row.tags)
+    return sorted(found.items(), key=lambda item: (-item[1], fold(item[0])))
 
 
 def _sort_key(r: RowView, sort: Sort, names: Mapping[str, str]) -> Any:
