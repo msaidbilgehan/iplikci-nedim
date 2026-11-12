@@ -22,11 +22,19 @@ düzeltirken önce buraya bakılır; yeni bir tuzak bulununca buraya eklenir.
 **Kart PDF'leri:** sütun konumuyla okunur (`parsers.pdf.page_lines`, `find_header`, `take_amount`). Düz metin üzerinde
 düzenli ifadeyle okunmaz.
 
-**Kart ekstresinin ödeme bilgileri** (`Statement.due_date`, `minimum_payment`, `credit_limit`)
+**Kart ekstresinin ödeme bilgileri** (`Statement.due_date`, `minimum_payment`, `credit_limit`, `next_cut`)
 
 - Kesim tarihi ve dönem borcu gibi, ilk sayfanın metnindeki etiketlerinden okunur.
 - Son ödeme tarihi bu ekstrenin son ödeme tarihidir. "Bir Sonraki Son Ödeme Tarihi" ve "son ödemeniz …" gelecek
   ekstrenindir; alınmaz.
+- Sonraki kesim (`next_cut`), ekstrenin gelecek ekstre için yazdığı "bir sonraki hesap kesim tarihi"dir. Dört
+  bankanın kart ekstresi de bunu yazar. Kesim günü aydan aya birkaç gün oynar (hafta sonu, bankanın takvimi): aynı
+  günün bir ay sonrası çoğu ay tutmaz. Kendi kesiminden sonra olmayan bir tarih alınmaz (`common.next_cut`).
+- Program sonraki kesimi tek yerden bilir (`Statement.cut_after`): ekstrenin yazdığı gün, yazmıyorsa aynı günün bir
+  ay sonrası. Tahmin edilen gün arayüzde "~" ile yazılır. Ay sonu, Hesaplar, Şu an ve taksitlerin kesim günleri bunu
+  kullanır.
+- Kart ekstresi takvim ayını değil, iki kesim arasını kapsar: ayın kesimden sonraki günleri bir sonraki ayın
+  kesimiyle gelen ekstrededir ("21–31 Ekim, 21 Ekim–19 Kasım ekstresinde").
 - Limit, kartın toplam limitidir; müşteri limiti, kullanılabilir limit ve nakit limiti değildir.
 - Ekstrenin yazmadığı ya da bozuk yazdığı bilgi boş kalır; tahmin edilmez ve ekstre yine okunur.
 - Bir bilgi birden çok kez yazıyorsa hepsi aynı olmalıdır; ayrışırsa bilgi boş kalır (`common.agreed`).
@@ -93,8 +101,9 @@ hareketi taşımaz. V1'de çöpe gitmez; "işlenmedi" durumunda saklanır (K11).
   posta kodudur, tarihin parçası değildir.
 - Son ödeme tarihi iki kez yazar: ilk satırdaki başlıkta ("… Bilgileriniz Son Ödeme Tarihi: 15 Ağustos 2026") ve
   özette ("Son Ödeme Tarihi 15 Ağustos 2026").
-- "EKSTRE ÖZETİ" cümlesi gelecek ekstreyi anlatır: "Bir sonraki hesap kesiminiz … ve son ödemeniz 15 Eylül 2026
-  Pazartesi 'dir." Bu tarih alınmaz.
+- "EKSTRE ÖZETİ" cümlesi gelecek ekstreyi anlatır: "Bir sonraki hesap kesiminiz 4 Eylül 2026 Cuma ve son ödemeniz
+  14 Eylül 2026 Pazartesi 'dir." Kesim tarihi sonraki kesim olarak alınır, son ödeme tarihi alınmaz. Cümle
+  satırlardan sonra gelir: satırlar ilk sayfayı doldurunca sonraki sayfadadır, bu yüzden bütün sayfalarda aranır.
 - Kart limiti "Kart Limiti" satırıdır; üstündeki "Müşteri Limiti", altındaki "Nakit Avans Limiti" ve cümledeki
   "kullanılabilir limitiniz" değildir.
 - İlk iki sayfada asgari ödeme tutarı yazmaz; boş kalır.
@@ -181,7 +190,8 @@ de yoktur.
 - Özet tarihleri noktayla yazar: "Hesap Kesim Tarihi: 05.10.2026", "Son Ödeme Tarihi: 15.10.2026".
 - Asgari tutar sabit genişlikte basılır, boş haneleri yıldızdır: "Ödenmesi Gereken Asgari Tutar: *1.258,21 TL", bin
   liranın altında "*.597,67 TL". Tutar yıldızlardan ve öndeki noktadan sonra okunur.
-- Özetteki "Bir Sonraki Hesap Kesim Tarihi" ve "Bir Sonraki Son Ödeme Tarihi" gelecek ekstrenindir.
+- Özetteki "Bir Sonraki Hesap Kesim Tarihi" ve "Bir Sonraki Son Ödeme Tarihi" gelecek ekstrenindir; ilki sonraki
+  kesim olarak alınır. Bazı ekstreler kelimeleri bitişik basar ("BirSonrakiHesapKesimTarihi: 07.01.2025").
 - Son ödeme tarihi aşağıda, limit kutusunun üstünde bir kez daha, eğik çizgiyle yazar: "Son Ödeme Tarihi:
   15/10/2026".
 - Limit ve faiz kutusu iki sütundur; sayfanın metni iki sütunu tek satırda birleştirir ("Toplam Kart Limiti:
@@ -234,10 +244,15 @@ Borcunuzun Tahsilatı")
 - Bir ekstrede birden çok kart bölümü olabilir.
 - OCR, temassız ikonunu `)))` olarak okur. Okuyucu bunu satırın sonundan atar; metni bitiren kapama parantezi
   (`(9/8. Taksit)` gibi) kalır.
-- MVP'nin bildiği düzen, ödeme bilgilerinden yalnızca son ödeme tarihini yazar: "Son Ödeme Tarihi: 15/10/2026".
-  "Sonraki" ile başlayan tarih gelecek ekstrenindir. Asgari tutar ve limit boş kalır; gerçek bir ekstre gelince
-  denetlenmeli.
-- Sayfa resmi olarak gelen ekstrede (OCR) ödeme bilgileri okunmaz.
+- Metin katmanlı ekstre, ödeme bilgilerinden son ödeme tarihini ve gelecek ekstrenin tarihlerini yazar: "Son Ödeme
+  Tarihi: 15/10/2026", "Bir Sonraki Hesap Kesim Tarihi: 04/11/2026", "Bir Sonraki Son Ödeme Tarihi: 14/11/2026".
+  Kelimeler çoğu kez bitişiktir ("BirSonrakiHesapKesimTarihi :04/11/2026"). "Sonraki" ile başlayan son ödeme
+  tarihi gelecek ekstrenindir; sonraki kesim alınır. Bazı ekstrelerin altındaki açıklama ("… bir sonraki hesap kesim
+  tarihi ve bir sonraki son ödeme tarihi ile ilgili bilgi …") tarih yazmaz; alınmaz.
+- Sayfa resmi olarak gelen ekstrede (OCR) aynı kutu okunur: her etiket ve tarihi ayrı bir hücredir, kutunun satırları
+  sağdaki başlık ve adresle aynı satırdadır. OCR "Son Ödeme Tarihi"nin Ö'sünü O okuyabilir; başlık son ödeme tarihini
+  bir kez daha yazar ("SON ÖDEME TARİHİ: 15/10/2026").
+- Asgari tutar ("Minimum Ödeme Tutarı") ve kart limiti ("Kart Limiti") gerçek ekstrede yazar ama henüz okunmaz.
 
 **Kart ödeme dekontu PDF'i:** `ekstresiz_kart` (`card_payment_no_statement`) türündedir; ekstresi olmayan bir karta
 yapılan ödemedir.
@@ -353,9 +368,14 @@ uygulamasının paylaştığı, iki TEB hesabı arasındaki aktarmanın dekontu.
   `parsers/qnb/card_pdf.py` içindeki `_REPAIRS` ile onarılır.
 - Hesap listesi `DEVREDEN BAKİYE` ile açılır.
 - `Transfer İşlemleri - Alıcı/Gönderen :` başlıkları sonraki satırlara taşar.
-- MVP'nin bildiği kart PDF'i, ödeme bilgilerinden yalnızca son ödeme tarihini yazar: "Son Ödeme Tarihi : 15/10/2026".
-  "Ö" harfi yazı tipinde düşebilir ("Önceki"nin düştüğü gibi); etiket `Son …deme Tarihi` olarak aranır. Asgari tutar
-  ve limit boş kalır; gerçek bir ekstre gelince denetlenmeli.
+- Kart PDF'i son ödeme tarihini kart numarasının yanında ay adıyla yazar: "Son Ödeme Tarihi: 15 Ağustos 2026,
+  Cumartesi". Yazı tipi "Ö"yü ve ayın Türkçe harflerini düşürür; her biri bir `(cid:N)` olur ("A(cid:6)ustos",
+  "Eyl(cid:6)l"). Bu yüzden tarih ham metinden okunur ve ay, düşen her harfin yerine bir harf kabul edilerek
+  tanınır. Ödenecek borcu olmayan ekstre son ödeme tarihi yazmaz. (MVP'nin varsaydığı "15/10/2026" biçimi gerçek
+  ekstrelerde yoktur; o yüzden son ödeme tarihleri hiç okunmuyordu.)
+- Son sayfadaki not gelecek ekstreyi anlatır: "* Bir sonraki hesap kesim tarihiniz 04/11/2026, bir sonraki son ödeme
+  tarihiniz 14/11/2026". İlki sonraki kesim olarak alınır.
+- Asgari tutar ("Asgari Ödeme Tutarı : 0.00 TL") ve kart limiti ("Kredi Kartı Limiti : …") yazar ama henüz okunmaz.
 
 **e-dekont** (HTML; utf-8 ya da windows-1254; ya da PDF)
 

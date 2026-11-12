@@ -363,8 +363,10 @@ ekstre gelmeden sayılır.
   - E-cüzdan, hesap açılınca bir kez gönderilir (`Statement.one_off`); ardından aylık döküm gelmez. Yalnızca e-cüzdanı
     olan bir hesabın sonraki günleri beklenmez; ay sayfası bunu yazar. Hesabın sonradan bir dökümü gelirse ondan
     sonraki günler yine beklenir.
-- Kartın açık günleri bir sonraki kesimi bekler (son kesim + 1 ay, aynı gün). Kesimden 5 günden fazla geçerse
-  "gecikti" olur.
+- Kartın açık günleri bir sonraki kesimi bekler: son ekstrenin yazdığı "bir sonraki hesap kesim tarihi", yazmıyorsa
+  son kesimin bir ay sonrası, aynı gün (`Statement.cut_after`; tahmin "~" ile yazılır). Bankalar kesim gününü aydan
+  aya birkaç gün oynattığı için tahmin çoğu ay tutmaz. Açık günler o kesimi de aşıyorsa sonraki ekstre de beklenir.
+  Beklenen ilk ekstrenin kesiminden 5 günden fazla geçerse "gecikti" olur.
 
 **Toplamlar**
 

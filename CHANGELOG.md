@@ -4,6 +4,26 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.10.3] — 2026-11-12 — Kesim günü ekstreden okunur, beklenen ekstre kendi günleriyle adlandırılır
+
+### Düzeltilenler
+
+- Kapanmamış bir ayın beklediği kart ekstresi "21–31 Ekim ekstresi, kesim ~20.11" diye yazıyordu. Bu, Ekim'in
+  ekstresi Kasım'ın ortasında kesiliyormuş gibi okunuyordu. Oysa kart ekstresi takvim ayını değil, iki kesim günü
+  arasını kapsar: ayın kesimden sonraki günleri bir sonraki ayın kesimiyle gelen ekstrededir. Beklenen ekstre artık
+  kendi günleriyle adlandırılır ve ayın hangi günlerinin onda olduğu yazılır: "21–31 Ekim, 21 Ekim–19 Kasım
+  ekstresinde". Pano'da, İşlemler'de ve Ay sonu'nda aynı söz kullanılır.
+- Sonraki kesim günü, son kesimin bir ay sonrası diye tahmin ediliyordu. Bankalar kesim gününü aydan aya birkaç gün
+  oynatır; tahmin çoğu ay bir iki gün şaşıyordu. Her kart ekstresi bir sonrakinin kesim gününü yazar ve artık o gün
+  okunur (Garanti, QNB, TEB ve İş Bankası). Ekstre yazmıyorsa tahmin "~" ile gösterilir. Ay sonu, Pano'nun ve
+  İşlemler'in beklenen belgeleri, Hesaplar'daki "sonraki ekstre", Şu an'daki kartın dönemi ve taksitlerin kesim
+  günleri bu günü kullanır.
+- QNB kart ekstrelerinin son ödeme tarihi hiç okunmuyordu. QNB bu tarihi ay adıyla yazar ("28 Ağustos 2026") ve yazı
+  tipi ayın Türkçe harflerini düşürür. Artık okunur; takvim ve bildirimler QNB kartının son ödeme gününü bilir.
+- Sayfa resmi olarak gelen, OCR ile okunan TEB ekstrelerinin son ödeme tarihi okunmuyordu; artık okunur.
+- Bir ay iki ekstre bekliyorsa (aradaki ekstre gelmemişse) gecikme sonraki ekstrenin kesimine göre ölçülüyordu ve
+  gelmeyen ekstre "gecikti" sayılmıyordu. Artık beklenen ilk ekstrenin kesimine göre ölçülür.
+
 ## [0.10.2] — 2026-11-12 — Kapanmamış ay neyi beklediğini söyler, süzgeç penceresi ekrana sığar
 
 ### Düzeltilenler

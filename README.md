@@ -237,6 +237,13 @@ Kapanmamış ay neyi beklediğini söyler (v0.10.2):
   hangi belgeyi beklediğini listenin üstünde söyler.
 - Süzgeçlerin seçenek penceresi ekrandan taşmaz, içinde kayar; boş bırakılan süzgeç hangisi olduğunu söyler.
 
+Kesim günü ekstreden okunur (v0.10.3):
+
+- Kart ekstresi takvim ayını değil, iki kesim günü arasını kapsar. Kapanmamış ayın beklediği ekstre kendi günleriyle
+  yazılır: "21–31 Ekim, 21 Ekim–19 Kasım ekstresinde".
+- Sonraki kesim günü, her ekstrenin bir sonrakine yazdığı gündür; ekstre yazmıyorsa tahmin "~" ile gösterilir.
+- QNB'nin ve OCR ile okunan TEB ekstrelerinin son ödeme tarihleri de okunur.
+
 Açık kalanlar: servisin yedi gün kendi başına çalışması (K19). Windows ve Linux'ta denemeler bekletiliyor (K25).
 Sürümler henüz herkese açık bir yerde değil; kurulu kopyalar güncellemeyi ancak o zaman indirebilir (K29).
 

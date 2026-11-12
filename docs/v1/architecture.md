@@ -265,7 +265,7 @@ Defterin bir kuraldan ya da bulamadığından çözdüğü bir transfere verilen
 | `documents` | üst veri (asıl kaynak arşivde) | sha256, tür, banka, durum, neden, okuyucu ve sürümü, doğrulama, dönem, görünen ad, üst belge (e-posta) |
 | `document_sources` | asıl | kaynak türü (`email`, `upload`, `inbox`, `import`), Message-ID, gönderen, tarih, konu, özgün ad, zaman |
 | `accounts` | türev + kullanıcı etiketi | banka, tür, para birimi, numara (maskeli gösterilir), takma ad |
-| `statements` | türev | tür, dönem, kesim, önceki ve son bakiye, satır satır kontroller, doğrulama, son ödeme tarihi, asgari ödeme, limit |
+| `statements` | türev | tür, dönem, kesim, önceki ve son bakiye, satır satır kontroller, doğrulama, son ödeme tarihi, asgari ödeme, limit, ekstrenin yazdığı sonraki kesim |
 | `transactions` | türev | tarih, tutar (en küçük birim), para birimi, tür, açıklama, karşı taraf, taksit, orijinal tutar, kesinlik, kaynak konumu, parmak izi |
 | `evidence` | türev | dekont ve banka bildirimi satırları, uzlaştırma durumu, eşleştiği satır |
 | `invoices` | türev | banka dışı e-postalar: satıcı, tutar, tarih, son ödeme tarihi, kalemler, eşleştirme durumu |
@@ -617,7 +617,7 @@ Ayrıntılar [ADR-0010](../adr/0010-notification-channels.md)'un uygulama notund
 | `POST /api/fx/fetch` | kurları şimdi çek (`{"history": true}`: geçmişin eksik günleri de); kur sağlayıcısı yoksa 409. Durum `GET /api/system`'in `rates` bölümünde |
 | `GET /api/fx/spread`, `GET /api/fx/income` | kur makası: son 12 ayın döviz alım-satımları ve yurt dışı kart harcamaları, her biri gününün yönüne uygun TCMB kuruyla, farkı ve toplamı, TCMB kuru olmadığı için dışarıda kalanların sayısı; döviz geliri: son 12 ayın döviz gelirleri bugünkü kurla, TL'ye çevrildikleri günler, tam aylardan kur duyarlılığı |
 | `GET /api/invoices` | banka dışı faturalar ve makbuzlar: durumu (bekliyor, eşleşmedi, eşleşti), ödeyen banka satırı ya da olası nedenler, durum başına sayılar; hiçbiri toplamlara girmez (F14) |
-| `GET /api/month-end`, `GET /api/month-end/{YYYY-MM}` | ay kapanışı; ekstrelerini bekleyen ayın kapanacağı gün (`closes_by`, son beklenen kartın kesimi), grafiklerin kapanmamış ayları adlandırması için |
+| `GET /api/month-end`, `GET /api/month-end/{YYYY-MM}` | ay kapanışı; ekstrelerini bekleyen ayın kapanacağı gün (`closes_by`, son beklenen kartın kesimi), grafiklerin kapanmamış ayları adlandırması için; kart hesabının sonraki kesimi (`next_cut`) ve onun bir önceki ekstrenin yazdığı gün mü, tahmin mi olduğu (`next_cut_printed`) |
 | `GET /api/todos`, `POST /api/todos/ignored` | yapılacaklar; birini görmezden gelme |
 | `GET/PUT /api/rules/categories`, `POST /api/rules/categories/preview` | kategori kuralları ve önizleme |
 | `GET/PUT /api/rules/alerts`, `POST /api/rules/alerts/preview` | bildirim kuralları, izlenebilecek olaylar ve izin verdikleri koşullar; bir kuralın son 30 günde kaç kez konuşacağı |

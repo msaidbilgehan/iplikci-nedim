@@ -6,7 +6,7 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-12): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.10.2). Between Phases 6 and 7 came
+Status (2026-11-12): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.10.3). Between Phases 6 and 7 came
 the interface's simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab
 (v0.7.3), documents known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked
 against the documents (v0.7.6). Next is the 1.0 release, whose conditions are partly time-bound (roadmap "Sürüm 1.0"
@@ -297,6 +297,17 @@ says what the waiting must show; check them once their time has passed).
     "Dönemin bütün işlemleri" keeps the period and drops the rest; a filter with nothing chosen says which and
     chooses all of it again. The popovers are no taller than the room Radix measures on their side
     (`POPOVER_HEIGHT`), so they scroll under their "Tümü" and "Hiçbiri".
+- v0.10.3: the user read "21–31 Ekim ekstresi, kesim ~20.11" as October's statement being cut in mid-November and
+  asked whether that was true.
+  - A card statement runs from one cut to the next, so an awaited statement is named by its own days and the month's
+    days on it (`month_end.AccountClose.waiting_for`: "21–31 Ekim, 21 Ekim–19 Kasım ekstresinde").
+  - A card's next cut is the one its statement prints (`Statement.next_cut`), read by all four card readers
+    (`parsers.common.next_cut`; Garanti's sentence after the rows, on any page). Banks move the cut day from month to
+    month, so "a month on" was usually a day or two off. `domain/dates.cut_after` is the one place that reckons the
+    rest ("~" in the interface): the month-end (`AccountClose.awaited`; lateness from the first awaited cut), Hesaplar's
+    next statement, Şu an's card period and the installments' cuts.
+  - QNB spells its due date with the month's name, its Turkish letters lost to the font ("A(cid:6)ustos"); it had never
+    been read. TEB's OCR path reads the due date and the next cut from the box of terms.
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 

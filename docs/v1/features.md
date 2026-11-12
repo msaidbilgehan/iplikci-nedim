@@ -282,8 +282,10 @@ G7 · Çekirdek
       veya bakılması gerektiğini, rakamların değişebileceğini söyler ve o ayın Ay sonu sayfasına götürür. v0.10.1'e
       dek hikâye yalnızca kapanmış ayı anlatıyordu: 11 Kasım'da Eylül gösteriliyordu, Ekim ancak son kart ekstresi
       gelince (24 Kasım) anlatılacaktı.
-    - Beklenen belgeler tek tek sayılır: hesabın adı, belgenin günleri ve kesimi ("Örnek Bonus •1234: 14–31 Ekim
-      ekstresi, kesim ~13.11"), Ay sonu'nun yazdığı gibi (v0.10.2; önce yalnızca sayıları yazıyordu).
+    - Beklenen belgeler tek tek sayılır: hesabın adı, ayın beklenen günleri ve onları kapsayan ekstre kendi
+      günleriyle ("Örnek Bonus •1234: 14–31 Ekim, 14 Ekim–12 Kasım ekstresinde"), Ay sonu'nun yazdığı gibi (v0.10.2;
+      önce yalnızca sayıları yazıyordu). v0.10.3: "14–31 Ekim ekstresi, kesim ~13.11" Ekim'in ekstresi Kasım'da
+      kesiliyormuş gibi okunuyordu; kart ekstresi takvim ayını değil iki kesim arasını kapsar.
     - Başlığın yanındaki oklar önceki ve sonraki aylara gider; ay adreste durur (`?ay=2026-09`), en yeni ayın adresi
       yalındır. Süren ay oklarda yoktur; hikâye onu yalnızca henüz biten bir ay yokken anlatır.
     - Biten ama geliri henüz bilinmeyen bir ay (hesap dökümleri ayın yarısını kapsamıyor) neden anlatılmadığını bir
@@ -436,7 +438,11 @@ MVP eşitliği · Çekirdek
 - **Durumlar:** sürüyor, eksik, kontrol gerekli, bekleniyor, kapandı.
 - **Ayrıntılar**
   - hesap başına kapanış,
-  - neyin beklendiği (örnek: "TEB Bonus •4321: 19–31 Ekim ekstresi, kesim ~18.11"),
+  - neyin beklendiği (örnek: "TEB Bonus •4321: 19–31 Ekim, 19 Ekim–18 Kasım ekstresinde"): bir kart ekstresi iki
+    kesim arasını kapsar, bu yüzden beklenen ekstre kendi günleriyle adlandırılır. Kesim günü bir önceki ekstrenin
+    yazdığı "bir sonraki hesap kesim tarihi"dir; yazmıyorsa aynı günün bir ay sonrası "~" ile yazılır ("19 Ekim–~18
+    Kasım"). Ayın günleri sonraki kesimi de aşıyorsa "… ekstresinde ve sonrakinde" der; gecikme beklenen ilk
+    ekstrenin kesiminden sayılır,
   - geçici kayıtlar,
   - ekstrede görünmeyen kanıtlar.
 - **Ay sayfası:** uygulamanın içinde (`/ay-sonu/:ay`) ve dışa aktarılabilir, betiksiz HTML olarak (MVP sayfası).
