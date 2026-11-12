@@ -1,6 +1,7 @@
 """Money, quantities, the domain's codes and their labels, and the rule that the domain imports nothing else."""
 
 import ast
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
@@ -10,6 +11,8 @@ from hypothesis import strategies as st
 
 from iplikci.domain import labels
 from iplikci.domain.codes import DEFAULT_EXPENSE_KINDS, MonthStatus, Necessity, TransactionKind
+from iplikci.domain.dates import Cut, add_months
+from iplikci.domain.models import Statement
 from iplikci.domain.money import TOLERANCE, Money, Quantity, Unit, round_half_up, to_decimal
 
 PACKAGE = Path(__file__).parent.parent / "src" / "iplikci"
@@ -146,6 +149,27 @@ def test_money_reads_in_the_turkish_format():
     assert labels.format_money(Money(Decimal("-0.5"), "EUR")) == "-0,50 EUR"
     assert labels.format_amount(Decimal(1000000)) == "1.000.000,00"
     assert labels.format_amount(Decimal("2.665")) == "2,67"
+
+
+# --- a card's cuts ----------------------------------------------------------------------------------
+
+
+def test_a_cards_next_cut_is_the_day_its_statement_prints_and_a_later_one_is_reckoned_from_it():
+    # The bank moves the cut day: the statement cut on 5 October prints 4 November for the next one.
+    s = Statement("kart", date(2026, 10, 5), "TRY", "ekstre.pdf", None, None, next_cut=date(2026, 11, 4))
+    assert [s.cut_after(k) for k in (1, 2)] == [
+        Cut(date(2026, 11, 4), printed=True),
+        Cut(date(2026, 12, 4), printed=False),
+    ]
+
+
+def test_a_statement_that_prints_no_next_cut_has_it_reckoned_the_same_day_a_month_on():
+    s = Statement("kart", date(2026, 1, 31), "TRY", "ekstre.pdf", None, None)
+    assert [s.cut_after(k) for k in (1, 2)] == [
+        Cut(date(2026, 2, 28), printed=False),  # a shorter month: its last day
+        Cut(date(2026, 3, 31), printed=False),
+    ]
+    assert add_months(date(2026, 1, 31), 13) == date(2027, 2, 28)
 
 
 # --- dependency rules (architecture §6) -------------------------------------------------------------

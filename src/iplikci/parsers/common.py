@@ -3,6 +3,7 @@
 import hashlib
 import re
 from collections.abc import Iterable
+from datetime import date
 from decimal import Decimal
 
 from ..domain.codes import TransactionKind
@@ -281,6 +282,13 @@ def agreed[T](values: Iterable[T | None]) -> T | None:
     date twice, and a reader never picks one of two different values."""
     found = set(values)
     return found.pop() if len(found) == 1 else None
+
+
+def next_cut(cut: date, printed: Iterable[date | None]) -> date | None:
+    """The next statement's cut date a card statement prints ("Bir sonraki hesap kesim tarihi"), however often it
+    prints it (agreed): None when it prints none, two that differ, or one not after its own cut."""
+    found = agreed(printed)
+    return found if found is not None and found > cut else None
 
 
 _INSTALLMENT = re.compile(r"(\d{1,2})\s*/\s*(\d{1,2})\s*TAKS", re.IGNORECASE)

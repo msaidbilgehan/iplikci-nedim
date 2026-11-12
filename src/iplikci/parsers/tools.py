@@ -156,6 +156,7 @@ def _terms(s: Statement) -> list[str]:
     terms = [f"son ödeme {s.due_date}"] if s.due_date else []
     terms += [f"asgari tutar {format_amount(s.minimum_payment)}"] if s.minimum_payment is not None else []
     terms += [f"kart limiti {format_amount(s.credit_limit)}"] if s.credit_limit is not None else []
+    terms += [f"sonraki kesim {s.next_cut}"] if s.next_cut else []
     return [f"Ödeme: {', '.join(terms)}"] if terms else []
 
 

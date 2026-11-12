@@ -181,6 +181,7 @@ def sample() -> ParseResult:
         due_date=date(2026, 10, 15),  # the account list below prints none of a card's terms
         minimum_payment=Decimal("400.00"),
         credit_limit=Decimal(50000),
+        next_cut=date(2026, 11, 4),
     )
     listing = Statement(
         teb.id,

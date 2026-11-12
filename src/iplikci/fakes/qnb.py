@@ -7,6 +7,7 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from html import escape
 
+from ..domain.labels import MONTHS
 from . import HOLDER, CardRow, CardTerms, Move, Specimen, charged
 from .files import Run, html_mail, right, text_pdf
 
@@ -31,8 +32,10 @@ CARD_PAGES: tuple[tuple[CardRow, ...], ...] = (
 )
 
 
-# A card statement's terms: the due date ten days after the cut, the only one the layout the MVP knew prints.
-CARD_TERMS = CardTerms(date(2026, 10, 15))
+# A card statement's terms: the due date ten days after the cut and the next cut, a day before the same day a month
+# on. The reader does not read the minimum payment or the limit yet.
+CARD_TERMS = CardTerms(date(2026, 10, 15), next_cut=date(2026, 11, 4))
+_WEEKDAYS = ("Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar")
 
 
 def card_statement(
@@ -44,17 +47,30 @@ def card_statement(
     terms: CardTerms = CARD_TERMS,
 ) -> bytes:
     """A QNB card statement exported as PDF ("Ekstre Hareketleri"): US-format amounts, a leading minus for a
-    credit, and the rows' Turkish letters lost to the font."""
+    credit, and the rows' Turkish letters lost to the font. The due date is spelled out beside the card's number,
+    its Turkish letters lost too, and a note under the last page's rows names the next statement's cut and due date."""
     total = previous + sum((charged(p) for p in pages), Decimal(0))
     summary: list[Run] = [
         (40, 40, "QNB Kredi Kartı Ekstre Hareketleri"),
         (40, 70, f"Sn. {holder}"),
         (40, 90, f"Kredi Kartı Numarası : 5400 12** **** {last4}"),
         (40, 102, f"Hesap Kesim Tarihi : {cut:%d/%m/%Y}"),
-        *([(40, 114, f"Son Ödeme Tarihi : {terms.due:%d/%m/%Y}")] if terms.due is not None else []),
         (40, 140, f"Önceki Dönem Bakiyeniz {us_amount(previous)}"),
         (40, 152, f"Genel Toplam - TL Hesap Ekstresi {us_amount(total)}"),
     ]
+    if terms.due is not None:
+        due = terms.due
+        spelled = f"{due.day:02d} {MONTHS[due.month - 1]} {due.year}, {_WEEKDAYS[due.weekday()]}"
+        summary.append((300, 90, unmapped(f"Son Ödeme Tarihi: {spelled}")))
+    note: list[str] = []
+    if terms.next_cut is not None:
+        later = terms.next_cut + timedelta(days=10)
+        note.append(
+            unmapped(
+                f"* Bir sonraki hesap kesim tarihiniz {terms.next_cut:%d/%m/%Y}, bir sonraki son ödeme tarihiniz "
+                f"{later:%d/%m/%Y}"
+            )
+        )
     out: list[list[Run]] = []
     for i, rows in enumerate(pages):
         top = 190 if i == 0 else 60
@@ -69,6 +85,8 @@ def card_statement(
             runs += [(40, y, f"{row.day:%d/%m/%Y}" if row.day else ""), (110, y, unmapped(row.text))]
             if row.amount is not None:
                 runs.append(right(520, y, us_amount(row.amount)))
+        if i == len(pages) - 1:
+            runs += [(40, top + 3 + (len(rows) + 3) * _LINE, line) for line in note]
         out.append(runs)
     return text_pdf(*out)
 

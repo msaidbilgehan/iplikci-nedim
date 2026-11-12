@@ -96,8 +96,9 @@ BONUS_CARDS: tuple[tuple[CardRow, ...], ...] = (
 )
 
 
-# A Bonus statement's terms: the due date ten days after the cut, the only one the layout the MVP knew prints.
-BONUS_TERMS = CardTerms(date(2026, 10, 15))
+# A Bonus statement's terms: the due date ten days after the cut and the next cut, a day before the same day a month
+# on. The layout the MVP knew prints no minimum payment or limit.
+BONUS_TERMS = CardTerms(date(2026, 10, 15), next_cut=date(2026, 11, 4))
 
 
 def bonus_statement(
@@ -121,7 +122,7 @@ def bonus_statement(
         (330, 112, f"Kart Numarası: 545616******{last4}"),
         *([(40, 124, f"Son Ödeme Tarihi: {terms.due:%d/%m/%Y}")] if terms.due is not None else []),
         (330, 124, f"Dönem Borcu: {_amount(total)}"),
-        (40, 136, f"Sonraki Hesap Kesim Tarihi: {cut + timedelta(days=31):%d/%m/%Y}"),
+        *_next_terms(terms),
     ]
     y = 180.0
     for i, rows in enumerate(cards):
@@ -146,6 +147,16 @@ def bonus_statement(
     return text_pdf([*runs, (40, 800, note)] if note else runs)
 
 
+def _next_terms(terms: CardTerms) -> list[Run]:
+    """The next statement's cut and due date, under this one's, as the box of terms prints them."""
+    if terms.next_cut is None:
+        return []
+    return [
+        (40, 136, f"Bir Sonraki Hesap Kesim Tarihi: {terms.next_cut:%d/%m/%Y}"),
+        (40, 148, f"Bir Sonraki Son Ödeme Tarihi: {terms.next_cut + timedelta(days=10):%d/%m/%Y}"),
+    ]
+
+
 def _amount(value: Decimal) -> str:
     """As TEB prints an amount: "TL.1.245,60", "-TL.3.250,00" for a credit, "TL.1.500,-" when it is whole."""
     printed = format_amount(abs(value))
@@ -159,16 +170,26 @@ def scanned_statement(
     cut: date = date(2026, 10, 5),
     previous: Decimal = Decimal(3250),
     last4: str = "1234",
+    terms: CardTerms = BONUS_TERMS,
 ) -> list[list[Line]]:
     """What OCR reads off a TEB Bonus statement delivered as page images: every text run a word of its own,
-    usually a table cell, with the contactless payment icon read as ")))"."""
+    usually a table cell, with the contactless payment icon read as ")))". The box of terms on the left shares its
+    lines with the heading and the address on the right, and OCR reads the Ö of "Ödeme" as an O there."""
     total = previous + sum((charged(c) for c in cards), Decimal(0))
+    due = [f"{terms.due:%d/%m/%Y}"] if terms.due is not None else []
     cells: list[list[str]] = [
-        ["Kredi Kart Ekstre Özeti"],
-        ["Hesap Kesim Tarihi", f"{cut:%d/%m/%Y}"],
-        ["Kart Numarası", f"545616******{last4}"],
-        ["Dönem Borcu", _amount(total)],
-        ["Sonraki Hesap Kesim Tarihi", f"{cut + timedelta(days=31):%d/%m/%Y}"],
+        ["Kart Numarası", f"545616******{last4}", "BONUS KREDİ KART EKSTRE ÖZETİ"],
+        ["Dönem Borcu", _amount(total), *[f"SON ÖDEME TARİHİ: {d}" for d in due]],
+        ["Hesap Kesim Tarihi", f"{cut:%d/%m/%Y}", f"SAYIN {HOLDER}"],
+        *([["Son Odeme Tarihi", *due, "ÖRNEK MAH. DENEME SK. No:1"]] if due else []),
+    ]
+    if terms.next_cut is not None:
+        later = terms.next_cut + timedelta(days=10)
+        cells += [
+            ["Bir Sonraki Hesap Kesim Tarihi", f"{terms.next_cut:%d/%m/%Y}", "ÖRNEKKÖY İSTANBUL"],
+            ["Bir Sonraki Son Ödeme Tarihi", f"{later:%d/%m/%Y}"],
+        ]
+    cells += [
         ["Sıra", "Tarih", "Açıklama", "Tutar", "Bonus"],
         ["ÖNCEKİ DÖNEM BORCU", _amount(previous)],
     ]

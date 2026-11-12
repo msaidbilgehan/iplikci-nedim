@@ -9,6 +9,7 @@ import pytest
 from iplikci import parsers
 from iplikci.domain.codes import AccountType, TransactionKind
 from iplikci.domain.models import ParseResult, Statement
+from iplikci.domain.text import fold
 from iplikci.fakes import HOLDER, CardTerms, garanti, isbank, qnb, teb
 from iplikci.fakes.files import scan_pdf
 from iplikci.parsers import contract
@@ -76,6 +77,14 @@ def test_garanti_bonus_statement_reads_the_due_date_it_prints_twice_and_the_card
     # The heading and the summary print the due date, a sentence under them the next one; the customer's limit and the
     # cash advance limit stand around the card's. No minimum payment is printed.
     assert (s.due_date, s.minimum_payment, s.credit_limit) == (date(2026, 10, 15), None, Decimal(45000))
+
+
+def test_garanti_reads_the_next_cut_from_the_sentence_after_its_rows_on_a_later_page():
+    # The sentence that names the next cut follows the rows; they fill the first page, so it is on the second.
+    data = garanti.bonus_statement()
+    pages = [fold(page_text(page)) for page in open_pdf(data).pages]
+    assert ["SONRAKI HESAP KESIMINIZ 4 KASIM 2026" in page for page in pages] == [False, True]
+    assert only(read(data)).next_cut == date(2026, 11, 4)
 
 
 def test_garanti_paracard_has_no_debt_only_its_purchases_and_withdrawals():
@@ -163,6 +172,27 @@ def test_teb_bonus_statement_reads_the_due_date_its_layout_prints():
     assert (s.due_date, s.minimum_payment, s.credit_limit) == (date(2026, 10, 15), None, None)
 
 
+def test_teb_takes_no_next_cut_from_the_sentence_that_only_explains_it():
+    note = "Önceki ekstrenizde, bir sonraki hesap kesim tarihi ve bir sonraki son ödeme tarihi ile ilgili bilgi var."
+    assert only(read(teb.bonus_statement(note=note))).next_cut == date(2026, 11, 4)
+    terms = replace(teb.BONUS_TERMS, next_cut=None)
+    assert only(read(teb.bonus_statement(note=note, terms=terms))).next_cut is None
+
+
+def test_a_teb_statement_read_with_ocr_gives_its_due_date_and_the_next_cut(monkeypatch):
+    # OCR reads the box of terms beside the heading, which prints the due date again, and the address; it reads the
+    # Ö of "Son Ödeme Tarihi" as O there. The next statement's due date is not this one's.
+    monkeypatch.setattr(parsers, "ocr_available", lambda: True)
+    monkeypatch.setattr(contract.SourceDocument, "ocr_pages", property(lambda self: teb.scanned_statement()))
+    s = only(read(scan_pdf()))
+    assert (s.cut_date, s.due_date, s.next_cut, s.verified) == (
+        date(2026, 10, 5),
+        date(2026, 10, 15),
+        date(2026, 11, 4),
+        True,
+    )
+
+
 def test_a_teb_statement_delivered_as_page_images_is_read_with_ocr(monkeypatch):
     monkeypatch.setattr(parsers, "ocr_available", lambda: True)
     monkeypatch.setattr(contract.SourceDocument, "ocr_pages", property(lambda self: teb.scanned_statement()))
@@ -189,9 +219,19 @@ def test_qnb_card_statement_repairs_the_labels_its_font_breaks():
     assert [(t.ref.page, t.ref.line) for t in s.transactions[-2:]] == [(2, 2), (2, 3)]
 
 
-def test_qnb_card_statement_reads_the_due_date_its_layout_prints():
+def test_qnb_card_statement_reads_the_due_date_it_spells_out():
     s = only(read(qnb.card_statement()))
     assert (s.due_date, s.minimum_payment, s.credit_limit) == (date(2026, 10, 15), None, None)
+
+
+@pytest.mark.parametrize(
+    "due", [date(2026, 2, 27), date(2026, 5, 29), date(2026, 8, 28), date(2026, 9, 28), date(2026, 12, 28)]
+)
+def test_qnb_reads_a_due_date_whose_month_lost_letters_to_the_font(due):
+    # "Son Ödeme Tarihi: 28 Ağustos 2026, Cuma": the font loses the Ö and the month's Turkish letters, a (cid:N) each.
+    data = qnb.card_statement(terms=replace(qnb.CARD_TERMS, due=due))
+    assert "deme Tarihi: " in page_text(open_pdf(data).pages[0]) and "(cid:" in page_text(open_pdf(data).pages[0])
+    assert only(read(data)).due_date == due
 
 
 # --- every bank ------------------------------------------------------------------------------------------------
@@ -201,9 +241,31 @@ def test_qnb_card_statement_reads_the_due_date_its_layout_prints():
     "statement", [garanti.bonus_statement, isbank.maximum_statement, teb.bonus_statement, qnb.card_statement]
 )
 def test_a_card_statement_that_prints_none_of_its_terms_leaves_them_empty_and_still_verifies(statement):
-    # The next statement's due date, the other limits and the minimum payment rate are still on the page.
+    # The other limits and the minimum payment rate are still on the page.
     s = only(read(statement(terms=CardTerms())))
-    assert (s.due_date, s.minimum_payment, s.credit_limit, s.verified) == (None, None, None, True)
+    assert (s.due_date, s.minimum_payment, s.credit_limit, s.next_cut, s.verified) == (None, None, None, None, True)
+
+
+@pytest.mark.parametrize(
+    "statement", [garanti.bonus_statement, isbank.maximum_statement, teb.bonus_statement, qnb.card_statement]
+)
+def test_a_card_statement_gives_the_next_cut_it_prints_not_the_same_day_a_month_on(statement):
+    # Cut on 5 October, each prints 4 November for the next one, as a bank's calendar moves the cut day.
+    assert only(read(statement())).next_cut == date(2026, 11, 4)
+
+
+@pytest.mark.parametrize(
+    ("statement", "terms"),
+    [
+        (garanti.bonus_statement, garanti.BONUS_TERMS),
+        (isbank.maximum_statement, isbank.MAXIMUM_TERMS),
+        (teb.bonus_statement, teb.BONUS_TERMS),
+        (qnb.card_statement, qnb.CARD_TERMS),
+    ],
+)
+def test_a_next_cut_printed_on_or_before_the_statements_own_is_left_empty(statement, terms):
+    s = only(read(statement(terms=replace(terms, next_cut=date(2026, 10, 5)))))
+    assert (s.cut_date, s.next_cut, s.verified) == (date(2026, 10, 5), None, True)
 
 
 def test_a_company_card_that_shows_only_late_on_the_page_is_still_a_company_document():

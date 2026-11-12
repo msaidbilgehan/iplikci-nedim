@@ -103,7 +103,7 @@ def save(db: Database, sha256: str, result: ParseResult) -> None:
             statement_id = db.execute(
                 "INSERT INTO statements (sha256, position, account, cut_date, currency, source, previous, total, "
                 "total_is_sum, start, checks_ok, checks_total, balances, one_off, due_date, minimum_payment, "
-                "credit_limit) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "credit_limit, next_cut) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     sha256,
                     i,
@@ -122,6 +122,7 @@ def save(db: Database, sha256: str, result: ParseResult) -> None:
                     s.due_date.isoformat() if s.due_date else "",
                     None if s.minimum_payment is None else _to_minor(s.minimum_payment),
                     None if s.credit_limit is None else _to_minor(s.credit_limit),
+                    s.next_cut.isoformat() if s.next_cut else "",
                 ),
             ).lastrowid
             for j, sec in enumerate(s.securities):
@@ -237,6 +238,7 @@ def load(db: Database, documents: Iterable[DocumentRow]) -> dict[str, ParseResul
             due_date=date.fromisoformat(r["due_date"]) if r["due_date"] else None,
             minimum_payment=None if r["minimum_payment"] is None else _from_minor(r["minimum_payment"]),
             credit_limit=None if r["credit_limit"] is None else _from_minor(r["credit_limit"]),
+            next_cut=date.fromisoformat(r["next_cut"]) if r["next_cut"] else None,
         )
         statements[r["id"]] = s
         results[r["sha256"]].statements.append(s)

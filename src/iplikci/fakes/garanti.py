@@ -1,6 +1,7 @@
 """Garanti BBVA's documents: the Bonus and Paracard card statements, the account list, receipts, and Garanti BBVA
 Yatırım's brokerage statements."""
 
+import textwrap
 from collections.abc import Sequence
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
@@ -170,12 +171,14 @@ PARACARD_PAGES: tuple[tuple[CardRow, ...], ...] = (
 )
 
 
-# A Bonus statement's terms: the due date ten days after the cut and the card's limit. Garanti prints no minimum
-# payment on the pages the reader reads.
-BONUS_TERMS = CardTerms(date(2026, 10, 15), limit=Decimal(45000))
+# A Bonus statement's terms: the due date ten days after the cut, the card's limit and the next cut, a day before the
+# same day a month on, as Garanti's calendar moves it. Garanti prints no minimum payment on the pages the reader reads.
+BONUS_TERMS = CardTerms(date(2026, 10, 15), limit=Decimal(45000), next_cut=date(2026, 11, 4))
 # The customer's limit and the cash advance limit, printed above and below the card's own.
 _CUSTOMER_LIMIT, _CASH_LIMIT = Decimal(50000), Decimal(18000)
 _WEEKDAYS = ("Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar")
+# The characters in a line of the sentences under the rows: they end well left of the amounts' column.
+_CLOSING_WIDTH = 80
 
 
 def bonus_statement(
@@ -192,24 +195,13 @@ def bonus_statement(
     if total is None:
         total = previous + sum((charged(p) for p in pages), Decimal(0))
     head = _bonus_head(cut, total, last4, terms)
-    return text_pdf(*_card_pages(head, pages, CardRow(None, "DEVİR", previous), CardRow(None, "TOPLAM", total)))
+    devir, toplam = CardRow(None, "DEVİR", previous), CardRow(None, "TOPLAM", total)
+    return text_pdf(*_card_pages(head, pages, devir, toplam, _bonus_closing(total, terms)))
 
 
 def _bonus_head(cut: date, total: Decimal, last4: str, terms: CardTerms) -> list[Run]:
     """The first page's head as Garanti prints it: the due date in the heading too, the summary on the left with its
-    dates spelled out, and the address on the right, whose last lines fall on the summary's. The sentence under the
-    summary names the next cut and the next due date."""
-    next_cut = cut + timedelta(days=31)
-    next_due = next_cut + timedelta(days=10)
-    left = (terms.limit if terms.limit is not None else _CUSTOMER_LIMIT) - total
-    later = (
-        f"EKSTRE ÖZETİ Bir sonraki hesap kesiminiz {_spelled(next_cut)} {_WEEKDAYS[next_cut.weekday()]} ve son "
-        f"ödemeniz {_spelled(next_due)} {_WEEKDAYS[next_due.weekday()]} 'dir."
-    )
-    available = (
-        f"Hesap kesim tarihinizde kullanılabilir limitiniz {format_amount(left)} TL ,kullanılabilir nakit "
-        f"limitiniz {format_amount(_CASH_LIMIT)} TL'dir."
-    )
+    dates spelled out, and the address on the right, whose last lines fall on the summary's."""
     runs: list[Run] = [
         (40, 40, "Garanti BBVA"),
         (40, 64, "Bonus Platinum Örnek Kart Bilgileriniz"),
@@ -222,8 +214,6 @@ def _bonus_head(cut: date, total: Decimal, last4: str, terms: CardTerms) -> list
         (40, 128, f"Hesap Kesim Tarihi {_spelled(cut)}"),
         (330, 128, "34000 ÖRNEKKÖY İSTANBUL"),
         (40, 152, f"Dönem Borcunuz {format_amount(total)} TL"),
-        (40, 170, later),
-        (40, 182, available),
     ]
     if terms.due is not None:
         runs += [
@@ -233,6 +223,24 @@ def _bonus_head(cut: date, total: Decimal, last4: str, terms: CardTerms) -> list
     if terms.limit is not None:
         runs.append((40, 104, f"Kart Limiti {format_amount(terms.limit)} TL"))
     return runs
+
+
+def _bonus_closing(total: Decimal, terms: CardTerms) -> list[str]:
+    """The sentences that follow the rows, wrapped as Garanti wraps them: the next cut and the next due date, then
+    the limit left. On a statement whose rows fill the first page they are on a later one."""
+    left = (terms.limit if terms.limit is not None else _CUSTOMER_LIMIT) - total
+    words: list[str] = []
+    if terms.next_cut is not None:
+        later, due = terms.next_cut, terms.next_cut + timedelta(days=10)
+        words.append(
+            f"EKSTRE ÖZETİ Bir sonraki hesap kesiminiz {_spelled(later)} {_WEEKDAYS[later.weekday()]} ve son "
+            f"ödemeniz {_spelled(due)} {_WEEKDAYS[due.weekday()]} 'dir."
+        )
+    words.append(
+        f"Hesap kesim tarihinizde kullanılabilir limitiniz {format_amount(left)} TL ,kullanılabilir nakit "
+        f"limitiniz {format_amount(_CASH_LIMIT)} TL'dir."
+    )
+    return textwrap.wrap(" ".join(words), _CLOSING_WIDTH)
 
 
 def paracard_statement(
@@ -277,15 +285,23 @@ def _card_amount(value: Decimal) -> str:
 
 
 def _card_pages(
-    summary: list[Run], pages: Sequence[Sequence[CardRow]], first: CardRow | None, last: CardRow
+    summary: list[Run],
+    pages: Sequence[Sequence[CardRow]],
+    first: CardRow | None,
+    last: CardRow,
+    closing: Sequence[str] = (),
 ) -> list[list[Run]]:
     """The statement's pages: the summary above the first page's table, every page's table under its own header,
-    first opening the first table and last closing the last one."""
+    first opening the first table and last closing the last one, and the closing lines under it."""
     out: list[list[Run]] = []
     for i, rows in enumerate(pages):
         top = 200 if i == 0 else 60
         table = [*([first] if first and i == 0 else []), *rows, *([last] if i == len(pages) - 1 else [])]
-        out.append([*(summary if i == 0 else []), *_card_table(top, table)])
+        runs = [*(summary if i == 0 else []), *_card_table(top, table)]
+        if i == len(pages) - 1:
+            below = top + 3 + (len(table) + 2) * _LINE
+            runs += [(_DATE_X, below + n * _LINE, line) for n, line in enumerate(closing)]
+        out.append(runs)
     return out
 
 

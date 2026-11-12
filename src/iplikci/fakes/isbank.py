@@ -30,8 +30,8 @@ MAXIMUM_PAGES: tuple[tuple[CardRow, ...], ...] = (
 
 
 # A Maximum statement's terms: the due date ten days after the cut, a minimum of the 40 % its box of limits prints as
-# the rate, and the card's limit.
-MAXIMUM_TERMS = CardTerms(date(2026, 10, 15), Decimal("1258.21"), Decimal(60000))
+# the rate, the card's limit and the next cut, a day before the same day a month on.
+MAXIMUM_TERMS = CardTerms(date(2026, 10, 15), Decimal("1258.21"), Decimal(60000), date(2026, 11, 4))
 # The customer's limit and the cash limit, printed in the box beside the card's own.
 _CUSTOMER_LIMIT, _CASH_LIMIT = Decimal(75000), Decimal(24000)
 
@@ -69,7 +69,6 @@ def _maximum_head(cut: date, total: Decimal, last4: str, holder: str, terms: Car
     """The first page's head: the summary in the right column beside the holder's name, its dates with dots, and the
     box of limits and rates under it in two columns, which a page's text runs into one line. The summary prints the
     next statement's dates too, and the box prints the due date again with slashes."""
-    later = cut + timedelta(days=31)
     left = (terms.limit if terms.limit is not None else _CUSTOMER_LIMIT) - total
     runs: list[Run] = [
         (40, 40, "TÜRKİYE İŞ BANKASI A.Ş."),
@@ -78,8 +77,6 @@ def _maximum_head(cut: date, total: Decimal, last4: str, holder: str, terms: Car
         (40, 100, f"SN. {holder}"),
         (330, 100, f"Hesap Kesim Tarihi: {cut:%d.%m.%Y}"),
         (330, 124, f"Hesap Özeti Borcu: {_amount(total)} TL"),
-        (330, 148, f"Bir Sonraki Hesap Kesim Tarihi: {later:%d.%m.%Y}"),
-        (330, 160, f"Bir Sonraki Son Ödeme Tarihi: {later + timedelta(days=10):%d.%m.%Y}"),
         (40, 196, f"Müşteri Limiti: {format_amount(_CUSTOMER_LIMIT)} TL"),
         (330, 196, "Alışveriş Faiz Oranı: %4,25"),
         (40, 208, f"Kullanılabilir Müşteri Limiti: {format_amount(_CUSTOMER_LIMIT - total)} TL"),
@@ -98,6 +95,11 @@ def _maximum_head(cut: date, total: Decimal, last4: str, holder: str, terms: Car
         ]
     if terms.minimum is not None:
         runs.append((330, 136, f"Ödenmesi Gereken Asgari Tutar: {_padded(terms.minimum)} TL"))
+    if terms.next_cut is not None:
+        runs += [
+            (330, 148, f"Bir Sonraki Hesap Kesim Tarihi: {terms.next_cut:%d.%m.%Y}"),
+            (330, 160, f"Bir Sonraki Son Ödeme Tarihi: {terms.next_cut + timedelta(days=10):%d.%m.%Y}"),
+        ]
     if terms.limit is not None:
         runs.append((40, 220, f"Toplam Kart Limiti: {format_amount(terms.limit)} TL"))
     return runs

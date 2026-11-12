@@ -156,6 +156,7 @@ def full_result() -> ParseResult:
         due_date=date(2026, 10, 15),
         minimum_payment=Decimal("1258.21"),
         credit_limit=Decimal("60000.00"),
+        next_cut=date(2026, 11, 4),
     )
     loose = Transaction(
         date(2026, 9, 10),
@@ -198,6 +199,8 @@ GONE = object()
         (("statements", 0, "minimum_payment"), 1258.21),
         (("statements", 0, "credit_limit"), "Infinity"),
         (("statements", 0, "credit_limit"), GONE),
+        (("statements", 0, "next_cut"), "2026-11-31"),
+        (("statements", 0, "next_cut"), GONE),
         (("statements", 0, "checks_ok"), True),
         (("statements", 0, "cut_date"), "2026-13-01"),
         (("statements", 0, "balances"), ["2026-09"]),

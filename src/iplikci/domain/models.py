@@ -6,6 +6,7 @@ from datetime import date
 from decimal import Decimal
 
 from .codes import AccountType, CategoryReason, InvoiceKind, Necessity, RateSource, TransactionKind, TransferStep
+from .dates import Cut, cut_after
 from .money import TOLERANCE, round_half_up
 
 # The lira as the models carry it (ADR-0006); labels.currency_label writes it as "TL".
@@ -134,6 +135,10 @@ class Statement:
     due_date: date | None = None  # this statement's "Son Ödeme Tarihi", never the next statement's
     minimum_payment: Decimal | None = None  # the minimum due by due_date
     credit_limit: Decimal | None = None  # the card's total limit
+    # Card statements: the next statement's cut date as this one prints it ("Bir sonraki hesap kesim tarihi"); None
+    # where it prints none. A card's cut day moves from month to month by the bank's calendar, so only a printed day
+    # is known; cut_after reckons the others.
+    next_cut: date | None = None
     # Set by analysis.py: the sha256 of the document the statement was read from (another file of the same statement
     # is a copy of it, and the statement keeps the file it was taken from).
     document: str = ""
@@ -141,6 +146,10 @@ class Statement:
     @property
     def is_account(self) -> bool:
         return self.start is not None
+
+    def cut_after(self, k: int = 1) -> Cut:
+        """The cut date of the k-th card statement after this one (k ≥ 1), as dates.cut_after reckons it."""
+        return cut_after(self.cut_date, self.next_cut, k)
 
     @property
     def computed_total(self) -> Decimal:

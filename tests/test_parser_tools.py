@@ -58,9 +58,9 @@ def test_the_probe_says_when_two_readers_recognise_a_document_or_none_does(monke
 
 def test_debug_shows_every_row_with_its_place():
     lines = tools.debug(doc(garanti.bonus_statement(), "ekstre.pdf"))
-    assert lines[0] == f"ekstre.pdf → garanti.bonus_card (sürüm {registry.SELECTION}.2)"
+    assert lines[0] == f"ekstre.pdf → garanti.bonus_card (sürüm {registry.SELECTION}.3)"
     assert any(line.endswith("— doğrulandı (11 satır)") for line in lines)
-    assert "Ödeme: son ödeme 2026-10-15, kart limiti 45.000,00" in lines
+    assert "Ödeme: son ödeme 2026-10-15, kart limiti 45.000,00, sonraki kesim 2026-11-04" in lines
     assert any("Harcama: TEKNOSA ORNEK AVM (taksit 8/12)  [s.1 kutu " in line for line in lines)
 
 

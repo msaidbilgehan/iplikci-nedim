@@ -6,7 +6,16 @@ from decimal import Decimal
 from ...domain.codes import AccountType, DocumentKind, TransactionKind
 from ...domain.models import TRY, Account, ParseResult, Statement, Transaction
 from ...domain.text import fold
-from ..common import BUSINESS_REASON, Skipped, agreed, classify_kind, currency_code, installment_label, split_interest
+from ..common import (
+    BUSINESS_REASON,
+    Skipped,
+    agreed,
+    classify_kind,
+    currency_code,
+    installment_label,
+    next_cut,
+    split_interest,
+)
 from ..contract import Detection, Format, Probe, SourceDocument
 from ..pdf import Line, find_header, find_word, page_lines, page_text, take_amount
 from ..text import parse_dmy, parse_tr_amount, squash
@@ -16,6 +25,9 @@ _DATE_PREFIX = re.compile(r"^(\d{2}/\d{2}/\d{4})(.*)$")
 # This statement's due date: the summary prints it with dots and the box of limits under it again with slashes.
 # "Bir Sonraki Son Ödeme Tarihi" is the next statement's.
 _DUE = re.compile(r"(?<!SONRAKI)SONODEMETARIHI:?(\d{2}[./]\d{2}[./]\d{4})")
+# The next statement's cut, under the summary's ("Bir Sonraki Hesap Kesim Tarihi: 07.12.2026"; some statements run its
+# words together, which squashing reads the same).
+_NEXT_CUT = re.compile(r"SONRAKIHESAPKESIMTARIHI:?(\d{2}[./]\d{2}[./]\d{4})")
 
 
 def _account(card_last4: str) -> Account:
@@ -81,9 +93,12 @@ def read(doc: SourceDocument) -> ParseResult:
         if raw.startswith("+") and total is not None:
             total = -total
 
+    cut_date = parse_dmy(cut[1])
+    if cut_date is None:
+        raise ValueError(f"hesap kesim tarihi okunamadı: {cut[1]}")
     stmt = Statement(
         account=account.id,
-        cut_date=parse_dmy(cut[1]),
+        cut_date=cut_date,
         currency=currency,
         source=doc.name,
         previous=None,
@@ -92,6 +107,7 @@ def read(doc: SourceDocument) -> ParseResult:
         minimum_payment=_term(sq, "ODENMESIGEREKENASGARITUTAR", currency),
         # The card's own limit, not the customer's, what is left of it or the cash limit printed beside it.
         credit_limit=_term(sq, "TOPLAMKARTLIMITI", currency),
+        next_cut=next_cut(cut_date, (parse_dmy(d) for d in _NEXT_CUT.findall(sq))),
     )
 
     for page in pdf.pages:
@@ -154,7 +170,7 @@ def read(doc: SourceDocument) -> ParseResult:
 
 class MaximumCard:
     id = ID
-    version = 3
+    version = 4
     bank = "İş Bankası"
     name = "İş Bankası Maximum kart hesap özeti"
     document_type = DocumentKind.CARD_STATEMENT

@@ -7,7 +7,7 @@ from ...domain.codes import AccountType, TransactionKind
 from ...domain.models import TRY, Account, ParseResult, Statement, Transaction
 from ...domain.money import round_half_up
 from ...domain.text import fold
-from ..common import agreed, classify_kind, installment_label, pair_deferrals
+from ..common import agreed, classify_kind, installment_label, next_cut, pair_deferrals
 from ..contract import SourceDocument
 from ..pdf import find_header, find_word, page_lines, page_text, take_amount
 from ..text import parse_tr_amount, parse_tr_words_date, squash
@@ -23,6 +23,9 @@ _FOREIGN = re.compile(r"([\d.]+,\d{2})\s*(USD|EUR|GBP)")
 _DUE = re.compile(r"SON ODEME TARIHI:? ?(\d{1,2}) (\w+) (\d{4})")
 # The card's limit, between the customer's limit and the cash advance limit.
 _LIMIT = re.compile(r"\bKART LIMITI ([\d.]+,\d{2})")
+# The next statement's cut, in the sentence that follows the rows ("EKSTRE ÖZETİ Bir sonraki hesap kesiminiz 4 Kasım
+# 2026 Çarşamba ve son ödemeniz …"): on a later page when the rows fill the first.
+_NEXT_CUT = re.compile(r"SONRAKI\s+HESAP\s+KESIMINIZ\s+(\d{1,2})\s+(\w+)\s+(\d{4})")
 
 
 def read_statement(doc: SourceDocument) -> ParseResult:
@@ -77,6 +80,9 @@ def read_statement(doc: SourceDocument) -> ParseResult:
         due_date=None if paracard else agreed(parse_tr_words_date(*m) for m in _DUE.findall(f)),
         credit_limit=None if paracard else agreed(parse_tr_amount(m) for m in _LIMIT.findall(f)),
     )
+    if not paracard:
+        every = fold("\n".join(page_text(page) for page in pdf.pages))
+        stmt.next_cut = next_cut(cut_date, (parse_tr_words_date(*m) for m in _NEXT_CUT.findall(every)))
 
     section = ""
     for page in pdf.pages:

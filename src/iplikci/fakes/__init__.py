@@ -91,6 +91,7 @@ class CardTerms:
     due: date | None = None  # this statement's due date
     minimum: Decimal | None = None  # the minimum payment
     limit: Decimal | None = None  # the card's limit
+    next_cut: date | None = None  # the next statement's cut date
 
 
 def charged(rows: Iterable[CardRow]) -> Decimal:

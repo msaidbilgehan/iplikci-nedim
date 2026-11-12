@@ -1,12 +1,13 @@
 """TEB Bonus credit card statements, with a text layer or as page images read with OCR (PDF)."""
 
 import re
+from datetime import date
 from decimal import Decimal
 
 from ...domain.codes import DocumentKind
 from ...domain.models import TRY, Account, ParseResult, Statement, Transaction
 from ...domain.text import fold
-from ..common import BUSINESS_REASON, Skipped, agreed, classify_kind, installment_label
+from ..common import BUSINESS_REASON, Skipped, agreed, classify_kind, installment_label, next_cut
 from ..contract import Detection, Format, Probe, SourceDocument
 from ..pdf import Line, find_header, find_word, page_lines, page_text, take_amount
 from ..text import parse_dmy, parse_tr_amount, squash
@@ -20,7 +21,12 @@ _INSTALLMENT = re.compile(r"\((\d{1,2})/(\d{1,2})\.\s*taksit\)", re.IGNORECASE)
 _FOREIGN = re.compile(r"\(Yurt\s*dışı\s*işlem\s*tutarı\s*([A-Z]{3})\.([\d.]+,(?:\d{1,2}|-))\)", re.IGNORECASE)
 _CARD = re.compile(r"KARTNUMARASI:?(\d{6,8})\*{4,6}(\d{4})")
 # This statement's due date; as with "Sonraki Hesap Kesim Tarihi", a date after "Sonraki" is the next statement's.
+# The box under the heading prints it and the heading again ("SON ÖDEME TARİHİ: 23/10/2026"); OCR may read its Ö as O.
 _DUE = re.compile(r"(?<!SONRAKI)SONODEMETARIHI:?(\d{2}/\d{2}/\d{4})")
+# The next statement's cut, in the same box: "Bir Sonraki Hesap Kesim Tarihi: 14/11/2026". The explanation some
+# statements print under it ("… bir sonraki hesap kesim tarihi ve bir sonraki son ödeme tarihi ile ilgili …") has no
+# date after the words.
+_NEXT_CUT = re.compile(r"SONRAKIHESAPKESIMTARIHI:?(\d{2}/\d{2}/\d{4})")
 
 
 def _split_description(desc: str) -> tuple[str, str, str]:
@@ -46,15 +52,17 @@ def _parse_statement(doc: SourceDocument, first: str) -> ParseResult:
     if not (card and cut):
         raise ValueError("kart numarası / hesap kesim tarihi bulunamadı")
     account = card_account(card[2])
+    cut_date = _cut_date(cut[1])
     stmt = Statement(
         account=account.id,
-        cut_date=parse_dmy(cut[1]),
+        cut_date=cut_date,
         currency=TRY,
         source=doc.name,
         previous=Decimal(0),
         total=parse_tr_amount(total[1]) if total else None,
         # The layout known prints no minimum payment or limit.
         due_date=agreed(parse_dmy(d) for d in _DUE.findall(sq)),
+        next_cut=next_cut(cut_date, (parse_dmy(d) for d in _NEXT_CUT.findall(sq))),
     )
     for page in doc.pdf.pages:
         lines = page_lines(page)
@@ -68,6 +76,13 @@ def _parse_statement(doc: SourceDocument, first: str) -> ParseResult:
             start = h + 1
     holder = re.search(r"SAYIN\s*([A-ZÇĞİÖŞÜ ]+?)\s*(?:\n|HESAP|SON)", first)
     return ParseResult(parser=ID, accounts=[account], statements=[stmt], holder=holder[1] if holder else "")
+
+
+def _cut_date(printed: str) -> date:
+    found = parse_dmy(printed)
+    if found is None:
+        raise ValueError(f"hesap kesim tarihi okunamadı: {printed}")
+    return found
 
 
 def _add(stmt: Statement, account: Account, doc: SourceDocument, line: Line, date, desc: str, amount: Decimal) -> None:
@@ -123,8 +138,19 @@ def _parse_ocr(doc: SourceDocument, pages: list[list[Line]]) -> ParseResult:
     if not (card and cut):
         raise ValueError("OCR: kart numarası / hesap kesim tarihi okunamadı")
     account = card_account(card[1])
+    cut_date = _cut_date(cut[0])
+    # The box of terms as OCR reads it, each label and its date a cell of their own: the due date, printed again in
+    # the heading, and the next statement's cut.
+    sq = squash(text)
     stmt = Statement(
-        account=account.id, cut_date=parse_dmy(cut[0]), currency=TRY, source=doc.name, previous=Decimal(0), total=total
+        account=account.id,
+        cut_date=cut_date,
+        currency=TRY,
+        source=doc.name,
+        previous=Decimal(0),
+        total=total,
+        due_date=agreed(parse_dmy(d) for d in _DUE.findall(sq)),
+        next_cut=next_cut(cut_date, (parse_dmy(d) for d in _NEXT_CUT.findall(sq))),
     )
     for line in lines:
         if "ÖNCEKİ DÖNEM" in line.text.upper():
@@ -158,7 +184,7 @@ def _parse_ocr(doc: SourceDocument, pages: list[list[Line]]) -> ParseResult:
 
 class BonusCard:
     id = ID
-    version = 4
+    version = 5
     bank = "TEB"
     name = "TEB Bonus kart ekstresi"
     document_type = DocumentKind.CARD_STATEMENT
