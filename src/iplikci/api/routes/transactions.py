@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 
 from ...app import annotate, transactions
 from ...app.analysis import Analysis, account_labels
+from ...app.links import Link, Screen
 from ...app.transactions import (
     Actor,
     CategoryReason,
@@ -23,6 +24,7 @@ from ...app.transactions import (
     DocumentKind,
     EvidenceStatus,
     Filter,
+    MonthStatus,
     Necessity,
     NecessityReason,
     Order,
@@ -37,7 +39,7 @@ from ...app.transactions import (
 from ...app.workspace import Busy
 from ..context import Context, context_of
 from ..guard import Principal
-from ..models import MoneyOut, RowOut, money, row_out
+from ..models import AccountRefOut, LinkOut, MoneyOut, RowOut, account_ref, link_out, money, row_out
 from ..problems import Problem
 from .deps import only
 
@@ -60,11 +62,58 @@ class TotalsOut(BaseModel):
     excluded: int  # rows never counted
 
 
+class DaysOut(BaseModel):
+    start: date
+    end: date
+
+
+class AwaitedOut(BaseModel):
+    """An account whose documents for some of the filtered days are not in yet."""
+
+    account: AccountRefOut
+    status: MonthStatus  # waiting, missing or check
+    days: list[DaysOut]  # the filtered days it leaves open; none for a check, which is the month's
+    waiting_for: str  # what closes them, in a few Turkish words: "19–31 Ekim ekstresi, kesim ~18.11"
+    late: bool  # the statement's cut passed days ago and it did not come
+
+
+class OpenMonthOut(BaseModel):
+    """A month of the filtered days that has not closed: its rows are listed as far as the documents in go."""
+
+    month: str  # YYYY-MM
+    status: MonthStatus  # never closed
+    accounts: list[AwaitedOut]  # none for a running month: it runs on
+    closes_by: date | None  # the cut of the last card statement it waits for, when one can be promised
+    link: LinkOut  # its month-end page
+
+
 class TransactionsOut(BaseModel):
     rows: list[RowOut]
     totals: TotalsOut
     offset: int
     next: int | None  # the next page's offset; null on the last
+    open: list[OpenMonthOut]  # the filtered days' months that have not closed, the oldest first
+
+
+def _open_month(found: transactions.OpenMonth, labels: dict[str, str]) -> OpenMonthOut:
+    link = link_out(Link(Screen.MONTH, found.month))
+    assert link is not None  # link_out gives None only for no link
+    return OpenMonthOut(
+        month=found.month,
+        status=found.status,
+        accounts=[
+            AwaitedOut(
+                account=account_ref(held.account, labels),
+                status=held.status,
+                days=[DaysOut(start=lo, end=hi) for lo, hi in held.days],
+                waiting_for=held.what,
+                late=held.late,
+            )
+            for held in found.accounts
+        ],
+        closes_by=found.closes_by,
+        link=link,
+    )
 
 
 def _analysis(context: Context) -> Analysis:
@@ -125,8 +174,10 @@ def _order(
 def transaction_list(
     request: Request, f: Annotated[Filter, Depends(filters)], o: Annotated[Order, Depends(_order)]
 ) -> TransactionsOut:
-    """The rows the filters keep, a page at a time, and what they all add up to."""
-    a = _analysis(context_of(request))
+    """The rows the filters keep, a page at a time, what they all add up to and the months of their days that have not
+    closed, with what each waits for."""
+    context = context_of(request)
+    a = _analysis(context)
     found = transactions.page(a, f, o)
     labels = account_labels(a)
     t = found.totals
@@ -143,6 +194,7 @@ def transaction_list(
         ),
         offset=found.offset,
         next=found.next,
+        open=[_open_month(m, labels) for m in transactions.open_months(a, f, context.today())],
     )
 
 

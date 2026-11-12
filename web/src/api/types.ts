@@ -19,6 +19,7 @@ import type {
   ArrivalOut,
   AssetOut,
   AvailableOut,
+  AwaitedOut,
   BackupOut,
   BridgeOut,
   BrokerageOut,
@@ -131,6 +132,7 @@ import type {
   NowBalanceOut,
   NowCardOut,
   NowOut,
+  OpenMonthOut,
   OtherSendersOut,
   OutcomeOut,
   OverdraftOut,
@@ -302,6 +304,8 @@ export type Annotation = AnnotationOut;
 export type Correction = CorrectionIn;
 export type SavedView = ViewModel;
 export type TagCount = TagOut; // a tag the user gave rows, with how many carry it
+export type OpenMonth = OpenMonthOut; // a month of the listed days that has not closed, with what it waits for
+export type Awaited = AwaitedOut; // an account whose documents for some of those days are not in yet
 export type { Period }; // a period the filters name: its days are reckoned from the service's today
 export type BulkResult = BulkOut;
 export type CategoryRules = CategoryRulesOut;

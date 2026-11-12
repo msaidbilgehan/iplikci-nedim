@@ -47,6 +47,7 @@ class MonthEndOut(BaseModel):
     provisional: int  # rows only receipts and notices show yet
     unmatched: int  # receipts' rows the statements covering their days do not show
     income_note: str  # where the income comes from, or why it is as it is
+    closes_by: date | None  # a month waiting for card statements: the last one's cut, when one can be promised
     link: LinkOut
 
 
@@ -185,6 +186,7 @@ def _month(me: MonthEnd) -> MonthEndOut:
         provisional=len(me.provisional),
         unmatched=len(me.unmatched),
         income_note=me.income_note,
+        closes_by=me.closes_by,
         link=_link(Link(Screen.MONTH, me.month)),
     )
 

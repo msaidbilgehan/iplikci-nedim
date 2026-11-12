@@ -1,5 +1,6 @@
-"""The Transactions screen (F04): the rows filtered, sorted and paged with their totals, as CSV too; one row with
-where it is printed and why it is what it is; corrections on one row or many, kept by fingerprint; kept views."""
+"""The Transactions screen (F04): the rows filtered, sorted and paged with their totals and the months of their days
+that have not closed, as CSV too; one row with where it is printed and why it is what it is; corrections on one row or
+many, kept by fingerprint; kept views."""
 
 from datetime import date
 from decimal import Decimal
@@ -15,7 +16,7 @@ from iplikci.api.models import link_out
 from iplikci.app.analysis import analyze
 from iplikci.app.transactions import Direction, Filter, Period, TransactionKind, period_days, rows_link
 from iplikci.app.workspace import Workspace
-from iplikci.fakes import teb
+from iplikci.fakes import garanti, teb
 
 from conftest import add
 
@@ -148,6 +149,60 @@ def test_the_money_in_or_out_alone_and_an_amounts_bounds_keep_their_rows_and_the
     assert rows_of(client, min="100", direction="out")["totals"]["count"] <= went["totals"]["count"]
     for bad in ({"min": "-1"}, {"max": "on"}, {"direction": "sideways"}):
         assert client.get("/api/transactions", params=bad, headers=bearer()).status_code == 422
+
+
+@pytest.fixture
+def waiting(ws) -> TestClient:
+    """The Garanti current account's October list and the Bonus card's statement it pays, on 3 November: October waits
+    for the card's next statement, September misses the card's first days and November runs."""
+    add(ws, "ekim.xls", garanti.account_xls())
+    add(ws, "ekstre.pdf", garanti.bonus_statement())
+    return TestClient(create_app(Context(ws=ws, token=TOKEN, today=lambda: date(2026, 11, 3))), base_url=BASE)
+
+
+def open_of(client: TestClient, **params: str) -> list[dict]:
+    return rows_of(client, **params)["open"]
+
+
+def test_a_month_of_the_listed_days_that_has_not_closed_says_what_it_waits_for_and_by_when(waiting):
+    [october] = open_of(waiting, **{"from": "2026-10-01", "to": "2026-10-31"})
+    assert october == {
+        "month": "2026-10",
+        "status": "waiting",
+        "accounts": [
+            {
+                "account": {"id": "garanti-1234", "label": october["accounts"][0]["account"]["label"]},
+                "status": "waiting",
+                "days": [{"start": "2026-10-06", "end": "2026-10-31"}],
+                "waiting_for": "6–31 Ekim ekstresi, kesim ~05.11",
+                "late": False,
+            }
+        ],
+        "closes_by": "2026-11-05",
+        "link": {"screen": "month", "id": "2026-10", "query": {}},
+    }
+
+
+def test_the_open_days_are_the_listed_ones_and_the_accounts_the_filter_keeps(waiting):
+    [october] = open_of(waiting, **{"from": "2026-10-01", "to": "2026-10-10"})
+    assert october["accounts"][0]["days"] == [{"start": "2026-10-06", "end": "2026-10-10"}]
+    # The days before the card's open ones are all in: nothing to wait for.
+    assert open_of(waiting, **{"from": "2026-10-01", "to": "2026-10-05"}) == []
+    # October waits only for the card: the current account's October is whole.
+    assert open_of(waiting, account="garanti-1234567", **{"from": "2026-10-01", "to": "2026-10-31"}) == []
+
+
+def test_every_day_lists_the_months_not_closed_the_oldest_first_and_a_running_month_names_no_account(waiting):
+    found = open_of(waiting)
+    assert [(m["month"], m["status"]) for m in found] == [
+        ("2026-09", "missing"),
+        ("2026-10", "waiting"),
+        ("2026-11", "running"),
+    ]
+    september, _, november = found
+    assert september["accounts"][0]["waiting_for"] == "1–5 Eylül ekstresi eksik"
+    assert september["closes_by"] is None
+    assert (november["accounts"], november["closes_by"]) == ([], None)
 
 
 def test_the_tags_given_rows_are_offered_the_most_used_first(own):

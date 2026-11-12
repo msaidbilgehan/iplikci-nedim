@@ -1,6 +1,6 @@
 """The Transactions screen (F04): the ledger's rows filtered, sorted and paged, with the totals of what the filters
-keep; a CSV of them; one row's detail with why it is what it is; the user's corrections on one row or many; the
-filters the user keeps as views.
+keep and the months of the filtered days that have not closed, with what they wait for; a CSV of them; one row's
+detail with why it is what it is; the user's corrections on one row or many; the filters the user keeps as views.
 
 The list holds the rows the ledger counts and the receipts' and notices' rows a statement covering their days leaves
 out (excluded: shown, never in a total). A receipt's row a statement shows is not listed apart: the statement's row
@@ -27,6 +27,7 @@ from ..domain.codes import (
     Certainty,
     DocumentKind,
     EvidenceStatus,
+    MonthStatus,
     Necessity,
     NecessityReason,
     RateSource,
@@ -41,7 +42,7 @@ from ..insights import month_of, shift
 from ..month_end import first_day, last_day
 from ..storage import annotations, audit, documents, feed_state
 from ..storage.annotations import Annotation
-from . import annotate, background
+from . import annotate, background, closing
 from .analysis import Analysis, account_labels
 from .links import Link, Screen
 from .rows import Direction, Found, Rows, RowView, view
@@ -49,6 +50,7 @@ from .workspace import Workspace
 
 __all__ = [
     "Actor",
+    "Awaited",
     "CategoryReason",
     "Certainty",
     "Checked",
@@ -57,8 +59,10 @@ __all__ = [
     "DocumentKind",
     "EvidenceStatus",
     "Filter",
+    "MonthStatus",
     "Necessity",
     "NecessityReason",
+    "OpenMonth",
     "Page",
     "Period",
     "Printed",
@@ -69,6 +73,7 @@ __all__ = [
     "Totals",
     "TransactionKind",
     "TransferStep",
+    "open_months",
     "period_days",
     "tag_counts",
 ]
@@ -319,6 +324,54 @@ def page(a: Analysis, f: Filter, order: Order) -> Page:
     shown = rows[order.offset : order.offset + limit]
     more = order.offset + limit < len(rows)
     return Page(shown, totals(found), order.offset, order.offset + limit if more else None)
+
+
+@dataclass(frozen=True, slots=True)
+class Awaited:
+    """An account whose documents for some of the filtered days are not in yet (month_end.AccountClose)."""
+
+    account: str
+    status: MonthStatus  # waiting, missing or check
+    days: list[tuple[date, date]]  # the filtered days it leaves open; none for a check, which is the month's
+    what: str  # what closes them, in a few Turkish words: "19–31 Ekim ekstresi, kesim ~18.11"
+    late: bool  # the statement's cut passed days ago and it did not come
+
+
+@dataclass(frozen=True, slots=True)
+class OpenMonth:
+    """A month of the filtered days that has not closed, with what it waits for: the list shows those days' rows as
+    far as the documents in go."""
+
+    month: str
+    status: MonthStatus  # never closed
+    accounts: list[Awaited]  # a running month names none: it runs on
+    closes_by: date | None  # the day it should close (MonthEnd.closes_by)
+
+
+def open_months(a: Analysis, f: Filter, today: date) -> list[OpenMonth]:
+    """The months of the filter's days that have not closed, of the current month and the twelve before it (the
+    closing's months), the oldest first, each with the accounts the filter keeps whose documents for those days are
+    not in yet. A month whose open days lie outside the filter's, or whose open accounts the filter leaves out, waits
+    for nothing the list could show."""
+    found: list[OpenMonth] = []
+    for me in reversed(closing.months(a, today)):
+        start = max(first_day(me.month), f.start or date.min)
+        end = min(last_day(me.month), f.end or date.max)
+        if me.status is MonthStatus.CLOSED or start > end:
+            continue
+        if me.status is MonthStatus.RUNNING:
+            found.append(OpenMonth(me.month, me.status, [], None))
+            continue
+        held = [
+            Awaited(ac.account.id, ac.status, days, ac.waiting_for, ac.late)
+            for ac in me.open
+            if not f.accounts or ac.account.id in f.accounts
+            if (days := [(max(lo, start), min(hi, end)) for lo, hi in ac.open if lo <= end and hi >= start])
+            or ac.status is MonthStatus.CHECK
+        ]
+        if held:
+            found.append(OpenMonth(me.month, me.status, held, me.closes_by))
+    return found
 
 
 _CSV_COLUMNS = (

@@ -304,6 +304,17 @@ class MonthEnd:
         return [a for a in self.accounts if a.blocking and a.status != CLOSED]
 
     @property
+    def closes_by(self) -> date | None:
+        """When an ended month should close: the cut of the last card statement it waits for, as each card's next cut
+        is reckoned from its earlier ones. None when no day can be promised: the month waits for an account list the
+        user downloads, misses a document or asks for a check, or a statement it waits for is late."""
+        held = self.open
+        if self.status != WAITING or not held:
+            return None
+        cuts = [a.next_cut for a in held if a.status == WAITING and a.next_cut and not a.late]
+        return max(cuts) if len(cuts) == len(held) else None
+
+    @property
     def summary(self) -> str:
         """The month's closing in one sentence, to go after its status label."""
         if self.status == CLOSED:

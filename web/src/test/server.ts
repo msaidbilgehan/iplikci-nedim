@@ -49,6 +49,7 @@ import type {
   Notifications,
   NotifySettings,
   Now,
+  OpenMonth,
   OtherSenders,
   Row,
   RuleChange,
@@ -2654,6 +2655,7 @@ export const TRANSACTIONS: TransactionPage = {
   },
   offset: 0,
   next: 50,
+  open: [],
 };
 
 export const NEXT_TRANSACTIONS: TransactionPage = {
@@ -2668,6 +2670,31 @@ export const NEXT_TRANSACTIONS: TransactionPage = {
   totals: TRANSACTIONS.totals,
   offset: 50,
   next: null,
+  open: [],
+};
+
+/** October waits for two cards' statements that cover its last days (TransactionsOut.open). */
+export const OPEN_OCTOBER: OpenMonth = {
+  month: "2026-10",
+  status: "waiting",
+  accounts: [
+    {
+      account: { id: "teb-1111", label: "TEB Bonus •1111" },
+      status: "waiting",
+      days: [{ start: "2026-10-14", end: "2026-10-31" }],
+      waiting_for: "14–31 Ekim ekstresi, kesim ~13.11",
+      late: false,
+    },
+    {
+      account: { id: "garanti-2222", label: "Garanti Bonus •2222" },
+      status: "waiting",
+      days: [{ start: "2026-10-25", end: "2026-10-31" }],
+      waiting_for: "25–31 Ekim ekstresi, kesim ~24.11",
+      late: false,
+    },
+  ],
+  closes_by: "2026-11-24",
+  link: { screen: "month", id: "2026-10", query: {} },
 };
 
 export function category(
@@ -3396,6 +3423,7 @@ function monthEnd(
     provisional: 0,
     unmatched: 0,
     income_note: "hesap dökümlerindeki gelen para",
+    closes_by: null,
     link: { screen: "month", id: month, query: {} },
     ...overrides,
   };

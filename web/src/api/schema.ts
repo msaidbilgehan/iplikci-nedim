@@ -219,6 +219,15 @@ export interface AvailableOut {
   page: string;
 }
 
+/** An account whose documents for some of the filtered days are not in yet. */
+export interface AwaitedOut {
+  account: AccountRefOut;
+  status: MonthStatus;
+  days: DaysOut[];
+  waiting_for: string;
+  late: boolean;
+}
+
 export interface BackupHealthOut {
   last: string;
   next: string;
@@ -520,6 +529,11 @@ export interface DataFreshnessOut {
   accounts: FreshnessOut[];
   say: string;
   link: LinkOut;
+}
+
+export interface DaysOut {
+  start: string;
+  end: string;
 }
 
 export interface DeliveredOut {
@@ -1340,6 +1354,7 @@ export interface MonthEndOut {
   provisional: number;
   unmatched: number;
   income_note: string;
+  closes_by: string | null;
   link: LinkOut;
 }
 
@@ -1577,6 +1592,15 @@ export interface NowOut {
 export interface OpenAlertsOut {
   items: AlertOut[];
   say: string;
+  link: LinkOut;
+}
+
+/** A month of the filtered days that has not closed: its rows are listed as far as the documents in go. */
+export interface OpenMonthOut {
+  month: string;
+  status: MonthStatus;
+  accounts: AwaitedOut[];
+  closes_by: string | null;
   link: LinkOut;
 }
 
@@ -2334,6 +2358,7 @@ export interface TransactionsOut {
   totals: TotalsOut;
   offset: number;
   next: number | null;
+  open: OpenMonthOut[];
 }
 
 /**
