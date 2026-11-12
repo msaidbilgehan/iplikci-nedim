@@ -517,18 +517,22 @@ G12, K10 · Çekirdek
   - Reddedilen giriş ya da belirteç kanalı durdurur; kanal yeniden açılana dek denenmez.
 - **İlk okuma (Aşama 6, 2026-11-02):** e-posta geçmişi baştan okunurken bildirimler yalnızca uygulamanın kutusuna
   düşer: eklentide ilk tarama bitene, IMAP'te geçmiş sonuna dek okunana kadar. Geçmişin bir parçasından çıkan uyarılar
-  masaüstüne, Telegram'a ve e-postaya gitmez (test edilir). Taramanın ortasında doğan geçici bir "Hesap eksiye düşecek" uyarısı, tarama bitince geçersiz kalabilir.
-- **Gerçek veriyle denetim (v0.7.6, 2026-11-03):** uygulamanın kutusundaki bildirimler belgelerle tek tek karşılaştırıldı ve kurallar düzeltildi:
-  - Elle indirilen eski belgeler aylar önceki zamları yeni gibi bildirebiliyordu. Artık yeni fiyatı kesinleştiren ödeme
-    45 günden eskiyse zam söylenmez.
+  masaüstüne, Telegram'a ve e-postaya gitmez (test edilir): taramanın ortasında doğan geçici bir "Hesap eksiye
+  düşecek" uyarısı, tarama bitince geçersiz kalabilir.
+- **Gerçek veriyle denetim (v0.7.6, 2026-11-03):** uygulamanın kutusundaki bildirimler belgelerle tek tek
+  karşılaştırıldı ve kurallar düzeltildi:
+  - Elle indirilen eski belgeler aylar önceki zamları yeni gibi bildirebiliyordu. Artık yeni fiyatı kesinleştiren
+    ödeme 45 günden eskiyse zam söylenmez.
   - Dolarla faturalanan bir planın kur yükseldikçe artan TL tutarı zam sanılabiliyordu. Artık döviz tutarıyla
     karşılaştırılır.
-  - Ek hesapların (KMH) ve kendi hesaplarından para aktarılan hesapların eksi günleri, hesapların toplamı eksiye düşmese de "Hesap eksiye düşecek" diye bildirilebiliyordu. Artık bu hesaplar uyarmaz; toplam izlenir.
+  - Ek hesapların (KMH) ve kendi hesaplarından para aktarılan hesapların eksi günleri, hesapların toplamı eksiye
+    düşmese de "Hesap eksiye düşecek" diye bildirilebiliyordu. Artık bu hesaplar uyarmaz; toplam izlenir.
   - Kural "Abonelik zammı" adıyla faturaları ve kirayı da kapsıyordu; adı "Düzenli ödeme zammı" oldu.
 - **Telegram'dan belge (v0.9.13, 2026-11-08):** eşleşmiş sohbet bota belge de gönderebilir (F02, ADR-0021). Servis
   botun iletilerini uzun yoklamayla okur; eşleştirme kodunu da bu okuma bulabilir. Karşılama iletisi belge göndermeyi
   anlatır; kart, belge alımını açıp kapatan anahtarı ve Telegram'dan geçen belgenin gizlilik notunu taşır.
-- **Yönüyle fiyat değişimi (v0.9.8, 2026-11-03):** yarım yıl arayla gelen iki ödeme (ör. iki bağış) dönemsel ödeme sayılabiliyor, ikincisinin düşük tutarı "Düzenli ödeme zammı" diye bildirilebiliyordu. Dönemsel seri artık taahhüt kategorileri
+- **Yönüyle fiyat değişimi (v0.9.8, 2026-11-03):** yarım yıl arayla gelen iki ödeme (ör. iki bağış) dönemsel ödeme
+  sayılabiliyor, ikincisinin düşük tutarı "Düzenli ödeme zammı" diye bildirilebiliyordu. Dönemsel seri artık taahhüt kategorileri
   dışında üç ödeme ister (F08). Fiyatı düşen bir düzenli ödemenin bildirimi "Düzenli ödeme ucuzladı" başlığını
   taşır, özeti "ucuzladı" der. Kuralın adı "Düzenli ödeme tutarı değişti" oldu.
 

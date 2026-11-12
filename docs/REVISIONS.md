@@ -362,9 +362,11 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
   - Mimari, özellikler, yol haritası (eklenti Aşama 3'te, paketler Aşama 6'da), geçiş planı ve CLAUDE.md buna göre
     güncellendi.
 - 2026-10-31 (4) — Ad düzeltmesi ve e-posta bağlantısı:
-  - Ad **İplikçi Nedim** oldu ([K1](v1/requirements.md#kararlar)). Depo ve dağıtım adı `iplikci-nedim`. Python paketi, komut ve diğer teknik adlar kısa adla `iplikci` kalır.
-  - Gelişmiş Koruma'daki (Advanced Protection) Gmail hesaplarında uygulama şifresi yok; MVP'nin e-posta alımı bu hesaplarda çalışmaz. E-posta bağlantısı için [ADR-0016](adr/0016-mail-connectors.md) önerildi. Önerilen yol Thunderbird
-    köprüsü; kabulü kullanıcının denemesine bağlı.
+  - Ad **İplikçi Nedim** oldu ([K1](v1/requirements.md#kararlar)). Depo ve dağıtım adı `iplikci-nedim`. Python
+    paketi, komut ve diğer teknik adlar kısa adla `iplikci` kalır.
+  - Gelişmiş Koruma'daki (Advanced Protection) Gmail hesaplarında uygulama şifresi yok; MVP'nin e-posta alımı bu
+    hesaplarda çalışmaz. E-posta bağlantısı için [ADR-0016](adr/0016-mail-connectors.md) önerildi. Önerilen yol
+    Thunderbird köprüsü; kabulü kullanıcının denemesine bağlı.
 - 2026-10-31 (3) — Belgeler son hâline getirildi; uygulama yeni bir oturumda Aşama 0 ile başlayacak. Eklenenler:
   - [Mimari](v1/architecture.md), [özellikler](v1/features.md) (kabul ölçütleri ve MVP eşitlik listesiyle),
     [yol haritası](v1/roadmap.md) ve [geçiş planı](v1/migration.md).

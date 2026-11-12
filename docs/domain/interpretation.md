@@ -142,7 +142,8 @@ nedenleri arasında sayılmaz.
     gün sonlarında ya da bir bildirimin yazdığı bakiyede olur: öyle bir hesabın ek hesabı vardır ve kullanılıyordur.
   - Dekont ve bildirimler bakiyeyi böyle bir hesapta sıfırın altına indiriyorsa, arada hiçbir belgede olmayan para
     girmiştir. Bildirimler hareketlerin yalnızca bir kısmını anlatır: Garanti belli bir tutarın üstündeki giden
-    havaleleri bildirir; döviz satışını ve gelen parayı bildirmez. Örnek: döküm 0,00 TL ile alınmış, sonra 12.750 TL giden bir bildirim gelmiş. Bakiye o zaman 0 sayılır (geçici), not da en az ne kadar girmiş olması
+    havaleleri bildirir; döviz satışını ve gelen parayı bildirmez. Örnek: döküm 0,00 TL ile alınmış, sonra
+    12.750 TL giden bir bildirim gelmiş. Bakiye o zaman 0 sayılır (geçici), not da en az ne kadar girmiş olması
     gerektiğini yazar.
   - Bu tutar borç değildir: ek hesap borcuna, KMH önerisine ve borç toplamına girmez.
   - Toplamlar onu ayrı bir satırla düşer: Hesaplar'ın, net varlığın ve Değerlendirme'nin birikimi. Para kendi

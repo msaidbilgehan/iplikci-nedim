@@ -33,8 +33,9 @@ says what the waiting must show; check them once their time has passed).
 - Phase 4 (the whole mailbox) reads the message bodies.
   - The bank notices are evidence like receipts: VakıfBank's, Garanti's and QNB's transfer notices and İş Bankası's
     card debt collection. A movement a notice and a receipt both tell counts once.
-  - Every other bank message is classified knowingly or stays unknown; F01's coverage shows on the System screen and in `servis durum`. A message no reader takes is a company's
-    when its greeting names the company or it pays premiums under an SGK workplace number.
+  - Every other bank message is classified knowingly or stays unknown; F01's coverage shows on the System screen and
+    in `servis durum`. A message no reader takes is a company's when its greeting names the company or it pays
+    premiums under an SGK workplace number.
   - The card statements give their due date, minimum payment and limit; the periodic series, the 60-day calendar
     and the cash-flow forecast are built on the ledger.
   - Non-bank bills and receipts (UBL-TR e-invoices so far) are kept and matched to the bank's rows, never counted
@@ -60,8 +61,9 @@ says what the waiting must show; check them once their time has passed).
     folder; a service run by hand refuses them.
   - The e2e tests run every screen in both themes with axe and at phone width; `e2e/tests/firstRun.spec.ts` starts its
     own service on an empty data folder. Never confirm a step that ends the service in a test.
-  - The macOS clean install was tried on 2026-11-02 (data folder moved aside and back, a keychain entry another Python wrote makes macOS ask for the password, so the app renews its API token). The Windows one is the
-    user's; the roadmap lists what it has to confirm.
+  - The macOS clean install was tried on 2026-11-02 (data folder moved aside and back; a keychain entry another
+    Python wrote makes macOS ask for the password, so the app renews its API token). The Windows one is the user's;
+    the roadmap lists what it has to confirm.
   - While the mailbox's history is read from the start (the extension's first scan, an IMAP account's first read),
     notifications go only to the in-app box.
 - After Phase 6 (2026-11-02, branch `arayuz`, v0.7.1) the interface was simplified at the user's request: icons drawn
@@ -167,14 +169,16 @@ says what the waiting must show; check them once their time has passed).
 - v0.9.6: `analysis._resolve_transfers` pairs on the surer signs first: both sides naming the user
   (`_pair_own_sides`), then an open row with an opposite one that names the user (`_pair_open`), before a row that
   only names the receiving bank takes a named payment's kind (LIKE_NAMED, any date) and before open rows pair among
-  themselves and with card payments. Otherwise a rule naming a person could turn an own overdraft payment into money sent to that person.
+  themselves and with card payments. Otherwise a rule naming a person could turn an own overdraft payment into money
+  sent to that person.
 - v0.9.7: a single row's exception is a correction, never a pattern written to miss it. A category the user gives a
   transfer the ledger worked out (`annotate._WORKED_OUT`: rule, like-named, uncovered bank, person, income) brings
   the kind a rule naming it would (`annotate.kind_in`, `Categorizer.kind_for`); the categories the program keeps for
   a kind stand for it (`categorize._CATEGORY_KIND`). A card's purchase and a known own transfer keep their kind. The
   MCP plan shows the kind (`Checked.kind`); İşlemler says it by the category picker.
-- v0.9.8: two payments half a year apart, two donations say, could make a half-yearly series and a "zam" notification for a lower amount. Outside the `_düzenli` categories a periodic series takes three payments (`insights._PERIODIC_LEAST`);
-  inside them two still do. A price change is titled by its direction (`notify.content.title`: "Düzenli ödeme
+- v0.9.8: outside the `_düzenli` categories a periodic series takes three payments (`insights._PERIODIC_LEAST`), so
+  two payments half a year apart, two donations say, make no half-yearly series and no "zam" notification; inside
+  them two still do. A price change is titled by its direction (`notify.content.title`: "Düzenli ödeme
   zammı" or "Düzenli ödeme ucuzladı", also Akış's label); the rule is "Düzenli ödeme tutarı değişti". Telegram's
   summary level leaves the payee out on purpose (ADR-0010); the user picks Tam on Bildirimler → Kanallar.
 - v0.9.9 (2026-11-04): the Pano's Kalan is the month-end's (`month_end.Totals.left`): out is spending, money sent
@@ -189,11 +193,13 @@ says what the waiting must show; check them once their time has passed).
   list to download, a late statement, a missing document or a check), what was spent in it so far and its month-end
   page. Until then a month waiting for November's card statements was skipped without a word.
 - v0.9.11: a transfer row that names the receiving bank (TEB's bank-only rows, Vakıfbank's FAST) pairs only with an
-  account at that bank (`analysis._bank_fits`): of two same-amount transfers on one day to two banks, the first could otherwise take the other's arrival. The shipped rules no longer read "TURIZM" as a bus ticket:
+  account at that bank (`analysis._bank_fits`): of two same-amount transfers on one day to two banks, the first could
+  otherwise take the other's arrival. The shipped rules no longer read "TURIZM" as a bus ticket:
   bus companies are named, a "… Turizm" with no other word is uncategorized.
 - v0.9.12: receipts and notices never take an account below zero when it cannot go there: one that is no overdraft,
   card or loan and that no document shows below zero (`analysis.shown_below_zero`). Garanti notifies only transfers
-  out, so a list ending at zero and a later transfer out, paid by money no document tells (an FX sale, say), would make a current account negative and an overdraft debt. The balance is zero and the money in is `untold`
+  out, so a list ending at zero and a later transfer out, paid by money no document tells (an FX sale, say), would
+  make a current account negative and an overdraft debt. The balance is zero and the money in is `untold`
   (`analysis.untold_in`, `forecast.Start.untold`, `now.Balance.untold`). Debts and the KMH advice leave it out; the
   totals (Hesaplar, the net worth, Döviz, Değerlendirme's savings) take it off as a line of their own, so the money
   is not counted twice and an own transfer does not raise them.
@@ -228,7 +234,9 @@ says what the waiting must show; check them once their time has passed).
     `insights.sent_after_note`): money that left one account and is in no document of the other. The overdraft step
     dates a debt an older document tells ("… itibarıyla").
 - v0.9.15: a transfer row that names someone else whom no rule names (`analysis._resolve_transfers`'s strangers)
-  never pairs by amount as an own transfer's other side; it ends as income or money sent to a person. Otherwise someone's payment into a documented account could take the place of an own FAST that reached an account no document shows; that account's balance note tells the FAST (`analysis.sent_after`).
+  never pairs by amount as an own transfer's other side; it ends as income or money sent to a person. Otherwise
+  someone's payment into a documented account could take the place of an own FAST that reached an account no document
+  shows; that account's balance note tells the FAST (`analysis.sent_after`).
 - v0.9.16: the receipts the banks' apps share, and TEB's cüzdan as the bank lays it out.
   - The cüzdan centres a row's cells on its height: a description of two lines prints one above and one below the
     line of the row's number, day and amounts, which holds none of its words. `parsers/teb/passbook` (v2) gives every
@@ -311,7 +319,8 @@ says what the waiting must show; check them once their time has passed).
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 
-The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's web interface).
+The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's
+web interface).
 The MVP was retired on 2026-10-31 (K17, ADR-0018): İplikçi Nedim starts with no migrated data and collects its own.
 
 ## Names
@@ -339,7 +348,7 @@ The MVP was retired on 2026-10-31 (K17, ADR-0018): İplikçi Nedim starts with n
 | `docs/v1/architecture.md` | Target architecture: modules, data model, data dir, API, MCP, security, NFRs |
 | `docs/v1/features.md` | Feature specs with acceptance criteria and the MVP parity checklist |
 | `docs/v1/roadmap.md` | Phases 0–8 and the 1.0 release, exit criteria, MVP module mapping, first-session steps |
-| `docs/v1/migration.md` | What happened to the old workspace, the MVP archive, how V1 builds its own history |
+| `docs/v1/migration.md` | What V1 took from the MVP, the MVP archive, how V1 builds its own history |
 | `docs/adr/` | Decision records 0001–0022 |
 | `docs/yayin.md` | How a version is released, the signing key, the workflow's secrets, the Chrome Web Store |
 | `docs/domain/` | Bank formats and traps, ledger, categorization and interpretation rules |
@@ -377,9 +386,8 @@ The MVP was retired on 2026-10-31 (K17, ADR-0018): İplikçi Nedim starts with n
     argument, a log or the chat. The user enters it only in the setup screen.
   - Never retry a refused login from a script: Google may lock the account.
   - Never print the user's e-mail address.
-  - Accounts under Google's Advanced Protection have no app passwords. Never ask for an
-    account's own password and never try to get around the protection: such accounts use the browser extension of
-    ADR-0016.
+  - Accounts under Google's Advanced Protection have no app passwords. Never ask for an account's own password and
+    never try to get around the protection: such accounts use the browser extension of ADR-0016.
 - **Service:** binds to 127.0.0.1; remote access only through Tailscale when the user turns it on (ADR-0012).
 - **Verification is the safety net** (`docs/domain/ledger.md`).
   - Fewer verified statements, a new unreadable document, or a closed month that reopens without new documents is a
@@ -393,16 +401,16 @@ The MVP was retired on 2026-10-31 (K17, ADR-0018): İplikçi Nedim starts with n
 
 ## The MVP is retired (2026-10-31)
 
-- **The user's decision (K17, ADR-0018):** İplikçi Nedim collects its own data. It never works with the MVP's document folders (`Bankalar/`), its other folders or its move logs.
+- **K17, ADR-0018:** İplikçi Nedim collects its own data. It never works with the MVP's document folders (`Bankalar/`),
+  its other folders or its move logs.
   - Nothing is migrated: no documents, logs, settings, outputs or personal rules.
   - Documents the user gives now, such as a folder of downloads, come in like any upload (K24, 2026-11-03).
   - History comes from reading the mailbox from the start (Phase 3) and from the user's uploads.
 - **The archive:** the MVP's code, tests, README, CLAUDE.md, `kategoriler.yaml` and `ayarlar.toml` are in the data dir,
-  at `~/Library/Application Support/iplikci/archive/mvp/` (0700).
-  - Phase 0 copies the code and tests from there and extracts the generic rules.
+  at `archive/mvp/` (0700).
+  - Phase 0 copied the code and tests from there and extracted the generic rules.
   - Never write there, and never copy its personal files into the repo.
   - V1 never reads it at runtime.
-- Until Phase 3's first real read nothing collects documents; the bank e-mails wait in Gmail.
 - Work happens only in this repo folder. Don't add files to `../`; the app's own data belongs in the data dir.
 
 ## Layout (target)
@@ -536,10 +544,12 @@ The service never runs from this folder when registered: `servis kur` needs a fi
 --python 3.13 .`, built web interface included; without `--python` uv takes its newest Python), so a checked-out branch
 never reaches the real data. During development it runs in the foreground. For a throwaway service set `IPLIKCI_HOME` to
 a temp folder and `IPLIKCI_API_TOKEN` to a made-up token, so the keychain is not touched. Never install the service on
-the user's computer without asking. Once a uv tool copy is registered, a change reaches it only through an update with the service stopped, as reinstalling replaces the
-package under a running process: `~/.local/bin/iplikci servis kaldir` (it waits until the process has ended and exits 1
-if it does not), then the `uv tool install` above, then `~/.local/bin/iplikci servis kur`. Update only while no scan of
-the browser extension is running; it delivers to the service. Such a copy is a MANUAL install: it reports new releases but never installs them itself; moving a computer to the packaged app is its user's decision.
+the user's computer without asking. Once a uv tool copy is registered, a change reaches it only through an update with
+the service stopped, as reinstalling replaces the package under a running process: `~/.local/bin/iplikci servis kaldir`
+(it waits until the process has ended and exits 1 if it does not), then the `uv tool install` above, then
+`~/.local/bin/iplikci servis kur`. Update only while no scan of the browser extension is running; it delivers to the
+service. Such a copy is a MANUAL install: it reports new releases but never installs them itself; moving a computer to
+the packaged app is its user's decision.
 
 `dogrula --taban` saves the baseline in the data dir (`baseline.json`) and keeps the saved one when it finds a
 regression; `--kabul` saves it anyway, for a deliberate change only. `dogrula --arsiv` and `--yeniden-kur` exit 1 on

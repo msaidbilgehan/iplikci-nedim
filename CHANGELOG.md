@@ -283,16 +283,16 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
   Avansın vadesiz hesaba geldiği satır bulununca her taksit artık anapara (kredi ödemesi) ve faiz (harcama) diye
   ayrılıyor, İş Bankası'nın taksitli avanslarında olduğu gibi. Hesabın satırı yoksa taksit eskisi gibi nakit
   avans kalıyor.
-- Bir maaş, işverenin adında bir mağaza kategorisinin kelimesi geçtiği için o mağaza kategorisine düşüyordu. Gelir satırı artık yalnızca gelen parayı gelir sayan bir kategoriyi alıyor; öbür türlü
-  "Diğer Gelirler"de kalıyor. Toplamlar değişmiyor: gelir türüyle sayılıyordu.
+- Bir maaş, işverenin adında bir mağaza kategorisinin kelimesi geçtiği için o mağaza kategorisine düşüyordu. Gelir
+  satırı artık yalnızca gelen parayı gelir sayan bir kategoriyi alıyor; öbür türlü "Diğer Gelirler"de kalıyor. Toplamlar değişmiyor: gelir türüyle sayılıyordu.
 
 ## [0.9.8] — 2026-11-03 — İki ödeme bir dönem yapmaz
 
 ### Düzeltilenler
 
 - Yarım yıl arayla yapılan iki ödeme (örneğin iki bağış) "altı ayda bir" ödenen bir düzenli ödeme sayılabiliyordu.
-  İkincisi daha az olunca da bir "Düzenli ödeme zammı" bildirimi gelebiliyordu. Kira, fatura ve abonelik gibi düzenli ödeme
-  kategorilerinin dışındaki bir ödemenin altı ayda ya da yılda bir ödenen bir ödeme sayılması için artık aynı
+  İkincisi daha az olunca da bir "Düzenli ödeme zammı" bildirimi gelebiliyordu. Kira, fatura ve abonelik gibi düzenli
+  ödeme kategorilerinin dışındaki bir ödemenin altı ayda ya da yılda bir ödenen bir ödeme sayılması için artık aynı
   aralığın iki kez tekrarlanması (en az üç ödeme) gerekiyor. Aylık seriler de üç ay istiyor. Bu kategorilerde iki
   ödeme eskisi gibi yetiyor. Bir dükkândan yarım yıl arayla yapılan iki alışveriş de böylece düzenli ödeme
   sayılmıyor; takvim ve öngörü onları beklemiyor.

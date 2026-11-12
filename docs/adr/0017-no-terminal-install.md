@@ -22,7 +22,8 @@ Bugünkü tasarımda kurulum ve bazı işler terminal ister (mimari §19): `uv t
   - Linux: AppImage.
 - Python yorumlayıcısı ve bağımlılıklar pakettedir; kullanıcıda Python ya da uv gerekmez.
 - Paket donmuş (frozen) bir program değildir: uv'nin de kurduğu taşınabilir CPython (python-build-standalone),
-  içine kurulmuş `iplikci` paketi ve bağımlılıkları pakete girer. Program, `uv tool install` ile kurulu hâliyle aynı çalışır. Gerekçe, ölçüler ve kalıcı yer aşağıda, "Paketleme biçimi"
+  içine kurulmuş `iplikci` paketi ve bağımlılıkları pakete girer. Program, `uv tool install` ile kurulu
+  hâliyle aynı çalışır. Gerekçe, ölçüler ve kalıcı yer aşağıda, "Paketleme biçimi"
   bölümündedir.
 
 **İlk açılış ve günlük kullanım**
