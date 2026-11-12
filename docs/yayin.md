@@ -44,8 +44,14 @@ Deponun Settings → Secrets and variables → Actions sayfasında:
 - Anahtarın adı `2026-11`. Açık anahtarı `src/iplikci/update/keys.py`'dedir. Gizli anahtarı yalnızca GitHub'daki
   `UPDATE_SIGNING_KEY` sırrında ve sahibinin macOS anahtar zincirinde durur (hizmet `iplikci-nedim-release`, hesap
   `update-signing-key-2026-11`). Depoya, bir dosyaya ya da günlüğe yazılmaz.
-- GitHub sırrı okunamaz. Sır kaybolursa anahtar zincirindeki kopyadan yeniden yazılır:
-  `security find-generic-password -s iplikci-nedim-release -a update-signing-key-2026-11 -w | gh secret set UPDATE_SIGNING_KEY`.
+- GitHub sırrı okunamaz. Sır kaybolursa ya da depo değişirse anahtar zincirindeki kopyadan yeniden yazılır. macOS
+  anahtar zincirine erişim için izin sorar. `security -w` satır sonu taşıyan bir parolayı onaltılık (hex) yazar;
+  `xxd -r -p` onu PEM'e geri çevirir:
+
+  ```bash
+  security find-generic-password -s iplikci-nedim-release -a update-signing-key-2026-11 -w \
+    | xxd -r -p | gh secret set UPDATE_SIGNING_KEY
+  ```
 - **Anahtar değiştirmek:** `release.py` bildirgeyi, sırdaki anahtarın `TRUSTED`'daki adıyla imzalar.
   1. Yeni anahtar üretilir; açık anahtarı `TRUSTED`'a yeni bir adla eklenir, eskisi de durur. Bu sürüm sır değişmeden,
      eski anahtarla imzalanarak çıkar: kurulu kopyalar onunla yeni anahtarı tanır.
