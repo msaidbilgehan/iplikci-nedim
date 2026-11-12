@@ -20,6 +20,7 @@ import { SLOT_BG, slotOf } from "../charts/palette";
 import { certaintyOptions } from "../filters";
 import { Button } from "../ui/Button";
 import {
+  type ChipAction,
   type FilterChip,
   FilterChips,
   type FilterOption,
@@ -54,6 +55,7 @@ const NECESSITIES = ["required", "optional", "unnecessary", "unknown"];
 const DIRECTIONS = ["in", "out"] as const;
 const SHOWN_TAGS = 12; // the most used tags offered under the tag field
 const CUSTOM = "custom"; // the period select's choice of one's own days
+const PERIOD_NAMES: ReadonlySet<string> = new Set(["period", "from", "to"]); // the filters that name the days
 
 /** Whether the kinds chosen are the spending's own, as a chart's or a card's link writes them out. */
 function isSpending(selected: ReadonlySet<string>): boolean {
@@ -228,6 +230,23 @@ export function Filters({ params, onChange, labels, accounts, rules, rows = fals
       }
     });
   };
+  // A chart's part opens the list narrowed to its kind of rows within a month; the whole month's rows are one click
+  // away: the period stays, every other filter goes.
+  const wholePeriod: ChipAction[] =
+    rows && chips.some((chip) => chip.key === "period") && chips.length > 1
+      ? [
+          {
+            key: "period",
+            label: t("filters.wholePeriod"),
+            onClick: () =>
+              set((next) => {
+                for (const name of [...MANY, ...ONE].filter((n) => !PERIOD_NAMES.has(n))) {
+                  next.delete(name);
+                }
+              }),
+          },
+        ]
+      : [];
 
   // The search and the period stay in view; the choices and the tags open under "Süzgeçler", whose button counts what
   // is set. The chips below say it in words whether the panel is open or not, each with its button to take it off.
@@ -301,7 +320,7 @@ export function Filters({ params, onChange, labels, accounts, rules, rows = fals
         </div>
         <TagFilter chosen={params.getAll("tag")} onAdd={addTag} />
       </div>
-      <FilterChips chips={chips} {...(chips.length > 1 ? { onReset: reset } : {})} />
+      <FilterChips chips={chips} actions={wholePeriod} {...(chips.length > 1 ? { onReset: reset } : {})} />
     </div>
   );
 }

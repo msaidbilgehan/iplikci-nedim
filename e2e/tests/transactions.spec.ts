@@ -76,3 +76,22 @@ test("dönem aramanın yanında seçilir; yön ve tutar süzgeçlerde, hepsi eri
   const found = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   expect(found.violations.map((v) => `${v.id}: ${v.nodes[0]?.target.join(" ")}`)).toEqual([]);
 });
+
+test("bir süzgecin seçenekleri kısa bir pencerede ekranın içinde kalır, kayar, Tümü hep görünür", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 640 });
+  await page.goto("/islemler?period=last_month&kind=income");
+  await expect(page.getByRole("status", { name: "Yükleniyor…" })).toHaveCount(0, { timeout: 15_000 });
+  await page.getByRole("button", { name: /^Süzgeçler/ }).click();
+  await page.getByRole("button", { name: /^Tür:/ }).click();
+  const kinds = page.getByRole("dialog", { name: "Tür" });
+  await expect(kinds).toBeVisible();
+  const box = await kinds.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box?.y ?? -1).toBeGreaterThanOrEqual(0);
+  expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(640);
+  // The last kind is reached by scrolling the list; "Tümü" stays in view above it.
+  await kinds.getByRole("checkbox", { name: "Çözülmemiş transfer" }).scrollIntoViewIfNeeded();
+  await expect(kinds.getByRole("button", { name: "Tümü" })).toBeInViewport();
+  await kinds.getByRole("button", { name: "Tümü" }).click();
+  await expect(page).not.toHaveURL(/kind=/);
+});

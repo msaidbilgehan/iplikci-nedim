@@ -26,6 +26,12 @@ export function formatDay(iso: string): string {
   return year && month && day ? `${day}.${month}.${year}` : iso;
 }
 
+/** "2026-11-24" → "24.11": a day of the coming weeks, as the month-end's texts name a statement's cut. */
+export function formatDayMonth(iso: string): string {
+  const [, month, day] = iso.slice(0, 10).split("-");
+  return month && day ? `${day}.${month}` : iso;
+}
+
 /** An ISO time → "31.10.2026 14:03" in the local time zone; "" stays "". */
 export function formatTime(iso: string): string {
   if (!iso) {
@@ -129,8 +135,11 @@ export function formatRate(rate: string): string {
   return fraction === undefined ? grouped : `${grouped},${fraction}`;
 }
 
-/** An amount with the way it goes: "+40.000,00 TL" in, "−15.000,00 TL" out. */
+/** An amount with the way it goes: "+40.000,00 TL" in, "−15.000,00 TL" out; nothing is "0,00 TL", either way. */
 export function formatFlow(money: MoneyOut, direction: "in" | "out"): string {
+  if (money.minor === 0) {
+    return formatMoney(money);
+  }
   return `${direction === "in" ? "+" : "−"}${formatMoney(money)}`;
 }
 

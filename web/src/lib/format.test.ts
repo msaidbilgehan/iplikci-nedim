@@ -64,6 +64,7 @@ describe("format", () => {
   it("writes money in with a plus and money out with a minus", () => {
     expect(formatFlow({ minor: 4000000, currency: "TRY" }, "in")).toBe("+40.000,00 TL");
     expect(formatFlow({ minor: 9999, currency: "TRY" }, "out")).toBe("−99,99 TL");
+    expect(formatFlow({ minor: 0, currency: "TRY" }, "out")).toBe("0,00 TL"); // nothing goes no way
   });
 
   it("names a month in Turkish", () => {

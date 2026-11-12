@@ -11,6 +11,7 @@ import { cn } from "../../lib/cn";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { ConfirmDialog } from "../ui/Dialog";
+import { POPOVER_HEIGHT } from "../ui/FilterPopover";
 import { ChevronDownIcon, CloseIcon } from "../ui/Icons";
 import { paramsOfView, viewQuery } from "./query";
 
@@ -70,9 +71,11 @@ export function Views({ params, onOpen }: ViewsProps) {
             align="end"
             sideOffset={6}
             collisionPadding={8}
+            // Many kept views scroll inside it rather than run off the screen.
             className={cn(
-              "z-50 flex w-80 flex-col gap-3 rounded-lg border p-3 text-sm shadow-lg",
-              "border-zinc-200 bg-white text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100",
+              "z-50 flex w-80 max-w-[calc(100vw-1rem)] flex-col gap-3 overflow-y-auto rounded-lg border p-3 text-sm",
+              POPOVER_HEIGHT,
+              "border-zinc-200 bg-white text-zinc-900 shadow-lg dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100",
             )}
           >
             <p className="font-medium">{t("views.title")}</p>

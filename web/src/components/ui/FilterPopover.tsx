@@ -42,6 +42,12 @@ export function toggled(selected: Selection, all: readonly string[], values: rea
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600";
 
+/**
+ * A popover's height: at most 60 % of the screen and never more than the room Radix measures on the side it opens to,
+ * so its top cannot go off the screen when it opens upwards; what does not fit scrolls inside it.
+ */
+export const POPOVER_HEIGHT = "max-h-[min(60vh,var(--radix-popover-content-available-height,60vh))]";
+
 /** What a filter is set to, in a word: "Tümü", "Hiçbiri", the one option's name, or how many of how many. */
 export function useSelectionSummary(): (selected: Selection, options: readonly FilterOption[]) => string {
   const { t } = useTranslation();
@@ -92,13 +98,15 @@ export function FilterPopover({ label, options, selected, onChange }: FilterPopo
           sideOffset={6}
           collisionPadding={8}
           // As wide as its longest option, so two accounts that differ only in their numbers' last digits read apart;
-          // never wider than the screen, where a name too long for it ends in "…".
+          // never wider than the screen, where a name too long for it ends in "…". Never taller than the room on the
+          // side it opens to: a list longer than that scrolls under its "Tümü" and "Hiçbiri", which stay in view.
           className={cn(
-            "z-50 max-h-[60vh] w-max min-w-72 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-lg border p-2 text-sm",
+            "z-50 w-max min-w-72 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-lg border px-2 pb-2 text-sm",
+            POPOVER_HEIGHT,
             "border-zinc-200 bg-white text-zinc-900 shadow-lg dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100",
           )}
         >
-          <div className="mb-1 flex items-center justify-between gap-2 border-b border-zinc-200 px-2 pb-2 dark:border-zinc-600">
+          <div className="sticky top-0 z-10 mb-1 flex items-center justify-between gap-2 border-b border-zinc-200 bg-white px-2 pb-2 pt-2 dark:border-zinc-600 dark:bg-zinc-800">
             <span className="font-medium">{label}</span>
             <span className="flex gap-1">
               <button type="button" className={LINK} onClick={() => onChange(null)}>
@@ -218,8 +226,21 @@ export interface FilterChip {
   onRemove: () => void;
 }
 
+/** A button beside the chips that takes several filters off at once: "Dönemin bütün işlemleri". */
+export interface ChipAction {
+  key: string;
+  label: string;
+  onClick: () => void;
+}
+
+interface FilterChipsProps {
+  chips: readonly FilterChip[];
+  actions?: readonly ChipAction[]; // before the one that clears them all
+  onReset?: () => void;
+}
+
 /** The filters that are set, each with a button that takes it off, and one that clears them all. */
-export function FilterChips({ chips, onReset }: { chips: readonly FilterChip[]; onReset?: () => void }) {
+export function FilterChips({ chips, actions = [], onReset }: FilterChipsProps) {
   const { t } = useTranslation();
   if (chips.length === 0) {
     return null;
@@ -244,6 +265,13 @@ export function FilterChips({ chips, onReset }: { chips: readonly FilterChip[]; 
             )}
           >
             <CloseIcon className="size-4" />
+          </button>
+        </li>
+      ))}
+      {actions.map((action) => (
+        <li key={action.key}>
+          <button type="button" className={LINK} onClick={action.onClick}>
+            {action.label}
           </button>
         </li>
       ))}

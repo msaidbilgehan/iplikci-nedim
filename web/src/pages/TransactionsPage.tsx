@@ -1,9 +1,10 @@
 // The İşlemler screen (F04): every row of the ledger, filtered by a named period ("Bu ay", "Geçen ay", …) or days of
 // one's own, account, kind, category, necessity, certainty, tag, which way the money goes, the amount and text, sorted
-// by any column and paged, with what the rows add up to; the filters kept as views and downloaded as CSV. A row's name
-// opens its detail at the side: why it is what it is, where it is printed and the corrections it may carry. Rows can
-// be chosen for one category or a tag at once. The address holds it all, in the API's names, so other screens link
-// here narrowed and the back button undoes a step.
+// by any column and paged, with what the rows add up to; the filters kept as views and downloaded as CSV. A month of
+// the listed days that has not closed says above the list what it still waits for, so a row not here yet is known to
+// be coming. A row's name opens its detail at the side: why it is what it is, where it is printed and the corrections
+// it may carry. Rows can be chosen for one category or a tag at once. The address holds it all, in the API's names, so
+// other screens link here narrowed and the back button undoes a step.
 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -14,6 +15,7 @@ import { accountOptions } from "../components/filters";
 import { Empty, Failure, Loading } from "../components/QueryState";
 import { BulkBar } from "../components/transactions/BulkBar";
 import { Filters } from "../components/transactions/Filters";
+import { OpenMonths } from "../components/transactions/OpenMonths";
 import {
   atOffset,
   choosesNone,
@@ -91,6 +93,42 @@ export default function TransactionsPage() {
       {t("table.reset")}
     </Button>
   );
+  // A filter of many values with none of them chosen keeps no row: it says which, with a button that chooses all of
+  // its values again, beside the one that clears every filter.
+  const chosenNone = MANY.filter((name) => {
+    const values = params.getAll(name);
+    return values.length > 0 && values.every((value) => value === "");
+  });
+  const noneChosen = (
+    <Empty
+      title={t("table.noneChosen", {
+        count: chosenNone.length,
+        filters: chosenNone.map((name) => t(`filters.${name}`)).join(", "),
+      })}
+    >
+      <p>{t("table.noneChosenText")}</p>
+      <div className="flex flex-wrap justify-center gap-2">
+        {chosenNone.map((name) => (
+          <Button
+            key={name}
+            variant="secondary"
+            className="mt-2"
+            onClick={() =>
+              setParams((was) => {
+                const next = new URLSearchParams(was);
+                next.delete(name);
+                next.delete("offset");
+                return next;
+              })
+            }
+          >
+            {t("table.chooseAll", { filter: t(`filters.${name}`) })}
+          </Button>
+        ))}
+        {resetButton}
+      </div>
+    </Empty>
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -112,11 +150,12 @@ export default function TransactionsPage() {
         rules={rules.data}
         rows
       />
-      {none ? <Empty title={t("table.empty")}>{resetButton}</Empty> : null}
+      {none ? noneChosen : null}
       {!none && list.isPending ? <Loading label={tc("loading")} /> : null}
       {!none && list.isError ? <Failure error={list.error} onRetry={() => void list.refetch()} /> : null}
       {!none && list.data ? (
         <>
+          <OpenMonths months={list.data.open} />
           <Totals totals={list.data.totals} />
           <BulkBar
             selected={selected}

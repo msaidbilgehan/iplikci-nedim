@@ -53,7 +53,8 @@
     "closed": "kapalı",
     "more": "Süzgeçler",
     "setCount": "{{count}} etkin",
-    "spending": "Giderler (harcama, iade, faiz ve ücret)"
+    "spending": "Giderler (harcama, iade, faiz ve ücret)",
+    "wholePeriod": "Dönemin bütün işlemleri"
   },
   "totals": {
     "label": "Toplamlar",
@@ -99,7 +100,11 @@
     "empty": "Bu süzgeçlerle işlem yok",
     "emptyAll": "Henüz işlem yok",
     "emptyText": "Ekstreler, dökümler ve dekontlar geldikçe işlemler burada görünür.",
-    "reset": "Süzgeçleri sıfırla"
+    "reset": "Süzgeçleri sıfırla",
+    "noneChosen_one": "{{filters}} süzgecinde hiçbir seçenek seçili değil",
+    "noneChosen_other": "{{filters}} süzgeçlerinde hiçbir seçenek seçili değil",
+    "noneChosenText": "Hiçbir seçeneği seçili olmayan bir süzgeç bütün işlemleri dışarıda bırakır. Bir seçenek seçin ya da hepsini geri alın.",
+    "chooseAll": "{{filter}}: hepsini seç"
   },
   "bulk": {
     "label": "Seçili işlemler",
@@ -258,5 +263,14 @@
     "saved": "Kural kaydedildi: {{count}} işlem değişti.",
     "cancel": "Vazgeç",
     "close": "Kapat"
+  },
+  "unclosed": {
+    "label": "Henüz kapanmamış aylar",
+    "waiting": "{{month, month}} henüz kapanmadı, ama eksik değil: ayın son günlerini kapsayan belgeler bekleniyor, sonuncusu {{day, day}} civarında gelir. Gelince o günlerin işlemleri bu listeye girer.",
+    "waiting_undated": "{{month, month}} henüz kapanmadı, ama eksik değil: ayın son günlerini kapsayan belgeler bekleniyor. Gelince o günlerin işlemleri bu listeye girer.",
+    "missing": "{{month, month}}: bazı günlerin belgesi eksik. Eklenince o günlerin işlemleri bu listeye girer.",
+    "check": "{{month, month}}: belgelerinden biri bankanın toplamıyla tutmuyor, bakılması gerekiyor.",
+    "running": "{{month, month}} sürüyor: liste şimdiye kadar gelen belgelerin işlemlerini gösteriyor.",
+    "page": "{{month, month}} için ne bekleniyor?"
   }
 }

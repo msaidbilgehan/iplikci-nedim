@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { SavedView } from "../api/types";
 import { renderScreen } from "../test/render";
-import { EXCLUDED, INCOME, PARTS, PURCHASE, server, TRANSACTIONS } from "../test/server";
+import { EXCLUDED, INCOME, OPEN_OCTOBER, PARTS, PURCHASE, server, TRANSACTIONS } from "../test/server";
 import TransactionsPage from "./TransactionsPage";
 
 afterEach(() => localStorage.clear());
@@ -255,11 +255,56 @@ describe("TransactionsPage: the list", () => {
     expect(screen.getByRole("link", { name: "Belgeleri göster" })).toHaveAttribute("href", "/belgeler");
   });
 
-  it("asks nothing while a filter has nothing chosen", async () => {
+  it("asks nothing while a filter has nothing chosen, says which, and chooses all of it again", async () => {
     const asked = listen();
-    renderScreen(<TransactionsPage />, { path: "/islemler?account=" });
-    expect(await screen.findByText("Bu süzgeçlerle işlem yok")).toBeInTheDocument();
+    const user = userEvent.setup();
+    renderScreen(<TransactionsPage />, { path: "/islemler?kind=&from=2026-10-01&to=2026-10-31" });
+    expect(await screen.findByText("Tür süzgecinde hiçbir seçenek seçili değil")).toBeInTheDocument();
     expect(asked).toHaveLength(0);
+    await user.click(screen.getByRole("button", { name: "Tür: hepsini seç" }));
+    expect(await table()).toBeInTheDocument();
+    // The period stays; the kinds are all of them again.
+    expect(asked.at(-1)?.get("from")).toBe("2026-10-01");
+    expect(asked.at(-1)?.has("kind")).toBe(false);
+  });
+
+  it("says what a month of the listed days still waits for, each account's document with its cut", async () => {
+    server.use(http.get("/api/transactions", () => HttpResponse.json({ ...TRANSACTIONS, open: [OPEN_OCTOBER] })));
+    renderScreen(<TransactionsPage />, { path: "/islemler?from=2026-10-01&to=2026-10-31" });
+    const note = await screen.findByRole("region", { name: "Henüz kapanmamış aylar" });
+    expect(
+      within(note).getByText(
+        "Ekim 2026 henüz kapanmadı, ama eksik değil: ayın son günlerini kapsayan belgeler bekleniyor, sonuncusu " +
+          "24.11.2026 civarında gelir. Gelince o günlerin işlemleri bu listeye girer.",
+      ),
+    ).toBeInTheDocument();
+    const awaited = within(note).getAllByRole("listitem").map((item) => item.textContent);
+    expect(awaited).toEqual([
+      "TEB Bonus •1111: 14–31 Ekim ekstresi, kesim ~13.11",
+      "Garanti Bonus •2222: 25–31 Ekim ekstresi, kesim ~24.11",
+    ]);
+    expect(within(note).getByRole("link", { name: "Ekim 2026 için ne bekleniyor?" })).toHaveAttribute(
+      "href",
+      "/ay-sonu/2026-10",
+    );
+  });
+
+  it("says nothing of months when the listed days' months have all closed", async () => {
+    renderScreen(<TransactionsPage />, { path: "/islemler?from=2026-10-01&to=2026-10-31" });
+    expect(await table()).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Henüz kapanmamış aylar" })).not.toBeInTheDocument();
+  });
+
+  it("goes from a month's money in to every row of the month in one click", async () => {
+    const asked = listen();
+    const user = userEvent.setup();
+    renderScreen(<TransactionsPage />, { path: "/islemler?from=2026-10-01&to=2026-10-31&kind=income" });
+    expect(await table()).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Dönemin bütün işlemleri" }));
+    await waitFor(() => expect(asked.at(-1)?.has("kind")).toBe(false));
+    expect([asked.at(-1)?.get("from"), asked.at(-1)?.get("to")]).toEqual(["2026-10-01", "2026-10-31"]);
+    // The period alone: nothing more to take off but the period itself.
+    expect(screen.queryByRole("button", { name: "Dönemin bütün işlemleri" })).not.toBeInTheDocument();
   });
 
   it("says why the rows could not be read and tries again", async () => {
