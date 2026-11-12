@@ -6,7 +6,7 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-11): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.10.1). Between Phases 6 and 7 came
+Status (2026-11-12): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.10.2). Between Phases 6 and 7 came
 the interface's simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab
 (v0.7.3), documents known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked
 against the documents (v0.7.6). Next is the 1.0 release, whose conditions are partly time-bound (roadmap "Sürüm 1.0"
@@ -185,7 +185,7 @@ says what the waiting must show; check them once their time has passed).
   rule's category only when it counts money in as income (`Categorizer.counts_income`).
 - v0.9.10: the Pano's story tells the last closed month, and an ended month after it that has not closed now says
   why in its own sentence (`HeldMonth` in `components/dashboard/Overview`): how many documents it waits for and the
-  day the last is due (`dashboard.closes_by_day`, the latest next cut of the cards holding it; none for an account
+  day the last is due (`month_end.MonthEnd.closes_by`, the latest next cut of the cards holding it; none for an account
   list to download, a late statement, a missing document or a check), what was spent in it so far and its month-end
   page. Until then a month waiting for November's card statements was skipped without a word.
 - v0.9.11: a transfer row that names the receiving bank (TEB's bank-only rows, Vakıfbank's FAST) pairs only with an
@@ -284,6 +284,19 @@ says what the waiting must show; check them once their time has passed).
     The filter popovers are as wide as their longest option.
   - The wizard's Bitir leads to its summary (`/kurulum?adim=ozet`); the wizard opens there once no required step is
     left.
+- v0.10.2: the user could not see what an unclosed month waits for, the Tür popover ran off the screen, and a click
+  on October's bar listed its income alone.
+  - A month not closed is never called missing while it waits: a chart's column says its state over it
+    (`components/charts/marks`: "bekliyor" with the day it should close, "sürüyor", "eksik", "kontrol";
+    `StackedBars`' `marks`, `HeatTable` too). The Pano's months use the dashboard's closing, Değerlendirme's charts
+    the month-end list (`MonthEndOut.closes_by`). Under the Pano's chart each unclosed month has its sentence; the
+    story lists the awaited documents (`ClosingOut.waiting`). A month's name, or the column beside its bars, opens
+    all its rows.
+  - İşlemler: `TransactionsOut.open` (`app/transactions.open_months`) gives the filtered days' unclosed months with
+    the accounts the filter keeps whose documents for those days are not in (`components/transactions/OpenMonths`).
+    "Dönemin bütün işlemleri" keeps the period and drops the rest; a filter with nothing chosen says which and
+    chooses all of it again. The popovers are no taller than the room Radix measures on their side
+    (`POPOVER_HEIGHT`), so they scroll under their "Tümü" and "Hiçbiri".
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 

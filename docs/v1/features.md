@@ -34,9 +34,12 @@ Bütün ekranlar için geçerlidir:
     "Diğer" gridir.
   - Yığılmış dilimler arasında 2 px boşluk bırakılır; veri uçları 4 px yuvarlaktır.
   - Her grafiğin bir tablo görünümü vardır.
+  - Belgelerin ayın tamamını kapsamadığı aylar soluk çizilir ve ortalamaya girmez. Ay sonu kapanışı ayın neden
+    kapanmadığını biliyorsa sütun onu söyler ("bekliyor ~20.11", "sürüyor", "eksik", "kontrol"); bilinmiyorsa,
+    örneğin dönem ayı kesiyorsa, "eksik" yazar.
   - Grafikler kısayoldur ([K27](requirements.md#kararlar)): bir parçaya tıklayınca onun dayandığı işlemler açılır.
-    - Ayların sütunlarında bir dilime tıklamak o ayın o grubunu ya da düzeyini, dilimlerin dışına tıklamak bütün ayı
-      açar. Gelen ve giden parayı gösteren grafikte sıfırın üstü gelirleri, altı giderleri açar.
+    - Ayların sütunlarında bir dilime tıklamak o ayın o grubunu ya da düzeyini, dilimlerin dışına ya da ayın adına
+      tıklamak bütün ayı açar. Gelen ve giden parayı gösteren grafikte sıfırın üstü gelirleri, altı giderleri açar.
     - Sıralı çubuklarda bütün satır (ad, çubuk, tutar) tıklanır; çizgide en yakın gün, akış diyagramında bant açılır.
     - İpucu neye tıklandığında ne açılacağını söyler, açılacak dilimi öne çıkarır; grafiğin altındaki bir satır
       grafiğin neye götürdüğünü söyler.
@@ -202,6 +205,16 @@ G2, K4 · Çekirdek
     - Tutar Türkçe yazıldığı gibi girilir ("1.500" ya da "1.500,50"), alan bırakılınca ya da Enter'a basılınca sorulur.
     - Etiket listesi satırlara verilmiş etiketleri en çok kullanılandan başlayarak önerir (`GET /api/tags`).
     - Hesap süzgeci en uzun hesap adı kadar geniştir: yalnızca son haneleri ayrı iki hesap okunur.
+    - Bir süzgecin seçenek penceresi açıldığı yandaki yerden uzun değildir; seçenekleri içinde kayar, "Tümü" ve
+      "Hiçbiri" hep görünür (v0.10.2; önceden yukarı açılan pencerenin üstü ekrandan taşıyordu).
+    - Hiçbir seçeneği seçili olmayan süzgeç hangisi olduğunu söyler; bir düğme onun bütün seçeneklerini geri seçer.
+    - Dönemle birlikte başka süzgeçler de seçiliyse "Dönemin bütün işlemleri" yalnızca dönemi bırakır: bir
+      grafiğin gelen çubuğundan açılan liste tek tıkla ayın bütün işlemlerine döner.
+  - Listelenen günlerden biri kapanmamış bir aydaysa listenin üstünde o ayın neyi beklediği yazar
+    (`TransactionsOut.open`): hesap süzgecinin bıraktığı her hesabın beklenen belgesi, günleri ve kesimi; belge gelince
+    o günlerin işlemleri listeye girer. Belgesi eksik ya da bakılması gereken ay bunu söyler, süren ay sürdüğünü;
+    süren ay dışındakiler Ay sonu sayfasına götürür. Kapanmış aylar ve beklenen günleri listenin dışında kalan aylar
+    bir şey söylemez.
   - Kayıtlı görünümler; CSV indirme.
 - **Satır ayrıntısı**
   - Belge önizlemesi, satırı vurgulanmış.
@@ -269,6 +282,8 @@ G7 · Çekirdek
       veya bakılması gerektiğini, rakamların değişebileceğini söyler ve o ayın Ay sonu sayfasına götürür. v0.10.1'e
       dek hikâye yalnızca kapanmış ayı anlatıyordu: 11 Kasım'da Eylül gösteriliyordu, Ekim ancak son kart ekstresi
       gelince (24 Kasım) anlatılacaktı.
+    - Beklenen belgeler tek tek sayılır: hesabın adı, belgenin günleri ve kesimi ("Örnek Bonus •1234: 14–31 Ekim
+      ekstresi, kesim ~13.11"), Ay sonu'nun yazdığı gibi (v0.10.2; önce yalnızca sayıları yazıyordu).
     - Başlığın yanındaki oklar önceki ve sonraki aylara gider; ay adreste durur (`?ay=2026-09`), en yeni ayın adresi
       yalındır. Süren ay oklarda yoktur; hikâye onu yalnızca henüz biten bir ay yokken anlatır.
     - Biten ama geliri henüz bilinmeyen bir ay (hesap dökümleri ayın yarısını kapsamıyor) neden anlatılmadığını bir
@@ -280,7 +295,13 @@ G7 · Çekirdek
   - Son belgelere göre hesaplardaki para, neye dayandığıyla: kart borçları düşülünce, bakiyesi bilinmeyen hesaplar.
   - Aylara göre gelen (yeşil, çizginin üstünde), giden (turuncu, altında) ve birikim (mavi, altında; varsa) çubukları;
     kapanmamış aylar soluk. Gideni işlemlerine götürür (harcama, kişilere gönderilen, kredi anaparası), birikimi
-    birikim satırlarına.
+    birikim satırlarına; ayın adı ya da sütunun boş yeri ayın bütün işlemlerine.
+    - Kapanmamış bir ayın sütununun üstünde durumu yazar: ekstrelerini bekleyen ay "bekliyor" ve kapanacağı gün
+      ("~20.11", son beklenen kartın kesimi), süren ay "sürüyor", belgesi eksik ay "eksik", bakılması gereken ay
+      "kontrol". Grafiğin altında her kapanmamış ayın bir cümlesi ve işlemlerine bağlantısı vardır: "Ekim 2026 eksik
+      değil: ayın son günlerini kapsayan 2 belge bekleniyor, sonuncusu 20.11.2026 civarında gelir." v0.10.2'ye dek
+      her kapanmamış ay "eksik" yazıyordu; kullanıcı bekleyen ayda eksik bir şey olmadığını, kesim gününü
+      beklediğini görmek istedi.
   - Hikâyenin ayında paranın nereye gittiği: harcama türleri tek renkte yatay çubuklarla, her tür işlemlerine götürür;
     kapanmamış ay için "şimdiye kadar" der.
   - Önümüzdeki 30 gün: hesaptaki paranın günlük tahmini, eksiye düştüğü ilk gün ya da en düşük gün, yaklaşan ödemeler ve

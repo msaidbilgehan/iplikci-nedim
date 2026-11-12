@@ -4,6 +4,31 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.10.2] — 2026-11-12 — Kapanmamış ay neyi beklediğini söyler, süzgeç penceresi ekrana sığar
+
+### Düzeltilenler
+
+- İşlemler'de bir süzgecin seçenek penceresi, altında yer kalmayınca yukarı açılıp ekranın üstünden taşıyordu. En
+  üstteki "Tümü" ile "Hiçbiri"ye ulaşılamıyor, liste kaydırılamıyordu. Pencere artık açıldığı yandaki yer kadar uzun;
+  seçenekleri içinde kayar, "Tümü" ile "Hiçbiri" hep görünür. Kayıtlı görünümlerin penceresi de öyle.
+- Hiçbir seçeneği seçili olmayan bir süzgeç listeyi boşaltıp yalnızca "Bu süzgeçlerle işlem yok" diyordu. Artık
+  hangi süzgecin boş kaldığını söyler ve onun bütün seçeneklerini tek tıkla geri seçen bir düğme sunar.
+- Pano'nun aylık grafiği kapanmamış her aya "eksik" diyordu. Oysa ekstrelerini bekleyen bir ayda eksik bir şey yok.
+  Sütunun üstünde artık ayın durumu yazar: "bekliyor" ve kapanacağı gün ("~20.11"), "sürüyor", gerçekten bir belgesi
+  yoksa "eksik". Grafiğin altında her kapanmamış ayın cümlesi var: "Ekim 2026 eksik değil: ayın son günlerini kapsayan
+  2 belge bekleniyor, sonuncusu 20.11.2026 civarında gelir." Değerlendirme'nin grafikleri de aynı sözleri kullanır.
+- Sıfır tutarlar işaretsiz yazılır: "Çıkan −0,00 TL" yerine "0,00 TL".
+
+### Eklenenler
+
+- Pano'nun hikâyesi kapanmamış ayın beklediği belgeleri tek tek sayar: hangi kartın hangi günlerinin ekstresi, kesimi
+  ne zaman.
+- İşlemler'de listelenen günlerden biri kapanmamış bir aydaysa listenin üstünde o ayın neyi beklediği yazar: her
+  hesabın beklenen belgesi, günleri ve kesimi. Belge gelince o günlerin işlemleri listeye girer. Süren ay sürdüğünü
+  söyler; ötekiler ay sonu sayfasına götürür.
+- Pano'nun aylık grafiğinde bir ayın adına ya da sütunun boş yerine tıklayınca o ayın bütün işlemleri açılır. Gelen
+  ya da giden çubuğundan açılan listede "Dönemin bütün işlemleri" tek tıkla ayın bütününe geçer.
+
 ## [0.10.1] — 2026-11-11 — Pano biten ayı hemen anlatır, İşlemler'de dönem süzgeci
 
 ### Düzeltilenler

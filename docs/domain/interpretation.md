@@ -384,6 +384,9 @@ ekstre gelmeden sayılır.
 - Pano'nun hikâyesi ve İplikçi Nedim'in ay hükmü gelirin bilindiği, biten en yeni ayı anlatır; ay kapanmamışsa
   rakamları ve hükmü "şimdilik"tir ve neyi beklediği yazar (v0.10.1). Tek bir ayın kendi hükmü bir karşılaştırma
   değildir; o ayı başka aylarla kıyaslayan "en iyi ay" yalnızca kapanmış bir ay için söylenir.
+- Kapanmamış bir ay eksik diye adlandırılmaz, neyi beklediği söylenir: ekstrelerini bekleyen ay "bekliyor" ve
+  kapanacağı gün (son beklenen kartın kesimi), belgesi gerçekten olmayan ay "eksik". Beklenen belgeler hesap hesap,
+  günleri ve kesimiyle sayılır; İşlemler listelenen günler için aynısını söyler (v0.10.2).
 
 **Sayfalar**
 

@@ -229,6 +229,14 @@ Pano biten ayı hemen anlatır (v0.10.1):
   Süzgeçler'de yön, tutar ve önerilen etiketler.
 - Kurulum sihirbazının "Bitir"i kurulumun özetini gösterir: tamamlandı mı, hangi adımlar bekliyor.
 
+Kapanmamış ay neyi beklediğini söyler (v0.10.2):
+
+- Pano'nun aylık grafiği kapanmamış bir aya "eksik" demez: sütunun üstünde "bekliyor" ve kapanacağı gün yazar,
+  altında da kaç belgenin beklendiği. Pano'nun hikâyesi beklenen belgeleri tek tek sayar.
+- Grafikte bir ayın adına tıklayınca o ayın bütün işlemleri açılır. İşlemler, listelenen günlerden kapanmamış olanların
+  hangi belgeyi beklediğini listenin üstünde söyler.
+- Süzgeçlerin seçenek penceresi ekrandan taşmaz, içinde kayar; boş bırakılan süzgeç hangisi olduğunu söyler.
+
 Açık kalanlar: servisin yedi gün kendi başına çalışması (K19). Windows ve Linux'ta denemeler bekletiliyor (K25).
 Sürümler henüz herkese açık bir yerde değil; kurulu kopyalar güncellemeyi ancak o zaman indirebilir (K29).
 
