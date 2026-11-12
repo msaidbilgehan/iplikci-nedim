@@ -305,7 +305,7 @@ def test_the_job_queues_the_next_run_at_its_limit_and_the_last_one_refreshes_the
     run = background.handlers(covered)[kinds.FX_RATES]
     run({"history": True})
     assert waiting(covered) == {(kinds.FX_RATES, '{"history": true}')}  # no analysis after every piece
-    for _ in range(10):
+    for _ in weekdays(REPUBLIC_DAY, today):  # a day a run: as many runs as days at most, however late today is
         with covered.db() as db:
             db.execute("DELETE FROM jobs")
         run({"history": True})
