@@ -1,6 +1,8 @@
 // Each account's closing in one month (F11): its status as the account's closing reads it, what it waits for ("TEB
-// Bonus •4321: 19–31 Ekim ekstresi, kesim ~18.11"), and the service's note on it. The detailed view adds the days its
-// documents cover, the documents themselves with their checks, the receipts and the balance a list prints.
+// Bonus •4321: 19–31 Ekim, 19 Ekim–18 Kasım ekstresinde": a card statement runs from one cut to the next), and the
+// service's note on it. The detailed view adds the days its documents cover, the next cut (the day the statement
+// before prints, or "~" a month on when it prints none), the documents themselves with their checks, the receipts and
+// the balance a list prints.
 
 import { useTranslation } from "react-i18next";
 
@@ -122,7 +124,12 @@ function AccountsTable({ accounts, labels }: { accounts: readonly MonthEndAccoun
               <Td className="min-w-40">
                 {a.waiting_for || "—"}
                 {a.next_cut ? (
-                  <span className={`block ${SMALL}`}>{t("accounts.nextCut", { day: formatDay(a.next_cut) })}</span>
+                  <span className={`block ${SMALL}`}>
+                    {t("accounts.nextCut", {
+                      context: a.next_cut_printed ? "" : "reckoned",
+                      day: formatDay(a.next_cut),
+                    })}
+                  </span>
                 ) : null}
               </Td>
               <Td className="min-w-48">

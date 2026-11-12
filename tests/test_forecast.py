@@ -7,6 +7,7 @@ import pytest
 
 from iplikci.analysis import CONFIRMED, NO_STATEMENT, PROVISIONAL, Dataset, ReceiptLine
 from iplikci.domain.codes import AccountType, EvidenceStatus, Necessity, PaymentKind, TransactionKind
+from iplikci.domain.dates import add_months
 from iplikci.domain.models import Account, Statement, Transaction
 from iplikci.forecast import (
     ESTIMATE,
@@ -20,7 +21,7 @@ from iplikci.forecast import (
     start_of,
 )
 from iplikci.insights import interpret
-from iplikci.upcoming import Due, add_months, upcoming
+from iplikci.upcoming import Due, upcoming
 
 CASH = Account("cash", "Örnek Vadesiz TL", "TEB", AccountType.CURRENT, number="111222333")
 CARD = Account("card", "Örnek Kart •1234", "TEB", AccountType.CREDIT_CARD, number="1234")

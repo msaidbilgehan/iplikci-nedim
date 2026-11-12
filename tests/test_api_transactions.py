@@ -174,11 +174,11 @@ def test_a_month_of_the_listed_days_that_has_not_closed_says_what_it_waits_for_a
                 "account": {"id": "garanti-1234", "label": october["accounts"][0]["account"]["label"]},
                 "status": "waiting",
                 "days": [{"start": "2026-10-06", "end": "2026-10-31"}],
-                "waiting_for": "6–31 Ekim ekstresi, kesim ~05.11",
+                "waiting_for": "6–31 Ekim, 6 Ekim–4 Kasım ekstresinde",
                 "late": False,
             }
         ],
-        "closes_by": "2026-11-05",
+        "closes_by": "2026-11-04",
         "link": {"screen": "month", "id": "2026-10", "query": {}},
     }
 
@@ -200,7 +200,7 @@ def test_every_day_lists_the_months_not_closed_the_oldest_first_and_a_running_mo
         ("2026-11", "running"),
     ]
     september, _, november = found
-    assert september["accounts"][0]["waiting_for"] == "1–5 Eylül ekstresi eksik"
+    assert september["accounts"][0]["waiting_for"] == "1–5 Eylül için ekstre eksik"
     assert september["closes_by"] is None
     assert (november["accounts"], november["closes_by"]) == ([], None)
 

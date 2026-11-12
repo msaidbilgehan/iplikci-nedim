@@ -280,8 +280,8 @@ describe("TransactionsPage: the list", () => {
     ).toBeInTheDocument();
     const awaited = within(note).getAllByRole("listitem").map((item) => item.textContent);
     expect(awaited).toEqual([
-      "TEB Bonus •1111: 14–31 Ekim ekstresi, kesim ~13.11",
-      "Garanti Bonus •2222: 25–31 Ekim ekstresi, kesim ~24.11",
+      "TEB Bonus •1111: 14–31 Ekim, 14 Ekim–12 Kasım ekstresinde",
+      "Garanti Bonus •2222: 25–31 Ekim, 25 Ekim–~24 Kasım ekstresinde",
     ]);
     expect(within(note).getByRole("link", { name: "Ekim 2026 için ne bekleniyor?" })).toHaveAttribute(
       "href",

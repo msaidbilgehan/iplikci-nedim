@@ -1311,6 +1311,7 @@ export interface MonthEndAccountOut {
   balance: MoneyOut | null;
   last: string;
   next_cut: string | null;
+  next_cut_printed: boolean;
   late: boolean;
   untracked: boolean;
   waiting_for: string;

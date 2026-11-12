@@ -39,7 +39,7 @@ function OpenMonthNote({ month }: { month: OpenMonth }) {
         <ul className="list-disc pl-5">
           {month.accounts.map((held) => (
             <li key={held.account.id}>
-              {/* A late statement's words say it is late: "… ekstresi, kesim ~13.11 (gecikti)". */}
+              {/* A late statement's words say it is late: "… 14 Ekim–13 Kasım ekstresinde (gecikti)". */}
               <span className="font-medium">{held.account.label}</span>: {held.waiting_for}
             </li>
           ))}

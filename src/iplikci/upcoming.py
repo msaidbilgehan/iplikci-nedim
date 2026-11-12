@@ -18,6 +18,7 @@ from statistics import median
 
 from .analysis import NO_STATEMENT, PROVISIONAL, Dataset
 from .domain.codes import CARD_TYPES, AccountType, InvoiceKind, InvoiceStatus, PaymentKind, TransactionKind
+from .domain.dates import cut_after
 from .domain.labels import SERIES_PERIOD, format_amount
 from .domain.models import TRY, Statement, Transaction
 from .domain.text import fold
@@ -69,6 +70,7 @@ class Installment:
     amount: Decimal  # one installment, in TL
     cut: date  # the newest statement's cut date
     row: str  # the fingerprint of its row on that statement
+    next_cut: date | None = None  # the next statement's cut date as the newest prints it
 
     @property
     def left(self) -> int:
@@ -80,7 +82,7 @@ class Installment:
 
     def billed(self, k: int) -> date:
         """The cut date of the k-th statement after the newest: the day the installment number + k is billed."""
-        return add_months(self.cut, k)
+        return cut_after(self.cut, self.next_cut, k).day
 
     @property
     def last(self) -> date:
@@ -90,12 +92,6 @@ class Installment:
 def horizon_end(today: date, days: int = HORIZON) -> date:
     """The last day of the days that start today."""
     return today + timedelta(days=days - 1)
-
-
-def add_months(day: date, n: int) -> date:
-    """The same day n months later; the month's last day when that month is shorter (a card's next cut)."""
-    year, month = divmod(day.year * 12 + day.month - 1 + n, 12)
-    return date(year, month + 1, min(day.day, monthrange(year, month + 1)[1]))
 
 
 def series_id(s: Series) -> str:
@@ -275,9 +271,8 @@ def installments_left(ds: Dataset) -> list[Installment]:
         for t in s.transactions:
             number, count = _installment(t.installment)
             if 0 < number < count and t.amount > 0:
-                found.append(
-                    Installment(card, t.merchant or t.description, number, count, t.amount, s.cut_date, t.fingerprint)
-                )
+                title = t.merchant or t.description
+                found.append(Installment(card, title, number, count, t.amount, s.cut_date, t.fingerprint, s.next_cut))
     return sorted(found, key=lambda i: (i.last, i.title))
 
 

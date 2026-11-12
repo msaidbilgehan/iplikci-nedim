@@ -854,7 +854,8 @@ def _month_end(s: Session, args: Args) -> Json:
                 "note": ac.note,
                 "monthEndBalance": ac.balance,
                 "currency": ac.account.currency,
-                "nextCut": ac.next_cut,
+                "nextCut": ac.next_cut.day if ac.next_cut else None,
+                "nextCutPrinted": ac.next_cut is not None and ac.next_cut.printed,
                 "waitsForIt": ac.blocking,
             }
             for ac in me.accounts
@@ -2428,9 +2429,11 @@ TOOLS = (
         "Ay sonu raporu ve ekstre ile kapanış. month verilmezse son aylar: her ayın durumu (closed: bütün "
         "hesapların ekstresi/dökümü ayın tamamını kapsıyor, tutarlı ve dekontlar eşleşti; waiting: ekstre "
         "bekleniyor; missing: belge eksik; check: kontrol gerekli; running: ay sürüyor), gider, gelir, kalan. "
-        "month ile o ayın ayrıntısı: hesap hesap hangi ekstre ya da döküm bekleniyor (sonraki kesim tarihi), ay "
+        "month ile o ayın ayrıntısı: hesap hesap hangi ekstre ya da döküm bekleniyor (sonraki kesim tarihi: "
+        "nextCutPrinted true ise bir önceki ekstrenin yazdığı gün, değilse bir ay sonrasına göre tahmin), ay "
         "sonu bakiyeleri, gider dağılımı, düzenli ödemeler, ekstresi gelmeden dekontlardan işlenen geçici kayıtlar "
-        "ve ekstrede görünmeyen dekontlar.",
+        "ve ekstrede görünmeyen dekontlar. Kart ekstresi takvim ayını değil, iki kesim günü arasını kapsar: ayın "
+        "son günleri sonraki ayın kesimiyle gelen ekstrededir.",
         _schema(month={"type": "string", "pattern": r"\d{4}-\d{2}", "description": "YYYY-AA"}),
         _month_end,
     ),

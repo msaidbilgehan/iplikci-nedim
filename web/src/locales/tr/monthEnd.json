@@ -65,6 +65,7 @@
     "covered": "{{covered, number}}/{{needed, number}} gün belgeyle kapsandı",
     "open": "Kapsanmayan günler: {{days}}",
     "nextCut": "Sonraki kesim {{day}}",
+    "nextCut_reckoned": "Sonraki kesim ~{{day}} (tahmini: ekstre yazmıyor)",
     "balance": "Ay sonu bakiyesi {{balance}}",
     "documents": "Belgeleri",
     "card": "Kart ekstresi",

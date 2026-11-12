@@ -9,6 +9,7 @@ from iplikci import cli, month_end
 from iplikci.analysis import build
 from iplikci.categorize import Categorizer
 from iplikci.domain.codes import AccountType, TransactionKind
+from iplikci.domain.dates import Cut
 from iplikci.domain.models import Account, ParseResult, Security, Statement, Transaction
 from iplikci.fakes import teb
 from iplikci.insights import interpret
@@ -57,9 +58,16 @@ def listing(
     return ParseResult("liste", accounts=[CHECKING], statements=[s])
 
 
-def card(cut: date, *rows: Transaction, previous: Decimal = Decimal(0)) -> ParseResult:
+def card(cut: date, *rows: Transaction, previous: Decimal = Decimal(0), next_cut: date | None = None) -> ParseResult:
     s = Statement(
-        CARD.id, cut, "TRY", f"ekstre-{cut}.pdf", previous, round(previous + sum(r.amount for r in rows), 2), list(rows)
+        CARD.id,
+        cut,
+        "TRY",
+        f"ekstre-{cut}.pdf",
+        previous,
+        round(previous + sum(r.amount for r in rows), 2),
+        list(rows),
+        next_cut=next_cut,
     )
     return ParseResult("ekstre", accounts=[CARD], statements=[s])
 
@@ -120,12 +128,50 @@ def test_a_month_closes_when_every_account_covers_it_and_checks_out(cat):
 
 
 def test_an_open_month_waits_for_the_card_statement_after_the_next_cut(cat):
+    # The statement of 18 October prints no next cut: the next one is reckoned a month on and said with "~".
     me = month(cat, date(2026, 11, 10), "2026-10", *autumn()[:-1])
     assert me.status == month_end.WAITING
     waiting = by_label(me)["TEB Bonus •4321"]
-    assert (waiting.status, waiting.next_cut, waiting.late) == (month_end.WAITING, date(2026, 11, 18), False)
-    assert waiting.note == "19–31 Ekim ekstresi e-postayla bekleniyor (sonraki kesim ~18.11.2026)"
-    assert me.summary == "Kapanması için bekleniyor: TEB Bonus •4321 (19–31 Ekim ekstresi, kesim ~18.11)."
+    assert (waiting.status, waiting.next_cut, waiting.late) == (
+        month_end.WAITING,
+        Cut(date(2026, 11, 18), printed=False),
+        False,
+    )
+    assert waiting.note == (
+        "19–31 Ekim, 19 Ekim–~18 Kasım ekstresinde; ekstre ~18.11.2026 kesiminden sonra e-postayla gelir "
+        "(kesim günü tahmini)"
+    )
+    assert me.summary == "Kapanması için bekleniyor: TEB Bonus •4321 (19–31 Ekim, 19 Ekim–~18 Kasım ekstresinde)."
+    assert me.closes_by == date(2026, 11, 18)
+
+
+def test_an_open_month_names_the_statement_it_waits_for_by_its_days_and_the_cut_the_one_before_prints(cat):
+    # A statement runs from one cut to the next, so October's last days come with the one cut in November. The bank
+    # moves the cut day: the statement of 18 October prints 17 November for the next one, and that is the day.
+    *before, _, _ = autumn()
+    me = month(cat, date(2026, 11, 10), "2026-10", *before, card(date(2026, 10, 18), next_cut=date(2026, 11, 17)))
+    waiting = by_label(me)["TEB Bonus •4321"]
+    assert (waiting.next_cut, waiting.closes_by, me.closes_by) == (
+        Cut(date(2026, 11, 17), printed=True),
+        date(2026, 11, 17),
+        date(2026, 11, 17),
+    )
+    assert waiting.waiting_for == "19–31 Ekim, 19 Ekim–17 Kasım ekstresinde"
+    assert (
+        waiting.note == "19–31 Ekim, 19 Ekim–17 Kasım ekstresinde; ekstre 17.11.2026 kesiminden sonra e-postayla gelir"
+    )
+
+
+def test_days_past_the_next_cut_wait_for_the_statement_after_it_too_and_the_first_is_late(cat):
+    # The statement cut on 18 September is the newest: October needs the one cut on 18 October, which it printed and
+    # which is days late, and the one after it.
+    listed = listing(date(2026, 9, 1), date(2026, 10, 31))
+    me = month(cat, date(2026, 11, 10), "2026-10", listed, card(date(2026, 9, 18), next_cut=date(2026, 10, 18)))
+    waiting = by_label(me)["TEB Bonus •4321"]
+    assert waiting.awaited == [Cut(date(2026, 10, 18), printed=True), Cut(date(2026, 11, 18), printed=False)]
+    assert waiting.late and me.closes_by is None
+    assert waiting.waiting_for == "1–31 Ekim, 19 Eylül–18 Ekim ekstresinde ve sonrakinde (gecikti)"
+    assert waiting.note.startswith("1–31 Ekim, 19 Eylül–18 Ekim ekstresinde ve sonrakinde; ilki 18.10.2026 kesiminden")
 
 
 def test_a_statement_past_its_cut_date_is_late(cat):

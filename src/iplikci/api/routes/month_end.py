@@ -94,10 +94,11 @@ class MonthEndAccountOut(BaseModel):
     receipts: MonthEndReceiptsOut
     balance: MoneyOut | None  # the month-end balance a list prints, in the account's currency
     last: date  # the newest day its documents cover
-    next_cut: date | None  # a card's: the cut of the statement that will cover the open days
+    next_cut: date | None  # a card's: the cut of the next statement the open days wait for
+    next_cut_printed: bool  # that day is the one the statement before prints, not one reckoned a month on
     late: bool  # that day passed days ago and the statement did not come
     untracked: bool  # known only from a passbook: its days after it are not awaited
-    waiting_for: str  # what closes its month, in a few Turkish words: "19–31 Ekim ekstresi, kesim ~18.11"
+    waiting_for: str  # what closes its month, in a few Turkish words: "19–31 Ekim, 19 Ekim–18 Kasım ekstresinde"
     note: str  # what there is to know about it this month, in one Turkish line
 
 
@@ -223,7 +224,8 @@ def _account(ac: closing.AccountClose, labels: dict[str, str]) -> MonthEndAccoun
         ),
         balance=_optional(ac.balance, ac.account.currency),
         last=ac.last,
-        next_cut=ac.next_cut,
+        next_cut=ac.next_cut.day if ac.next_cut else None,
+        next_cut_printed=ac.next_cut is not None and ac.next_cut.printed,
         late=ac.late,
         untracked=ac.untracked,
         waiting_for=ac.waiting_for if ac.status is not MonthStatus.CLOSED else "",

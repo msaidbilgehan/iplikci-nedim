@@ -88,7 +88,8 @@ def test_the_months_come_newest_first_with_their_status(demo_client):
     )
     july = months["2026-07"]
     assert (
-        july["summary"] == "Kapanması için eksik belge var: TEB Vadesiz TL 123456789 (1–4 Temmuz hesap dökümü eksik)."
+        july["summary"]
+        == "Kapanması için eksik belge var: TEB Vadesiz TL 123456789 (1–4 Temmuz için hesap dökümü eksik)."
     )
     assert (july["name"], july["link"]) == ("Temmuz 2026", {"screen": "month", "id": "2026-07", "query": {}})
     assert found["export"] == "month_end"  # the pages to keep, as the exports zip them
@@ -105,7 +106,7 @@ def test_a_months_page_tells_each_accounts_closing_and_what_it_waits_for(demo_cl
         31,
     )
     assert teb["open"] == [{"start": "2026-07-01", "end": "2026-07-04"}]
-    assert teb["waiting_for"] == "1–4 Temmuz hesap dökümü eksik"
+    assert teb["waiting_for"] == "1–4 Temmuz için hesap dökümü eksik"
     [statement] = teb["statements"]
     assert (statement["start"], statement["end"], statement["card"], statement["check"]) == (
         "2026-07-05",
@@ -132,11 +133,17 @@ def test_a_card_waiting_for_its_statement_says_its_cut(garanti_ws):
     found = get(client_for(garanti_ws), "/api/month-end/2026-10")
     assert found["month"]["status"] == "waiting"
     card = next(a for a in found["accounts"] if a["account"]["id"] == CARD)
-    assert (card["status"], card["next_cut"], card["late"]) == ("waiting", "2026-11-05", False)
-    assert card["waiting_for"] == "6–31 Ekim ekstresi, kesim ~05.11"
+    # The statement names its successor's cut: the one that holds October's last days, named by its own.
+    assert (card["status"], card["next_cut"], card["next_cut_printed"], card["late"]) == (
+        "waiting",
+        "2026-11-04",
+        True,
+        False,
+    )
+    assert card["waiting_for"] == "6–31 Ekim, 6 Ekim–4 Kasım ekstresinde"
     late = get(client_for(garanti_ws, date(2026, 11, 12)), "/api/month-end/2026-10")
     card = next(a for a in late["accounts"] if a["account"]["id"] == CARD)
-    assert card["late"] and card["waiting_for"] == "6–31 Ekim ekstresi, kesim ~05.11 (gecikti)"
+    assert card["late"] and card["waiting_for"] == "6–31 Ekim, 6 Ekim–4 Kasım ekstresinde (gecikti)"
 
 
 def test_provisional_rows_and_receipts_no_statement_shows_are_listed_with_their_certainty(garanti_ws):

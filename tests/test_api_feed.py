@@ -355,9 +355,10 @@ def test_a_card_shows_its_statement_what_it_still_asks_and_the_period_it_is_in(g
     # The list paid 3.250 TL on 10 October, after the cut: the statement still asks the rest.
     assert (card["paid"], card["debt"], card["certainty"]) == (tl(325000), tl(63489), "confirmed")
     assert card["last"] == {"start": "2026-09-06", "end": "2026-10-05", "spent": tl(288489), "rows": 11}
-    assert card["current"] == {"start": "2026-10-06", "end": "2026-11-05", "spent": tl(0), "rows": 0}
+    # The period it is in ends on the next cut the statement prints.
+    assert card["current"] == {"start": "2026-10-06", "end": "2026-11-04", "spent": tl(0), "rows": 0}
     assert card["note"] == (
-        "05.10.2026 ekstresi 3.884,89 TL; sonra 3.250,00 TL ödendi; bu dönemin harcamaları ~05.11.2026 kesimli "
+        "05.10.2026 ekstresi 3.884,89 TL; sonra 3.250,00 TL ödendi; bu dönemin harcamaları 04.11.2026 kesimli "
         "ekstreyle gelir"
     )
 

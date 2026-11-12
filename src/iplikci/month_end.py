@@ -43,6 +43,7 @@ from .domain.codes import (
     Necessity,
     TransactionKind,
 )
+from .domain.dates import Cut
 from .domain.labels import ACCOUNT_MONTH_STATUS, KIND, MONTHS, NECESSITY, format_amount
 from .domain.labels import MONTH_STATUS as _MONTH_LABELS
 from .domain.models import TRY, Account, Statement, Transaction
@@ -98,11 +99,6 @@ def _days(lo: date, hi: date) -> list[date]:
     return [lo + timedelta(days=n) for n in range((hi - lo).days + 1)]
 
 
-def _next_cut(cut: date) -> date:
-    year, mon = (cut.year, cut.month + 1) if cut.month < 12 else (cut.year + 1, 1)
-    return date(year, mon, min(cut.day, calendar.monthrange(year, mon)[1]))
-
-
 def _ranges(days: list[date]) -> list[tuple[date, date]]:
     out: list[tuple[date, date]] = []
     for d in sorted(days):
@@ -114,10 +110,18 @@ def _ranges(days: list[date]) -> list[tuple[date, date]]:
 
 
 def range_text(ranges: list[tuple[date, date]]) -> str:
-    """[(25 Oct, 31 Oct)] -> '25–31 Ekim'."""
+    """[(25 Oct, 31 Oct)] -> '25–31 Ekim': days within one month."""
     return ", ".join(
         f"{a.day} {MONTHS[a.month - 1]}" if a == b else f"{a.day}–{b.day} {MONTHS[a.month - 1]}" for a, b in ranges
     )
+
+
+def period_words(lo: date, hi: date, reckoned: bool = False) -> str:
+    """A statement's days in words: '1–30 Kasım' within a month, '25 Ekim–23 Kasım' across two; '25 Ekim–~24 Kasım'
+    when its last day, the cut, is reckoned rather than printed."""
+    if (lo.year, lo.month) == (hi.year, hi.month) and not reckoned:
+        return range_text([(lo, hi)])
+    return f"{lo.day} {MONTHS[lo.month - 1]}–{'~' if reckoned else ''}{hi.day} {MONTHS[hi.month - 1]}"
 
 
 def _fails(s: Statement) -> bool:
@@ -165,13 +169,25 @@ class AccountClose:
     receipts: list[ReceiptLine]
     balance: Decimal | None  # month-end balance as the list prints it (account lists only)
     last: date  # newest day its statements cover
-    next_cut: date | None = None  # cards: the cut date of the statement that will cover the open days
-    late: bool = False  # that cut date passed days ago and the statement did not come
+    # Cards: the cuts of the statements that will cover the open days, the next one first. The next is the day the
+    # newest statement prints for it, else reckoned a month on; any later one is reckoned (Statement.cut_after).
+    awaited: list[Cut] = field(default_factory=list[Cut])
+    late: bool = False  # the next cut passed days ago and its statement did not come
     untracked: bool = False  # known only from a passbook: its days after it are not awaited
 
     @property
     def is_card(self) -> bool:
         return self.account.type in CARD_TYPES
+
+    @property
+    def next_cut(self) -> Cut | None:
+        """A card's next cut: its statement is the first the open days wait for."""
+        return self.awaited[0] if self.awaited else None
+
+    @property
+    def closes_by(self) -> date | None:
+        """A card's: the cut of the statement that covers the last open day."""
+        return self.awaited[-1].day if self.awaited else None
 
     @property
     def mailed(self) -> bool:
@@ -197,14 +213,23 @@ class AccountClose:
             out.append(f"{missing} dekont satırı ekstrede yok")
         return out
 
+    def _awaited_statements(self) -> str:
+        """The card statements the open days come with, named by their days: "25 Ekim–23 Kasım ekstresinde" ("25
+        Ekim–~24 Kasım" when the cut is reckoned), and "… ve sonrakinde" when the days reach past its cut."""
+        cut = self.awaited[0]
+        named = f"{period_words(self.last + timedelta(days=1), cut.day, reckoned=not cut.printed)} ekstresinde"
+        return named + (" ve sonrakinde" if len(self.awaited) > 1 else "")
+
     @property
     def waiting_for(self) -> str:
-        """The document that closes the account's month, in a few words."""
+        """The document that closes the account's month, in a few words: a card's statement by the days it covers
+        ("25–31 Ekim, 25 Ekim–23 Kasım ekstresinde"), as a statement runs from one cut to the next, not by month."""
         if self.status == MISSING:
-            return f"{range_text(self.open)} {'ekstresi' if self.mailed else 'hesap dökümü'} eksik"
+            return f"{range_text(self.open)} için {'ekstre' if self.mailed else 'hesap dökümü'} eksik"
+        if self.status == WAITING and self.awaited:
+            return f"{range_text(self.open)}, {self._awaited_statements()}{' (gecikti)' if self.late else ''}"
         if self.status == WAITING and self.mailed:
-            cut = f", kesim ~{_short_day(self.next_cut)}" if self.is_card and self.next_cut else ""
-            return f"{range_text(self.open)} ekstresi{cut}{' (gecikti)' if self.late else ''}"
+            return f"{range_text(self.open)} ekstresi{' (gecikti)' if self.late else ''}"
         if self.status == WAITING:
             return f"{range_text(self.open)} hesap dökümü"
         return "; ".join(self.problems)
@@ -219,11 +244,19 @@ class AccountClose:
                     "indirip Belgeler ekranından yükleyin"
                 )
             ]
+        elif self.status == WAITING and self.awaited:
+            cut = self.awaited[0]
+            when = _day(cut.day) if cut.printed else f"~{_day(cut.day)}"
+            first = "ilki" if len(self.awaited) > 1 else "ekstre"
+            estimate = "" if cut.printed else " (kesim günü tahmini)"
+            parts = [
+                f"{range_text(self.open)}, {self._awaited_statements()}",
+                f"{first} {when} kesiminden sonra e-postayla gelir{estimate}",
+            ]
+            if self.late:
+                parts.append("beklenen tarih geçti: e-posta gelmediyse ekstreyi bankadan indirin")
         elif self.status == WAITING and self.mailed:
-            when = (
-                f" (sonraki kesim ~{_day(self.next_cut)})" if self.is_card and self.next_cut else " (ay sonu ekstresi)"
-            )
-            parts = [f"{range_text(self.open)} ekstresi e-postayla bekleniyor{when}"]
+            parts = [f"{range_text(self.open)} ekstresi e-postayla bekleniyor (ay sonu ekstresi)"]
             if self.late:
                 parts.append("beklenen tarih geçti: e-posta gelmediyse ekstreyi bankadan indirin")
         elif self.status == WAITING:
@@ -311,7 +344,7 @@ class MonthEnd:
         held = self.open
         if self.status != WAITING or not held:
             return None
-        cuts = [a.next_cut for a in held if a.status == WAITING and a.next_cut and not a.late]
+        cuts = [a.closes_by for a in held if a.status == WAITING and a.closes_by and not a.late]
         return max(cuts) if len(cuts) == len(held) else None
 
     @property
@@ -443,11 +476,11 @@ class _Shared:
                     known = [m for m in covering.balances if m <= month]
                     ac.balance = covering.balances[max(known)] if known else covering.previous
             elif status == WAITING:
-                cuts = [s.cut_date for s, _, _ in self.periods if s.account == account]
-                ac.next_cut = _next_cut(max(cuts))
-                while ac.next_cut < waiting[-1]:
-                    ac.next_cut = _next_cut(ac.next_cut)
-                ac.late = (self.today - ac.next_cut).days > LATE_DAYS
+                newest = max((s for s, _, _ in self.periods if s.account == account), key=lambda s: s.cut_date)
+                ac.awaited = [newest.cut_after(1)]
+                while ac.awaited[-1].day < waiting[-1]:
+                    ac.awaited.append(newest.cut_after(len(ac.awaited) + 1))
+                ac.late = (self.today - ac.awaited[0].day).days > LATE_DAYS
             if acc.type == AccountType.BROKERAGE and status == WAITING:
                 # The brokerage statement covers a calendar month and comes in the first days of the next.
                 ac.late = (self.today - last_day(month_of(waiting[-1]))).days > 2 * LATE_DAYS

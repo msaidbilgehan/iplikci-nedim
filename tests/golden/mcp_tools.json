@@ -882,7 +882,7 @@
   {
     "name": "month_end",
     "title": "Ay sonu ve kapanış",
-    "description": "Ay sonu raporu ve ekstre ile kapanış. month verilmezse son aylar: her ayın durumu (closed: bütün hesapların ekstresi/dökümü ayın tamamını kapsıyor, tutarlı ve dekontlar eşleşti; waiting: ekstre bekleniyor; missing: belge eksik; check: kontrol gerekli; running: ay sürüyor), gider, gelir, kalan. month ile o ayın ayrıntısı: hesap hesap hangi ekstre ya da döküm bekleniyor (sonraki kesim tarihi), ay sonu bakiyeleri, gider dağılımı, düzenli ödemeler, ekstresi gelmeden dekontlardan işlenen geçici kayıtlar ve ekstrede görünmeyen dekontlar.",
+    "description": "Ay sonu raporu ve ekstre ile kapanış. month verilmezse son aylar: her ayın durumu (closed: bütün hesapların ekstresi/dökümü ayın tamamını kapsıyor, tutarlı ve dekontlar eşleşti; waiting: ekstre bekleniyor; missing: belge eksik; check: kontrol gerekli; running: ay sürüyor), gider, gelir, kalan. month ile o ayın ayrıntısı: hesap hesap hangi ekstre ya da döküm bekleniyor (sonraki kesim tarihi: nextCutPrinted true ise bir önceki ekstrenin yazdığı gün, değilse bir ay sonrasına göre tahmin), ay sonu bakiyeleri, gider dağılımı, düzenli ödemeler, ekstresi gelmeden dekontlardan işlenen geçici kayıtlar ve ekstrede görünmeyen dekontlar. Kart ekstresi takvim ayını değil, iki kesim günü arasını kapsar: ayın son günleri sonraki ayın kesimiyle gelen ekstrededir.",
     "inputSchema": {
       "type": "object",
       "properties": {

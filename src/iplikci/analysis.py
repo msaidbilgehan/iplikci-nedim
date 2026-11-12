@@ -36,6 +36,7 @@ from .domain.codes import (
     TransactionKind,
     TransferStep,
 )
+from .domain.dates import add_months
 from .domain.fingerprint import Fingerprints
 from .domain.labels import EVIDENCE_STATUS, format_amount, format_rate
 from .domain.models import TRY, Account, Invoice, ParseResult, Statement, Transaction
@@ -264,7 +265,7 @@ def _advance_parts(t: Transaction, digits: str, lent: Sequence[tuple[str, date, 
     if not 1 <= n <= count:
         return [t]
     # The advance this installment repays: the card's, taken n - 1 months before it, the nearest such day.
-    near = [(abs((_months_later(day, n - 1) - t.date).days), amount) for card, day, amount in lent if card == digits]
+    near = [(abs((add_months(day, n - 1) - t.date).days), amount) for card, day, amount in lent if card == digits]
     taken = [found for found in near if found[0] <= _ADVANCE_DAYS]
     if not taken:
         return [t]
@@ -279,13 +280,6 @@ def _advance_parts(t: Transaction, digits: str, lent: Sequence[tuple[str, date, 
         replace(t, amount=share, kind=TransactionKind.LOAN_PRINCIPAL),
         replace(t, amount=cost, kind=TransactionKind.INTEREST_FEE, description=f"{t.description} (faiz ve vergi payı)"),
     ]
-
-
-def _months_later(day: date, months: int) -> date:
-    """The same day so many months later; the month's last day when that month is shorter (upcoming.add_months, which
-    reads the ledger and so cannot be read by it)."""
-    year, month = divmod(day.year * 12 + day.month - 1 + months, 12)
-    return date(year, month + 1, min(day.day, calendar.monthrange(year, month + 1)[1]))
 
 
 def covered_days(statements: list[Statement]) -> dict[str, set[date]]:

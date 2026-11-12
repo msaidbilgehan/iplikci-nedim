@@ -130,8 +130,8 @@ describe("Overview", () => {
               status: "waiting",
               closes_by: "2026-11-24",
               waiting: [
-                card("Örnek Kart •1234", "14–31 Ekim ekstresi, kesim ~13.11"),
-                card("Örnek Kart •5678", "25–31 Ekim ekstresi, kesim ~24.11"),
+                card("Örnek Kart •1234", "14–31 Ekim, 14 Ekim–12 Kasım ekstresinde"),
+                card("Örnek Kart •5678", "25–31 Ekim, 25 Ekim–~24 Kasım ekstresinde"),
               ],
             }
           : month,
@@ -327,8 +327,8 @@ describe("Overview", () => {
                 status: "waiting" as const,
                 closes_by: "2026-11-24",
                 waiting: [
-                  { account: { id: "teb-1111", label: "TEB Bonus •1111" }, waiting_for: "14–31 Ekim ekstresi, kesim ~13.11" },
-                  { account: { id: "garanti-2222", label: "Garanti Bonus •2222" }, waiting_for: "25–31 Ekim ekstresi, kesim ~24.11" },
+                  { account: { id: "teb-1111", label: "TEB Bonus •1111" }, waiting_for: "14–31 Ekim, 14 Ekim–12 Kasım ekstresinde" },
+                  { account: { id: "garanti-2222", label: "Garanti Bonus •2222" }, waiting_for: "25–31 Ekim, 25 Ekim–~24 Kasım ekstresinde" },
                 ],
               }
             : m.month === "2026-11"
@@ -368,7 +368,7 @@ describe("Overview", () => {
                 status: "waiting" as const,
                 closes_by: "2026-11-13",
                 waiting: [
-                  { account: { id: "teb-1111", label: "TEB Bonus •1111" }, waiting_for: "14–31 Ekim ekstresi, kesim ~13.11" },
+                  { account: { id: "teb-1111", label: "TEB Bonus •1111" }, waiting_for: "14–31 Ekim, 14 Ekim–12 Kasım ekstresinde" },
                 ],
               }
             : m,
@@ -378,7 +378,7 @@ describe("Overview", () => {
     renderScreen(<Overview found={story} />);
     const card = await region("Ekim 2026: paranız ne durumda?");
     const list = within(card).getByText("Beklenen belgeler:").nextElementSibling;
-    expect(list).toHaveTextContent("TEB Bonus •1111: 14–31 Ekim ekstresi, kesim ~13.11");
+    expect(list).toHaveTextContent("TEB Bonus •1111: 14–31 Ekim, 14 Ekim–12 Kasım ekstresinde");
   });
 
   it("draws a month's saving below the line, leading to its savings", async () => {

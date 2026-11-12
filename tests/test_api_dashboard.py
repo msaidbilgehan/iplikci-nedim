@@ -328,7 +328,7 @@ def test_the_last_seven_months_closing_leads_to_the_oldest_month_still_open(demo
     assert july["waiting"] == [
         {
             "account": {"id": TEB, "label": "TEB Vadesiz TL 123456789"},
-            "waiting_for": "1–4 Temmuz hesap dökümü eksik",
+            "waiting_for": "1–4 Temmuz için hesap dökümü eksik",
         }
     ]
     # July's income is what its list shows, not a certain figure: the salary of the 1st is in the days it misses.
@@ -349,9 +349,9 @@ def test_a_month_waiting_for_a_cards_statement_says_by_when_it_closes(garanti_ws
     def october(today: date) -> dict[str, object]:
         return next(m for m in board(garanti_ws, today)["closing"]["months"] if m["month"] == "2026-10")
 
-    # The card's statement of 5 October leaves the month's last days to the next one, cut around 5 November.
+    # The card's statement of 5 October leaves the month's last days to the next one, cut on 4 November as it prints.
     waiting = october(date(2026, 11, 3))
-    assert (waiting["status"], waiting["closes_by"]) == ("waiting", "2026-11-05")
+    assert (waiting["status"], waiting["closes_by"]) == ("waiting", "2026-11-04")
     assert [w["account"]["id"] for w in waiting["waiting"]] == [CARD]  # type: ignore[union-attr]
     # Days after that cut the statement is late: the month still waits for it, but no day is promised.
     late = october(date(2026, 11, 11))
@@ -365,9 +365,10 @@ def test_freshness_flags_a_card_whose_next_statement_is_late(garanti_ws):
         CARD,
         "card_statement",
         "2026-10-05",
-        "2026-11-05",
+        "2026-11-04",  # the next cut the statement prints, not the same day a month on
         False,
     )
+    assert card["note"] == "son ekstre 05.10.2026; sonraki 04.11.2026"
     assert (current["kind"], current["expected"], current["note"]) == (
         "account_statement",
         None,
@@ -379,7 +380,7 @@ def test_freshness_flags_a_card_whose_next_statement_is_late(garanti_ws):
     assert (card["late"], card["behind"], card["note"]) == (
         True,
         37,
-        "son ekstre 05.10.2026; sonraki ~05.11.2026 (gecikti)",
+        "son ekstre 05.10.2026; sonraki 04.11.2026 (gecikti)",
     )
     assert late["say"] == f"1 hesabın beklenen ekstresi gecikti: {card['account']['label']}."
 

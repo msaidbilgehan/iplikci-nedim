@@ -75,7 +75,8 @@ def test_the_closing_card_and_the_exports_carry_the_month_end(tmp_path):
     payload = build_payload(ds, {"documents": 1, "duplicates": 0}, ins, months)
     january, february = payload["closing"]
     assert (january["m"], january["status"], january["file"]) == ("2026-01", "bekleniyor", "ay-sonu/2026-01.html")
-    assert january["open"] == ["TEB Bonus •2468: 11–31 Ocak ekstresi, kesim ~10.02"]
+    # The statement prints no next cut: its day is reckoned a month on.
+    assert january["open"] == ["TEB Bonus •2468: 11–31 Ocak, 11 Ocak–~10 Şubat ekstresinde"]
     assert february["status"] == "suruyor" and payload["tx"][0]["p"] == 1
     write_xlsx(ds, tmp_path / "islemler.xlsx", ins, months)
     wb = load_workbook(tmp_path / "islemler.xlsx")

@@ -14,13 +14,13 @@ from iplikci.domain.codes import (
     SeriesPeriod,
     TransactionKind,
 )
+from iplikci.domain.dates import add_months
 from iplikci.domain.models import Account, Invoice, Statement, Transaction
 from iplikci.insights import PeriodicSeries, find_series, interpret, settle, timeline
 from iplikci.invoices import InvoiceMatch
 from iplikci.upcoming import (
     HORIZON,
     CardDue,
-    add_months,
     bill_items,
     card_due_items,
     expected_amount,
@@ -259,6 +259,15 @@ def test_installments_left_come_from_the_cards_newest_statement_one_on_each_late
         (date(2026, 12, 15), "Örnek Elektronik (10/12)", "card", Decimal(500)),
     ]
     assert found[0].kind == PaymentKind.INSTALLMENT and found[0].basis.startswith("8/12. taksit 15.10.2026 ekstresinde")
+
+
+def test_installments_come_on_the_next_cut_the_newest_statement_prints_and_a_month_apart_after_it():
+    newest = card_statement(
+        date(2026, 10, 15), [tx(date(2026, 1, 20), "Örnek Elektronik", 500, account="card", installment="8/12")]
+    )
+    newest.next_cut = date(2026, 11, 13)  # the bank moved the cut day
+    found = installment_items(dataset([], [newest]), date(2026, 11, 1), horizon_end(date(2026, 11, 1)))
+    assert [d.day for d in found] == [date(2026, 11, 13), date(2026, 12, 13)]
 
 
 def loan_receipts(days: list[date]) -> tuple[list[Transaction], list[ReceiptLine]]:

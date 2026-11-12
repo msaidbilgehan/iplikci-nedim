@@ -9,6 +9,7 @@ from decimal import Decimal
 from iplikci.analysis import CONFIRMED, NOT_ON_STATEMENT, PROVISIONAL, Dataset, ReceiptLine
 from iplikci.app import background
 from iplikci.domain.codes import AccountType, EvidenceStatus, Necessity, RateSource, TransactionKind
+from iplikci.domain.dates import add_months
 from iplikci.domain.models import Account, Statement, Transaction
 from iplikci.domain.text import fold
 from iplikci.fakes import teb
@@ -18,7 +19,7 @@ from iplikci.feed.snapshot import BULK, Change, Snapshot, diff, take
 from iplikci.fx.book import Quote, RateBook
 from iplikci.insights import interpret
 from iplikci.storage import events
-from iplikci.upcoming import CardDue, add_months
+from iplikci.upcoming import CardDue
 
 from conftest import add
 

@@ -22,7 +22,7 @@ describe("MonthPage: the month and its accounts", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Ekim 2026" })).toBeInTheDocument();
     expect(await screen.findByText("Ekstre bekleniyor")).toBeInTheDocument();
     expect(
-      screen.getByText("Ekstresi beklenen hesap var: Örnek Kart •1234 (19–31 Ekim ekstresi, kesim ~18.11)."),
+      screen.getByText("Ekstresi beklenen hesap var: Örnek Kart •1234 (19–31 Ekim, 19 Ekim–18 Kasım ekstresinde)."),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ay sonu" })).toHaveAttribute("href", "/ay-sonu");
   });
@@ -35,7 +35,7 @@ describe("MonthPage: the month and its accounts", () => {
       "href",
       "/hesaplar/teb-1234",
     );
-    expect(within(accounts).getByText("Beklenen: 19–31 Ekim ekstresi, kesim ~18.11")).toBeInTheDocument();
+    expect(within(accounts).getByText("Beklenen: 19–31 Ekim, 19 Ekim–18 Kasım ekstresinde (gecikti)")).toBeInTheDocument();
     expect(within(accounts).getByText("Gecikti")).toBeInTheDocument();
     expect(within(accounts).getByText("Ayı bekletmez")).toBeInTheDocument(); // the brokerage account
     expect(within(accounts).getAllByText("Kapandı")).toHaveLength(2);
@@ -59,6 +59,17 @@ describe("MonthPage: the month and its accounts", () => {
         "Dekontlar: 3 eşleşti, 2 geçici, 1 ekstrede yok, 0 ekstresi gelmemiş günlerde",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("marks a next cut the statement does not print as reckoned", async () => {
+    const detail = monthEndDetail();
+    const accounts = detail.accounts.map((a) => (a.next_cut ? { ...a, next_cut_printed: false } : a));
+    server.use(http.get("/api/month-end/:month", () => HttpResponse.json({ ...detail, accounts })));
+    detailed();
+    open("2026-10");
+    const table = within(await card("Hesapların kapanışı")).getByRole("table");
+    const card1234 = within(table).getAllByRole("row")[1]!;
+    expect(within(card1234).getByText("Sonraki kesim ~18.11.2026 (tahmini: ekstre yazmıyor)")).toBeInTheDocument();
   });
 
   it("says a month no account has documents for", async () => {

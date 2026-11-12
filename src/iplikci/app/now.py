@@ -32,7 +32,7 @@ from ..insights import (
     provider_rate_said,
     sent_after_note,
 )
-from ..upcoming import Due, add_months
+from ..upcoming import Due
 from . import outlook, reach
 from .analysis import Analysis
 
@@ -142,7 +142,7 @@ class Period:
     """A card's statement period and the spending in it (purchases, refunds, interest and fees)."""
 
     start: date
-    end: date  # a statement's cut date; for the period the card is in, the next cut expected (a month on)
+    end: date  # a statement's cut date; for the period the card is in, the next cut (Statement.cut_after)
     spent: Decimal
     rows: int  # its rows known so far
 
@@ -342,7 +342,8 @@ def _card(ds: Dataset, account: str, statements: list[Statement]) -> Card:
     debt = max(ZERO, newest.total - paid) if credit and newest.total is not None else None
     later = [t for t in ds.transactions if t.account == account and t.date > newest.cut_date]
     made = len({t.split_of or id(t) for t in later})  # payments: a split row's parts are one
-    current = Period(newest.cut_date + timedelta(days=1), add_months(newest.cut_date, 1), _spent(later), made)
+    cut = newest.cut_after()
+    current = Period(newest.cut_date + timedelta(days=1), cut.day, _spent(later), made)
     provisional = any(t.provisional for t in [*paying, *later])
     note = f"{_day(newest.cut_date)} ekstresi"
     if newest.total is not None:
@@ -352,7 +353,8 @@ def _card(ds: Dataset, account: str, statements: list[Statement]) -> Card:
     if later:
         note += f"; bu dönemden şimdiye dek {made} işlem biliniyor, tamamı ekstreyle gelir"
     else:
-        note += f"; bu dönemin harcamaları ~{_day(current.end)} kesimli ekstreyle gelir"
+        when = _day(cut.day) if cut.printed else f"~{_day(cut.day)}"
+        note += f"; bu dönemin harcamaları {when} kesimli ekstreyle gelir"
     return Card(
         account=account,
         type=type_,

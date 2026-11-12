@@ -26,11 +26,11 @@ from ..domain.codes import (
     PaidStatus,
     PaymentKind,
 )
-from ..domain.models import Security
+from ..domain.models import Security, Statement
 from ..insights import FULL, month_of, payments_after, shift
 from ..storage import aliases, documents
 from ..storage.documents import DocumentRow
-from ..upcoming import Installment, add_months
+from ..upcoming import Installment
 from . import account_pages, now, outlook, transactions
 from .account_pages import (
     BrokeragePage,
@@ -217,14 +217,15 @@ def _day(d: date) -> str:
 # --- how far the documents reach -------------------------------------------------------------------------------------
 
 
-def _expected(account: AccountType, cut: date) -> tuple[date, int] | None:
-    """When the statement after one cut on a day is due, and how many days later it is late (month_end.LATE_DAYS):
-    a card's comes a month after its cut, a brokerage account's after the next month ends. A list is downloaded or
-    mailed when it is (K21): nothing is due."""
+def _expected(account: AccountType, newest: Statement) -> tuple[date, int, bool] | None:
+    """When the statement after the newest is due, how many days later it is late (month_end.LATE_DAYS) and whether
+    the day is known: a card's comes on the next cut its newest statement prints (else reckoned a month on), a
+    brokerage account's after the next month ends. A list is downloaded or mailed when it is (K21): nothing is due."""
     if account in CARD_TYPES:
-        return add_months(cut, 1), month_end.LATE_DAYS
+        cut = newest.cut_after()
+        return cut.day, month_end.LATE_DAYS, cut.printed
     if account == AccountType.BROKERAGE:
-        return month_end.last_day(shift(month_of(cut), 1)), 2 * month_end.LATE_DAYS
+        return month_end.last_day(shift(month_of(newest.cut_date), 1)), 2 * month_end.LATE_DAYS, True
     return None
 
 
@@ -255,14 +256,15 @@ def _freshness(
     statements = [s for s in ds.statements if s.account == account]
     newest = max(statements, key=lambda s: s.cut_date) if statements else None
     kind, sha, name = _newest_document(ds, account, docs)
-    due = _expected(ds.accounts[account].type, newest.cut_date) if newest is not None else None
+    due = _expected(ds.accounts[account].type, newest) if newest is not None else None
     late = due is not None and (today - due[0]).days > due[1]
     if newest is None:
         note = "yalnızca dekont ve banka bildirimlerinden biliniyor"
     elif due is None:
         note = f"son döküm {_day(newest.cut_date)}"
     else:
-        note = f"son ekstre {_day(newest.cut_date)}; sonraki ~{_day(due[0])}" + (" (gecikti)" if late else "")
+        when = _day(due[0]) if due[2] else f"~{_day(due[0])}"
+        note = f"son ekstre {_day(newest.cut_date)}; sonraki {when}" + (" (gecikti)" if late else "")
     return Freshness(
         account=account,
         kind=kind,
