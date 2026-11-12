@@ -2,11 +2,12 @@
 // its fixed colour slot, 2 px of the card between stacked segments, the data end rounded by 4 px; what is below zero
 // hangs under the axis, so its sign shows in its place and not in its colour alone. Months from `forecastFrom` on are
 // a forecast: lighter, after a dashed line marked "tahmin". A month the documents cover only partly is lighter too and
-// marked "eksik". A reference line (the typical month, from complete months only) is the caller's to give; the chart
-// computes no average of its own. The pointer shows a month's values; the table view shows them all, or what the
-// caller gives instead (a heat table). A month, or one series of it, may lead to its rows (open): a click on its
-// segment opens that series, a click beside the segments the whole month; the table's months and values are the same
-// links.
+// marked "eksik", or in the caller's words when it knows why: a month that waits for its statements says "bekliyor"
+// and the day it should close. A reference line (the typical month, from complete months only) is the caller's to
+// give; the chart computes no average of its own. The pointer shows a month's values; the table view shows them all,
+// or what the caller gives instead (a heat table). A month, or one series of it, may lead to its rows (open): a click
+// on its segment opens that series, a click beside the segments or on the month's name the whole month; the table's
+// months and values are the same links.
 
 import { type PointerEvent, type ReactNode, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -21,6 +22,7 @@ import { ChartFrame } from "./ChartFrame";
 import { ChartTip, type TipOpen } from "./ChartTip";
 import { type Column, monthLabels, type Segment, type StackSeries, stackLayout } from "./layout";
 import { Legend } from "./Legend";
+import { type MonthMark, partialName } from "./marks";
 import { type ChartOpen, isTouch, useDismiss, useOpener } from "./open";
 import { SLOT_BG, SLOT_FILL } from "./palette";
 import { useWidth } from "./useWidth";
@@ -51,6 +53,9 @@ interface StackedBarsProps {
   // Months the documents cover only partly (or a period cuts): drawn lighter and marked "eksik"; an average the
   // caller gives leaves them out.
   partial?: readonly string[];
+  // The partial months' own marks, by month, when the caller knows why they are not whole: a month not closed is not
+  // missing anything while it waits for its statements.
+  marks?: Readonly<Record<string, MonthMark>>;
   reference?: { label: string; value: number }; // a line across the chart, minor units
   totalLabel?: string; // what a column's sum is called: "Toplam", or "Net" for money in above and out below
   table?: ReactNode; // the table view, when the caller's says more than the months' values (a heat table)
@@ -66,6 +71,11 @@ interface Aim {
 }
 
 const MARGIN = { top: 26, right: 12, bottom: 28, left: 76 };
+// A mark of two lines, a word over the day, needs the room of both above the plot; a column's total under them stays
+// clear of the day.
+const MARKED_MARGIN = { ...MARGIN, top: 40 };
+const MARK_BAND = 44; // a column narrower than this has no room for a word over a day: one line of the two
+const MARK_CHAR = 6.2; // the width of a mark's letter at 11 px, so a longer word needs a wider column
 const HALO = "[paint-order:stroke] stroke-white stroke-[3px] [stroke-linejoin:round] dark:stroke-zinc-900";
 
 const sameAim = (a: Aim | null, b: Aim) => a !== null && a.column === b.column && a.series === b.series;
@@ -78,6 +88,7 @@ export function StackedBars({
   currency = "TRY",
   forecastFrom,
   partial = [],
+  marks = {},
   reference,
   totalLabel,
   table: ownTable,
@@ -96,23 +107,24 @@ export function StackedBars({
   const forecastIndex = forecastFrom ? months.findIndex((m) => m.month >= forecastFrom) : -1;
   const isForecast = (index: number) => forecastIndex >= 0 && index >= forecastIndex;
   const isPartial = (index: number) => partial.includes(months[index]?.month ?? "");
+  const markOf = (index: number): MonthMark | undefined =>
+    isPartial(index) && !isForecast(index) ? marks[months[index]?.month ?? ""] : undefined;
   const monthName = (index: number) => {
     const name = formatMonth(months[index]?.month ?? "");
     if (isForecast(index)) {
       return t("forecastMonth", { month: name });
     }
-    return isPartial(index) ? t("partialMonth", { month: name }) : name;
+    return isPartial(index) ? partialName(name, markOf(index), t) : name;
   };
   const sumName = totalLabel ?? t("total");
   const linkTo = (month: string, key: string | null) => open?.link({ month, series: key }) ?? null;
 
   const size = { width: Math.max(280, width), height };
-  const layout = stackLayout(
-    months.map((m) => ({ key: m.month, values: m.values })),
-    shown,
-    size,
-    MARGIN,
-  );
+  const stacks = months.map((m) => ({ key: m.month, values: m.values }));
+  const plain = stackLayout(stacks, shown, size, MARGIN);
+  // A mark's word and its day stand over each other where the columns are wide enough for the word.
+  const twoLines = plain.band >= MARK_BAND && months.some((_, index) => markOf(index)?.day !== undefined);
+  const layout = twoLines ? stackLayout(stacks, shown, size, MARKED_MARGIN) : plain;
   const { plot } = layout;
   const actual = layout.columns.filter((column) => !isForecast(column.index));
   const labelled = new Set<number>();
@@ -140,7 +152,8 @@ export function StackedBars({
 
   /**
    * The part under the pointer: the segment it is on; beside the segments the whole month when the month leads
-   * somewhere, else the nearest segment (above zero what rises, below it what hangs).
+   * somewhere, else the nearest segment (above zero what rises, below it what hangs). The month's name under the
+   * axis is the whole month alone.
    */
   const aimAt = (column: Column, event: PointerEvent<SVGRectElement>, touch: boolean): Aim => {
     const at = { column: column.index, touch };
@@ -149,6 +162,9 @@ export function StackedBars({
     }
     const frame = event.currentTarget.ownerSVGElement?.getBoundingClientRect();
     const y = event.clientY - (frame?.top ?? 0);
+    if (y > plot.bottom) {
+      return { ...at, series: null };
+    }
     const on = column.segments.find((s) => y >= s.top - 1 && y <= s.bottom + 1);
     if (on) {
       return { ...at, series: on.series.key };
@@ -241,17 +257,38 @@ export function StackedBars({
         {layout.band >= 26
           ? layout.columns
               .filter((column) => isPartial(column.index) && !isForecast(column.index))
-              .map((column) => (
-                <text
-                  key={column.key}
-                  x={column.center}
-                  y={plot.top - 12}
-                  textAnchor="middle"
-                  className={cn("fill-chart-ink-2 text-[11px] font-semibold", HALO)}
-                >
-                  {t("partial")}
-                </text>
-              ))
+              .map((column) => {
+                // A month without a mark of its own is "eksik"; one with a mark says its word where the column is
+                // wide enough for it, with its day under it, and the day alone where the word does not fit.
+                const mark = markOf(column.index);
+                const fits = mark !== undefined && layout.band >= mark.word.length * MARK_CHAR;
+                const word = mark ? (fits ? mark.word : null) : t("partial");
+                const day = mark?.day ?? null;
+                return (
+                  <g key={column.key}>
+                    {word ? (
+                      <text
+                        x={column.center}
+                        y={plot.top - (twoLines ? 27 : 12)}
+                        textAnchor="middle"
+                        className={cn("fill-chart-ink-2 text-[11px] font-semibold", HALO)}
+                      >
+                        {word}
+                      </text>
+                    ) : null}
+                    {day !== null && (twoLines || word === null) ? (
+                      <text
+                        x={column.center}
+                        y={plot.top - (twoLines ? 14 : 12)}
+                        textAnchor="middle"
+                        className={cn("fill-chart-ink-2 text-[11px]", HALO)}
+                      >
+                        {day}
+                      </text>
+                    ) : null}
+                  </g>
+                );
+              })
           : null}
         {forecastIndex > 0 ? (
           <g>
@@ -322,13 +359,14 @@ export function StackedBars({
             {label.text}
           </text>
         ))}
+        {/* Down to the month's name under the axis: a click on the name is a click beside the segments. */}
         {layout.columns.map((column) => (
           <rect
             key={column.key}
             x={column.band.x}
             y={plot.top}
             width={column.band.width}
-            height={plot.bottom - plot.top}
+            height={size.height - plot.top}
             fill="transparent"
             className={open && resolve({ column: column.index, series: null }) !== null ? "cursor-pointer" : undefined}
             onPointerEnter={(event) => hover(column, event)}
@@ -379,12 +417,18 @@ export function StackedBars({
   );
 
   const marked = months.some((_, index) => isPartial(index) && !isForecast(index));
+  // The months the caller says why of are not closed yet; the others are only partly covered.
+  const partials = months.map((_, index) => index).filter((index) => isPartial(index) && !isForecast(index));
+  const said = partials.filter((index) => markOf(index) !== undefined).length;
+  const partialLegend = said === 0 ? "partialLegend" : said === partials.length ? "markedLegend" : "mixedLegend";
   const legend = (
     <Legend
       items={[
         ...shown.map((s) => ({ key: s.key, label: s.label, swatch: SLOT_BG[s.slot] })),
         ...(forecastIndex >= 0 ? [{ key: "forecast", label: t("forecastLegend"), swatch: "bg-chart-ink-2 opacity-40" }] : []),
-        ...(marked ? [{ key: "partial", label: t("partialLegend"), swatch: "bg-chart-ink-2 opacity-55" }] : []),
+        ...(marked
+          ? [{ key: "partial", label: t(partialLegend), swatch: "bg-chart-ink-2 opacity-55" }]
+          : []),
       ]}
     />
   );

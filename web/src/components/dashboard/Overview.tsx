@@ -22,11 +22,12 @@ import { useForecast, useInsights, useSpending } from "../../api/queries";
 import type { CalendarItem, Dashboard, Forecast, MonthClosing, OpenAlert } from "../../api/types";
 import { cn } from "../../lib/cn";
 import { addDays, formatDay, formatMoney, formatMonth } from "../../lib/format";
-import { monthDays, monthIncome, monthOut, monthSaving, rowsLink } from "../../lib/rows";
+import { monthDays, monthIncome, monthOut, monthRows, monthSaving, rowsLink } from "../../lib/rows";
 import { untoldTotal } from "../accounts/UntoldNote";
 import { HBars } from "../charts/HBars";
 import type { StackSeries } from "../charts/layout";
 import { LineChart } from "../charts/LineChart";
+import { isUnclosed, type Unclosed, useMarkOf } from "../charts/marks";
 import { SLOT_BG } from "../charts/palette";
 import { StackedBars } from "../charts/StackedBars";
 import { Failure, Loading } from "../QueryState";
@@ -386,13 +387,27 @@ function OpenMonth({ month }: { month: MonthClosing }) {
       : month.status === "running"
         ? t("overview.story.partial")
         : t("overview.story.open", { context: month.status, month: month.month });
+  // What it waits for, by name: each account's document, its days and its cut, as the month-end page lists them.
+  const awaited = month.status === "running" ? [] : month.waiting;
   return (
-    <p className={cn("flex flex-wrap items-center gap-x-3 gap-y-1", SMALL)}>
-      <span>{said}</span>
+    <div className={cn("flex flex-col gap-1", SMALL)}>
+      <p>{said}</p>
+      {awaited.length > 0 ? (
+        <>
+          <p>{t("overview.story.awaited")}</p>
+          <ul className="list-disc pl-5">
+            {awaited.map((w) => (
+              <li key={w.account.id}>
+                <span className="font-medium">{w.account.label}</span>: {w.waiting_for}
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
       {month.status === "running" ? null : (
         <NextStep step={{ link: month.link, label: t("overview.story.heldOpen", { month: month.month }) }} />
       )}
-    </p>
+    </div>
   );
 }
 
@@ -430,7 +445,11 @@ function MonthsChart({ months }: { months: readonly MonthClosing[] }) {
       : ahead === closed.length
         ? t("overview.months.sayAll", { count: closed.length })
         : t("overview.months.say", { count: closed.length, ahead });
-  const partial = months.filter((m) => m.status !== "closed").map((m) => m.month);
+  const markOf = useMarkOf();
+  const unclosed = months.filter(unclosedMonth);
+  const partial = unclosed.map((m) => m.month);
+  // A month not closed says why over its column: one waiting for its statements is not missing anything.
+  const marks = Object.fromEntries(unclosed.map((m) => [m.month, markOf(m.status, m.closes_by)]));
   const saving = months.some((m) => m.saving.minor !== 0);
   const series: StackSeries[] = [
     { key: "in", label: t("overview.months.in"), slot: IN_SLOT },
@@ -452,11 +471,12 @@ function MonthsChart({ months }: { months: readonly MonthClosing[] }) {
             values: { in: m.income?.minor ?? 0, out: -m.out.minor, ...(saving ? { saved: -m.saving.minor } : {}) },
           }))}
           partial={partial}
+          marks={marks}
           totalLabel={t("overview.months.net")}
           height={240}
           open={{
             // Money in is the month's income, money out the rows that went out, a saving the month's savings; the month
-            // alone leads to none of them.
+            // itself, beside its bars or by its name, every row of it.
             link: ({ month, series }) =>
               series === "in"
                 ? monthIncome(month)
@@ -464,19 +484,53 @@ function MonthsChart({ months }: { months: readonly MonthClosing[] }) {
                   ? monthOut(month)
                   : series === "saved"
                     ? monthSaving(month)
-                    : null,
+                    : monthRows(month),
             hint: t("overview.months.openHint"),
             what: (s) =>
               s?.key === "in"
                 ? t("overview.months.openIn")
                 : s?.key === "saved"
                   ? t("overview.months.openSaved")
-                  : t("overview.months.openOut"),
+                  : s?.key === "out"
+                    ? t("overview.months.openOut")
+                    : t("overview.months.openMonth"),
           }}
         />
+        {unclosed.length > 0 ? (
+          <ul className="flex flex-col gap-1">
+            {unclosed.map((m) => (
+              <li key={m.month} className={cn("flex flex-wrap items-center gap-x-3 gap-y-1", SMALL)}>
+                <span>{unclosedSay(m, t)}</span>
+                <ScreenLink link={monthRows(m.month)}>{t("overview.months.rows", { month: m.month })}</ScreenLink>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </div>
     </Card>
   );
+}
+
+type UnclosedMonth = MonthClosing & { status: Unclosed };
+
+function unclosedMonth(month: MonthClosing): month is UnclosedMonth {
+  return isUnclosed(month.status);
+}
+
+/**
+ * Why a month is not closed, under the chart: one waiting for its statements is not missing anything, and says how
+ * many it waits for and when the last comes; one running runs on; one missing a document or wanting a check says so.
+ */
+function unclosedSay(month: UnclosedMonth, t: TFunction<"dashboard">): string {
+  if (month.status === "waiting") {
+    return t("overview.months.unclosed.waiting", {
+      context: month.closes_by ? "" : "undated",
+      count: Math.max(month.waiting.length, 1),
+      month: month.month,
+      day: month.closes_by ?? "",
+    });
+  }
+  return t(`overview.months.unclosed.${month.status}`, { month: month.month });
 }
 
 // --- where the money went ------------------------------------------------------------------------------------------

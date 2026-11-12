@@ -10,6 +10,7 @@ import type { ForecastLine, ForecastPart, Labels, MonthTable, SpendingForecast }
 import { cn } from "../../lib/cn";
 import { formatMoney, formatMonth } from "../../lib/format";
 import { labelOf } from "../../lib/labels";
+import { useClosingMarks } from "../charts/marks";
 import { NECESSITY_SLOTS, SLOT_BG, slotOf } from "../charts/palette";
 import { StackedBars } from "../charts/StackedBars";
 import { Detailed } from "../Preferences";
@@ -121,6 +122,7 @@ export function ForecastCard({ found, labels, params }: ForecastCardProps) {
 /** The last six months and the three ahead, stacked by necessity level; the months ahead lighter, after a line. */
 function ForecastChart({ found, labels, params }: ForecastPartProps & { params: URLSearchParams }) {
   const { t } = useTranslation("insights");
+  const marks = useClosingMarks(); // a past month not closed says why
   const first = found.months[0] ?? ""; // the first month ahead
   // The past months count every filter but the period, as the forecast does.
   const anyPeriod = withRange(params, null);
@@ -138,6 +140,7 @@ function ForecastChart({ found, labels, params }: ForecastPartProps & { params: 
       series={series}
       months={[...actual.months, ...ahead.months]}
       partial={actual.partial}
+      marks={marks}
       {...(found.months[0] ? { forecastFrom: found.months[0] } : {})}
       currency={found.totals[0]?.currency ?? "TRY"}
       open={{

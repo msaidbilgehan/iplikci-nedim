@@ -10,6 +10,7 @@ import { cn } from "../../lib/cn";
 import { formatMoney, formatMonth } from "../../lib/format";
 import { labelOf } from "../../lib/labels";
 import { HeatTable } from "../charts/HeatTable";
+import { useClosingMarks } from "../charts/marks";
 import { SLOT_BG } from "../charts/palette";
 import { StackedBars } from "../charts/StackedBars";
 import { Card } from "../ui/Card";
@@ -23,6 +24,7 @@ function periodOf(found: Spending): { from: string; to: string } {
 export function MonthlyCard({ found, params }: { found: Spending; params: URLSearchParams }) {
   const { t } = useTranslation("insights");
   const stack = stackOf(found.by_group, (key) => key);
+  const marks = useClosingMarks(); // a partial month not closed says why
   const linkOf = (month: string, group: string | null) => monthRowsOf(params, month, group ? { group } : {});
   const { tiles } = found;
   const summary = [
@@ -39,12 +41,14 @@ export function MonthlyCard({ found, params }: { found: Spending; params: URLSea
         series={stack.series}
         months={stack.months}
         partial={stack.partial}
+        marks={marks}
         table={
           <HeatTable
             caption={t("monthly.chart")}
             series={stack.series}
             months={stack.months}
             partial={stack.partial}
+            marks={marks}
             linkOf={linkOf}
           />
         }
@@ -70,6 +74,7 @@ interface NecessityCardProps {
 export function NecessityCard({ found, insights, labels, chosen, onChoose, params }: NecessityCardProps) {
   const { t } = useTranslation("insights");
   const stack = stackOf(found.by_level, (key) => labelOf(labels, "Necessity", key));
+  const marks = useClosingMarks(); // a partial month not closed says why
   const linkOf = (month: string, level: string | null) => monthRowsOf(params, month, level ? { necessity: level } : {});
   const whole = stack.months.filter((m) => !stack.partial.includes(m.month));
   const totalOf = (key: string) => stack.months.reduce((sum, m) => sum + (m.values[key] ?? 0), 0);
@@ -130,12 +135,14 @@ export function NecessityCard({ found, insights, labels, chosen, onChoose, param
         series={stack.series}
         months={stack.months}
         partial={stack.partial}
+        marks={marks}
         table={
           <HeatTable
             caption={t("necessity.chart")}
             series={stack.series}
             months={stack.months}
             partial={stack.partial}
+            marks={marks}
             linkOf={linkOf}
           />
         }

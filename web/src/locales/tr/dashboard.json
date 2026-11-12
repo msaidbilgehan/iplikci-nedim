@@ -162,7 +162,8 @@
       "untold": "Belgede görünmeyen {{amount}} giriş de düşüldü.",
       "leftOut_one": "Bakiyesi bilinmeyen {{count}} hesap bu toplamda yok.",
       "leftOut_other": "Bakiyesi bilinmeyen {{count}} hesap bu toplamda yok.",
-      "accounts": "Hesaplara bak"
+      "accounts": "Hesaplara bak",
+      "awaited": "Beklenen belgeler:"
     },
     "months": {
       "title": "Aylara göre gelen ve giden",
@@ -177,10 +178,21 @@
       "out": "Giden",
       "saved": "Birikim",
       "net": "Kalan",
-      "openHint": "Bir ayın gelen ya da giden parasına tıklayın: o işlemler listelenir.",
+      "openHint": "Bir ayın gelen ya da giden parasına tıklayın: o işlemler listelenir. Ayın adına tıklarsanız ayın bütün işlemleri.",
       "openIn": "bu ayın gelirleri",
       "openOut": "bu ayın giden parası",
-      "openSaved": "bu ayın birikimi"
+      "openSaved": "bu ayın birikimi",
+      "openMonth": "bu ayın bütün işlemleri",
+      "rows": "{{month, month}} işlemleri",
+      "unclosed": {
+        "waiting_one": "{{month, month}} eksik değil: ayın son günlerini kapsayan belge bekleniyor, {{day, day}} civarında gelir.",
+        "waiting_other": "{{month, month}} eksik değil: ayın son günlerini kapsayan {{count}} belge bekleniyor, sonuncusu {{day, day}} civarında gelir.",
+        "waiting_undated_one": "{{month, month}} eksik değil: ayın son günlerini kapsayan bir belge bekleniyor.",
+        "waiting_undated_other": "{{month, month}} eksik değil: ayın son günlerini kapsayan {{count}} belge bekleniyor.",
+        "running": "{{month, month}} sürüyor: rakamlar şimdiye kadar gelen belgelerden.",
+        "missing": "{{month, month}}: bazı günlerin belgesi eksik; eklenince sütun tamamlanır.",
+        "check": "{{month, month}}: belgelerinden biri bankanın toplamıyla tutmuyor, bakılması gerekiyor."
+      }
     },
     "where": {
       "title": "Paranız nereye gitti?",

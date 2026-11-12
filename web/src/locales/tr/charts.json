@@ -20,6 +20,19 @@
   "partial": "eksik",
   "partialLegend": "Soluk sütunlar: eksik aylar, ortalamaya girmez",
   "partialMonth": "{{month}} (eksik ay)",
+  "markedLegend": "Soluk sütunlar: henüz kapanmamış aylar, ortalamaya girmez",
+  "mixedLegend": "Soluk sütunlar: henüz kapanmamış ya da belgeleri ayın tamamını kapsamayan aylar, ortalamaya girmez",
+  "markedMonth": "{{month}} ({{mark}})",
+  "marks": {
+    "waiting": "bekliyor",
+    "running": "sürüyor",
+    "missing": "eksik",
+    "check": "kontrol"
+  },
+  "markNames": {
+    "missing": "belge eksik",
+    "check": "kontrol gerekli"
+  },
   "heat": {
     "average": "Aylık ortalama ({{count}} tam ay)",
     "noAverage": "Aylık ortalama: tam ay yok",

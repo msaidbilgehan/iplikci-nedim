@@ -108,6 +108,36 @@ describe("StackedBars", () => {
     expect(screen.getByRole("cell", { name: "Eylül 2026 (eksik ay)" })).toBeInTheDocument();
   });
 
+  it("marks a month in the caller's words, its word over the day it should close, and says it has not closed", async () => {
+    renderChart({
+      partial: ["2026-09", "2026-10"],
+      marks: { "2026-09": { word: "bekliyor", day: "~24.11" }, "2026-10": { word: "sürüyor" } },
+    });
+    const image = within(screen.getByRole("img"));
+    expect(image.getByText("bekliyor")).toBeInTheDocument();
+    expect(image.getByText("~24.11")).toBeInTheDocument();
+    expect(image.getByText("sürüyor")).toBeInTheDocument();
+    expect(image.queryByText("eksik")).not.toBeInTheDocument();
+    expect(screen.getByText("Soluk sütunlar: henüz kapanmamış aylar, ortalamaya girmez")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("tab", { name: "Tablo" }));
+    expect(screen.getByRole("cell", { name: "Eylül 2026 (bekliyor, ~24.11)" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "Ekim 2026 (sürüyor)" })).toBeInTheDocument();
+  });
+
+  it("opens the whole month with a click on its name under the axis, never one of its series", () => {
+    const { container, location } = renderChart({ open: OPEN });
+    const band = container.querySelectorAll("rect[fill='transparent']")[2] as Element;
+    fireEvent.pointerDown(band, { clientY: 272 }); // "Eki 26", under the plot's 252
+    fireEvent.click(band);
+    expect(location()).toBe("/islemler?from=2026-10-01");
+    const only = { link: ({ month, series }: MonthPart) => (series ? rows({ month, series }) : null), hint: OPEN.hint };
+    const again = renderChart({ open: only });
+    const named = again.container.querySelectorAll("rect[fill='transparent']")[2] as Element;
+    fireEvent.pointerDown(named, { clientY: 272 });
+    fireEvent.click(named);
+    expect(again.location()).toBe("/degerlendirme"); // the month alone leads nowhere: its name opens nothing
+  });
+
   it("names a column's sum as the caller says, and shows the caller's table instead of its own", async () => {
     const { container } = renderChart({ totalLabel: "Net", table: <p>Isı tablosu</p> });
     fireEvent.pointerEnter(container.querySelectorAll("rect[fill='transparent']")[2] as Element);

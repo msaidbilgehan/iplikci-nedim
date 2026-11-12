@@ -38,3 +38,19 @@ test("Pano'nun hikâyesi biten son ayı anlatır ve oklarla önceki aya gider", 
   await page.goBack();
   await expect(page.getByRole("region", { name: title })).toBeVisible();
 });
+
+test("Pano'da bir ayın adına tıklayınca o ayın bütün işlemleri açılır", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("status", { name: "Yükleniyor…" })).toHaveCount(0, { timeout: 15_000 });
+  const months = page.getByRole("region", { name: "Aylara göre gelen ve giden" });
+  const chart = months.getByRole("img", { name: /yığılmış sütun grafiği/ });
+  // The month's name under the axis: the column's own click area lies over it, so the mouse clicks its place,
+  // once the chart is in the window.
+  await chart.scrollIntoViewIfNeeded();
+  const name = chart.locator("text").filter({ hasText: /^\p{Lu}\p{Ll}{2} \d{2}$/u }).last();
+  const box = await name.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.click((box?.x ?? 0) + (box?.width ?? 0) / 2, (box?.y ?? 0) + (box?.height ?? 0) / 2);
+  await expect(page).toHaveURL(/\/islemler\?from=\d{4}-\d{2}-01&to=\d{4}-\d{2}-\d{2}$/);
+  await expect(page.getByRole("table", { name: /^İşlemler,/ })).toBeVisible();
+});

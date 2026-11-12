@@ -292,11 +292,13 @@ describe("Overview", () => {
     expect(within(chart).getByText("Kapanan 5 ayın 4'ünde gelen para gideni geçti.")).toBeInTheDocument();
   });
 
-  it("leads from a month's money in to its income and from its money out to its spending", async () => {
+  it("leads from a month's money in to its income, from its money out to its spending and from it to its rows", async () => {
     renderScreen(<Overview found={DASHBOARD} />);
     const months = await region("Aylara göre gelen ve giden");
     expect(
-      within(months).getByText("Bir ayın gelen ya da giden parasına tıklayın: o işlemler listelenir."),
+      within(months).getByText(
+        "Bir ayın gelen ya da giden parasına tıklayın: o işlemler listelenir. Ayın adına tıklarsanız ayın bütün işlemleri.",
+      ),
     ).toBeInTheDocument();
     await userEvent.click(within(months).getByRole("tab", { name: "Tablo" }));
     const october = within(within(months).getByRole("table")).getByRole("row", { name: /^Ekim 2026/ });
@@ -309,7 +311,74 @@ describe("Overview", () => {
       "href",
       `/islemler?${days}&kind=purchase&kind=refund&kind=interest_fee&kind=p2p_transfer&kind=loan_principal`,
     );
-    expect(within(october).getAllByRole("link")).toHaveLength(2); // the month alone leads to neither
+    // The month itself: every row of it, in and out.
+    expect(within(october).getByRole("link", { name: "Ekim 2026" })).toHaveAttribute("href", `/islemler?${days}`);
+  });
+
+  it("marks a month that waits for its statements by the day it should close, not as missing anything", async () => {
+    const waiting = {
+      ...DASHBOARD,
+      closing: {
+        ...DASHBOARD.closing,
+        months: DASHBOARD.closing.months.map((m) =>
+          m.month === "2026-10"
+            ? {
+                ...m,
+                status: "waiting" as const,
+                closes_by: "2026-11-24",
+                waiting: [
+                  { account: { id: "teb-1111", label: "TEB Bonus •1111" }, waiting_for: "14–31 Ekim ekstresi, kesim ~13.11" },
+                  { account: { id: "garanti-2222", label: "Garanti Bonus •2222" }, waiting_for: "25–31 Ekim ekstresi, kesim ~24.11" },
+                ],
+              }
+            : m.month === "2026-11"
+              ? { ...m, income: { minor: 1500000, currency: "TRY" } } // a running month's income known so far
+              : m,
+        ),
+      },
+    };
+    renderScreen(<Overview found={waiting} />);
+    const months = await region("Aylara göre gelen ve giden");
+    expect(within(months).getByText("Soluk sütunlar: henüz kapanmamış aylar, ortalamaya girmez")).toBeInTheDocument();
+    const said = within(months).getByText(/^Ekim 2026 eksik değil/);
+    expect(said).toHaveTextContent(
+      "Ekim 2026 eksik değil: ayın son günlerini kapsayan 2 belge bekleniyor, sonuncusu 24.11.2026 civarında gelir.",
+    );
+    expect(within(months).getByRole("link", { name: "Ekim 2026 işlemleri" })).toHaveAttribute(
+      "href",
+      "/islemler?from=2026-10-01&to=2026-10-31",
+    );
+    expect(within(months).getByText(/^Kasım 2026 sürüyor/)).toBeInTheDocument();
+    expect(within(months).getByText(/^Temmuz 2026: bazı günlerin belgesi eksik/)).toBeInTheDocument();
+    await userEvent.click(within(months).getByRole("tab", { name: "Tablo" }));
+    const table = within(within(months).getByRole("table"));
+    expect(table.getByRole("link", { name: "Ekim 2026 (bekliyor, ~24.11)" })).toBeInTheDocument();
+    expect(table.getByRole("link", { name: "Temmuz 2026 (belge eksik)" })).toBeInTheDocument();
+  });
+
+  it("names the documents the story's month waits for, each with its days and its cut", async () => {
+    const story = {
+      ...DASHBOARD,
+      closing: {
+        ...DASHBOARD.closing,
+        months: DASHBOARD.closing.months.map((m) =>
+          m.month === "2026-10"
+            ? {
+                ...m,
+                status: "waiting" as const,
+                closes_by: "2026-11-13",
+                waiting: [
+                  { account: { id: "teb-1111", label: "TEB Bonus •1111" }, waiting_for: "14–31 Ekim ekstresi, kesim ~13.11" },
+                ],
+              }
+            : m,
+        ),
+      },
+    };
+    renderScreen(<Overview found={story} />);
+    const card = await region("Ekim 2026: paranız ne durumda?");
+    const list = within(card).getByText("Beklenen belgeler:").nextElementSibling;
+    expect(list).toHaveTextContent("TEB Bonus •1111: 14–31 Ekim ekstresi, kesim ~13.11");
   });
 
   it("draws a month's saving below the line, leading to its savings", async () => {

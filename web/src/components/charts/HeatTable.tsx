@@ -13,6 +13,7 @@ import { formatMoney, formatMonth } from "../../lib/format";
 import { ScreenLink } from "../ui/Say";
 import { Table, Td, Th } from "../ui/Table";
 import type { StackSeries } from "./layout";
+import { type MonthMark, partialName } from "./marks";
 import { SLOT_BG } from "./palette";
 import type { MonthValues } from "./StackedBars";
 
@@ -42,11 +43,20 @@ interface HeatTableProps {
   series: readonly StackSeries[];
   months: readonly MonthValues[]; // oldest first, as the chart has them
   partial?: readonly string[]; // months not whole: marked, and in no average
+  marks?: Readonly<Record<string, MonthMark>>; // the partial months' own marks, when the caller knows why
   currency?: string;
   linkOf?: (month: string, series: string | null) => Destination | null; // a month's rows, or a series' of it
 }
 
-export function HeatTable({ caption, series, months, partial = [], currency = "TRY", linkOf }: HeatTableProps) {
+export function HeatTable({
+  caption,
+  series,
+  months,
+  partial = [],
+  marks = {},
+  currency = "TRY",
+  linkOf,
+}: HeatTableProps) {
   const { t } = useTranslation("charts");
   const money = (minor: number) => formatMoney({ minor, currency });
   const linked = (month: string, key: string | null, text: string) => {
@@ -85,7 +95,9 @@ export function HeatTable({ caption, series, months, partial = [], currency = "T
                 {linked(
                   m.month,
                   null,
-                  partial.includes(m.month) ? t("partialMonth", { month: formatMonth(m.month) }) : formatMonth(m.month),
+                  partial.includes(m.month)
+                    ? partialName(formatMonth(m.month), marks[m.month], t)
+                    : formatMonth(m.month),
                 )}
               </Th>
               {shown.map((s) => {

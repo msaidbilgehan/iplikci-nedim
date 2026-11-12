@@ -184,10 +184,11 @@ describe("InsightsPage", () => {
   it("marks the partial month in the monthly heat table, whose average counts the whole months alone", async () => {
     renderScreen(<InsightsPage />, { path: "/degerlendirme?bolum=harcamalar" });
     const monthly = await card("Aylık giderler");
-    expect(within(monthly).getByText("Soluk sütunlar: eksik aylar, ortalamaya girmez")).toBeInTheDocument();
+    // July misses a document: the month-end closing says so, and the legend that its pale months have not closed.
+    expect(await within(monthly).findByText("Soluk sütunlar: henüz kapanmamış aylar, ortalamaya girmez")).toBeInTheDocument();
     await userEvent.click(within(monthly).getByRole("tab", { name: "Tablo" }));
     const table = within(monthly).getByRole("table", { name: "Aylık giderler, ana gruplara göre" });
-    expect(within(table).getByRole("rowheader", { name: "Temmuz 2026 (eksik ay)" })).toBeInTheDocument();
+    expect(within(table).getByRole("rowheader", { name: "Temmuz 2026 (belge eksik)" })).toBeInTheDocument();
     const average = within(table).getByRole("row", { name: /^Aylık ortalama \(5 tam ay\)/ });
     expect(within(average).getAllByRole("cell").at(-1)).toHaveTextContent("20.240,00 TL");
   });
@@ -261,7 +262,7 @@ describe("InsightsPage", () => {
     expect(within(flow).getByText("Örnek İşveren A.Ş.: ayda 40.000,00 TL, son 01.10.2026")).toBeInTheDocument();
     await userEvent.click(within(flow).getByRole("tab", { name: "Tablo" }));
     const table = within(flow).getByRole("table", { name: "Aylık gelir ve gider" });
-    expect(within(table).getByRole("rowheader", { name: "Temmuz 2026 (eksik ay)" })).toBeInTheDocument();
+    expect(within(table).getByRole("rowheader", { name: "Temmuz 2026 (belge eksik)" })).toBeInTheDocument();
     const september = within(table).getByRole("row", { name: /^Eylül 2026/ });
     expect(within(september).getAllByRole("cell").map((cell) => cell.textContent)).toEqual([
       "40.000,00 TL",

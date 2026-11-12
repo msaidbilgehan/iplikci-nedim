@@ -11,6 +11,7 @@ import type { Destination, FlowMonth, Insights, Labels, Spending } from "../../a
 import { cn } from "../../lib/cn";
 import { formatDay, formatMoney, formatMonth } from "../../lib/format";
 import { labelOf } from "../../lib/labels";
+import { type MonthMark, partialName, useClosingMarks } from "../charts/marks";
 import { StackedBars } from "../charts/StackedBars";
 import { Badge } from "../ui/Badge";
 import { Card } from "../ui/Card";
@@ -57,6 +58,7 @@ interface FlowCardProps {
 
 export function FlowCard({ found, insights, labels, params }: FlowCardProps) {
   const { t } = useTranslation("insights");
+  const marks = useClosingMarks(); // a partial month not closed says why
   const months = found.flow;
   const first = months[0]?.month;
   const last = months.at(-1)?.month;
@@ -93,9 +95,12 @@ export function FlowCard({ found, insights, labels, params }: FlowCardProps) {
               values: { income: m.income.minor, expense: -m.expense.minor },
             }))}
             partial={months.filter((m) => m.partial).map((m) => m.month)}
+            marks={marks}
             totalLabel={t("flow.net")}
             currency={currency}
-            table={<FlowTable months={months} average={average} currency={currency} params={params} />}
+            table={
+              <FlowTable months={months} average={average} currency={currency} params={params} marks={marks} />
+            }
             open={{
               link: ({ month, series }) =>
                 series === "income" || series === "expense" ? rowsOf(params, month, series) : null,
@@ -117,9 +122,10 @@ interface FlowTableProps {
   average: Record<Column, number> | null;
   currency: string;
   params: URLSearchParams;
+  marks: Readonly<Record<string, MonthMark>>;
 }
 
-function FlowTable({ months, average, currency, params }: FlowTableProps) {
+function FlowTable({ months, average, currency, params, marks }: FlowTableProps) {
   const { t } = useTranslation("insights");
   const { t: tc } = useTranslation("charts");
   const money = (minor: number) => formatMoney({ minor, currency });
@@ -144,7 +150,7 @@ function FlowTable({ months, average, currency, params }: FlowTableProps) {
         {[...months].reverse().map((m) => (
           <tr key={m.month}>
             <Th scope="row" className="font-normal whitespace-nowrap text-zinc-900 dark:text-zinc-100">
-              {m.partial ? tc("partialMonth", { month: formatMonth(m.month) }) : formatMonth(m.month)}
+              {m.partial ? partialName(formatMonth(m.month), marks[m.month], tc) : formatMonth(m.month)}
             </Th>
             {COLUMNS.map((column) => {
               const link = m[column].minor === 0 ? null : rowsOf(params, m.month, column);
