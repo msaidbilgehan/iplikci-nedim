@@ -171,7 +171,8 @@ G1 · Çekirdek
 
 G2, K3, K4, K11 · Çekirdek
 
-- **Liste:** tür, banka, hesap, dönem, durum, kaynak ve geliş tarihi sütunları; tam metin arama; süzgeçler.
+- **Liste:** tür, banka, hesap, dönem, durum, kaynak ve geliş tarihi sütunları; tam metin arama (İşlemler'in
+  kuralıyla: virgülle ayrılan parçalardan birini bulan belge listelenir); süzgeçler.
 - **Ayrıntı**
   - Kaynaklar: e-posta (gönderen, tarih, konu, "Gmail'de aç" bağlantısı), yükleme, klasör ya da taşıma.
   - Okuyucu ve sürümü; doğrulama sonucu (ekstre toplamı, satır kontrolleri).
@@ -196,6 +197,18 @@ G2, K4 · Çekirdek
 
 - **Tablo**
   - Sıralama ve sayfalama; tam metin arama.
+  - Arama işyerinde, kişide, açıklamada, kategoride, notta, etikette, döviz tutarında ve hesabın adında arar; Türkçe
+    harf ve büyük/küçük harf ayırmaz. Virgül aramayı parçalara ayırır ve bir parçanın tutması yeter: "market, kira"
+    ikisinden birini, "migros kadıköy" ikisini birden içeren işlemleri bulur. Tırnak içindeki ifade virgülüyle birlikte
+    yazıldığı gibi aranır; iki rakam arasındaki virgül ondalıktır ("1,50"). Kurallar `domain/search`'tedir;
+    Değerlendirme, Belgeler, CSV, kayıtlı görünümler, Claude'un `search` aracı ve `iplikci islem ara` aynı kuralla
+    arar. Bir adı arayan bağlantı (Yapılacaklar'ın kategorisiz işyeri) adı tırnakla verir, adındaki virgül aramayı
+    bölmez.
+    - Birden çok parçalı aramada listenin üstünde her parçanın, öteki süzgeçlerin bıraktığı işlemlerden kaçını bulduğu
+      yazar (`TransactionsOut.search_parts`); hiçbir işlem bulamayan parça (yanlış yazılmış bir ad) "bulunamadı" der,
+      öteki parçaların satırları arasında kaybolmaz. Bir parçanın adı yalnızca onun işlemlerini toplamlarıyla açar.
+      Arama çipi parçaları seçenek olarak okur: "Ara: market veya kira" (v0.10.4; önceden kelimelerin hepsi aranırdı
+      ve virgül kelimeye yapışık kalırdı, "market, kira" hiçbir işlemi bulmazdı).
   - Süzgeçler: dönem, hesap, tür, kategori, gereklilik, kesinlik, etiket, yön (giren ya da çıkan para) ve tutar
     (en az, en çok).
     - Dönem aramanın yanında her zaman görünür: Tüm zamanlar, Bu ay, Geçen ay, Son 30 gün, Son 3 ay, Bu yıl, Geçen yıl

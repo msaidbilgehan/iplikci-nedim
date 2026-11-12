@@ -6,7 +6,7 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-12): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.10.3). Between Phases 6 and 7 came
+Status (2026-11-13): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.10.4). Between Phases 6 and 7 came
 the interface's simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab
 (v0.7.3), documents known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked
 against the documents (v0.7.6). Next is the 1.0 release, whose conditions are partly time-bound (roadmap "Sürüm 1.0"
@@ -316,6 +316,16 @@ says what the waiting must show; check them once their time has passed).
     next statement, Şu an's card period and the installments' cuts.
   - QNB spells its due date with the month's name, its Turkish letters lost to the font ("A(cid:6)ustos"); it had never
     been read. TEB's OCR path reads the due date and the next cut from the box of terms.
+- v0.10.4: the user typed two names with a comma in İşlemler's search and asked how to search for several things.
+  - The box ANDed every word and kept the comma on the word, so it found nothing. `domain/search` is the one syntax:
+    a comma (outside quotes, not between two digits) separates parts and a row needs one of them; a part's words are
+    all needed; a quoted term is searched as written. `Filter.text`, the documents' FTS (`storage/documents`, parts
+    ORed), the CLI's `islem ara` and MCP `search` read it; `web/src/lib/search` mirrors it for the regular payments
+    Değerlendirme narrows itself and for the chip ("Ara: market veya kira").
+  - A search of many parts says each part's count among the rows the other filters keep (`app/transactions.parts_found`,
+    `TransactionsOut.search_parts`, MCP `parts`); one finding none says "bulunamadı" instead of vanishing among the
+    others' rows. A link built from a name gives it through `search.exactly` (Yapılacaklar's uncategorized merchant),
+    so a comma in the name never splits it.
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 
@@ -479,6 +489,8 @@ keys, `source` where the releases are, `manifest` the signed manifest, `install`
 system), `app/update` (the daily check, the install job, their state in `run/guncelleme.json`), `api/routes/update`
 and `cli/update`; `packaging/release.py` (the signed manifest) and `packaging/chrome_store.py` (the store's upload);
 in `web/`, `components/settings/UpdatesCard`; in `extension/`, `bridge/renew` and `package.mjs` (the store package).
+v0.10.4 added `domain/search` (the search box's syntax) and, in `web/`, `lib/search` and
+`components/transactions/SearchParts`.
 The rest keeps the MVP's flat layout (`analysis`, `insights`, `month_end`, `report` with its `templates`, …) until the
 phases in the roadmap's MVP module table move it. Next to them: `fakes` (the fake document builders and every
 reader's specimens, shared with the tests and the demo), `demo` (the demo data folder), `baseline` (the verification

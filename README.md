@@ -244,6 +244,15 @@ Kesim günü ekstreden okunur (v0.10.3):
 - Sonraki kesim günü, her ekstrenin bir sonrakine yazdığı gündür; ekstre yazmıyorsa tahmin "~" ile gösterilir.
 - QNB'nin ve OCR ile okunan TEB ekstrelerinin son ödeme tarihleri de okunur.
 
+Virgülle birkaç şey birden aranır (v0.10.4):
+
+- İşlemler'in arama kutusunda virgül aramayı parçalara ayırır: "market, kira" ikisinden birini içeren bütün işlemleri,
+  toplamlarıyla birlikte listeler. Boşlukla yazılan kelimeler eskisi gibi birlikte aranır ("migros kadıköy"); tırnak
+  içindeki ifade virgülüyle birlikte yazıldığı gibi aranır.
+- Listenin üstünde her parçanın kaç işlem bulduğu yazar; hiçbir işlem bulamayan parça, örneğin yanlış yazılmış bir ad,
+  "bulunamadı" der. Bir parçanın adına tıklayınca yalnızca onun işlemleri açılır.
+- Belgeler, Değerlendirme ve Claude'un arama aracı da virgülü aynı biçimde okur.
+
 Açık kalanlar: servisin yedi gün kendi başına çalışması (K19). Windows ve Linux'ta denemeler bekletiliyor (K25).
 Sürümler henüz herkese açık bir yerde değil; kurulu kopyalar güncellemeyi ancak o zaman indirebilir (K29).
 

@@ -4,6 +4,28 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.10.4] — 2026-11-13 — Virgülle birkaç şey birden aranır
+
+### Eklenenler
+
+- İşlemler'in arama kutusu birden çok şeyi birden arar: virgül aramayı parçalara ayırır ve bir parçanın tutması yeter.
+  "market, kira" ikisinden birini içeren bütün işlemleri toplamlarıyla birlikte listeler. Boşlukla yazılan kelimeler
+  eskisi gibi birlikte aranır ("migros kadıköy" ikisini birden içerenleri bulur). Tırnak içindeki ifade virgülüyle
+  birlikte yazıldığı gibi aranır; iki rakam arasındaki virgül ondalık sayılır ("1,50"). Kutunun altındaki açıklama
+  bunu söyler, arama çipi parçaları seçenek olarak okur: "Ara: market veya kira".
+- Birden çok parçalı aramada listenin üstünde her parçanın kaç işlem bulduğu yazar. Hiçbir işlem bulamayan parça,
+  örneğin yanlış yazılmış bir ad, "bulunamadı" der; öteki parçaların satırları arasında kaybolmaz. Bir parçanın adına
+  tıklayınca yalnızca onun işlemleri toplamlarıyla açılır.
+- Belgeler'in araması, Değerlendirme'nin düzenli ödemeleri, CSV, kayıtlı görünümler ve Claude'un arama aracı da
+  virgülü aynı biçimde okur. Claude'un arama aracı her parçanın bulduğu işlem sayısını da verir.
+
+### Düzeltilenler
+
+- Önceden arama kutusu yazılan kelimelerin hepsini aynı işlemde arıyordu ve virgül kelimeye yapışık kalıyordu:
+  "market, kira" hiçbir işlemi bulmazdı.
+- Yapılacaklar'daki kategorisiz bir işyerinin bağlantısı adıyla arar; adında virgül olan bir işyeri, adının
+  parçalarından birini içeren başka işlemleri de getirmez.
+
 ## [0.10.3] — 2026-11-12 — Kesim günü ekstreden okunur, beklenen ekstre kendi günleriyle adlandırılır
 
 ### Düzeltilenler
