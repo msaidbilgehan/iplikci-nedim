@@ -2656,6 +2656,7 @@ export const TRANSACTIONS: TransactionPage = {
   offset: 0,
   next: 50,
   open: [],
+  search_parts: [],
 };
 
 export const NEXT_TRANSACTIONS: TransactionPage = {
@@ -2671,6 +2672,7 @@ export const NEXT_TRANSACTIONS: TransactionPage = {
   offset: 50,
   next: null,
   open: [],
+  search_parts: [],
 };
 
 /** October waits for two cards' statements that cover its last days (TransactionsOut.open). */

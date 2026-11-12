@@ -158,6 +158,7 @@ import type {
   RowOut,
   RuleChangeOut,
   SayingOut,
+  SearchPartOut,
   SeriesOut,
   SeriesStatus,
   ServiceEndingOut,
@@ -306,6 +307,7 @@ export type SavedView = ViewModel;
 export type TagCount = TagOut; // a tag the user gave rows, with how many carry it
 export type OpenMonth = OpenMonthOut; // a month of the listed days that has not closed, with what it waits for
 export type Awaited = AwaitedOut; // an account whose documents for some of those days are not in yet
+export type SearchPart = SearchPartOut; // a part of a search of many (q="market, kira") with the rows it finds
 export type { Period }; // a period the filters name: its days are reckoned from the service's today
 export type BulkResult = BulkOut;
 export type CategoryRules = CategoryRulesOut;

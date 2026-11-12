@@ -1970,6 +1970,12 @@ export interface ScheduleMonthOut {
  */
 export type Screen = "document" | "documents" | "transaction" | "transactions" | "account" | "accounts" | "month" | "invoice" | "invoices" | "subscription" | "calendar" | "forecast" | "insights" | "fx" | "todo" | "system" | "notifications";
 
+/** One part of a search of many (q="market, kira"): a row is listed when one of the parts finds it. */
+export interface SearchPartOut {
+  text: string;
+  count: number;
+}
+
 export interface SecurityOut {
   code: string;
   name: string;
@@ -2360,6 +2366,7 @@ export interface TransactionsOut {
   offset: number;
   next: number | null;
   open: OpenMonthOut[];
+  search_parts: SearchPartOut[];
 }
 
 /**

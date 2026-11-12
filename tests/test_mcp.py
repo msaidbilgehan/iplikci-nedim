@@ -364,6 +364,20 @@ def test_search_finds_rows_and_documents_with_the_ids_the_other_tools_take(demo_
     assert "transactions" not in only_documents and only_documents["documents"]["items"] == docs["items"]
 
 
+def test_a_search_with_commas_finds_the_rows_and_documents_of_either_part_and_counts_each(demo_server):
+    found, failed = call(demo_server, "search", text="spotify, spotfy, teknosa", limit=50)
+    rows, docs = found["transactions"], found["documents"]
+    assert not failed and rows["count"] == 11 and {r["merchant"] for r in rows["rows"]} == {"Spotify", "Teknosa"}
+    assert rows["parts"] == [
+        {"text": "spotify", "count": 10},
+        {"text": "spotfy", "count": 0},  # a misspelt part says it finds nothing
+        {"text": "teknosa", "count": 1},
+    ]
+    assert docs["count"] == 2
+    one, _ = call(demo_server, "search", text="spotify", scope="transactions")
+    assert "parts" not in one["transactions"]
+
+
 def test_a_search_needs_words_and_finding_nothing_is_no_error(server):
     text, failed = call(server, "search", text="   ")
     assert failed and text == "'text' boş olmamalı"

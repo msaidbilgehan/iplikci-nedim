@@ -9,7 +9,7 @@
   "filters": {
     "label": "Belge süzgeçleri",
     "q": "Ara",
-    "qHint": "Belgenin adı, başlığı ya da ondan okunan işlemler",
+    "qHint": "Belgenin adı, başlığı ya da ondan okunan işlemler. Virgülle birkaçını birden arayın",
     "status": "Durum",
     "kind": "Tür",
     "source": "Geliş yolu",

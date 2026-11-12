@@ -115,6 +115,18 @@ describe("DocumentsPage: the archive", () => {
     await waitFor(() => expect(seen.at(-1)!.get("q")).toBe("maaş"));
   });
 
+  it("searches for several things at once with a comma, its parts named as alternatives", async () => {
+    const seen = asked();
+    open("/belgeler?q=maa%C5%9F%2Cekstre");
+    await list();
+    expect(seen.at(-1)!.get("q")).toBe("maaş,ekstre");
+    expect(screen.getByRole("searchbox", { name: "Ara" })).toHaveAccessibleDescription(
+      "Belgenin adı, başlığı ya da ondan okunan işlemler. Virgülle birkaçını birden arayın",
+    );
+    const chips = screen.getByRole("list", { name: "Etkin süzgeçler" });
+    expect(within(chips).getByText("maaş veya ekstre")).toBeInTheDocument();
+  });
+
   it("shows every value in the detailed view, the bank and the account apart", async () => {
     localStorage.setItem("iplikci.view", "detailed");
     open();

@@ -11,7 +11,7 @@ import csv
 import io
 from collections import Counter
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
 from decimal import Decimal
 from enum import StrEnum
@@ -37,6 +37,7 @@ from ..domain.codes import (
 )
 from ..domain.labels import CERTAINTY, KIND, NECESSITY, currency_label
 from ..domain.models import Reason, Transaction
+from ..domain.search import parse
 from ..domain.text import fold, spreadsheet_text
 from ..insights import month_of, shift
 from ..month_end import first_day, last_day
@@ -64,6 +65,7 @@ __all__ = [
     "NecessityReason",
     "OpenMonth",
     "Page",
+    "PartFound",
     "Period",
     "Printed",
     "RateSource",
@@ -144,7 +146,7 @@ class Filter:
     certainties: frozenset[Certainty] = frozenset()
     tags: frozenset[str] = frozenset()
     merchant: str = ""  # one merchant or person, as the rules name it
-    text: str = ""  # every word in the row's names, its description, category, note, tags or account
+    text: str = ""  # the search (domain.search): in the row's names, its description, category, note, tags or account
     direction: Direction | None = None  # money in or money out only
     least: Decimal | None = None  # the row's amount at least, whichever way it goes (in TL, as the list shows it)
     most: Decimal | None = None  # and at most
@@ -164,7 +166,7 @@ class Filter:
             and (self.direction is None or row.direction is self.direction)
             and (self.least is None or row.amount >= self.least)
             and (self.most is None or row.amount <= self.most)
-            and (not self.text or _has_words(row, label, self.text))
+            and (not self.text or parse(self.text).found_in(_searched(row, label)))
         )
 
     def query(self) -> tuple[tuple[str, str], ...]:
@@ -204,15 +206,16 @@ def rows_link(f: Filter) -> Link:
     return Link(Screen.TRANSACTIONS, query=f.query())
 
 
-def _has_words(row: RowView, label: str, text: str) -> bool:
-    found = fold(
+def _searched(row: RowView, label: str) -> str:
+    """What the search looks in, folded: the row's names, description, category and group, note, tags, the amount it
+    printed in another currency and its account's name."""
+    return fold(
         " ".join(
             (row.title, row.description, row.merchant, row.counterparty, row.category, row.group, row.note)
             + row.tags
             + (row.original, label)
         )
     )
-    return all(word in found for word in fold(text).split())
 
 
 @dataclass(frozen=True, slots=True)
@@ -229,11 +232,21 @@ class Totals:
 
 
 @dataclass(frozen=True, slots=True)
+class PartFound:
+    """One part of a search of many (domain.search) with how many of the rows the other filters keep it finds: a part
+    that finds none, a name misspelt say, is told rather than lost among the other parts' rows."""
+
+    text: str  # the part as written
+    count: int
+
+
+@dataclass(frozen=True, slots=True)
 class Page:
     rows: list[RowView]
     totals: Totals
     offset: int
     next: int | None  # the offset of the next page; None on the last
+    parts: list[PartFound] = field(default_factory=list[PartFound])  # a search of many parts, each with its count
 
 
 def labels(a: Analysis) -> dict[str, str]:
@@ -323,7 +336,24 @@ def page(a: Analysis, f: Filter, order: Order) -> Page:
     limit = max(1, min(order.limit, MAX_PAGE))
     shown = rows[order.offset : order.offset + limit]
     more = order.offset + limit < len(rows)
-    return Page(shown, totals(found), order.offset, order.offset + limit if more else None)
+    return Page(shown, totals(found), order.offset, order.offset + limit if more else None, parts_found(a, f))
+
+
+def parts_found(a: Analysis, f: Filter) -> list[PartFound]:
+    """The parts of f's search, when it has more than one, each with how many of the rows f's other filters keep it
+    finds; a row two parts find counts in both. None for a search of one part, whose count is the list's."""
+    parts = parse(f.text).parts
+    if len(parts) < 2:
+        return []
+    names = labels(a)
+    others = replace(f, text="")
+    counts = [0] * len(parts)
+    for row in every_row(a):
+        label = names.get(row.account, row.account)
+        if others.keeps(row, label):
+            searched = _searched(row, label)
+            counts = [n + part.found_in(searched) for n, part in zip(counts, parts, strict=True)]
+    return [PartFound(part.text, n) for part, n in zip(parts, counts, strict=True)]
 
 
 @dataclass(frozen=True, slots=True)

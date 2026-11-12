@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from ..domain.codes import DocumentKind, DocumentStatus, SourceKind
+from ..domain.search import parse
 from ..domain.text import fold
 from .db import Database, now
 
@@ -150,7 +151,7 @@ class Narrowing:
     sources: tuple[SourceKind, ...] = ()  # how any of its arrivals came
     accounts: tuple[str, ...] = ()  # account ids its reading names
     banks: tuple[str, ...] = ()
-    words: str = ""  # every word, as a prefix, in its name, its title or a row read from it
+    words: str = ""  # a search (domain.search), each term as a prefix, in its name, its title or a row read from it
 
 
 def _marks(values: Sequence[object]) -> str:
@@ -175,11 +176,16 @@ def _narrowed(n: Narrowing) -> tuple[str, list[object]]:
     if n.banks:
         where.append(f"sha256 IN (SELECT sha256 FROM document_accounts WHERE bank IN ({_marks(n.banks)}))")
         params += list(n.banks)
-    words = fold(n.words).split()
-    if words:
+    parts = parse(n.words).parts
+    if parts:
         where.append("sha256 IN (SELECT sha256 FROM search WHERE search MATCH ?)")
-        params.append(" ".join('"' + w.replace('"', '""') + '"*' for w in words))
+        params.append(" OR ".join(f"({' '.join(_prefix(term) for term in part.terms)})" for part in parts))
     return " AND ".join(where), params
+
+
+def _prefix(term: str) -> str:
+    """A search's term as FTS5 finds it: its words one after another, the last as the start of a word."""
+    return '"' + term.replace('"', '""') + '"*'
 
 
 def newest_first(

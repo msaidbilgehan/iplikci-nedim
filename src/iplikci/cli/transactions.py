@@ -11,6 +11,7 @@ from ..app.workspace import Busy, Workspace
 from ..categorize import Categorizer
 from ..domain.codes import Actor
 from ..domain.labels import NECESSITY, format_amount
+from ..domain.search import parse
 from ..domain.text import fold
 from ..storage import annotations
 from .common import clear_progress, open_workspace, show_progress
@@ -24,7 +25,12 @@ def transaction_command(argv: list[str]) -> int:
     )
     commands = parser.add_subparsers(dest="komut", required=True, metavar="KOMUT")
     find = commands.add_parser("ara", help="işlemleri parmak izleriyle listele", description="İşlemleri arar.")
-    find.add_argument("metin", nargs="*", help="satıcıda, açıklamada, notta ya da etikette geçen sözcükler")
+    find.add_argument(
+        "metin",
+        nargs="*",
+        help="satıcıda, açıklamada, notta ya da etikette geçen sözcükler; virgülle ayrılan parçalardan biri yeter "
+        "(market, kira), tırnak içindeki ifade yazıldığı gibi aranır",
+    )
     find.add_argument("--ay", help="yalnızca bu ay, YYYY-AA")
     find.add_argument("--sinir", type=int, default=30, help="en çok kaç işlem (varsayılan 30, en yenileri)")
     fix = commands.add_parser(
@@ -72,12 +78,12 @@ def _row_line(t, label: str) -> str:
 def _find_transactions(a: Analysis, args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     if args.ay and not re.fullmatch(r"\d{4}-\d{2}", args.ay):
         parser.error("--ay YYYY-AA biçiminde olmalı")
-    words = [fold(w) for w in args.metin]
+    searched = parse(" ".join(args.metin))  # the screen's search: a comma between parts finds either's rows
     found = [
         t
         for t in a.dataset.transactions
         if (not args.ay or f"{t.date:%Y-%m}" == args.ay)
-        and all(w in fold(f"{t.merchant} {t.description} {t.counterparty} {t.note} {' '.join(t.tags)}") for w in words)
+        and searched.found_in(fold(f"{t.merchant} {t.description} {t.counterparty} {t.note} {' '.join(t.tags)}"))
     ]
     if not found:
         print("Bu aramayla işlem yok.")

@@ -2,9 +2,10 @@
 // one's own, account, kind, category, necessity, certainty, tag, which way the money goes, the amount and text, sorted
 // by any column and paged, with what the rows add up to; the filters kept as views and downloaded as CSV. A month of
 // the listed days that has not closed says above the list what it still waits for, so a row not here yet is known to
-// be coming. A row's name opens its detail at the side: why it is what it is, where it is printed and the corrections
-// it may carry. Rows can be chosen for one category or a tag at once. The address holds it all, in the API's names, so
-// other screens link here narrowed and the back button undoes a step.
+// be coming. A search of many parts ("market, kira") lists the rows of any one and says what each part finds. A row's
+// name opens its detail at the side: why it is what it is, where it is printed and the corrections it may carry. Rows
+// can be chosen for one category or a tag at once. The address holds it all, in the API's names, so other screens link
+// here narrowed and the back button undoes a step.
 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -32,6 +33,7 @@ import {
 } from "../components/transactions/query";
 import { RowPanel } from "../components/transactions/RowPanel";
 import { isCorrectable, Pager, RowsTable } from "../components/transactions/RowsTable";
+import { SearchParts } from "../components/transactions/SearchParts";
 import { Totals } from "../components/transactions/Totals";
 import { Views } from "../components/transactions/Views";
 import { Button } from "../components/ui/Button";
@@ -155,6 +157,7 @@ export default function TransactionsPage() {
       {!none && list.isError ? <Failure error={list.error} onRetry={() => void list.refetch()} /> : null}
       {!none && list.data ? (
         <>
+          <SearchParts parts={list.data.search_parts} params={params} />
           <OpenMonths months={list.data.open} />
           <Totals totals={list.data.totals} />
           <BulkBar

@@ -105,7 +105,7 @@ class DocumentFilter:
     sources: tuple[str, ...] = ()  # SourceKind codes: how any of its arrivals came
     accounts: tuple[str, ...] = ()  # account ids its reading names
     banks: tuple[str, ...] = ()
-    words: str = ""  # full-text: its name, its title and the rows read from it
+    words: str = ""  # a search (domain.search) in its name, its title and the rows read from it
 
 
 UNREAD_KIND = "none"

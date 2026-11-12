@@ -172,6 +172,42 @@ describe("TransactionsPage: the list", () => {
     expect(location()).toBe("/islemler?direction=out");
   });
 
+  it("searches for several things at once with a comma, says what each finds and lists one alone", async () => {
+    const asked: URLSearchParams[] = [];
+    server.use(
+      http.get("/api/transactions", ({ request }) => {
+        const query = new URL(request.url).searchParams;
+        asked.push(query);
+        const parts = [
+          { text: "market", count: 12 },
+          { text: "kira", count: 3 },
+          { text: "kria", count: 0 }, // a part misspelt finds nothing, and says so
+        ];
+        return HttpResponse.json({ ...TRANSACTIONS, search_parts: query.get("q")?.includes(",") ? parts : [] });
+      }),
+    );
+    const user = userEvent.setup();
+    const { location } = renderScreen(<TransactionsPage />, { path: "/islemler" });
+    await table();
+    const search = screen.getByRole("searchbox", { name: "Ara" });
+    expect(search).toHaveAccessibleDescription(
+      "Açıklama, işyeri, not ya da etiket. Virgülle birkaçını birden arayın: market, kira",
+    );
+    expect(screen.queryByRole("region", { name: "Aramanın parçaları" })).not.toBeInTheDocument();
+    await user.type(search, "market, kira, kria");
+    await waitFor(() => expect(location()).toBe("/islemler?q=market%2C+kira%2C+kria"));
+    await waitFor(() => expect(asked.at(-1)?.get("q")).toBe("market, kira, kria"));
+    expect(screen.getByRole("button", { name: "Ara süzgecini kaldır" }).closest("li")).toHaveTextContent(
+      "Ara:market, kira veya kria",
+    );
+    const parts = await screen.findByRole("region", { name: "Aramanın parçaları" });
+    expect(parts).toHaveTextContent("Ayrı ayrı:market 12 işlemkira 3 işlemkria bulunamadı");
+    await user.click(within(parts).getByRole("link", { name: "Yalnızca bunu ara: kira" }));
+    expect(location()).toBe("/islemler?q=kira");
+    expect(search).toHaveValue("kira"); // the box follows the address
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Aramanın parçaları" })).not.toBeInTheDocument());
+  });
+
   it("offers the tags the rows carry, the most used first, so one is chosen rather than guessed", async () => {
     const user = userEvent.setup();
     const { location } = renderScreen(<TransactionsPage />, { path: "/islemler" });

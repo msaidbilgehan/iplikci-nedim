@@ -436,6 +436,8 @@ def test_the_command_line_finds_a_row_and_corrects_it(home, capsys):
     assert main(["islem", "ara", "arkadaşla"]) == 0  # notes and tags are searched too
     found = capsys.readouterr().out
     assert "Market & Gıda · Gerekli" in found and "not: arkadaşla" in found and "#dışarıda" in found
+    assert main(["islem", "ara", "hiçyokböyle,", "dışarıda"]) == 0  # a comma between parts: either one's rows
+    assert "#dışarıda" in capsys.readouterr().out
     assert main(["islem", "yetimler"]) == 0
     assert "Eşi bulunamayan düzeltme yok." in capsys.readouterr().out
 

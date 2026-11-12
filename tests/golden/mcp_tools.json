@@ -412,7 +412,7 @@
   {
     "name": "search",
     "title": "Ara",
-    "description": "İşlemlerde ve belgelerde tam metin arama (Türkçe karakter ve büyük/küçük harf duyarsız). Bir işlem verilen kelimelerin hepsi işyeri, açıklama, karşı taraf, kategori, not, etiket ya da hesap adında geçiyorsa; bir belge adında, başlığında ya da ondan okunan satırlarda geçiyorsa bulunur. İşlemlerin sayısı ve toplamları ile en yeni önce bir sayfası (amount > 0 para çıkışı, < 0 para girişi), belgelerin sayısı ve en yeni önce bir sayfası döner. fingerprint explain_transaction ve annotate_transaction, belge id'si get_document içindir. scope ile yalnızca biri aranır; sonraki sayfa için offset = nextOffset.",
+    "description": "İşlemlerde ve belgelerde tam metin arama (Türkçe karakter ve büyük/küçük harf duyarsız). Bir işlem verilen kelimelerin hepsi işyeri, açıklama, karşı taraf, kategori, not, etiket ya da hesap adında geçiyorsa; bir belge adında, başlığında ya da ondan okunan satırlarda geçiyorsa bulunur. Virgül aramayı parçalara ayırır ve bir parçanın tutması yeter: 'market, kira' ikisinden birini, 'migros kadıköy' ikisini birden arar; tırnak içindeki ifade virgülüyle birlikte yazıldığı gibi aranır. İşlemlerin sayısı ve toplamları ile en yeni önce bir sayfası (amount > 0 para çıkışı, < 0 para girişi), birden çok parçada her parçanın kaç işlem bulduğu (parts), belgelerin sayısı ve en yeni önce bir sayfası döner. fingerprint explain_transaction ve annotate_transaction, belge id'si get_document içindir. scope ile yalnızca biri aranır; sonraki sayfa için offset = nextOffset.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -420,7 +420,7 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 200,
-          "description": "aranan kelimeler"
+          "description": "aranan kelimeler; virgülle ayrılan parçalardan birinin tutması yeter"
         },
         "scope": {
           "type": "string",

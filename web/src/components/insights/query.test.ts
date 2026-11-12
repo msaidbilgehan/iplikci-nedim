@@ -80,6 +80,12 @@ describe("keepsSeries", () => {
     expect(kept("q=%20%20")).toEqual(["Ev kirası", "Örnek Müzik", "Örnek Fon"]);
   });
 
+  it("keeps the series one part of a search of many finds, as the rows are kept", () => {
+    expect(kept("q=müzik, kira")).toEqual(["Ev kirası", "Örnek Müzik"]);
+    expect(kept("q=müzik vadesiz, fon")).toEqual(["Örnek Fon"]); // the first part's words are in two series
+    expect(kept("q=müzik,")).toEqual(["Örnek Müzik"]);
+  });
+
   it("keeps every series whatever the tags and the certainty, which a series does not have", () => {
     expect(kept("tag=ev&certainty=provisional")).toEqual(["Ev kirası", "Örnek Müzik", "Örnek Fon"]);
   });

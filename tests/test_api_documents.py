@@ -176,6 +176,11 @@ def test_the_list_finds_documents_by_their_words_kind_source_account_and_bank(de
     teb = sha_of(demo_ws, "teb.account_html")
     by_words = listed(q="migros")  # a word of a row read from it, folded as the program compares Turkish
     assert teb in {d["sha256"] for d in by_words} and len(by_words) < len(every)
+    shop, bank = listed(q="teknosa"), listed(q="garanti", limit="200")
+    either = listed(q="teknosa, garanti", limit="200")  # a comma: the documents of either part
+    assert {d["sha256"] for d in either} == {d["sha256"] for d in shop + bank}
+    assert len(either) > max(len(shop), len(bank))
+    assert listed(q="migros spotify, hiçyokböyle") == listed(q="migros spotify")
     statement = next(d for d in every if d["sha256"] == teb)
     assert statement["accounts"] == [{"id": "teb-123456789", "label": "TEB Vadesiz TL 123456789", "bank": "TEB"}]
     receipts = listed(kind="receipt", limit="200")

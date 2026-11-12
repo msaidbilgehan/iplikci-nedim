@@ -17,6 +17,7 @@ from ..categorize import UNCATEGORIZED
 from ..domain.codes import SPLITTABLE_KINDS, Actor, DocumentStatus, InvoiceStatus, TodoAction, TodoKind
 from ..domain.labels import KIND, format_amount
 from ..domain.models import Transaction
+from ..domain.search import exactly
 from ..domain.text import fold
 from ..insights import month_name
 from ..parsers import registry
@@ -83,7 +84,8 @@ def _uncategorized(ds: Dataset) -> list[Todo]:
                 count=len(rows),
                 amount=total,
                 target=name,
-                link=Link(Screen.TRANSACTIONS, query=(("category", UNCATEGORIZED), ("q", name))),
+                # The name searched whole: a comma in it would part the search (domain.search).
+                link=Link(Screen.TRANSACTIONS, query=(("category", UNCATEGORIZED), ("q", exactly(name)))),
                 actions=(TodoAction.ADD_RULE, TodoAction.ASK_CLAUDE, TodoAction.IGNORE),
                 prompt=(
                     f"İplikçi Nedim'de '{name}' adlı işyerinin {len(rows)} işlemi kategorisiz. transactions aracıyla "

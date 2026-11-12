@@ -2,7 +2,8 @@
 keep, as CSV too; one row with why it is what it is; corrections on one row or many; the views the user keeps; the
 tags the rows carry. Reading needs a session or the token; changing, the service's own pages. The filters' names are
 the screen's address query: period, from, to, account, kind, category, group, necessity, certainty, tag, merchant,
-direction, min, max, q. A named period stands for its days, from and to, reckoned from the service's today."""
+direction, min, max, q. A named period stands for its days, from and to, reckoned from the service's today. The
+search q is read by domain.search: a comma between its parts finds the rows of any one ("market, kira")."""
 
 from datetime import date
 from decimal import Decimal
@@ -87,12 +88,20 @@ class OpenMonthOut(BaseModel):
     link: LinkOut  # its month-end page
 
 
+class SearchPartOut(BaseModel):
+    """One part of a search of many (q="market, kira"): a row is listed when one of the parts finds it."""
+
+    text: str  # the part as written: "market"
+    count: int  # the rows the other filters keep that it finds; 0 says it finds none
+
+
 class TransactionsOut(BaseModel):
     rows: list[RowOut]
     totals: TotalsOut
     offset: int
     next: int | None  # the next page's offset; null on the last
     open: list[OpenMonthOut]  # the filtered days' months that have not closed, the oldest first
+    search_parts: list[SearchPartOut]  # a search of more than one part, each part with its count; else none
 
 
 def _open_month(found: transactions.OpenMonth, labels: dict[str, str]) -> OpenMonthOut:
@@ -195,6 +204,7 @@ def transaction_list(
         offset=found.offset,
         next=found.next,
         open=[_open_month(m, labels) for m in transactions.open_months(a, f, context.today())],
+        search_parts=[SearchPartOut(text=p.text, count=p.count) for p in found.parts],
     )
 
 

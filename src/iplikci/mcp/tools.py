@@ -1232,6 +1232,8 @@ def _search(s: Session, args: Args) -> Json:
             "offset": offset,
             "nextOffset": found.next,
         }
+        if found.parts:  # a search of many parts: how many rows each finds, a part that finds none too
+            out["transactions"]["parts"] = [{"text": p.text, "count": p.count} for p in found.parts]
     if scope != "transactions":
         kept, whole = _documents_with(s.ws, text)
         more = offset + limit < len(kept)
@@ -2214,13 +2216,21 @@ TOOLS = (
         "Ara",
         "İşlemlerde ve belgelerde tam metin arama (Türkçe karakter ve büyük/küçük harf duyarsız). Bir işlem verilen "
         "kelimelerin hepsi işyeri, açıklama, karşı taraf, kategori, not, etiket ya da hesap adında geçiyorsa; bir "
-        "belge adında, başlığında ya da ondan okunan satırlarda geçiyorsa bulunur. İşlemlerin sayısı ve toplamları "
-        "ile en yeni önce bir sayfası (amount > 0 para çıkışı, < 0 para girişi), belgelerin sayısı ve en yeni önce "
-        "bir sayfası döner. fingerprint explain_transaction ve annotate_transaction, belge id'si get_document "
-        "içindir. scope ile yalnızca biri aranır; sonraki sayfa için offset = nextOffset.",
+        "belge adında, başlığında ya da ondan okunan satırlarda geçiyorsa bulunur. Virgül aramayı parçalara ayırır ve "
+        "bir parçanın tutması yeter: 'market, kira' ikisinden birini, 'migros kadıköy' ikisini birden arar; tırnak "
+        "içindeki ifade virgülüyle birlikte yazıldığı gibi aranır. İşlemlerin sayısı ve toplamları "
+        "ile en yeni önce bir sayfası (amount > 0 para çıkışı, < 0 para girişi), birden çok parçada her parçanın kaç "
+        "işlem bulduğu (parts), belgelerin sayısı ve en yeni önce bir sayfası döner. fingerprint explain_transaction "
+        "ve annotate_transaction, belge id'si get_document içindir. scope ile yalnızca biri aranır; sonraki sayfa "
+        "için offset = nextOffset.",
         _schema(
             ("text",),
-            text={"type": "string", "minLength": 1, "maxLength": 200, "description": "aranan kelimeler"},
+            text={
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "description": "aranan kelimeler; virgülle ayrılan parçalardan birinin tutması yeter",
+            },
             scope={"type": "string", "enum": ["all", "transactions", "documents"], "description": "varsayılan all"},
             limit=_limit(20, 100),
             offset=_OFFSET,

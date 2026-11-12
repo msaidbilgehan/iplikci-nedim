@@ -7,6 +7,7 @@
 import type { CategoryRules, Destination, Installment, MonthTable, Series } from "../../api/types";
 import { queryOf } from "../../lib/links";
 import { monthDays, rowsLink, SPENDING_KINDS } from "../../lib/rows";
+import { isFound, type SearchPart, searchParts } from "../../lib/search";
 import { selectionOf } from "../../lib/selection";
 import { fold } from "../../lib/turkish";
 import type { StackSeries } from "../charts/layout";
@@ -178,17 +179,18 @@ export function stackOf(
 
 // The regular payments follow every filter but the period (features.md, "Süzgeçlerin kapsamı"), matched on the series
 // as /api/transactions matches a row (app/transactions.Filter): its account, kind, category, the category's group and
-// its necessity among the ones chosen, its payee as the merchant by the folded name, and every word of the search in
-// its names. A series has no tags and no certainty, so those two keep every series, and the card says so.
+// its necessity among the ones chosen, its payee as the merchant by the folded name, and the search in its names, read
+// as the service reads it (one of its comma-separated parts, every word of that part). A series has no tags and no
+// certainty, so those two keep every series, and the card says so.
 
-/** The search's words in their folded form, as the service splits them. */
-function wordsOf(params: URLSearchParams): string[] {
-  return fold(params.get("q") ?? "").split(" ").filter(Boolean);
+/** The search's parts, as the service reads them. */
+function partsOf(params: URLSearchParams): SearchPart[] {
+  return searchParts(params.get("q") ?? "");
 }
 
 /** Whether the regular payments need the category rules to be matched: a group, or a search that may name one. */
 export function needsGroups(params: URLSearchParams): boolean {
-  return selectionOf(params, "group") !== null || wordsOf(params).length > 0;
+  return selectionOf(params, "group") !== null || partsOf(params).length > 0;
 }
 
 /** Whether a filter of many values keeps a value: no filter keeps every one, none chosen keeps none. */
@@ -214,7 +216,7 @@ export function keepsSeries(params: URLSearchParams, series: Series, rules: Cate
     among(params, "group", group) &&
     among(params, "necessity", series.necessity) &&
     (!merchant || fold(series.payee) === merchant) &&
-    wordsOf(params).every((word) => names.includes(word))
+    isFound(partsOf(params), names)
   );
 }
 

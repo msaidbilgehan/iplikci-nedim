@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from iplikci import demo
 from iplikci.api.app import create_app
 from iplikci.api.context import Context
-from iplikci.app import todos
+from iplikci.app import todos, transactions
 from iplikci.app.analysis import analyze
 from iplikci.app.workspace import Workspace
 from iplikci.domain.codes import DocumentStatus, TodoAction, TodoKind
@@ -91,6 +91,21 @@ def test_card_rows_no_rule_names_are_one_item_per_merchant_the_most_frequent_fir
     assert (shop.count, other.count) == (2, 1) and shop.detail.startswith("2 işlem, toplam 90,00 TL")
     assert shop.link is not None and dict(shop.link.query)["q"] == shop.title
     assert shop.actions[0] is TodoAction.ADD_RULE and "add_rule" in shop.prompt
+
+
+def test_a_merchant_whose_name_has_a_comma_leads_to_its_own_rows_alone(ws):
+    rows = [
+        CardRow(date(2026, 9, 12), "ORNEKDUKKAN, KADIKOY", Decimal("50.00")),
+        CardRow(date(2026, 9, 20), "ORNEKDUKKAN, KADIKOY", Decimal("40.00")),
+        CardRow(date(2026, 9, 25), "BASKAYER KADIKOY", Decimal("60.00")),
+    ]
+    add(ws, "ekstre.pdf", garanti.bonus_statement(pages=[rows]))
+    a = analyze(ws, today=demo.AS_OF)
+    shop = next(t for t in todos.items(ws, a, demo.AS_OF) if t.kind is TodoKind.UNCATEGORIZED and t.count == 2)
+    assert shop.link is not None and "," in shop.title
+    query = dict(shop.link.query)
+    listed = transactions.select(a, transactions.Filter(categories=frozenset({query["category"]}), text=query["q"]))
+    assert len(listed) == 2  # the comma did not part the search: the other shop's row is not listed
 
 
 def test_a_message_knowingly_classified_is_no_item(ws):

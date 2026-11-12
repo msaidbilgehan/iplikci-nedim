@@ -85,6 +85,28 @@ def test_the_filters_keep_a_category_a_merchant_or_words_and_the_totals_follow(c
     assert [r["amount"]["minor"] for r in cheapest] == sorted(r["amount"]["minor"] for r in rows)
 
 
+def test_a_comma_in_the_search_lists_the_rows_of_either_part_with_what_each_finds(client):
+    either = rows_of(client, q="spotify, turkcell")
+    assert either["totals"]["count"] == 20 and {r["title"] for r in either["rows"]} == {"Spotify", "Turkcell"}
+    assert either["search_parts"] == [{"text": "spotify", "count": 10}, {"text": "turkcell", "count": 10}]
+    one = rows_of(client, q="spotify")
+    assert one["totals"]["count"] == 10 and one["search_parts"] == []  # one part's count is the list's
+
+
+def test_a_part_that_finds_no_row_says_so_and_each_counts_within_the_other_filters(client):
+    misspelt = rows_of(client, q="spotify, spotfy")
+    assert misspelt["totals"]["count"] == 10
+    assert [(p["text"], p["count"]) for p in misspelt["search_parts"]] == [("spotify", 10), ("spotfy", 0)]
+    market = rows_of(client, q="spotify, migros", category="Market & Gıda")
+    assert [(p["text"], p["count"]) for p in market["search_parts"]] == [("spotify", 0), ("migros", 20)]
+    assert market["totals"]["count"] == 20
+
+
+def test_the_csv_holds_the_rows_of_every_part_too(client):
+    text = client.get("/api/transactions.csv", params={"q": "spotify, turkcell"}, headers=bearer()).text
+    assert len(text.strip().splitlines()) == 1 + 20
+
+
 def test_the_filters_take_the_names_the_other_screens_link_with(client):
     march = client.get("/api/transactions", params={"from": "2026-03-01", "to": "2026-03-31"}, headers=bearer())
     assert {r["day"][:7] for r in march.json()["rows"]} == {"2026-03"}

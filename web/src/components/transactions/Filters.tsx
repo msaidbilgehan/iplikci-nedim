@@ -15,6 +15,7 @@ import { cn } from "../../lib/cn";
 import { formatDay, formatMoney, formatMonth } from "../../lib/format";
 import { labelOf } from "../../lib/labels";
 import { monthDays, SPENDING_KINDS } from "../../lib/rows";
+import { searchInWords } from "../../lib/search";
 import { selectionOf, withSelection } from "../../lib/selection";
 import { SLOT_BG, slotOf } from "../charts/palette";
 import { certaintyOptions } from "../filters";
@@ -216,11 +217,24 @@ export function Filters({ params, onChange, labels, accounts, rules, rows = fals
       onRemove: () => set((next) => removeValue(next, "tag", value)),
     });
   }
-  for (const name of ["merchant", "q"] as const) {
-    const value = params.get(name);
-    if (value) {
-      chips.push({ key: name, name: t(`filters.${name}`), value, onRemove: () => set((next) => next.delete(name)) });
-    }
+  const merchant = params.get("merchant");
+  if (merchant) {
+    chips.push({
+      key: "merchant",
+      name: t("filters.merchant"),
+      value: merchant,
+      onRemove: () => set((next) => next.delete("merchant")),
+    });
+  }
+  const q = params.get("q");
+  if (q) {
+    // The search's parts as alternatives: "market, kira" is "market veya kira".
+    chips.push({
+      key: "q",
+      name: t("filters.q"),
+      value: searchInWords(q) || q,
+      onRemove: () => set((next) => next.delete("q")),
+    });
   }
   const reset = () => {
     setOwnDays(false);

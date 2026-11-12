@@ -95,3 +95,23 @@ test("bir süzgecin seçenekleri kısa bir pencerede ekranın içinde kalır, ka
   await kinds.getByRole("button", { name: "Tümü" }).click();
   await expect(page).not.toHaveURL(/kind=/);
 });
+
+test("virgülle birkaç şey birden aranır, her parçanın bulduğu yazar, erişilebilirlik denetiminden geçer", async ({
+  page,
+}) => {
+  await page.goto("/islemler");
+  await expect(page.getByRole("status", { name: "Yükleniyor…" })).toHaveCount(0, { timeout: 15_000 });
+  await page.getByRole("searchbox", { name: "Ara" }).fill("spotify, turkcell, spotfy");
+  await expect(page).toHaveURL(/\/islemler\?q=spotify%2C\+turkcell%2C\+spotfy$/);
+  const parts = page.getByRole("region", { name: "Aramanın parçaları" });
+  await expect(parts).toContainText("spotify 10 işlem");
+  await expect(parts).toContainText("turkcell 10 işlem");
+  await expect(parts).toContainText("spotfy bulunamadı"); // a part misspelt is told, not lost among the others
+  await expect(page.getByRole("region", { name: "Toplamlar" })).toContainText("20 işlem");
+  await expect(page.getByRole("button", { name: "Ara süzgecini kaldır" })).toBeVisible();
+  const found = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  expect(found.violations.map((v) => `${v.id}: ${v.nodes[0]?.target.join(" ")}`)).toEqual([]);
+  await parts.getByRole("link", { name: "Yalnızca bunu ara: turkcell" }).click();
+  await expect(page).toHaveURL(/\/islemler\?q=turkcell$/);
+  await expect(page.getByRole("region", { name: "Toplamlar" })).toContainText("10 işlem");
+});

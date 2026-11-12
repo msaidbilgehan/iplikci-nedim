@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 
 import type { Accounts, Labels } from "../../api/types";
 import { labelOf } from "../../lib/labels";
+import { searchInWords } from "../../lib/search";
 import { selectionOf, withSelection } from "../../lib/selection";
 import { accountOptions } from "../filters";
 import {
@@ -82,7 +83,8 @@ export function Filters({ params, onChange, labels, accounts }: FiltersProps) {
   }
   const q = params.get("q");
   if (q) {
-    chips.push({ key: "q", name: t("filters.q"), value: q, onRemove: () => remove("q") });
+    // The search's parts as alternatives: "market veya kira".
+    chips.push({ key: "q", name: t("filters.q"), value: searchInWords(q) || q, onRemove: () => remove("q") });
   }
 
   return (

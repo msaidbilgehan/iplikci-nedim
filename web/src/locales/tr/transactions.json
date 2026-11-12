@@ -19,7 +19,7 @@
     "tagAdd": "Etiket ekle",
     "merchant": "İşyeri",
     "q": "Ara",
-    "qHint": "Açıklama, işyeri, not ya da etiket",
+    "qHint": "Açıklama, işyeri, not ya da etiket. Virgülle birkaçını birden arayın: market, kira",
     "period": "Dönem",
     "periodAll": "Tüm zamanlar",
     "periodOwn": "Tarih aralığı seç…",
@@ -55,6 +55,13 @@
     "setCount": "{{count}} etkin",
     "spending": "Giderler (harcama, iade, faiz ve ücret)",
     "wholePeriod": "Dönemin bütün işlemleri"
+  },
+  "searchParts": {
+    "label": "Aramanın parçaları",
+    "lead": "Ayrı ayrı:",
+    "count": "{{count}} işlem",
+    "none": "bulunamadı",
+    "only": "Yalnızca bunu ara: {{part}}"
   },
   "totals": {
     "label": "Toplamlar",
