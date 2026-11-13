@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import type { McpMasking } from "../api/types";
 import { renderScreen } from "../test/render";
-import { MCP_CONNECTION, server } from "../test/server";
+import { MCP_CONNECTION, MEMORIES, server } from "../test/server";
 import ClaudePage from "./ClaudePage";
 
 describe("ClaudePage", () => {
@@ -101,6 +101,88 @@ describe("ClaudePage", () => {
     renderScreen(<ClaudePage />);
     expect(
       await screen.findByRole("button", { name: "Yeniden dene" }),
+    ).toBeInTheDocument();
+  });
+
+  it("lists what Claude keeps across conversations by what it is about, each note's text folded", async () => {
+    renderScreen(<ClaudePage />);
+    const card = await screen.findByRole("region", {
+      name: "Claude'un hafızası",
+    });
+    expect(
+      await within(card).findByText("2 not; en çok 200 not tutulur."),
+    ).toBeInTheDocument();
+    await within(card).findByRole("heading", { name: "Kullanıcı hakkında" }); // the codes' labels come from the service
+    const kinds = within(card).getAllByRole("heading", { level: 3 });
+    expect(kinds.map((h) => h.textContent)).toEqual([
+      "Kullanıcı hakkında",
+      "Çalışma biçimi",
+    ]);
+    expect(
+      within(card).getByText("Aylık özeti tabloyla ister"),
+    ).toBeInTheDocument();
+    expect(within(card).getByText("ozet-bicimi")).toBeInTheDocument();
+    const [, summary] = within(card).getAllByText("Notun tamamı");
+    expect(within(card).getByText(/Nasıl: önce tablo/)).not.toBeVisible();
+    await userEvent.click(summary!);
+    expect(within(card).getByText(/Nasıl: önce tablo/)).toBeVisible();
+  });
+
+  it("takes a note away only once the user confirms it", async () => {
+    const removed: string[] = [];
+    server.use(
+      http.delete("/api/memory/:name", ({ params }) => {
+        removed.push(String(params.name));
+        return HttpResponse.json({
+          ...MEMORIES,
+          memories: MEMORIES.memories.filter((m) => m.name !== params.name),
+        });
+      }),
+    );
+    renderScreen(<ClaudePage />);
+    const card = await screen.findByRole("region", {
+      name: "Claude'un hafızası",
+    });
+    const remove = await within(card).findByRole("button", {
+      name: "Sil: Aylık özeti tabloyla ister",
+    });
+    await userEvent.click(remove);
+    const asking = await screen.findByRole("alertdialog", {
+      name: "Bu not silinsin mi?",
+    });
+    expect(
+      within(asking).getByText(/“Aylık özeti tabloyla ister” notu silinir/),
+    ).toBeInTheDocument();
+    await userEvent.click(within(asking).getByRole("button", { name: "Vazgeç" }));
+    expect(removed).toEqual([]);
+    await userEvent.click(remove);
+    await userEvent.click(
+      within(
+        await screen.findByRole("alertdialog", { name: "Bu not silinsin mi?" }),
+      ).getByRole("button", { name: "Sil" }),
+    );
+    expect(await within(card).findByText("Not silindi.")).toBeInTheDocument();
+    expect(removed).toEqual(["ozet-bicimi"]);
+    expect(
+      within(card).queryByText("Aylık özeti tabloyla ister"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(card).getByText("1 not; en çok 200 not tutulur."),
+    ).toBeInTheDocument();
+  });
+
+  it("says that Claude has kept nothing yet", async () => {
+    server.use(
+      http.get("/api/memory", () =>
+        HttpResponse.json({ most: 200, memories: [] }),
+      ),
+    );
+    renderScreen(<ClaudePage />);
+    const card = await screen.findByRole("region", {
+      name: "Claude'un hafızası",
+    });
+    expect(
+      await within(card).findByText(/Henüz not yok/),
     ).toBeInTheDocument();
   });
 });

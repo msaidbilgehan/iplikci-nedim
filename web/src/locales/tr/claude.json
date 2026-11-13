@@ -46,5 +46,19 @@
     "accounts_and_namesHint": "Ayrıca para gönderdiğiniz ya da aldığınız kişilerin ve sizin adınız Kişi 1, Kişi 2… olur.",
     "saved": "Kaydedildi: bundan sonraki yanıtlar böyle.",
     "failed": "Kaydedilemedi"
+  },
+  "memory": {
+    "title": "Claude'un hafızası",
+    "intro": "Claude konuşmalar arasında hatırlamak istediklerini buraya not eder: sizi, tercihlerinizi, kararlarınızı ve nasıl çalışmasını istediğinizi. Hangi klasörden ya da uygulamadan bağlanırsa bağlansın aynı notları okur. Notlar bu bilgisayarda, İplikçi Nedim'in veri klasöründe durur; yanlış ya da istemediğiniz bir notu silebilirsiniz.",
+    "empty": "Henüz not yok. Claude sizinle konuştukça öğrendiklerini buraya yazar.",
+    "count_one": "{{count}} not; en çok {{most}} not tutulur.",
+    "count_other": "{{count}} not; en çok {{most}} not tutulur.",
+    "updated": "Son değişiklik: {{day}}",
+    "body": "Notun tamamı",
+    "remove": "Sil",
+    "removeTitle": "Bu not silinsin mi?",
+    "removeText": "“{{description}}” notu silinir; Claude onu bir daha okumaz. Aynı şeyi yeniden öğrenirse yeniden yazabilir.",
+    "removed": "Not silindi.",
+    "failed": "Not silinemedi"
   }
 }

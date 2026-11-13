@@ -107,7 +107,7 @@ def _verify_rebuild(ws: Workspace, day: date) -> int:
     print("Veritabanı arşivden yanında yeniden kuruluyor…", file=sys.stderr)
     r = rebuild.check(ws, today=day, progress=show_progress)
     clear_progress()
-    print(f"Birincil veriler: {r.documents} belge, {r.annotations} düzeltme")
+    print(f"Birincil veriler: {r.documents} belge, {r.annotations} düzeltme, {r.memories} hafıza notu")
     if r.ok:
         print("Yeniden kurulan veritabanı aynı sonucu veriyor.")
         return 0

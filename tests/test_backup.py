@@ -12,10 +12,10 @@ from fastapi.testclient import TestClient
 from iplikci import cli
 from iplikci.api.app import create_app
 from iplikci.api.context import Context
-from iplikci.app import annotate, background, backup, rebuild
+from iplikci.app import annotate, background, backup, memory, rebuild
 from iplikci.app.analysis import analyze
 from iplikci.app.workspace import Workspace
-from iplikci.domain.codes import Actor, BackupReason, DocumentStatus, Necessity
+from iplikci.domain.codes import Actor, BackupReason, DocumentStatus, MemoryKind, Necessity
 from iplikci.fakes import teb
 from iplikci.jobs import schedule
 from iplikci.service import instance
@@ -274,3 +274,12 @@ def test_the_necessity_correction_survives_a_restore(kept, tmp_path):
     copy = Workspace.load(backup.restore(kept, made, tmp_path / "yeni").home)
     [again] = [t for t in analyze(copy).dataset.transactions if t.merchant == "Kahveci Dukkan"]
     assert again.necessity is Necessity.REQUIRED and Path(copy.home) == tmp_path / "yeni"
+
+
+def test_claudes_notes_are_in_a_backup_and_come_back_with_its_restore(kept, tmp_path):
+    memory.write(kept, "ozet-bicimi", Actor.MCP, kind=MemoryKind.FEEDBACK, description="Tablo", body="Neden: …")
+    made = backup.take(kept, now=NOW)
+    primary = rebuild.load((made.path / "birincil.json").read_text(encoding="utf-8"))
+    assert [m.name for m in primary.memories] == ["ozet-bicimi"]  # the dump the rebuild reads carries them too
+    copy = Workspace.load(backup.restore(kept, made, tmp_path / "yeni").home)
+    assert [(m.name, m.body) for m in memory.notes(copy)] == [("ozet-bicimi", "Neden: …")]

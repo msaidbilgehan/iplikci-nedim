@@ -2,10 +2,10 @@
 same (`iplikci dogrula --yeniden-kur`).
 
 What the readers read is derived: every document is read again from the vault. What nothing else knows is primary:
-each document's name and arrivals, the user's annotations and account names, the audit log (which, among others,
-counts the company documents that were never kept), the event log and the notifications. It is dumped as JSON, the dump is read back
-into a new database beside the real one, the documents are read again, and both are analysed and compared. The vault
-is only read: a company document found on the way is marked in the new database, never moved.
+each document's name and arrivals, the user's annotations and account names, Claude's notes, the audit log (which, among
+others, counts the company documents that were never kept), the event log and the notifications. It is dumped as JSON,
+the dump is read back into a new database beside the real one, the documents are read again, and both are analysed and
+compared. The vault is only read: a company document found on the way is marked in the new database, never moved.
 
 The exchange rates the providers gave are not primary, but they came from the network and may not come again: the
 dump carries them and the days each provider was asked for, so that both analyses use the same rates. A history of
@@ -22,9 +22,9 @@ from pathlib import Path
 from typing import Any
 
 from .. import baseline
-from ..domain.codes import Actor, DocumentStatus, Necessity, RateSource, SourceKind
+from ..domain.codes import Actor, DocumentStatus, MemoryKind, Necessity, RateSource, SourceKind
 from ..fx.book import Quote
-from ..storage import aliases, annotations, audit, documents, events, fx_rates, notifications
+from ..storage import aliases, annotations, audit, documents, events, fx_rates, memories, notifications
 from ..storage.aliases import Alias
 from ..storage.annotations import Annotation, Subject, parts_of
 from ..storage.audit import Entry
@@ -32,17 +32,19 @@ from ..storage.db import Database
 from ..storage.documents import DocumentRow, Source
 from ..storage.events import Event
 from ..storage.fx_rates import Asked
+from ..storage.memories import Memory
 from ..storage.notifications import Notification
 from . import reading
 from .analysis import Analysis, analyze
 from .workspace import Workspace
 
 FORMAT = "iplikci-birincil-veri"
-# 2: the event log; 3: the notifications; 4: the accounts' names; 5: the split rows' parts; 6: the exchange rates
-VERSION = 6
+# 2: the event log; 3: the notifications; 4: the accounts' names; 5: the split rows' parts; 6: the exchange rates;
+# 7: Claude's notes
+VERSION = 7
 # A version 2 dump has no notifications, a version 3 one no account names, a version 4 one no parts, a version 5 one
-# no exchange rates.
-_READS = (2, 3, 4, 5, 6)
+# no exchange rates, a version 6 one no notes of Claude's.
+_READS = (2, 3, 4, 5, 6, 7)
 
 
 @dataclass(frozen=True)
@@ -63,6 +65,7 @@ class Primary:
     aliases: list[Alias] = field(default_factory=list[Alias])
     rates: list[Quote] = field(default_factory=list[Quote])
     rate_days: list[Asked] = field(default_factory=list[Asked])
+    memories: list[Memory] = field(default_factory=list[Memory])
 
 
 def export(db: Database) -> Primary:
@@ -75,6 +78,7 @@ def export(db: Database) -> Primary:
         list(aliases.every(db).values()),
         fx_rates.every(db),
         fx_rates.asked_days(db),
+        memories.every(db),
     )
 
 
@@ -129,6 +133,7 @@ def dump(primary: Primary) -> str:
         "aliases": [asdict(a) for a in primary.aliases],
         "rates": [_rate_line(q) for q in primary.rates],
         "rate_days": [_day_line(a) for a in primary.rate_days],
+        "memories": [asdict(m) for m in primary.memories],
     }
     return json.dumps(value, ensure_ascii=False, indent=1, sort_keys=True)
 
@@ -173,7 +178,10 @@ def load(text: str) -> Primary:
     names = [Alias(a["account"], a["alias"], a["updated_at"], Actor(a["actor"])) for a in value.get("aliases", [])]
     rates = [_rate(line) for line in value.get("rates", [])]
     rate_days = [_day(line) for line in value.get("rate_days", [])]
-    return Primary(kept, notes, entries, happened, told, names, rates, rate_days)
+    remembered = [
+        Memory(**(m | {"kind": MemoryKind(m["kind"]), "actor": Actor(m["actor"])})) for m in value.get("memories", [])
+    ]
+    return Primary(kept, notes, entries, happened, told, names, rates, rate_days, remembered)
 
 
 def restore(db: Database, primary: Primary) -> None:
@@ -196,6 +204,8 @@ def restore(db: Database, primary: Primary) -> None:
         # A dump keeps no fetch time of its own: the rates count as fetched when their newest day was asked for.
         fetched = max((a.asked_at for a in primary.rate_days), default="")
         fx_rates.restore(db, primary.rates, primary.rate_days, fetched)
+        for memory in primary.memories:
+            memories.restore(db, memory)
 
 
 def rebuild(ws: Workspace, folder: Path, primary: Primary, progress: reading.Progress | None = None) -> Workspace:
@@ -216,6 +226,7 @@ class Report:
     documents: int  # in the primary data
     annotations: int
     differences: list[str]
+    memories: int = 0  # Claude's notes
 
     @property
     def ok(self) -> bool:
@@ -271,6 +282,12 @@ def rates_carried(primary: Primary, db: Database) -> list[str]:
     return [f"kurlar: dökümde {carried}, yeniden kurulanda {len(rates)} kur ve {len(days)} gün"]
 
 
+def notes_carried(kept: list[Memory], db: Database) -> list[str]:
+    """What differs between Claude's notes in the real database (kept) and those of the rebuilt database db."""
+    differ = {m.name for m in set(kept) ^ set(memories.every(db))}
+    return [f"hafıza: {len(differ)} not yeniden kurulanda aynı değil"] if differ else []
+
+
 def check(ws: Workspace, today: date | None = None, progress: reading.Progress | None = None) -> Report:
     """Dump the primary data, make the database again from it and the vault, and compare the two analyses."""
     today = today or date.today()
@@ -279,9 +296,11 @@ def check(ws: Workspace, today: date | None = None, progress: reading.Progress |
         with ws.lock():
             with ws.db() as db:
                 primary = load(dump(export(db)))  # through the dump: it must carry everything
+                kept = memories.every(db)
             shadow = rebuild(ws, Path(folder), primary, progress)
         again = analyze(shadow, today=today)
         with ws.db() as db, shadow.db() as other:
             differences = compare(live, again, documents.every(db), documents.every(other), today)
             differences += rates_carried(primary, other)
-    return Report(len(primary.documents), len(primary.annotations), differences)
+            differences += notes_carried(kept, other)
+    return Report(len(primary.documents), len(primary.annotations), differences, len(primary.memories))

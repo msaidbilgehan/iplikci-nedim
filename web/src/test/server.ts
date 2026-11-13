@@ -66,6 +66,7 @@ import type {
   TransactionDetail,
   TransactionPage,
   McpConnection,
+  Memories,
   UpdateState,
 } from "../api/types";
 
@@ -292,6 +293,12 @@ export const LABELS: Labels = {
     daily: "Günlük",
     manual: "Elle",
     before_restore: "Geri yükleme öncesi",
+  },
+  MemoryKind: {
+    user: "Kullanıcı hakkında",
+    feedback: "Çalışma biçimi",
+    project: "Süren işler ve kararlar",
+    reference: "Nerede ne var",
   },
 };
 
@@ -1606,6 +1613,31 @@ export const MCP_CONNECTION: McpConnection = {
   claude_add: "claude mcp add-json --scope user iplikci '{...}'",
   masking: "off",
   development: false,
+};
+
+// What Claude keeps across conversations (K30): who the user is first, as the service orders them.
+export const MEMORIES: Memories = {
+  most: 200,
+  memories: [
+    {
+      name: "gelir-duzeni",
+      kind: "user",
+      description: "Serbest çalışıyor; geliri ayda bir iki ödemeyle, düzensiz gelir",
+      body: "Aylık gelir ortalaması yanıltır: tam aylardan söyleyin.",
+      created_at: "2026-11-10T09:00:00+00:00",
+      updated_at: "2026-11-12T18:30:00+00:00",
+      by: "mcp",
+    },
+    {
+      name: "ozet-bicimi",
+      kind: "feedback",
+      description: "Aylık özeti tabloyla ister",
+      body: "Kullanıcı özetleri tabloyla istiyor.\nNeden: rakamları yan yana görmek istiyor.\nNasıl: önce tablo, sonra iki cümle.",
+      created_at: "2026-11-11T10:00:00+00:00",
+      updated_at: "2026-11-11T10:00:00+00:00",
+      by: "mcp",
+    },
+  ],
 };
 
 export const BRIDGES: Bridge[] = [
@@ -4115,6 +4147,13 @@ export const handlers = [
   http.get("/api/exports", () => HttpResponse.json(EXPORTS)),
   http.get("/api/bridge", () => HttpResponse.json(BRIDGES)),
   http.get("/api/mcp/connection", () => HttpResponse.json(MCP_CONNECTION)),
+  http.get("/api/memory", () => HttpResponse.json(MEMORIES)),
+  http.delete("/api/memory/:name", ({ params }) =>
+    HttpResponse.json({
+      ...MEMORIES,
+      memories: MEMORIES.memories.filter((note) => note.name !== params.name),
+    }),
+  ),
   http.get("/api/extension", () => HttpResponse.json(EXTENSION)),
   http.get("/api/notifications", ({ request }) =>
     HttpResponse.json(

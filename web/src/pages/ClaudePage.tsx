@@ -1,7 +1,8 @@
 // Claude's connection (K23, ADR-0011, F16): what anyone needs to add İplikçi Nedim to their Claude without a terminal.
 // Claude Code reaches the service's /mcp with a headers helper that reads the token from the keyring, so the
 // configuration carries no secret; claude-SAK imports the same JSON. Claude Desktop starts the stdio bridge. The token
-// itself stays behind "Göster" (the user allowed it to be shown), and the user picks what MCP's answers hide.
+// itself stays behind "Göster" (the user allowed it to be shown), the user picks what MCP's answers hide, and sees what
+// Claude keeps across conversations (K30, ADR-0023).
 
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -12,6 +13,7 @@ import {
   useSetMasking,
 } from "../api/queries";
 import type { McpConnection, McpMasking } from "../api/types";
+import { MemoryCard } from "../components/claude/MemoryCard";
 import { Failure, Loading } from "../components/QueryState";
 import { Alert } from "../components/ui/Alert";
 import { Button } from "../components/ui/Button";
@@ -48,6 +50,7 @@ function Connected({ connection }: { connection: McpConnection }) {
       <DesktopCard connection={connection} />
       <AddressCard address={connection.address} />
       <MaskingCard masking={connection.masking} />
+      <MemoryCard />
     </>
   );
 }

@@ -1251,6 +1251,27 @@ export interface MaskingIn {
   masking: "off" | "accounts" | "accounts_and_names";
 }
 
+export interface MemoriesOut {
+  memories: MemoryOut[];
+  most: number;
+}
+
+/**
+ * What a note Claude keeps across conversations is about (F16, ADR-0023). The kinds of Claude Code's own memory, so
+ * that a model keeps the one as it keeps the other.
+ */
+export type MemoryKind = "user" | "feedback" | "project" | "reference";
+
+export interface MemoryOut {
+  name: string;
+  kind: MemoryKind;
+  description: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+  by: "mcp" | "user";
+}
+
 export interface MerchantLineOut {
   merchant: string;
   category: string;

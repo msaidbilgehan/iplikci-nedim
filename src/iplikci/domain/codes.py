@@ -444,3 +444,13 @@ class TradeSide(StrEnum):
 
     BUY = "buy"  # the user bought the currency (a card purchase abroad too): against TCMB's forex selling rate
     SELL = "sell"  # the user sold it for TL: against TCMB's forex buying rate
+
+
+class MemoryKind(StrEnum):
+    """What a note Claude keeps across conversations is about (F16, ADR-0023). The kinds of Claude Code's own memory,
+    so that a model keeps the one as it keeps the other."""
+
+    USER = "user"  # who the user is: their situation, what they know, how they want their money told
+    FEEDBACK = "feedback"  # how the user wants Claude to work: their corrections and the ways they confirmed, with why
+    PROJECT = "project"  # what is under way: goals, plans, decisions and constraints, with their days
+    REFERENCE = "reference"  # where something is: which account pays what, a place outside the program

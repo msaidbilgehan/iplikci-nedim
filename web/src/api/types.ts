@@ -105,6 +105,9 @@ import type {
   MailCoverageOut,
   MailSettingsIn,
   MailSettingsOut,
+  MemoriesOut,
+  MemoryKind,
+  MemoryOut,
   MerchantLineOut,
   MerchantNecessityIn,
   MerchantNecessityOut,
@@ -241,6 +244,9 @@ export type OtherSenders = OtherSendersOut;
 export type McpConnection = ConnectionOut; // Claude's connection (K23): no secret in it
 export type McpToken = TokenOut; // the API token, shown when the user asks
 export type McpMasking = ConnectionOut["masking"];
+export type Memories = MemoriesOut; // the notes Claude keeps across conversations (K30, ADR-0023)
+export type Memory = MemoryOut;
+export type { MemoryKind };
 
 // The notifications (F13, ADR-0010). The codes keep the API's names; Pairing above is the browser extension's.
 export type { Channel, ChannelStage, DeliveryStatus, DetailLevel, EventKind };

@@ -27,6 +27,7 @@ from .codes import (
     HabitStatus,
     InvoiceKind,
     InvoiceStatus,
+    MemoryKind,
     MonthStatus,
     Necessity,
     NecessityReason,
@@ -392,6 +393,13 @@ STATEMENT_CHECK: dict[StatementCheck, str] = {
     StatementCheck.NOTHING: "Denetlenecek satır yok",
 }
 
+MEMORY_KIND: dict[MemoryKind, str] = {
+    MemoryKind.USER: "Kullanıcı hakkında",
+    MemoryKind.FEEDBACK: "Çalışma biçimi",
+    MemoryKind.PROJECT: "Süren işler ve kararlar",
+    MemoryKind.REFERENCE: "Nerede ne var",
+}
+
 FLOW_KIND: dict[FlowKind, str] = {
     FlowKind.ACCOUNT: "Hesap",
     FlowKind.INCOME: "Gelir",
@@ -441,6 +449,7 @@ TABLES: dict[type[StrEnum], dict[StrEnum, str]] = {
     StatementCheck: _table(STATEMENT_CHECK),
     RateSource: _table(RATE_SOURCE),
     TradeSide: _table(TRADE_SIDE),
+    MemoryKind: _table(MEMORY_KIND),
     CategoryReason: _table(CATEGORY_REASON),
     TransferStep: _table(TRANSFER_STEP),
     RuleLayer: _table(RULE_LAYER),

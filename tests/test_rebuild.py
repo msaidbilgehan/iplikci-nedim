@@ -10,16 +10,16 @@ from pathlib import Path
 import pytest
 
 from iplikci import demo
-from iplikci.app import annotate, checks, intake, rebuild
+from iplikci.app import annotate, checks, intake, memory, rebuild
 from iplikci.app.analysis import analyze
 from iplikci.app.workspace import Workspace
 from iplikci.cli import main
-from iplikci.domain.codes import Actor, DocumentStatus, Necessity, RateSource
+from iplikci.domain.codes import Actor, DocumentStatus, MemoryKind, Necessity, RateSource
 from iplikci.fakes import fx as fake_fx
 from iplikci.fakes import garanti, teb
 from iplikci.fx import tcmb
 from iplikci.settings.paths import HOME_ENV
-from iplikci.storage import annotations, documents, fx_rates
+from iplikci.storage import annotations, documents, fx_rates, memories
 
 from conftest import JANUARY, add
 
@@ -122,6 +122,28 @@ def test_an_older_dump_has_no_rates_and_rates_lost_on_the_way_are_a_difference(n
         assert rebuild.rates_carried(primary, db) == [
             "kurlar: dökümde 3 kur ve 1 gün, yeniden kurulanda 0 kur ve 0 gün"
         ]
+
+
+def test_claudes_notes_come_back_with_the_rebuilt_database_and_an_older_dump_has_none(noted, tmp_path):
+    memory.write(noted, "kira-odemesi", Actor.MCP, kind=MemoryKind.REFERENCE, description="Kira", body="Ayın 5'i.")
+    memory.write(noted, "ozet-bicimi", Actor.MCP, kind=MemoryKind.FEEDBACK, description="Tablo", body="Neden: …")
+    with noted.db() as db:
+        kept = memories.every(db)
+        primary = rebuild.load(rebuild.dump(rebuild.export(db)))
+    assert primary.memories == kept and len(kept) == 2
+    with rebuild.rebuild(noted, tmp_path, primary).db() as db:
+        assert memories.every(db) == kept  # with their own times and who wrote them
+        assert rebuild.notes_carried(kept, db) == []
+    report = rebuild.check(noted)
+    assert report.ok and report.memories == 2, report.differences
+    older = json.loads(rebuild.dump(primary))
+    older["version"] = 6
+    del older["memories"]
+    without = rebuild.load(json.dumps(older))
+    assert without.memories == []
+    (folder := tmp_path / "eski").mkdir()
+    with rebuild.rebuild(noted, folder, without).db() as db:
+        assert rebuild.notes_carried(kept, db) == ["hafıza: 2 not yeniden kurulanda aynı değil"]
 
 
 def test_a_changed_reading_in_the_database_is_found(noted):

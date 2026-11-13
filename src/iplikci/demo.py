@@ -6,17 +6,18 @@ with made-up names, numbers and amounts; the tests use the same builders. The do
 vault the way an import does, so the demo's baseline is taken from the vault and the database like a real one.
 Card statements and the other readers' documents have builders too; adding them here changes the golden
 baseline, so that is a step of its own. The exchange rates are TCMB's made-up bulletins (fakes.fx), one for every
-business day the demo covers, read through TCMB's own reader.
+business day the demo covers, read through TCMB's own reader. Two notes stand in Claude's memory (ADR-0023), as Claude
+would have written them, so the Claude bağlantısı screen shows what it keeps.
 """
 
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
-from .app import fx, intake
+from .app import fx, intake, memory
 from .app.workspace import Workspace
 from .categorize import PERSONAL_TEMPLATE
-from .domain.codes import Actor, RateSource, SourceKind
+from .domain.codes import Actor, MemoryKind, RateSource, SourceKind
 from .fakes import HOLDER, Move, garanti, teb
 from .fakes import fx as fake_rates
 from .fakes.files import text_pdf
@@ -200,4 +201,36 @@ def build(target: Path) -> Path:
         incoming.append(intake.Incoming(name, data, Source(kind, name, folder)))
     intake.apply(ws, intake.plan_documents(ws, incoming), Actor.SYSTEM)
     _store_rates(ws)
+    _remember(ws)
     return target
+
+
+# What Claude keeps across conversations, as it would have written it: how the user wants the month told, and what
+# they save towards. No amount: the tools give those fresh each time.
+_NOTES = (
+    (
+        "ozet-bicimi",
+        MemoryKind.FEEDBACK,
+        "Aylık özeti önce bir tabloyla, sonra birkaç cümleyle ister",
+        (
+            "Kullanıcı aylık özeti önce gelir, gider ve kalanı yan yana gösteren bir tabloyla, sonra iki üç cümleyle "
+            "istiyor.\nNeden: rakamları yan yana görmeden yoruma güvenmiyor.\nNasıl: tabloyu month_end'in "
+            "toplamlarından kurun, yorumu tablonun altına yazın."
+        ),
+    ),
+    (
+        "acil-durum-fonu",
+        MemoryKind.PROJECT,
+        "2026 sonuna kadar üç aylık gidere denk bir acil durum fonu biriktiriyor",
+        (
+            "Kullanıcı 2026 sonuna kadar üç aylık giderine denk bir birikim yapmak istiyor.\nNeden: geliri her ay "
+            "aynı gün gelmiyor.\nNasıl: aylık özette birikimin bu hedefe göre nerede durduğunu söyleyin; birikimi "
+            "net_worth, aylık gideri insights verir."
+        ),
+    ),
+)
+
+
+def _remember(ws: Workspace) -> None:
+    for name, kind, description, body in _NOTES:
+        memory.write(ws, name, Actor.MCP, kind=kind, description=description, body=body)

@@ -108,6 +108,25 @@ def mask_for(level: str, ds: Dataset, own_names: Iterable[str] = ()) -> Mask:
     return Mask(level, tuple(replacements))
 
 
+_HANDLE_DIGITS = re.compile(r"\d{6,}")  # a handle never needs an account's, a card's or an IBAN's digits
+
+
+def handle_hides(handle: str, ds: Dataset, own_names: Iterable[str] = ()) -> bool:
+    """Whether a handle of the program's own (a memory note's kebab-case name: "kira-odemesi") carries what the strictest
+    masking hides. Masking reads text as people write it, a name in its Turkish letters; a handle writes it folded and
+    hyphenated ("veli-orneksoy"), which no mask would find. So a person's whole name is looked for among the handle's
+    words, as masking looks for it among a text's; an account's number as masking finds it; and any run of six or more
+    digits, which an IBAN in small letters would hide from the masks."""
+    if _HANDLE_DIGITS.search(handle) or mask_for(NAMES, ds, own_names).text(handle) != handle:
+        return True
+    words = handle.split("-")
+    for name in _people(ds, own_names):
+        parts = fold(name).lower().split()
+        if any(words[i : i + len(parts)] == parts for i in range(len(words) - len(parts) + 1)):
+            return True
+    return False
+
+
 def _people(ds: Dataset, own_names: Iterable[str]) -> set[str]:
     """The people's names the ledger knows, one spelling each (the first seen, whatever its case)."""
     found: dict[str, str] = {}

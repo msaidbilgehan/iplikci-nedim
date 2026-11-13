@@ -60,6 +60,7 @@ import type {
   McpConnection,
   McpMasking,
   McpToken,
+  Memories,
   OtherSenders,
   PageLines,
   Pairing,
@@ -131,6 +132,7 @@ export const keys = {
   invoices: ["invoices"] as const,
   otherSenders: ["settings", "mail", "other-senders"] as const,
   mcpConnection: ["mcp", "connection"] as const,
+  memory: ["memory"] as const,
   notifications: ["notifications"] as const, // the box and the history both
   notificationBox: ["notifications", "in_app"] as const,
   notificationLog: ["notifications", "all"] as const,
@@ -141,6 +143,7 @@ export const keys = {
 
 const OTHER_SENDERS = "/api/settings/mail/other-senders";
 const MCP_CONNECTION = "/api/mcp/connection";
+const MEMORY = "/api/memory";
 
 export function useSystem() {
   return useQuery({
@@ -714,6 +717,24 @@ export function useSetMasking() {
     mutationFn: (masking: McpMasking) =>
       api.put<McpConnection>("/api/mcp/masking", { masking }),
     onSuccess: (saved) => client.setQueryData(keys.mcpConnection, saved),
+  });
+}
+
+/** The notes Claude keeps across conversations (K30, ADR-0023), in full: Claude writes them, the user reads them. */
+export function useMemories() {
+  return useQuery({
+    queryKey: keys.memory,
+    queryFn: () => api.get<Memories>(MEMORY),
+  });
+}
+
+/** Take a note away: no conversation reads it again. The service answers with the notes kept after it. */
+export function useDeleteMemory() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) =>
+      api.delete<Memories>(`${MEMORY}/${encodeURIComponent(name)}`),
+    onSuccess: (left) => client.setQueryData(keys.memory, left),
   });
 }
 
