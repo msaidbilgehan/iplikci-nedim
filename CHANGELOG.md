@@ -4,6 +4,35 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.11.0] — 2026-11-13 — Claude'un hafızası İplikçi Nedim'de
+
+### Eklenenler
+
+- Claude konuşmalar arasında hatırlamak istediklerini İplikçi Nedim'e not eder: sizi, tercihlerinizi, kararlarınızı
+  ve nasıl çalışmasını istediğinizi. Notlar veri klasöründe durur. Claude Code hangi klasörde açılırsa açılsın,
+  Claude Desktop ya da başka bir MCP istemcisi bağlansa da aynı notlar okunur. Daha önce Claude'un notları açıldığı
+  proje klasörüne bağlıydı: başka bir klasörde ya da uygulamada yoktu.
+- Claude'un üç yeni aracı: `read_memory` notların listesini, istenen notların tamamını ya da bir aramanın bulduklarını
+  verir (virgül aramayı İşlemler'deki gibi parçalara ayırır); `write_memory` not yazar ya da günceller;
+  `delete_memory` siler. Notlar hiçbir rakamı ya da kuralı değiştirmediği için bu araçlar plan istemez. Servis
+  kapalıyken notlar okunur, yazılmaz.
+- Claude bağlantısı ekranında "Claude'un hafızası" kartı: notlar türlerine göre (sizin hakkınızdakiler, çalışma
+  biçimi, süren işler ve kararlar, nerede ne var) listelenir; her notun tamamı açılır bölümde. Yanlış ya da
+  istemediğiniz bir notu, sorulduktan sonra silersiniz.
+- Notlar yedeklere ve veritabanının yeniden kurulmasına girer; `iplikci dogrula --yeniden-kur` notların aynı geldiğini
+  de denetler. Denetim kaydı her değişikliği notun adıyla yazar, metnini yazmaz.
+- Maskeleme açıkken notların metnindeki hesap numaraları ve kişi adları da gizlenir. Bir notun adı gizlenemeyeceği
+  için yeni bir notun adında kişinin tam adı, hesap numarası ya da uzun bir rakam dizisi olamaz.
+- Demo veri klasöründe Claude'un iki örnek notu var.
+
+### Düzeltilenler
+
+- Claude Code bir MCP sunucusunun talimatlarının yalnızca ilk 4096 karakterini gösterir. İplikçi Nedim'in talimatları
+  5408 karakterdi: maskelemenin ne gizlediği, servis kapalıyken yalnızca okunabileceği, şirket belgelerinin kapsam
+  dışı olduğu ve her rakamın araçlardan gelmesi gerektiği kesilen kısımdaydı, Claude Code'daki Claude bunları hiç
+  okumuyordu. Talimatlar artık 4045 karakter ve hiçbir kural kesilmiyor; araçların kendi açıklamalarında yazanlar
+  talimatlarda yinelenmiyor.
+
 ## [0.10.4] — 2026-11-13 — Virgülle birkaç şey birden aranır
 
 ### Eklenenler

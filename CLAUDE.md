@@ -6,7 +6,7 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-13): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.10.4). Between Phases 6 and 7 came
+Status (2026-11-13): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.11.0). Between Phases 6 and 7 came
 the interface's simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab
 (v0.7.3), documents known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked
 against the documents (v0.7.6). Next is the 1.0 release, whose conditions are partly time-bound (roadmap "Sürüm 1.0"
@@ -326,6 +326,23 @@ says what the waiting must show; check them once their time has passed).
     `TransactionsOut.search_parts`, MCP `parts`); one finding none says "bulunamadı" instead of vanishing among the
     others' rows. A link built from a name gives it through `search.exactly` (Yapılacaklar's uncategorized merchant),
     so a comma in the name never splits it.
+- v0.11.0 (K30, ADR-0023): Claude's memory lives in İplikçi Nedim, so an agent finds the same notes from whatever
+  folder or client it connects (any Claude Code project, Claude Desktop).
+  - `memories` (migration 21; primary data: the rebuild's dump v7 and the backups carry it) holds a note a row: a
+    kebab-case handle (`kira-odemesi`), a `MemoryKind` (Claude Code's own: user, feedback, project, reference), a
+    one-line description and the text; `app/memory` keeps 200 at most.
+  - MCP `read_memory` (the index without the texts; `names` in full; `text` through `domain/search`), `write_memory`
+    and `delete_memory`, 34 tools now. The two that write take no plan: a note changes no number or rule. A new
+    note's handle never carries what masking hides (`masking.handle_hides`: a person's whole name folded as a handle
+    writes it, an account's number, six digits or more), since a handle cannot be masked; the audit log names the
+    note, never its text.
+  - Claude Code shows the first 4096 characters of a server's instructions and cuts the rest. Ours were 5408, so the
+    rules on masking, the service being down and numbers coming from the tools were never read there.
+    `mcp/server.INSTRUCTIONS` fits now, with the memory as its first rule (`tests/test_mcp_memory.py` keeps it so);
+    what a tool's own description says is not said again. A new rule needs room made for it.
+  - The Claude bağlantısı screen's "Claude'un hafızası" card (`components/claude/MemoryCard`, `GET /api/memory`,
+    `DELETE /api/memory/{name}`) lists the notes by kind and removes one after asking; the interface never writes
+    one. The demo carries two notes.
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 
@@ -359,7 +376,7 @@ The MVP was retired on 2026-10-31 (K17, ADR-0018): İplikçi Nedim starts with n
 | `docs/v1/features.md` | Feature specs with acceptance criteria and the MVP parity checklist |
 | `docs/v1/roadmap.md` | Phases 0–8 and the 1.0 release, exit criteria, MVP module mapping, first-session steps |
 | `docs/v1/migration.md` | What V1 took from the MVP, the MVP archive, how V1 builds its own history |
-| `docs/adr/` | Decision records 0001–0022 |
+| `docs/adr/` | Decision records 0001–0023 |
 | `docs/yayin.md` | How a version is released, the signing key, the workflow's secrets, the Chrome Web Store |
 | `docs/domain/` | Bank formats and traps, ledger, categorization and interpretation rules |
 
@@ -490,7 +507,8 @@ system), `app/update` (the daily check, the install job, their state in `run/gun
 and `cli/update`; `packaging/release.py` (the signed manifest) and `packaging/chrome_store.py` (the store's upload);
 in `web/`, `components/settings/UpdatesCard`; in `extension/`, `bridge/renew` and `package.mjs` (the store package).
 v0.10.4 added `domain/search` (the search box's syntax) and, in `web/`, `lib/search` and
-`components/transactions/SearchParts`.
+`components/transactions/SearchParts`. v0.11.0 added `app/memory` (Claude's notes), `storage/memories` and
+`api/routes/memory`; in `web/`, `components/claude/MemoryCard`.
 The rest keeps the MVP's flat layout (`analysis`, `insights`, `month_end`, `report` with its `templates`, …) until the
 phases in the roadmap's MVP module table move it. Next to them: `fakes` (the fake document builders and every
 reader's specimens, shared with the tests and the demo), `demo` (the demo data folder), `baseline` (the verification

@@ -144,6 +144,16 @@ Yanıt: her sürüm etiketinde paketler ve eklentinin mağaza paketi bir GitHub 
 sürümü imzalı bir bildirgeyle bulup kurar, eklentiyi mağaza günceller. Karar [K29](#kararlar), tasarım
 [ADR-0022](../adr/0022-releases-and-updates.md)'de.
 
+### Claude'un hafızası (2026-11-13)
+
+> Platform AI için hafızalandırma sunsun. Yani şu anda memory sistemiyle proje özelinde hafıza notları alıyorsun,
+> bunu iplikçi nedim kendi içerisinde MCP ile sunsun ki proje konumundan bağımsız olarak istenilen yerden agent
+> bağlandığında hafıza notlarını platformun kendisinde tutabilsin.
+
+Yanıt: Claude'un konuşmalar arası notları İplikçi Nedim'in veri klasöründe durur; Claude hangi klasörden ya da
+uygulamadan bağlanırsa bağlansın onları MCP araçlarıyla okur ve yazar. Kullanıcı notları Claude bağlantısı ekranında
+görür ve siler. Karar [K30](#kararlar), tasarım [ADR-0023](../adr/0023-claude-memory.md)'te.
+
 ## Ürün ilkeleri
 
 Kullanıcının koyduğu ilkeler (2026-10-31):
@@ -193,9 +203,10 @@ Kullanıcının koyduğu ilkeler (2026-10-31):
 | K27 | Grafikler kısayoldur (2026-11-03): bir grafiğin parçasına tıklayınca o parçanın dayandığı işlemler listelenir. Kullanıcının sözü: "Grafikteki bir bar'a tıkladığımda o ayın giderlerinin listelenmesini istiyorum. Diğer grafiklerde de benzer kısayolların olması lazım." Açılan liste parçanın rakamını toplar: aynı günler, aynı türler, aynı süzgeçler. Ayların sütunu ya da dilimi, sıralı çubuklar, çizgilerin günleri ve akış diyagramının bantları böyledir; dokunmatik ekranda ilk dokunuş değeri gösterir, ikinci dokunuş ya da ipucundaki bağlantı açar; klavye aynı yerlere tablo görünümündeki bağlantılarla gider ([F06](features.md#f06--pano) ve ortak kurallar). | G2, G7 |
 | K28 | Belgeler Telegram botuyla da eklenir (2026-11-08). Kullanıcının sözü: "Belge yüklemeyi telegram bot üzerinden de yapabilmek istiyorum." Eşleşmiş sohbetten bota dosya olarak gönderilen banka belgeleri, Belge ekle ekranındaki yüklemeler gibi içeriklerinden tanınıp arşive alınır ve bot her birine ne olduğunu yazar. Başka sohbetlerden gelen dosyalar indirilmez. Bildirimler ekranındaki Telegram kartından kapatılabilir ([ADR-0021](../adr/0021-telegram-documents.md), [F02](features.md#f02--elle-ekleme-ve-gelen-klasörü)). | G1, G12 |
 | K29 | Uygulama ve tarayıcı eklentisi GitHub'da derlenir ve kendiliğinden güncellenir; eklentiyi kullanıcı Chrome Web Store'da yayımlar (2026-11-10). Kullanıcının sözü: "Uygulamanın ve browser eklentisinin github workflow'da derlenip otomatik güncelleme almalarını sağlayabilmek istiyorum. Devamında eklentiyi chrome eklenti sayfasında publish edeceğim." Her sürüm etiketinde kurulum paketleri, güncelleme dosyaları ve eklentinin mağaza paketi imzalı bir bildirgeyle bir GitHub sürümüne konur. Kurulu uygulama yeni sürümü günde bir arar, bildirgenin imzasını ve dosyanın özetini doğrular, yedek alıp kurar; Ayarlar'dan "önce sor" ya da kapalı yapılır. Elle kurulan kopya yalnızca haber verir. Mağazadaki ilk yayını kullanıcı yapar; sonraki sürümleri iş akışı yükler, tarayıcı günceller. K20'nin yerini alır. Kurulu kopyalar sürümleri kimlik bilgisi olmadan indirdiği için sürümlerin durduğu depo herkese açık olmalıdır; kod deposu özel kalacaksa (K18) sürümler ayrı bir depoya konur, bu karar kullanıcıdadır ([ADR-0022](../adr/0022-releases-and-updates.md), [F21](features.md#f21--güncellemeler)). | G4, G6 |
+| K30 | Claude'un hafızası İplikçi Nedim'dedir (2026-11-13). Kullanıcının sözü: "proje konumundan bağımsız olarak istenilen yerden agent bağlandığında hafıza notlarını platformun kendisinde tutabilsin." Claude konuşmalar arasında hatırladıklarını (kullanıcı kim, ondan nasıl çalışmasını istediği, süren işleri ve kararları, neyin nerede olduğu) Claude Code'un hafızasındaki gibi ad, tür, tek satırlık açıklama ve metinle not eder. Notlar veri klasöründe durur; Claude hangi klasörden ya da uygulamadan bağlanırsa bağlansın onları MCP araçlarıyla (`read_memory`, `write_memory`, `delete_memory`) okur ve yazar. Notlar hiçbir rakamı ya da kuralı değiştirmediği için yazmak plan istemez. Kullanıcı notları Claude bağlantısı ekranında görür ve siler ([ADR-0023](../adr/0023-claude-memory.md), [F16](features.md#f16--mcp)). | G9, K9, K14 |
 
 Mühendislik kararları (veri klasörü, veritabanı, API, ön yüz, bildirim içeriği, MVP'den geçiş…) gerekçeleriyle
-[ADR-0001 … ADR-0022](../adr/README.md)'dedir. Kullanıcı aksini söylemedikçe geçerlidirler.
+[ADR-0001 … ADR-0023](../adr/README.md)'dedir. Kullanıcı aksini söylemedikçe geçerlidirler.
 
 ## Gereksinimler
 

@@ -271,6 +271,7 @@ Defterin bir kuraldan ya da bulamadığından çözdüğü bir transfere verilen
 | `invoices` | türev | banka dışı e-postalar: satıcı, tutar, tarih, son ödeme tarihi, kalemler, eşleştirme durumu |
 | `links` | türev | transfer eşleri, kanıt↔satır, fatura↔satır |
 | `annotations` | **birincil** | parmak izine bağlı not, etiket, kategori ve gereklilik düzeltmesi, bölme |
+| `memories` | **birincil** | Claude'un konuşmalar arası notları: ad, tür, tek satırlık açıklama, metin, ilk ve son yazıldığı zaman, son yazan (ADR-0023) |
 | `analysis_snapshots` | türev | yorum, düzenli ödemeler, alışkanlıklar, tahmin, varlıklar, ay kapanışları (JSON) |
 | `fx_rates` | dış kaynak | tarih, döviz çifti, alış ve satış, kaynak |
 | `price_index` | dış kaynak (isteğe bağlı) | EVDS serisi, ay, değer (TÜFE) |
@@ -637,6 +638,7 @@ Ayrıntılar [ADR-0010](../adr/0010-notification-channels.md)'un uygulama notund
 | `GET /api/service`, `POST /api/service/stop`, `POST /api/service/restart`, `POST /api/service/remove` | servisin kendisi (ADR-0017): bilgisayar onu başlatıyor mu; durdurma, yeniden başlatma (yalnızca kayıtlı servis), bilgisayardan kaldırma (veri klasörü istenirse sonunda çöp kutusuna); önce yanıt verilir, servis sonra biter; yalnızca arayüz |
 | `GET /api/extension`, `POST /api/extension/folder` | tarayıcı eklentisinin klasörü (K20): program eklentiyi taşıyor mu, klasör güncel mi, mağaza sayfası (`store`, K29: yayımlanınca); klasörü yapma ya da yenileme ve dosya yöneticisinde gösterme |
 | `GET /api/update`, `POST /api/update/check`, `POST /api/update/install`, `PUT /api/update/mode` | programın güncellemeleri (ADR-0022): çalışan sürüm, kopyayı hangi kurulumun koyduğu, ayar (`auto`, `ask`, `off`), son denetim ve bulduğu sürüm (notuyla), süren ve son kurulum; şimdi denetle; bulunan sürümü şimdi kur (yalnızca kendini güncelleyebilen kopyada, 409 değilse); ayarı yalnızca arayüz değiştirir |
+| `GET /api/memory`, `DELETE /api/memory/{ad}` | Claude'un hafızası (ADR-0023): bütün notlar tamamıyla, türüne göre (kullanıcı hakkındakiler önce) ve en çok kaç not tutulduğu; bir notu silme, yalnızca arayüz. Notları Claude MCP ile yazar |
 | `GET /api/exports`, `POST /api/exports`, `GET /api/exports/{tür}` | CSV, XLSX, tek dosyalık rapor, ay sonu sayfaları: üretme ve indirme |
 | `/mcp` | MCP Streamable HTTP (Aşama 7) |
 
@@ -675,6 +677,8 @@ uygulanır.
 | `net_worth`, `fx_rates` | – | varlıklar (TL, EUR, USD, altın; döviz varlık alış, borç satış kuruyla, kurun günü ve kaynağıyla); kurlar (TCMB, ECB ya da belgelerdeki, alış ve satışıyla), kur makası ve döviz geliri |
 | `alerts` | plan | bildirim kurallarını listele (yalnızca okur), ekle, kapat ya da yeniden aç; kanalların durumu |
 | `annotate_transaction` | plan | not, etiket, kategori ya da gereklilik düzeltmesi |
+| `read_memory` | – | Claude'un hafızası (ADR-0023): argümansız notların listesi (ad, tür, açıklama, son değişiklik), `names` ile notların tamamı, `text` ile arama (İşlemler'in kuralıyla) |
+| `write_memory`, `delete_memory` | evet | hafızaya not yazma ya da aynı adlı notu güncelleme; not silme. Plan istemez: notlar hiçbir rakamı ya da kuralı değiştirmez |
 
 - Her araç ek açıklamalar taşır: okuyanlarda `readOnlyHint`; yazanlarda `destructiveHint` (bir şeyi geri alınamaz
   biçimde kaldırabiliyorsa) ve `idempotentHint`. Şemaların ve ek açıklamaların anlık görüntüsü
@@ -683,6 +687,13 @@ uygulanır.
   yaklaşık 20 000 karakterle sınırlıdır; istenen sayfa ayrıca alınır.
 - Yanıtlar ayarlardaki maskelemeden geçer; her çağrı ve kaynak okuması denetim kaydına yazılır.
 - Servis kapalıyken stdio köprüsünün yerel sunucusu yalnızca okuyan çağrıları yanıtlar; plan yapılır ama uygulanmaz.
+- Sunucunun talimatları 4096 karakteri geçmez: Claude Code bir sunucunun talimatlarının ilk 4096 karakterini
+  gösterir, gerisini keser (test edilir). İlk kural hafızadır: konuşmanın başında `read_memory`.
+- **Hafıza** (K30, ADR-0023): Claude'un konuşmalar arası notları veri klasöründedir; Claude hangi klasörden ya da
+  uygulamadan bağlanırsa bağlansın aynı notları okur. Bir not ad (`kira-odemesi`), tür (`user`, `feedback`,
+  `project`, `reference`), tek satırlık açıklama ve metindir; en çok 200 not tutulur. Yeni bir notun adında kişinin tam
+  adı, hesap numarası ya da altı ve daha uzun bir rakam dizisi olamaz: bir ad maskelenemez. Denetim kaydı her
+  değişikliği notun adıyla yazar (`memory.written`, `memory.removed`), metnini yazmaz.
 
 ## 18. Ön yüz
 

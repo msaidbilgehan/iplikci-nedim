@@ -132,7 +132,7 @@ Aşama 7 (MCP, v0.8.0) Claude'u İplikçi Nedim'e bağlar:
 - Bir şeyi değiştiren araçlar (kategori ve bildirim kuralları, bir işleme not, bir belgeyi yeniden okutmak) önce ne
   değişeceğini gösterir; değişiklik ancak siz onaylayınca yapılır.
 - Claude'a giden yanıtlarda hesap numaraları ve IBAN'lar, isterseniz kişi adları da gizlenir. Claude'un her çağrısı
-  denetim kaydına yazılır.
+  denetim kaydına yazılır. Claude'un konuşmalar arası notları da İplikçi Nedim'de durur (v0.11.0, aşağıda).
 - Claude terminal açmadan bağlanır. "Claude bağlantısı" ekranı claude-SAK'a ya da Claude Desktop'a yapıştırılacak
   yapılandırmayı verir. Belirteç Claude'un ayar dosyasına yazılmaz.
 
@@ -252,6 +252,16 @@ Virgülle birkaç şey birden aranır (v0.10.4):
 - Listenin üstünde her parçanın kaç işlem bulduğu yazar; hiçbir işlem bulamayan parça, örneğin yanlış yazılmış bir ad,
   "bulunamadı" der. Bir parçanın adına tıklayınca yalnızca onun işlemleri açılır.
 - Belgeler, Değerlendirme ve Claude'un arama aracı da virgülü aynı biçimde okur.
+
+Claude'un hafızası İplikçi Nedim'de (v0.11.0):
+
+- Claude konuşmalar arasında hatırlamak istediklerini İplikçi Nedim'e not eder: sizi, tercihlerinizi, kararlarınızı ve
+  nasıl çalışmasını istediğinizi. Claude Code'u hangi klasörde açarsanız açın, Claude Desktop'tan da bağlansanız aynı
+  notları okur; bir konuşmada söylediğinizi ötekinde yeniden anlatmanız gerekmez.
+- Notlar bu bilgisayarda, verilerinizle birlikte durur ve yedeklenir. Claude'a rakamları, bakiyeleri ve şifreleri
+  nota yazmaması söylenir: rakamları her seferinde İplikçi Nedim'den yeniden okur.
+- Claude bağlantısı ekranındaki "Claude'un hafızası" kartında Claude'un ne hatırladığını görürsünüz; yanlış ya da
+  istemediğiniz bir notu silebilirsiniz.
 
 Açık kalanlar: servisin yedi gün kendi başına çalışması (K19). Windows ve Linux'ta denemeler bekletiliyor (K25).
 Sürümler henüz herkese açık bir yerde değil; kurulu kopyalar güncellemeyi ancak o zaman indirebilir (K29).

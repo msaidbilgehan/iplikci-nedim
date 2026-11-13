@@ -31,5 +31,6 @@ kullanıcı aksini söylemedikçe geçerlidir.
 | [0020](0020-bridge-sayings.md) | Eşleşmiş tarayıcı eklentisi İplikçi Nedim'in sözlerini servisten alır | K26, tasarım |
 | [0021](0021-telegram-documents.md) | Eşleşmiş Telegram sohbetinden bota gönderilen belgeler arşive alınır | K28 |
 | [0022](0022-releases-and-updates.md) | Sürümler GitHub'da yayımlanır; uygulama imzalı bildirgeyle kendini, eklentiyi mağaza günceller | K29, K14, K22 |
+| [0023](0023-claude-memory.md) | Claude'un hafızası İplikçi Nedim'de durur, MCP ile okunup yazılır | K30, K9 |
 
 Yeni kayıt: sıradaki numarayla `NNNN-kisa-ad.md`; başlık karar cümlesi olur; bu tabloya eklenir.
