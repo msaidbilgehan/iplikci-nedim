@@ -1989,7 +1989,7 @@ def _fx_rates(s: Session, args: Args) -> Json:
     }
 
 
-# --- Claude's memory (K30, ADR-0023): the notes kept across conversations, whatever folder or client connects -------
+# --- Claude's memory (K30, ADR-0023): the user's financial checks and decisions, for whatever folder or client ------
 
 NO_MEMORY = "bu adla bir not yok (read_memory argümansız çağrılınca bütün notların adlarını verir)"
 MASKED_NAME = (
@@ -2002,8 +2002,9 @@ MEMORY_INDEX = (
     "write_memory ile düzeltin ya da delete_memory ile silin."
 )
 MEMORY_EMPTY = (
-    "Hafızada henüz not yok: kullanıcıyı, tercihlerini, kararlarını ve sizden istediği çalışma biçimini öğrendikçe "
-    "write_memory ile yazın. Sonraki konuşmalar, hangi klasörden ya da uygulamadan bağlanırsa bağlansın, onları okur."
+    "Hafızada henüz not yok: kullanıcıyla yaptığınız finansal kontrolleri, onun finansal kararlarını, hedeflerini ve "
+    "finansal yanıtları nasıl istediğini write_memory ile yazın. Sonraki konuşmalar, hangi klasörden ya da uygulamadan "
+    "bağlanırsa bağlansın, onları okur."
 )
 SEARCH_MORE = "Daha fazla not bulundu: aramayı daraltın ya da limit'i artırın."
 
@@ -2608,13 +2609,14 @@ TOOLS = (
     Tool(
         "read_memory",
         "Hafızayı oku",
-        "Claude'un konuşmalar arası hafızası: önceki konuşmalarda yazılan notlar. Kullanıcı hangi klasörden ya da hangi "
-        "uygulamadan bağlanırsa bağlansın aynı notlar gelir. Argümansız çağrılınca bütün notların listesi gelir: her "
-        "notun adı, türü (kind), tek satırlık açıklaması, son değiştiği zaman ve son yazanı (by: mcp ya da user); "
-        "notların metni gelmez. Konuşmanın başında buna bakın. names ile o notların tamamı gelir; text ile adında, "
-        "açıklamasında ya da metninde verilen kelimeler geçen notların tamamı, en yeni önce (virgül aramayı parçalara "
-        "ayırır, bir parçanın tutması yeter). Notlar yazıldıkları günün bilgisidir: kullanıcının bu konuşmadaki sözü "
-        "önce gelir; bir nota dayanmadan önce söylediğinin hâlâ doğru olduğunu araçlarla doğrulayın.",
+        "Kullanıcının parasına dair konuşmalar arası hafıza: önceki konuşmalarda yazılan finansal kontroller, kararlar "
+        "ve tercihler. Kullanıcı hangi klasörden ya da hangi uygulamadan bağlanırsa bağlansın aynı notlar gelir. "
+        "Argümansız çağrılınca bütün notların listesi gelir: her notun adı, türü (kind), tek satırlık açıklaması, son "
+        "değiştiği zaman ve son yazanı (by: mcp ya da user); notların metni gelmez. Kullanıcının parasıyla ilgili bir "
+        "işe başlarken buna bakın. names ile o notların tamamı gelir; text ile adında, açıklamasında ya da metninde "
+        "verilen kelimeler geçen notların tamamı, en yeni önce (virgül aramayı parçalara ayırır, bir parçanın tutması "
+        "yeter). Notlar yazıldıkları günün bilgisidir: kullanıcının bu konuşmadaki sözü önce gelir; bir nota "
+        "dayanmadan önce söylediğinin hâlâ doğru olduğunu araçlarla doğrulayın.",
         _schema(
             names={
                 "type": "array",
@@ -2636,12 +2638,15 @@ TOOLS = (
     Tool(
         "write_memory",
         "Hafızaya yaz",
-        "Hafızaya bir not yazar ya da var olan notu günceller; plan istemez, hemen yazar. Bir not tek bir konuyu "
-        "anlatır. kind: user (kullanıcı kim; durumu, bildikleri, tercihleri), feedback (kullanıcının çalışma "
-        "biçiminize dair düzeltmeleri ve onayladığı yollar), project (süren işler, hedefler, kararlar ve kısıtlar; "
-        "göreli günleri kesin tarihe çevirin) ya da reference (neyin nerede olduğu: hangi hesabın neyi ödediği, "
-        "programın dışındaki bir yer). feedback ve project notlarının metnine nedenini (Neden:) ve nasıl "
-        "uygulanacağını (Nasıl:) da yazın. name küçük harf, rakam ve tirelerden oluşan kısa bir addır (ör. "
+        "Hafızaya bir not yazar ya da var olan notu günceller; plan istemez, hemen yazar. Hafıza yalnızca kullanıcının "
+        "parasına dairdir: onunla yaptığınız finansal kontroller ve sonuçları, aldığı finansal kararlar, hedefleri, "
+        "planları, açık sorular ve finansal yanıtları nasıl istediği. Yazılımın, kodun ya da başka işlerin notlarını "
+        "buraya yazmayın; onlar sizin kendi hafızanızda kalır. Bir not tek bir konuyu anlatır. kind: user (kullanıcı "
+        "kim: işi, geliri, hanesi gibi mali durumu, bildikleri, tercihleri), feedback (finansal yanıtlarınıza ve "
+        "kontrollerinize dair düzeltmeleri ve onayladığı yollar), project (finansal kararlar, hedefler, planlar, yapılan "
+        "kontroller ve açık sorular; göreli günleri kesin tarihe çevirin) ya da reference (neyin nerede olduğu: hangi "
+        "hesabın neyi ödediği, programın dışındaki bir yer). feedback ve project notlarının metnine nedenini (Neden:) ve "
+        "nasıl uygulanacağını (Nasıl:) da yazın. name küçük harf, rakam ve tirelerden oluşan kısa bir addır (ör. "
         "kira-odemesi); kişi adı ya da hesap numarası içermez. Aynı adla yazmak notu günceller: verilmeyen alan olduğu "
         "gibi kalır; yeni bir not için kind, description ve body gerekir. Yazmadan önce read_memory ile aynı konuda bir "
         "not var mı bakın, varsa onu güncelleyin. Araçların her seferinde yeniden verdiği rakamları, işlemleri ve "

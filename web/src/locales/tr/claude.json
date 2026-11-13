@@ -49,8 +49,8 @@
   },
   "memory": {
     "title": "Claude'un hafızası",
-    "intro": "Claude konuşmalar arasında hatırlamak istediklerini buraya not eder: sizi, tercihlerinizi, kararlarınızı ve nasıl çalışmasını istediğinizi. Hangi klasörden ya da uygulamadan bağlanırsa bağlansın aynı notları okur. Notlar bu bilgisayarda, İplikçi Nedim'in veri klasöründe durur; yanlış ya da istemediğiniz bir notu silebilirsiniz.",
-    "empty": "Henüz not yok. Claude sizinle konuştukça öğrendiklerini buraya yazar.",
+    "intro": "Claude paranızla ilgili konuşmalarda hatırlaması gerekenleri buraya not eder: sizinle yaptığı finansal kontrolleri ve sonuçlarını, aldığınız finansal kararları, hedeflerinizi ve yanıtları nasıl istediğinizi. Yazılımın ya da başka işlerin notları buraya yazılmaz. Claude hangi klasörden ya da uygulamadan bağlanırsa bağlansın aynı notları okur. Notlar bu bilgisayarda, İplikçi Nedim'in veri klasöründe durur; yanlış ya da istemediğiniz bir notu silebilirsiniz.",
+    "empty": "Henüz not yok. Claude paranızla ilgili bir kontrol yaptıkça ya da bir karar aldıkça buraya yazar.",
     "count_one": "{{count}} not; en çok {{most}} not tutulur.",
     "count_other": "{{count}} not; en çok {{most}} not tutulur.",
     "updated": "Son değişiklik: {{day}}",

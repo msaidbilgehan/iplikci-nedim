@@ -396,7 +396,7 @@ STATEMENT_CHECK: dict[StatementCheck, str] = {
 MEMORY_KIND: dict[MemoryKind, str] = {
     MemoryKind.USER: "Kullanıcı hakkında",
     MemoryKind.FEEDBACK: "Çalışma biçimi",
-    MemoryKind.PROJECT: "Süren işler ve kararlar",
+    MemoryKind.PROJECT: "Kararlar ve kontroller",
     MemoryKind.REFERENCE: "Nerede ne var",
 }
 

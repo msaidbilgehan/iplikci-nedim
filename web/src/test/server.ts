@@ -297,7 +297,7 @@ export const LABELS: Labels = {
   MemoryKind: {
     user: "Kullanıcı hakkında",
     feedback: "Çalışma biçimi",
-    project: "Süren işler ve kararlar",
+    project: "Kararlar ve kontroller",
     reference: "Nerede ne var",
   },
 };
