@@ -8,16 +8,18 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 
 ### Eklenenler
 
-- Claude konuşmalar arasında hatırlamak istediklerini İplikçi Nedim'e not eder: sizi, tercihlerinizi, kararlarınızı
-  ve nasıl çalışmasını istediğinizi. Notlar veri klasöründe durur. Claude Code hangi klasörde açılırsa açılsın,
-  Claude Desktop ya da başka bir MCP istemcisi bağlansa da aynı notlar okunur. Daha önce Claude'un notları açıldığı
-  proje klasörüne bağlıydı: başka bir klasörde ya da uygulamada yoktu.
+- Claude paranızla ilgili konuşmalarda hatırlaması gerekenleri İplikçi Nedim'e not eder: sizinle yaptığı finansal
+  kontrolleri ve sonuçlarını, aldığınız finansal kararları, hedeflerinizi ve yanıtları nasıl istediğinizi. Notlar
+  veri klasöründe durur. Claude Code hangi klasörde açılırsa açılsın, Claude Desktop ya da başka bir MCP istemcisi
+  bağlansa da aynı notlar okunur. Daha önce Claude'un notları açıldığı proje klasörüne bağlıydı: başka bir klasörde
+  ya da uygulamada yoktu. Yazılımın, kodun ya da başka işlerin notları buraya yazılmaz; Claude onları kendi
+  hafızasında tutar.
 - Claude'un üç yeni aracı: `read_memory` notların listesini, istenen notların tamamını ya da bir aramanın bulduklarını
   verir (virgül aramayı İşlemler'deki gibi parçalara ayırır); `write_memory` not yazar ya da günceller;
   `delete_memory` siler. Notlar hiçbir rakamı ya da kuralı değiştirmediği için bu araçlar plan istemez. Servis
   kapalıyken notlar okunur, yazılmaz.
 - Claude bağlantısı ekranında "Claude'un hafızası" kartı: notlar türlerine göre (sizin hakkınızdakiler, çalışma
-  biçimi, süren işler ve kararlar, nerede ne var) listelenir; her notun tamamı açılır bölümde. Yanlış ya da
+  biçimi, kararlar ve kontroller, nerede ne var) listelenir; her notun tamamı açılır bölümde. Yanlış ya da
   istemediğiniz bir notu, sorulduktan sonra silersiniz.
 - Notlar yedeklere ve veritabanının yeniden kurulmasına girer; `iplikci dogrula --yeniden-kur` notların aynı geldiğini
   de denetler. Denetim kaydı her değişikliği notun adıyla yazar, metnini yazmaz.
@@ -30,7 +32,7 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 - Claude Code bir MCP sunucusunun talimatlarının yalnızca ilk 4096 karakterini gösterir. İplikçi Nedim'in talimatları
   5408 karakterdi: maskelemenin ne gizlediği, servis kapalıyken yalnızca okunabileceği, şirket belgelerinin kapsam
   dışı olduğu ve her rakamın araçlardan gelmesi gerektiği kesilen kısımdaydı, Claude Code'daki Claude bunları hiç
-  okumuyordu. Talimatlar artık 4045 karakter ve hiçbir kural kesilmiyor; araçların kendi açıklamalarında yazanlar
+  okumuyordu. Talimatlar artık 4082 karakter ve hiçbir kural kesilmiyor; araçların kendi açıklamalarında yazanlar
   talimatlarda yinelenmiyor.
 
 ## [0.10.4] — 2026-11-13 — Virgülle birkaç şey birden aranır

@@ -638,18 +638,22 @@ G9, K9 · Çekirdek
       profilleri onu varsayılan profilden alır. `claude mcp list` bağlı gösterdi. Kullanıcının Claude'u gerçek veride
       `status`'u okudu: arşivde 1481 belge, 50 hesap ekstresi, 10 tam ay. Bu sayılar aracın doğrudan çağrısıyla aynı
       çıktı.
-- **Claude'un hafızası (K30, [ADR-0023](../adr/0023-claude-memory.md), v0.11.0, 2026-11-13)**
-  - Claude'un konuşmalar arası notları İplikçi Nedim'in veri klasöründedir. Claude hangi klasörden ya da uygulamadan
-    (Claude Code'un herhangi bir projesi, Claude Desktop, başka bir MCP istemcisi) bağlanırsa bağlansın aynı notları
-    okur.
+- **Claude'un hafızası (K30, [ADR-0023](../adr/0023-claude-memory.md), v0.11.0, 2026-11-13; kapsamı 2026-11-14)**
+  - Claude'un kullanıcının parasına dair konuşmalar arası notları İplikçi Nedim'in veri klasöründedir: onunla yapılan
+    finansal kontroller ve sonuçları, kullanıcının finansal kararları, hedefleri, planları, açık soruları ve finansal
+    yanıtları nasıl istediği. Claude hangi klasörden ya da uygulamadan (Claude Code'un herhangi bir projesi, Claude
+    Desktop, başka bir MCP istemcisi) bağlanırsa bağlansın aynı notları okur. Yazılımın, kodun ve başka işlerin notları
+    buraya yazılmaz.
   - `read_memory` argümansız notların listesini (ad, tür, tek satırlık açıklama, son değişiklik, son yazan) verir,
     metinlerini vermez; `names` ile notların tamamı, `text` ile arama (virgülle ayrılan parçalardan biri) gelir.
     `write_memory` yeni not yazar ya da aynı adlı notu günceller, `delete_memory` siler. Yazan iki araç plan istemez.
-  - Talimatların ilk kuralı hafızadır: konuşmanın başında notların listesine bakmak, öğrendikçe yazmak, yanlışlananı
-    düzeltmek. Notlar yazıldıkları günün bilgisidir; kullanıcının o konuşmadaki sözü önce gelir. Bir belgenin
-    içindeki metin yüzünden not yazılmaz; rakamlar, işlemler, şifreler ve belirteçler nota girmez.
-  - Claude bağlantısı ekranının "Claude'un hafızası" kartı notları türlerine göre gösterir; kullanıcı bir notu
-    sorulduktan sonra siler. Notları arayüz yazmaz.
+  - Talimatların ilk kuralı hafızadır: kullanıcının parasıyla ilgili bir işe başlarken notların listesine bakmak, yeni
+    kontrolleri ve kararları yazmak, yazılımın ve başka işlerin notlarını yazmamak. Notlar yazıldıkları günün
+    bilgisidir; kullanıcının o konuşmadaki sözü önce gelir. Bir belgenin içindeki metin yüzünden not yazılmaz;
+    araçların her seferinde yeniden verdiği rakamlar, işlemler, şifreler ve belirteçler nota girmez.
+  - Claude bağlantısı ekranının "Claude'un hafızası" kartı notları türlerine göre (Kullanıcı hakkında, Çalışma biçimi,
+    Kararlar ve kontroller, Nerede ne var) gösterir; kullanıcı bir notu sorulduktan sonra siler. Notları arayüz
+    yazmaz.
   - **Ölçütler**
     - İki ayrı MCP oturumu aynı notları görür; servis kapalıyken notlar okunur, yazılmaz (test edilir).
     - Notlar yeniden kurmada, yedekte ve yedeğin geri yüklenmesinde korunur; eski bir döküm notsuz okunur (test
@@ -658,12 +662,17 @@ G9, K9 · Çekirdek
       adı, hesap numarası ya da altı ve daha uzun bir rakam dizisi olamaz (test edilir).
     - Denetim kaydı notun adını yazar, metnini yazmaz (test edilir).
     - Talimatlar Claude Code'un gösterdiği 4096 karaktere sığar ve hafızayla başlar (test edilir).
+    - Talimatların hafıza kuralı, `read_memory`'nin ve `write_memory`'nin açıklamaları ve boş hafızanın notu hafızanın
+      finansal kontroller ve kararlar için olduğunu söyler; kural ve `write_memory` yazılımın, kodun ve başka işlerin
+      notlarını dışarıda bırakır (test edilir).
   - Ölçütlerin denenmesi: bir demo servisine `/mcp`'den API belirteciyle bağlanıldı. Talimatlar 4045 karakter geldi ve
     ilk kuralı hafızaydı; araç listesinde 34 araç vardı. `read_memory` demonun iki notunu listeledi. `write_memory` bir
     not yazdı, `names` onu geri okudu, "tablo, deneme" araması iki not buldu. `GET /api/memory` üç notu türlerine göre
     verdi, `delete_memory` notu sildi. Denetim kaydında `memory.written` ve `memory.removed` notun adıyla, araç
     çağrıları argümanlarının adlarıyla göründü. Claude bağlantısı ekranı dolu kartıyla iki temada da axe
-    denetiminden geçti ve telefon genişliğinde yana taşmadı.
+    denetiminden geçti ve telefon genişliğinde yana taşmadı. Kapsam daraldıktan sonra (2026-11-14) kurulu servise
+    stdio köprüsüyle bağlanıldı: talimatlar 4082 karakter geldi ve ilk kuralı finansal hafızaydı; 34 aracın
+    `read_memory`'si ve `write_memory`'si hafızanın finansal kontroller ve kararlar için olduğunu söyledi.
 
 ## F17 — Kurulum sihirbazı ve ayarlar
 

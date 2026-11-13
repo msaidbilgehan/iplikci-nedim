@@ -11,6 +11,13 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 
 ## Değişiklik kaydı
 
+- 2026-11-14 (55) — Hafıza yalnızca kullanıcının parasına dair (v0.11.0):
+  - [K30](v1/requirements.md#kararlar) ve kullanıcının 2026-11-14'teki sözü: hafıza finansal kontroller ve alınan
+    finansal kararlar içindir; projenin teknik notları ve başka projelerin notları oraya taşınmaz.
+  - [ADR-0023](adr/0023-claude-memory.md): kapsam, türlerin finansal anlamı, talimatların ilk kuralı; değerlendirilen
+    seçeneklere ilk biçim eklendi.
+  - [Özellikler](v1/features.md) F16: kapsamın ölçütü; [mimari](v1/architecture.md) §8 ve §17.
+
 - 2026-11-13 (54) — Claude'un hafızası İplikçi Nedim'de (v0.11.0):
   - [K30](v1/requirements.md#kararlar) ve kullanıcının sözü; [ADR-0023](adr/0023-claude-memory.md): notun alanları,
     üç araç ve neden plan istemedikleri, maskelenemeyen ad, Claude Code'un 4096 karakterlik talimat sınırı.

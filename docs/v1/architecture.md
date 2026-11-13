@@ -271,7 +271,7 @@ Defterin bir kuraldan ya da bulamadığından çözdüğü bir transfere verilen
 | `invoices` | türev | banka dışı e-postalar: satıcı, tutar, tarih, son ödeme tarihi, kalemler, eşleştirme durumu |
 | `links` | türev | transfer eşleri, kanıt↔satır, fatura↔satır |
 | `annotations` | **birincil** | parmak izine bağlı not, etiket, kategori ve gereklilik düzeltmesi, bölme |
-| `memories` | **birincil** | Claude'un konuşmalar arası notları: ad, tür, tek satırlık açıklama, metin, ilk ve son yazıldığı zaman, son yazan (ADR-0023) |
+| `memories` | **birincil** | Claude'un kullanıcının parasına dair konuşmalar arası notları (finansal kontroller ve kararlar): ad, tür, tek satırlık açıklama, metin, ilk ve son yazıldığı zaman, son yazan (ADR-0023) |
 | `analysis_snapshots` | türev | yorum, düzenli ödemeler, alışkanlıklar, tahmin, varlıklar, ay kapanışları (JSON) |
 | `fx_rates` | dış kaynak | tarih, döviz çifti, alış ve satış, kaynak |
 | `price_index` | dış kaynak (isteğe bağlı) | EVDS serisi, ay, değer (TÜFE) |
@@ -688,9 +688,12 @@ uygulanır.
 - Yanıtlar ayarlardaki maskelemeden geçer; her çağrı ve kaynak okuması denetim kaydına yazılır.
 - Servis kapalıyken stdio köprüsünün yerel sunucusu yalnızca okuyan çağrıları yanıtlar; plan yapılır ama uygulanmaz.
 - Sunucunun talimatları 4096 karakteri geçmez: Claude Code bir sunucunun talimatlarının ilk 4096 karakterini
-  gösterir, gerisini keser (test edilir). İlk kural hafızadır: konuşmanın başında `read_memory`.
-- **Hafıza** (K30, ADR-0023): Claude'un konuşmalar arası notları veri klasöründedir; Claude hangi klasörden ya da
-  uygulamadan bağlanırsa bağlansın aynı notları okur. Bir not ad (`kira-odemesi`), tür (`user`, `feedback`,
+  gösterir, gerisini keser (test edilir). İlk kural hafızadır: kullanıcının parasıyla ilgili bir işe başlarken
+  `read_memory`.
+- **Hafıza** (K30, ADR-0023): Claude'un kullanıcının parasına dair konuşmalar arası notları (onunla yapılan finansal
+  kontroller, kullanıcının finansal kararları) veri klasöründedir; Claude hangi klasörden ya da uygulamadan bağlanırsa
+  bağlansın aynı notları okur. Yazılımın, kodun ve başka işlerin notları buraya yazılmaz: bunu talimatlar ve araçların
+  açıklamaları söyler, kod notun konusunu ayırt etmez. Bir not ad (`kira-odemesi`), tür (`user`, `feedback`,
   `project`, `reference`), tek satırlık açıklama ve metindir; en çok 200 not tutulur. Yeni bir notun adında kişinin tam
   adı, hesap numarası ya da altı ve daha uzun bir rakam dizisi olamaz: bir ad maskelenemez. Denetim kaydı her
   değişikliği notun adıyla yazar (`memory.written`, `memory.removed`), metnini yazmaz.

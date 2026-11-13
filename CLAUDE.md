@@ -328,6 +328,10 @@ says what the waiting must show; check them once their time has passed).
     so a comma in the name never splits it.
 - v0.11.0 (K30, ADR-0023): Claude's memory lives in İplikçi Nedim, so an agent finds the same notes from whatever
   folder or client it connects (any Claude Code project, Claude Desktop).
+  - It holds the user's financial notes only (the user's words of 2026-11-14): the financial checks done with them and
+    the financial decisions they took. Notes on software, code (this project's too) or other work stay in the agent's
+    own memory. The instructions' first rule, `read_memory`'s and `write_memory`'s descriptions and the empty memory's
+    note say so (`tests/test_mcp_memory.py`); no code can tell what a note is about.
   - `memories` (migration 21; primary data: the rebuild's dump v7 and the backups carry it) holds a note a row: a
     kebab-case handle (`kira-odemesi`), a `MemoryKind` (Claude Code's own: user, feedback, project, reference), a
     one-line description and the text; `app/memory` keeps 200 at most.

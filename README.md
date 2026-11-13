@@ -255,9 +255,12 @@ Virgülle birkaç şey birden aranır (v0.10.4):
 
 Claude'un hafızası İplikçi Nedim'de (v0.11.0):
 
-- Claude konuşmalar arasında hatırlamak istediklerini İplikçi Nedim'e not eder: sizi, tercihlerinizi, kararlarınızı ve
-  nasıl çalışmasını istediğinizi. Claude Code'u hangi klasörde açarsanız açın, Claude Desktop'tan da bağlansanız aynı
-  notları okur; bir konuşmada söylediğinizi ötekinde yeniden anlatmanız gerekmez.
+- Claude paranızla ilgili konuşmalarda hatırlaması gerekenleri İplikçi Nedim'e not eder: sizinle yaptığı finansal
+  kontrolleri ve sonuçlarını, aldığınız finansal kararları, hedeflerinizi ve yanıtları nasıl istediğinizi. Claude
+  Code'u hangi klasörde açarsanız açın, Claude Desktop'tan da bağlansanız aynı notları okur; bir konuşmada
+  söylediğinizi ötekinde yeniden anlatmanız gerekmez.
+- Hafıza yalnızca paranız içindir: Claude yazılımın, kodun ya da başka işlerin notlarını buraya yazmaz, onları kendi
+  hafızasında tutar.
 - Notlar bu bilgisayarda, verilerinizle birlikte durur ve yedeklenir. Claude'a rakamları, bakiyeleri ve şifreleri
   nota yazmaması söylenir: rakamları her seferinde İplikçi Nedim'den yeniden okur.
 - Claude bağlantısı ekranındaki "Claude'un hafızası" kartında Claude'un ne hatırladığını görürsünüz; yanlış ya da

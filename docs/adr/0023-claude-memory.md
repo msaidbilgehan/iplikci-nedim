@@ -1,6 +1,7 @@
 # ADR-0023: Claude'un hafızası İplikçi Nedim'de durur, MCP ile okunup yazılır
 
-Durum: Kabul edildi · Tarih: 2026-11-13 · Dayanak: K30 · [ADR-0011](0011-mcp.md)'in araçlarını genişletir
+Durum: Kabul edildi · Tarih: 2026-11-13, kapsamı 2026-11-14 · Dayanak: K30 · [ADR-0011](0011-mcp.md)'in araçlarını
+genişletir
 
 ## Bağlam
 
@@ -9,6 +10,9 @@ Durum: Kabul edildi · Tarih: 2026-11-13 · Dayanak: K30 · [ADR-0011](0011-mcp.
   önceki notlar yoktur.
 - Kullanıcı 2026-11-13'te bu hafızayı İplikçi Nedim'in kendisinin sunmasını istedi (K30). Claude nereden bağlanırsa
   bağlansın notlarını platformda tutmalı.
+- Ertesi gün kullanıcı kapsamı söyledi: platform yalnızca finansal notları taşır, projenin teknik notlarını ya da
+  başka projelerin notlarını değil; amaç finansal kontrollerin ve alınan finansal kararların hafızasını platformda
+  tutmak. İlk biçim Claude Code'un hafızası gibi her şeyi kabul ediyordu, talimatları da öyle söylüyordu.
 - Claude'un İplikçi Nedim'e bağlandığı tek yer MCP sunucusudur (ADR-0011): servisin `/mcp`'si ve stdio köprüsü.
   İstemci hangisi olursa olsun aynı veri klasörüne ulaşır.
 - Claude Code bir sunucunun talimatlarının ilk 4096 karakterini gösterir, gerisini keser. İplikçi Nedim'in
@@ -17,12 +21,23 @@ Durum: Kabul edildi · Tarih: 2026-11-13 · Dayanak: K30 · [ADR-0011](0011-mcp.
 
 ## Karar
 
+**Kapsam**
+
+- Hafıza yalnızca kullanıcının parasına dairdir: onunla yapılan finansal kontroller ve sonuçları; kullanıcının
+  finansal kararları, hedefleri, planları ve açık soruları; finansal yanıtları nasıl istediği; neyin nerede olduğu
+  (hangi hesabın neyi ödediği).
+- Yazılımın, kodun (İplikçi Nedim'in kendi geliştirilmesininki de) ve başka işlerin notları buraya yazılmaz; Claude'un
+  kendi hafızasında kalır.
+- Bunu talimatların ilk kuralı, `read_memory`'nin ve `write_memory`'nin açıklamaları ve boş hafızanın notu söyler
+  (test edilir). Kod bir notun konusunu ayırt edemez: kapsamı Claude izler, kullanıcı ekranda görür.
+
 **Not**
 
 - Bir not tek bir konuyu anlatır. Claude Code'un hafızasındaki alanları taşır:
   - ad: kısa bir tanıtıcı, küçük harf, rakam ve tire (`kira-odemesi`), en çok 64 karakter;
-  - tür: `user` (kullanıcı kim), `feedback` (Claude'dan nasıl çalışmasını istediği), `project` (süren işler,
-    hedefler, kararlar), `reference` (neyin nerede olduğu);
+  - tür: `user` (kullanıcı kim: işi, geliri, hanesi gibi mali durumu), `feedback` (finansal yanıtları ve kontrolleri
+    nasıl istediği), `project` (finansal kararlar, hedefler, planlar, yapılan kontroller ve açık sorular),
+    `reference` (neyin nerede olduğu);
   - tek satırlık açıklama (en çok 200 karakter);
   - notun kendisi (en çok 4000 karakter).
 - Notlar veri klasörünün veritabanında, `memories` tablosundadır (göç 21). Birincil veridir: hiçbir belge onları
@@ -44,8 +59,9 @@ Durum: Kabul edildi · Tarih: 2026-11-13 · Dayanak: K30 · [ADR-0011](0011-mcp.
 
 **Talimatlar**
 
-- Hafıza talimatların ilk maddesidir: konuşmanın başında `read_memory`'yi argümansız çağırmak; kullanıcıyı,
-  tercihlerini, kararlarını ve istediği çalışma biçimini öğrendikçe yazmak; yanlışlanan notu düzeltmek ya da silmek.
+- Hafıza talimatların ilk maddesidir: kullanıcının parasıyla ilgili bir işe başlarken `read_memory`'yi argümansız
+  çağırmak; yeni kontrolleri ve kararları yazmak; yazılımın, kodun ve başka işlerin notlarını yazmamak. Yanlışlanan
+  notu düzeltmeyi ya da silmeyi araçların açıklamaları söyler.
 - Talimatların tamamı 4096 karaktere sığar (test edilir). Kurallar önce gelir. Bir aracın kendi açıklamasında
   yazanlar talimatlarda yeniden söylenmez: araç kataloğu ve sayfalama.
 
@@ -90,9 +106,13 @@ Durum: Kabul edildi · Tarih: 2026-11-13 · Dayanak: K30 · [ADR-0011](0011-mcp.
   - Maskeleme açılmadan önce yazılan bir notun adı, o gün defterde olmayan bir kişinin adını taşıyabilir. Maskeleme
     açıkken bu ad gizlenmez; kullanıcı notu ekranda görür ve silebilir.
   - Talimatlar 4096 karakterin altında kalmalıdır: yeni bir kural ancak başka bir şey kısaltılarak eklenir.
+  - Kapsamı kod denetlemez: başka bir işin notunu yazan bir Claude'u ancak kullanıcı ekranda görüp düzeltir.
 
 ## Değerlendirilen seçenekler
 
+- **Her işin notu, Claude Code'un hafızası gibi:** 2026-11-13'teki ilk biçimdi. Kullanıcı ertesi gün hafızanın
+  yalnızca finansal kontroller ve kararlar için olduğunu söyledi. Bir yazılım işinin teknik notları finans
+  asistanının listesini kalabalıklaştırır ve o işin kendi klasöründe daha yerindedir.
 - **Plan → onay → uygula:** her not için kullanıcıya soru sorulurdu. Bir hafıza, Claude'un konuşmayı kesmeden not
   alabilmesi demektir.
 - **Notları MCP kaynağı (`iplikci://memory`) olarak sunmak:** bir kaynağın modele nasıl ulaştığı istemciden
