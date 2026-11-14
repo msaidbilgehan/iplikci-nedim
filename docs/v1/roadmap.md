@@ -113,7 +113,8 @@ Durum: 2026-11-01'de `asama-1` dalında uygulandı, `v0.2.0` ([değişiklik gün
 Durum: 2026-11-01'de `asama-2` dalında uygulandı, `v0.3.0` ([değişiklik günlüğü](../../CHANGELOG.md)). Okuma tek bir
 kalıcı alt süreçte yapılır; bellek sınırını yalnızca Linux uygular. Biçim alarmı için `events` tablosu bu aşamada açıldı
 ([ADR-0005, uygulama notu](../adr/0005-parser-plugins.md#uygulama-notu-aşama-2-2026-11-01)). Kart ekstrelerinin sahte
-belgeleri hazır; demoya katılmaları altın tabanı değiştireceği için kullanıcının onayını bekler.
+belgeleri hazırdı; gerçeklerin düzenine uydukları denetlenince kullanıcının onayıyla 2026-11-15'te demoya katıldılar
+(dört kart, 18 ekstre; altın taban yeniden yazıldı).
 
 **Teslimler**
 

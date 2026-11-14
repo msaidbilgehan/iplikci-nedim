@@ -231,12 +231,13 @@ def test_receipts_alone_cover_no_month(ws):
 def test_a_current_accounts_page_has_its_daily_balance_its_months_and_regular_payments(demo_client):
     found = get(demo_client, f"/api/accounts/{TEB}")
     curve = {p["day"]: p for p in found["curve"]}
-    assert curve["2026-01-01"]["balance"] == tl(4000000) and curve["2026-10-31"]["balance"] == tl(18438010)
+    assert curve["2026-01-01"]["balance"] == tl(4000000) and curve["2026-10-31"]["balance"] == tl(17738260)
     assert "2026-07-02" not in curve  # the days no list covers are left blank, never filled in
     assert all(p["certainty"] == "confirmed" for p in found["curve"])
     assert found["curve_note"] == "Gün sonu bakiyeleri hesap dökümlerinden."
     september = next(m for m in found["months"] if m["month"] == "2026-09")
-    assert (september["money_in"], september["money_out"], september["complete"]) == (tl(4000000), tl(1992799), True)
+    # September's money out carries the TEB card's payment of 738 TL.
+    assert (september["money_in"], september["money_out"], september["complete"]) == (tl(4000000), tl(2066599), True)
     assert found["months"][-1]["month"] == "2026-11" and not found["months"][-1]["complete"]
     assert found["fees"]["categories"] == [{"category": "Transfer & İşlem Ücretleri", "amount": tl(7200)}]
     assert "2026-07" not in found["fees"]["months"]  # an incomplete month is no part of the window
@@ -247,7 +248,9 @@ def test_a_current_accounts_page_has_its_daily_balance_its_months_and_regular_pa
 
 def test_an_accounts_rows_come_a_page_at_a_time_newest_first(demo_client):
     first = get(demo_client, f"/api/accounts/{TEB}", limit=3)
-    assert len(first["rows"]) == 3 and first["next"] == 3 and first["totals"]["count"] == 89
+    assert (
+        len(first["rows"]) == 3 and first["next"] == 3 and first["totals"]["count"] == 94
+    )  # with the TEB card's five payments
     days = [r["day"] for r in first["rows"]]
     assert days == sorted(days, reverse=True) and {r["account"]["id"] for r in first["rows"]} == {TEB}
     second = get(demo_client, f"/api/accounts/{TEB}", limit=3, offset=3)
@@ -263,7 +266,7 @@ def test_a_card_page_shows_its_statements_how_each_was_paid_and_its_installments
         tl(388489),
         "2026-10-15",
     )
-    assert (statement["limit"], statement["minimum"], statement["verified"]) == (tl(4500000), None, True)
+    assert (statement["limit"], statement["minimum"], statement["verified"]) == (tl(4500000), tl(155396), True)
     # 3.250 TL paid on 10 October, before the due date passed: less than the balance, more than nothing.
     assert (statement["paid"], statement["status"]) == (tl(325000), "partial")
     assert card["statement"]["debt"] == tl(63489)

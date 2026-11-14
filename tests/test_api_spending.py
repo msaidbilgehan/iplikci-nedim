@@ -39,7 +39,8 @@ def found(client) -> dict:
 
 
 def test_without_a_period_the_last_twelve_months_of_the_data_count(found):
-    assert found["period"] == {"start": "2026-01", "end": "2026-10", "first": "2026-01", "last": "2026-10"}
+    # The cards' November statements bring the running month's first days.
+    assert found["period"] == {"start": "2026-01", "end": "2026-11", "first": "2026-01", "last": "2026-11"}
     tiles = found["tiles"]
     assert tiles["total"]["minor"] == sum(c["total"]["minor"] for c in found["categories"])
     assert tiles["count"] == sum(c["count"] for c in found["categories"])
@@ -47,15 +48,15 @@ def test_without_a_period_the_last_twelve_months_of_the_data_count(found):
 
 def test_the_monthly_average_leaves_out_a_month_the_documents_cover_only_partly(found):
     tiles = found["tiles"]
-    assert (tiles["average_months"], tiles["partial_months"]) == (9, 1)  # July has a gap in the documents
-    july = next(m for m in found["by_group"]["months"] if m["month"] == "2026-07")
-    assert july["partial"] and not any(m["partial"] for m in found["by_group"]["months"] if m["month"] != "2026-07")
+    # July has a gap in the documents, and November is still running.
+    assert (tiles["average_months"], tiles["partial_months"]) == (9, 2)
+    assert [m["month"] for m in found["by_group"]["months"] if m["partial"]] == ["2026-07", "2026-11"]
     assert tiles["income_average"]["minor"] > 0 and float(tiles["income_share"]) < 1
 
 
 def test_the_last_month_is_compared_with_up_to_three_whole_months_before_it_and_says_how_many(client, found):
     tiles = found["tiles"]
-    assert (tiles["last_month"], tiles["last_partial"], tiles["last_base_months"]) == ("2026-10", False, 3)
+    assert (tiles["last_month"], tiles["last_partial"], tiles["last_base_months"]) == ("2026-11", True, 3)
     assert tiles["last_change"] is not None
     # Over July to October only August and September come before October: July, not whole, never counts.
     narrowed = cards(client, **{"from": "2026-07-01", "to": "2026-10-31"})["tiles"]
@@ -64,7 +65,7 @@ def test_the_last_month_is_compared_with_up_to_three_whole_months_before_it_and_
 
 def test_the_months_by_group_and_by_necessity_keep_their_fixed_colour_slots(found):
     groups = found["by_group"]
-    assert groups["months"][0]["month"] == "2026-01" and len(groups["months"]) == 10
+    assert groups["months"][0]["month"] == "2026-01" and len(groups["months"]) == 11
     assert all(len(m["values"]) == len(groups["slices"]) for m in groups["months"])
     assert {s["slot"] for s in groups["slices"]} <= set(range(9))
     levels = {s["key"]: s["slot"] for s in found["by_level"]["slices"]}
@@ -74,7 +75,7 @@ def test_the_months_by_group_and_by_necessity_keep_their_fixed_colour_slots(foun
 def test_categories_and_merchants_lead_to_their_rows(found):
     first = found["categories"][0]
     # The period's days and the spending's kinds written out, so the Transactions screen keeps the rows counted here.
-    period = {"from": "2026-01-01", "to": "2026-10-31", "kind": ["interest_fee", "purchase", "refund"]}
+    period = {"from": "2026-01-01", "to": "2026-11-30", "kind": ["interest_fee", "purchase", "refund"]}
     assert first["category"] == "Kira" and first["link"]["query"] == {**period, "category": "Kira"}
     shares = sum(float(c["share"]) for c in found["categories"])
     assert 0.99 < shares < 1.01
@@ -102,7 +103,7 @@ def test_money_in_and_out_by_month_says_what_is_left(found):
 
 def test_the_forecast_goes_three_months_ahead_from_the_last_six_complete_ones(found):
     forecast = found["forecast"]
-    assert forecast["months"] == ["2026-11", "2026-12", "2027-01"]
+    assert forecast["months"] == ["2026-12", "2027-01", "2027-02"]  # after November, which the data reaches
     assert forecast["base"] == ["2026-04", "2026-05", "2026-06", "2026-08", "2026-09", "2026-10"]
     rent = forecast["lines"][0]
     assert (rent["part"], rent["necessity"]) == ("regular", "required") and len(set(map(str, rent["amounts"]))) == 1
@@ -110,7 +111,7 @@ def test_the_forecast_goes_three_months_ahead_from_the_last_six_complete_ones(fo
     left = forecast["income"]["minor"] - forecast["totals"][0]["minor"]
     left -= forecast["saving"]["minor"] + forecast["other"]["minor"]
     assert forecast["left"]["minor"] == left
-    assert [m["month"] for m in forecast["actual"]["months"]][-1] == "2026-10"
+    assert [m["month"] for m in forecast["actual"]["months"]][-1] == "2026-11"
 
 
 def test_a_period_narrows_the_cards_but_never_the_forecast(client, found):

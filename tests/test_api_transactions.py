@@ -65,9 +65,10 @@ def test_the_list_pages_the_rows_newest_first_with_the_totals_of_all_of_them(cli
     days = [r["day"] for r in found["rows"]]
     assert len(days) == 10 and days == sorted(days, reverse=True) and found["next"] == 10
     total = found["totals"]
-    assert (total["count"], total["counted"], total["excluded"], total["provisional"]) == (93, 93, 0, 0)
-    last = client.get("/api/transactions", params={"offset": 90, "limit": 10}, headers=bearer()).json()
-    assert len(last["rows"]) == 3 and last["next"] is None
+    # The account's rows and the four cards' statements' rows.
+    assert (total["count"], total["counted"], total["excluded"], total["provisional"]) == (156, 156, 0, 0)
+    last = client.get("/api/transactions", params={"offset": 150, "limit": 10}, headers=bearer()).json()
+    assert len(last["rows"]) == 6 and last["next"] is None
 
 
 def test_the_filters_keep_a_category_a_merchant_or_words_and_the_totals_follow(client):
@@ -98,8 +99,9 @@ def test_a_part_that_finds_no_row_says_so_and_each_counts_within_the_other_filte
     assert misspelt["totals"]["count"] == 10
     assert [(p["text"], p["count"]) for p in misspelt["search_parts"]] == [("spotify", 10), ("spotfy", 0)]
     market = rows_of(client, q="spotify, migros", category="Market & Gıda")
-    assert [(p["text"], p["count"]) for p in market["search_parts"]] == [("spotify", 0), ("migros", 20)]
-    assert market["totals"]["count"] == 20
+    # The account's 20 Migros rows and the Garanti card's 4.
+    assert [(p["text"], p["count"]) for p in market["search_parts"]] == [("spotify", 0), ("migros", 24)]
+    assert market["totals"]["count"] == 24
 
 
 def test_the_csv_holds_the_rows_of_every_part_too(client):

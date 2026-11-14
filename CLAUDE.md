@@ -351,8 +351,10 @@ says what the waiting must show; check them once their time has passed).
   once the packaged app passes its try on the user's Mac, with the privacy policy the store asks for in it. 1.0 waits
   neither for the two weeks' run nor for Windows and Linux (macOS only; their checks come later, K25). The extension
   goes to the store now and leads a user without the program to its download; no web page for now.
-- The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
-  the user's approval.
+- Since 2026-11-15 the demo carries four cards (TEB, Garanti, QNB, İş Bankası), opened one after another from May,
+  with 18 statements laid out as the banks' own (the user's approval, once the fakes were checked against the real
+  layouts); the TEB card is paid from the TEB account, the others from accounts the demo has no lists of. The golden
+  baseline and the tests that read the demo's numbers follow it.
 
 The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's
 web interface).

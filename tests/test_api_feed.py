@@ -300,14 +300,14 @@ def test_what_stands_now_names_each_accounts_balance_as_the_documents_tell(demo_
     assert found["today"] == "2026-11-15"
     current, brokerage = found["balances"]
     assert current["account"] == {"id": "teb-123456789", "label": "TEB Vadesiz TL 123456789"}
-    assert (current["balance"], current["value"], current["stated"]) == (tl(18438010), tl(18438010), tl(18438010))
+    assert (current["balance"], current["value"], current["stated"]) == (tl(17738260), tl(17738260), tl(17738260))
     assert (current["source"], current["on"], current["moves"], current["certainty"]) == (
         "statement",
         "2026-10-31",
         0,
         "confirmed",
     )
-    assert current["note"] == "31.10.2026 dökümünde 184.380,10 TL"
+    assert current["note"] == "31.10.2026 dökümünde 177.382,60 TL"
     assert (brokerage["type"], brokerage["source"], brokerage["balance"]) == ("brokerage", "portfolio", tl(134200))
     assert found["unknown"] == [
         {
@@ -315,7 +315,13 @@ def test_what_stands_now_names_each_accounts_balance_as_the_documents_tell(demo_
             "reason": "bakiyesi hiçbir belgede yazmıyor",  # known only from receipts
         }
     ]
-    assert found["cards"] == []  # the demo has no card statements
+    # The four cards, each with its newest statement's debt and minimum, newest cut first.
+    assert [(c["account"]["id"], c["cut"], c["total"], c["minimum"]) for c in found["cards"]] == [
+        ("garanti-2468", "2026-11-10", tl(136599), tl(54640)),
+        ("qnb-1357", "2026-11-12", tl(139699), tl(55880)),
+        ("teb-4321", "2026-11-05", tl(91200), tl(36480)),
+        ("isbank-9753", "2026-11-07", tl(163000), tl(65200)),
+    ]
 
 
 def test_the_next_fourteen_days_are_the_calendars_items_up_to_their_last_day(demo_client):
@@ -349,7 +355,7 @@ def test_a_card_shows_its_statement_what_it_still_asks_and_the_period_it_is_in(g
         "2026-10-05",
         tl(388489),
         "2026-10-15",
-        None,  # Garanti prints none
+        tl(155396),  # under the period's debt
         tl(4500000),
     )
     # The list paid 3.250 TL on 10 October, after the cut: the statement still asks the rest.

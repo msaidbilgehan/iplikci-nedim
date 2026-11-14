@@ -388,7 +388,8 @@ def tl(minor: int) -> dict[str, object]:
 
 def test_the_subscriptions_are_the_series_with_their_status_next_payment_and_rows(demo_client):
     found = demo_client.get("/api/subscriptions", headers=bearer()).json()
-    assert found["as_of"] == "2026-10-31" and found["window"][-1] == "2026-10"
+    # The documents reach 12 November, the last card statement's cut; the window's last complete month is October.
+    assert found["as_of"] == "2026-11-12" and found["window"][-1] == "2026-10"
     rent = next(s for s in found["series"] if s["payee"] == "Veli Örneksoy Kira Ödemesi")
     assert (rent["period"], rent["status"], rent["listed"], rent["note"]) == ("month", "active", True, "")
     assert (rent["amount"], rent["last_day"], rent["next_day"]) == (tl(1500000), "2026-10-03", "2026-11-03")
@@ -403,9 +404,9 @@ def test_the_subscriptions_are_the_series_with_their_status_next_payment_and_row
     gas = next(s for s in found["series"] if s["payee"] == "Doğalgaz (İGDAŞ)")
     assert gas["amount"] == tl(20000) and gas["last_amount"] == tl(60000)  # a moving bill: the last three's median
     (salary,) = found["income"]
-    # The next salary after the last one: a past day, as the documents end on 31 October.
+    # The next salary after the last one: a past day, as the account's list ends on 31 October.
     assert (salary["payee"], salary["amount"], salary["next_day"]) == ("Örnek İşveren A.Ş.", tl(4000000), "2026-11-01")
-    assert found["installments"] == []  # the demo has no card statements
+    assert found["installments"] == []  # the demo's cards carry no installments
 
 
 @pytest.mark.parametrize(
@@ -437,7 +438,15 @@ def test_the_calendar_lists_the_next_sixty_days_by_day(demo_client):
     found = demo_client.get("/api/calendar", headers=bearer()).json()
     assert (found["today"], found["end"]) == ("2026-11-15", "2027-01-13")
     days = [item["day"] for item in found["items"]]
-    assert days == sorted(days) and days[0] == "2026-11-19"
+    assert days == sorted(days) and days[0] == "2026-11-15"
+    # The TEB card's statement is due today, its minimum payment beside its debt.
+    card = found["items"][0]
+    assert (card["kind"], card["title"], card["amount"], card["minimum"]) == (
+        "card_due",
+        "TEB Bonus •4321",
+        tl(91200),
+        tl(36480),
+    )
     salary = next(item for item in found["items"] if item["kind"] == "income")
     assert (salary["day"], salary["direction"], salary["amount"]) == ("2026-12-01", "in", tl(4000000))
     rent = next(item for item in found["items"] if item["title"] == "Veli Örneksoy Kira Ödemesi")
@@ -453,18 +462,20 @@ def test_the_forecast_runs_each_bank_account_day_by_day_as_an_estimate(demo_clie
     (teb_account,) = found["accounts"]
     start = teb_account["start"]
     assert (start["source"], start["day"], start["moves"]) == ("statement", "2026-10-31", 0)
-    assert start["balance"] == start["stated"] == tl(18438010)
+    assert start["balance"] == start["stated"] == tl(17738260)
     assert len(teb_account["days"]) == 60 and teb_account["negative"] is None
     # 1–14 November are counted too: the salary of the 1st and the payments up to the 12th the list does not reach.
-    assert teb_account["lowest"] == {"day": "2026-11-30", "balance": tl(20445211)}
-    assert teb_account["end_balance"] == tl(24662078)
+    assert teb_account["lowest"] == {"day": "2026-11-30", "balance": tl(19595986)}
+    assert teb_account["end_balance"] == tl(23647427)
     assert teb_account["notes"][1] == (
         "01.11.2026–14.11.2026 arası için belgelerin henüz göstermediği beklenenler de sayıldı: 6 kalem "
         "(+22.100,01 TL) ve seri dışı çıkışlardan 3,73 TL."
     )
     assert teb_account["spend"] == {"monthly": tl(800), "months": found_months(), "after": None}  # the FAST fee
-    assert teb_account["cards"] is None and teb_account["interest"] is None
-    assert {item["kind"] for item in teb_account["items"]} == {"regular", "income"}
+    # The TEB card is paid from this account: the median of its payments, spread after the last known due day.
+    assert teb_account["cards"] == {"monthly": tl(116550), "months": found_months(), "after": "2026-11-15"}
+    assert teb_account["interest"] is None
+    assert {item["kind"] for item in teb_account["items"]} == {"regular", "income", "card_due"}
     assert found["skipped"] == [
         {
             "account": {"id": "garanti-1234567", "label": "Garanti BBVA Vadesiz TL 1234567"},

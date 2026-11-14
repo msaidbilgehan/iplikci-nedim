@@ -49,7 +49,7 @@ def noted(ws) -> Workspace:
 
 def test_the_demo_database_comes_out_the_same_when_made_again(demo_home):
     report = rebuild.check(Workspace.load(demo_home), today=demo.AS_OF)
-    assert report.ok and report.documents == 10, report.differences
+    assert report.ok and report.documents == 28, report.differences
 
 
 def test_notes_and_corrections_come_back_with_the_rebuilt_database(noted):

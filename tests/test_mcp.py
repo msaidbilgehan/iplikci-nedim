@@ -231,7 +231,7 @@ def demo_server(tmp_path_factory):
 
 def test_subscriptions_list_the_series_with_their_period_status_and_next_payment(demo_server):
     found, failed = call(demo_server, "subscriptions")
-    assert not failed and found["asOf"] == "2026-10-31"
+    assert not failed and found["asOf"] == "2026-11-12"  # the newest card statement's cut
     rent = next(s for s in found["series"] if s["payee"] == "Veli Örneksoy Kira Ödemesi")
     assert (rent["period"], rent["status"], rent["statusLabel"]) == ("month", "active", "Devam ediyor")
     assert (rent["amount"], rent["lastDay"], rent["nextDay"]) == (15000.0, "2026-10-03", "2026-11-03")
@@ -248,10 +248,14 @@ def test_upcoming_payments_are_the_next_days_items_with_what_they_rest_on(demo_s
     found, failed = call(demo_server, "upcoming_payments", days=14)
     assert not failed and (found["today"], found["until"]) == ("2026-11-15", "2026-11-28")
     assert [(i["day"], i["title"], i["amount"], i["kindLabel"]) for i in found["items"]] == [
+        ("2026-11-15", "TEB Bonus •4321", 912.0, "Kart son ödemesi"),
+        ("2026-11-17", "İş Bankası Maximum •9753", 1630.0, "Kart son ödemesi"),
         ("2026-11-19", "Ornek Kahve", 180.0, "Düzenli ödeme"),
+        ("2026-11-20", "Garanti Bonus •2468", 1365.99, "Kart son ödemesi"),
+        ("2026-11-22", "QNB Mastercard •1357", 1396.99, "Kart son ödemesi"),
         ("2026-11-22", "Migros", 1840.0, "Düzenli ödeme"),
     ]
-    assert (found["totalOut"], found["totalIn"]) == (2020.0, 0.0)
+    assert (found["totalOut"], found["totalIn"]) == (7324.98, 0.0)
     whole, _ = call(demo_server, "upcoming_payments")
     assert whole["until"] == "2027-01-13"
     salary = next(i for i in whole["items"] if i["kind"] == "income")
@@ -264,7 +268,7 @@ def test_the_cash_flow_forecast_is_an_estimate_with_its_start_and_assumptions(de
     found, failed = call(demo_server, "cash_flow_forecast")
     assert not failed and (found["label"], found["until"]) == ("tahmin", "2027-01-13")
     (teb_account,) = found["accounts"]
-    assert teb_account["start"]["source"] == "hesap dökümü" and teb_account["start"]["stated"] == 184380.1
+    assert teb_account["start"]["source"] == "hesap dökümü" and teb_account["start"]["stated"] == 177382.6
     assert teb_account["firstBelowZero"] is None and teb_account["lowest"]["day"] == "2026-11-30"
     assert len(teb_account["balances"]) == 10  # every seventh day, and the last one
     assert teb_account["notes"][0].startswith("Başlangıç: 31.10.2026 tarihli hesap dökümünün kapanış bakiyesi")
@@ -349,19 +353,23 @@ def test_invoices_tell_each_bill_and_receipt_with_its_status_and_the_row_that_pa
 def test_search_finds_rows_and_documents_with_the_ids_the_other_tools_take(demo_server):
     found, failed = call(demo_server, "search", text="migros", limit=5)
     rows, docs = found["transactions"], found["documents"]
-    assert not failed and (rows["count"], rows["spent"], rows["excluded"], rows["nextOffset"]) == (20, 39900.0, 0, 5)
+    # The account's 20 Migros rows and the Garanti card's 4.
+    assert not failed and (rows["count"], rows["spent"], rows["excluded"], rows["nextOffset"]) == (24, 43743.0, 0, 5)
     days = [r["date"] for r in rows["rows"]]
     assert len(days) == 5 and days == sorted(days, reverse=True)  # newest first
     assert {r["merchant"] for r in rows["rows"]} == {"Migros"} and all(r["amount"] > 0 for r in rows["rows"])
     later, _ = call(demo_server, "search", text="migros", limit=5, offset=5, scope="transactions")
     assert "documents" not in later and later["transactions"]["offset"] == 5
     assert not {r["fingerprint"] for r in later["transactions"]["rows"]} & {r["fingerprint"] for r in rows["rows"]}
-    assert docs["count"] == len(docs["items"]) == 2 and docs["countComplete"] and docs["nextOffset"] is None
-    assert {d["kind"] for d in docs["items"]} == {"account_statement"}
+    # The account's two lists and the Garanti card's four statements that name Migros, five a page.
+    assert (docs["count"], len(docs["items"]), docs["countComplete"], docs["nextOffset"]) == (6, 5, True, 5)
+    assert {d["kind"] for d in docs["items"]} == {"account_statement", "card_statement"}
     explained, failed = call(demo_server, "explain_transaction", fingerprint=rows["rows"][0]["fingerprint"])
     assert not failed and explained["printed"]["document"] in {d["id"] for d in docs["items"]}
     only_documents, _ = call(demo_server, "search", text="migros", scope="documents")
-    assert "transactions" not in only_documents and only_documents["documents"]["items"] == docs["items"]
+    # Without the five a page the first search asked for, every one of them.
+    assert "transactions" not in only_documents and only_documents["documents"]["items"][:5] == docs["items"]
+    assert len(only_documents["documents"]["items"]) == 6
 
 
 def test_a_search_with_commas_finds_the_rows_and_documents_of_either_part_and_counts_each(demo_server):
@@ -422,7 +430,8 @@ def documents_with(session, words: str) -> list[dict]:
 
 
 def test_a_document_comes_as_a_summary_first_and_its_text_or_rows_on_request(demo_server):
-    sha = documents_with(demo_server, "migros")[0]["id"]  # the newest list
+    # The newer list, from 5 July: under the 50 rows a page holds.
+    sha = next(d["id"] for d in documents_with(demo_server, "turkcell") if "2026-07-05" in d["name"])
     summary, failed = call(demo_server, "get_document", id=sha)
     assert not failed and summary["document"]["id"] == sha and summary["note"] == DATA_NOTE
     assert summary["shownAs"] == "table" and summary["arrivals"][0]["by"] == "İçe aktarma"
@@ -445,7 +454,7 @@ def test_a_document_comes_as_a_summary_first_and_its_text_or_rows_on_request(dem
 
 def test_a_long_text_comes_in_parts_within_the_limit(demo_server, monkeypatch):
     monkeypatch.setattr(tools, "TEXT_LIMIT", 100)
-    sha = documents_with(demo_server, "migros")[0]["id"]
+    sha = documents_with(demo_server, "turkcell")[0]["id"]
     first, _ = call(demo_server, "get_document", id=sha)
     parts = first["text"]["pageCount"]
     assert parts > 1 and first["text"]["nextPage"] == 2 and len(first["text"]["pages"][0]["text"]) == 100
@@ -581,12 +590,24 @@ def test_the_account_map_and_the_net_worth_tell_the_same_totals(demo_server):
     overview, failed = call(demo_server, "accounts_overview")
     worth, _ = call(demo_server, "net_worth")
     assert not failed and overview["today"] == worth["today"] == "2026-11-15"
-    assert overview["total"] == worth["netWorth"]["total"] == 185722.1 and overview["debts"] == 0.0
-    current, brokerage = overview["groups"]
-    assert (current["group"], current["unvalued"], brokerage["group"]) == ("current", 1, "brokerage")
+    # The four cards' statement debts come off what the accounts hold.
+    assert overview["total"] == worth["netWorth"]["total"] == 173419.62 and overview["debts"] == 5304.98
+    cards, current, brokerage = overview["groups"]
+    assert (cards["group"], current["group"], current["unvalued"], brokerage["group"]) == (
+        "cards",
+        "current",
+        1,
+        "brokerage",
+    )
+    assert [a["account"] for a in cards["accounts"]] == [
+        "İş Bankası Maximum •9753",
+        "QNB Mastercard •1357",
+        "Garanti Bonus •2468",
+        "TEB Bonus •4321",
+    ]
     teb_account, garanti = current["accounts"]
     assert (teb_account["balance"], teb_account["day"], teb_account["certainty"]) == (
-        184380.1,
+        177382.6,
         "2026-10-31",
         "confirmed",
     )
@@ -599,8 +620,12 @@ def test_the_account_map_and_the_net_worth_tell_the_same_totals(demo_server):
         {"account": "Garanti BBVA Vadesiz TL 1234567", "reason": "bakiyesi hiçbir belgede yazmıyor"}
     ]
     assert [(h["account"], h["valueTL"]) for h in worth["holdings"]] == [
-        ("TEB Vadesiz TL 123456789", 184380.1),
+        ("TEB Vadesiz TL 123456789", 177382.6),
         ("Garanti BBVA Yatırım 1234567-101", 1342.0),
+        ("İş Bankası Maximum •9753", -1630.0),
+        ("QNB Mastercard •1357", -1396.99),
+        ("Garanti Bonus •2468", -1365.99),
+        ("TEB Bonus •4321", -912.0),
     ]
     [lira] = worth["byCurrency"]
     assert (lira["currency"], lira["share"]) == ("TRY", 1.0)

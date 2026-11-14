@@ -43,9 +43,10 @@ def test_the_demo_documents_are_in_the_vault_and_read_into_the_database(tmp_path
     ws = Workspace.load(demo.build(tmp_path / "demo"))
     with ws.db() as db:
         kept = documents.every(db)
-        assert [d.status for d in kept].count(DocumentStatus.PROCESSED) == 9  # 7 account lists, 2 receipts
+        # 7 account lists, 2 receipts and the four cards' 18 statements
+        assert [d.status for d in kept].count(DocumentStatus.PROCESSED) == 27
         assert [d.status for d in kept].count(DocumentStatus.UNPROCESSED) == 1
-        assert db.scalar("SELECT count(*) FROM statements") == 7
+        assert db.scalar("SELECT count(*) FROM statements") == 25
         assert len(audit.targets(db, "document.business")) == 1  # the company list: refused, not kept
     assert ws.vault.verify().ok and sorted(ws.vault.objects()) == sorted(d.sha256 for d in kept)
 

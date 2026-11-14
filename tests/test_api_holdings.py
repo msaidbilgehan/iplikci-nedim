@@ -264,12 +264,17 @@ def test_the_holdings_add_up_to_the_dashboards_net_worth(demo_client):
     worth = found["worth"]
     assert (worth["total"], worth["assets"], worth["debts"]) == (board["total"], board["assets"], board["debts"])
     assert worth["currencies"] == board["currencies"] and worth["left_out"] == board["left_out"]
+    # The cards' statement debts are holdings too, below what is held; the spread is of what is held.
     assert [(h["account"]["id"], h["group"], h["value"]) for h in found["holdings"]] == [
-        (TEB, "current", tl(18438010)),
+        (TEB, "current", tl(17738260)),
         ("garanti-yatirim-1234567-101", "brokerage", tl(134200)),
+        ("isbank-9753", "cards", tl(-163000)),
+        ("qnb-1357", "cards", tl(-139699)),
+        ("garanti-2468", "cards", tl(-136599)),
+        ("teb-4321", "cards", tl(-91200)),
     ]
     [lira] = found["spread"]
-    assert (lira["currency"], lira["amount"], lira["value"], lira["share"]) == ("TRY", tl(18572210), tl(18572210), 1.0)
+    assert (lira["currency"], lira["amount"], lira["value"], lira["share"]) == ("TRY", tl(17872460), tl(17872460), 1.0)
     assert {a["id"] for a in lira["accounts"]} == {TEB, "garanti-yatirim-1234567-101"}
 
 

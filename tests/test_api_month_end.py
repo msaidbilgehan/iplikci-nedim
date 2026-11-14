@@ -97,7 +97,7 @@ def test_the_months_come_newest_first_with_their_status(demo_client):
 
 def test_a_months_page_tells_each_accounts_closing_and_what_it_waits_for(demo_client):
     found = get(demo_client, "/api/month-end/2026-07")
-    teb, brokerage = found["accounts"]
+    teb, garanti_card, qnb_card, teb_card, brokerage = found["accounts"]
     assert (teb["account"]["id"], teb["status"], teb["label"], teb["covered"], teb["needed"]) == (
         TEB,
         "missing",
@@ -114,9 +114,21 @@ def test_a_months_page_tells_each_accounts_closing_and_what_it_waits_for(demo_cl
         False,
         "verified",
     )
+    # Each card's statements cover its days of July; the QNB card, opened on 13 July, needs only those.
+    assert [
+        (c["account"]["id"], c["status"], c["covered"], c["needed"]) for c in (garanti_card, qnb_card, teb_card)
+    ] == [
+        ("garanti-2468", "closed", 31, 31),
+        ("qnb-1357", "closed", 19, 19),
+        ("teb-4321", "closed", 31, 31),
+    ]
+    assert [(s["start"], s["end"], s["card"]) for s in teb_card["statements"]] == [
+        ("2026-06-06", "2026-07-05", True),
+        ("2026-07-06", "2026-08-05", True),
+    ]
     # A brokerage account never holds a month open.
     assert (brokerage["blocking"], brokerage["status"], brokerage["waiting_for"]) == (False, "closed", "")
-    assert (found["typical"], found["typical_months"]) == (tl(2092799), 6)
+    assert (found["typical"], found["typical_months"]) == (tl(2156474), 6)
     assert (found["previous_month"], found["next_month"]) == ("2026-06", "2026-08")
     assert {r["payee"] for r in found["regular"]} >= {"Spotify", "Turkcell"}
     # A level names its code, the filter of İşlemler; the other shares have none.

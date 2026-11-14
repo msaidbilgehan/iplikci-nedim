@@ -134,28 +134,33 @@ def test_an_empty_data_folder_has_cards_that_say_there_is_nothing_yet(ws):
 def test_the_net_worth_adds_up_what_stands_now_and_names_what_has_no_value(demo_client, demo_board):
     worth = demo_board["net_worth"]
     now = demo_client.get("/api/feed/now", headers=bearer()).json()
-    assert worth["total"] == tl(sum(b["value"]["minor"] for b in now["balances"]))  # the demo has no cards
+    # What stands now is the assets; the four cards' statement debts come off them.
+    assert worth["assets"] == tl(sum(b["value"]["minor"] for b in now["balances"]))
     assert (worth["total"], worth["assets"], worth["debts"], worth["certainty"]) == (
-        tl(18572210),
-        tl(18572210),
-        tl(0),
+        tl(17341962),
+        tl(17872460),
+        tl(530498),
         "confirmed",
     )
     assert [(p["account"]["id"], p["value"]) for p in worth["parts"]] == [
-        (TEB, tl(18438010)),
+        (TEB, tl(17738260)),
+        ("isbank-9753", tl(-163000)),
+        ("qnb-1357", tl(-139699)),
+        ("garanti-2468", tl(-136599)),
         ("garanti-yatirim-1234567-101", tl(134200)),
+        ("teb-4321", tl(-91200)),
     ]
     assert worth["left_out"] == now["unknown"]  # the Garanti account known only from receipts
     euro, dollar, gold = worth["currencies"]
     # At the demo's made-up TCMB bulletin of its last business day: what the TL would buy, at the selling rate.
     assert (euro["amount"], euro["rate"], euro["note"]) == (
-        {"minor": 329449, "currency": "EUR"},  # 185.722,10 / 56,3735
+        {"minor": 307626, "currency": "EUR"},  # 173.419,62 / 56,3735
         "56.3735",
         "TCMB 13.11.2026 döviz satış kuruyla",
     )
-    assert (dollar["amount"], dollar["rate_source"]) == ({"minor": 369401, "currency": "USD"}, "tcmb")
+    assert (dollar["amount"], dollar["rate_source"]) == ({"minor": 344932, "currency": "USD"}, "tcmb")
     assert (gold["currency"], gold["amount"], gold["note"]) == ("GR", None, "gram altının TL fiyatı belgelerde yok")
-    assert worth["say"] == "Net varlığınız 185.722,10 TL; 1 hesabın TL değeri bilinmediği için toplama girmedi."
+    assert worth["say"] == "Net varlığınız 173.419,62 TL; 1 hesabın TL değeri bilinmediği için toplama girmedi."
     assert worth["link"] == link("accounts")
 
 
@@ -204,12 +209,13 @@ def test_this_month_is_compared_with_the_same_days_of_the_typical_month(ws):
 
 
 def test_this_month_is_not_compared_before_its_documents_or_three_complete_months(ws, demo_board):
-    # No document reaches November yet: that nothing was spent is not known, so no amount is said.
+    # Only the cards' statements reach into November, 45% of its days so far: too few to compare with a typical month.
     assert demo_board["month"]["say"] == (
-        "Bu ayın günlerini kapsayan ekstre ya da döküm henüz gelmedi, karşılaştırmak için erken."
+        "Gelen belgelere göre bu ay 1.931,98 TL harcandı; bugüne kadarki günlerin yalnızca %45'i belgelerle kapsandı, "
+        "karşılaştırmak için erken."
     )
     assert demo_board["month"]["pace"]["note"].endswith(
-        "sonra eklenir. Bu ayın günlerini kapsayan ekstre ya da döküm henüz gelmedi. Tipik ay: Nisan 2026 – Ekim 2026 "
+        "sonra eklenir. Bugüne kadarki günlerin %45'i belgelerle kapsandı. Tipik ay: Nisan 2026 – Ekim 2026 "
         "arasındaki 6 tam ayın medyanı."
     )
     add(ws, "liste.xls", _monthly_list(range(1, 3), date(2026, 3, 10)))
@@ -238,10 +244,15 @@ def test_the_payments_due_within_a_week_are_the_calendars_the_user_sees_to(demo_
     to_pay = {"card_due", "bill", "loan", "regular", "periodic"}  # not income, nor a card's later installments
     assert due["end"] == "2026-11-21"
     assert due["items"] == [i for i in calendar if i["day"] <= "2026-11-21" and i["kind"] in to_pay]
-    [coffee] = due["items"]
-    assert (coffee["title"], coffee["day"], coffee["amount"]) == ("Ornek Kahve", "2026-11-19", tl(18000))
-    assert due["total"] == tl(18000)
-    assert due["say"] == "Önümüzdeki 7 günde 1 ödeme var, toplam 180,00 TL (tahmini); ilki 19.11.2026: Ornek Kahve."
+    # The cards' statements due this week, at their full debt, and the coffee that comes every month.
+    assert [(i["title"], i["day"], i["amount"]) for i in due["items"]] == [
+        ("TEB Bonus •4321", "2026-11-15", tl(91200)),
+        ("İş Bankası Maximum •9753", "2026-11-17", tl(163000)),
+        ("Ornek Kahve", "2026-11-19", tl(18000)),
+        ("Garanti Bonus •2468", "2026-11-20", tl(136599)),
+    ]
+    assert due["total"] == tl(408799)
+    assert due["say"] == "Önümüzdeki 7 günde 4 ödeme var, toplam 4.087,99 TL (tahmini); ilki bugün: TEB Bonus •4321."
     assert due["link"] == link("calendar")
 
 
@@ -249,10 +260,15 @@ def test_the_payments_due_within_a_week_are_the_calendars_the_user_sees_to(demo_
 
 
 def test_a_finding_that_asks_for_attention_is_an_alert_that_leads_to_its_rows(demo_board):
-    [fees] = demo_board["alerts"]["items"]
-    assert (fees["kind"], fees["level"], fees["title"]) == ("finding", "warning", "Faiz ve banka ücretleri")
+    found = demo_board["alerts"]["items"]
+    assert [(a["kind"], a["level"], a["title"]) for a in found] == [
+        ("finding", "warning", "Borç nasıl değişti"),  # the cards opened since May carry their statements' debts
+        ("finding", "warning", "En büyük alışkanlık"),
+        ("finding", "warning", "Faiz ve banka ücretleri"),
+    ]
+    fees = found[-1]
     assert fees["link"] == link("transactions", kind="interest_fee")
-    assert demo_board["alerts"]["say"] == "Bir açık uyarı var: Faiz ve banka ücretleri."
+    assert demo_board["alerts"]["say"] == "3 açık uyarı var; ilki: Borç nasıl değişti."
 
 
 def test_an_account_whose_forecast_goes_below_zero_is_an_alert(ws):
@@ -332,7 +348,7 @@ def test_the_last_seven_months_closing_leads_to_the_oldest_month_still_open(demo
         }
     ]
     # July's income is what its list shows, not a certain figure: the salary of the 1st is in the days it misses.
-    assert (july["income"], july["left"]) == (tl(0), tl(-903999))
+    assert (july["income"], july["left"]) == (tl(0), tl(-1271998))
     assert july["income_note"] == (
         "gelir eksik olabilir: TEB Vadesiz TL 123456789 dökümü ayın tamamını kapsamıyor; maaş bu ay görünmüyor: "
         "dökümün kapsamadığı günlerde yatmış olabilir"
@@ -421,13 +437,13 @@ def test_nedim_says_the_last_closed_months_verdict_as_the_pano_does_and_then_its
     minor = {key: october[key]["minor"] for key in ("income", "expense", "people", "debt", "out", "saving", "left")}
     assert minor["out"] == minor["expense"] + minor["people"] + minor["debt"]
     assert minor["left"] == minor["income"] - minor["out"] - minor["saving"]
-    assert round(minor["left"] / minor["income"] * 100) == 49
+    assert round(minor["left"] / minor["income"] * 100) == 37
     found = demo_board["sayings"]
     first = found[0]
     assert (first["situation"], first["mood"], first["reason"]) == (
         "good",
         "good",
-        "Ekim 2026'da gelen paranın %49'u elde kaldı.",
+        "Ekim 2026'da gelen paranın %37'si elde kaldı.",
     )
     good = [s for s in found if s["situation"] == "good"]
     assert {s["quote"]["id"] for s in good} == {"money_for_the_able", "never_say_no", "hide_your_goods"}

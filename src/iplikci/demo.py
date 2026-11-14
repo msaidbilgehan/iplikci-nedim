@@ -4,13 +4,16 @@ Development, the interface tests and the verification baseline's golden file run
 documents. Every document comes from the fake document builders (iplikci.fakes), laid out like the banks' own,
 with made-up names, numbers and amounts; the tests use the same builders. The documents go into the folder's
 vault the way an import does, so the demo's baseline is taken from the vault and the database like a real one.
-Card statements and the other readers' documents have builders too; adding them here changes the golden
-baseline, so that is a step of its own. The exchange rates are TCMB's made-up bulletins (fakes.fx), one for every
+Four credit cards opened over the year carry their statements, one card of each bank whose card statements are read.
+The other readers' documents have builders too; adding them here changes the golden baseline, so each is a step of its
+own. The exchange rates are TCMB's made-up bulletins (fakes.fx), one for every
 business day the demo covers, read through TCMB's own reader. Two notes stand in Claude's memory (ADR-0023), as Claude
 would have written them, so the Claude bağlantısı screen shows what it keeps.
 """
 
-from datetime import date
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
+from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -18,7 +21,7 @@ from .app import fx, intake, memory
 from .app.workspace import Workspace
 from .categorize import PERSONAL_TEMPLATE
 from .domain.codes import Actor, MemoryKind, RateSource, SourceKind
-from .fakes import HOLDER, Move, garanti, teb
+from .fakes import HOLDER, CardRow, CardTerms, Move, charged, garanti, isbank, qnb, teb
 from .fakes import fx as fake_rates
 from .fakes.files import text_pdf
 from .fx import tcmb
@@ -85,8 +88,13 @@ def _teb_moves(month: int) -> list[Move]:
 def _teb_lists() -> dict[str, bytes]:
     """The main account in two exports, January–June and from 5 July on: the first days of July were never
     downloaded, so July cannot close."""
-    first = [m for month in range(1, 7) for m in _teb_moves(month)]
-    later = [m for month in range(7, 11) for m in _teb_moves(month)]
+    paid = _card_payments()
+    first = sorted(
+        [m for month in range(1, 7) for m in _teb_moves(month)] + [m for m in paid if m.day.month < 7], key=_day
+    )
+    later = sorted(
+        [m for month in range(7, 11) for m in _teb_moves(month)] + [m for m in paid if m.day.month >= 7], key=_day
+    )
     second = [m for m in later if m.day >= _SECOND_LIST_FROM]
     opening = sum((m.amount for m in first + later if m.day < _SECOND_LIST_FROM), Decimal(0))
     who = f"TEB Vadesiz TL {_TEB_NUMBER} Hesap Hareketleri.xls"
@@ -98,6 +106,200 @@ def _teb_lists() -> dict[str, bytes]:
             teb.running_rows(second, opening), _TEB_NUMBER, period=f"{_SECOND_LIST_FROM:%d/%m/%Y} - 31/10/2026"
         ),
     }
+
+
+# --- the cards ------------------------------------------------------------------------------------------------
+
+# Four cards opened one after another from May, each cut on a day of its own and paid in full ten days after its cut:
+# the TEB card from the TEB account, whose list shows it, the others from accounts at their own banks the demo has no
+# lists of. Their statements up to the demo's day are here, so October closes; November's payments fall after the TEB
+# account's last list and stand among the payments to come. A subscription is billed the same day and amount every
+# month; the shops are visited on other days for other amounts, and not every month, so none of them makes a series.
+_DUE_DAYS = 10
+_LIST_END = date(2026, 10, 31)
+_TEB_CARD = "4321"
+_SHOP_SHARES = tuple(Decimal(s) for s in ("1.00", "0.62", "1.35", "0.81", "1.18", "0.74"))
+_SHOP_SHIFTS = (0, 6, -4, 3, -7, 2)
+
+
+@dataclass(frozen=True, slots=True)
+class _Buy:
+    day: int
+    merchant: str
+    amount: Decimal
+    subscription: bool = False
+
+    def on(self, month: date, index: int) -> CardRow | None:
+        """This purchase in the month of a card's index-th statement, if it was made that month."""
+        if self.subscription:
+            return CardRow(date(month.year, month.month, self.day), self.merchant, self.amount)
+        k = len(self.merchant)
+        if (index + k) % 4 == 3:
+            return None  # a month without it
+        day = self.day + _SHOP_SHIFTS[(index + 2 * k) % len(_SHOP_SHIFTS)]
+        share = _SHOP_SHARES[(index + k) % len(_SHOP_SHARES)]
+        return CardRow(
+            date(month.year, month.month, day), self.merchant, (self.amount * share).quantize(Decimal("0.1"))
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class _Card:
+    folder: str  # where its statements go, as an import names them
+    name: str  # the statement's file name after its cut date
+    last4: str
+    first_cut: date
+    cuts: int
+    limit: Decimal
+    payment: str  # how its statement prints a payment
+    buys: tuple[_Buy, ...]
+    build: Callable[[Sequence[CardRow], date, Decimal, str, CardTerms], bytes]
+
+
+def _teb_card(rows: Sequence[CardRow], cut: date, previous: Decimal, last4: str, terms: CardTerms) -> bytes:
+    return teb.bonus_statement([rows], cut, previous, last4, terms=terms)
+
+
+def _garanti_card(rows: Sequence[CardRow], cut: date, previous: Decimal, last4: str, terms: CardTerms) -> bytes:
+    return garanti.bonus_statement([rows], cut, previous, last4, terms=terms)
+
+
+def _qnb_card(rows: Sequence[CardRow], cut: date, previous: Decimal, last4: str, terms: CardTerms) -> bytes:
+    return qnb.card_statement([rows], cut, previous, last4, terms=terms)
+
+
+def _isbank_card(rows: Sequence[CardRow], cut: date, previous: Decimal, last4: str, terms: CardTerms) -> bytes:
+    return isbank.maximum_statement([rows], cut, previous, last4, terms=terms)
+
+
+_CARDS = (
+    _Card(
+        "Bankalar/TEB/Bonus Kart 4321",
+        "TEB Bonus Kart Ekstresi.pdf",
+        _TEB_CARD,
+        date(2026, 6, 5),
+        6,
+        Decimal(60000),
+        "CEPTETEB ÖDEME TEŞEKKÜR EDERİZ",
+        (
+            _Buy(9, "A101 ORNEK MAGAZA ISTANBUL", Decimal(450)),
+            _Buy(15, "SHELL ORNEK ISTASYON", Decimal(900)),
+            _Buy(22, "YEMEKSEPETI ORNEK", Decimal(300)),
+        ),
+        _teb_card,
+    ),
+    _Card(
+        "Bankalar/Garanti BBVA/Bonus Kart 2468",
+        "Garanti Bonus Kart Ekstresi.pdf",
+        "2468",
+        date(2026, 7, 10),
+        5,
+        Decimal(45000),
+        "ÖDEMENİZ İÇİN TEŞEKKÜR EDERİZ",
+        (
+            _Buy(3, "NETFLIX.COM", Decimal("229.99"), subscription=True),
+            _Buy(13, "MIGROS ORNEK SUBE ISTANBUL", Decimal(900)),
+            _Buy(19, "ORNEK ECZANE", Decimal(200)),
+        ),
+        _garanti_card,
+    ),
+    _Card(
+        "Bankalar/QNB/Kredi Kartı 1357",
+        "QNB Kredi Kartı Ekstresi.pdf",
+        "1357",
+        date(2026, 8, 12),
+        4,
+        Decimal(120000),
+        "Ödeme - Tesekkür Ederiz -",
+        (
+            _Buy(2, "YOUTUBE PREMIUM GOOGLE", Decimal("79.99"), subscription=True),
+            _Buy(10, "ORNEK RESTORAN KADIKOY", Decimal(600)),
+            _Buy(21, "HEPSIBURADA ORNEK", Decimal(700)),
+        ),
+        _qnb_card,
+    ),
+    _Card(
+        "Bankalar/İş Bankası/Maximum Kart 9753",
+        "İş Bankası Maximum Kart Ekstresi.pdf",
+        "9753",
+        date(2026, 9, 7),
+        3,
+        Decimal(60000),
+        "9999-1234567 HESAPTAN AKTARIM İNTERAKTİF",
+        (
+            _Buy(12, "BIM ORNEK MAGAZA", Decimal(350)),
+            _Buy(17, "ORNEK KITAPEVI KADIKOY", Decimal(180)),
+            _Buy(25, "IKEA ORNEK", Decimal(1100)),
+        ),
+        _isbank_card,
+    ),
+)
+
+
+@dataclass(frozen=True, slots=True)
+class _Statement:
+    cut: date
+    previous: Decimal
+    rows: tuple[CardRow, ...]
+    terms: CardTerms
+
+    @property
+    def total(self) -> Decimal:
+        return self.previous + charged(self.rows)
+
+
+def _month_on(day: date, months: int = 1) -> date:
+    index = day.month - 1 + months
+    return date(day.year + index // 12, index % 12 + 1, day.day)
+
+
+def _statements(card: _Card) -> list[_Statement]:
+    """The card's statements, oldest first: the first starts from nothing (the card was opened in its period), each
+    later one carries the debt before it and the payment that cleared it."""
+    cuts = [_month_on(card.first_cut, i) for i in range(card.cuts)]
+    out: list[_Statement] = []
+    previous = Decimal(0)
+    for i, cut in enumerate(cuts):
+        start = (cuts[i - 1] if i else _month_on(cut, -1)) + timedelta(days=1)
+        rows = [CardRow(out[-1].terms.due, card.payment, -previous)] if out else []
+        for buy in card.buys:
+            for month in (start, cut):
+                row = buy.on(month, i)
+                if row is not None and row.day is not None and start <= row.day <= cut:
+                    rows.append(row)
+        rows.sort(key=lambda r: r.day or cut)
+        total = previous + charged(rows)
+        terms = CardTerms(
+            cut + timedelta(days=_DUE_DAYS),
+            (total * Decimal("0.4")).quantize(Decimal("0.01")),
+            card.limit,
+            _month_on(cut),
+        )
+        out.append(_Statement(cut, previous, tuple(rows), terms))
+        previous = total
+    return out
+
+
+def _card_statements() -> dict[str, bytes]:
+    out = {}
+    for card in _CARDS:
+        for s in _statements(card):
+            out[f"{card.folder}/{s.cut} {card.name}"] = card.build(s.rows, s.cut, s.previous, card.last4, s.terms)
+    return out
+
+
+def _card_payments() -> list[Move]:
+    """The TEB card's payments from the TEB account, on their due dates up to its last list."""
+    teb_card = next(card for card in _CARDS if card.last4 == _TEB_CARD)
+    return [
+        Move(s.terms.due, f"545616******{_TEB_CARD} no.lu Kredi Kartına Ödenen Tutar", -s.total)
+        for s in _statements(teb_card)
+        if s.terms.due is not None and s.terms.due <= _LIST_END and s.total > 0
+    ]
+
+
+def _day(move: Move) -> date:
+    return move.day
 
 
 def _garanti_receipts() -> dict[str, bytes]:
@@ -166,7 +368,7 @@ def _inbox(lists: dict[str, bytes]) -> dict[str, bytes]:
 def documents() -> dict[str, bytes]:
     """Every document of the demo, by its path in the workspace."""
     lists = _teb_lists()
-    return lists | _garanti_receipts() | _brokerage_statements() | _inbox(lists)
+    return lists | _garanti_receipts() | _brokerage_statements() | _card_statements() | _inbox(lists)
 
 
 def _store_rates(ws: Workspace) -> int:

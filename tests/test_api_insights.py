@@ -92,18 +92,18 @@ def insights_with(tmp_path, index: dict[str, Decimal]) -> dict:
 
 
 def test_with_tufe_the_trend_is_also_told_at_one_months_prices_with_its_months_and_numbers(tmp_path):
-    # Prices 10% higher in the recent months: a 1,3% rise in TL is a fall in real terms.
-    index = {m: Decimal(3000) for m in BEFORE} | {m: Decimal(3300) for m in RECENT}
+    # Prices 20% higher in the recent months: a rise in TL is a fall in real terms.
+    index = {m: Decimal(3000) for m in BEFORE} | {m: Decimal(3600) for m in RECENT}
     trend = insights_with(tmp_path, index)
     real = trend["real"]
     assert (real["base"], real["before"], real["recent"], real["missing"]) == ("2026-10", BEFORE, RECENT, [])
     assert real["before_nominal"] == trend["before_average"] and real["recent_nominal"] == trend["recent_average"]
-    assert (real["before_real"]["minor"], real["recent_real"]["minor"]) == (2_351_741, 2_165_706)
-    assert (real["prices"], real["nominal_change"], real["real_change"]) == (0.1, 0.013, -0.0791)
+    assert (real["before_real"]["minor"], real["recent_real"]["minor"]) == (2_565_536, 2_433_970)
+    assert (real["prices"], real["nominal_change"], real["real_change"]) == (0.2, 0.1385, -0.0513)
     assert real["say"] == (
         "Önceki dönemden (Ocak 2026 – Mart 2026 arasındaki 3 tam ay) son döneme (Nisan 2026 – Ekim 2026 arasındaki 6 "
-        "tam ay) fiyatlar (TÜFE) %10,0 arttı. Aylık ortalama harcamanız TL olarak %1,3 arttı; Ekim 2026 fiyatlarıyla "
-        "23.517,41 TL'den 21.657,06 TL'ye, yani fiyat artışı düşülünce %7,9 azaldı."
+        "tam ay) fiyatlar (TÜFE) %20,0 arttı. Aylık ortalama harcamanız TL olarak %13,9 arttı; Ekim 2026 fiyatlarıyla "
+        "25.655,36 TL'den 24.339,70 TL'ye, yani fiyat artışı düşülünce %5,1 azaldı."
     )
     assert trend["real_note"] == ""
 
