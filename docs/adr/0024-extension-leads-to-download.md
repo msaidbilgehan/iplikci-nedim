@@ -1,16 +1,17 @@
 # ADR-0024: Programı bulamayan eklenti, son kurulum paketinin indirilmesine yeni bir sekmede yol gösterir
 
-Durum: Kabul edildi · Tarih: 2026-11-14 · Dayanak: K31, K29, K14, K22 · [ADR-0016](0016-mail-connectors.md)'nın
+Durum: Kabul edildi · Tarih: 2026-11-14 · Dayanak: K31, K32, K29, K14, K22 · [ADR-0016](0016-mail-connectors.md)'nın
 listelenmemiş yayın kararını değiştirir; eklentinin davranışını ADR-0016'nın ve
 [ADR-0009](0009-network-egress-policy.md)'un eklenti satırının dışına bir sekmeyle genişletir
 
 ## Bağlam
 
 - Kullanıcı 2026-11-14'te eklentinin Chrome Web Store'a şimdi gönderilmesine karar verdi
-  ([K31](../v1/requirements.md#kararlar)). Eklenti, programı olmayan kullanıcıyı sürümlerin herkese açık deposundaki
-  (`msaidbilgehan/iplikci-nedim-surumler`) son kurulum paketine götürmeli ve kurulumu anlatmalı. Ayrı bir web sayfası
-  şimdilik yoktur. Aynı gün iki karar daha geldi: eklenti mağazada herkese açık listelenir; mağazaya ilk giden sürüm
-  0.9.0'dır, 0.8.0 yüklenmez.
+  ([K31](../v1/requirements.md#kararlar)). Eklenti, programı olmayan kullanıcıyı sürümlerin durduğu herkese açık
+  depodaki son kurulum paketine götürmeli ve kurulumu anlatmalı: ertesi gün bu, kod deposunun kendisi oldu
+  (`msaidbilgehan/iplikci-nedim`, [K32](../v1/requirements.md#kararlar)). Ayrı bir web sayfası şimdilik yoktur.
+  Aynı gün iki karar daha geldi: eklenti mağazada herkese açık listelenir; mağazaya ilk giden sürüm 0.9.0'dır, 0.8.0
+  yüklenmez.
 - Mağazadan kurulan eklenti, bilgisayarda program yoksa hiçbir şey yapamaz. Eşleşmemiştir ve 127.0.0.1:8643'te yanıt
   veren yoktur. 0.8.0'ın sayfaları yalnızca "Eşleşmedi" der ve kodu İplikçi Nedim'den almayı söylerdi: programı hiç
   görmemiş biri ne yapacağını bilemezdi.
@@ -65,7 +66,7 @@ listelenmemiş yayın kararını değiştirir; eklentinin davranışını ADR-00
 ### İndirme tarayıcının sekmesinde
 
 - Düğme indirme adresini yeni bir sekmede açar (`chrome.tabs.create`):
-  `https://github.com/msaidbilgehan/iplikci-nedim-surumler/releases/latest/download/<kararlı ad>`. GitHub adresi son
+  `https://github.com/msaidbilgehan/iplikci-nedim/releases/latest/download/<kararlı ad>`. GitHub adresi son
   sürümün dosyasına yönlendirir, dosyayı tarayıcı indirir. Tarayıcının kendi denetimleri (Güvenli Tarama) her
   indirmede olduğu gibi çalışır.
 - Eklenti GitHub'a istek yapmaz, oraya veri göndermez ve yeni bir izin istemez. Sekme açmak izin istemez. Gidecek

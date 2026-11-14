@@ -267,8 +267,7 @@ Claude'un hafızası İplikçi Nedim'de (v0.11.0):
   istemediğiniz bir notu silebilirsiniz.
 
 Açık kalanlar: servisin yedi gün kendi başına çalışması (K19). Windows ve Linux'ta denemeler bekletiliyor (K25);
-1.0 yalnızca macOS'la çıkar (K31). Sürümler herkese açık `iplikci-nedim-surumler` deposunda yayımlanacak (K31); o
-depo açılana dek kurulu kopyalar güncellemeyi indiremez.
+1.0 yalnızca macOS'la çıkar (K31). Depo herkese açıktır ve sürümler buradan dağıtılır (K32).
 
 MVP 2026-10-31'de emekliye ayrıldı. İplikçi Nedim onun kodundan başlar ama verisini devralmaz; belgeleri kendisi toplar.
 
@@ -276,11 +275,11 @@ MVP 2026-10-31'de emekliye ayrıldı. İplikçi Nedim onun kodundan başlar ama 
 
 İplikçi Nedim her işletim sistemi için bir kurulum paketiyle gelir; Python ya da başka bir program kurmanız gerekmez.
 Paketler şimdilik imzasızdır. Her sürümde bu deponun "Paketler" iş akışı onları üretir ve herkese açık
-[sürüm sayfasında](https://github.com/msaidbilgehan/iplikci-nedim-surumler/releases/latest) yayımlar. Son sürümün
+[sürüm sayfasında](https://github.com/msaidbilgehan/iplikci-nedim/releases/latest) yayımlar. Son sürümün
 paketi, adında sürüm numarası olmadan hep aynı adrestedir:
-[macOS (Apple Silicon)](https://github.com/msaidbilgehan/iplikci-nedim-surumler/releases/latest/download/iplikci-nedim-macos-aarch64.dmg),
-[Windows](https://github.com/msaidbilgehan/iplikci-nedim-surumler/releases/latest/download/iplikci-nedim-windows-x86_64.exe),
-[Linux](https://github.com/msaidbilgehan/iplikci-nedim-surumler/releases/latest/download/iplikci-nedim-linux-x86_64.AppImage).
+[macOS (Apple Silicon)](https://github.com/msaidbilgehan/iplikci-nedim/releases/latest/download/iplikci-nedim-macos-aarch64.dmg),
+[Windows](https://github.com/msaidbilgehan/iplikci-nedim/releases/latest/download/iplikci-nedim-windows-x86_64.exe),
+[Linux](https://github.com/msaidbilgehan/iplikci-nedim/releases/latest/download/iplikci-nedim-linux-x86_64.AppImage).
 
 Tarayıcı eklentisini Chrome Web Store'dan önce kurduysanız eklenti programı bulamayınca bunu söyler: ayarlar sayfası
 kendiliğinden açılır, bilgisayarınızın sistemi için İplikçi Nedim'i indiren bir düğme ve aşağıdaki adımları gösterir.

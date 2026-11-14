@@ -373,5 +373,5 @@ yeniden yükler (eklenti 0.8.0). Mağazadan kurulan eklentinin kimliği farklıd
   programı bekler; program yanıt verince eşleştirme bugünkü gibi sürer.
 - **İzinler ve adresler değişmedi:** programın orada olup olmadığına servisin sağlık denetimiyle (`/healthz`, belirteç
   istemez) var olan `http://127.0.0.1:8643/*` izni üzerinden bakılır. İndirme düğmesi
-  `github.com/msaidbilgehan/iplikci-nedim-surumler/releases/latest/download/…` adresini yeni bir sekmede açar;
+  `github.com/msaidbilgehan/iplikci-nedim/releases/latest/download/…` adresini yeni bir sekmede açar;
   indirmeyi tarayıcı yapar. Eklenti GitHub'a istek yapmaz ve oraya veri göndermez.

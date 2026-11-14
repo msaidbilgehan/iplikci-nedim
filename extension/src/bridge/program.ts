@@ -8,7 +8,7 @@
 
 /** Where the releases are: where the program looks for its updates (src/iplikci/update/source.py's REPO; the
  * program's tests check that the two agree). */
-export const REPO = "msaidbilgehan/iplikci-nedim-surumler";
+export const REPO = "msaidbilgehan/iplikci-nedim";
 /** The latest release's page: its notes and every system's installer. */
 export const RELEASES = `https://github.com/${REPO}/releases/latest`;
 

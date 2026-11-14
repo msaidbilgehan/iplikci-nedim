@@ -117,8 +117,9 @@ Durum: Kabul edildi · Tarih: 2026-11-10 · Dayanak: K29, K14, K22 · [ADR-0009]
 ## Not (2026-11-14, K31)
 
 Sürümlerin yeri seçildi: kod deposu özel kalır, sürümler herkese açık `msaidbilgehan/iplikci-nedim-surumler`
-deposunda yayımlanır. `update/source.REPO` v0.11.1'den beri onu gösterir; iş akışı `RELEASE_REPO` ve `RELEASE_TOKEN`
-ile oraya yayımlar. Depo, paketlenmiş uygulama kullanıcının Mac'inde denendikten sonra açılır.
+deposunda yayımlanır. `update/source.REPO` v0.11.1'de onu gösterir; iş akışı `RELEASE_REPO` ve `RELEASE_TOKEN` ile
+oraya yayımlar. Depo, paketlenmiş uygulama kullanıcının Mac'inde denendikten sonra açılır. (Ertesi gün K32 bunu
+değiştirdi; aşağıdaki nota bakın.)
 
 ## Not (2026-11-14, ADR-0024)
 
@@ -131,3 +132,11 @@ ile oraya yayımlar. Depo, paketlenmiş uygulama kullanıcının Mac'inde denend
   kopyalar dosyayı sürümün etiketli adresinden, bildirgenin yazdığı adla indirir; adlar onlar için bir şey değiştirmez.
 - Eklentinin sunduğu sistemlerden birinin paketi eksikse sürüm yapılmaz. Yayımlandıktan sonra iş akışı her kararlı
   adresi hesapsız indirmeyi dener; olmazsa uyarı yazar.
+
+## Not (2026-11-15, K32)
+
+Kullanıcı ayrı bir sürüm deposu istemedi: kod deposu `msaidbilgehan/iplikci-nedim` herkese açıldı ve sürümler onun
+sürüm sayfasında yayımlanır. `update/source.REPO` kod deposudur; iş akışı `RELEASE_REPO` ve `RELEASE_TOKEN` olmadan
+kendi deposuna yayımlar (değişkenler başka bir depo için durur). Açmadan önce bütün geçmiş veri klasöründeki değerlerle,
+genel kişisel veri kalıplarıyla ve gitleaks'le tarandı. v0.11.1'i kuran tek Mac'in uygulaması 1.0.0'ı bir kez de
+`iplikci-nedim-surumler`'den alır; kendini güncellemesi böylece gerçek bir Mac'te denenir. Sonra o depo kaldırılır.

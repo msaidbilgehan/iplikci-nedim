@@ -86,7 +86,7 @@ tarayıcı indirir, eklenti GitHub'a istek yapmaz. `downloads`, `tabs` ve GitHub
 > http://127.0.0.1:8643/healthz, no token, no cookie). Nothing answers on a reviewer's computer, so the page says that
 > the İplikçi Nedim app is needed and shows "İplikçi Nedim'i indir" with the steps to install and open it for the
 > computer's system (chrome.runtime.getPlatformInfo). The button opens
-> https://github.com/msaidbilgehan/iplikci-nedim-surumler/releases/latest/download/<installer> in a new tab
+> https://github.com/msaidbilgehan/iplikci-nedim/releases/latest/download/<installer> in a new tab
 > (chrome.tabs.create): the browser downloads the app's installer from its public releases. The extension makes no
 > request to GitHub, sends nothing there and has no "downloads" or "tabs" permission. A system without an installer
 > (ChromeOS, for example) gets the releases page instead. The page keeps asking the local address every few seconds

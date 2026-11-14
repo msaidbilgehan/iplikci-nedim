@@ -482,8 +482,8 @@ MVP 2026-10-31'de emekliye ayrıldı, bu yüzden ayrı bir geçiş aşaması yok
 - En az bir ay İplikçi Nedim'de kapanmıştır.
 - Yedek alınmış ve geri yükleme provası geçmiştir.
 - `iplikci dogrula --arsiv` hatasız biter ve gerçek belgelerin tabanı gerilememiştir.
-- Paketlenmiş uygulama kullanıcının Mac'inde kurulmuş ve denenmiştir; sürümler herkese açık
-  `iplikci-nedim-surumler` deposundadır (K31).
+- Paketlenmiş uygulama kullanıcının Mac'inde kurulmuş ve denenmiştir; sürümler herkese açık kod deposunun sürüm
+  sayfasındadır ([K32](requirements.md#kararlar)).
 
 Servisin iki hafta kesintisiz çalışması 1.0'ı beklemez (K31, 2026-11-14): ilk günlerde kullanıcı olmayacak, mağaza
 incelemesi de zaman alacak. Aşağıdaki süreye bağlı koşullar yine zamanı gelince denetlenir; bir sorun çıkarsa 1.0.x

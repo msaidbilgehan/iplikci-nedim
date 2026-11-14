@@ -23,9 +23,10 @@ paketi GitHub sürümüne de koyar. Simgeler ürünün logosundan `packaging/ico
 
 - [Mağaza metni](listing.md): kısa ve uzun açıklama, tek amaç, izinlerin gerekçeleri, veri kullanımı beyanı ve
   inceleme notu.
-- [Gizlilik politikası](privacy.md): mağaza herkese açık bir adres ister. Kod deposu özel kaldığı için (K18) bu sayfanın
-  bir kopyası sürümlerin herkese açık deposunda, `iplikci-nedim-surumler`'de durur; mağazaya o dosyanın GitHub'daki
-  adresi yazılır ([K31](../../docs/v1/requirements.md#kararlar), [sürüm yayını](../../docs/yayin.md#sürümlerin-yeri)).
+- [Gizlilik politikası](privacy.md): mağaza herkese açık bir adres ister. Depo herkese açık olduğu için (K32) mağazaya
+  bu dosyanın GitHub'daki adresi yazılır:
+  <https://github.com/msaidbilgehan/iplikci-nedim/blob/master/extension/store/privacy.md>
+  ([sürüm yayını](../../docs/yayin.md#sürümlerin-yeri)).
 
 ## İlk yayın (elle, bir kez)
 
@@ -34,10 +35,9 @@ paketi GitHub sürümüne de koyar. Simgeler ürünün logosundan `packaging/ico
 3. Ekran görüntüleri: eklentinin penceresi (araç çubuğundaki düğmeden), ayarlar sayfası ve doğrulama sayfası,
    1280×800. Görüntülerde gerçek adres, banka adı ya da tutar olmamalı. Demo veri klasörüyle eşleşmiş bir eklentiden
    alınır; programı olmayan bir bilgisayardaki ayarlar sayfası (indirme rehberi) da bir görüntü olabilir.
-4. Önce kurulum paketlerini kararlı adlarıyla taşıyan bir program sürümü herkese açık `iplikci-nedim-surumler`
-   deposunda yayımlanmış olmalı (`iplikci-nedim-macos-aarch64.dmg` gibi; [sürüm yayını](../../docs/yayin.md)).
-   v0.11.1'in paketleri sürümlü adlarla duruyor: o sürüm son sürümken eklentinin indirme düğmesi GitHub'ın
-   "bulunamadı" sayfasını açardı.
+4. Önce kurulum paketlerini kararlı adlarıyla taşıyan bir program sürümü (1.0.0 ve sonrası) deponun sürüm sayfasında
+   yayımlanmış olmalı (`iplikci-nedim-macos-aarch64.dmg` gibi; [sürüm yayını](../../docs/yayin.md)): eklentinin
+   indirme düğmesi son sürümün bu adlı dosyasını açar.
 5. `iplikci-kopru-0.9.0.zip` (o sürümün GitHub sayfasından ya da `npm run package`) geliştirici panosundan yüklenir;
    görünürlük: herkese açık.
 6. Yeni geliştiricilerin eklentileri ilk aylarda Gelişmiş Güvenli Tarama'da "dikkatli olun" uyarısı alabilir

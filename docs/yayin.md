@@ -68,24 +68,22 @@ Kurulu kopyalar sürümü kimlik bilgisi olmadan indirir:
 `https://github.com/<depo>/releases/latest/download/iplikci-nedim-surum.json`, sonra GitHub'ın dosya sunucusu. Depo
 (`src/iplikci/update/source.py`'deki `REPO`) herkese açık olmalıdır.
 
-- Kod deposu özel kalır (K18). Sürümler herkese açık, ayrı bir depoda durur: `msaidbilgehan/iplikci-nedim-surumler`
-  ([K31](v1/requirements.md#kararlar)). `REPO` v0.11.1'den beri onu gösterir. Depo açılmadan önceki sürümler kod
-  deposunda kaldı; onların denetimi "sürümler henüz herkese açık bir yerde değil" der.
-- **Deponun açılması (bir kez):**
-  1. Depo herkese açık olarak açılır; içinde indirme ve kurulum anlatan bir README ile gizlilik politikası durur
-     (`extension/store/privacy.md`'nin kopyası). Mağazanın istediği gizlilik politikası adresi o dosyanın GitHub'daki
-     sayfasıdır; ayrı bir web sayfası şimdilik yoktur.
-  2. Kod deposunda `RELEASE_REPO` değişkeni `msaidbilgehan/iplikci-nedim-surumler` olur; `RELEASE_TOKEN` sırrı yalnızca
-     o depoda "Contents: write" izni olan ince ayarlı belirteçtir.
-  3. Sonraki her sürüm etiketi sürümü oraya yayımlar; kurulu kopyalar ertesi sabah onu bulur.
+- Kod deposu `msaidbilgehan/iplikci-nedim` herkese açıktır ve sürümler onun sürüm sayfasında durur
+  ([K32](v1/requirements.md#kararlar)); `REPO` onu gösterir, iş akışı `RELEASE_REPO` ve `RELEASE_TOKEN` olmadan kendi
+  deposuna yayımlar. Mağazanın istediği gizlilik politikası adresi depodaki `extension/store/privacy.md`'nin GitHub
+  sayfasıdır; ayrı bir web sayfası şimdilik yoktur.
+- **Ayrı sürüm deposunun kısa ömrü:** v0.11.1 sürümleri bir gecelik `msaidbilgehan/iplikci-nedim-surumler` deposunda
+  aradı (K31). O sürümü kuran Mac'in 1.0.0'a kendiliğinden geçmesi için 1.0.0 bir kez de oraya konur; sonra depo
+  kaldırılır. Ondan önceki sürümler (kod deposu özelken) yalnızca haber verir: "sürümler henüz herkese açık bir yerde
+  değil".
 - **Kurulum paketlerinin kararlı adları** ([ADR-0024](adr/0024-extension-leads-to-download.md)): her sürüm kurulum
   paketlerini sürüm numarası olmayan adlarla taşır. Son sürümün paketi bu yüzden hep aynı adrestedir:
 
   | Sistem | Adres |
   |---|---|
-  | macOS (Apple Silicon) | `https://github.com/msaidbilgehan/iplikci-nedim-surumler/releases/latest/download/iplikci-nedim-macos-aarch64.dmg` |
-  | Windows (x64) | `https://github.com/msaidbilgehan/iplikci-nedim-surumler/releases/latest/download/iplikci-nedim-windows-x86_64.exe` |
-  | Linux (x64) | `https://github.com/msaidbilgehan/iplikci-nedim-surumler/releases/latest/download/iplikci-nedim-linux-x86_64.AppImage` |
+  | macOS (Apple Silicon) | `https://github.com/msaidbilgehan/iplikci-nedim/releases/latest/download/iplikci-nedim-macos-aarch64.dmg` |
+  | Windows (x64) | `https://github.com/msaidbilgehan/iplikci-nedim/releases/latest/download/iplikci-nedim-windows-x86_64.exe` |
+  | Linux (x64) | `https://github.com/msaidbilgehan/iplikci-nedim/releases/latest/download/iplikci-nedim-linux-x86_64.AppImage` |
 
   - Programı bulamayan tarayıcı eklentisi kullanıcıyı bu adreslere götürür; README de onlara bağlantı verebilir.
   - Bildirge kurulum paketlerini bu adlarla yazar. Windows'un kurulum programı güncelleme dosyası da olduğu için
@@ -94,8 +92,7 @@ Kurulu kopyalar sürümü kimlik bilgisi olmadan indirir:
   - Hangi sistemlerin paketinin bulunması gerektiği `packaging/release.py`'deki `OFFERED`'dadır: iş akışının
     makineleri. Biri eksikse sürüm yapılmaz. Eklentinin sabitleri (`extension/src/bridge/program.ts`) bunlarla ve
     `update/source.REPO` ile aynı kalır; testler denetler.
-  - v0.11.1'in paketleri henüz sürümlü adlarla duruyor. Kararlı adları taşıyan ilk sürüm yayımlanana dek bu adresler
-    GitHub'ın "bulunamadı" sayfasını açar.
+  - Kararlı adları taşıyan ilk sürüm 1.0.0'dır; ondan öncekilerin paketleri sürümlü adlarla durur.
 
 ## Bir sürümü elle doğrulamak
 
