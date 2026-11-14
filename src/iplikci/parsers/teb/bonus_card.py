@@ -27,6 +27,11 @@ _DUE = re.compile(r"(?<!SONRAKI)SONODEMETARIHI:?(\d{2}/\d{2}/\d{4})")
 # statements print under it ("… bir sonraki hesap kesim tarihi ve bir sonraki son ödeme tarihi ile ilgili …") has no
 # date after the words.
 _NEXT_CUT = re.compile(r"SONRAKIHESAPKESIMTARIHI:?(\d{2}/\d{2}/\d{4})")
+# The box of terms prints the minimum payment and the card's limit, both usually whole ("Minimum Ödeme Tutarı
+# :TL.1.887,-", "Kart Limiti :TL.60.000,-"); OCR reads them as cells of their own. The cash advance limit under them is
+# not the card's.
+_MINIMUM = re.compile(r"MINIMUMODEMETUTARI:?(TL\.?[\d.]+,(?:\d{1,2}|-))")
+_LIMIT = re.compile(r"KARTLIMITI:?(TL\.?[\d.]+,(?:\d{1,2}|-))")
 
 
 def _split_description(desc: str) -> tuple[str, str, str]:
@@ -60,8 +65,9 @@ def _parse_statement(doc: SourceDocument, first: str) -> ParseResult:
         source=doc.name,
         previous=Decimal(0),
         total=parse_tr_amount(total[1]) if total else None,
-        # The layout known prints no minimum payment or limit.
         due_date=agreed(parse_dmy(d) for d in _DUE.findall(sq)),
+        minimum_payment=agreed(parse_tr_amount(m) for m in _MINIMUM.findall(sq)),
+        credit_limit=agreed(parse_tr_amount(m) for m in _LIMIT.findall(sq)),
         next_cut=next_cut(cut_date, (parse_dmy(d) for d in _NEXT_CUT.findall(sq))),
     )
     for page in doc.pdf.pages:
@@ -139,8 +145,8 @@ def _parse_ocr(doc: SourceDocument, pages: list[list[Line]]) -> ParseResult:
         raise ValueError("OCR: kart numarası / hesap kesim tarihi okunamadı")
     account = card_account(card[1])
     cut_date = _cut_date(cut[0])
-    # The box of terms as OCR reads it, each label and its date a cell of their own: the due date, printed again in
-    # the heading, and the next statement's cut.
+    # The box of terms as OCR reads it, each label and its value a cell of their own: the due date, printed again in
+    # the heading, the minimum payment, the card's limit and the next statement's cut.
     sq = squash(text)
     stmt = Statement(
         account=account.id,
@@ -150,6 +156,8 @@ def _parse_ocr(doc: SourceDocument, pages: list[list[Line]]) -> ParseResult:
         previous=Decimal(0),
         total=total,
         due_date=agreed(parse_dmy(d) for d in _DUE.findall(sq)),
+        minimum_payment=agreed(parse_tr_amount(m) for m in _MINIMUM.findall(sq)),
+        credit_limit=agreed(parse_tr_amount(m) for m in _LIMIT.findall(sq)),
         next_cut=next_cut(cut_date, (parse_dmy(d) for d in _NEXT_CUT.findall(sq))),
     )
     for line in lines:
@@ -184,7 +192,7 @@ def _parse_ocr(doc: SourceDocument, pages: list[list[Line]]) -> ParseResult:
 
 class BonusCard:
     id = ID
-    version = 5
+    version = 6
     bank = "TEB"
     name = "TEB Bonus kart ekstresi"
     document_type = DocumentKind.CARD_STATEMENT

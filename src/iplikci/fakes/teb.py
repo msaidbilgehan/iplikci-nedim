@@ -96,9 +96,11 @@ BONUS_CARDS: tuple[tuple[CardRow, ...], ...] = (
 )
 
 
-# A Bonus statement's terms: the due date ten days after the cut and the next cut, a day before the same day a month
-# on. The layout the MVP knew prints no minimum payment or limit.
-BONUS_TERMS = CardTerms(date(2026, 10, 15), next_cut=date(2026, 11, 4))
+# A Bonus statement's terms: the due date ten days after the cut, the minimum payment and the card's limit, whole as
+# TEB prints them, and the next cut, a day before the same day a month on.
+BONUS_TERMS = CardTerms(date(2026, 10, 15), Decimal(1887), Decimal(60000), date(2026, 11, 4))
+# The cash advance limit, printed under the card's.
+_CASH_LIMIT = Decimal(24000)
 
 
 def bonus_statement(
@@ -111,8 +113,8 @@ def bonus_statement(
     terms: CardTerms = BONUS_TERMS,
 ) -> bytes:
     """A TEB Bonus card statement ("Kredi Kart Ekstre Özeti") with a text layer: a section per card, each under
-    its own header and closed by the card's subtotal, and the period's debt and due date; note goes at the foot of
-    the page."""
+    its own header and closed by the card's subtotal, and the box of terms (the period's debt, the due date, the minimum
+    payment, the card's and the cash advance limits, the next cut); note goes at the foot of the page."""
     total = previous + sum((charged(c) for c in cards), Decimal(0))
     runs: list[Run] = [
         (40, 40, "TÜRK EKONOMİ BANKASI A.Ş."),
@@ -122,6 +124,9 @@ def bonus_statement(
         (330, 112, f"Kart Numarası: 545616******{last4}"),
         *([(40, 124, f"Son Ödeme Tarihi: {terms.due:%d/%m/%Y}")] if terms.due is not None else []),
         (330, 124, f"Dönem Borcu: {_amount(total)}"),
+        *([(330, 136, f"Minimum Ödeme Tutarı :{_amount(terms.minimum)}")] if terms.minimum is not None else []),
+        *([(330, 148, f"Kart Limiti :{_amount(terms.limit)}")] if terms.limit is not None else []),
+        (330, 160, f"Nakit Avans Limiti :{_amount(_CASH_LIMIT)}"),
         *_next_terms(terms),
     ]
     y = 180.0
@@ -174,7 +179,8 @@ def scanned_statement(
 ) -> list[list[Line]]:
     """What OCR reads off a TEB Bonus statement delivered as page images: every text run a word of its own,
     usually a table cell, with the contactless payment icon read as ")))". The box of terms on the left shares its
-    lines with the heading and the address on the right, and OCR reads the Ö of "Ödeme" as an O there."""
+    lines with the heading and the address on the right, and OCR reads the Ö of "Ödeme" as an O there; the cash
+    advance limit shares a line with a rate."""
     total = previous + sum((charged(c) for c in cards), Decimal(0))
     due = [f"{terms.due:%d/%m/%Y}"] if terms.due is not None else []
     cells: list[list[str]] = [
@@ -182,6 +188,9 @@ def scanned_statement(
         ["Dönem Borcu", _amount(total), *[f"SON ÖDEME TARİHİ: {d}" for d in due]],
         ["Hesap Kesim Tarihi", f"{cut:%d/%m/%Y}", f"SAYIN {HOLDER}"],
         *([["Son Odeme Tarihi", *due, "ÖRNEK MAH. DENEME SK. No:1"]] if due else []),
+        *([["Minimum Odeme Tutarı", _amount(terms.minimum)]] if terms.minimum is not None else []),
+        *([["Kart Limiti", _amount(terms.limit)]] if terms.limit is not None else []),
+        ["Alışveriş Gecikme Faizi", "%4,25", "%51,00", "Nakit Avans Limiti", _amount(_CASH_LIMIT)],
     ]
     if terms.next_cut is not None:
         later = terms.next_cut + timedelta(days=10)

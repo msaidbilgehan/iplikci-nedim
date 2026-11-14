@@ -106,7 +106,9 @@ hareketi taşımaz. V1'de çöpe gitmez; "işlenmedi" durumunda saklanır (K11).
   satırlardan sonra gelir: satırlar ilk sayfayı doldurunca sonraki sayfadadır, bu yüzden bütün sayfalarda aranır.
 - Kart limiti "Kart Limiti" satırıdır; üstündeki "Müşteri Limiti", altındaki "Nakit Avans Limiti" ve cümledeki
   "kullanılabilir limitiniz" değildir.
-- İlk iki sayfada asgari ödeme tutarı yazmaz; boş kalır.
+- Asgari ödeme tutarı özette dönem borcunun altındadır: "Min. Ödeme Tutarı 1.553,96 TL". Satırlardan sonraki tablonun
+  "Min. Ödeme Tutarınız" sütunu tutarı bir alt satıra yazar; alınmaz. (Okuyucunun 4. sürümüne dek ilk sayfada asgari
+  tutar yazmadığı sanılıyordu; gerçek ekstrelerin hepsinde yazar.)
 
 **Paracard banka kartı PDF'i:** bakiye yoktur; toplam, alışverişler ile nakit çekimlerin toplamıdır. Ödeme bilgisi
 de yoktur.
@@ -252,7 +254,10 @@ Borcunuzun Tahsilatı")
 - Sayfa resmi olarak gelen ekstrede (OCR) aynı kutu okunur: her etiket ve tarihi ayrı bir hücredir, kutunun satırları
   sağdaki başlık ve adresle aynı satırdadır. OCR "Son Ödeme Tarihi"nin Ö'sünü O okuyabilir; başlık son ödeme tarihini
   bir kez daha yazar ("SON ÖDEME TARİHİ: 15/10/2026").
-- Asgari tutar ("Minimum Ödeme Tutarı") ve kart limiti ("Kart Limiti") gerçek ekstrede yazar ama henüz okunmaz.
+- Aynı kutu asgari tutarı ve kart limitini yazar, çoğu kez küsuratsız: "Minimum Ödeme Tutarı :TL.1.887,-", "Kart Limiti
+  :TL.60.000,-". Altındaki "Nakit Avans Limiti" kartın limiti değildir. OCR'da her biri ayrı bir hücredir; nakit avans
+  limiti bir faiz oranıyla aynı satırdadır. (MVP'nin bildiği düzende bunlar yoktu; gerçek ekstrelerin hepsinde
+  yazar, okuyucunun 6. sürümünden beri okunur.)
 
 **Kart ödeme dekontu PDF'i:** `ekstresiz_kart` (`card_payment_no_statement`) türündedir; ekstresi olmayan bir karta
 yapılan ödemedir.
@@ -375,7 +380,10 @@ uygulamasının paylaştığı, iki TEB hesabı arasındaki aktarmanın dekontu.
   ekstrelerde yoktur; o yüzden son ödeme tarihleri hiç okunmuyordu.)
 - Son sayfadaki not gelecek ekstreyi anlatır: "* Bir sonraki hesap kesim tarihiniz 04/11/2026, bir sonraki son ödeme
   tarihiniz 14/11/2026". İlki sonraki kesim olarak alınır.
-- Asgari tutar ("Asgari Ödeme Tutarı : 0.00 TL") ve kart limiti ("Kredi Kartı Limiti : …") yazar ama henüz okunmaz.
+- Özet asgari tutarı ve kart limitini ABD biçimiyle yazar: "Asgari Ödeme Tutarı : 1,036.36 TL" (Ö'sü yazı tipine
+  düşer), "Kredi Kartı Limiti : 120,000.00 TL". Ödenecek borcu olmayan ekstre asgari tutarı 0.00 yazar. Yanındaki
+  "Asgari Ödeme Oranı", altındaki "Nakit Avans Limiti" ve "Kullanılabilir Limit" ile satırların altındaki yasal not
+  ("… asgari ödeme tutarını belirtilen son ödeme tarihine …") bunlar değildir. Okuyucunun 4. sürümünden beri okunur.
 
 **e-dekont** (HTML; utf-8 ya da windows-1254; ya da PDF)
 

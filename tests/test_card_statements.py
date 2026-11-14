@@ -72,11 +72,11 @@ def test_garanti_bonus_statement_adds_its_rows_to_the_debt_it_carries_over():
     assert [t.ref.page for t in s.transactions] == [1] * 6 + [2] * 5
 
 
-def test_garanti_bonus_statement_reads_the_due_date_it_prints_twice_and_the_card_limit():
+def test_garanti_bonus_statement_reads_the_due_date_it_prints_twice_the_minimum_payment_and_the_card_limit():
     s = only(read(garanti.bonus_statement()))
-    # The heading and the summary print the due date, a sentence under them the next one; the customer's limit and the
-    # cash advance limit stand around the card's. No minimum payment is printed.
-    assert (s.due_date, s.minimum_payment, s.credit_limit) == (date(2026, 10, 15), None, Decimal(45000))
+    # The heading and the summary print the due date, a sentence under them the next one; the minimum payment stands
+    # under the period's debt; the customer's limit and the cash advance limit stand around the card's.
+    assert (s.due_date, s.minimum_payment, s.credit_limit) == (date(2026, 10, 15), Decimal("1553.96"), Decimal(45000))
 
 
 def test_garanti_reads_the_next_cut_from_the_sentence_after_its_rows_on_a_later_page():
@@ -167,9 +167,10 @@ def test_teb_bonus_statement_reads_every_card_section():
     assert (teknosa.installment, abroad.original, whole.amount) == ("8/9", "25,75 EUR", Decimal(1500))
 
 
-def test_teb_bonus_statement_reads_the_due_date_its_layout_prints():
+def test_teb_bonus_statement_reads_the_due_date_the_minimum_payment_and_the_card_limit_its_box_prints():
+    # The cash advance limit under the card's is not the card's.
     s = only(read(teb.bonus_statement()))
-    assert (s.due_date, s.minimum_payment, s.credit_limit) == (date(2026, 10, 15), None, None)
+    assert (s.due_date, s.minimum_payment, s.credit_limit) == (date(2026, 10, 15), Decimal(1887), Decimal(60000))
 
 
 def test_teb_takes_no_next_cut_from_the_sentence_that_only_explains_it():
@@ -179,15 +180,18 @@ def test_teb_takes_no_next_cut_from_the_sentence_that_only_explains_it():
     assert only(read(teb.bonus_statement(note=note, terms=terms))).next_cut is None
 
 
-def test_a_teb_statement_read_with_ocr_gives_its_due_date_and_the_next_cut(monkeypatch):
+def test_a_teb_statement_read_with_ocr_gives_its_terms(monkeypatch):
     # OCR reads the box of terms beside the heading, which prints the due date again, and the address; it reads the
-    # Ö of "Son Ödeme Tarihi" as O there. The next statement's due date is not this one's.
+    # Ö of "Ödeme" as O there. The next statement's due date is not this one's, nor the cash advance limit, which
+    # shares its line with a rate, the card's.
     monkeypatch.setattr(parsers, "ocr_available", lambda: True)
     monkeypatch.setattr(contract.SourceDocument, "ocr_pages", property(lambda self: teb.scanned_statement()))
     s = only(read(scan_pdf()))
-    assert (s.cut_date, s.due_date, s.next_cut, s.verified) == (
+    assert (s.cut_date, s.due_date, s.minimum_payment, s.credit_limit, s.next_cut, s.verified) == (
         date(2026, 10, 5),
         date(2026, 10, 15),
+        Decimal(1887),
+        Decimal(60000),
         date(2026, 11, 4),
         True,
     )
@@ -219,9 +223,17 @@ def test_qnb_card_statement_repairs_the_labels_its_font_breaks():
     assert [(t.ref.page, t.ref.line) for t in s.transactions[-2:]] == [(2, 2), (2, 3)]
 
 
-def test_qnb_card_statement_reads_the_due_date_it_spells_out():
+def test_qnb_card_statement_reads_the_due_date_it_spells_out_the_minimum_payment_and_the_card_limit():
+    # The minimum's Ö is lost to the font. The rate beside it, the cash advance and available limits under the card's
+    # and the legal note on the minimum after the rows are not these terms.
     s = only(read(qnb.card_statement()))
-    assert (s.due_date, s.minimum_payment, s.credit_limit) == (date(2026, 10, 15), None, None)
+    assert (s.due_date, s.minimum_payment, s.credit_limit) == (date(2026, 10, 15), Decimal("1036.36"), Decimal(120000))
+
+
+def test_a_qnb_statement_with_nothing_to_pay_reads_its_minimum_of_nought():
+    terms = replace(qnb.CARD_TERMS, due=None, minimum=Decimal(0))
+    s = only(read(qnb.card_statement(terms=terms)))
+    assert (s.due_date, s.minimum_payment, s.credit_limit) == (None, Decimal(0), Decimal(120000))
 
 
 @pytest.mark.parametrize(

@@ -23,6 +23,9 @@ _FOREIGN = re.compile(r"([\d.]+,\d{2})\s*(USD|EUR|GBP)")
 _DUE = re.compile(r"SON ODEME TARIHI:? ?(\d{1,2}) (\w+) (\d{4})")
 # The card's limit, between the customer's limit and the cash advance limit.
 _LIMIT = re.compile(r"\bKART LIMITI ([\d.]+,\d{2})")
+# The minimum payment, under the period's debt in the summary ("Min. Ödeme Tutarı 1.553,96 TL"). The table after the
+# rows heads a column "Min. Ödeme Tutarınız" and prints its amount on the line under it.
+_MINIMUM = re.compile(r"\bMIN\. ODEME TUTARI ([\d.]+,\d{2}) TL")
 # The next statement's cut, in the sentence that follows the rows ("EKSTRE ÖZETİ Bir sonraki hesap kesiminiz 4 Kasım
 # 2026 Çarşamba ve son ödemeniz …"): on a later page when the rows fill the first.
 _NEXT_CUT = re.compile(r"SONRAKI\s+HESAP\s+KESIMINIZ\s+(\d{1,2})\s+(\w+)\s+(\d{4})")
@@ -75,9 +78,9 @@ def read_statement(doc: SourceDocument) -> ParseResult:
         previous=None if paracard else Decimal(0),
         total=total,
         total_is_sum=paracard,
-        # A debit card has neither, and the Paracard reader's readings stay as they were. A Bonus statement prints no
-        # minimum payment on the pages read here.
+        # A debit card has none of them, and the Paracard reader's readings stay as they were.
         due_date=None if paracard else agreed(parse_tr_words_date(*m) for m in _DUE.findall(f)),
+        minimum_payment=None if paracard else agreed(parse_tr_amount(m) for m in _MINIMUM.findall(f)),
         credit_limit=None if paracard else agreed(parse_tr_amount(m) for m in _LIMIT.findall(f)),
     )
     if not paracard:

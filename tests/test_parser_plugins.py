@@ -253,7 +253,7 @@ def test_a_statement_that_does_not_verify_raises_a_format_alarm(ws):
     assert _alarms(ws) == [
         (
             stored.sha256,
-            {"parser": "garanti.bonus_card", "version": f"{registry.SELECTION}.3", "unverified": ["garanti-1234"]},
+            {"parser": "garanti.bonus_card", "version": f"{registry.SELECTION}.4", "unverified": ["garanti-1234"]},
         )
     ]
 

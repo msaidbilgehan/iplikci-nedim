@@ -27,6 +27,12 @@ _DUE = re.compile(r"Son\s+(?:\(cid:\d+\)|Ö)?deme\s+Tarihi\s*:\s*(\d{1,2})\s+((?
 # The next statement's cut, in the note under the summary: "* Bir sonraki hesap kesim tarihiniz 18/11/2026, bir sonraki
 # son ödeme tarihiniz 30/11/2026".
 _NEXT_CUT = re.compile(r"Bir\s+sonraki\s+hesap\s+kesim\s+tarihiniz\s+(\d{2}/\d{2}/\d{4})", re.IGNORECASE)
+# The summary's terms, in US amounts: "Asgari Ödeme Tutarı : 1,036.36 TL", its Ö lost to the font, and "Kredi Kartı
+# Limiti : 120,000.00 TL". The minimum payment rate beside it, the cash advance and available limits under it and the
+# legal note on the minimum ("… asgari ödeme tutarını belirtilen son ödeme tarihine …") are not these. A statement with
+# nothing to pay prints a minimum of 0.00.
+_MINIMUM = re.compile(r"Asgari\s+Ö?deme\s+Tutar\S*\s*:\s*(" + US_AMOUNT + r")\s*TL")
+_LIMIT = re.compile(r"Kredi\s+Kart\S*\s+Limiti\s*:\s*(" + US_AMOUNT + r")\s*TL")
 _REPAIRS = (
     (re.compile(r"^\s*\S?deme\s*-\s*Tesekk\S*r\s+Ederiz\s*-?\s*$", re.IGNORECASE), "ÖDEME TEŞEKKÜR EDERİZ"),
     (re.compile(r"Al\S*ver\S*\s+faizi", re.IGNORECASE), "Alışveriş faizi"),
@@ -77,8 +83,9 @@ def read(doc: SourceDocument) -> ParseResult:
         source=doc.name,
         previous=_us(previous),
         total=_us(total),
-        # The minimum payment and the limit are not read yet.
         due_date=agreed(_spelled(*m) for m in _DUE.findall("\n".join(raw))),
+        minimum_payment=agreed(us_signed(m) for m in _MINIMUM.findall(text)),
+        credit_limit=agreed(us_signed(m) for m in _LIMIT.findall(text)),
         next_cut=next_cut(cut_date, (parse_dmy(d) for d in _NEXT_CUT.findall(text))),
     )
     for page, number, line in numbered_lines(pages):
@@ -107,7 +114,7 @@ def _us(match: re.Match[str] | None) -> Decimal | None:
 
 class CardPdf:
     id = ID
-    version = 3
+    version = 4
     bank = "QNB"
     name = "QNB kredi kartı ekstre hareketleri (PDF)"
     document_type = DocumentKind.CARD_STATEMENT

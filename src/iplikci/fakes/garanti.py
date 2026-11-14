@@ -171,9 +171,9 @@ PARACARD_PAGES: tuple[tuple[CardRow, ...], ...] = (
 )
 
 
-# A Bonus statement's terms: the due date ten days after the cut, the card's limit and the next cut, a day before the
-# same day a month on, as Garanti's calendar moves it. Garanti prints no minimum payment on the pages the reader reads.
-BONUS_TERMS = CardTerms(date(2026, 10, 15), limit=Decimal(45000), next_cut=date(2026, 11, 4))
+# A Bonus statement's terms: the due date ten days after the cut, a minimum of 40 % of the debt, the card's limit and
+# the next cut, a day before the same day a month on, as Garanti's calendar moves it.
+BONUS_TERMS = CardTerms(date(2026, 10, 15), Decimal("1553.96"), Decimal(45000), date(2026, 11, 4))
 # The customer's limit and the cash advance limit, printed above and below the card's own.
 _CUSTOMER_LIMIT, _CASH_LIMIT = Decimal(50000), Decimal(18000)
 _WEEKDAYS = ("Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar")
@@ -201,7 +201,8 @@ def bonus_statement(
 
 def _bonus_head(cut: date, total: Decimal, last4: str, terms: CardTerms) -> list[Run]:
     """The first page's head as Garanti prints it: the due date in the heading too, the summary on the left with its
-    dates spelled out, and the address on the right, whose last lines fall on the summary's."""
+    dates spelled out and the minimum payment under the debt, and the address on the right, whose last lines fall on
+    the summary's."""
     runs: list[Run] = [
         (40, 40, "Garanti BBVA"),
         (40, 64, "Bonus Platinum Örnek Kart Bilgileriniz"),
@@ -222,6 +223,8 @@ def _bonus_head(cut: date, total: Decimal, last4: str, terms: CardTerms) -> list
         ]
     if terms.limit is not None:
         runs.append((40, 104, f"Kart Limiti {format_amount(terms.limit)} TL"))
+    if terms.minimum is not None:
+        runs.append((40, 164, f"Min. Ödeme Tutarı {format_amount(terms.minimum)} TL"))
     return runs
 
 
