@@ -29,10 +29,11 @@ test("bir dönem seçilir, ısı tablosu erişilebilir, işlemler aynı toplamla
   const presets = page.getByRole("group", { name: "Dönem" });
   await expect(presets.getByRole("button", { name: "Son 12 ay" })).toHaveAttribute("aria-pressed", "true");
   await presets.getByRole("button", { name: "Son 3 ay" }).click();
-  await expect(page).toHaveURL(/[?&]from=2026-08-01&to=2026-10-31$/);
+  // The demo's documents reach November through the cards' statements: the last 3 months are September to November.
+  await expect(page).toHaveURL(/[?&]from=2026-09-01&to=2026-11-30$/);
   await expect(presets.getByRole("button", { name: "Son 3 ay" })).toHaveAttribute("aria-pressed", "true");
   const tiles = page.getByRole("region", { name: "Özet", exact: true });
-  await expect(tiles).toContainText("Ağustos 2026 – Ekim 2026");
+  await expect(tiles).toContainText("Eylül 2026 – Kasım 2026");
 
   const parts = page.getByRole("tablist", { name: "Değerlendirmenin bölümleri" });
   await parts.getByRole("tab", { name: "Harcamalar" }).click();
@@ -51,7 +52,7 @@ test("bir dönem seçilir, ısı tablosu erişilebilir, işlemler aynı toplamla
   await rows.getByRole("link", { name: "İşlemleri bu süzgeçlerle göster" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "İşlemler" })).toBeVisible();
   await expect(page).toHaveURL(/[?&]kind=purchase&kind=refund&kind=interest_fee(&|$)/);
-  await expect(page).toHaveURL(/[?&]from=2026-08-01&to=2026-10-31(&|$)/);
+  await expect(page).toHaveURL(/[?&]from=2026-09-01&to=2026-11-30(&|$)/);
   await loaded(page);
   await expect(page.getByText(`${count} işlem; harcama ${total},`)).toBeVisible();
 });
