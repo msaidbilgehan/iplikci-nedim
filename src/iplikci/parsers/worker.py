@@ -30,6 +30,10 @@ from .common import Skipped, Unreadable, business_names, caused_by, set_business
 from .contract import Document
 
 TIME_LIMIT = 60.0  # seconds a document may take
+# A document that runs out of time gets one more try, in a fresh process with longer. macOS's text recognition (OCR)
+# prepares its models the first time a newly installed program uses it, which alone can take more than a minute: the
+# first scanned statement after an install would be unreadable for the system's sake, not its own.
+RETRY_LIMIT = 180.0
 MEMORY_LIMIT = 1 << 30  # bytes of address space for the reading process
 _START_LIMIT = 60.0  # seconds a reading process may take to start
 # Documents one process reads before a fresh one takes over, so that its memory never drifts far from a fresh one's.
@@ -54,8 +58,8 @@ def parse_document(doc: Document, business: Sequence[str] | None = None) -> Pars
     business: the company names to read with; the ones this process has by default.
 
     A process that had read other documents before dying gets one more try in a fresh one: a document is unreadable
-    for its own sake, never for what the documents before it left behind. Raises WorkerError when no reading process
-    starts.
+    for its own sake, never for what the documents before it left behind. A document that ran out of time gets one
+    more too, in a fresh process with RETRY_LIMIT. Raises WorkerError when no reading process starts.
     """
     header = {
         "name": doc.name,
@@ -64,11 +68,16 @@ def parse_document(doc: Document, business: Sequence[str] | None = None) -> Pars
         "business": list(business_names() if business is None else business),
         "size": len(doc.data),
     }
-    job = (json.dumps(header, ensure_ascii=False).encode() + b"\n", doc.data)
+
+    def job(limit: float) -> tuple[bytes, bytes]:
+        return json.dumps(header | {"limit": limit}, ensure_ascii=False).encode() + b"\n", doc.data
+
     with _lock:
-        reply, fresh = _ask(job)
+        reply, fresh = _ask(job(TIME_LIMIT), TIME_LIMIT)
         if reply.get("again") is True and not fresh:
-            reply, _ = _ask(job)
+            reply, _ = _ask(job(TIME_LIMIT), TIME_LIMIT)
+        elif reply.get("late") is True:
+            reply, _ = _ask(job(RETRY_LIMIT), RETRY_LIMIT)
         return _answer(reply)
 
 
@@ -125,10 +134,10 @@ class _Process:
         except queue.Empty:
             return None
 
-    def ask(self, job: tuple[bytes, bytes]) -> bytes | None:
+    def ask(self, job: tuple[bytes, bytes], limit: float) -> bytes | None:
         # Sent from a thread of its own: a process that stops reading must not hold the app beyond the time limit.
         threading.Thread(target=self._send, args=(job,), daemon=True).start()
-        return self.wait(TIME_LIMIT)
+        return self.wait(limit)
 
     def stop(self) -> None:
         self.popen.kill()
@@ -153,9 +162,9 @@ def stop() -> None:
 atexit.register(stop)
 
 
-def _ask(job: tuple[bytes, bytes]) -> tuple[dict[str, Any], bool]:
-    """The reading process's reply to job, and whether that process was fresh. A process that failed is stopped; the
-    next document gets a fresh one."""
+def _ask(job: tuple[bytes, bytes], limit: float) -> tuple[dict[str, Any], bool]:
+    """The reading process's reply to job within limit seconds, and whether that process was fresh. A process that
+    failed is stopped; the next document gets a fresh one."""
     global _current
     if _current is None:
         _current = _Process()
@@ -163,14 +172,14 @@ def _ask(job: tuple[bytes, bytes]) -> tuple[dict[str, Any], bool]:
     fresh = process.served == 0
     answered = False
     try:
-        line = process.ask(job)
+        line = process.ask(job, limit)
         answered = True
     finally:
         if not answered:  # interrupted (Ctrl+C): a late reply must never answer the next document
             stop()
     if line is None:
         stop()
-        return {"unreadable": f"okuma {TIME_LIMIT:.0f} saniyede bitmedi", "parser": ""}, fresh
+        return {"unreadable": f"okuma {limit:.0f} saniyede bitmedi", "parser": "", "late": True}, fresh
     if not line:
         stop()
         return {"unreadable": CRASH_REASON, "parser": "", "again": True}, fresh
@@ -269,7 +278,8 @@ def _serve() -> None:
             return  # the app is gone
         # Should the app be gone while a document hangs, the process still ends: SIGALRM's default action stops it.
         if hasattr(signal, "alarm"):
-            signal.alarm(int(TIME_LIMIT) + 10)
+            limit = job.get("limit")
+            signal.alarm(int(limit if isinstance(limit, int | float) else TIME_LIMIT) + 10)
         reply = _read(job, data)
         if hasattr(signal, "alarm"):
             signal.alarm(0)

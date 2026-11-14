@@ -27,7 +27,7 @@ from conftest import add
 REAL = worker.COMMAND
 
 # A stand-in reading process: it reports ready with its version, then takes one step of its plan per document (answer,
-# die, sleep).
+# die, sleep, or sleep-once: only the first time any process of the test gets to it).
 STAND_IN = """\
 import json, os, sys, time
 plan, reply, pid, version = sys.argv[1].split(","), sys.argv[2], sys.argv[3], sys.argv[4]
@@ -45,6 +45,9 @@ for step in plan:
     if step == "die":
         sys.exit(1)
     if step == "sleep":
+        time.sleep(60)
+    if step == "sleep-once" and not os.path.exists(pid + ".uyudu"):
+        open(pid + ".uyudu", "w").close()
         time.sleep(60)
     out.write(reply.replace("NAME", job["name"]).encode() + b"\\n")
     out.flush()
@@ -230,13 +233,23 @@ def test_the_way_back_takes_nothing_but_a_readers_result(path, value):
 def test_a_document_that_runs_out_of_time_is_unreadable_and_the_next_one_still_reads(stand_in, monkeypatch, tmp_path):
     stand_in("sleep")
     monkeypatch.setattr(worker, "TIME_LIMIT", 1.0)
-    assert outcome(worker.parse_document, doc()) == ("unreadable", "okuma 1 saniyede bitmedi", "")
+    monkeypatch.setattr(worker, "RETRY_LIMIT", 1.5)  # the second try runs out of time too
+    assert outcome(worker.parse_document, doc()) == ("unreadable", "okuma 2 saniyede bitmedi", "")
     if os.name == "posix":  # the stuck process is gone, not left behind
         with pytest.raises(ProcessLookupError):
             os.kill(int((tmp_path / "pid").read_text()), 0)
     monkeypatch.setattr(worker, "COMMAND", REAL)
     monkeypatch.setattr(worker, "TIME_LIMIT", 60.0)
     assert outcome(worker.parse_document, receipt()) == outcome(parsers.parse_document, receipt())
+
+
+def test_a_document_that_runs_out_of_time_once_reads_in_a_fresh_process_with_longer(stand_in, monkeypatch):
+    # macOS's OCR prepares its models the first time a newly installed program uses it: that alone can take longer
+    # than the limit, and the second try finds them ready.
+    stand_in("sleep-once")
+    monkeypatch.setattr(worker, "TIME_LIMIT", 1.0)
+    monkeypatch.setattr(worker, "RETRY_LIMIT", 10.0)
+    assert outcome(worker.parse_document, doc()) == ("unreadable", "sahte okuma: belge.pdf", "sahte.okuyucu")
 
 
 def test_a_reading_process_that_dies_leaves_the_document_unreadable(stand_in):
