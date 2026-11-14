@@ -1,10 +1,10 @@
-"""Where the releases are (ADR-0022): a GitHub repository whose releases can be read without an account. The release
-workflow puts each version there with its signed manifest under a fixed name, so the latest one is always at the
-same address."""
+"""Where the releases are (ADR-0022): a GitHub repository whose releases can be read without an account. The code's
+repository is private (K18), so the releases go to a public one of their own (K31); the release workflow puts each
+version there with its signed manifest under a fixed name, so the latest one is always at the same address."""
 
 import urllib.parse
 
-REPO = "msaidbilgehan/iplikci-nedim"  # the owner and the repository, as in github.com/<owner>/<repository>
+REPO = "msaidbilgehan/iplikci-nedim-surumler"  # the owner and the repository, as in github.com/<owner>/<repository>
 MANIFEST = "iplikci-nedim-surum.json"
 SIGNATURE = f"{MANIFEST}.sig"
 
