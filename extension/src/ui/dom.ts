@@ -40,6 +40,16 @@ export async function askSayings(): Promise<Saying[]> {
   return Array.isArray(answer) ? answer.flatMap(asSaying) : [];
 }
 
+/** Whether anything answers on the service's address, as the service worker finds; null when it did not answer. */
+export async function askService(): Promise<boolean | null> {
+  const answer = await send({ kind: "service" });
+  if (typeof answer !== "object" || answer === null) {
+    return null;
+  }
+  const found = (answer as Record<string, unknown>)["answers"];
+  return typeof found === "boolean" ? found : null;
+}
+
 async function send(request: Request): Promise<unknown> {
   try {
     return (await chrome.runtime.sendMessage(request)) as unknown;

@@ -11,6 +11,15 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 
 ## Değişiklik kaydı
 
+- 2026-11-15 (57) — Eklenti programın kapısı, kurulum paketleri kararlı adlarla (yayımlanmamış):
+  - [ADR-0024](adr/0024-extension-leads-to-download.md): programı bulamayan eklenti son kurulum paketinin indirilmesine
+    yeni bir sekmede yol gösterir; paketler sürüm numarası olmayan adlarla yayımlanır; eklenti mağazada herkese açık
+    listelenir ve mağazaya ilk giden sürüm 0.9.0'dır (kullanıcının 2026-11-14 kararları).
+  - [ADR-0016](adr/0016-mail-connectors.md), [ADR-0022](adr/0022-releases-and-updates.md) ve
+    [ADR-0009](adr/0009-network-egress-policy.md)'a notlar; [sürüm yayını](yayin.md): kararlı adlar, mağazanın adımları.
+  - [Özellikler](v1/features.md) F01 (programı olmayan bilgisayar) ve F21 (kararlı adlar); [mimari](v1/architecture.md):
+    bağlam şeması ve paketleme.
+
 - 2026-11-14 (56) — Sürümler herkese açık ayrı depoda, 1.0 macOS'la (v0.11.1):
   - [K31](v1/requirements.md#kararlar) ve kullanıcının sözleri: sürümler herkese açık `iplikci-nedim-surumler`
     deposunda, eklenti mağazaya şimdi gider ve programı indirtir, 1.0 iki haftalık çalışmayı beklemez ve yalnızca

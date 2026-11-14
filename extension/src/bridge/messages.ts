@@ -15,7 +15,13 @@ export type Request =
   | { readonly kind: "scan" }
   | { readonly kind: "forget" }
   | { readonly kind: "open-panel" } // answered with a PanelAnswer (bridge/panel.ts), not a Status
-  | { readonly kind: "sayings" }; // answered with İplikçi Nedim's lines (bridge/sayings.ts), not a Status
+  | { readonly kind: "sayings" } // answered with İplikçi Nedim's lines (bridge/sayings.ts), not a Status
+  | { readonly kind: "service" }; // answered with a Presence, not a Status
+
+/** Whether anything answers on the service's address: an extension not paired finds the program so (ADR-0024). */
+export interface Presence {
+  readonly answers: boolean;
+}
 
 /** What the extension's window and its settings page show; the token never leaves the service worker. */
 export interface Status {
@@ -55,6 +61,7 @@ export function asRequest(message: unknown): Request | null {
     case "forget":
     case "open-panel":
     case "sayings":
+    case "service":
       return { kind };
     default:
       return null;

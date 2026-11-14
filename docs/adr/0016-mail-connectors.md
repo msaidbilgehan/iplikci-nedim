@@ -361,3 +361,17 @@ akışı mağazaya yükler, tarayıcı günceller ([ADR-0022](0022-releases-and-
 paketlenmemiş yükleme sürer. Paketlenmemiş eklenti, servisin taşıdığı sürüm kendininkinden yeniyse kendini bir kez
 yeniden yükler (eklenti 0.8.0). Mağazadan kurulan eklentinin kimliği farklıdır; eşleştirme kodla yapıldığı için bu bir
 şey değiştirmez. Mağazadakini kurduktan sonra paketlenmemiş olan kaldırılmalıdır: ikisi aynı iletileri getirir.
+
+## Not (2026-11-14, K31, ADR-0024)
+
+- **Mağazada herkese açık:** kullanıcı 2026-11-14'te eklentinin Chrome Web Store'da herkese açık listelenmesine karar
+  verdi. Yukarıdaki "önce listelenmemiş yayın" ve K29 notundaki "(listelenmemiş)" artık geçerli değildir. Eklenti
+  programın kapısıdır: adını duyan biri onu mağazada bulur. Mağazaya ilk giden sürüm 0.9.0'dır; 0.8.0 yüklenmez.
+- **Programı olmayan bilgisayar** (eklenti 0.9.0, [ADR-0024](0024-extension-leads-to-download.md)): eklenti
+  eşleşmemişse ve 127.0.0.1:8643'te yanıt veren yoksa sayfaları programın gerektiğini söyler. Bu sistemin son kurulum
+  paketini indiren bir düğme ve kurulum adımları gösterir. İlk kurulumda ayarlar sayfası kendiliğinden açılır. Sayfa
+  programı bekler; program yanıt verince eşleştirme bugünkü gibi sürer.
+- **İzinler ve adresler değişmedi:** programın orada olup olmadığına servisin sağlık denetimiyle (`/healthz`, belirteç
+  istemez) var olan `http://127.0.0.1:8643/*` izni üzerinden bakılır. İndirme düğmesi
+  `github.com/msaidbilgehan/iplikci-nedim-surumler/releases/latest/download/…` adresini yeni bir sekmede açar;
+  indirmeyi tarayıcı yapar. Eklenti GitHub'a istek yapmaz ve oraya veri göndermez.

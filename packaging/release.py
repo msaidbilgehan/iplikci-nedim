@@ -6,6 +6,11 @@ packages' jobs built:
 - The tag must be the version pyproject.toml holds, and every system's update file and installer must be there:
   iplikci-nedim-<version>-<system>-<arch>.<zip|tar.gz|exe> and .<dmg|AppImage|exe>; the browser extension's store
   package iplikci-kopru-<version>.zip goes in too when it is there.
+- Each installer is then renamed to a name without the version (iplikci-nedim-macos-aarch64.dmg, stable_name), so the
+  latest one is always at github.com/<repo>/releases/latest/download/<name>: the browser extension leads a person
+  without the program there (ADR-0024). On Windows the setup program is the update file too and goes by that name in
+  both; the other update files keep the version in their names. The installed copies download what the manifest
+  names, from the release with its tag, so the names change nothing for them.
 - The manifest (iplikci-nedim-surum.json) names each file with its size and SHA-256 and carries the changelog's section
   of the version as its notes, which the installed program shows before it installs, and the day its heading gives.
 - With UPDATE_SIGNING_KEY in the environment (the Ed25519 private key as PEM, the workflow's secret) the manifest is
@@ -34,6 +39,9 @@ SLUG = "iplikci-nedim"
 SYSTEMS = ("macos", "linux", "windows")
 UPDATE_SUFFIX = {"macos": ".zip", "linux": ".tar.gz", "windows": ".exe"}
 INSTALLER_SUFFIX = {"macos": ".dmg", "linux": ".AppImage", "windows": ".exe"}
+# The machines the Paketler workflow builds on (macos-latest is Apple Silicon): every release carries their
+# installers, and the browser extension offers each by its stable name (extension/src/bridge/program.ts).
+OFFERED = ("macos-aarch64", "linux-x86_64", "windows-x86_64")
 _FILE = re.compile(
     rf"{SLUG}-(?P<version>\d+(?:\.\d+)*)-(?P<system>macos|linux|windows)-(?P<arch>[a-z0-9_]+)(?P<suffix>\..+)"
 )
@@ -86,10 +94,18 @@ def entry(path: Path) -> Entry:
     return Entry(path.name, path.stat().st_size, digest.hexdigest())
 
 
+def stable_name(key: str) -> str:
+    """The name a system's installer takes in every release, without the version: iplikci-nedim-macos-aarch64.dmg for
+    macos-aarch64."""
+    return f"{SLUG}-{key}{INSTALLER_SUFFIX[key.partition('-')[0]]}"
+
+
 def collect(folder: Path, version: str) -> tuple[dict[str, Entry], dict[str, Entry], Extension | None]:
-    """The update files and the installers by system (macos-aarch64, …), and the extension's store package."""
-    updates: dict[str, Entry] = {}
-    installers: dict[str, Entry] = {}
+    """The update files and the installers by system (macos-aarch64, …), and the extension's store package. Once every
+    file is there, each installer takes its stable name; the Windows setup program, the update file too, is named so
+    in both."""
+    updates: dict[str, Path] = {}
+    installers: dict[str, Path] = {}
     extension: Extension | None = None
     for path in sorted(folder.iterdir()):
         found = _FILE.fullmatch(path.name)
@@ -99,18 +115,30 @@ def collect(folder: Path, version: str) -> tuple[dict[str, Entry], dict[str, Ent
             system, suffix = found["system"], found["suffix"]
             key = f"{system}-{found['arch']}"
             if suffix == UPDATE_SUFFIX[system]:
-                updates[key] = entry(path)
+                updates[key] = path
             if suffix == INSTALLER_SUFFIX[system]:
-                installers[key] = entry(path)
+                installers[key] = path
             continue
         found = _EXTENSION.fullmatch(path.name)
         if found is not None:
             extension = Extension(found["version"], entry(path))
     missing = [s for s in SYSTEMS if not any(key.startswith(f"{s}-") for key in updates)]
-    missing += [f"{s} kurulum paketi" for s in SYSTEMS if not any(key.startswith(f"{s}-") for key in installers)]
+    missing += [f"{key} kurulum paketi" for key in OFFERED if key not in installers]
     if missing:
         raise ReleaseError(f"sürümün dosyaları eksik: {', '.join(missing)}")
-    return updates, installers, extension
+    named = {path: _named_stably(key, path) for key, path in installers.items()}
+    return (
+        {key: entry(named.get(path, path)) for key, path in updates.items()},
+        {key: entry(named[path]) for key, path in installers.items()},
+        extension,
+    )
+
+
+def _named_stably(key: str, path: Path) -> Path:
+    """The installer under its stable name instead of the versioned one."""
+    stable = path.with_name(stable_name(key))
+    path.replace(stable)
+    return stable
 
 
 def make(
@@ -174,6 +202,8 @@ def main() -> None:
         args.title.write_text(title(changelog, release.version), encoding="utf-8")
     for key, found in sorted(release.updates.items()):
         print(f"{key}: {found.name} {found.size} bayt {found.sha256}")
+    for key, found in sorted(release.installers.items()):
+        print(f"{key} kurulum paketi: {found.name}")
     if not signed:
         sys.exit("UPDATE_SIGNING_KEY yok: bildirge imzalanmadı, sürüm yayımlanamaz")
     print(f"{source.MANIFEST} ve imzası yazıldı")

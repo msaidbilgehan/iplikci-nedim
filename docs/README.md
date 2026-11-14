@@ -17,7 +17,7 @@ Bütün belgeler Türkçedir; ajan talimatları deponun kökündeki `CLAUDE.md`'
 
 | Belge | İçerik |
 |---|---|
-| [Mimari karar kayıtları](adr/README.md) | ADR-0001 … ADR-0022: neden böyle tasarlandı |
+| [Mimari karar kayıtları](adr/README.md) | ADR-0001 … ADR-0024: neden böyle tasarlandı |
 | [Sürüm yayını](yayin.md) | Bir sürümün GitHub'da nasıl yayımlandığı, imza anahtarı, kurulu kopyaların güncellemesi, Chrome Web Store |
 | [Banka biçimleri](domain/bank-formats.md) | Bankaların belgelerindeki biçimler ve tuzaklar |
 | [Defter kuralları](domain/ledger.md) | İşaret, türler, doğrulama, kanıt uzlaştırma, transferler, kur, kapsama |

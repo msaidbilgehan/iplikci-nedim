@@ -15,9 +15,11 @@ terminal kullanmaz.
      kurulan programla servisi boş bir veri klasöründe başlatır, yanıt ve sürüm bekler. Güncelleme dosyasını kurulu
      programın açacağı gibi açar, Python'unun sürümü söylemesini bekler.
    - **eklenti:** tip denetimi, testler ve `npm run package` (`iplikci-kopru-<sürüm>.zip`).
-   - **surum:** `packaging/release.py` etiketi `pyproject.toml`'la karşılaştırır, her sistemin dosyası var mı bakar,
-     bildirgeyi (`iplikci-nedim-surum.json`) yazar ve `UPDATE_SIGNING_KEY` ile imzalar. İmzayı programın güvendiği
-     anahtarla doğrular. Ardından `gh release create` sürümü dosyalarıyla açar; notu CHANGELOG'un bölümüdür.
+   - **surum:** `packaging/release.py` etiketi `pyproject.toml`'la karşılaştırır, her sistemin dosyası var mı bakar.
+     Kurulum paketlerini sürüm numarası olmayan kararlı adlarına çevirir (aşağıda, "Sürümlerin yeri"). Bildirgeyi
+     (`iplikci-nedim-surum.json`) yazar ve `UPDATE_SIGNING_KEY` ile imzalar; imzayı programın güvendiği anahtarla
+     doğrular. Ardından `gh release create` sürümü dosyalarıyla açar; notu CHANGELOG'un bölümüdür. Son olarak her
+     kararlı adres hesapsız indirilmeyi dener; olmazsa iş uyarı yazar.
    - **magaza:** `CWS_ITEM_ID` tanımlıysa `packaging/chrome_store.py` eklentiyi mağazaya yükler ve incelemeye
      gönderir; sürümü mağazadakinden yeni değilse yüklemez.
 4. Kurulu kopyalar ertesi sabah (05.00'ten sonraki ilk fırsatta) yeni sürümü bulur. Ayarları "Kendiliğinden kur" ise
@@ -76,6 +78,24 @@ Kurulu kopyalar sürümü kimlik bilgisi olmadan indirir:
   2. Kod deposunda `RELEASE_REPO` değişkeni `msaidbilgehan/iplikci-nedim-surumler` olur; `RELEASE_TOKEN` sırrı yalnızca
      o depoda "Contents: write" izni olan ince ayarlı belirteçtir.
   3. Sonraki her sürüm etiketi sürümü oraya yayımlar; kurulu kopyalar ertesi sabah onu bulur.
+- **Kurulum paketlerinin kararlı adları** ([ADR-0024](adr/0024-extension-leads-to-download.md)): her sürüm kurulum
+  paketlerini sürüm numarası olmayan adlarla taşır. Son sürümün paketi bu yüzden hep aynı adrestedir:
+
+  | Sistem | Adres |
+  |---|---|
+  | macOS (Apple Silicon) | `https://github.com/msaidbilgehan/iplikci-nedim-surumler/releases/latest/download/iplikci-nedim-macos-aarch64.dmg` |
+  | Windows (x64) | `https://github.com/msaidbilgehan/iplikci-nedim-surumler/releases/latest/download/iplikci-nedim-windows-x86_64.exe` |
+  | Linux (x64) | `https://github.com/msaidbilgehan/iplikci-nedim-surumler/releases/latest/download/iplikci-nedim-linux-x86_64.AppImage` |
+
+  - Programı bulamayan tarayıcı eklentisi kullanıcıyı bu adreslere götürür; README de onlara bağlantı verebilir.
+  - Bildirge kurulum paketlerini bu adlarla yazar. Windows'un kurulum programı güncelleme dosyası da olduğu için
+    güncelleme girişi de bu adı taşır; macOS'un `.zip`'i ve Linux'un `.tar.gz`'si sürümlü adlarını korur. Kurulu
+    kopyalar dosyayı bildirgedeki adla, sürümün etiketli adresinden (`releases/download/<etiket>/<ad>`) indirir.
+  - Hangi sistemlerin paketinin bulunması gerektiği `packaging/release.py`'deki `OFFERED`'dadır: iş akışının
+    makineleri. Biri eksikse sürüm yapılmaz. Eklentinin sabitleri (`extension/src/bridge/program.ts`) bunlarla ve
+    `update/source.REPO` ile aynı kalır; testler denetler.
+  - v0.11.1'in paketleri henüz sürümlü adlarla duruyor. Kararlı adları taşıyan ilk sürüm yayımlanana dek bu adresler
+    GitHub'ın "bulunamadı" sayfasını açar.
 
 ## Bir sürümü elle doğrulamak
 
@@ -96,14 +116,19 @@ Kurulu bir kopyada: Ayarlar → Güncellemeler → "Şimdi denetle", ya da `ipli
 ## Chrome Web Store
 
 Mağaza metinleri, izinlerin gerekçeleri ve gizlilik politikası [`extension/store/`](../extension/store/README.md)'dadır.
+Eklenti mağazada herkese açık listelenir: programın kapısıdır, programı olmayanı son kurulum paketine götürür
+(kullanıcının 2026-11-14 kararı, [ADR-0024](adr/0024-extension-leads-to-download.md)).
 
 **İlk yayın (elle, bir kez):**
 
 1. Chrome Web Store geliştirici kaydı (tek seferlik ücret, Google hesabıyla, iki adımlı doğrulama açık).
 2. Gizlilik politikasının herkese açık bir adresi.
-3. Son sürümün `iplikci-kopru-<sürüm>.zip` dosyası (GitHub sürümünden ya da `cd extension && npm run package`)
-   geliştirici panosundan yüklenir; mağaza sayfası doldurulur; görünürlük: listelenmemiş.
-4. İnceleme geçince eklentinin mağaza adresi `src/iplikci/app/extension.py`'deki `STORE_URL`'e yazılır ve bir sürüm
+3. Kurulum paketlerini kararlı adlarıyla taşıyan bir program sürümü herkese açık depoda yayımlanmış olmalı (yukarıda,
+   "Sürümlerin yeri"); yoksa eklentinin indirme düğmesi GitHub'ın "bulunamadı" sayfasını açar.
+4. Mağazaya ilk giden sürüm 0.9.0'dır (0.8.0 yüklenmez): `iplikci-kopru-0.9.0.zip` (GitHub sürümünden ya da
+   `cd extension && npm run package`) geliştirici panosundan yüklenir; mağaza sayfası doldurulur; görünürlük: herkese
+   açık.
+5. İnceleme geçince eklentinin mağaza adresi `src/iplikci/app/extension.py`'deki `STORE_URL`'e yazılır ve bir sürüm
    çıkar: arayüz önce mağazayı gösterir.
 
 **Sonraki sürümleri iş akışı yükler** (isteğe bağlı):

@@ -4,19 +4,22 @@
  * it; it pairs with a code typed into the extension's settings page and then scans Gmail for the history the service
  * lacks; it opens the service's interface for "İplikçi Nedim'i aç" (ADR-0019); it asks the service for İplikçi
  * Nedim's lines on the money the window shows (ADR-0020); it runs the ADR-0016 verification for its own page; and,
- * loaded unpacked, it loads itself again when the program carries a newer version of it (ADR-0022). All network work
- * happens here, never in a page or a content script. The toolbar button opens the extension's window (popup.html); its
+ * loaded unpacked, it loads itself again when the program carries a newer version of it (ADR-0022). Not paired, it
+ * tells its pages whether anything answers on the service's address, so they can lead to the program's download
+ * (ADR-0024); installed for the first time, it opens its settings page, where that starts. All network work happens
+ * here, never in a page or a content script. The toolbar button opens the extension's window (popup.html); its
  * settings page is options.html.
  */
 
-import { type Request, type Status, type TabRequest, asRequest, asTabRequest } from "./bridge/messages";
+import { type Presence, type Request, type Status, type TabRequest, asRequest, asTabRequest } from "./bridge/messages";
 import { openPanel } from "./bridge/panel";
+import { OS_NAMES } from "./bridge/program";
 import { shouldRenew } from "./bridge/renew";
 import { type RunEnvironment, deliverNew } from "./bridge/run";
 import { hear } from "./bridge/sayings";
 import { scanGmail } from "./bridge/scan";
 import { unhandled, watchFor } from "./bridge/seen";
-import { NotTheService, Refused, ServiceDown, cursor, pair, prove } from "./bridge/service";
+import { NotTheService, Refused, ServiceDown, answers, cursor, pair, prove } from "./bridge/service";
 import { type ScanSummary, chromeStore } from "./bridge/state";
 import { scansFirst } from "./bridge/steps";
 import { chromePanelTabs, chromeTabs, reachOpenGmail } from "./bridge/tabs";
@@ -27,6 +30,8 @@ import { type Environment, verify } from "./verify/run";
 const ALARM = "yeni-iletiler";
 /** How long "İplikçi Nedim'i aç" waits for the service: a service that does not answer counts as not running. */
 const PANEL_WAIT_MS = 5000;
+/** How long a page's question whether the service is there waits: it asks again every few seconds while not. */
+const PRESENCE_WAIT_MS = 2000;
 /** One delivery run or scan at a time; the ids the Gmail tabs tell wait there for the next run. */
 const turns = new Turns(async (shown) => deliverNew(await environment(), chromeStore, shown));
 
@@ -34,6 +39,10 @@ chrome.runtime.onInstalled.addListener(({ reason }) => {
   void schedule();
   if (reason === "install" || reason === "update") {
     void reachOpenGmail(); // a Gmail tab kept open is watched without a reload
+  }
+  if (reason === "install") {
+    // Pairing starts there, and a computer without the program learns there how to get it (ADR-0024).
+    void chrome.runtime.openOptionsPage();
   }
 });
 chrome.runtime.onStartup.addListener(() => {
@@ -167,6 +176,8 @@ async function answer(request: Request, from: number | undefined): Promise<unkno
       return openPanel({ service: answeringSoon, tabs: chromePanelTabs }, (await chromeStore.get()).paired);
     case "sayings":
       return hear(answeringSoon, (await chromeStore.get()).paired);
+    case "service":
+      return { answers: await answers(answeringAtOnce) } satisfies Presence;
   }
 }
 
@@ -174,6 +185,11 @@ async function answer(request: Request, from: number | undefined): Promise<unkno
  * it. */
 function answeringSoon(url: string, init: RequestInit): Promise<Response> {
   return fetch(url, { ...init, signal: AbortSignal.timeout(PANEL_WAIT_MS) });
+}
+
+/** The service, for a page that asks again every few seconds whether it is there. */
+function answeringAtOnce(url: string, init: RequestInit): Promise<Response> {
+  return fetch(url, { ...init, signal: AbortSignal.timeout(PRESENCE_WAIT_MS) });
 }
 
 async function status(problem: string): Promise<Status> {
@@ -281,8 +297,6 @@ async function keepAwakeSleep(ms: number): Promise<void> {
   // slow run is not cut short.
   await chrome.runtime.getPlatformInfo();
 }
-
-const OS_NAMES: Readonly<Record<string, string>> = { mac: "macOS", win: "Windows", linux: "Linux", cros: "ChromeOS" };
 
 /** How the paired service lists this browser: "Chrome 140, macOS". */
 async function browserLabel(): Promise<string> {

@@ -21,6 +21,16 @@ Gmail'de hiçbir şey değişmez: iletiler okundu işaretlenmez, taşınmaz, eti
 "İplikçi Nedim'i aç" düğmesine basılınca eklenti, yalnızca bu bilgisayardaki İplikçi Nedim'in adresinde
 (127.0.0.1:8643) açık sekmelerin adresine ve başlığına bakar; başka sekmeleri göremez. Tarayıcının çerezlerini okumaz.
 
+## İplikçi Nedim kurulu değilse
+
+Eklenti eşleşmemişse, bu bilgisayarda İplikçi Nedim'in olup olmadığına onun adresinin sağlık denetimine
+(127.0.0.1:8643/healthz) bakarak karar verir; bu istek hiçbir şey taşımaz. Program yoksa "İplikçi Nedim'i indir"
+düğmesi, programın son kurulum paketini İplikçi Nedim'in GitHub'daki herkese açık sürüm sayfasından tarayıcının yeni bir
+sekmesinde açar. İndirmeyi tarayıcı yapar: GitHub, her indirmede olduğu gibi tarayıcının isteğini (IP adresi dahil)
+görür. Eklenti GitHub'a kendisi istek yapmaz ve oraya hiçbir veri göndermez. Hangi paketin indirileceği tarayıcının
+bildirdiği işletim sistemi ve işlemci türüne göre seçilir; bu bilgi yalnızca indirilen paketin adı olarak adreste yer
+alır.
+
 ## Nereye gider
 
 Okunan iletiler yalnızca aynı bilgisayarda çalışan İplikçi Nedim uygulamasına gider (127.0.0.1). Eklenti başka hiçbir
@@ -60,7 +70,11 @@ the extension the ids of the listed banks' messages the conversation list or an 
 a sender's address only for its domain and reads no subject, snippet, body or name. Nothing in Gmail changes: no
 message is marked read, moved, labelled or deleted. When "Open İplikçi Nedim" is pressed, it looks only at the address
 and title of tabs open on the local app's address (127.0.0.1:8643); it cannot see other tabs and does not read the
-browser's cookies.
+browser's cookies. Before it is paired, it checks whether the local app is there through the app's health check
+(127.0.0.1:8643/healthz), which carries nothing. Without the app, its "download" button opens the app's installer from
+İplikçi Nedim's public releases on GitHub in a new browser tab: the browser downloads it, and GitHub sees that request
+as any download; the extension itself sends nothing to GitHub. The installer is chosen by the system and processor
+the browser reports, which appear only as the installer's name in the download's address.
 
 What it reads goes only to the İplikçi Nedim app on the same computer (127.0.0.1). It sends no data to any other
 server, and has no analytics, ads, tracking or remote code. The browser keeps only the pairing token, which Gmail

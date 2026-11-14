@@ -2,7 +2,7 @@ import { describe as group, expect, it } from "vitest";
 
 import type { Status } from "../src/bridge/messages";
 import type { RunSummary, ScanSummary } from "../src/bridge/state";
-import { ICON_PATHS, SILENT, describe } from "../src/ui/status";
+import { ICON_PATHS, NO_PROGRAM, SILENT, describe } from "../src/ui/status";
 
 const PAIRED: Status = {
   paired: true,
@@ -57,6 +57,13 @@ group("where the bridge stands", () => {
     ]);
     expect(new Set(shown.map((s) => `${s.tone} ${s.icon}`)).size).toBe(6); // two words share the cross: both stopped
     expect(shown.every((s) => ICON_PATHS[s.icon] !== "")).toBe(true);
+  });
+
+  it("says the program is needed with a word and an icon no other state has", () => {
+    const shown = STATES.map(([, status]) => describe(status, "Kodu girin."));
+    expect(NO_PROGRAM.word).toBe("Program gerekli");
+    expect(shown.some((s) => s.word === NO_PROGRAM.word || s.icon === NO_PROGRAM.icon)).toBe(false);
+    expect(ICON_PATHS[NO_PROGRAM.icon]).not.toBe("");
   });
 
   it("says what the last run said, when it ran and how often", () => {

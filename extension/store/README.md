@@ -1,8 +1,12 @@
 # Chrome Web Store hazırlığı
 
-Eklenti Chrome Web Store'da **listelenmemiş** olarak yayımlanacak: yalnızca bağlantıyı bilen kurar, aramada çıkmaz
-(ADR-0016). Yayımlamayı kullanıcı yapacak ([K29](../../docs/v1/requirements.md#kararlar)); mağazadan kurulan eklentiyi
-tarayıcı kendisi günceller ([ADR-0022](../../docs/adr/0022-releases-and-updates.md)).
+Eklenti Chrome Web Store'da **herkese açık** olarak yayımlanacak: mağazanın aramasında çıkar, herkes kurabilir.
+Kullanıcı 2026-11-14'te listelenmemiş yayından vazgeçti, çünkü eklenti artık programın kapısıdır: programı olmayan
+birini son kurulum paketinin indirilmesine ve kurulumuna götürür, programın da ayrı bir web sayfası yoktur
+([ADR-0024](../../docs/adr/0024-extension-leads-to-download.md), [K31](../../docs/v1/requirements.md#kararlar)).
+Yayımlamayı kullanıcı yapacak ([K29](../../docs/v1/requirements.md#kararlar)); mağazadan kurulan eklentiyi tarayıcı
+kendisi günceller ([ADR-0022](../../docs/adr/0022-releases-and-updates.md)). Mağazaya ilk giden sürüm 0.9.0'dır;
+0.8.0 yüklenmez.
 
 ## Paket
 
@@ -29,12 +33,16 @@ paketi GitHub sürümüne de koyar. Simgeler ürünün logosundan `packaging/ico
 2. Gizlilik politikasının herkese açık adresi.
 3. Ekran görüntüleri: eklentinin penceresi (araç çubuğundaki düğmeden), ayarlar sayfası ve doğrulama sayfası,
    1280×800. Görüntülerde gerçek adres, banka adı ya da tutar olmamalı. Demo veri klasörüyle eşleşmiş bir eklentiden
-   alınır.
-4. Son sürümün `iplikci-kopru-<sürüm>.zip` dosyası (GitHub sürümünden ya da `npm run package`) geliştirici
-   panosundan yüklenir; görünürlük: listelenmemiş.
-5. Yeni geliştiricilerin eklentileri ilk aylarda Gelişmiş Güvenli Tarama'da "dikkatli olun" uyarısı alabilir
+   alınır; programı olmayan bir bilgisayardaki ayarlar sayfası (indirme rehberi) da bir görüntü olabilir.
+4. Önce kurulum paketlerini kararlı adlarıyla taşıyan bir program sürümü herkese açık `iplikci-nedim-surumler`
+   deposunda yayımlanmış olmalı (`iplikci-nedim-macos-aarch64.dmg` gibi; [sürüm yayını](../../docs/yayin.md)).
+   v0.11.1'in paketleri sürümlü adlarla duruyor: o sürüm son sürümken eklentinin indirme düğmesi GitHub'ın
+   "bulunamadı" sayfasını açardı.
+5. `iplikci-kopru-0.9.0.zip` (o sürümün GitHub sayfasından ya da `npm run package`) geliştirici panosundan yüklenir;
+   görünürlük: herkese açık.
+6. Yeni geliştiricilerin eklentileri ilk aylarda Gelişmiş Güvenli Tarama'da "dikkatli olun" uyarısı alabilir
    (ADR-0016).
-6. İnceleme geçince eklentinin mağaza adresi `src/iplikci/app/extension.py`'deki `STORE_URL`'e yazılır: arayüz önce
+7. İnceleme geçince eklentinin mağaza adresi `src/iplikci/app/extension.py`'deki `STORE_URL`'e yazılır: arayüz önce
    mağazayı gösterir. Eklentiyi önce paketlenmemiş yüklemiş olanlar onu kaldırır; ikisi birden aynı iletileri getirir.
 
 ## Sonraki sürümler

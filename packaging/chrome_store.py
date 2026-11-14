@@ -1,10 +1,10 @@
 """The browser extension's new version to the Chrome Web Store (ADR-0022, K29), with the store's API v2 and a service
 account, as the release workflow runs it:
 
-    uv run python packaging/chrome_store.py extension/iplikci-kopru-0.8.0.zip
+    uv run python packaging/chrome_store.py extension/iplikci-kopru-0.9.0.zip
 
 The store's item exists already: its first version is uploaded by hand from the developer dashboard, with its page,
-its privacy policy and its visibility (unlisted). The command reads its settings from the environment:
+its privacy policy and its visibility (public, ADR-0024). The command reads its settings from the environment:
 
 - CWS_PUBLISHER_ID and CWS_ITEM_ID: the publisher's and the item's ids (the dashboard's Settings and Package pages);
 - CWS_SERVICE_ACCOUNT_KEY: the JSON key of the service account the dashboard's Account page names.

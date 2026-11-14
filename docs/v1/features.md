@@ -91,7 +91,17 @@ G1, G10, G13 · Çekirdek
   - Chrome, Edge ve Brave'de; Windows, macOS ve Linux'ta aynı biçimde çalışır.
   - Kurulum sayfası eklentiyi bulur ve eşleştirmeyi başlatır; kullanıcı eklentide bir kez onaylar. Kod yazmak yalnızca
     sayfa eklentiye ulaşamazsa gerekir.
-  - İzinleri yalnızca `mail.google.com` ve 127.0.0.1'dir; mağaza sayfası ve eklentinin ayarlar sayfası bunu söyler.
+  - Adresleri yalnızca `mail.google.com`, Gmail'in ek sunucusu ve 127.0.0.1'dir; mağaza sayfası ve eklentinin ayarlar
+    sayfası bunu söyler.
+  - **Programı olmayan bilgisayar** (eklenti 0.9.0, [ADR-0024](../adr/0024-extension-leads-to-download.md)): mağazadan
+    kurulan eklenti eşleşmemişse ve 127.0.0.1'de yanıt veren yoksa (servisin sağlık denetimi), penceresi ve ayarlar
+    sayfası programın gerektiğini sade bir dille söyler. "İplikçi Nedim'i indir" düğmesi bu sistemin son kurulum
+    paketini (macOS Apple Silicon, Windows ya da Linux x64) herkese açık sürüm deposundan yeni bir sekmede açar; altında
+    kurulum ve ilk açılış adımları, sistemin uyarılarının kendi sözcükleriyle durur. Paketi olmayan sistem sürüm
+    sayfasını ve bunu söyleyen bir cümleyi alır (test edilir).
+    - İlk kurulumda ayarlar sayfası kendiliğinden açılır. Sayfa, program yanıt verene dek üç saniyede bir sorar;
+      program açılınca rehber kaybolur ve eşleştirme sürer (test edilir).
+    - Eklenti GitHub'a istek yapmaz ve yeni izin istemez: indirmeyi tarayıcı yapar.
   - Araç çubuğundaki düğme eklentinin penceresini açar: durum, "İplikçi Nedim'i aç", "Şimdi denetle" ve "Eşleştirme ve
     ayarlar". "İplikçi Nedim'i aç" açık bir arayüz sekmesini öne getirir; yoksa eşleşmiş eklentinin servisten aldığı
     tek kullanımlık giriş bağlantısını açar ([ADR-0019](../adr/0019-bridge-login-link.md)).
@@ -748,6 +758,10 @@ G4, G6 · Çekirdek · [K29](requirements.md#kararlar), [ADR-0022](../adr/0022-r
   - Ölçüt: kurulan program servisi başlatıp yanıt vermiyorsa ya da güncelleme dosyası kurulu programın açacağı gibi
     açılmıyorsa sürüm yayımlanmaz.
   - Ölçüt: imzalayan sır programın güvendiği anahtar değilse sürüm yayımlanmaz.
+  - Kurulum paketleri sürüm numarası olmayan adlarla yayımlanır (`iplikci-nedim-macos-aarch64.dmg`): son sürümün paketi
+    hep `releases/latest/download/<ad>` adresindedir ve eklenti oraya götürür
+    ([ADR-0024](../adr/0024-extension-leads-to-download.md)). Ölçüt: eklentinin sunduğu bir sistemin paketi eksikse
+    sürüm yapılmaz; eklentinin deposu ve paket adları programınkilerle aynıdır (test edilir).
 - **Denetim:** servis her gün 05.00'ten sonraki ilk fırsatta son sürümün bildirgesine bakar. "Şimdi denetle" her zaman
   bakar.
   - Ölçüt: imzası programın taşıdığı anahtarla doğrulanmayan bildirgeye inanılmaz; sorun Ayarlar'da yazar.
@@ -767,7 +781,8 @@ G4, G6 · Çekirdek · [K29](requirements.md#kararlar), [ADR-0022](../adr/0022-r
 - **Arayüz:** Ayarlar'daki Güncellemeler kartı çalışan sürümü, son denetimi, yeni sürümü ve notunu, son kurulumu ve
   ayarı gösterir; Sistem ekranı servis kartında yeni sürüm olup olmadığını söyler. `iplikci guncelleme` aynısını yapar.
 - **Eklenti:** mağazadaki eklentiyi tarayıcı günceller; iş akışı yeni sürümünü mağazaya yükler (mağazadakinden yeni
-  değilse yüklemez). Paketlenmemiş eklenti programla birlikte yenilenir.
+  değilse yüklemez). Paketlenmemiş eklenti programla birlikte yenilenir. Eklenti mağazada herkese açık listelenir;
+  ilk giden sürüm 0.9.0'dır.
 
 ## MVP eşitlik listesi
 

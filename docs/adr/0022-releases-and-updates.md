@@ -81,7 +81,8 @@ Durum: Kabul edildi · Tarih: 2026-11-10 · Dayanak: K29, K14, K22 · [ADR-0009]
 ### Eklentinin güncellenmesi
 
 - Mağazadan kurulan eklentiyi Chrome günceller.
-- İlk yayın kullanıcının elle yaptığıdır: geliştirici kaydı, mağaza sayfası ve listelenmemiş görünürlük. Sonra sürüm
+- İlk yayın kullanıcının elle yaptığıdır: geliştirici kaydı, mağaza sayfası ve herkese açık görünürlük (kullanıcının
+  2026-11-14 kararı; önce listelenmemiş düşünülmüştü, [ADR-0024](0024-extension-leads-to-download.md)). Sonra sürüm
   iş akışı, değişkenler (`CWS_PUBLISHER_ID`, `CWS_ITEM_ID`) ve servis hesabının anahtarı (`CWS_SERVICE_ACCOUNT_KEY`)
   tanımlıysa eklentinin yeni sürümünü mağazaya yükler ve incelemeye gönderir. Sürümü mağazadakinden yeni değilse
   yüklemez. Tanımlı değilse bu adım atlanır.
@@ -118,3 +119,15 @@ Durum: Kabul edildi · Tarih: 2026-11-10 · Dayanak: K29, K14, K22 · [ADR-0009]
 Sürümlerin yeri seçildi: kod deposu özel kalır, sürümler herkese açık `msaidbilgehan/iplikci-nedim-surumler`
 deposunda yayımlanır. `update/source.REPO` v0.11.1'den beri onu gösterir; iş akışı `RELEASE_REPO` ve `RELEASE_TOKEN`
 ile oraya yayımlar. Depo, paketlenmiş uygulama kullanıcının Mac'inde denendikten sonra açılır.
+
+## Not (2026-11-14, ADR-0024)
+
+- Sürüm işi kurulum paketlerini yayımlamadan önce sürüm numarası olmayan adlarla yeniden adlandırır
+  (`iplikci-nedim-macos-aarch64.dmg`, `iplikci-nedim-linux-x86_64.AppImage`, `iplikci-nedim-windows-x86_64.exe`).
+  Böylece `releases/latest/download/<ad>` her zaman son sürümün paketidir. Programı bulamayan eklenti kullanıcıyı
+  oraya götürür ([ADR-0024](0024-extension-leads-to-download.md)).
+- Bildirge kurulum paketlerini bu adlarla yazar. Windows'un kurulum programı güncelleme dosyası da olduğundan
+  güncelleme girişi de onu bu adla yazar; macOS'un ve Linux'un güncelleme dosyaları sürümlü adlarını korur. Kurulu
+  kopyalar dosyayı sürümün etiketli adresinden, bildirgenin yazdığı adla indirir; adlar onlar için bir şey değiştirmez.
+- Eklentinin sunduğu sistemlerden birinin paketi eksikse sürüm yapılmaz. Yayımlandıktan sonra iş akışı her kararlı
+  adresi hesapsız indirmeyi dener; olmazsa uyarı yazar.

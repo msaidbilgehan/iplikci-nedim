@@ -4,10 +4,13 @@
 #
 # A version tag publishes them as a GitHub release: its notes are the changelog's section, and a manifest signed with
 # the UPDATE_SIGNING_KEY secret names every file with its size and SHA-256; the installed copies install nothing before
-# that signature checks. vars.RELEASE_REPO names another repository to publish in, with the RELEASE_TOKEN secret: the
-# installed copies download without an account, so the releases must be public. The extension then goes to the Chrome
-# Web Store once its item is set up there (vars.CWS_PUBLISHER_ID and vars.CWS_ITEM_ID, secret CWS_SERVICE_ACCOUNT_KEY).
-# Run by hand, the workflow only builds, and keeps the files for two weeks.
+# that signature checks. packaging/release.py gives each installer a name without the version first
+# (iplikci-nedim-macos-aarch64.dmg …), so releases/latest/download/<name> is always the latest one: the browser
+# extension leads a person without the program there (ADR-0024). vars.RELEASE_REPO names another repository to publish
+# in, with the RELEASE_TOKEN secret: the installed copies and that download need no account, so the releases must be
+# public. The extension then goes to the Chrome Web Store once its item is set up there (vars.CWS_PUBLISHER_ID and
+# vars.CWS_ITEM_ID, secret CWS_SERVICE_ACCOUNT_KEY). Run by hand, the workflow only builds, and keeps the files for two
+# weeks.
 name: Paketler
 
 on:
@@ -128,7 +131,7 @@ jobs:
         with:
           path: dist/surum
           merge-multiple: true
-      - name: Manifest, signature and notes
+      - name: Manifest, signature, notes and the installers' stable names
         env:
           UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
         run: >-
@@ -141,6 +144,18 @@ jobs:
           ls -l dist/surum
           gh release create "$GITHUB_REF_NAME" dist/surum/* \
             --repo "$RELEASE_REPO" --title "$(cat dist/baslik.txt)" --notes-file dist/notlar.md
+      - name: The installers at the latest release's addresses
+        # What the browser extension's download button opens (ADR-0024), fetched without an account as a person's
+        # browser would. A warning, never a failure: the release is out, and the store's job still runs.
+        run: |
+          for name in $(ls dist/surum | grep -E '^iplikci-nedim-(macos|linux|windows)-'); do
+            url="https://github.com/$RELEASE_REPO/releases/latest/download/$name"
+            if curl -sSfL --retry 5 --retry-delay 10 --retry-all-errors -r 0-0 -o /dev/null "$url"; then
+              echo "$url"
+            else
+              echo "::warning::$url indirilemedi: eklentinin indirme düğmesi bu adrese götürür"
+            fi
+          done
 
   magaza:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && vars.CWS_ITEM_ID != ''

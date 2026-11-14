@@ -14,6 +14,21 @@ açık Gmail oturumuyla okuyup bu bilgisayardaki İplikçi Nedim servisine taş�
     ayarlar sayfasındadır; "Eşleştirme ve ayarlar" onu açar.
   - Ayarlar sayfası da durumu, "Şimdi denetle"yi ve "İplikçi Nedim'i aç"ı gösterir; doğrulama sayfasına oradan gidilir.
     Üç sayfa tek bir stil dosyasını paylaşır, açık ve koyu temayla.
+- **Program yoksa** (0.9.0, [ADR-0024](../docs/adr/0024-extension-leads-to-download.md)): mağazadan kurulan eklenti
+  programı olmayan bir bilgisayara da gelir. Eşleşmemişken `http://127.0.0.1:8643/` adresinde hiçbir şey yanıt
+  vermezse pencere ve ayarlar sayfası "Program gerekli" der ve programı indirme yolunu gösterir:
+  - "İplikçi Nedim'i indir" düğmesi, bu bilgisayarın sistemine (`chrome.runtime.getPlatformInfo`) göre son sürümün
+    kurulum paketini yeni bir sekmede açar; dosyayı tarayıcı indirir. Altında paketin adı ve sistemin kurup açma
+    adımları durur: macOS'ta Uygulamalar'a sürükleme ve ilk açılıştaki "Yine de Aç", Windows'ta SmartScreen'in "Ek
+    bilgi" → "Yine de çalıştır"ı, Linux'ta AppImage'ın çalıştırma izni. Adımlar `src/ui/program.ts`'tedir.
+  - Kurulum paketi olmayan bir sistem (Intel işlemcili Mac, ChromeOS, ARM'li Windows ya da Linux) sürüm sayfasını ve
+    bunu söyleyen bir cümleyi görür.
+  - Eklenti ilk kurulunca (`onInstalled`, `install`) ayarlar sayfası kendiliğinden açılır. Sayfa açıkken üç saniyede
+    bir ve öne geldiğinde yeniden bakar; program yanıt verince eşleştirmeye geçer ve kodun nereden alınacağını söyler.
+  - Eşleşmemiş eklenti kapalı programı kurulu olmayandan ayıramaz; pencere "İplikçi Nedim kuruluysa indirmeniz
+    gerekmez, açmanız yeter" der. Eşleşmiş eklentinin durumu servis kapalıyken önceki gibi "Kapalı"dır.
+  - Programın adresi `src/bridge/program.ts`'teki tek sabittedir (`REPO`); programın testleri onun güncellemelerin
+    geldiği depoyla (`iplikci.update.source.REPO`) ve paketlerin adlarının sürümlerdekiyle aynı olduğunu denetler.
 - **İplikçi Nedim'in sözü** (0.6.0, [ADR-0020](../docs/adr/0020-bridge-sayings.md)): pencerenin başında, logonun
   altındaki balonda, Pano'daki söz durur; logo paranın durumuna göre renk alır (`icons/face-*.png`). "Başka bir söz"
   o gün doğru olan öbür sözleri gösterir.
@@ -88,6 +103,9 @@ açık Gmail oturumuyla okuyup bu bilgisayardaki İplikçi Nedim servisine taş�
   ondalık ileti kimlikleri bildirmek.
 - `tabs` izni yoktur. "İplikçi Nedim'i aç" açık sekmelerden yalnızca `http://127.0.0.1:8643/` adresindekilerin adresini
   ve başlığını görür; bunu adres izni sağlar. Eklenti oturum çerezini okumaz ve servise çerez göndermez.
+- Programın indirilmesi için de izin yoktur (ADR-0024): düğme yalnızca yeni bir sekme açar (`chrome.tabs.create` izin
+  istemez), `downloads` izni ve GitHub'a istek yoktur. Eşleşmemiş eklenti servise yalnızca `GET /healthz` sorar,
+  kanıtsız ve çerezsiz; o uç bir şey söylemez, yalnızca yanıt verip vermediğine bakılır.
 - "Orijinali göster" eklerin içeriğini boş verir. Bu yüzden bir dosya adı geçen ileti "Orijinali indir" ile, bayt bayt
   ve tam alınır; Gmail bu indirmeyi ek sunucusuna yönlendirir.
 - Gmail'e yalnızca okuma istekleri gider: okundu işareti, etiket, taşıma ya da silme yoktur.

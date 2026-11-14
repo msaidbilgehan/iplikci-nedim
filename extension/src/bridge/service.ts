@@ -1,8 +1,8 @@
 /**
- * The paired İplikçi Nedim service, on this computer only (ADR-0016): pairing with a code, the proof that the
- * service is the one paired with, where delivery stands, the delivery of raw messages, a login link for the
- * interface (ADR-0019) and İplikçi Nedim's lines on the money (ADR-0020). The token goes in the Authorization header
- * only; no cookie is sent.
+ * The paired İplikçi Nedim service, on this computer only (ADR-0016): whether anything answers there before pairing
+ * (ADR-0024), pairing with a code, the proof that the service is the one paired with, where delivery stands, the
+ * delivery of raw messages, a login link for the interface (ADR-0019) and İplikçi Nedim's lines on the money
+ * (ADR-0020). The token goes in the Authorization header only; no cookie is sent.
  */
 
 import type { PageTraits } from "../gmail/original";
@@ -134,6 +134,20 @@ async function call(fetcher: Fetcher, path: string, init: RequestInit): Promise<
 
 function bearer(paired: Paired): Record<string, string> {
   return { Authorization: `Bearer ${paired.token}` };
+}
+
+/**
+ * Whether anything answers on the service's address, asked of its health check, which needs no token (ADR-0007): an
+ * extension not paired tells so whether İplikçi Nedim is there to pair with (ADR-0024). Any answer counts, whoever
+ * gives it; only a paired service proves itself, before the token goes anywhere.
+ */
+export async function answers(fetcher: Fetcher): Promise<boolean> {
+  try {
+    await fetcher(`${SERVICE}/healthz`, { method: "GET", credentials: "omit", cache: "no-store" });
+  } catch {
+    return false;
+  }
+  return true;
 }
 
 /** Trade a pairing code (from the service's page) for this bridge's token. */

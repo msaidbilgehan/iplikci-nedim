@@ -79,3 +79,11 @@ GitHub'ın sürüm sunucuları girdi:
   listesinden ve sertifika denetiminden geçer.
 - Güncelleme dosyası diske akışla iner; bildirgenin söylediği boyutu aşan yanıt kesilir.
 - `[updates] mode = "off"` iken GitHub'a hiç sorulmaz (demo veri klasörü böyle kurulur).
+
+## Not (2026-11-14, ADR-0024)
+
+Eklentinin adresleri değişmedi. Eşleşmemiş eklenti programı bulamazsa, kullanıcı düğmeye basınca son kurulum paketinin
+GitHub'daki adresini (`github.com/<sürümler deposu>/releases/latest/download/<paket>`) yeni bir sekmede açar
+([ADR-0024](0024-extension-leads-to-download.md)). İndirmeyi tarayıcı yapar. Eklenti GitHub'a istek yapmaz ve veri
+göndermez; programın orada olup olmadığına yalnızca 127.0.0.1:8643'ün sağlık denetimiyle bakar. Servisin kendisi bu
+yolda ağa çıkmaz.

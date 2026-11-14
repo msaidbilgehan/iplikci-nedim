@@ -8,7 +8,7 @@ import type { Status } from "../bridge/messages";
 import type { Outcome, ScanSummary } from "../bridge/state";
 
 export type Tone = "good" | "warning" | "critical" | "neutral" | "busy";
-export type Icon = "check" | "exclamation" | "cross" | "dash" | "dots" | "turn";
+export type Icon = "check" | "exclamation" | "cross" | "dash" | "dots" | "turn" | "download";
 
 export interface Shown {
   readonly tone: Tone;
@@ -28,6 +28,7 @@ export const ICON_PATHS: Readonly<Record<Icon, string>> = {
   dash: "M6 12h12",
   dots: "M6 12h.01M12 12h.01M18 12h.01",
   turn: "M20 12a8 8 0 1 1-2.3-5.7M20 4v4h-4",
+  download: "M12 4v11M7 10l5 5 5-5M5 20h14",
 };
 
 /** The service worker did not answer: the extension's background stopped. */
@@ -36,6 +37,16 @@ export const SILENT =
 
 /** While a check asked for by hand runs. */
 export const CHECKING: Shown = { tone: "busy", icon: "turn", word: "Denetleniyor…", detail: "", when: "" };
+
+/** Not paired, and nothing answers on the service's address: İplikçi Nedim is not installed here, or not open
+ * (ADR-0024). The page shows how to get it under the card. */
+export const NO_PROGRAM: Shown = {
+  tone: "warning",
+  icon: "download",
+  word: "Program gerekli",
+  detail: "Bu eklenti bilgisayarınızdaki İplikçi Nedim programıyla çalışır; bu bilgisayarda ona ulaşılamadı.",
+  when: "",
+};
 
 const CALM: ReadonlySet<Outcome> = new Set(["delivered", "nothing-new"]);
 const TIME = new Intl.DateTimeFormat("tr-TR", { dateStyle: "short", timeStyle: "short" });

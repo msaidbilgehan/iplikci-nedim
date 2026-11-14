@@ -395,6 +395,24 @@ textarea {
   font-size: 0.875rem;
 }
 
+/* The way to the program when it is not on this computer (ADR-0024): the download, then the steps in order. */
+.steps {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.steps li::marker {
+  font-weight: 600;
+}
+
+.program .hint {
+  overflow-wrap: anywhere; /* the installer's name is one long word */
+}
+
+.waiting {
+  font-weight: 600;
+}
+
 #code {
   width: 12rem;
   max-width: 100%;
@@ -472,8 +490,19 @@ body.popup {
   font-size: 0.9375rem;
 }
 
-.popup .status + .button {
+.popup .status + .button,
+.popup .status + .program,
+.popup .status + .program[hidden] + .button {
   margin-top: 1rem;
+}
+
+.popup .program > * + * {
+  margin-top: 0.5rem;
+}
+
+.popup .steps {
+  gap: 0.375rem;
+  font-size: 0.875rem;
 }
 
 .answer {

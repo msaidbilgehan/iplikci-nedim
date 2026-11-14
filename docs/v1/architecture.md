@@ -123,6 +123,7 @@ flowchart LR
   svc -- "bildirim" --> tg
   svc -- "günlük kurlar" --> fx
   svc -- "günde bir: yeni sürüm" --> gh
+  user -. "kurulum paketi, eklentinin açtığı sekmede" .-> gh
   cws -. "eklentinin güncellemesi" .-> ext
   tg -- "bildirim" --> phone
   phone -. "uzaktan erişim" .-> ts -.-> svc
@@ -774,6 +775,11 @@ Teknoloji ADR-0008'dedir. Ekranlar ve davranışları [features.md](features.md)
   - Sürüm etiketinde iş akışı dosyaları bir GitHub sürümüne koyar: notu `CHANGELOG.md`'nin bölümü, bildirgesi
     (`packaging/release.py`) `UPDATE_SIGNING_KEY` sırrıyla imzalı. Eklentinin mağaza paketi, mağaza ayarları varsa
     Chrome Web Store'a yüklenir (`packaging/chrome_store.py`). Ayrıntılar [sürüm yayını](../yayin.md)'ndadır.
+  - Kurulum paketleri sürümde sürüm numarası olmayan adlarla durur (`iplikci-nedim-macos-aarch64.dmg`), son sürümünkü
+    hep `releases/latest/download/<ad>`'dadır. Programı bulamayan eklenti kullanıcıyı oraya götürür: eşleşmemişse
+    servisin sağlık denetimine bakar, yanıt yoksa bu sistemin paketini yeni bir sekmede açtırır ve kurulumu anlatır
+    ([ADR-0024](../adr/0024-extension-leads-to-download.md)). İndirmeyi tarayıcı yapar; eklentinin adresleri
+    değişmez.
 - **Uygulamanın açılışı:** uygulama `python -I -X utf8 -m iplikci uygulama` çalıştırır (`service/launcher`).
   - Kayıt bu kopyanın değilse servisi yeniden kaydeder ve başlatır.
   - Çalışan servisin sürümü eskiyse servisi yeniden başlatır. Daha yeni bir sürümün servisi çalışıyorsa ya da veri

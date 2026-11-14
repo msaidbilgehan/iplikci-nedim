@@ -4,6 +4,27 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [Yayımlanmamış]
+
+### Eklenenler
+
+- Tarayıcı eklentisi (0.9.0) İplikçi Nedim'e giden yol olur. Chrome Web Store'da herkese açık yayımlanacak; programı
+  olmayan bir bilgisayara kurulunca ayarlar sayfası kendiliğinden açılır, eklentinin bu bilgisayardaki İplikçi Nedim
+  programıyla çalıştığını söyler ve sisteminiz için "İplikçi Nedim'i indir" düğmesini gösterir. Düğme son sürümün
+  kurulum paketini tarayıcının yeni bir sekmesinde indirir; altında paketi kurup açmanın adımları yazar: macOS'ta
+  uygulamayı Uygulamalar'a sürüklemek ve ilk açılışta Gizlilik ve Güvenlik'teki "Yine de Aç", Windows'ta "Ek bilgi" →
+  "Yine de çalıştır", Linux'ta dosyanın çalıştırılmasına izin vermek. Kurulum paketi olmayan bir sistemde düğme sürüm
+  sayfasını açar ve bunu söyler. Sayfa programı bekler; program açılınca kendiliğinden eşleştirmeye geçer ve kodun
+  nereden alınacağını söyler. Eklentinin penceresi de, eşleşmemişken program bulunamazsa, aynı düğmeyi gösterir.
+- Eklenti bunun için yeni bir izin istemez ve GitHub'a kendisi bağlanmaz: indirmeyi tarayıcı yapar, eklenti yalnızca
+  sekmeyi açar.
+
+### Değişenler
+
+- Her sürümün kurulum paketleri adında sürüm numarası olmadan yayımlanır: `iplikci-nedim-macos-aarch64.dmg`,
+  `iplikci-nedim-windows-x86_64.exe`, `iplikci-nedim-linux-x86_64.AppImage`. Son sürümün paketi böylece hep aynı
+  adrestedir; README bu adresleri verir. Kurulu uygulamalar güncellemelerini eskisi gibi alır.
+
 ## [0.11.1] — 2026-11-14 — Sürümler herkese açık depodan gelir
 
 ### Değişenler

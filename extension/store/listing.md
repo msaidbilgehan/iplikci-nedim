@@ -9,7 +9,10 @@ Chrome Web Store'un geliştirici panosuna girilecek metinler. Mağaza dili Türk
 - **Kısa açıklama** (manifestteki açıklama): Gmail'deki banka iletilerini bu bilgisayardaki İplikçi Nedim'e taşır.
   Gmail'de hiçbir şeyi değiştirmez.
 - **Kategori:** Verimlilik
-- **Görünürlük:** listelenmemiş
+- **Görünürlük:** herkese açık (kullanıcının 2026-11-14 kararı,
+  [ADR-0024](../../docs/adr/0024-extension-leads-to-download.md)): eklenti programın kapısıdır, adını duyan onu
+  mağazada bulur.
+- **İlk gönderilen sürüm:** 0.9.0 (programı olmayanı indirmeye götüren ilk sürüm); 0.8.0 mağazaya gitmez.
 
 ## Uzun açıklama
 
@@ -27,7 +30,10 @@ iletilerini okur ve bu bilgisayarda çalışan İplikçi Nedim'e taşır.
 - Araç çubuğundaki düğmesi durumu gösterir ve İplikçi Nedim'in arayüzünü tek tıkla açar.
 - Uygulama şifresi verilemeyen hesaplar için yoldur, örneğin Google'ın Gelişmiş Koruma programındaki hesaplar.
 
-Kullanmak için bu bilgisayarda İplikçi Nedim'in kurulu olması gerekir.
+Kullanmak için bu bilgisayarda İplikçi Nedim'in kurulu olması gerekir. Kurulu değilse eklenti bunu söyler: ayarlar
+sayfası kendiliğinden açılır, bilgisayarınızın sistemi için İplikçi Nedim'i indiren bir düğme ve kurulum adımları
+gösterir (macOS, Windows ve Linux). İndirme, İplikçi Nedim'in GitHub'daki sürüm sayfasından, tarayıcınızın yeni bir
+sekmesinde olur. Program açılınca eklenti eşleştirmeye geçer.
 
 ## Tek amaç
 
@@ -42,9 +48,12 @@ Gmail'deki banka iletilerini, kullanıcının kendi bilgisayarında çalışan �
 | `storage` | Eşleşmeyi, okunacak Gmail hesabının sırasını, son denetimin özetini, listedeki göndericilerin alan adlarını ve son banka iletilerinin Gmail kimliklerini tarayıcıda saklamak. E-posta adresi saklanmaz. |
 | `https://mail.google.com/*` | Gelen kutusu akışını, "Orijinali göster" sayfasını, arama listesini ve baştan sona okunmuş konuşmaların yazdırma görünümünü kullanıcının oturumuyla okumak. Yalnızca okuma (GET) istekleri. Kullanıcının açık Gmail sekmelerinde çalışan içerik betiği, görünen konuşma listesinden ve açılmış konuşmadan yalnızca listedeki bankaların iletilerinin kimliklerini eklentiye bildirir; göndericinin adresine yalnızca alan adı için bakar, konu, metin ve ad okumaz, istek yapmaz. |
 | `https://mail-attachment.googleusercontent.com/*` | Eki olan bir iletinin tamamını "Orijinali indir" ile almak: Gmail bu indirmeyi kendi ek sunucusuna yönlendirir, "Orijinali göster" ise eklerin içeriğini boş verir. Yalnızca okuma (GET). |
-| `http://127.0.0.1:8643/*` | İletileri bu bilgisayardaki İplikçi Nedim servisine teslim etmek. "İplikçi Nedim'i aç" ile servisin arayüzünü açmak: bu adreste açık bir sekme varsa onu bulup öne getirmek (yalnızca bu adresteki sekmelerin adresi ve başlığı görülür), yoksa servisten tek kullanımlık bir giriş bağlantısı isteyip açmak. |
+| `http://127.0.0.1:8643/*` | İletileri bu bilgisayardaki İplikçi Nedim servisine teslim etmek. "İplikçi Nedim'i aç" ile servisin arayüzünü açmak: bu adreste açık bir sekme varsa onu bulup öne getirmek (yalnızca bu adresteki sekmelerin adresi ve başlığı görülür), yoksa servisten tek kullanımlık bir giriş bağlantısı isteyip açmak. Eşleşmeden önce, programın bu bilgisayarda olup olmadığını servisin sağlık denetimine (`/healthz`, belirteç ya da çerez gönderilmez) bakarak anlamak. |
 
 Uzaktan kod: yok. Bütün kod pakettedir ve küçültülmemiştir.
+
+Başka izin yoktur. Programı indirme düğmesi yalnızca bir sekme açar (`chrome.tabs.create`, izin istemez); dosyayı
+tarayıcı indirir, eklenti GitHub'a istek yapmaz. `downloads`, `tabs` ve GitHub için adres izni yoktur.
 
 ## Veri kullanımı beyanı
 
@@ -72,10 +81,19 @@ Uzaktan kod: yok. Bütün kod pakettedir ve küçültülmemiştir.
 > injects the same script into the Gmail tabs already open (chrome.scripting), so they need no reload. The service
 > worker accepts only two requests from a Gmail tab: what to look for, and decimal message ids.
 >
-> Without the local app the extension stays unpaired and sends nothing. Its verification page (verify.html, linked
-> from the options page) shows how it reads Gmail without changing anything. Pairing uses a one-time code from the
-> local app, and before every delivery the local service proves with an HMAC that it is the app the extension paired
-> with.
+> Without the local app the extension stays unpaired and sends nothing. On install it opens its options page by
+> itself. When it is not paired, it asks the local address whether the app is there (GET
+> http://127.0.0.1:8643/healthz, no token, no cookie). Nothing answers on a reviewer's computer, so the page says that
+> the İplikçi Nedim app is needed and shows "İplikçi Nedim'i indir" with the steps to install and open it for the
+> computer's system (chrome.runtime.getPlatformInfo). The button opens
+> https://github.com/msaidbilgehan/iplikci-nedim-surumler/releases/latest/download/<installer> in a new tab
+> (chrome.tabs.create): the browser downloads the app's installer from its public releases. The extension makes no
+> request to GitHub, sends nothing there and has no "downloads" or "tabs" permission. A system without an installer
+> (ChromeOS, for example) gets the releases page instead. The page keeps asking the local address every few seconds
+> and moves on to pairing once the app answers. To see the rest, install the app from that page; it is free. Its
+> verification page (verify.html, linked from the options page) shows how it reads Gmail without changing anything.
+> Pairing uses a one-time code from the local app, and before every delivery the local service proves with an HMAC
+> that it is the app the extension paired with.
 >
 > The toolbar button opens a small window (popup.html) with the bridge's status, "Open İplikçi Nedim", "Check now"
 > and a link to the options page. "Open İplikçi Nedim" brings a tab of the local app's interface to the front; without

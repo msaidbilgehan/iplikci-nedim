@@ -162,7 +162,8 @@ iki koşulu açık bırakarak kapattı ([K19](requirements.md#kararlar)).
 - `ingest`: e-posta bağlayıcıları (IMAP IDLE ve tarayıcı eklentisinin alım ucu), güven kuralı, `.eml` saklama
   (ADR-0015); gelen klasörü izleyicisi; yükleme ve plan/uygula.
 - `extension/`: Chromium eklentisi (Manifest V3; ADR-0016). Eşleştirme, Gmail bağdaştırıcısı (üç katman), teslim ve
-  sağlık; Chrome Web Store'da listelenmemiş yayın.
+  sağlık; Chrome Web Store'da listelenmemiş yayın (2026-11-14: herkese açık listelenir,
+  [ADR-0024](../adr/0024-extension-leads-to-download.md)).
 - `egress`: dış bağlantı izin listesi (ADR-0009).
 - `service`: launchd, systemd ve Görev Zamanlayıcı entegrasyonu; tek kopya kilidi; uyku sonrası tamamlama.
 - Günlük yedek ve geri yükleme.

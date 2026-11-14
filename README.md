@@ -275,13 +275,22 @@ MVP 2026-10-31'de emekliye ayrıldı. İplikçi Nedim onun kodundan başlar ama 
 ## Kurulum
 
 İplikçi Nedim her işletim sistemi için bir kurulum paketiyle gelir; Python ya da başka bir program kurmanız gerekmez.
-Paketler şimdilik imzasızdır. Her sürümde bu deponun "Paketler" iş akışı onları üretir ve deponun GitHub'daki sürümler
-sayfasında yayımlar.
+Paketler şimdilik imzasızdır. Her sürümde bu deponun "Paketler" iş akışı onları üretir ve herkese açık
+[sürüm sayfasında](https://github.com/msaidbilgehan/iplikci-nedim-surumler/releases/latest) yayımlar. Son sürümün
+paketi, adında sürüm numarası olmadan hep aynı adrestedir:
+[macOS (Apple Silicon)](https://github.com/msaidbilgehan/iplikci-nedim-surumler/releases/latest/download/iplikci-nedim-macos-aarch64.dmg),
+[Windows](https://github.com/msaidbilgehan/iplikci-nedim-surumler/releases/latest/download/iplikci-nedim-windows-x86_64.exe),
+[Linux](https://github.com/msaidbilgehan/iplikci-nedim-surumler/releases/latest/download/iplikci-nedim-linux-x86_64.AppImage).
+
+Tarayıcı eklentisini Chrome Web Store'dan önce kurduysanız eklenti programı bulamayınca bunu söyler: ayarlar sayfası
+kendiliğinden açılır, bilgisayarınızın sistemi için İplikçi Nedim'i indiren bir düğme ve aşağıdaki adımları gösterir.
+Program açılınca eklenti kendiliğinden eşleştirmeye geçer.
 
 1. Paketi açın:
-   - **macOS:** `.dmg` dosyasını açın ve İplikçi Nedim'i Uygulamalar klasörüne sürükleyin; uygulamayı oradan açın. İlk
-     açılışta macOS uygulamanın geliştiricisini doğrulayamadığını söyler. Sistem Ayarları → Gizlilik ve Güvenlik'te
-     "Yine de aç"a basın.
+   - **macOS:** `.dmg` dosyasını açın ve pencerede İplikçi Nedim'i yanındaki "Applications" klasörüne sürükleyin;
+     uygulamayı Uygulamalar klasöründen açın. İlk açılışta macOS "“İplikçi Nedim” Açılmadı" der, çünkü uygulama
+     Apple'a onaylatılmadı: "Bitti"ye basın, sonra Sistem Ayarları → Gizlilik ve Güvenlik'te "Yine de Aç"a basıp
+     parolanızı girin. macOS bir kez daha sorarsa yine "Yine de Aç"ı seçin.
    - **Windows:** kurulum programını çalıştırın. "Windows bilgisayarınızı korudu" uyarısında "Ek bilgi"ye, sonra "Yine
      de çalıştır"a basın. Program yönetici izni istemeden kendi klasörünüze kurulur ve Başlat menüsünden açılır.
    - **Linux:** AppImage dosyasının özelliklerinden program olarak çalıştırılmasına izin verin ve dosyaya çift
