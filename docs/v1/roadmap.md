@@ -298,6 +298,14 @@ Durum: 2026-11-02'de `asama-6` dalında uygulandı, `v0.7.0` ([değişiklik gün
     - Sistem Ayarları → Genel → Giriş Öğeleri'nde öğe "İplikçi Nedim" adıyla mı görünüyor
       (`AssociatedBundleIdentifiers`)? "sh" görünüyorsa ve bu kullanıcıyı tedirgin ediyorsa ajanın başka bir biçimi
       düşünülmeli.
+  - Linux'ta uygulama menüsü (K31, ADR-0017'nin 2026-11-15 notu), Linux denemesiyle (K25). Testler geçici bir
+    `$XDG_DATA_HOME`'a yazar; gerçek bir masaüstünde bakılacaklar:
+    - AppImage ilk açılışta uygulama menüsüne "İplikçi Nedim" adıyla ve simgesiyle girmeli (GNOME ve KDE); menüden
+      açılınca tarayıcıda arayüz açılmalı.
+    - AppImage taşınıp ya da silinip menüden açılınca uygulama yine açılmalı: giriş `~/.local/lib/iplikci/<sürüm>`'deki
+      kopyayı açar.
+    - Kendiliğinden güncellemeden sonra giriş yeni sürümün kopyasını açmalı; eski kopya silinince menüden düşmemeli.
+    - Ayarlar'daki "Kaldır" girişi ve simgeleri silmeli; menü girişi kalmamalı.
   - Aşama 3'ten kalan yedi günlük çalışma (K19).
   - Uzak erişim (Tailscale, ADR-0012) sihirbazda "sonra gelecek" diye yazılıdır.
 

@@ -221,3 +221,27 @@ kendi işidir):
 - Testler launchd'ye, kullanıcının ajanlarına ve sistem günlüğüne ulaşmaz: betik `/bin/sh`'te, launchctl ve logger
   yerine geçen betiklerle çalışır. Gerçek bir Mac'te bakılacaklar
   [yol haritası](../v1/roadmap.md#aşama-6--arayüz)'ndadır.
+
+## Not (2026-11-15, K31): Linux'ta uygulama menüsünde
+
+Kullanıcı bu öneriyi de 2026-11-14'te kabul etti ([K31](../v1/requirements.md#kararlar)). AppImage, kullanıcının
+indirdiği yerde duran bir dosyadır; hiçbir menü onu listelemez. Uygulama artık kendini masaüstünün uygulama menüsüne
+ekler (`service/desktop`, freedesktop'ın Desktop Entry belirtimi):
+
+- Giriş `$XDG_DATA_HOME/applications/com.iplikci.app.desktop`'tur (yoksa `~/.local/share`). Simgeleri kullanıcının
+  simge temasındadır: `icons/hicolor/<boyut>x<boyut>/apps/com.iplikci.app.png` (48, 128, 256). Simgeleri program
+  taşır (`src/iplikci/service/icons`, `packaging/icons.py` logodan çizer).
+- Girişin adı "İplikçi Nedim"dir. `Exec` uygulamayı AppRun gibi açar: sürümün `~/.local/lib/iplikci/<sürüm>`'deki
+  Python'uyla `-I -X utf8 -m iplikci uygulama`. Yol belirtimin kurallarıyla tırnaklanır: boşluklu ve Türkçe harfli
+  yollar olduğu gibi kalır. `TryExec` o kopya giderse girişi menüden düşürür.
+- Ne zaman yazılır:
+  - Uygulama açılıp servisi kaydettiğinde (ilk açılış, yeni bir sürümün AppImage'ı) ya da henüz giriş yokken
+    (`launcher.in_menu`). Var olan giriş dokunulmadan kalır; kullanıcı onu bir menü düzenleyicisiyle değiştirmiş
+    olabilir.
+  - Güncelleme servisi yeni kopyaya taşıdığında, systemd birimiyle birlikte (`update._apply`). Girişi yazmayan bir
+    sürümün kurduğu güncellemeden sonra da yeni sürüm açılırken yazılır (`update.finish`).
+- Servisin kaldırılması (Ayarlar'daki "Kaldır", `iplikci servis kaldir`) girişi ve simgeleri de siler
+  (`manager.Systemd`). Klasörler masaüstünündür, kalır.
+- Menü uygulama değildir: giriş yazılamaz ya da silinemezse günlüğe yazılır, açılış, güncelleme ve kaldırma sürer.
+- Testler geçici bir `$XDG_DATA_HOME`'a yazar. Gerçek bir masaüstünde bakılacaklar
+  [yol haritası](../v1/roadmap.md#aşama-6--arayüz)'ndadır.

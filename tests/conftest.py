@@ -120,7 +120,8 @@ def no_keyring_or_network(monkeypatch, tmp_path_factory):
     # A test that forgets to name its data folder gets an empty one, never the user's.
     monkeypatch.setenv(HOME_ENV, str(tmp_path_factory.mktemp("iplikci-bos")))
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path_factory.mktemp("yerel")))  # where the Windows task's record goes
-    # Linux's ~/.local/share: the Trash, and the program copies an earlier AppImage kept in the data folder.
+    # Linux's ~/.local/share: the Trash, the program copies an earlier AppImage kept in the data folder, and the app's
+    # entry in the desktop's menu with its icons.
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path_factory.mktemp("xdg-veri")))
     # The interface as a development copy without its build, whether web/ was built here or not.
     monkeypatch.setattr(api_context, "UI", tmp_path_factory.mktemp("arayuz") / "derlenmemis")

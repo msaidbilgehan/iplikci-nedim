@@ -1,8 +1,9 @@
 """Draws every icon of the product from its logo, the line drawing of İplikçi Nedim in packaging/logo/:
-the interface's (web/public), the browser extension's (extension/static/icons) and the installers'
-(packaging/assets). The face is filled white inside its outline with its lines in teal, on a teal tile: a line
-drawing alone thins to nothing at 16 px, a light face still reads there. Small icons get thicker lines. Beside the
-logo, his face in the colour of his word on the money (app.sayings): amber, red or grey where the logo is teal.
+the interface's (web/public), the browser extension's (extension/static/icons), the installers' (packaging/assets)
+and the Linux app's menu entry's, which the program carries (src/iplikci/service/icons). The face is filled white
+inside its outline with its lines in teal, on a teal tile: a line drawing alone thins to nothing at 16 px, a light
+face still reads there. Small icons get thicker lines. Beside the logo, his face in the colour of his word on the
+money (app.sayings): amber, red or grey where the logo is teal.
 
     uv run python -I packaging/icons.py
 """
@@ -17,6 +18,7 @@ LOGO = ROOT / "packaging" / "logo" / "white.png"  # white lines on a transparent
 WEB = ROOT / "web" / "public"
 EXTENSION = ROOT / "extension" / "static" / "icons"
 ASSETS = ROOT / "packaging" / "assets"
+DESKTOP = ROOT / "src" / "iplikci" / "service" / "icons"  # service/desktop's SIZES
 
 TEAL = (15, 118, 110, 255)  # the interface's teal-700 and the PWA's theme colour
 WHITE = (255, 255, 255, 255)
@@ -152,6 +154,10 @@ def main() -> None:
     _save(icon(512), ASSETS / "iplikci.png")
     _save_many([icon(size) for size in (16, 24, 32, 48, 64, 128, 256)], ASSETS / "iplikci.ico")
     _save_many([icon(size, margin=0.1) for size in (16, 32, 64, 128, 256, 512, 1024)], ASSETS / "iplikci.icns")
+    # The Linux app's entry in the desktop's application menu: the program puts them in the user's icon theme, as the
+    # AppImage's own icon is where no menu looks.
+    for size in (48, 128, 256):
+        _save(icon(size), DESKTOP / f"iplikci-{size}.png")
 
 
 if __name__ == "__main__":

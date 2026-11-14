@@ -16,8 +16,9 @@ from .. import __version__
 from ..app.workspace import Workspace
 from ..settings import locks
 from ..storage import db as database
+from ..update.install import Kind, detect
 from ..versions import newer, version_key
-from . import client, instance
+from . import client, desktop, instance
 from .manager import Program, ServiceManager, installed_program
 
 WAIT_SECONDS = 45.0  # how long the service may take to answer after it was started: its first start makes the folder
@@ -77,7 +78,7 @@ def open_app(
     """Make sure the service of this data folder runs this copy, then a login link. LaunchError, ManagerError (the
     service manager refused) and DevelopmentCopy say why it could not. An older copy never takes over from a newer
     one, and a second opening waits until the first one is done. Once this copy's service answers, the copies of
-    older versions an AppImage left behind go."""
+    older versions an AppImage left behind go, and the Linux app's menu entry opens this copy (in_menu)."""
     why = misplaced(executable, platform)
     if why is not None:
         raise LaunchError(why)
@@ -103,7 +104,20 @@ def open_app(
             sleep(_PAUSE)
         for older in older_copies(executable, platform):
             shutil.rmtree(older, ignore_errors=True)  # a Python this program copied for an older version, no document
+        in_menu(executable, platform, registered=registered)
         return Opened((login or _login_link)(ws), registered, restarted)
+
+
+def in_menu(executable: Path, platform: str, *, registered: bool) -> bool:
+    """The Linux app's entry in the desktop's menu (desktop), for the copy AppRun runs: written as the app registers
+    the service (its first opening, a new version's AppImage), or when there is none yet (a copy from before the
+    entry). An entry already there is left as the user may have changed it in a menu editor. Whether it was
+    written."""
+    if detect(executable, platform).kind is not Kind.LINUX_COPY:
+        return False
+    if not registered and desktop.present():
+        return False
+    return desktop.add(executable)
 
 
 @contextmanager

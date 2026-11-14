@@ -789,6 +789,10 @@ Teknoloji ADR-0008'dedir. Ekranlar ve davranışları [features.md](features.md)
   - Disk görüntüsünden ya da macOS'un geçici yerinden (App Translocation) açılan uygulama önce Uygulamalar klasörüne
     taşınmasını ister.
   - Sorunlar sistemin kendi penceresinde söylenir (`service/dialog`); geliştirme kopyası kaydedilmez.
+  - Linux'ta uygulama kendini masaüstünün uygulama menüsüne ekler (`service/desktop`, K31, ADR-0017'nin 2026-11-15
+    notu): `$XDG_DATA_HOME/applications/com.iplikci.app.desktop` ve simge temasında simgeleri. Giriş AppRun gibi
+    sürümün `~/.local/lib/iplikci/<sürüm>`'deki Python'unu açar. Servisi kaydeden açılışta ya da giriş yokken yazılır,
+    güncelleme systemd birimiyle birlikte onu yeni kopyaya taşır; servisin kaldırılması onu da siler.
 - **Servisin kendi hayatı** (`app/lifecycle`): servis kendi sürecini bitirir.
   - Temiz çıkış (0) durmadır: servis bir sonraki oturum açılışında ya da uygulama açılınca başlar.
   - 75 çıkış kodu yeniden başlatmadır. launchd (`KeepAlive`, `SuccessfulExit: false`) ve systemd

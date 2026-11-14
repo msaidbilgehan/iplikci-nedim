@@ -24,6 +24,10 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
   ve ardından yarım dakikada bir yeniden başlatmaya çalışıyordu. Verileriniz yerinde kalır; onları da kaldırmak
   isterseniz önce Ayarlar'daki "Kaldır"ı kullanın. Güncellemeler ve o an takılı olmayan bir diskteki uygulama kaydı
   kaldırmaz.
+- Linux'ta İplikçi Nedim uygulama menüsüne kendisi girer: AppImage ilk açılışta masaüstünün menüsüne simgesiyle bir
+  "İplikçi Nedim" girişi ekler. Giriş, AppImage taşınsa ya da silinse de programın bilgisayardaki kopyasını açar;
+  güncellemeler onu yeni sürüme taşır, Ayarlar'daki "Kaldır" onu da siler. Önceden AppImage'ı her seferinde
+  indirildiği klasörden açmak gerekiyordu.
 
 ### Değişenler
 

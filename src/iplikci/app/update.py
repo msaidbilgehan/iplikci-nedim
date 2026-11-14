@@ -25,7 +25,7 @@ from typing import Any, cast
 
 from .. import __version__, egress
 from ..domain.codes import Actor, BackupReason
-from ..service import launcher, manager
+from ..service import desktop, launcher, manager
 from ..settings import config
 from ..settings.paths import replace_private
 from ..storage import audit, jobs
@@ -247,7 +247,8 @@ def install_update(
 
 def finish(ws: Workspace, here: Installation | None = None) -> Outcome | None:
     """At the service's start: how the install that ended the last run went, kept for the user, and what the old
-    version left removed (its program files, a download). None when no install was under way."""
+    version left removed (its program files, a download). After an update that came up on Linux the app's menu entry
+    opens this copy, also where a version from before the entry installed it. None when no install was under way."""
     record = _load(ws)
     going = record.get("installing")
     outcome: Outcome | None = None
@@ -263,7 +264,10 @@ def finish(ws: Workspace, here: Installation | None = None) -> Outcome | None:
         with ws.db() as db:
             audit.record(db, Actor.SYSTEM, INSTALLED if ok else FAILED, to, previous=outcome.from_version)
         log.info("the update to %s %s", to, "worked" if ok else "did not come up")
-    _clean(installation() if here is None else here)
+    found = installation() if here is None else here
+    if outcome is not None and outcome.ok and found.kind is Kind.LINUX_COPY:
+        desktop.add(Path(sys.executable))
+    _clean(found)
     return outcome
 
 
@@ -343,6 +347,7 @@ def _apply(ws: Workspace, found: Installation, file: Path, version: str) -> None
         if not isinstance(service, manager.Systemd):
             raise UpdateError("Servis yöneticisi systemd değil; güncelleme yapılmadı.")
         service.retarget(manager.Program(python, ws.home.resolve()))
+        desktop.add(python, service.menu)  # the menu opens the new copy, as the service does
     elif found.kind is Kind.WINDOWS_SETUP:
         ws.logs.mkdir(parents=True, exist_ok=True)
         manager.spawn_detached(install.windows_command(file, ws.logs / SETUP_LOG))

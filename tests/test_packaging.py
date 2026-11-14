@@ -11,7 +11,7 @@ from types import ModuleType
 
 import pytest
 
-from iplikci.service import launcher
+from iplikci.service import desktop, launcher
 from iplikci.update import install as updater
 
 BUILD = Path(__file__).resolve().parents[1] / "packaging" / "build.py"
@@ -51,6 +51,13 @@ def test_the_mac_app_and_the_program_agree_on_where_the_app_lasts(place, lasts):
     assert done.stdout.strip() == ("kalir" if lasts else "tasinmali")
     python = Path(place) / "Contents" / "Resources" / "python" / "bin" / "python3"
     assert (launcher.misplaced(python, "darwin") is None) == lasts
+
+
+def test_the_linux_menu_entry_names_and_opens_the_app_as_the_appimage_does():
+    build = build_script()
+    assert tuple(build.LAUNCH) == desktop.LAUNCH  # what AppRun runs with the copied Python
+    own = dict(line.split("=", 1) for line in build.DESKTOP.splitlines()[1:] if line)  # the AppImage's own entry
+    assert (own["Name"], own["Comment"], own["Categories"]) == (desktop.NAME, desktop.COMMENT, desktop.CATEGORIES)
 
 
 def _marked(path: Path) -> bool:

@@ -28,6 +28,7 @@ from xml.sax.saxutils import escape, unescape
 
 from ..settings.paths import Layout, replace_private
 from ..update.install import BUNDLE_ID, Kind, detect
+from . import desktop
 from .logs import OUTPUT_NAME
 
 LABEL = "com.iplikci.service"
@@ -401,7 +402,9 @@ def _unit_arg(text: str) -> str:
 
 
 class Systemd:
-    """Linux: a systemd user unit, started with the user's session."""
+    """Linux: a systemd user unit, started with the user's session. Removing it also removes the app's entry in the
+    desktop's menu (desktop), which the AppImage's copy wrote: the user is taking the app off, and the entry left
+    behind would open it again and register the service anew."""
 
     def __init__(
         self, user_home: Path | None = None, run: Run | None = None, env: Mapping[str, str] | None = None
@@ -409,6 +412,7 @@ class Systemd:
         env = os.environ if env is None else env
         config = Path(env.get("XDG_CONFIG_HOME") or (user_home or Path.home()) / ".config")
         self.path = config / "systemd" / "user" / f"{UNIT}.service"
+        self.menu = desktop.data_home(env, user_home)
         self._run = run or run_tool
 
     @property
@@ -444,6 +448,7 @@ class Systemd:
         self._systemctl("daemon-reload")
 
     def uninstall(self) -> bool:
+        desktop.remove(self.menu)
         if not self.path.exists():
             return False
         self._run(["systemctl", "--user", "disable", "--now", f"{UNIT}.service"])
@@ -452,6 +457,7 @@ class Systemd:
         return True
 
     def unregister(self) -> bool:
+        desktop.remove(self.menu)
         if not self.path.exists():
             return False
         self._run(["systemctl", "--user", "disable", f"{UNIT}.service"])  # no --now: the service ends by itself
