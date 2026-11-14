@@ -272,8 +272,8 @@ says what the waiting must show; check them once their time has passed).
     `renamex_np`; Linux: a copy in `~/.local/lib/iplikci/<version>` and the unit retargeted; Windows: the setup run
     silently) and restarts. A uv tool install or a development copy (kind MANUAL) only reports.
     Ayarlar → Güncellemeler and Sistem show it; `iplikci guncelleme` is its command.
-  - The installed copies download without an account, so the releases must be public. The repo is private (K18):
-    where they go is the user's decision (`docs/yayin.md`); until then a check says no release is public yet.
+  - The installed copies download without an account, so the releases must be public. The code's repo stays private
+    (K18); the releases go to the public `msaidbilgehan/iplikci-nedim-surumler` (K31, v0.11.1, `update/source.REPO`).
   - Extension 0.8.0: an unpacked copy reloads itself once the program carries a newer one (`bridge/renew`, the
     cursor's `extension_version`), never during a run or a scan.
 - v0.10.1: on 11 November the user found the Pano still telling September, the same saying every day, a wizard that
@@ -347,6 +347,10 @@ says what the waiting must show; check them once their time has passed).
   - The Claude bağlantısı screen's "Claude'un hafızası" card (`components/claude/MemoryCard`, `GET /api/memory`,
     `DELETE /api/memory/{name}`) lists the notes by kind and removes one after asking; the interface never writes
     one. The demo carries two notes.
+- v0.11.1 (K31, 2026-11-14): the program asks the public `iplikci-nedim-surumler` for updates; that repo is opened
+  once the packaged app passes its try on the user's Mac, with the privacy policy the store asks for in it. 1.0 waits
+  neither for the two weeks' run nor for Windows and Linux (macOS only; their checks come later, K25). The extension
+  goes to the store now and leads a user without the program to its download; no web page for now.
 - The card statements' fake documents are not in the demo yet: adding them changes the golden baseline, which needs
   the user's approval.
 

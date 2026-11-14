@@ -19,9 +19,9 @@ paketi GitHub sürümüne de koyar. Simgeler ürünün logosundan `packaging/ico
 
 - [Mağaza metni](listing.md): kısa ve uzun açıklama, tek amaç, izinlerin gerekçeleri, veri kullanımı beyanı ve
   inceleme notu.
-- [Gizlilik politikası](privacy.md): mağaza herkese açık bir adres ister. Depo özel olduğu sürece (K18) bu sayfa ayrı bir
-  yerde yayımlanmalı, örneğin sürümler için açılacak herkese açık deponun GitHub Pages sayfasında. Nerede yayımlanacağı
-  kullanıcının kararıdır ([sürüm yayını](../../docs/yayin.md#sürümlerin-yeri)).
+- [Gizlilik politikası](privacy.md): mağaza herkese açık bir adres ister. Kod deposu özel kaldığı için (K18) bu sayfanın
+  bir kopyası sürümlerin herkese açık deposunda, `iplikci-nedim-surumler`'de durur; mağazaya o dosyanın GitHub'daki
+  adresi yazılır ([K31](../../docs/v1/requirements.md#kararlar), [sürüm yayını](../../docs/yayin.md#sürümlerin-yeri)).
 
 ## İlk yayın (elle, bir kez)
 

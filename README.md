@@ -266,8 +266,9 @@ Claude'un hafızası İplikçi Nedim'de (v0.11.0):
 - Claude bağlantısı ekranındaki "Claude'un hafızası" kartında Claude'un ne hatırladığını görürsünüz; yanlış ya da
   istemediğiniz bir notu silebilirsiniz.
 
-Açık kalanlar: servisin yedi gün kendi başına çalışması (K19). Windows ve Linux'ta denemeler bekletiliyor (K25).
-Sürümler henüz herkese açık bir yerde değil; kurulu kopyalar güncellemeyi ancak o zaman indirebilir (K29).
+Açık kalanlar: servisin yedi gün kendi başına çalışması (K19). Windows ve Linux'ta denemeler bekletiliyor (K25);
+1.0 yalnızca macOS'la çıkar (K31). Sürümler herkese açık `iplikci-nedim-surumler` deposunda yayımlanacak (K31); o
+depo açılana dek kurulu kopyalar güncellemeyi indiremez.
 
 MVP 2026-10-31'de emekliye ayrıldı. İplikçi Nedim onun kodundan başlar ama verisini devralmaz; belgeleri kendisi toplar.
 

@@ -112,3 +112,9 @@ Durum: Kabul edildi · Tarih: 2026-11-10 · Dayanak: K29, K14, K22 · [ADR-0009]
 - **Programın tekerleğini kurulu Python'a pip ile kurmak:** bağımlılıklar ve derlenmiş parçalar sistemden sisteme
   değişir; yarım kalan bir kurulum programı bozar. Bütün çalışma ortamını değiştirmek kurulum paketinin yaptığıdır.
 - **Eklentiyi kendi sunucumuzdan güncellemek (`update_url`):** Chrome mağaza dışındaki eklentiyi kurdurmaz.
+
+## Not (2026-11-14, K31)
+
+Sürümlerin yeri seçildi: kod deposu özel kalır, sürümler herkese açık `msaidbilgehan/iplikci-nedim-surumler`
+deposunda yayımlanır. `update/source.REPO` v0.11.1'den beri onu gösterir; iş akışı `RELEASE_REPO` ve `RELEASE_TOKEN`
+ile oraya yayımlar. Depo, paketlenmiş uygulama kullanıcının Mac'inde denendikten sonra açılır.

@@ -4,6 +4,16 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [0.11.1] — 2026-11-14 — Sürümler herkese açık depodan gelir
+
+### Değişenler
+
+- Kurulu uygulama yeni sürümleri artık herkese açık `iplikci-nedim-surumler` deposunda arar. Sürümler şimdiye dek
+  programın kodunun durduğu özel depoya konuyordu: oradan ne siz ne de kurulu uygulama hesapsız indirebiliyordu,
+  Ayarlar → Güncellemeler de "sürümler henüz herkese açık bir yerde değil" diyordu. O depo açılınca uygulama sonraki
+  sürümleri oradan bulur ve, ayarınız "Kendiliğinden kur" ise, önce yedek alıp kendisi kurar. Depo açılana dek
+  denetim eskisi gibi henüz herkese açık bir sürüm olmadığını söyler.
+
 ## [0.11.0] — 2026-11-14 — Claude'un hafızası İplikçi Nedim'de
 
 ### Eklenenler

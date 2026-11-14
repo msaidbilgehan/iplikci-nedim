@@ -31,7 +31,7 @@ Proje: İplikçi Nedim · Durum: son hâli, uygulamaya hazır · Tarih: 2026-10-
 | 7 — MCP | v0.8.0 | Resmî SDK, HTTP ve stdio, yeni araçlar, kaynaklar, istemler |
 | 8 — Döviz | v0.9.0 | Kur sağlayıcıları, kur makası, çoklu para birimi |
 | Ara — Sürümler ve güncellemeler | v0.10.0 | GitHub'da sürüm, kendini güncelleyen program, mağazaya giden eklenti (K29, [aşağıda](#ara-sürüm--sürümler-ve-güncellemeler)) |
-| Sürüm 1.0 | v1.0.0 | Eşitlik listesi tamam, bir ay kapanmış, servis iki hafta kesintisiz ([aşağıda](#sürüm-10)) |
+| Sürüm 1.0 | v1.0.0 | Eşitlik listesi tamam, bir ay kapanmış, yedek ve geri yükleme provası; yalnızca macOS (K31) ([aşağıda](#sürüm-10)) |
 
 ## Aşama 0 — Zemin
 
@@ -453,12 +453,18 @@ eklentiyi kullanıcı Chrome Web Store'da yayımlayacak.
 MVP 2026-10-31'de emekliye ayrıldı, bu yüzden ayrı bir geçiş aşaması yok
 ([ADR-0018](../adr/0018-retire-mvp-clean-start.md)). `v1.0.0` şu koşullar sağlanınca atılır:
 
-- [MVP eşitlik listesi](features.md#mvp-eşitlik-listesi)'nin tamamı işaretlidir. Windows ve Linux denemeleri K25 ile
-  bekletiliyor ([gereksinimler](requirements.md)). "Diğer sistemler" maddesi açık kalırsa 1.0'ın bu denemeleri bekleyip
-  beklemeyeceğini kullanıcı, öteki koşullar sağlandığında seçer.
+- [MVP eşitlik listesi](features.md#mvp-eşitlik-listesi)'nin tamamı işaretlidir. 1.0 yalnızca macOS'la çıkar
+  ([K31](requirements.md#kararlar)); Windows ve Linux denemeleri sonra yapılır (K25), "Diğer sistemler" maddesi onlara
+  kadar açık kalır.
 - En az bir ay İplikçi Nedim'de kapanmıştır.
-- Servis iki hafta kesintisiz çalışmış, yedek alınmış ve geri yükleme provası geçmiştir.
+- Yedek alınmış ve geri yükleme provası geçmiştir.
 - `iplikci dogrula --arsiv` hatasız biter ve gerçek belgelerin tabanı gerilememiştir.
+- Paketlenmiş uygulama kullanıcının Mac'inde kurulmuş ve denenmiştir; sürümler herkese açık
+  `iplikci-nedim-surumler` deposundadır (K31).
+
+Servisin iki hafta kesintisiz çalışması 1.0'ı beklemez (K31, 2026-11-14): ilk günlerde kullanıcı olmayacak, mağaza
+incelemesi de zaman alacak. Aşağıdaki süreye bağlı koşullar yine zamanı gelince denetlenir; bir sorun çıkarsa 1.0.x
+ile düzeltilir.
 
 **Süreye bağlı koşullar neyi gösterir (2026-11-03).** Kullanıcının isteğiyle süre dolunca denetlenirler. Sürenin
 kendisi bir şey kanıtlamaz. Denetlenen, o sürede kendiliğinden yaşanması gerekenlerdir. Testler bunları sahte saatle

@@ -66,14 +66,16 @@ Kurulu kopyalar sürümü kimlik bilgisi olmadan indirir:
 `https://github.com/<depo>/releases/latest/download/iplikci-nedim-surum.json`, sonra GitHub'ın dosya sunucusu. Depo
 (`src/iplikci/update/source.py`'deki `REPO`) herkese açık olmalıdır.
 
-- Kod deposu özel kaldıkça (K18) sürümler o depoda yalnızca depoya erişimi olanlarca görülür; kurulu kopyaların denetimi
-  "sürümler henüz herkese açık bir yerde değil" der.
-- İki yol var; seçim kullanıcınındır:
-  - **Kod deposunu herkese açmak.** Ek ayar gerekmez. Önce bütün geçmiş kişisel veri için gözden geçirilir.
-  - **Sürümler için ayrı, herkese açık bir depo** (ör. `iplikci-nedim-surumler`). İçinde bir README yeterlidir.
-    `RELEASE_REPO` değişkeni o depoyu, `RELEASE_TOKEN` sırrı o depoya yazabilen belirteci tutar, `update/source.py`'deki
-    `REPO` o depoya çevrilip bir sürüm çıkar. Mağazanın istediği gizlilik politikası da o deponun GitHub Pages'inde
-    yayımlanabilir.
+- Kod deposu özel kalır (K18). Sürümler herkese açık, ayrı bir depoda durur: `msaidbilgehan/iplikci-nedim-surumler`
+  ([K31](v1/requirements.md#kararlar)). `REPO` v0.11.1'den beri onu gösterir. Depo açılmadan önceki sürümler kod
+  deposunda kaldı; onların denetimi "sürümler henüz herkese açık bir yerde değil" der.
+- **Deponun açılması (bir kez):**
+  1. Depo herkese açık olarak açılır; içinde indirme ve kurulum anlatan bir README ile gizlilik politikası durur
+     (`extension/store/privacy.md`'nin kopyası). Mağazanın istediği gizlilik politikası adresi o dosyanın GitHub'daki
+     sayfasıdır; ayrı bir web sayfası şimdilik yoktur.
+  2. Kod deposunda `RELEASE_REPO` değişkeni `msaidbilgehan/iplikci-nedim-surumler` olur; `RELEASE_TOKEN` sırrı yalnızca
+     o depoda "Contents: write" izni olan ince ayarlı belirteçtir.
+  3. Sonraki her sürüm etiketi sürümü oraya yayımlar; kurulu kopyalar ertesi sabah onu bulur.
 
 ## Bir sürümü elle doğrulamak
 
