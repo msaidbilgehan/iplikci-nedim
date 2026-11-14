@@ -6,11 +6,12 @@ e-mails, keeps every original in a content-addressed archive, parses and verifie
 the user's own computer. It is a hobby project for the user's own needs, yet it must work for any user, finance-savvy
 or not; it is not an enterprise product.
 
-Status (2026-11-14): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.11.0). Between Phases 6 and 7 came
-the interface's simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab
-(v0.7.3), documents known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked
-against the documents (v0.7.6). Next is the 1.0 release, whose conditions are partly time-bound (roadmap "Sürüm 1.0"
-says what the waiting must show; check them once their time has passed).
+Status (2026-11-15): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.11.1) and 1.0.0, the first public
+release, is out (macOS only, K31). Between Phases 6 and 7 came the interface's simplification (v0.7.1), the Pano's
+story in pictures (v0.7.2), updates that reach an open tab (v0.7.3), documents known by their content (v0.7.4), the
+Belge ekle screen (v0.7.5) and notifications checked against the documents (v0.7.6). The time-bound conditions of
+roadmap "Sürüm 1.0" are checked once their time has passed (it says what the waiting must show); the Windows and Linux
+checks come later (K25).
 - Phase 0 brought the MVP's code in as the `iplikci` package, cleaned of personal traces, with the shipped default
   rules, the verification baseline and the demo workspace.
 - Phase 1 (data core) moved everything into the data dir: `settings.toml`, the content-addressed vault, SQLite with the
@@ -357,6 +358,22 @@ says what the waiting must show; check them once their time has passed).
   with 18 statements laid out as the banks' own (the user's approval, once the fakes were checked against the real
   layouts); the TEB card is paid from the TEB account, the others from accounts the demo has no lists of. The golden
   baseline and the tests that read the demo's numbers follow it.
+- v1.0.0 (2026-11-15, K31, K32, ADR-0024): the first public release.
+  - Extension 0.9.0 leads a computer without the program to its download: the options page opens by itself, names
+    the system's installer (`bridge/program`, `ui/program`) and opens `releases/latest/download/<name>` in a new tab;
+    no new permission. Each release renames its installers to names without the version (`packaging/release`'s
+    `stable_name`, `OFFERED`), so that address is always the latest one.
+  - macOS: the launchd agent starts the packaged app behind a `/bin/sh` guard (`service/manager.GUARD`, `guarded`)
+    and the runner checks every minute that its app is still in place (`left_its_place`): an app dragged to the Trash
+    takes its registration with it. Linux: the AppImage puts an entry in the desktop's menu (`service/desktop`, its
+    icons in `service/icons`), carried along by updates and removed with the service.
+  - QNB's, TEB's and Garanti's card statements give their minimum payment (QNB's and TEB's their limit too). A
+    document that runs out of time is read once more with `worker.RETRY_LIMIT` (180 s): macOS Vision may need more
+    than a minute on its first run in a newly installed program.
+  - macOS keeps Vision's compiled text model in a cache named after the process (`~/Library/Caches/<name>/
+    com.apple.e5rt.e5bundlecache`); a bad one drops long lines from OCR'd pages (bank-formats.md, TEB). On
+    2026-11-15 the one for `python` (the uv venv) had gone bad and a TEB statement stopped verifying from the dev
+    checkout only; moved to the Trash, it was rebuilt.
 
 The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's
 web interface).
@@ -520,7 +537,9 @@ and `cli/update`; `packaging/release.py` (the signed manifest) and `packaging/ch
 in `web/`, `components/settings/UpdatesCard`; in `extension/`, `bridge/renew` and `package.mjs` (the store package).
 v0.10.4 added `domain/search` (the search box's syntax) and, in `web/`, `lib/search` and
 `components/transactions/SearchParts`. v0.11.0 added `app/memory` (Claude's notes), `storage/memories` and
-`api/routes/memory`; in `web/`, `components/claude/MemoryCard`.
+`api/routes/memory`; in `web/`, `components/claude/MemoryCard`. v1.0.0 added `service/desktop` (the Linux menu entry)
+with `service/icons`; in `extension/`, `bridge/program` (the installers' addresses) and `ui/program` (the download
+guide).
 The rest keeps the MVP's flat layout (`analysis`, `insights`, `month_end`, `report` with its `templates`, …) until the
 phases in the roadmap's MVP module table move it. Next to them: `fakes` (the fake document builders and every
 reader's specimens, shared with the tests and the demo), `demo` (the demo data folder), `baseline` (the verification

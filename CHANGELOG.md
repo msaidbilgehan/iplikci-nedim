@@ -4,7 +4,7 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
-## [Yayımlanmamış]
+## [1.0.0] — 2026-11-15 — İlk herkese açık sürüm
 
 ### Eklenenler
 
@@ -28,12 +28,29 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
   "İplikçi Nedim" girişi ekler. Giriş, AppImage taşınsa ya da silinse de programın bilgisayardaki kopyasını açar;
   güncellemeler onu yeni sürüme taşır, Ayarlar'daki "Kaldır" onu da siler. Önceden AppImage'ı her seferinde
   indirildiği klasörden açmak gerekiyordu.
+- Demo veri klasöründe dört kredi kartı var (TEB, Garanti BBVA, QNB, İş Bankası): mayıstan başlayarak sırayla açılmış,
+  her biri kendi kesim gününde, bankanın kendi düzeniyle 18 ekstre. TEB kartı TEB hesabından ödenir; Takvim ve Pano
+  kartların son ödemelerini asgari tutarlarıyla gösterir.
 
 ### Değişenler
 
 - Her sürümün kurulum paketleri adında sürüm numarası olmadan yayımlanır: `iplikci-nedim-macos-aarch64.dmg`,
   `iplikci-nedim-windows-x86_64.exe`, `iplikci-nedim-linux-x86_64.AppImage`. Son sürümün paketi böylece hep aynı
   adrestedir; README bu adresleri verir. Kurulu uygulamalar güncellemelerini eskisi gibi alır.
+- Güncellemeler yeniden programın kendi deposundan gelir: depo herkese açıktır ve sürümler onun sürüm sayfasında
+  yayımlanır (https://github.com/msaidbilgehan/iplikci-nedim/releases). 0.11.1'in baktığı ayrı depo kaldırılacak;
+  0.11.1'i kurmuş bir uygulama 1.0.0'ı bir kez de oradan alır, sonraki sürümleri bu depoda arar.
+
+### Düzeltilenler
+
+- QNB'nin, TEB'in ve Garanti BBVA'nın kart ekstrelerindeki asgari ödeme tutarı okunuyor; QNB'de ve TEB'de kart limiti
+  de. Bu ekstrelerin hepsi bunları basıyordu, ama asgari tutarın ve limitin yazmadığı sanılıyordu: Takvim'deki kart
+  son ödemelerinde, Şu an'daki kart kartlarında ve Hesaplar'da asgari ödeme boş kalıyordu. Asgari ödeme oranı, nakit
+  avans ve kullanılabilir limit ile asgari tutarı anlatan yasal not bunlarla karışmaz. TEB'in sayfa resmi olarak gelen
+  ekstrelerinde de okunur.
+- Okunması bir dakikayı aşan bir belge okunamadı sayılmadan önce bir kez daha, üç dakikaya kadar beklenerek okunur.
+  Program yeni kurulmuşken macOS'un yazı tanıması ilk seferde hazırlanırken bir dakikayı aşabiliyordu: sayfa resmi olan
+  bir ekstre o zaman okunamamış görünüyor, geri yükleme provası da bu yüzden başarısız olabiliyordu.
 
 ## [0.11.1] — 2026-11-14 — Sürümler herkese açık depodan gelir
 

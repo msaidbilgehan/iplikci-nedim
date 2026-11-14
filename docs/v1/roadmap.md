@@ -485,6 +485,12 @@ MVP 2026-10-31'de emekliye ayrıldı, bu yüzden ayrı bir geçiş aşaması yok
 - Paketlenmiş uygulama kullanıcının Mac'inde kurulmuş ve denenmiştir; sürümler herkese açık kod deposunun sürüm
   sayfasındadır ([K32](requirements.md#kararlar)).
 
+**Durum (2026-11-15):** `v1.0.0` atıldı. Koşullar: eşitlik listesinin "Diğer sistemler" dışındaki maddeleri işaretli;
+2025-12'den 2026-09'a dek on ay kapandı; 2026-11-14'teki yedeğin geri yükleme provası geçti; `dogrula --arsiv` hatasız
+bitti; 1.0.0'ın kodu gerçek veri klasörünün bir kopyasında bütün belgeleri yeniden okudu ve tabanı kayıtlı tabanla aynı
+çıktı (62/62 kart ekstresi, 61/61 hesap dökümü doğrulandı); paketlenmiş uygulama 2026-11-14'te kullanıcının Mac'inde
+kuruldu ve denendi; sürümler herkese açık kod deposundadır (K32).
+
 Servisin iki hafta kesintisiz çalışması 1.0'ı beklemez (K31, 2026-11-14): ilk günlerde kullanıcı olmayacak, mağaza
 incelemesi de zaman alacak. Aşağıdaki süreye bağlı koşullar yine zamanı gelince denetlenir; bir sorun çıkarsa 1.0.x
 ile düzeltilir.

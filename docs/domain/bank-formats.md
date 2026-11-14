@@ -241,6 +241,12 @@ Borcunuzun Tahsilatı")
 **Bonus kart PDF'i** (`KREDIKARTEKSTREOZETI`)
 
 - Bazıları sayfa resmi olarak gelir; macOS Vision OCR ile okunur (`parsers.pdf.ocr_page_lines`, tr-TR).
+- **OCR'ın önbellek tuzağı (2026-11-15):** macOS, metin tanımanın derlenmiş modelini sürecin adına göre önbellekte
+  tutar (`~/Library/Caches/<süreç adı>/com.apple.e5rt.e5bundlecache`). Bu önbellek bozulursa Vision aynı sayfadan
+  bazı uzun satırları hiç döndürmez; o süreç adıyla okunan ekstre birden doğrulanmaz olur. Görülen örnekte `python`
+  adlı süreçler (uv'nin sanal ortamı, uv tool kopyası) yabancı para tutarlı dört satırı kaybetti, aynı Python'un
+  `python3` adıyla çalışan kopyası hepsini okudu. Önbellek Çöp'e taşınınca macOS onu yeniden kurar ve satırlar geri
+  gelir. Doğrulanmış bir OCR ekstresi kod değişmeden doğrulanmaz olursa önce buna bakılır.
 - `(9/8. Taksit)` "9 taksitten 8'incisi" demektir.
 - `(Yurt dışı işlem tutarı EUR.25,75)` orijinal tutardır.
 - Bir ekstrede birden çok kart bölümü olabilir.

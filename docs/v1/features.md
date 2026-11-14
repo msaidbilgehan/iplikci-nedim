@@ -837,8 +837,9 @@ yaptığı her şeyin V1'de de olmasını güvenceye alır.
 - [x] **Güvenlik:** CSP; çerez akışı; Host ve Origin denetimleri; salt okunur e-posta; şifre yalnızca anahtar
   zincirinde. (Aşama 3: servisin kapısı ADR-0007'deki gibi; testleri var.)
 - [ ] **Diğer sistemler:** Linux ve Windows'ta çalışma (OCR hariç); çöp kutusu davranışı.
-- [ ] **Doğrulama tabanı:** MVP'nin ölçütleriyle çalışır. Demo çalışma alanının altın tabanı tutar; gerçek belgelerin
-  tabanı gerilemez (bkz. [yol haritası](roadmap.md#kurallar)).
+- [x] **Doğrulama tabanı:** MVP'nin ölçütleriyle çalışır. Demo çalışma alanının altın tabanı tutar; gerçek belgelerin
+  tabanı gerilemez (bkz. [yol haritası](roadmap.md#kurallar)). (2026-11-15: 1.0.0'ın kodu gerçek veri klasörünün bir
+  kopyasında bütün belgeleri yeniden okudu; taban kayıtlı tabanla aynı.)
 
 ## Kapsam dışı ve sonraya kalanlar
 

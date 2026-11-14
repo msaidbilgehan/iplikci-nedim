@@ -266,8 +266,19 @@ Claude'un hafızası İplikçi Nedim'de (v0.11.0):
 - Claude bağlantısı ekranındaki "Claude'un hafızası" kartında Claude'un ne hatırladığını görürsünüz; yanlış ya da
   istemediğiniz bir notu silebilirsiniz.
 
-Açık kalanlar: servisin yedi gün kendi başına çalışması (K19). Windows ve Linux'ta denemeler bekletiliyor (K25);
-1.0 yalnızca macOS'la çıkar (K31). Depo herkese açıktır ve sürümler buradan dağıtılır (K32).
+İlk herkese açık sürüm (v1.0.0, 2026-11-15), yalnızca macOS için (K31):
+
+- Tarayıcı eklentisi İplikçi Nedim'e giden yol olur: programı olmayan bir bilgisayarda sisteminiz için son kurulum
+  paketini indiren bir düğme ve kurulumun adımlarını gösterir. Kurulum paketleri adında sürüm numarası olmadan, hep
+  aynı adreste yayımlanır.
+- macOS'ta çöp kutusuna sürüklenen uygulama arka plan servisini de götürür; Linux'ta AppImage uygulama menüsüne kendisi
+  girer.
+- QNB'nin, TEB'in ve Garanti BBVA'nın kart ekstrelerindeki asgari ödeme tutarı (QNB'de ve TEB'de kart limiti de)
+  okunur; Takvim'deki kart son ödemeleri asgari tutarlarıyla görünür.
+- Depo herkese açıktır ve sürümler buradan dağıtılır (K32); güncellemeler de buradan gelir.
+
+Açık kalanlar: servisin yedi gün kendi başına çalışması (K19) ve süreye bağlı diğer koşullar, zamanları gelince
+denetlenir. Windows ve Linux'ta denemeler bekletiliyor (K25).
 
 MVP 2026-10-31'de emekliye ayrıldı. İplikçi Nedim onun kodundan başlar ama verisini devralmaz; belgeleri kendisi toplar.
 
