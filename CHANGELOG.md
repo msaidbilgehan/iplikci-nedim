@@ -4,7 +4,7 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
-## [0.11.0] — 2026-11-13 — Claude'un hafızası İplikçi Nedim'de
+## [0.11.0] — 2026-11-14 — Claude'un hafızası İplikçi Nedim'de
 
 ### Eklenenler
 
