@@ -4,7 +4,11 @@ user logs in and starts it again when it stops on an error; a deliberate stop st
 
 The service runs an installed copy of the program, never a development folder: a branch checked out or a file half
 edited would otherwise reach the real data at the next restart. Until the installer of Phase 6, a developer installs
-a fixed copy with `uv tool install` and registers the service from it."""
+a fixed copy with `uv tool install` and registers the service from it.
+
+macOS's packaged app is removed by dragging it to the Trash, which leaves its agent behind. Its agent therefore starts
+the service through a guard (GUARD) that removes the agent once the app has left its place, and the running service
+watches for the same (app.lifecycle.gone_program, ADR-0017's note of 2026-11-15)."""
 
 import csv
 import getpass
@@ -23,6 +27,7 @@ from typing import Protocol, cast
 from xml.sax.saxutils import escape, unescape
 
 from ..settings.paths import Layout, replace_private
+from ..update.install import BUNDLE_ID, Kind, detect
 from .logs import OUTPUT_NAME
 
 LABEL = "com.iplikci.service"
@@ -41,6 +46,32 @@ TASK_RUNNING = 0x41301
 _LAST_RESULT = 6
 STOP_WAIT = 15.0  # seconds a start of the task waits for its ended instance to be done with
 PID_WAIT = 120.0  # seconds the Windows helper waits for the service that asked to come back to end
+# macOS's packaged app: launchd starts the service through /bin/sh, which first looks whether the app's Python is still
+# where the agent says. Without it an app dragged to the Trash, or a Trash emptied, would leave launchd starting a
+# program that is not there every RESTART_SECONDS until the user logs out (KeepAlive), and again at every login. The
+# guard removes the agent's file and its job instead, says so in the system's log and ends cleanly. An app on another
+# disk that is not attached now has not gone: nothing is removed, and the next login looks again. Its arguments follow
+# its name ($0): the agent's file, the job, then the service's own command line. left_its_place tells the same in
+# Python, for the running service.
+SH = "/bin/sh"
+GUARD_NAME = "iplikci-servis"
+GUARD = """\
+plist=$1 job=$2
+shift 2
+case $1 in
+*/.Trash/* | */.Trashes/*) ;;
+/Volumes/*)
+    disk=${1#/Volumes/}
+    [ -d "/Volumes/${disk%%/*}" ] || exit 0
+    [ -x "$1" ] && exec "$@" ;;
+*) [ -x "$1" ] && exec "$@" ;;
+esac
+rm -f -- "$plist"
+logger -t iplikci-servis "the program left its place ($1): its agent and job are removed" 2>/dev/null
+launchctl bootout "$job" 2>/dev/null
+exit 0
+"""
+TRASH_FOLDERS = frozenset({".Trash", ".Trashes"})  # the user's own Trash, and each other disk's
 
 
 class ManagerError(Exception):
@@ -218,11 +249,37 @@ class ServiceManager(Protocol):
 
 
 def _program_in(arguments: Sequence[str]) -> Program | None:
-    """The Python and the data folder of a registered command line: its first word and the value after --ev."""
+    """The Python and the data folder of a registered command line: its first word and the value after --ev, past the
+    guard of a packaged app's agent and the guard's own arguments."""
     found = list(arguments)
+    if found[:2] == [SH, "-c"] and len(found) > 6 and found[3] == GUARD_NAME:
+        found = found[6:]
     if not found or "--ev" not in found[:-1]:
         return None
     return Program(Path(found[0]), Path(found[found.index("--ev") + 1]))
+
+
+def guarded(arguments: Sequence[str], agent: Path, job: str) -> list[str]:
+    """A packaged app's command line behind its guard (GUARD): what removes the agent at `agent` and the job once the
+    program has left its place."""
+    return [SH, "-c", GUARD, GUARD_NAME, str(agent), job, *arguments]
+
+
+def packaged_app(python: Path) -> bool:
+    """Whether this Python is the one inside macOS's packaged app, which is removed by dragging it to the Trash."""
+    return detect(python, "darwin").kind is Kind.MACOS_APP
+
+
+def left_its_place(python: Path) -> bool:
+    """Whether the program a registration starts has left its place for good, as the guard of a packaged app's agent
+    (GUARD) tells it: it lies in a Trash folder, or it is gone from a disk that is here (dragged to the Trash, the
+    Trash emptied). An app on another disk that is not attached now has not: it comes back with its disk."""
+    parts = python.parts
+    if TRASH_FOLDERS.intersection(parts[:-1]):
+        return True
+    if len(parts) > 2 and parts[:2] == ("/", "Volumes") and not Path("/Volumes", parts[2]).is_dir():
+        return False
+    return not os.access(python, os.X_OK)
 
 
 class Launchd:
@@ -242,7 +299,7 @@ class Launchd:
         return str(self.path)
 
     def agent(self, program: Program) -> dict[str, object]:
-        return {
+        found: dict[str, object] = {
             "Label": LABEL,
             "ProgramArguments": program.arguments(),
             "WorkingDirectory": str(program.home),
@@ -254,6 +311,11 @@ class Launchd:
             "StandardErrorPath": str(program.output),
             "EnvironmentVariables": {"PATH": "/usr/bin:/bin:/usr/sbin:/sbin"},
         }
+        if packaged_app(program.python):
+            found["ProgramArguments"] = guarded(program.arguments(), self.path, self._target)
+            # The job runs /bin/sh: this names the app the system's list of background items shows it under (macOS 13+).
+            found["AssociatedBundleIdentifiers"] = [BUNDLE_ID]
+        return found
 
     def install(self, program: Program) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -261,6 +323,19 @@ class Launchd:
             self._run(["launchctl", "bootout", self._target])  # the older agent stops first
         self.path.write_bytes(plistlib.dumps(self.agent(program)))
         self._bootstrap()
+
+    def refresh(self) -> bool:
+        """The agent written again in this version's shape for the program it registers, where an older version wrote
+        it otherwise (a packaged app's agent from before its guard): launchd reads it at the next login, and the job
+        loaded now goes on as it is. Whether it was written."""
+        found = self.registered()
+        if found is None:
+            return False
+        wanted = plistlib.dumps(self.agent(found))
+        if self.path.read_bytes() == wanted:
+            return False
+        replace_private(self.path, wanted.decode("utf-8"))  # never half a file for launchd to read
+        return True
 
     def uninstall(self) -> bool:
         if not self.path.exists():

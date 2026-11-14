@@ -755,7 +755,8 @@ Teknoloji ADR-0008'dedir. Ekranlar ve davranışları [features.md](features.md)
 - Son kullanıcı işletim sistemine uygun kurulum paketini açar. Uygulama arka plan servisini kaydeder ve kurulum
   sihirbazını tarayıcıda açar; terminal gerekmez.
 - Servis biçimleri:
-  - macOS: `com.iplikci.service` oturum ajanı (`RunAtLoad`, `KeepAlive`),
+  - macOS: `com.iplikci.service` oturum ajanı (`RunAtLoad`, `KeepAlive`); paketlenmiş uygulamada servis `/bin/sh`
+    korumasıyla başlar (aşağıda, "Servisin kendi hayatı"),
   - Windows: oturum açılışında başlayan görev,
   - Linux: kullanıcı systemd birimi.
 - Servis kurulu sürümü çalıştırır, geliştirme klasörünü asla çalıştırmaz.
@@ -797,6 +798,12 @@ Teknoloji ADR-0008'dedir. Ekranlar ve davranışları [features.md](features.md)
   - Veritabanı kapalıyken yapılacak işler `run/`'da bekler. Geri yüklenecek yedek (`geri-yukle.json`) bir sonraki
     açılışta, veritabanı açılmadan yerine konur. Kaldırma veri klasörünü de istediyse klasör (`kaldir.json`)
     çalışmanın sonunda çöp kutusuna taşınır.
+  - macOS'ta paketlenmiş uygulama çöp kutusuna sürüklenince servis geride kalmaz (K31, ADR-0017'nin 2026-11-15
+    notu). Çalışan servis kaydının başlattığı kendi Python'unu dakikada bir arar (`runner.PlaceWatch`). Art arda iki
+    denetimde yerinde bulamazsa ya da onu bir çöp kutusunda bulursa kaydını kaldırır ve temiz çıkışla biter
+    (`lifecycle.gone_program`, `remove_gone`). Oturum ajanı servisi `/bin/sh` korumasıyla başlatır
+    (`manager.GUARD`): uygulama yoksa ajan dosyasını ve işini kaldırıp temiz çıkar. Takılı olmayan bir diskteki
+    uygulama beklenir. Eski biçimdeki ajan açılışta yeniden yazılır (`Launchd.refresh`). Veri klasörüne dokunulmaz.
 - **Eklentinin klasörü** (`app/extension`, K20): servis açılırken veri klasöründeki `extension/` klasörünü programın
   taşıdığı eklentiyle karşılaştırır ve farklıysa yeniler; kullanıcının istemediği klasörü yapmaz. Servisin imleci
   programın taşıdığı sürümü söyler; paketlenmemiş eklenti daha eskiyse kendini bir kez yeniden yükler. Mağazaya

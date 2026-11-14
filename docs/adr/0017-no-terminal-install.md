@@ -191,3 +191,33 @@ değiştirir, Linux'ta yeni kopyayı `~/.local/lib/iplikci/<sürüm>`'e açar, W
 çalıştırır. Yukarıdaki elle güncelleme yolları geçerlidir. Paketler sürümden önce kendi Python'larıyla servisi
 başlatıp denenir. Eklenti mağazadan gelir ve tarayıcıyla güncellenir; mağazaya geçene dek paketlenmemiş eklenti
 programla birlikte yenilenir.
+
+## Not (2026-11-15, K31): çöp kutusuna atılan uygulama servisini de götürür
+
+Kullanıcı bu öneriyi 2026-11-14'te kabul etti ([K31](../v1/requirements.md#kararlar)). macOS'ta bir uygulama çöp
+kutusuna sürüklenerek kaldırılır. Paketlenmiş uygulamanın servisi ise kullanıcının oturum ajanıyla kayıtlıdır
+(`~/Library/LaunchAgents/com.iplikci.service.plist`) ve geride kalırdı. Çalışan servis eski dosyalarla sürerdi. launchd
+de her oturum açılışında artık olmayan bir programı başlatmaya çalışır, `KeepAlive` yüzünden oturum boyunca 30 saniyede
+bir yeniden denerdi. Bundan sonra, yalnızca paketlenmiş uygulamada (uv tool kopyası ve geliştirme kopyası kullanıcının
+kendi işidir):
+
+- **Çalışan servis** dakikada bir, kaydının başlattığı programın kendi Python'u olup olmadığına ve yerinde durup
+  durmadığına bakar (`runner.PlaceWatch`, `lifecycle.gone_program`). Program yerinden gitmişse ya da bir çöp kutusu
+  klasöründeyse (`~/.Trash`, başka bir diskin `.Trashes`'ı) ve bu art arda iki denetimde de böyleyse kaydı kaldırır
+  (`lifecycle.remove_gone`). Sonra denetim kaydına ve günlüğe yazar, temiz çıkışla (0) biter; launchd onu yeniden
+  başlatmaz. Tek bir denetim yetmez: güncellemenin `Contents` takası ya da uygulamanın üstüne sürüklenen yeni kopya
+  programı bir an yerinden eder.
+- **Oturum ajanı** servisi Python'dan önce `/bin/sh` ile başlatır (`manager.GUARD`). Uygulamanın Python'u yerinde ve
+  çalıştırılabilir değilse ya da bir çöp kutusundaysa betik ajanın dosyasını siler, sistem günlüğüne yazar (`logger`),
+  işi launchd'den çıkarır (`launchctl bootout`) ve temiz çıkar. Yollar betiğe yazılmaz, argüman olarak geçer:
+  boşluklu ve Türkçe harfli yollar olduğu gibi kalır.
+- Başka bir diskin Uygulamalar klasöründeki uygulama, disk o an takılı değilse gitmiş sayılmaz. Ajan hiçbir şey
+  silmeden çıkar, o oturumda servis başlamaz, sonraki oturum açılışı yine bakar. Çalışan servis de kaydına dokunmaz.
+- Eski sürümün yazdığı ajan, servisin ilk açılışında bu biçimle yeniden yazılır (`Launchd.refresh`). launchd yeni ajanı
+  sonraki oturum açılışında okur; o an yüklü iş olduğu gibi sürer.
+- Ajan artık `/bin/sh`'i çalıştırır. Sistem Ayarları'nın arka plan öğeleri listesi onu uygulamanın adıyla göstersin diye
+  ajana `AssociatedBundleIdentifiers` (`com.iplikci.app`) yazılır (macOS 13 ve sonrası).
+- Veri klasörüne dokunulmaz. Kullanıcı verilerini de kaldırmak isterse önce Ayarlar'daki "Kaldır"ı kullanır.
+- Testler launchd'ye, kullanıcının ajanlarına ve sistem günlüğüne ulaşmaz: betik `/bin/sh`'te, launchctl ve logger
+  yerine geçen betiklerle çalışır. Gerçek bir Mac'te bakılacaklar
+  [yol haritası](../v1/roadmap.md#aşama-6--arayüz)'ndadır.

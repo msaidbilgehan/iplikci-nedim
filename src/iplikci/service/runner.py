@@ -24,7 +24,9 @@ from ..ingest.inbox import InboxWatcher
 from ..ingest.mail.idle import IdleWatcher
 from ..ingest.telegram import BotWatcher, Heard
 from ..jobs.worker import Worker
+from ..update.install import Kind
 from . import instance, logs
+from .manager import Program
 
 HOST = "127.0.0.1"
 GRACE_SECONDS = 5  # how long a stop waits for open requests: the event streams would hold it for minutes
@@ -81,6 +83,63 @@ class ProgramWatch:
                 self.life.end(lifecycle.RESTART)
                 return
             seen = now
+
+
+PLACE_MISSES = 2  # checks in a row, PROGRAM_CHECK_SECONDS apart, that find the program gone before the service leaves
+
+
+class PlaceWatch:
+    """Takes the service off the computer once the program it runs from has left its place for good: macOS's packaged
+    app dragged to the Trash, or the Trash emptied (app.lifecycle.gone_program). Its registration goes and the service
+    ends cleanly, so no login starts what is not there; the data folder stays. The program must be found gone at
+    PLACE_MISSES checks in a row: an update trading the app's Contents (update.install) or a copy of the app dragged
+    over it is never taken for a removal."""
+
+    def __init__(
+        self,
+        life: "Life",
+        gone: Callable[[], Program | None],
+        leave: Callable[[Program], object],
+        every: float = PROGRAM_CHECK_SECONDS,
+    ) -> None:
+        self.life = life
+        self.gone = gone
+        self.leave = leave
+        self.every = every
+        self._stop = threading.Event()
+
+    def start(self) -> None:
+        threading.Thread(target=self._run, name="place-watch", daemon=True).start()
+
+    def stop(self) -> None:
+        self._stop.set()
+
+    def _run(self) -> None:
+        missed = 0
+        while not self._stop.wait(self.every):
+            found = self.gone()
+            missed = missed + 1 if found is not None else 0
+            if found is None or missed < PLACE_MISSES:
+                continue
+            try:
+                self.leave(found)
+            finally:
+                self.life.end(lifecycle.STOP)  # a clean exit: launchd does not start it again
+            return
+
+
+def place_watch(ws: Workspace, life: "Life") -> PlaceWatch | None:
+    """The watch over the program's place, for macOS's packaged app only: a copy installed by hand (uv tool) or a
+    development folder is the user's to remove."""
+    if not packaged():
+        return None
+    own = Path(sys.executable).absolute()
+    return PlaceWatch(life, lambda: lifecycle.gone_program(ws, own), lambda found: lifecycle.remove_gone(ws, found))
+
+
+def packaged() -> bool:
+    """Whether this service runs from macOS's packaged app (update.install.detect)."""
+    return update.installation().kind is Kind.MACOS_APP
 
 
 class Life:
@@ -147,8 +206,9 @@ def run(ws: Workspace, announce: Callable[[str], None] = _say) -> int:
     creates is the user's alone, and its log goes to logs/ (architecture §22). A backup a restore asked for is put
     back first, before anything opens the database, and the service goes on with the backup's settings; the browser
     extension's folder, once made, is brought up to date with the program, and an update that ended the last run is
-    told and its leftovers removed. A removal that asked for it moves the data
-    folder to the Trash last, once the lock, the log and the output file have let go of it."""
+    told and its leftovers removed; macOS's packaged app writes its agent again in this version's shape. A removal
+    that asked for it moves the data folder to the Trash last, once the lock, the log and the output file have let go
+    of it."""
     output = _console_to_file(ws)
     holder = instance.Holder(os.getpid(), ws.port, datetime.now(UTC).isoformat(timespec="seconds"), __version__)
     umask = os.umask(0o077)
@@ -164,6 +224,8 @@ def run(ws: Workspace, announce: Callable[[str], None] = _say) -> int:
                 instance.say(ws.run, holder)
             extension.refresh(ws)
             update.finish(ws)  # how the update that ended the last run went; the old version's files go
+            if packaged():
+                lifecycle.refresh_registration(ws, Path(sys.executable).absolute())  # the agent's guard (manager)
             try:
                 code = _serve(ws, announce)
             except Exception:
@@ -191,7 +253,8 @@ def _serve(ws: Workspace, announce: Callable[[str], None]) -> int:
     terminal, never into a file. The worker starts first: the jobs a stop interrupted run again, the analysis is made
     again in case the readers changed since the last run, and the exchange rates' history is fetched where days are
     missing. The IMAP watcher waits for a set-up account and then for its new mail; the inbox watcher hands over what
-    is dropped into the inbox folder, and the Telegram bot's ear what its paired chat sends it."""
+    is dropped into the inbox folder, and the Telegram bot's ear what its paired chat sends it. The program's files
+    are watched for an update dragged over them and, in macOS's packaged app, for the app going to the Trash."""
     life = Life()
     ctx = context(ws, life)
     calls.take_waiting(ws)  # the MCP calls answered while the service was down, into the audit log
@@ -208,6 +271,9 @@ def _serve(ws: Workspace, announce: Callable[[str], None]) -> int:
     bot.start()
     program = ProgramWatch(life)
     program.start()
+    place = place_watch(ws, life)
+    if place is not None:
+        place.start()
     announce(f"İplikçi Nedim servisi http://{HOST}:{ws.port} adresinde çalışıyor (durdurmak için Ctrl+C).")
     if sys.stdout is not None and sys.stdout.isatty():
         announce(f"Arayüz için tek kullanımlık giriş bağlantısı: {ctx.login_url(ctx.keys.issue())}")
@@ -227,6 +293,8 @@ def _serve(ws: Workspace, announce: Callable[[str], None]) -> int:
     try:
         life.server.run()
     finally:
+        if place is not None:
+            place.stop()
         program.stop()
         bot.stop()
         inbox.stop()

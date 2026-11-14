@@ -718,6 +718,14 @@ G9, K9 · Çekirdek
 - Okuyucu sağlığı tablosu: okuyucu, sürüm, belge sayısı, doğrulanan / toplam, son başarı, alarm.
 - Son yedek ve bir sonraki yedek; disk kullanımı.
 - Kişisel değer içermeyen günlüğün indirilmesi.
+- **Çöp kutusuna atılan uygulama** (macOS, paketlenmiş uygulama; K31): uygulamayı çöp kutusuna sürüklemek arka plan
+  servisini de kaldırır ([ADR-0017](../adr/0017-no-terminal-install.md)'nin 2026-11-15 notu).
+  - Ölçüt: çalışan servis, uygulamanın gittiğini art arda iki denetimde (en geç iki dakikada) görünce kaydını kaldırır
+    ve temiz çıkışla biter; neden günlükte ve denetim kaydında yazar.
+  - Ölçüt: uygulaması gitmiş bir kayıt, servis o an çalışmıyorsa sonraki oturum açılışında kendini ve launchd'deki
+    işini kaldırır; launchd onu yeniden denemez.
+  - Ölçüt: güncellemenin `Contents` takası, uygulamanın üstüne sürüklenen yeni sürüm ve o an takılı olmayan bir diskteki
+    uygulama kaydı kaldırmaz. Veri klasörü her durumda yerinde kalır.
 
 ## F19 — Yapılacaklar
 

@@ -18,6 +18,12 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
   nereden alınacağını söyler. Eklentinin penceresi de, eşleşmemişken program bulunamazsa, aynı düğmeyi gösterir.
 - Eklenti bunun için yeni bir izin istemez ve GitHub'a kendisi bağlanmaz: indirmeyi tarayıcı yapar, eklenti yalnızca
   sekmeyi açar.
+- macOS'ta İplikçi Nedim'i çöp kutusuna sürüklemek arka plan servisini de kaldırır. Servis uygulamanın gittiğini fark
+  eder, iki dakika içinde bilgisayardaki kaydını siler ve kapanır. Servis o an çalışmıyorsa kayıt bir sonraki oturum
+  açılışında kendini siler. Önceden servis çalışmayı sürdürüyor, macOS da artık olmayan programı her oturum açılışında
+  ve ardından yarım dakikada bir yeniden başlatmaya çalışıyordu. Verileriniz yerinde kalır; onları da kaldırmak
+  isterseniz önce Ayarlar'daki "Kaldır"ı kullanın. Güncellemeler ve o an takılı olmayan bir diskteki uygulama kaydı
+  kaldırmaz.
 
 ### Değişenler
 

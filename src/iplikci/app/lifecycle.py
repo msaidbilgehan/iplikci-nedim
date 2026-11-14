@@ -5,7 +5,11 @@ The service ends its own process. A clean exit stays a stop until the next login
 the exit code RESTART starts it again: launchd and systemd restart an unsuccessful exit, and on Windows, whose task
 does not, a detached helper runs the task again once this process has ended (service/respawn). What must happen with the database closed waits in run/: a backup put back at the
 next start, before anything opens the database, and the data folder moved to the Trash once this run has let go of
-it. A removal request only this run's stop honours: one an earlier run left behind is dropped."""
+it. A removal request only this run's stop honours: one an earlier run left behind is dropped.
+
+macOS's packaged app is removed by dragging it to the Trash: the service that runs from it then takes its own
+registration off the computer and ends, and the data folder stays where it is (gone_program, remove_gone; ADR-0017's
+note of 2026-11-15)."""
 
 import json
 import logging
@@ -197,3 +201,60 @@ def move_data_to_trash(ws: Workspace) -> Path | None:
     and its output file closed, which Windows needs to move a folder. Where it went, or None when it stayed."""
     moved = move_to_system_trash(ws.home)
     return None if moved == ws.home and ws.home.exists() else moved
+
+
+def _own_registration(ws: Workspace, own: Path) -> manager.Program | None:
+    """What the computer's service manager starts for this data folder, when that is this process's own Python."""
+    try:
+        found = manager.for_platform().registered()
+    except manager.ManagerError:  # a system with no service manager this program knows
+        return None
+    if found is None or found.python != own or found.home.resolve() != ws.home.resolve():
+        return None
+    return found
+
+
+def gone_program(ws: Workspace, own: Path) -> manager.Program | None:
+    """This data folder's registered program, the Python `own` this service runs, once it has left its place for
+    good (manager.left_its_place): macOS's packaged app dragged to the Trash, or the Trash emptied. None while it is
+    in place or away on a disk that is not attached, and for another copy's registration or none."""
+    found = _own_registration(ws, own)
+    return found if found is not None and manager.left_its_place(found.python) else None
+
+
+def remove_gone(ws: Workspace, program: manager.Program) -> bool:
+    """Take the registration of a program that has left its place off the computer, so that no login starts what is
+    not there; the service ends after this with a clean exit, which launchd does not start again. The data folder
+    stays where it is. Whether the registration was removed: a copy opened since has registered itself instead."""
+    try:
+        service = manager.for_platform()
+        removed = service.registered() == program and service.unregister()
+    except (manager.ManagerError, OSError) as exc:
+        log.error("the registration of %s, gone from its place, could not be removed: %s", program.python, exc)
+        removed = False
+    with ws.db() as db:
+        audit.record(db, Actor.SYSTEM, REMOVED, ws.home.name, data_to_trash=False, program_gone=True)
+    log.warning(
+        "the program %s left its place (the app went to the Trash); %s; the data folder stays",
+        program.python,
+        "its registration is removed and the service ends" if removed else "the service ends",
+    )
+    return removed
+
+
+def refresh_registration(ws: Workspace, own: Path) -> bool:
+    """At the start: this data folder's agent written again in this version's shape when the Python `own` this service
+    runs is its program (manager.Launchd.refresh), so a packaged app registered by an older version also carries the
+    guard that removes the agent once the app has gone, from the next login on. A failure is logged and the service
+    goes on. Whether it was written."""
+    try:
+        service = manager.for_platform()
+        if not isinstance(service, manager.Launchd) or _own_registration(ws, own) is None:
+            return False
+        written = service.refresh()
+    except (manager.ManagerError, OSError) as exc:
+        log.warning("the service's registration could not be brought up to date: %s", exc)
+        return False
+    if written:
+        log.info("the service's registration is written again in this version's shape")
+    return written

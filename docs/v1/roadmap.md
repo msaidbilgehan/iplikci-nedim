@@ -285,6 +285,19 @@ Durum: 2026-11-02'de `asama-6` dalında uygulandı, `v0.7.0` ([değişiklik gün
       267009) okunuyor mu; okunmazsa yeniden başlatma 15 saniye bekleyip yine sürer.
     - `schtasks` pencere açmadan da OEM kod sayfasında yanıt veriyor mu; buna yalnızca görev kaydının XML yedeği
       dayanır.
+  - macOS'ta çöp kutusuna atılan uygulama (K31, ADR-0017'nin 2026-11-15 notu). Testler launchd'ye ulaşmaz;
+    paketlenmiş uygulama kuruluyken gerçek bir Mac'te bakılacaklar:
+    - Uygulama çöp kutusuna sürüklenince servis iki dakika içinde durmalı. `com.iplikci.service.plist`
+      `~/Library/LaunchAgents`'tan gitmeli; servisin günlüğü nedenini yazmalı; veri klasörü yerinde kalmalı. Çöp
+      kutusu sonra boşaltılabilmeli.
+    - Servis durdurulmuşken uygulama çöp kutusuna atılıp oturum yeniden açılınca ajan kendini kaldırmalı:
+      `launchctl print gui/$(id -u)/com.iplikci.service` işi bulamamalı, sistem günlüğünde `iplikci-servis` satırı
+      olmalı (`log show --last 10m --predicate 'process == "logger"'`).
+    - Kendiliğinden güncelleme ve yeni sürümün eskisinin üstüne sürüklenmesi kaydı korumalı.
+    - Önceki sürümün yazdığı ajan, yeni sürümün ilk açılışından sonra `/bin/sh` korumasıyla yazılmış olmalı.
+    - Sistem Ayarları → Genel → Giriş Öğeleri'nde öğe "İplikçi Nedim" adıyla mı görünüyor
+      (`AssociatedBundleIdentifiers`)? "sh" görünüyorsa ve bu kullanıcıyı tedirgin ediyorsa ajanın başka bir biçimi
+      düşünülmeli.
   - Aşama 3'ten kalan yedi günlük çalışma (K19).
   - Uzak erişim (Tailscale, ADR-0012) sihirbazda "sonra gelecek" diye yazılıdır.
 

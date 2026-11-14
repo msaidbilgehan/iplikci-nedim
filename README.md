@@ -312,7 +312,8 @@ Yeni paketi aynı yoldan açarak da güncelleyebilirsiniz; verileriniz yerinde k
 
 Kaldırmak için önce Ayarlar'daki "Kaldır" servisi bilgisayardan kaldırır; veri klasörü yalnızca siz isterseniz çöp
 kutusuna taşınır. Sonra uygulamayı sisteminizin olağan yoluyla kaldırın: macOS'ta çöp kutusuna sürükleyerek, Windows'ta
-Ayarlar → Uygulamalar'dan.
+Ayarlar → Uygulamalar'dan. macOS'ta uygulamayı "Kaldır"a basmadan çöp kutusuna sürüklerseniz de arka plan servisi geride
+kalmaz: iki dakika içinde kaydını siler ve kapanır, verileriniz yerinde kalır.
 
 ## Belgeler
 
