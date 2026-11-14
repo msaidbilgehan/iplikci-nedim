@@ -68,14 +68,13 @@ Kurulu kopyalar sürümü kimlik bilgisi olmadan indirir:
 `https://github.com/<depo>/releases/latest/download/iplikci-nedim-surum.json`, sonra GitHub'ın dosya sunucusu. Depo
 (`src/iplikci/update/source.py`'deki `REPO`) herkese açık olmalıdır.
 
-- Kod deposu `msaidbilgehan/iplikci-nedim` herkese açıktır ve sürümler onun sürüm sayfasında durur
+- Kod deposu `msaidbilgehan/iplikci-nedim` herkese açıktır (2026-11-12'den beri) ve sürümler onun sürüm sayfasında durur
   ([K32](v1/requirements.md#kararlar)); `REPO` onu gösterir, iş akışı `RELEASE_REPO` ve `RELEASE_TOKEN` olmadan kendi
   deposuna yayımlar. Mağazanın istediği gizlilik politikası adresi depodaki `extension/store/privacy.md`'nin GitHub
   sayfasıdır; ayrı bir web sayfası şimdilik yoktur.
 - **Ayrı sürüm deposunun kısa ömrü:** v0.11.1 sürümleri bir gecelik `msaidbilgehan/iplikci-nedim-surumler` deposunda
   aradı (K31). O sürümü kuran Mac'in 1.0.0'a kendiliğinden geçmesi için 1.0.0 bir kez de oraya konur; sonra depo
-  kaldırılır. Ondan önceki sürümler (kod deposu özelken) yalnızca haber verir: "sürümler henüz herkese açık bir yerde
-  değil".
+  kaldırılır. v0.10.0–v0.11.0 güncellemeyi kod deposunda arar ve 1.0.0'ı orada bulur.
 - **Kurulum paketlerinin kararlı adları** ([ADR-0024](adr/0024-extension-leads-to-download.md)): her sürüm kurulum
   paketlerini sürüm numarası olmayan adlarla taşır. Son sürümün paketi bu yüzden hep aynı adrestedir:
 

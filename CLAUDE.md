@@ -347,12 +347,12 @@ says what the waiting must show; check them once their time has passed).
   - The Claude bağlantısı screen's "Claude'un hafızası" card (`components/claude/MemoryCard`, `GET /api/memory`,
     `DELETE /api/memory/{name}`) lists the notes by kind and removes one after asking; the interface never writes
     one. The demo carries two notes.
-- v0.11.1 (K31, 2026-11-14): the program asked a separate public repo for updates while the code's stayed private.
+- v0.11.1 (K31, 2026-11-14): the program asked a separate public repo for updates, the code's being taken for private.
   1.0 waits neither for the two weeks' run nor for Windows and Linux (macOS only; their checks come later, K25). The
   extension goes to the store now and leads a user without the program to its download; no web page for now.
-- K32 (2026-11-15): the code's repo is public and its releases are the program's (`update/source.REPO`); the
-  extension's privacy policy is `extension/store/privacy.md` on GitHub. v0.11.1's copies still ask the separate repo,
-  which carries 1.0.0 once as their bridge and is then retired.
+- K32 (2026-11-15): the code's repo is public (it was created so on 2026-11-12) and its releases are the program's
+  (`update/source.REPO`); the extension's privacy policy is `extension/store/privacy.md` on GitHub. v0.11.1's copies
+  still ask the separate repo, which carries 1.0.0 once as their bridge and is then retired.
 - Since 2026-11-15 the demo carries four cards (TEB, Garanti, QNB, İş Bankası), opened one after another from May,
   with 18 statements laid out as the banks' own (the user's approval, once the fakes were checked against the real
   layouts); the TEB card is paid from the TEB account, the others from accounts the demo has no lists of. The golden

@@ -135,8 +135,10 @@ değiştirdi; aşağıdaki nota bakın.)
 
 ## Not (2026-11-15, K32)
 
-Kullanıcı ayrı bir sürüm deposu istemedi: kod deposu `msaidbilgehan/iplikci-nedim` herkese açıldı ve sürümler onun
-sürüm sayfasında yayımlanır. `update/source.REPO` kod deposudur; iş akışı `RELEASE_REPO` ve `RELEASE_TOKEN` olmadan
-kendi deposuna yayımlar (değişkenler başka bir depo için durur). Açmadan önce bütün geçmiş veri klasöründeki değerlerle,
-genel kişisel veri kalıplarıyla ve gitleaks'le tarandı. v0.11.1'i kuran tek Mac'in uygulaması 1.0.0'ı bir kez de
+Kullanıcı ayrı bir sürüm deposu istemedi: sürümler kod deposu `msaidbilgehan/iplikci-nedim`'in sürüm sayfasında
+yayımlanır. Kod deposu 2026-11-12'de, geçmişi temizlenip yeniden kurulduğunda herkese açık oluşturulmuştu; özel
+sanılması (K18) ayrı depoya yol açmıştı. `update/source.REPO` kod deposudur; iş akışı `RELEASE_REPO` ve
+`RELEASE_TOKEN` olmadan kendi deposuna yayımlar (değişkenler başka bir depo için durur). 2026-11-15'te bütün geçmiş
+veri klasöründeki değerlerle, genel kişisel veri kalıplarıyla ve gitleaks'le yeniden tarandı; kişisel veri çıkmadı.
+v0.10.0–v0.11.0 güncellemeyi zaten kod deposunda arar. v0.11.1'i kuran tek Mac'in uygulaması 1.0.0'ı bir kez de
 `iplikci-nedim-surumler`'den alır; kendini güncellemesi böylece gerçek bir Mac'te denenir. Sonra o depo kaldırılır.
