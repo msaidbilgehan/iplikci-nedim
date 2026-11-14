@@ -63,6 +63,33 @@ tarayıcı indirir, eklenti GitHub'a istek yapmaz. `downloads`, `tabs` ve GitHub
 - Eklentinin tek amacı dışında kullanılmaz.
 - Kredi değerliliği ya da borç verme amacıyla kullanılmaz.
 
+## İncelemecilere giden metin
+
+Panonun gizlilik sekmesi incelemeciler içindir; 2026-11-15'te İngilizce şöyle girildi (Türkçesi yukarıda):
+
+- **Single purpose:** Moves the bank e-mails in the user's Gmail to İplikçi Nedim, the personal finance app that runs
+  on the user's own computer (a local service on 127.0.0.1:8643). It does nothing else.
+- **alarms:** Checks for new bank e-mails once a minute while the browser runs.
+- **scripting:** During "Gmail'de eksikleri tara" (scan Gmail for missing mail) it reads only the conversation ids,
+  and whether each is read, from the search list in the Gmail tab the extension itself opened. When the extension is
+  installed or updated it injects its content script (content.js) into the Gmail tabs already open, so they need no
+  reload. No script runs on any other page; what the content script reads is described under the mail.google.com host
+  permission.
+- **storage:** Keeps in the browser the pairing with the local app, which Gmail account to read (its position, not its
+  address), a summary of the last check, the domains of the senders the local app lists and the Gmail ids of recently
+  delivered bank e-mails. No e-mail address is stored.
+- **Host permissions:** https://mail.google.com/*: reads, with the user's signed-in session, the inbox feed, the "Show
+  original" page of bank e-mails, the search list and the print view of conversations read throughout. GET requests
+  only; nothing in Gmail changes. The content script in the user's Gmail tabs tells the extension only the ids of the
+  listed banks' messages that the conversation list or an opened conversation shows; it looks at a sender's address
+  only for its domain and reads no subject, body or name. https://mail-attachment.googleusercontent.com/*: Gmail's
+  "Download original" for a message with attachments leads to this attachment server. GET only.
+  http://127.0.0.1:8643/*: delivers the e-mails to the İplikçi Nedim service on the same computer; "Open İplikçi
+  Nedim" finds or opens the local app's interface (only tabs on this address are seen); before pairing it checks
+  whether the app is installed through its health check (/healthz, no token or cookie).
+- **Data usage:** Personal communications; Financial and payment information. Veri kullanımı beyanında yalnızca kişisel
+  iletişim yazıyordu; banka iletileri hesap hareketleri ve ekstre bilgisi taşıdığı için finansal bilgi de işaretlendi.
+
 ## İnceleme notu (incelemeciler için)
 
 > The extension is the Gmail bridge of İplikçi Nedim, a personal finance app that runs only on the user's own computer

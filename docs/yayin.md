@@ -127,6 +127,10 @@ Eklenti mağazada herkese açık listelenir: programın kapısıdır, programı 
 5. İnceleme geçince eklentinin mağaza adresi `src/iplikci/app/extension.py`'deki `STORE_URL`'e yazılır ve bir sürüm
    çıkar: arayüz önce mağazayı gösterir.
 
+0.9.0 2026-11-15'te gönderildi ve incelemeyi bekliyor; geçince kendiliğinden yayımlanır. Mağazadaki kimliği
+`biegljgcnlkdokmfpdejecddgaekplof`, adresi <https://chromewebstore.google.com/detail/biegljgcnlkdokmfpdejecddgaekplof>
+(inceleme geçene dek açılmaz). Gönderilenler [mağaza notlarında](../extension/store/README.md#gönderilen-2026-11-15).
+
 **Sonraki sürümleri iş akışı yükler** (isteğe bağlı):
 
 1. Google Cloud'da bir proje açılır, "Chrome Web Store API" etkinleştirilir.

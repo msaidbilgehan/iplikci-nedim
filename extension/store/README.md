@@ -45,6 +45,28 @@ paketi GitHub sürümüne de koyar. Simgeler ürünün logosundan `packaging/ico
 7. İnceleme geçince eklentinin mağaza adresi `src/iplikci/app/extension.py`'deki `STORE_URL`'e yazılır: arayüz önce
    mağazayı gösterir. Eklentiyi önce paketlenmemiş yüklemiş olanlar onu kaldırır; ikisi birden aynı iletileri getirir.
 
+## Gönderilen (2026-11-15)
+
+0.9.0 geliştirici panosundan gönderildi; durumu "Pending review", geçince kendiliğinden herkese açık yayımlanır. Öğe
+kimliği `biegljgcnlkdokmfpdejecddgaekplof`. Panoya girilenler:
+
+- **Paket:** 1.0.0 sürümünün GitHub sayfasındaki `iplikci-kopru-0.9.0.zip`.
+- **Mağaza sayfası:** [mağaza metnindeki](listing.md) uzun açıklama; kategori Verimlilik › Araçlar (Tools); dil
+  Türkçe; ana sayfa adresi kod deposu; destek adresi boş. Simge `static/icons/icon-128.png`.
+- **Görseller:** beş ekran görüntüsü (1280×800) ve küçük tanıtım kartı (440×280): araç çubuğundaki pencere, eşleşmiş
+  ayarlar sayfası, doğrulama sayfası, programı olmayan bilgisayardaki indirme rehberi ve demo verisiyle Pano. Hepsi
+  demo veri klasöründen; gerçek veri yok.
+- **Gizlilik:** tek amaç ve izinlerin gerekçeleri incelemeciler için İngilizce ([mağaza metni](listing.md),
+  "İncelemecilere giden metin"); veri kullanımında "Personal communications" ile "Financial and payment information"
+  (banka iletileri finansal bilgi taşır), üç taahhüt ve gizlilik politikasının adresi.
+- **Dağıtım:** ücretsiz, herkese açık, bütün bölgeler. **Test instructions:** [mağaza metnindeki](listing.md) inceleme
+  notu.
+
+Ekran görüntüleri gerçek servise dokunmadan alındı: `extension/dist`'in bir kopyasında `127.0.0.1:8643` başka bir
+porta çevrildi (sayfalar adresi göstermez), demo veri klasörü o portta `servis calistir --ev` ile çalıştı ve kopya ayrı
+bir tarayıcı profilinde onunla eşleştirildi. Kullanıcının tarayıcısındaki eklenti 8643'te başka bir servis görse
+eşleşmeyi iptal edilmiş sayıp teslimi durdururdu.
+
 ## Sonraki sürümler
 
 Sürüm iş akışı eklentinin yeni sürümünü mağazaya kendisi yükleyip incelemeye gönderir; sürüm mağazadakinden yeni
