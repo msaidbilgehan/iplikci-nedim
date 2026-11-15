@@ -16,6 +16,9 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
     ödemelerini de söyler; geri kalanını yine yalnızca not eder.
   - Mağaza metni: açıklama kod deposunun adresiyle biter, destek adresi deponun soru ve sorun sayfasıdır; eklentinin
     ayarlar sayfası da depoya bağlantı verir (0.9.1).
+  - Yeni: [desteklenen bankalar ve belgeler](desteklenen-bankalar.md), kullanıcılar için: her bankanın okunan
+    belgeleri, dosya biçimleri ve nereden geldikleri. README ve [belge dizini](README.md) ona bağlanır; mağaza
+    açıklaması kısa listesini taşır. Yeni bir okuyucu sayfaya satırını ekler (`tests/test_parser_plugins.py`).
 
 - 2026-11-15 (59) — Tarayıcı eklentisi Chrome Web Store'da (v1.0.1), mağazaya yüklemeyi iş akışı yapar, herkes için
   README:

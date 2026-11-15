@@ -35,12 +35,27 @@ sayfası kendiliğinden açılır, bilgisayarınızın sistemi için İplikçi N
 gösterir (macOS, Windows ve Linux). İndirme, İplikçi Nedim'in GitHub'daki sürüm sayfasından, tarayıcınızın yeni bir
 sekmesinde olur. Program açılınca eklenti eşleştirmeye geçer.
 
+Desteklenen bankalar ve belgeler:
+- Garanti BBVA: Bonus ve Paracard ekstreleri, dekontlar ve Garanti BBVA Yatırım ekstreleri (PDF), hesap hareketleri
+  (Excel), para transferi bildirimleri (e-posta)
+- İş Bankası: Maximum kart hesap özeti, dekontlar ve e-cüzdan (PDF), hesap özeti (Excel), kart borcu tahsilatı
+  bildirimi (e-posta)
+- QNB: kart ve hesap hareketleri (PDF), e-dekontlar (HTML ya da PDF), FAST, havale, EFT ve para çıkışı bildirimleri
+  (e-posta)
+- TEB: Bonus kart ekstresi, dijital hesap cüzdanı ve dekontlar (PDF), CEPTETEB hesap hareketleri (Excel)
+- VakıfBank: e-cüzdan ve dekontlar (PDF), hesap hareketleri (Excel), FAST ve EFT bildirimleri (e-posta)
+- e-Fatura ve e-Arşiv faturaları (XML)
+E-postayla gelmeyen belgeleri İplikçi Nedim'in "Belge ekle" ekranından ya da Telegram botunuzdan eklersiniz. Tam
+liste: https://github.com/msaidbilgehan/iplikci-nedim/blob/master/docs/desteklenen-bankalar.md
+
 İplikçi Nedim ücretsiz ve açık kaynaklıdır. Programın kendisi, kurulum adımları, kaynak kodu ve sorularınız için:
 https://github.com/msaidbilgehan/iplikci-nedim
 
 Mağaza sayfasının "Ana sayfa" alanı herkese açık sayfada görünmüyor (2026-11-15'te denendi): kod deposunun adresi bu
 yüzden açıklamanın sonundadır. Destek adresi deponun soru ve sorun sayfasıdır:
-<https://github.com/msaidbilgehan/iplikci-nedim/issues>.
+<https://github.com/msaidbilgehan/iplikci-nedim/issues>. Banka listesi
+[desteklenen bankalar ve belgeler](../../docs/desteklenen-bankalar.md) sayfasının kısaltmasıdır: yeni bir okuyucu
+gelince ikisi birlikte değişir. Mağazaya girilen metinde listenin satırları birleşmez: her madde kendi satırındadır.
 
 ## Tek amaç
 

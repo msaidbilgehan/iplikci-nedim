@@ -18,6 +18,10 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 - Tarayıcı eklentisi 0.9.1: ayarlar sayfası İplikçi Nedim'in GitHub sayfasına bağlantı verir: kaynak kodu, kurulum
   adımları ve sorular. Mağazadan kurulan eklentiyi Chrome kendisi günceller. Mağaza sayfasının açıklaması da kod
   deposunun adresini, destek adresi deponun soru ve sorun sayfasını gösterir.
+- Yeni sayfa: desteklenen bankalar ve belgeler. Beş bankanın ve e-Faturanın hangi belgesinin okunduğunu, dosya
+  biçimini (PDF, Excel, HTML, e-posta, XML) ve belgenin genelde nereden geldiğini söyler. README ona bağlanır; mağaza
+  açıklaması da kısa listesini taşır:
+  [docs/desteklenen-bankalar.md](https://github.com/msaidbilgehan/iplikci-nedim/blob/master/docs/desteklenen-bankalar.md).
 
 ## [1.0.1] — 2026-11-15 — Tarayıcı eklentisi Chrome Web Store'da
 

@@ -128,8 +128,10 @@ gösterir ve onayınızı bekler. Claude bağlantısı ekranı nasıl bağlanaca
 ## Hangi bankalar?
 
 Garanti BBVA, İş Bankası, QNB, TEB ve VakıfBank: kart ekstreleri, hesap dökümleri, dekontlar ve bankaların bildirim
-e-postaları. e-Fatura ve e-Arşiv faturaları da okunur ve onları ödeyen banka işlemiyle eşleşir. Bankanız listede
-yoksa [bize yazın](https://github.com/msaidbilgehan/iplikci-nedim/issues).
+e-postaları. e-Fatura ve e-Arşiv faturaları da okunur ve onları ödeyen banka işlemiyle eşleşir. Hangi belgenin hangi
+dosya biçiminde (PDF, Excel, e-posta) okunduğu ve nereden geldiği
+[desteklenen bankalar ve belgeler](docs/desteklenen-bankalar.md) sayfasında. Bankanız listede yoksa
+[bize yazın](https://github.com/msaidbilgehan/iplikci-nedim/issues).
 
 ## Kurulum
 

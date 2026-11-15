@@ -393,7 +393,9 @@ says what the waiting must show); the Windows and Linux checks come later (K25).
   rest of a first analysis is still only noted. Extension 0.9.1 links the program's GitHub page from its settings
   page (`bridge/program.SOURCE`); its upload is the store job's first. The store page's "Homepage URL" does not show
   on the public page, so the listing's description ends with the repo's address and its support address is the
-  repo's issues (`extension/store/listing.md`).
+  repo's issues (`extension/store/listing.md`). `docs/desteklenen-bankalar.md` tells users which document of which
+  bank is read, in what file format and where it usually comes from (the user asked for it on 2026-11-15); the
+  README links it and the store description carries its short list.
 
 The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's
 web interface).
@@ -666,6 +668,9 @@ damage, loss or a different result.
 4. Run `iplikci dev parser test <id>` and the tests, which include every specimen and the demo baseline. Once the data
    dir holds real documents, also run `iplikci dogrula --taban` locally. All must meet the verification invariants.
 5. Record new format traps in `docs/domain/bank-formats.md`.
+6. A new reader gets its row on the users' page `docs/desteklenen-bankalar.md` (the document, its file format, where
+   it usually comes from; `tests/test_parser_plugins.py` counts the rows per bank), and the store description's list
+   (`extension/store/listing.md`, the dashboard) follows with the next extension upload.
 
 ## Done means
 

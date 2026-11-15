@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 
@@ -77,6 +78,29 @@ def test_the_shipped_readers_keep_the_contract_under_the_ids_of_the_architecture
     assert {r.id for r in readers} == SHIPPED and len(readers) == len(SHIPPED)
     assert all(isinstance(r, Parser) for r in readers)
     assert all(r.version >= 1 and r.formats and r.name and r.bank for r in readers)
+
+
+def _supported_page() -> dict[str, int]:
+    """The documents docs/desteklenen-bankalar.md lists: its table rows under each bank's heading."""
+    page = Path(__file__).resolve().parents[1] / "docs" / "desteklenen-bankalar.md"
+    rows: dict[str, int] = {}
+    heading = ""
+    for line in page.read_text(encoding="utf-8").splitlines():
+        if line.startswith("## "):
+            heading = line.removeprefix("## ").casefold()
+        elif line.startswith("| ") and not line.startswith("| Belge |"):
+            rows[heading] = rows.get(heading, 0) + 1
+    return rows
+
+
+def test_the_supported_documents_page_lists_every_shipped_reader_under_its_bank():
+    # The page users read (and the store description) says which documents are read; a new reader needs its row.
+    rows = _supported_page()
+    banks = {r.bank.casefold() for r in registry.BUILTIN}
+    assert {bank: sum(r.bank.casefold() == bank for r in registry.BUILTIN) for bank in banks} == {
+        bank: sum(count for heading, count in rows.items() if heading.startswith(bank)) for bank in banks
+    }
+    assert all(any(heading.startswith(bank) for bank in banks) for heading in rows)
 
 
 def test_every_reader_is_named_for_people():

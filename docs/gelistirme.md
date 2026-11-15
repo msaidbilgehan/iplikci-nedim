@@ -124,6 +124,8 @@ README'deki ekran görüntüleri ve hareketli görseller `docs/gorseller/`'dedir
 ## Belgeler
 
 - [Belge dizini ve okuma sırası](README.md)
+- [Desteklenen bankalar ve belgeler](desteklenen-bankalar.md): kullanıcılar için; yeni bir okuyucu buraya bir satır
+  ekler (`tests/test_parser_plugins.py` bunu denetler), mağaza açıklamasının listesi de buradan gelir
 - [V1 gereksinimleri ve kararlar](v1/requirements.md)
 - [Mimari](v1/architecture.md) · [Özellikler](v1/features.md) · [Yol haritası](v1/roadmap.md) ·
   [MVP'den geçiş](v1/migration.md)
