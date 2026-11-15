@@ -396,6 +396,11 @@ says what the waiting must show); the Windows and Linux checks come later (K25).
   repo's issues (`extension/store/listing.md`). `docs/desteklenen-bankalar.md` tells users which document of which
   bank is read, in what file format and where it usually comes from (the user asked for it on 2026-11-15); the
   README links it and the store description carries its short list.
+- v1.0.3 (2026-11-15): the user found the store text AI-sounding: it never said whose extension it is or what it is
+  for. Extension 0.9.2's manifest description is the store's summary line ("İplikçi Nedim kişisel finans programının
+  Gmail eklentisi: …", 132 characters at most, `tests/test_extension_folder.py` keeps it equal to `listing.md`'s); the
+  long description says what the program does, what the extension takes and leaves alone, the three steps and the
+  banks, with the rules for writing it in `extension/store/listing.md`. 0.9.1's review was withdrawn for it.
 
 The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's
 web interface).

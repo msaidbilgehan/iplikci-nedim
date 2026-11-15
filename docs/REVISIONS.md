@@ -11,6 +11,11 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 
 ## Değişiklik kaydı
 
+- 2026-11-15 (61) — Eklentinin mağaza metni yeniden yazıldı (v1.0.3):
+  - Mağaza metni ([`extension/store/listing.md`](../extension/store/listing.md)): yeni özet satırı (manifestte,
+    eklenti 0.9.2) ve uzun açıklama, metni yazarken uyulacaklarla. Kullanıcının uyarısı: eski metin neyin eklentisi
+    olduğunu ve ne işe yaradığını söylemiyordu. 0.9.1'in incelemesi geri çekildi; yeni metin 0.9.2 ile incelemeye gider.
+
 - 2026-11-15 (60) — İlk analizde yakın son ödemeler, eklentide GitHub bağlantısı (v1.0.2):
   - [Mimari](v1/architecture.md) §13 ve [yorum kuralları](domain/interpretation.md): ilk analiz önümüzdeki haftanın
     ödemelerini de söyler; geri kalanını yine yalnızca not eder.

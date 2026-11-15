@@ -4,6 +4,16 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [1.0.3] — 2026-11-15 — Eklentinin mağaza metni yeniden yazıldı
+
+### Değişenler
+
+- Tarayıcı eklentisi 0.9.2: Chrome Web Store'daki metni baştan yazıldı. Eski metin İplikçi Nedim'in ne olduğunu ve
+  eklentinin ne işe yaradığını söylemiyordu, kullanıcıyı ilgilendirmeyen ayrıntılarla doluydu. Mağazada adın altında
+  görünen özet artık "İplikçi Nedim kişisel finans programının Gmail eklentisi: bankaların gönderdiği ekstre, dekont ve
+  bildirimleri programa aktarır." diyor. Uzun açıklama programın ne yaptığını, eklentinin neyi alıp neye
+  dokunmadığını, üç adımda kurulumu ve desteklenen bankaları anlatıyor. Eklentinin çalışmasında değişen bir şey yok.
+
 ## [1.0.2] — 2026-11-15 — İlk analizde yakın son ödemeler, eklentide GitHub bağlantısı
 
 ### Düzeltilenler
