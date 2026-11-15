@@ -502,7 +502,8 @@ bankasıdır ("TEB"). Kanalların özet düzeyi bunu yazar (ADR-0010). Kategoris
 - Bir türden 50'den fazla olay aynı anda çıkarsa o türün tek olayı olur: `target` boştur, `detail` `{"count": n}`'dir.
 - Her olay bir kez söylenir. Anlık görüntü söylediği ya da yalnızca not ettiği her durumu, en son bulunduğu günden bir
   yıl sonrasına kadar hatırlar. Bu türleri tutmayan eski bir anlık görüntüden sonra ilk analiz onları yalnızca not
-  eder.
+  eder. İlk anlık görüntü de yalnızca not eder; önümüzdeki haftanın ödemeleri (`payment.due_soon`) bunun dışındadır
+  (`snapshot.FIRST_TOLD`).
 - Eşikler ve kurallar [domain/interpretation.md](../domain/interpretation.md)'nin "Akış olayları" bölümündedir.
 
 Akış ekranı bu olayları ve "şu an" özetini (tahmini bakiyeler, ay içi tempo, beklenen olaylar) gösterir.

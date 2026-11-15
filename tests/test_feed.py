@@ -6,6 +6,8 @@ from iplikci.app import annotate, background
 from iplikci.app.analysis import analyze
 from iplikci.domain.codes import SPLITTABLE_KINDS, Actor
 from iplikci.fakes import teb
+from iplikci.feed import news
+from iplikci.feed.news import Found
 from iplikci.feed.snapshot import BULK, Change, Snapshot, diff
 from iplikci.storage import annotations, events, jobs
 
@@ -18,6 +20,16 @@ def snap(month="2026-11", rows=None, receipts=None, months=None, invoices=None) 
 
 def test_the_first_snapshot_only_takes_note():
     assert diff(None, snap(rows={"a": ("teb-1", "2026-10-01")}, months={"2026-10": "closed"})) == []
+
+
+def test_the_first_snapshot_still_tells_the_payments_due_within_the_week():
+    # A data folder whose first analysis already holds its documents (the demo's) would otherwise never tell the
+    # payments near at its start; the forecast and the payments that did not come rest on a first read's documents.
+    soon = Found(news.DUE_SOON, "card_due|card|Örnek Kart •1234|2026-11-17", {"days": 2}, 3)
+    below = Found(news.NEGATIVE, "teb-1", {"account": "teb-1", "day": "2026-11-20"})
+    missing = Found(news.MISSING, "regular|teb-1|Örnek Kira|2026-11-03", {"title": "Örnek Kira"})
+    first = Snapshot("2026-11", {}, {}, {}, {}, "2026-11-15", {}, {}, (soon, below, missing))
+    assert diff(None, first) == [Change(news.DUE_SOON, soon.target, soon.detail)]
 
 
 def test_each_new_row_is_news():

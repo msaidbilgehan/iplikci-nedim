@@ -13,8 +13,11 @@ the analysis found to tell (news.py). Comparing two snapshots gives the events (
   the payments after a cancellation, the income received, the large purchases and the receipt rows no statement
   shows (news.py); more than BULK of a kind at once make one event of that kind with their number.
 
-The first snapshot only takes note: nothing before it is news. So does a kind told once per occurrence that the
-snapshot before did not keep yet (one saved by an older version): an update tells no old price change.
+The first snapshot only takes note: nothing before it is news, but for the payments due within the week (FIRST_TOLD),
+which are the days ahead, not history. A data folder that starts empty tells them as its documents arrive anyway; one
+whose first analysis already holds its documents (the demo's) would otherwise never tell those near at its start. A
+kind told once per occurrence that the snapshot before did not keep yet (one saved by an older version) only takes
+note too: an update tells no old price change.
 """
 
 from collections.abc import Sequence
@@ -27,9 +30,13 @@ from ..domain.codes import EvidenceStatus, InvoiceStatus, MonthStatus
 from ..insights import Insights, month_of, shift
 from ..month_end import MonthEnd
 from ..upcoming import CardDue
-from .news import NEGATIVE, OCCURRENCES, UNMATCHED, Found, find
+from .news import DUE_SOON, NEGATIVE, OCCURRENCES, UNMATCHED, Found, find
 
 BULK = 50
+# What the first snapshot tells all the same: a payment due within the week is still ahead. The forecast's balance
+# below zero, the payments and income that did not come and the new prices rest on documents a first read may not
+# have all of yet: there the first snapshot only takes note.
+FIRST_TOLD = frozenset({DUE_SOON})
 MONTHS_SPOKEN = 3
 REMEMBERED = timedelta(days=365)  # an occurrence is remembered for a year after an analysis last found it
 
@@ -130,7 +137,7 @@ def take(ds: Dataset, ins: Insights, months: list[MonthEnd], today: date, dues: 
 
 def diff(before: Snapshot | None, after: Snapshot) -> list[Change]:
     if before is None:
-        return []
+        return _told([found for found in after.found if found.kind in FIRST_TOLD])
     return [
         *_new_rows(before, after),
         *_confirmed(before, after),
@@ -191,12 +198,15 @@ def _months(before: Snapshot, after: Snapshot) -> list[Change]:
 
 
 def _news(before: Snapshot, after: Snapshot) -> list[Change]:
-    """What the analysis found that is news against the snapshot before: one event each, or one of a kind with their
-    number beyond BULK."""
+    """What the analysis found that is news against the snapshot before."""
+    return _told([found for found in after.found if _is_news(before, found)])
+
+
+def _told(found: Sequence[Found]) -> list[Change]:
+    """What is news: one event each, or one of a kind with their number beyond BULK."""
     news: dict[str, list[Found]] = {}
-    for found in after.found:
-        if _is_news(before, found):
-            news.setdefault(found.kind, []).append(found)
+    for item in found:
+        news.setdefault(item.kind, []).append(item)
     changes: list[Change] = []
     for kind, items in news.items():
         if len(items) > BULK:

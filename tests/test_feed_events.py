@@ -160,6 +160,13 @@ def test_a_payment_is_told_a_week_three_days_and_a_day_before_and_on_its_day_onc
     ]
 
 
+def test_a_payment_already_near_at_the_first_analysis_is_told_then_and_at_its_next_thresholds():
+    # The demo's first analysis holds all its documents: the due date three days away is told at once, not noted.
+    days = [22, 23, 24, 25]
+    told = of(news.DUE_SOON, feed(*[(SHOPPING, date(2026, 11, d)) for d in days], dues=[DUE]))
+    assert [[c.detail["days"] for c in changes] for changes in told] == [[3], [], [1], [0]]
+
+
 def test_a_service_that_was_down_tells_only_the_tightest_threshold_it_finds():
     steps = [(SHOPPING, date(2026, 11, d)) for d in (15, 24, 25)]
     told = of(news.DUE_SOON, feed(*steps, dues=[DUE]))
@@ -191,7 +198,7 @@ def test_what_a_card_is_charged_on_its_own_and_its_installments_are_not_due_soon
 
 def test_a_refresh_tells_a_cards_due_date_its_statement_prints(ws):
     add(ws, "teb-ekstre.pdf", teb.bonus_statement())  # cut on 5 October, due on 15 October
-    assert background.refresh(ws, today=date(2026, 10, 7)) == []  # the first refresh only takes note
+    assert background.refresh(ws, today=date(2026, 10, 7)) == []  # eight days before: nothing to tell yet
     assert background.refresh(ws, today=date(2026, 10, 8)) == [news.DUE_SOON]
     assert background.refresh(ws, today=date(2026, 10, 9)) == []
     with ws.db() as db:
@@ -206,6 +213,15 @@ def test_a_refresh_tells_a_cards_due_date_its_statement_prints(ws):
 
 
 # --- balances below zero -----------------------------------------------------------------------------------------
+
+
+def test_the_first_refresh_of_a_folder_full_of_documents_tells_a_due_date_within_the_week(ws):
+    add(ws, "teb-ekstre.pdf", teb.bonus_statement())  # due on 15 October
+    assert background.refresh(ws, today=date(2026, 10, 12)) == [news.DUE_SOON]
+    assert background.refresh(ws, today=date(2026, 10, 12)) == []  # told once
+    with ws.db() as db:
+        (due,) = events.entries(db, news.DUE_SOON)
+    assert (due.detail["due"], due.detail["days"]) == ("2026-10-15", 3)
 
 
 def test_a_balance_below_zero_names_the_account_its_first_day_and_the_balance_then():

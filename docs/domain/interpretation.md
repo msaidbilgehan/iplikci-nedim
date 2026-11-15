@@ -273,7 +273,9 @@ nedenleri arasında sayılmaz.
 ## Akış olayları
 
 Her analizden sonra akış, bildirim kurallarının eşleştiği olayları üretir (mimari §13; `feed/news.py`). Her olay bir
-kez söylenir; ilk analiz yalnızca not eder.
+kez söylenir; ilk analiz yalnızca not eder. Önümüzdeki haftanın ödemeleri bunun dışındadır: geçmiş değil, önümüzdeki
+günlerdir. Boş başlayan bir veri klasörü onları belgeler geldikçe zaten söyler; ilk analizini belgeleriyle yapan bir
+klasör (demonunki gibi) de yakın son ödemeyi o an söyler (v1.0.2).
 
 - **Yaklaşan ödeme** (`payment.due_soon`)
   - Takvimin kullanıcının ilgilenmesi gereken kalemleri: kart son ödemesi, banka dışı fatura, kredi taksidi ve bir
