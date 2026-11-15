@@ -11,6 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/msaidbilgehan/iplikci-nedim/releases/latest/download/iplikci-nedim-macos-aarch64.dmg"><img src="https://img.shields.io/badge/MACOS%20%C4%B0%C3%87%C4%B0N%20%C4%B0ND%C4%B0R-APPLE%20SILICON-0f7069?style=for-the-badge&logo=apple&logoColor=white" alt="macOS için indir"></a>
+  <a href="https://chromewebstore.google.com/detail/biegljgcnlkdokmfpdejecddgaekplof"><img src="https://img.shields.io/badge/CHROME%20EKLENT%C4%B0S%C4%B0-WEB%20STORE-0f7069?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Tarayıcı eklentisi Chrome Web Store'da"></a>
 </p>
 
 <p align="center">Ücretsiz · Açık kaynak · Hesap açmak yok · Verileriniz bilgisayarınızda kalır</p>
@@ -37,8 +38,8 @@ Bankanıza bağlanmaz, banka şifrenizi hiç istemez: size zaten gelen belgeleri
   <img src="docs/gorseller/belge-ekle.png" width="760" alt="Belge ekle ekranı: bir klasör seçilir ya da sürüklenir">
 </p>
 
-- Gmail'deki banka e-postaları tarayıcı eklentisiyle kendiliğinden gelir. Eklenti Gmail'de hiçbir şeyi değiştirmez:
-  iletiler okunmamış kalır, taşınmaz, silinmez.
+- Gmail'deki banka e-postaları [İplikçi Nedim Köprüsü][magaza] tarayıcı eklentisiyle kendiliğinden gelir. Eklenti
+  Gmail'de hiçbir şeyi değiştirmez: iletiler okunmamış kalır, taşınmaz, silinmez.
 - Bankanın uygulamasından indirdiğiniz ekstreyi ya da dekontu "Belge ekle" ekranına sürükleyin ya da Telegram'daki
   kendi botunuza gönderin. Dosyanın adı önemli değildir; İplikçi Nedim her belgeyi içeriğinden tanır.
 - Her belgenin aslı saklanır. Ekrandaki her rakamdan dayandığı belgeye gidebilirsiniz.
@@ -132,7 +133,10 @@ yoksa [bize yazın](https://github.com/msaidbilgehan/iplikci-nedim/issues).
 
 ## Kurulum
 
-Şimdilik yalnızca **macOS** için (Apple Silicon: M1 ve sonrası). Windows ve Linux sürümleri yolda.
+Şimdilik yalnızca **macOS** için (Apple Silicon: M1 ve sonrası). Windows ve Linux sürümleri yolda. Terminal açmanız ya
+da başka bir program kurmanız gerekmez.
+
+### 1. Programı kurun
 
 1. **İndirin:** [İplikçi Nedim'i indirin](https://github.com/msaidbilgehan/iplikci-nedim/releases/latest/download/iplikci-nedim-macos-aarch64.dmg),
    dosyayı açın ve İplikçi Nedim'i yanındaki "Applications" klasörüne sürükleyin.
@@ -140,18 +144,53 @@ yoksa [bize yazın](https://github.com/msaidbilgehan/iplikci-nedim/issues).
    çünkü uygulama Apple'ın ücretli onayından geçmedi. "Bitti"ye basın; sonra Sistem Ayarları → Gizlilik ve
    Güvenlik'te "Yine de Aç"a basıp parolanızı girin.
 3. **Sihirbazı izleyin:** Tarayıcınızda kurulum sihirbazı açılır. Adınızı (kendi hesaplarınız arasındaki
-   havaleleri tanısın diye), e-postanın nasıl geleceğini, bankalarınızı ve bildirimleri sorar; Gmail için tarayıcı
-   eklentisinin nasıl ekleneceğini de adım adım gösterir.
+   havaleleri tanısın diye), e-postanın nasıl geleceğini, bankalarınızı ve bildirimleri sorar.
 
 <p align="center">
   <img src="docs/gorseller/kurulum.png" width="760" alt="Kurulum sihirbazı: dokuz adımın ikincisi, adınız">
 </p>
 
-Terminal açmanız ya da başka bir program kurmanız gerekmez. İplikçi Nedim her gün yeni sürüm olup olmadığına bakar;
-varsa önce verilerinizin yedeğini alır, sonra kendini günceller.
+### 2. Tarayıcı eklentisini ekleyin
+
+Gmail'deki banka e-postaları İplikçi Nedim'e tarayıcı eklentisiyle gelir. Eklenti Chrome, Edge ve Brave'de çalışır;
+kurulumu birkaç dakika sürer.
+
+1. **Ekleyin:** [Chrome Web Store'daki sayfasını][magaza] açın ve "Chrome'a ekle"ye basın. Edge ve Brave de aynı
+   sayfadan ekler (Edge bir kez başka mağazalardan uzantılara izin vermek isteyip istemediğinizi sorar). Tarayıcı
+   eklentiyi bundan sonra kendisi günceller.
+2. **Kodu alın:** İplikçi Nedim'de **Tarayıcı eklentisi** ekranını açın ve "Eşleştirme kodu al"a basın. Sihirbazın
+   e-posta adımı da bu ekrana götürür.
+3. **Eşleştirin:** Eklentiyi ekleyince ayarlar sayfası kendiliğinden açılır; açılmazsa tarayıcının araç çubuğundaki
+   İplikçi Nedim simgesine basıp "Eşleştirme ve ayarlar"ı seçin. Kodu girip "Eşleştir"e basın. Eklenti eşleşince
+   yeni banka iletilerini getirir ve geçmişi bir kez tarar.
+
+<details>
+<summary><b>Eklentiyi elle kurmak (mağazayı kullanamıyorsanız)</b></summary>
+
+Mağazaya ulaşamayan bir tarayıcıda eklenti, İplikçi Nedim'in bilgisayarınızda hazırladığı bir klasörden yüklenir:
+
+1. İplikçi Nedim'de **Tarayıcı eklentisi** ekranında "Mağazayı kullanamıyorsanız: klasörden yükleyin"i açın ve
+   "Eklenti klasörünü aç"a basın. İplikçi Nedim klasörü hazırlar ve Finder'da gösterir.
+2. Tarayıcının adres çubuğuna `chrome://extensions` yazın (Edge'de `edge://extensions`, Brave'de
+   `brave://extensions`).
+3. Sayfanın sağ üst köşesindeki "Geliştirici modu" anahtarını açın.
+4. "Paketlenmemiş öğe yükle"ye (İngilizcesi "Load unpacked") basın ve açılan pencerede bu klasörü seçin. Klasörü
+   bulamazsanız ⇧⌘G'ye basıp ekranda yazan yerini yapıştırın.
+5. Eklenti "İplikçi Nedim Köprüsü" adıyla listede görünür. Ardından yukarıdaki gibi eşleştirin.
+
+Klasörü silmeyin ve taşımayın: tarayıcı eklentiyi oradan çalıştırır. İplikçi Nedim güncellenince klasördeki eklenti
+de yenilenir ve eklenti kendini yeni sürümle yeniden yükler. Aynı tarayıcıya hem mağazadakini hem klasördekini
+kurmayın: ikisi birden aynı iletileri getirir. Klasörden kurduysanız ve mağazadakine geçiyorsanız, mağazadakini
+eşleştirdikten sonra eskisini eklentiler sayfasından kaldırın.
+</details>
+
+### Sonra
+
+İplikçi Nedim her gün yeni sürüm olup olmadığına bakar; varsa önce verilerinizin yedeğini alır, sonra kendini
+günceller.
 
 **Kaldırmak için** Ayarlar'daki "Kaldır"a basın, sonra uygulamayı çöp kutusuna sürükleyin. Verileriniz yalnızca siz
-isterseniz çöp kutusuna taşınır.
+isterseniz çöp kutusuna taşınır. Eklentiyi tarayıcının eklentiler sayfasından kaldırın.
 
 ## Sık sorulanlar
 
@@ -173,6 +212,13 @@ eklediğiniz belgeleri okur.
 
 Kart ekstresi ay bitince değil, kesim gününde gelir. Bir ayın bütün belgeleri gelene dek rakamları kesinleşmez;
 İplikçi Nedim hangi belgeyi ve ne zaman beklediğini yazar.
+</details>
+
+<details>
+<summary><b>Gmail kullanmıyorum, eklenti şart mı?</b></summary>
+
+Hayır. Uygulama şifresine izin veren bir e-posta hesabını kurulum sihirbazından doğrudan bağlayabilirsiniz; o zaman
+eklenti gerekmez. Bankadan indirdiğiniz belgeleri de "Belge ekle" ekranından ya da Telegram botunuzdan eklersiniz.
 </details>
 
 <details>
@@ -202,3 +248,5 @@ Yakında. Paketleri hazırlanıyor, o sistemlerde denendikten sonra burada duyur
 ## Lisans
 
 [BSD 3-Clause](LICENSE.txt).
+
+[magaza]: https://chromewebstore.google.com/detail/biegljgcnlkdokmfpdejecddgaekplof
