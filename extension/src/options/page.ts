@@ -7,7 +7,7 @@
  */
 
 import type { Status } from "../bridge/messages";
-import { RELEASES } from "../bridge/program";
+import { RELEASES, SOURCE } from "../bridge/program";
 import type { ScanSummary } from "../bridge/state";
 import { ask, draw, element, openInterface, say, statusCard, version } from "../ui/dom";
 import { type Guide, type Seen, follow, guideHere, openDownload, showGuide } from "../ui/program";
@@ -35,6 +35,7 @@ const guideParts = {
   steps: element("program-steps", HTMLOListElement),
 };
 element("releases", HTMLAnchorElement).href = RELEASES;
+element("source", HTMLAnchorElement).href = SOURCE;
 element("version", HTMLSpanElement).textContent = version();
 
 const UNPAIRED = "İplikçi Nedim'den aldığınız kodu aşağıdaki Eşleştirme bölümüne girin.";

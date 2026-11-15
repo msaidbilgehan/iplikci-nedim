@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { type Status, asRequest } from "../src/bridge/messages";
-import { INSTALLERS, type Platform, RELEASES, REPO, downloadFor, latest, systemName } from "../src/bridge/program";
+import { INSTALLERS, type Platform, RELEASES, REPO, SOURCE, downloadFor, latest, systemName } from "../src/bridge/program";
 import { type Fetcher, SERVICE, answers } from "../src/bridge/service";
 import { type Seen, WAIT_MS, follow, guideFor, showGuide } from "../src/ui/program";
 
@@ -41,6 +41,7 @@ describe("the program's download for this computer", () => {
       expect(downloadFor(platform).url.startsWith(`https://github.com/${REPO}/releases/latest`)).toBe(true);
     }
     expect(RELEASES).toBe(`https://github.com/${REPO}/releases/latest`);
+    expect(SOURCE).toBe(`https://github.com/${REPO}`);
     expect(latest("a b.dmg")).toBe(`${LATEST}a%20b.dmg`);
   });
 

@@ -11,6 +11,8 @@
 export const REPO = "msaidbilgehan/iplikci-nedim";
 /** The latest release's page: its notes and every system's installer. */
 export const RELEASES = `https://github.com/${REPO}/releases/latest`;
+/** The program's home: its code, how to install it, its questions (the settings page links it). */
+export const SOURCE = `https://github.com/${REPO}`;
 
 /** This computer as chrome.runtime.getPlatformInfo() names it. */
 export interface Platform {
