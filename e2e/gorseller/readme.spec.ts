@@ -8,7 +8,7 @@
 // folder); the frames stay in a temporary folder. The last picture changes the demo's rules, so it runs last.
 
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 
@@ -34,7 +34,7 @@ const HEADER = 56; // the top bar stays on top (Layout): a part scrolled to stop
 const LOADS = { timeout: 30_000 }; // the first page of a run may wait for the service's first analysis
 const SAVES = { timeout: 30_000 }; // a rule change: the service makes its analysis again before it answers
 
-// As the config's own `use`, for the browsers a picture opens itself (a recording, a phone, the dark theme).
+// As the config's own `use`, for the browsers a picture opens itself (a recording, the dark theme).
 const BROWSER: BrowserContextOptions = {
   baseURL: BASE_URL,
   storageState: STATE,
@@ -343,6 +343,23 @@ async function putAside(page: Page): Promise<void> {
 
 // --- the pictures ---------------------------------------------------------------------------------------------------
 
+test("yuzler.png: İplikçi Nedim'in dört yüzü, iyiden kötüye ve sessiz", () => {
+  // The interface's own faces (packaging/icons.py draws them from the logo), each in a cell of its own, side by side on
+  // a transparent ground: good, warning, critical, neutral.
+  const faces = ["logo.png", "face-warning.png", "face-critical.png", "face-neutral.png"].map((name) =>
+    join(import.meta.dirname, "..", "..", "web", "public", name),
+  );
+  const cells = faces.map((_, at) => `[${at}]pad=150:128:11:0:color=black@0[c${at}]`).join(";");
+  const out = join(scratch, "yuzler.png");
+  execFileSync("ffmpeg", [
+    ...["-v", "error", "-y"],
+    ...faces.flatMap((face) => ["-i", face]),
+    ...["-filter_complex", `${cells};[c0][c1][c2][c3]hstack=inputs=4,format=rgba`],
+    ...["-frames:v", "1", out],
+  ]);
+  save("yuzler.png", readFileSync(out));
+});
+
 test("pano.gif: sade Pano'nun hikâyesi yukarıdan aşağı", async ({ browser }) => {
   const recording = await record(browser, { pointer: false });
   const { page } = recording;
@@ -454,15 +471,6 @@ test("belge-ekle.png: bankadan indirilen belgeler bir klasörle eklenir", async 
   await page.goto("/belge-ekle");
   await screen(page, "Belge ekle");
   await photograph(page, "belge-ekle.png");
-});
-
-test("telefon.png: Pano telefonda", async ({ browser }) => {
-  const context = await browser.newContext({ ...BROWSER, viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
-  const page = await context.newPage();
-  await page.goto("/");
-  await pano(page);
-  save("telefon.png", await page.screenshot({ animations: "disabled" }));
-  await context.close();
 });
 
 test("koyu-tema.png: ayrıntılı Pano koyu temada", async ({ browser }) => {

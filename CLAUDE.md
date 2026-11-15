@@ -554,7 +554,8 @@ baseline) and `mvp_codes` (the MVP codes the report's script and baseline v1 sti
 `src/iplikci/api/ui`;
 `extension/` builds into `extension/dist` and the program's copy `src/iplikci/browser_extension`; `e2e/` holds the
 Playwright tests, which run the service on a demo data folder with the built interface, every test in the light and the
-dark theme, with axe.
+dark theme, with axe; `e2e/gorseller/` makes the README's pictures on the same service (`npm run gorseller`, never in
+`npx playwright test`). The README speaks to people who don't code; the developers' guide is `docs/gelistirme.md`.
 
 The workspace is the data dir (architecture §9). The user's company names go in its `settings.toml` under
 `[identity] business_names`; the user's category rules live in `rules/personal.yaml` over the shipped defaults.
@@ -594,6 +595,7 @@ uv run iplikci mcp                             # MCP over stdio: through the ser
 uv run iplikci mcp baslik                      # Claude Code's headers helper: the Authorization header as JSON
 (cd web && npm ci && npm run typecheck && npm test && npm run build)         # the interface, built into the package
 (cd e2e && npm ci && npx playwright test)      # end-to-end on a demo data folder, both themes, axe; build web/ first
+(cd e2e && npm run gorseller)                  # the README's pictures in docs/gorseller/, from the demo (ffmpeg)
 uv run python packaging/build.py               # this system's installer and update file into dist/paket/, tried first
 uv run python packaging/release.py --tag vX.Y.Z --files dist/surum --notes dist/notlar.md   # the signed manifest
 uv run python packaging/chrome_store.py iplikci-kopru-X.Y.Z.zip --deneme   # what the store upload would do
