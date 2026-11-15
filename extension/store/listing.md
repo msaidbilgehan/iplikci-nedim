@@ -36,6 +36,7 @@ gösterir (macOS, Windows ve Linux). İndirme, İplikçi Nedim'in GitHub'daki s�
 sekmesinde olur. Program açılınca eklenti eşleştirmeye geçer.
 
 Desteklenen bankalar ve belgeler:
+
 - Garanti BBVA: Bonus ve Paracard ekstreleri, dekontlar ve Garanti BBVA Yatırım ekstreleri (PDF), hesap hareketleri
   (Excel), para transferi bildirimleri (e-posta)
 - İş Bankası: Maximum kart hesap özeti, dekontlar ve e-cüzdan (PDF), hesap özeti (Excel), kart borcu tahsilatı
@@ -45,6 +46,7 @@ Desteklenen bankalar ve belgeler:
 - TEB: Bonus kart ekstresi, dijital hesap cüzdanı ve dekontlar (PDF), CEPTETEB hesap hareketleri (Excel)
 - VakıfBank: e-cüzdan ve dekontlar (PDF), hesap hareketleri (Excel), FAST ve EFT bildirimleri (e-posta)
 - e-Fatura ve e-Arşiv faturaları (XML)
+
 E-postayla gelmeyen belgeleri İplikçi Nedim'in "Belge ekle" ekranından ya da Telegram botunuzdan eklersiniz. Tam
 liste: https://github.com/msaidbilgehan/iplikci-nedim/blob/master/docs/desteklenen-bankalar.md
 
