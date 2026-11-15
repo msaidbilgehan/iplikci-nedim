@@ -1,8 +1,8 @@
 {
   "name": "iplikci-kopru",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "private": true,
-  "description": "İplikçi Nedim Köprüsü: Gmail'deki banka iletilerini bu bilgisayardaki İplikçi Nedim servisine taşır (ADR-0016).",
+  "description": "İplikçi Nedim Köprüsü: İplikçi Nedim'in Gmail eklentisi; bankaların e-postalarını bu bilgisayardaki servise aktarır (ADR-0016).",
   "license": "BSD-3-Clause",
   "type": "module",
   "scripts": {

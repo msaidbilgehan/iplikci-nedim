@@ -206,6 +206,17 @@ def test_the_store_address_is_the_published_items_page():
     assert item in store_notes.read_text(encoding="utf-8")
 
 
+def test_the_store_summary_is_the_manifests_description_and_fits_the_store():
+    # The store shows the manifest's description under the extension's name and in its search; it takes 132
+    # characters at most, and the listing's notes must say the same words the package carries.
+    repo = Path(__file__).resolve().parents[1]
+    manifest = json.loads((repo / "extension" / "static" / "manifest.json").read_text(encoding="utf-8"))
+    summary = manifest["description"]
+    listing = " ".join((repo / "extension" / "store" / "listing.md").read_text(encoding="utf-8").split())
+    assert len(summary) <= 132
+    assert f'"{summary}"' in listing
+
+
 def test_the_cursor_tells_the_extension_the_version_the_program_carries(carried, tmp_path):
     assert extension.carried_version() == "0.4.0"
     assert extension.carried_version(tmp_path / "yok") == ""

@@ -6,8 +6,9 @@ Chrome Web Store'un geliştirici panosuna girilecek metinler. Mağaza dili Türk
 ## Ad ve kısa açıklama
 
 - **Ad:** İplikçi Nedim Köprüsü
-- **Kısa açıklama** (manifestteki açıklama): Gmail'deki banka iletilerini bu bilgisayardaki İplikçi Nedim'e taşır.
-  Gmail'de hiçbir şeyi değiştirmez.
+- **Kısa açıklama** (manifestteki açıklama, en çok 132 karakter; mağaza onu adın altında ve aramada gösterir, panoda
+  değişmez, yeni bir eklenti sürümüyle gelir): "İplikçi Nedim kişisel finans programının Gmail eklentisi: bankaların
+  gönderdiği ekstre, dekont ve bildirimleri programa aktarır."
 - **Kategori:** Verimlilik
 - **Görünürlük:** herkese açık (kullanıcının 2026-11-14 kararı,
   [ADR-0024](../../docs/adr/0024-extension-leads-to-download.md)): eklenti programın kapısıdır, adını duyan onu
@@ -16,48 +17,49 @@ Chrome Web Store'un geliştirici panosuna girilecek metinler. Mağaza dili Türk
 
 ## Uzun açıklama
 
-İplikçi Nedim, banka belgelerinizi ve e-postalarınızı kendi bilgisayarınızda toplayan, doğrulayan ve yorumlayan kişisel
-finans asistanıdır. Bu eklenti onun Gmail köprüsüdür. Tarayıcınızdaki açık Gmail oturumuyla, listedeki bankaların
-iletilerini okur ve bu bilgisayarda çalışan İplikçi Nedim'e taşır.
+Panonun "Description" alanına bu bloğun içi aynen girilir: her paragraf ve her madde kendi satırındadır.
 
-- Gmail'de hiçbir şeyi değiştirmez: iletiler okunmamış kalır, taşınmaz, silinmez, etiketlenmez.
-- Yalnızca İplikçi Nedim'deki listede olan bankaların iletilerini alır. Gmail açıkken sekmede görünen banka iletilerini,
-  okunmuş olsalar da kendiliğinden alır.
-- Yalnızca Gmail'e (mail.google.com ve eklerin indirildiği mail-attachment.googleusercontent.com) ve bu bilgisayardaki
-  İplikçi Nedim'e bağlanır. Şifre istemez, başka bir sunucuya veri göndermez, uzaktan kod yüklemez.
-- İplikçi Nedim ile tek kullanımlık bir kodla eşleşir. Her teslimden önce, karşıdaki programın eşleştiği İplikçi Nedim
-  olduğunu doğrular.
-- Araç çubuğundaki düğmesi durumu gösterir ve İplikçi Nedim'in arayüzünü tek tıkla açar.
-- Uygulama şifresi verilemeyen hesaplar için yoldur, örneğin Google'ın Gelişmiş Koruma programındaki hesaplar.
+```text
+İplikçi Nedim kişisel finans programının Gmail eklentisidir. Bankaların Gmail'inize gönderdiği ekstreleri, dekontları ve bildirimleri programa aktarır; belgeleri tek tek indirip eklemeniz gerekmez.
 
-Kullanmak için bu bilgisayarda İplikçi Nedim'in kurulu olması gerekir. Kurulu değilse eklenti bunu söyler: ayarlar
-sayfası kendiliğinden açılır, bilgisayarınızın sistemi için İplikçi Nedim'i indiren bir düğme ve kurulum adımları
-gösterir (macOS, Windows ve Linux). İndirme, İplikçi Nedim'in GitHub'daki sürüm sayfasından, tarayıcınızın yeni bir
-sekmesinde olur. Program açılınca eklenti eşleştirmeye geçer.
+İplikçi Nedim nedir?
+Banka belgelerinizi okuyup paranızın nereye gittiğini anlatan ücretsiz bir program. Biten ayda ne geldiğini, ne gittiğini ve ne kaldığını grafiklerle gösterir. Kart son ödemelerini ve düzenli ödemeleri takvimde tutar, zamanı yaklaşınca haber verir. Kendi bilgisayarınızda çalışır: bulut yok, hesap açmak yok, verileriniz bilgisayarınızdan çıkmaz.
 
-Desteklenen bankalar ve belgeler:
+Eklenti ne yapar, ne yapmaz?
+- Yalnızca bankaların ve programa sizin eklediğiniz fatura göndericilerinin e-postalarını alır. Öbür e-postalarınız hiçbir yere gitmez.
+- Gmail'de hiçbir şeyi değiştirmez: e-postalar okunmamış kalır, silinmez, taşınmaz.
+- Şifrenizi istemez. E-postaları yalnızca bilgisayarınızdaki İplikçi Nedim'e verir; Gmail dışında hiçbir sunucuya bağlanmaz.
 
-- Garanti BBVA: Bonus ve Paracard ekstreleri, dekontlar ve Garanti BBVA Yatırım ekstreleri (PDF), hesap hareketleri
-  (Excel), para transferi bildirimleri (e-posta)
-- İş Bankası: Maximum kart hesap özeti, dekontlar ve e-cüzdan (PDF), hesap özeti (Excel), kart borcu tahsilatı
-  bildirimi (e-posta)
-- QNB: kart ve hesap hareketleri (PDF), e-dekontlar (HTML ya da PDF), FAST, havale, EFT ve para çıkışı bildirimleri
-  (e-posta)
-- TEB: Bonus kart ekstresi, dijital hesap cüzdanı ve dekontlar (PDF), CEPTETEB hesap hareketleri (Excel)
-- VakıfBank: e-cüzdan ve dekontlar (PDF), hesap hareketleri (Excel), FAST ve EFT bildirimleri (e-posta)
+Nasıl kullanılır?
+1. İplikçi Nedim'i bilgisayarınıza kurun. Program yoksa eklenti bunu söyler ve indirme düğmesini gösterir.
+2. Programın "Tarayıcı eklentisi" ekranından bir eşleştirme kodu alın ve eklentinin ayarlar sayfasına yazın.
+3. Eklenti önce Gmail'deki geçmiş banka e-postalarını bir kez tarar, sonra yenilerini kendiliğinden getirir.
+
+Hangi bankalar?
+- Garanti BBVA: Bonus kart ve Paracard ekstresi, dekont, Garanti BBVA Yatırım ekstresi (PDF); hesap hareketleri (Excel); para transferi bildirimleri
+- İş Bankası: Maximum kart ekstresi, dekont, e-cüzdan (PDF); hesap hareketleri (Excel); kart borcu tahsilatı bildirimi
+- QNB: kart ve hesap hareketleri (PDF); e-dekont (PDF ya da HTML); FAST, havale, EFT ve para çıkışı bildirimleri
+- TEB: Bonus kart ekstresi, dijital hesap cüzdanı, dekont (PDF); hesap hareketleri (Excel)
+- VakıfBank: e-cüzdan, dekont (PDF); hesap hareketleri (Excel); FAST ve EFT bildirimleri
 - e-Fatura ve e-Arşiv faturaları (XML)
+E-postayla gelmeyen belgeleri programın "Belge ekle" ekranından eklersiniz. Ayrıntılı liste: https://github.com/msaidbilgehan/iplikci-nedim/blob/master/docs/desteklenen-bankalar.md
 
-E-postayla gelmeyen belgeleri İplikçi Nedim'in "Belge ekle" ekranından ya da Telegram botunuzdan eklersiniz. Tam
-liste: https://github.com/msaidbilgehan/iplikci-nedim/blob/master/docs/desteklenen-bankalar.md
+İplikçi Nedim ücretsiz ve açık kaynaklıdır. Şimdilik macOS (Apple Silicon) için; Windows ve Linux sürümleri yolda. Program, kurulum adımları ve sorularınız için: https://github.com/msaidbilgehan/iplikci-nedim
+```
 
-İplikçi Nedim ücretsiz ve açık kaynaklıdır. Programın kendisi, kurulum adımları, kaynak kodu ve sorularınız için:
-https://github.com/msaidbilgehan/iplikci-nedim
+Yazarken (kullanıcının 2026-11-15 uyarısı: önceki metin neyin eklentisi olduğunu ve ne işe yaradığını söylemiyordu,
+gereksiz açıklamalarla doluydu):
 
-Mağaza sayfasının "Ana sayfa" alanı herkese açık sayfada görünmüyor (2026-11-15'te denendi): kod deposunun adresi bu
-yüzden açıklamanın sonundadır. Destek adresi deponun soru ve sorun sayfasıdır:
-<https://github.com/msaidbilgehan/iplikci-nedim/issues>. Banka listesi
-[desteklenen bankalar ve belgeler](../../docs/desteklenen-bankalar.md) sayfasının kısaltmasıdır: yeni bir okuyucu
-gelince ikisi birlikte değişir. Mağazaya girilen metinde listenin satırları birleşmez: her madde kendi satırındadır.
+- İlk iki cümle eklentinin İplikçi Nedim'in Gmail eklentisi olduğunu ve ne yaptığını söyler; mağaza aramada onları
+  gösterir.
+- Kullanıcıya bir şey söylemeyen ayrıntı yazılmaz: sunucu adları, izinler, eşleşmenin nasıl doğrulandığı. Onlar
+  incelemecilere giden metindedir (aşağıda).
+- Kısa cümleler; "köprü", "teslim" gibi programın kendi sözleri yerine kullanıcının sözleri.
+- Banka listesi [desteklenen bankalar ve belgeler](../../docs/desteklenen-bankalar.md) sayfasının kısaltmasıdır: yeni
+  bir okuyucu gelince ikisi birlikte değişir.
+- Mağaza sayfasının "Ana sayfa" alanı herkese açık sayfada görünmüyor (2026-11-15'te denendi): kod deposunun adresi bu
+  yüzden açıklamanın sonundadır. Destek adresi deponun soru ve sorun sayfasıdır:
+  <https://github.com/msaidbilgehan/iplikci-nedim/issues>.
 
 ## Tek amaç
 

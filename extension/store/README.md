@@ -64,7 +64,11 @@ paketi GitHub sürümüne de koyar. Simgeler ürünün logosundan `packaging/ico
   notu.
 - **Sonra (aynı gün, 0.9.1 ile incelemeye):** açıklamanın sonuna kod deposunun adresi eklendi, destek adresi deponun
   soru ve sorun sayfası oldu. "Homepage URL" herkese açık sayfada görünmüyordu. Pano değişikliği taslak olarak
-  kaydedildi; iş akışının 0.9.1'i gönderişi onu da incelemeye götürür.
+  kaydedildi; iş akışının 0.9.1'i gönderişi onu da incelemeye götürdü.
+- **0.9.2 (aynı akşam):** kullanıcı açıklamayı okuyunca metnin neyin eklentisi olduğunu ve ne işe yaradığını
+  söylemediğini, gereksiz açıklamalarla dolu olduğunu söyledi. 0.9.1'in incelemesi kullanıcının onayıyla geri çekildi
+  (`cws.py cancel`, durum `CANCELLED`). Yeni uzun açıklama panoya taslak olarak kaydedildi, yeni özet satırı
+  manifestle 0.9.2'de geldi ([mağaza metni](listing.md)). İkisini v1.0.3'ün iş akışı birlikte incelemeye gönderir.
 
 Ekran görüntüleri gerçek servise dokunmadan alındı: `extension/dist`'in bir kopyasında `127.0.0.1:8643` başka bir
 porta çevrildi (sayfalar adresi göstermez), demo veri klasörü o portta `servis calistir --ev` ile çalıştı ve kopya ayrı
