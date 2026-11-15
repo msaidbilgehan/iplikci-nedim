@@ -4,6 +4,21 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [1.0.2] — 2026-11-15 — İlk analizde yakın son ödemeler, eklentide GitHub bağlantısı
+
+### Düzeltilenler
+
+- İlk analizini belgeleriyle yapan bir veri klasörü, örneğin demo, o gün son ödemesine bir haftadan az kalan
+  ödemeleri hiç söylemiyordu: ilk analiz her şeyi yalnızca not ediyordu. Artık ilk analiz de önümüzdeki haftanın
+  ödemelerini söyler; geçmişin olayları (gelmeyen ödemeler, zamlar, öngörüde eksiye düşen bakiye) ilk analizde yine
+  yalnızca not edilir. Boş başlayan bir kurulum bu ödemeleri belgeler geldikçe zaten söylüyordu.
+
+### Değişenler
+
+- Tarayıcı eklentisi 0.9.1: ayarlar sayfası İplikçi Nedim'in GitHub sayfasına bağlantı verir: kaynak kodu, kurulum
+  adımları ve sorular. Mağazadan kurulan eklentiyi Chrome kendisi günceller. Mağaza sayfasının açıklaması da kod
+  deposunun adresini, destek adresi deponun soru ve sorun sayfasını gösterir.
+
 ## [1.0.1] — 2026-11-15 — Tarayıcı eklentisi Chrome Web Store'da
 
 ### Değişenler

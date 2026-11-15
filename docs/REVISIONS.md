@@ -11,6 +11,12 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 
 ## Değişiklik kaydı
 
+- 2026-11-15 (60) — İlk analizde yakın son ödemeler, eklentide GitHub bağlantısı (v1.0.2):
+  - [Mimari](v1/architecture.md) §13 ve [yorum kuralları](domain/interpretation.md): ilk analiz önümüzdeki haftanın
+    ödemelerini de söyler; geri kalanını yine yalnızca not eder.
+  - Mağaza metni: açıklama kod deposunun adresiyle biter, destek adresi deponun soru ve sorun sayfasıdır; eklentinin
+    ayarlar sayfası da depoya bağlantı verir (0.9.1).
+
 - 2026-11-15 (59) — Tarayıcı eklentisi Chrome Web Store'da (v1.0.1), mağazaya yüklemeyi iş akışı yapar, herkes için
   README:
   - Eklenti 0.9.0 incelemeden geçti ve herkese açık yayımlandı. [Sürüm yayını](yayin.md) ve mağaza notları: mağazanın

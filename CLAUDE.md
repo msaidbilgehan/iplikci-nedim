@@ -388,6 +388,12 @@ says what the waiting must show); the Windows and Linux checks come later (K25).
   with the unpacked folder's steps folded below. A user with the unpacked copy installs the store's, pairs it with a new
   code and removes the old one (both would bring the same messages). The README speaks to people who don't code and
   gives the store's link and the extension's manual install; the developers' guide is `docs/gelistirme.md`.
+- v1.0.2 (2026-11-15): the first snapshot tells the payments due within the week too (`feed/snapshot.FIRST_TOLD`); a
+  data folder whose first analysis already held its documents (the demo's) never told those near at its start. The
+  rest of a first analysis is still only noted. Extension 0.9.1 links the program's GitHub page from its settings
+  page (`bridge/program.SOURCE`); its upload is the store job's first. The store page's "Homepage URL" does not show
+  on the public page, so the listing's description ends with the repo's address and its support address is the
+  repo's issues (`extension/store/listing.md`).
 
 The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's
 web interface).
