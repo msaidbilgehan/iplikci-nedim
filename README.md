@@ -59,17 +59,18 @@ Aradığınızı virgülle ayırarak yazın: iki şeyi birden bulur ve her birin
 
 ## Yaklaşan ödemeleri önceden görürsünüz
 
-<table>
-  <tr>
-    <td width="50%"><img src="docs/gorseller/takvim.png" alt="Takvim: önümüzdeki 60 günde beklenen ödemeler ve gelirler"></td>
-    <td width="50%"><img src="docs/gorseller/duzenli-odemeler.png" alt="Düzenli ödemeler: her ay ödenenler, son ve sıradaki ödemeleriyle"></td>
-  </tr>
-  <tr>
-    <td>Takvim önümüzdeki 60 günü gösterir: kart son ödemeleri asgari tutarlarıyla, düzenli ödemeler ve gelirler.
-    Hesabınız eksiye düşecekse o günü önceden söyler.</td>
-    <td>Düzenli ödemeler abonelikleri ve faturaları kendisi bulur; tutarı değişeni ve artık ödenmeyeni ayırır.</td>
-  </tr>
-</table>
+<p align="center">
+  <img src="docs/gorseller/takvim.png" width="760" alt="Takvim: önümüzdeki 60 günde beklenen ödemeler ve gelirler">
+</p>
+
+Takvim önümüzdeki 60 günü gösterir: kart son ödemeleri asgari tutarlarıyla, düzenli ödemeler ve gelirler. Hesabınız
+eksiye düşecekse o günü önceden söyler.
+
+<p align="center">
+  <img src="docs/gorseller/duzenli-odemeler.png" width="760" alt="Düzenli ödemeler: her ay ödenenler, son ve sıradaki ödemeleriyle">
+</p>
+
+Düzenli ödemeler abonelikleri ve faturaları kendisi bulur; tutarı değişeni ve artık ödenmeyeni ayırır.
 
 ## Paranızın değerlendirmesi
 
@@ -135,9 +136,9 @@ yoksa [bize yazın](https://github.com/msaidbilgehan/iplikci-nedim/issues).
 
 1. **İndirin:** [İplikçi Nedim'i indirin](https://github.com/msaidbilgehan/iplikci-nedim/releases/latest/download/iplikci-nedim-macos-aarch64.dmg),
    dosyayı açın ve İplikçi Nedim'i yanındaki "Applications" klasörüne sürükleyin.
-2. **Açın:** Uygulamalar klasöründen açın. İlk açılışta macOS "“İplikçi Nedim” Açılmadı" der, çünkü uygulama
-   Apple'ın ücretli onayından geçmedi. "Bitti"ye basın; sonra Sistem Ayarları → Gizlilik ve Güvenlik'te "Yine de
-   Aç"a basıp parolanızı girin.
+2. **Açın:** Uygulamalar klasöründen açın. İlk açılışta macOS **“İplikçi Nedim” Açılmadı** uyarısını gösterir,
+   çünkü uygulama Apple'ın ücretli onayından geçmedi. "Bitti"ye basın; sonra Sistem Ayarları → Gizlilik ve
+   Güvenlik'te "Yine de Aç"a basıp parolanızı girin.
 3. **Sihirbazı izleyin:** Tarayıcınızda kurulum sihirbazı açılır. Adınızı (kendi hesaplarınız arasındaki
    havaleleri tanısın diye), e-postanın nasıl geleceğini, bankalarınızı ve bildirimleri sorar; Gmail için tarayıcı
    eklentisinin nasıl ekleneceğini de adım adım gösterir.
