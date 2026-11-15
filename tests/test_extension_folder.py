@@ -4,6 +4,7 @@ the program. No test opens a window: the file manager is a stand-in."""
 
 import json
 import os
+import re
 from pathlib import Path
 
 import pytest
@@ -49,7 +50,9 @@ def test_the_folder_is_made_only_when_asked_and_holds_the_carried_extension(ws, 
     found = extension.show(ws)
     assert (found.folder, found.version, found.opened, shown) == (ws.layout.extension, "0.4.0", True, [found.folder])
     assert (found.folder / "icons" / "128.png").read_bytes() == b"\x89PNG sahte"
-    assert extension.state(ws) == extension.ExtensionState(True, "0.4.0", ws.layout.extension, True, "")
+    assert extension.state(ws) == extension.ExtensionState(
+        True, "0.4.0", ws.layout.extension, True, extension.STORE_URL
+    )
 
 
 def test_only_the_user_can_read_the_copy(ws, carried, shown):
@@ -88,7 +91,7 @@ def test_a_copy_kept_busy_is_tried_again_at_the_next_start(ws, carried, monkeypa
 
 
 def test_a_program_without_the_extension_says_so(ws):
-    assert extension.state(ws) == extension.ExtensionState(False, "", None, False, "")
+    assert extension.state(ws) == extension.ExtensionState(False, "", None, False, extension.STORE_URL)
     with pytest.raises(extension.ExtensionError, match="eklentisini taşımıyor"):
         extension.prepare(ws)
 
@@ -135,7 +138,13 @@ def client(ws) -> TestClient:
 def test_the_page_makes_the_folder_and_learns_where_it_is(client, ws, carried, shown):
     bearer = {"Authorization": f"Bearer {TOKEN}"}
     before = client.get("/api/extension", headers=bearer).json()
-    assert before == {"available": True, "version": "0.4.0", "folder": "", "current": False, "store": ""}
+    assert before == {
+        "available": True,
+        "version": "0.4.0",
+        "folder": "",
+        "current": False,
+        "store": extension.STORE_URL,
+    }
     assert client.post("/api/extension/folder", headers=bearer).status_code == 403  # the token reads, never opens
     made = client.post("/api/extension/folder", headers=OWN_PAGE)
     assert made.json() == {"folder": str(ws.layout.extension), "version": "0.4.0", "opened": True}
@@ -187,6 +196,14 @@ def test_the_store_page_is_shown_once_the_extension_is_published_there(client, c
     page = "https://chromewebstore.google.com/detail/iplikci-nedim-koprusu/abcdefghijklmnopabcdefghijklmnop"
     monkeypatch.setattr(extension, "STORE_URL", page)
     assert client.get("/api/extension", headers=bearer).json()["store"] == page
+
+
+def test_the_store_address_is_the_published_items_page():
+    # The interface leads there first: a typo would send every new user to the store's "not found" page.
+    assert re.fullmatch(r"https://chromewebstore\.google\.com/detail/[a-p]{32}", extension.STORE_URL)
+    item = extension.STORE_URL.rsplit("/", 1)[1]
+    store_notes = Path(__file__).resolve().parents[1] / "extension" / "store" / "README.md"
+    assert item in store_notes.read_text(encoding="utf-8")
 
 
 def test_the_cursor_tells_the_extension_the_version_the_program_carries(carried, tmp_path):

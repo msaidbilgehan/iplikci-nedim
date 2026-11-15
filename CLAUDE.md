@@ -7,11 +7,11 @@ the user's own computer. It is a hobby project for the user's own needs, yet it 
 or not; it is not an enterprise product.
 
 Status (2026-11-15): Phases 0–8 of `docs/v1/roadmap.md` are done (v0.1.0 … v0.11.1) and 1.0.0, the first public
-release, is out (macOS only, K31). Between Phases 6 and 7 came the interface's simplification (v0.7.1), the Pano's
-story in pictures (v0.7.2), updates that reach an open tab (v0.7.3), documents known by their content (v0.7.4), the
-Belge ekle screen (v0.7.5) and notifications checked against the documents (v0.7.6). The time-bound conditions of
-roadmap "Sürüm 1.0" are checked once their time has passed (it says what the waiting must show); the Windows and Linux
-checks come later (K25).
+release, is out (macOS only, K31); 1.0.1 leads to the extension's Chrome Web Store page. Between Phases 6 and 7
+came the interface's simplification (v0.7.1), the Pano's story in pictures (v0.7.2), updates that reach an open tab
+(v0.7.3), documents known by their content (v0.7.4), the Belge ekle screen (v0.7.5) and notifications checked against
+the documents (v0.7.6). The time-bound conditions of roadmap "Sürüm 1.0" are checked once their time has passed (it
+says what the waiting must show); the Windows and Linux checks come later (K25).
 - Phase 0 brought the MVP's code in as the `iplikci` package, cleaned of personal traces, with the shipped default
   rules, the verification baseline and the demo workspace.
 - Phase 1 (data core) moved everything into the data dir: `settings.toml`, the content-addressed vault, SQLite with the
@@ -29,8 +29,9 @@ checks come later (K25).
 - Phase 3 closed with two open conditions (K19): the service's 7-day run (earliest 2026-11-08) and the Windows check.
   macOS comes first; keep the code cross-platform. The Windows and Linux checks wait (K25, 2026-11-03): don't block on
   them; whether 1.0 waits for them is asked once its other conditions hold. K29 (2026-11-11) replaced K20: the user
-  publishes the extension on the Chrome Web Store with their own developer account (`extension/store/`); until its
-  page is in `app/extension.STORE_URL` the extension is loaded unpacked.
+  publishes the extension on the Chrome Web Store with their own developer account (`extension/store/`). It is there
+  since 2026-11-15 (`app/extension.STORE_URL`, v1.0.1); loading it unpacked stays for browsers the store does not
+  serve.
 - Phase 4 (the whole mailbox) reads the message bodies.
   - The bank notices are evidence like receipts: VakıfBank's, Garanti's and QNB's transfer notices and İş Bankası's
     card debt collection. A movement a notice and a receipt both tell counts once.
@@ -56,8 +57,8 @@ checks come later (K25).
   and what differs on purpose).
   - The installers (ADR-0017, unsigned per K22) carry a portable CPython with the program installed into it, the
     built interface and the browser extension; the app registers the service for its own copy and a first run opens
-    the setup wizard. The extension is installed from the data dir's `extension/` folder the service keeps (K20)
-    until it is in the Chrome Web Store (K29).
+    the setup wizard. The extension came from the data dir's `extension/` folder the service keeps (K20) until it
+    was in the Chrome Web Store (K29, v1.0.1); that folder remains the way to load it unpacked.
   - Restarting, restoring and removing the service from Ayarlar work only for the service registered for this data
     folder; a service run by hand refuses them.
   - The e2e tests run every screen in both themes with axe and at phone width; `e2e/tests/firstRun.spec.ts` starts its
@@ -381,6 +382,12 @@ checks come later (K25).
     While an older version is under review nothing is uploaded and the job fails (`packaging/chrome_store.waiting`):
     re-run it after the review. The user's Claude Code skill `chrome-web-store` (`cws.py`, the key in the keychain)
     does the same from this Mac for any extension.
+- v1.0.1 (2026-11-15): the extension passed the store's review the day it was sent and is public
+  (<https://chromewebstore.google.com/detail/biegljgcnlkdokmfpdejecddgaekplof>). `app/extension.STORE_URL` holds it,
+  so Tarayıcı eklentisi and the wizard's e-mail step (`components/extension/InstallCard`) lead to the store first,
+  with the unpacked folder's steps folded below. A user with the unpacked copy installs the store's, pairs it with a new
+  code and removes the old one (both would bring the same messages). The README speaks to people who don't code and
+  gives the store's link and the extension's manual install; the developers' guide is `docs/gelistirme.md`.
 
 The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's
 web interface).

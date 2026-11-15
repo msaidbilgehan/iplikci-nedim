@@ -43,12 +43,13 @@ paketi GitHub sürümüne de koyar. Simgeler ürünün logosundan `packaging/ico
 6. Yeni geliştiricilerin eklentileri ilk aylarda Gelişmiş Güvenli Tarama'da "dikkatli olun" uyarısı alabilir
    (ADR-0016).
 7. İnceleme geçince eklentinin mağaza adresi `src/iplikci/app/extension.py`'deki `STORE_URL`'e yazılır: arayüz önce
-   mağazayı gösterir. Eklentiyi önce paketlenmemiş yüklemiş olanlar onu kaldırır; ikisi birden aynı iletileri getirir.
+   mağazayı gösterir (v1.0.1). Eklentiyi önce paketlenmemiş yüklemiş olanlar onu kaldırır; ikisi birden aynı iletileri getirir.
 
 ## Gönderilen (2026-11-15)
 
-0.9.0 geliştirici panosundan gönderildi; durumu "Pending review", geçince kendiliğinden herkese açık yayımlanır. Öğe
-kimliği `biegljgcnlkdokmfpdejecddgaekplof`. Panoya girilenler:
+0.9.0 geliştirici panosundan gönderildi ve aynı gün incelemeden geçip herkese açık yayımlandı (API: `PUBLISHED`).
+Öğe kimliği `biegljgcnlkdokmfpdejecddgaekplof`, sayfası
+<https://chromewebstore.google.com/detail/biegljgcnlkdokmfpdejecddgaekplof>. Panoya girilenler:
 
 - **Paket:** 1.0.0 sürümünün GitHub sayfasındaki `iplikci-kopru-0.9.0.zip`.
 - **Mağaza sayfası:** [mağaza metnindeki](listing.md) uzun açıklama; kategori Verimlilik › Araçlar (Tools); dil

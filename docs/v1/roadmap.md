@@ -151,7 +151,8 @@ iki koşulu açık bırakarak kapattı ([K19](requirements.md#kararlar)).
   - eklentinin Windows'ta denenmesi: önce macOS (K19);
   - yeni bir banka iletisinin akışa düşme süresi, ilk yeni iletide ölçülecek. Eklenti gelen kutusuna dakikada bir bakar.
 - Eklenti şimdilik Chrome Web Store'da yayımlanmıyor, paketlenmemiş yükleniyor ([K20](requirements.md#kararlar)).
-  Mağaza metinleri `extension/store/`'da hazır.
+  Mağaza metinleri `extension/store/`'da hazır. (2026-11-15: eklenti mağazada yayımlandı, [K29](requirements.md#kararlar);
+  v1.0.1 önce mağazayı gösterir.)
 
 **Teslimler**
 

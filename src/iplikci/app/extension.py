@@ -1,11 +1,10 @@
-"""The browser extension's files for the browser to load (ADR-0016, K20). Until the extension is in a store, the
-browser loads it unpacked, from a folder that must stay where it is. The program carries the built extension; when
-the user asks, the service copies it into the data folder's extension/ and shows that folder in the system's file
-manager. The copy keeps up with the program: a newer program rewrites it at the service's next start, and the
-extension, told the version the program carries, loads itself again (ADR-0022).
-
-Once the user has published the extension on the Chrome Web Store (K29), STORE_URL holds its page and the interface
-shows it first; the store then updates the extension."""
+"""The browser extension's files for the browser to load (ADR-0016, K20). The extension is on the Chrome Web Store
+since 2026-11-15 (K29): STORE_URL holds its page, the interface shows it first, and the store updates what it
+installed. A browser can still load it unpacked, from a folder that must stay where it is (a browser the store does not
+serve, or a user who prefers it). The program carries the built extension; when the user asks, the service copies it
+into the data folder's extension/ and shows that folder in the system's file manager. The copy keeps up with the
+program: a newer program rewrites it at the service's next start, and the extension, told the version the program
+carries, loads itself again (ADR-0022)."""
 
 import hashlib
 import json
@@ -21,8 +20,9 @@ from .workspace import Workspace
 
 BUILT = Path(__file__).resolve().parent.parent / "browser_extension"  # written by `npm run build` in extension/
 MANIFEST = "manifest.json"
-# The extension's page on the Chrome Web Store, set once the user has published it there (K29); "" until then.
-STORE_URL = ""
+# The extension's page on the Chrome Web Store (K29), published 2026-11-15; the store leads the short address to the
+# page with the extension's name. The item's id is extension/store/README.md's.
+STORE_URL = "https://chromewebstore.google.com/detail/biegljgcnlkdokmfpdejecddgaekplof"
 
 log = logging.getLogger("iplikci.extension")
 

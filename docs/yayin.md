@@ -129,11 +129,11 @@ Eklenti mağazada herkese açık listelenir: programın kapısıdır, programı 
    `cd extension && npm run package`) geliştirici panosundan yüklenir; mağaza sayfası doldurulur; görünürlük: herkese
    açık.
 5. İnceleme geçince eklentinin mağaza adresi `src/iplikci/app/extension.py`'deki `STORE_URL`'e yazılır ve bir sürüm
-   çıkar: arayüz önce mağazayı gösterir.
+   çıkar: arayüz önce mağazayı gösterir (v1.0.1).
 
-0.9.0 2026-11-15'te gönderildi ve incelemeyi bekliyor; geçince kendiliğinden yayımlanır. Mağazadaki kimliği
-`biegljgcnlkdokmfpdejecddgaekplof`, adresi <https://chromewebstore.google.com/detail/biegljgcnlkdokmfpdejecddgaekplof>
-(inceleme geçene dek açılmaz). Gönderilenler [mağaza notlarında](../extension/store/README.md#gönderilen-2026-11-15).
+0.9.0 2026-11-15'te gönderildi, aynı gün incelemeden geçti ve herkese açık yayımlandı. Mağazadaki kimliği
+`biegljgcnlkdokmfpdejecddgaekplof`, adresi <https://chromewebstore.google.com/detail/biegljgcnlkdokmfpdejecddgaekplof>;
+v1.0.1'den beri `STORE_URL` odur. Gönderilenler [mağaza notlarında](../extension/store/README.md#gönderilen-2026-11-15).
 
 **Sonraki sürümleri iş akışı yükler** (2026-11-15'ten beri kurulu):
 

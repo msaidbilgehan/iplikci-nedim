@@ -83,7 +83,7 @@ G1, G10, G13 · Çekirdek
     - Program güncellenince servis klasördeki eklentiyi yeniler; paketlenmemiş eklenti, servisin taşıdığı sürüm
       kendininkinden yeniyse kendini bir kez yeniden yükler (test edilir, [F21](#f21--güncellemeler)).
     - Kullanıcı eklentiyi mağazada yayımlayınca ([K29](requirements.md#kararlar)) ekran önce mağaza sayfasını gösterir;
-      klasörden yükleme adımları altında katlanır.
+      klasörden yükleme adımları altında katlanır. Eklenti 2026-11-15'te yayımlandı; v1.0.1'den beri böyledir.
   - `imap`: adres ve uygulama şifresi girilir; şifre anahtar zincirine yazılır.
   - Bağlantı denenir ve sonucu gösterilir. Giriş reddedilirse yeniden denemeden durur.
   - Uygulama hesabın kendi şifresini hiçbir zaman istemez.
