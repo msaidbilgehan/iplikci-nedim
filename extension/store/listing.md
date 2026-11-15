@@ -35,6 +35,13 @@ sayfası kendiliğinden açılır, bilgisayarınızın sistemi için İplikçi N
 gösterir (macOS, Windows ve Linux). İndirme, İplikçi Nedim'in GitHub'daki sürüm sayfasından, tarayıcınızın yeni bir
 sekmesinde olur. Program açılınca eklenti eşleştirmeye geçer.
 
+İplikçi Nedim ücretsiz ve açık kaynaklıdır. Programın kendisi, kurulum adımları, kaynak kodu ve sorularınız için:
+https://github.com/msaidbilgehan/iplikci-nedim
+
+Mağaza sayfasının "Ana sayfa" alanı herkese açık sayfada görünmüyor (2026-11-15'te denendi): kod deposunun adresi bu
+yüzden açıklamanın sonundadır. Destek adresi deponun soru ve sorun sayfasıdır:
+<https://github.com/msaidbilgehan/iplikci-nedim/issues>.
+
 ## Tek amaç
 
 Gmail'deki banka iletilerini, kullanıcının kendi bilgisayarında çalışan İplikçi Nedim uygulamasına taşımak.

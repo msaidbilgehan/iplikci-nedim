@@ -62,6 +62,9 @@ paketi GitHub sürümüne de koyar. Simgeler ürünün logosundan `packaging/ico
   (banka iletileri finansal bilgi taşır), üç taahhüt ve gizlilik politikasının adresi.
 - **Dağıtım:** ücretsiz, herkese açık, bütün bölgeler. **Test instructions:** [mağaza metnindeki](listing.md) inceleme
   notu.
+- **Sonra (aynı gün, 0.9.1 ile incelemeye):** açıklamanın sonuna kod deposunun adresi eklendi, destek adresi deponun
+  soru ve sorun sayfası oldu. "Homepage URL" herkese açık sayfada görünmüyordu. Pano değişikliği taslak olarak
+  kaydedildi; iş akışının 0.9.1'i gönderişi onu da incelemeye götürür.
 
 Ekran görüntüleri gerçek servise dokunmadan alındı: `extension/dist`'in bir kopyasında `127.0.0.1:8643` başka bir
 porta çevrildi (sayfalar adresi göstermez), demo veri klasörü o portta `servis calistir --ev` ile çalıştı ve kopya ayrı
