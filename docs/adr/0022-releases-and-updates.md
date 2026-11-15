@@ -142,3 +142,14 @@ sanılması (K18) ayrı depoya yol açmıştı. `update/source.REPO` kod deposud
 veri klasöründeki değerlerle, genel kişisel veri kalıplarıyla ve gitleaks'le yeniden tarandı; kişisel veri çıkmadı.
 v0.10.0–v0.11.0 güncellemeyi zaten kod deposunda arar. v0.11.1'i kuran tek Mac'in uygulaması 1.0.0'ı bir kez de
 `iplikci-nedim-surumler`'den alır; kendini güncellemesi böylece gerçek bir Mac'te denenir. Sonra o depo kaldırılır.
+
+## Not (2026-11-15, mağazaya yükleme)
+
+Eklentinin yeni sürümlerini iş akışı yükler. Google Cloud'da yalnızca bunun için açılan bir projede rolü olmayan bir
+servis hesabı vardır; yetkisini geliştirici panosunun Settings → Service account bölümü verir (yayıncı başına bir
+servis hesabı). Anahtarı eklentinin kullanıcılarına bir sürüm gönderebilir. Bu yüzden anahtar ve yayıncı kimliği
+deponun değil, yalnızca `v*` etiketlerinin girebildiği `chrome-web-store` ortamının sırlarıdır. Herkese açık deponun
+günlüklerinde yayıncı kimliği de görünmez. Eklentinin mağaza kimliği (`CWS_ITEM_ID`) herkese açıktır ve depo
+değişkenidir: işin koşulu onu ortamdan önce okur. Eski bir sürüm incelemedeyken yeni sürüm yüklenmez. İş bunu söyleyip
+başarısız olur; inceleme bitince iş yeniden çalıştırılır. İncelemedeki sürümü geri çekmek incelemeyi baştan başlatır,
+iş akışı bunu hiç yapmaz.

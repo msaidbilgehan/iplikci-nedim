@@ -374,6 +374,13 @@ checks come later (K25).
     com.apple.e5rt.e5bundlecache`); a bad one drops long lines from OCR'd pages (bank-formats.md, TEB). On
     2026-11-15 the one for `python` (the uv venv) had gone bad and a TEB statement stopped verifying from the dev
     checkout only; moved to the Trash, it was rebuilt.
+  - Since 2026-11-15 the release workflow uploads a newer extension to the store and sends it for review itself.
+    A service account without roles (Google Cloud project `chrome-web-store-yayin`) holds the right, which the
+    dashboard's Settings → Service account gives it. Its key and the publisher's id are secrets of the
+    `chrome-web-store` environment, which only `v*` tags reach; the item's id is the variable `CWS_ITEM_ID`.
+    While an older version is under review nothing is uploaded and the job fails (`packaging/chrome_store.waiting`):
+    re-run it after the review. The user's Claude Code skill `chrome-web-store` (`cws.py`, the key in the keychain)
+    does the same from this Mac for any extension.
 
 The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's
 web interface).

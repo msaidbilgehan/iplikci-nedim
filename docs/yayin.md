@@ -21,7 +21,8 @@ terminal kullanmaz.
      doğrular. Ardından `gh release create` sürümü dosyalarıyla açar; notu CHANGELOG'un bölümüdür. Son olarak her
      kararlı adres hesapsız indirilmeyi dener; olmazsa iş uyarı yazar.
    - **magaza:** `CWS_ITEM_ID` tanımlıysa `packaging/chrome_store.py` eklentiyi mağazaya yükler ve incelemeye
-     gönderir; sürümü mağazadakinden yeni değilse yüklemez.
+     gönderir; sürümü mağazadakinden yeni değilse yüklemez. Daha eski bir sürüm incelemedeyse hiçbir şey yüklemez ve iş
+     başarısız olur: inceleme bitince bu iş yeniden çalıştırılır (Actions → çalışma → "Re-run failed jobs").
 4. Kurulu kopyalar ertesi sabah (05.00'ten sonraki ilk fırsatta) yeni sürümü bulur. Ayarları "Kendiliğinden kur" ise
    önce yedek alır, sonra kurar.
 
@@ -37,9 +38,12 @@ Deponun Settings → Secrets and variables → Actions sayfasında:
 | `UPDATE_SIGNING_KEY` | sır | Bildirgeyi imzalayan Ed25519 gizli anahtarı (PEM, PKCS8) | Evet; yoksa sürüm yayımlanmaz |
 | `RELEASE_REPO` | değişken | Sürümün konacağı depo, `sahip/depo` | Hayır; yoksa bu depo |
 | `RELEASE_TOKEN` | sır | `RELEASE_REPO` başka bir depoysa, o depoda yalnızca "Contents: write" izni olan ince ayarlı belirteç | Yalnızca başka depoda |
-| `CWS_PUBLISHER_ID` | değişken | Chrome Web Store geliştirici panosundaki yayıncı kimliği | Mağaza için |
 | `CWS_ITEM_ID` | değişken | Eklentinin mağazadaki 32 harflik kimliği | Mağaza için; yoksa adım atlanır |
-| `CWS_SERVICE_ACCOUNT_KEY` | sır | Mağazaya yükleyen servis hesabının JSON anahtarı | Mağaza için |
+| `CWS_PUBLISHER_ID` | sır, `chrome-web-store` ortamında | Chrome Web Store geliştirici panosundaki yayıncı kimliği | Mağaza için |
+| `CWS_SERVICE_ACCOUNT_KEY` | sır, `chrome-web-store` ortamında | Mağazaya yükleyen servis hesabının JSON anahtarı | Mağaza için |
+
+`chrome-web-store` ortamına yalnızca `v*` etiketleri girer (Settings → Environments). Mağaza işi o ortamda çalışır;
+başka bir iş ya da dal bu iki sırrı okuyamaz.
 
 ## İmza anahtarı
 
@@ -131,13 +135,23 @@ Eklenti mağazada herkese açık listelenir: programın kapısıdır, programı 
 `biegljgcnlkdokmfpdejecddgaekplof`, adresi <https://chromewebstore.google.com/detail/biegljgcnlkdokmfpdejecddgaekplof>
 (inceleme geçene dek açılmaz). Gönderilenler [mağaza notlarında](../extension/store/README.md#gönderilen-2026-11-15).
 
-**Sonraki sürümleri iş akışı yükler** (isteğe bağlı):
+**Sonraki sürümleri iş akışı yükler** (2026-11-15'ten beri kurulu):
 
-1. Google Cloud'da bir proje açılır, "Chrome Web Store API" etkinleştirilir.
-2. Bir servis hesabı oluşturulur (rol gerekmez) ve JSON anahtarı indirilir.
-3. Geliştirici panosunun Account sayfasına servis hesabının e-posta adresi eklenir (yayıncı başına bir servis hesabı).
-4. Depoya `CWS_PUBLISHER_ID` ve `CWS_ITEM_ID` değişkenleri ve `CWS_SERVICE_ACCOUNT_KEY` sırrı eklenir.
+1. Google Cloud'da yalnızca bunun için açılan `chrome-web-store-yayin` projesinde "Chrome Web Store API" etkindir.
+2. Projede rolü olmayan bir servis hesabı (`cws-yayinci`) vardır. JSON anahtarı yalnızca deponun `chrome-web-store`
+   ortamında ve sahibinin macOS anahtar zincirinde durur (hizmet `chrome-web-store`, hesap yayıncı kimliği). Depoya,
+   bir dosyaya ya da günlüğe yazılmaz.
+3. Servis hesabının e-posta adresi geliştirici panosunun Settings sayfasında, "Service account" bölümündedir
+   (yayıncı başına bir servis hesabı). Yetkisi oradan gelir; panodan silinirse iş akışı yükleyemez.
+4. Depoda `CWS_ITEM_ID` değişkeni, `chrome-web-store` ortamında `CWS_PUBLISHER_ID` ve `CWS_SERVICE_ACCOUNT_KEY`
+   sırları vardır (yukarıda, "Sırlar ve değişkenler").
 5. Deneme: `CWS_…` ortam değişkenleriyle `uv run python packaging/chrome_store.py <zip> --deneme` neyi yükleyeceğini
-   söyler, hiçbir şey göndermez.
+   söyler, hiçbir şey göndermez. 2026-11-15'te gerçek mağazaya karşı "0.9.0 mağazadakinden (0.9.0) yeni değil" dedi.
+
+Geliştiricinin bilgisayarında aynı işleri Claude Code'un `chrome-web-store` becerisi yapar. Becerinin `cws.py`
+betiği anahtarı anahtar zincirinden okur ve bütün eklentiler için çalışır. Mağazadaki durum (`status`), yükleme ve
+incelemeye gönderme (`upload --submit`), ilk yayın ve mağaza sayfası gibi yalnızca panoda yapılanlar onunla yapılır.
+Anahtar yenilenirken önce Google Cloud'da yeni anahtar oluşturulur; `cws.py setup-key` ve `cws.py github` onu anahtar
+zincirine ve ortamın sırlarına yazar. Eski anahtar en son Google Cloud'dan silinir.
 
 Panoda görünürlük elle değiştirilirse API ile yayın, yeni görünürlükle bir kez elle yayımlanana dek çalışmaz.

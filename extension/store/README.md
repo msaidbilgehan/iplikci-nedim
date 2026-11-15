@@ -70,6 +70,7 @@ eşleşmeyi iptal edilmiş sayıp teslimi durdururdu.
 ## Sonraki sürümler
 
 Sürüm iş akışı eklentinin yeni sürümünü mağazaya kendisi yükleyip incelemeye gönderir; sürüm mağazadakinden yeni
-değilse yüklemez. Bunun için Google Cloud'da bir servis hesabı ve deponun `CWS_PUBLISHER_ID`, `CWS_ITEM_ID`
-değişkenleri ile `CWS_SERVICE_ACCOUNT_KEY` sırrı gerekir; adımlar [sürüm yayını](../../docs/yayin.md#chrome-web-store)
-belgesindedir. Bunlar yoksa adım atlanır ve paket panodan elle yüklenir.
+değilse yüklemez. Daha eski bir sürüm incelemedeyse beklenir: iş başarısız olur, inceleme bitince yeniden
+çalıştırılır. Servis hesabı 2026-11-15'te kuruldu. Anahtarı ve yayıncı kimliği deponun `chrome-web-store` ortamının
+sırlarıdır, eklentinin kimliği `CWS_ITEM_ID` değişkenidir ([sürüm yayını](../../docs/yayin.md#chrome-web-store)).
+Mağaza sayfası, görseller ve gizlilik beyanı API'yle değişmez; onlar panodan değiştirilir.
