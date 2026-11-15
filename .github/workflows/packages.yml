@@ -8,9 +8,9 @@
 # (iplikci-nedim-macos-aarch64.dmg …), so releases/latest/download/<name> is always the latest one: the browser
 # extension leads a person without the program there (ADR-0024). vars.RELEASE_REPO names another repository to publish
 # in, with the RELEASE_TOKEN secret: the installed copies and that download need no account, so the releases must be
-# public. The extension then goes to the Chrome Web Store once its item is set up there (vars.CWS_PUBLISHER_ID and
-# vars.CWS_ITEM_ID, secret CWS_SERVICE_ACCOUNT_KEY). Run by hand, the workflow only builds, and keeps the files for two
-# weeks.
+# public. The extension then goes to the Chrome Web Store once its item is set up there (vars.CWS_ITEM_ID, and the
+# secrets CWS_PUBLISHER_ID and CWS_SERVICE_ACCOUNT_KEY of the chrome-web-store environment, which only v* tags reach).
+# Run by hand, the workflow only builds, and keeps the files for two weeks.
 name: Paketler
 
 on:
@@ -162,6 +162,10 @@ jobs:
     needs: [surum]
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # The service account's key can publish the extension to its users: it and the publisher's id are secrets of this
+    # environment alone, whose deployment rule lets only v* tags in. While an older version is under review the step
+    # fails and uploads nothing; re-run this job once the review is over.
+    environment: chrome-web-store
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
@@ -171,7 +175,7 @@ jobs:
           path: dist/eklenti
       - name: Chrome Web Store
         env:
-          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+          CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
           CWS_ITEM_ID: ${{ vars.CWS_ITEM_ID }}
           CWS_SERVICE_ACCOUNT_KEY: ${{ secrets.CWS_SERVICE_ACCOUNT_KEY }}
         run: uv run --locked python packaging/chrome_store.py dist/eklenti/iplikci-kopru-*.zip

@@ -237,8 +237,14 @@ def test_the_service_account_signs_its_claim_for_the_store_alone():
 class FakeGoogle:
     """Google's token server and the store's API, by address; every request kept."""
 
-    def __init__(self, published: str = "0.7.0", upload_states: tuple[str, ...] = ("SUCCEEDED",)) -> None:
+    def __init__(
+        self,
+        published: str = "0.7.0",
+        upload_states: tuple[str, ...] = ("SUCCEEDED",),
+        submitted: tuple[str, str] | None = None,
+    ) -> None:
         self.published = published
+        self.submitted = submitted
         self.states = list(upload_states)
         self.uploaded = False
         self.asked: list[tuple[str, str]] = []
@@ -250,7 +256,18 @@ class FakeGoogle:
             return 200, json.dumps({"access_token": "belirtec", "expires_in": 3600}).encode()
         assert request.get_header("Authorization") == "Bearer belirtec"
         if url.endswith(":fetchStatus"):
-            status = {"publishedItemRevisionStatus": {"distributionChannels": [{"crxVersion": self.published}]}}
+            status: dict = {}
+            if self.published:
+                status["publishedItemRevisionStatus"] = {
+                    "state": "PUBLISHED",
+                    "distributionChannels": [{"crxVersion": self.published}],
+                }
+            if self.submitted:
+                version, state = self.submitted
+                status["submittedItemRevisionStatus"] = {
+                    "state": state,
+                    "distributionChannels": [{"crxVersion": version}],
+                }
             if self.uploaded:
                 status["lastAsyncUploadState"] = self.states.pop(0)
             return 200, json.dumps(status).encode()
@@ -314,7 +331,25 @@ def test_the_stores_settings_must_all_be_there():
 def test_the_stores_versions_are_the_published_and_the_one_under_review():
     status = {
         "publishedItemRevisionStatus": {"distributionChannels": [{"crxVersion": "0.7.0", "deployPercentage": 100}]},
-        "submittedItemRevisionStatus": {"distributionChannels": [{"crxVersion": "0.8.0"}]},
+        "submittedItemRevisionStatus": {"state": "PENDING_REVIEW", "distributionChannels": [{"crxVersion": "0.8.0"}]},
     }
     assert STORE.store_versions(status) == ["0.7.0", "0.8.0"]
     assert STORE.store_versions({}) == []
+
+
+def test_a_rejected_submission_no_longer_counts():
+    status = {"submittedItemRevisionStatus": {"state": "REJECTED", "distributionChannels": [{"crxVersion": "0.9.0"}]}}
+    assert STORE.store_versions(status) == []
+    assert STORE.waiting(status) == ""
+
+
+def test_a_newer_version_waits_while_an_older_one_is_under_review(tmp_path):
+    google = FakeGoogle(published="0.7.0", submitted=("0.8.0", "PENDING_REVIEW"))
+    with pytest.raises(STORE.StoreError, match=r"0\.8\.0 \(PENDING_REVIEW\) bekliyor; 0\.9\.0 yüklenmedi"):
+        STORE.release(store(google), package(tmp_path, "0.9.0"))
+    assert not any(url.endswith((":upload", ":publish")) for _, url in google.asked)
+
+
+def test_the_version_under_review_itself_is_not_uploaded_again(tmp_path):
+    google = FakeGoogle(published="", submitted=("0.9.0", "PENDING_REVIEW"))
+    assert "yeni değil" in STORE.release(store(google), package(tmp_path, "0.9.0"))

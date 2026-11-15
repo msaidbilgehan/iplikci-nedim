@@ -7,11 +7,14 @@ The store's item exists already: its first version is uploaded by hand from the 
 its privacy policy and its visibility (public, ADR-0024). The command reads its settings from the environment:
 
 - CWS_PUBLISHER_ID and CWS_ITEM_ID: the publisher's and the item's ids (the dashboard's Settings and Package pages);
-- CWS_SERVICE_ACCOUNT_KEY: the JSON key of the service account the dashboard's Account page names.
+- CWS_SERVICE_ACCOUNT_KEY: the JSON key of the service account the dashboard's Settings page names under "Service
+  account".
 
-It asks the store which version the item has published and has under review, and uploads only a newer one; the
-upload is then sent for review, and the store publishes it once it passes (DEFAULT_PUBLISH). With --deneme it says
-what it would do and sends nothing.
+It asks the store which version the item has published and has under way, and uploads only a newer one; the upload
+is then sent for review, and the store publishes it once it passes (DEFAULT_PUBLISH). While an older version waits
+for its review (or, staged, to be published) nothing is uploaded and the command fails, so the workflow's run says
+so: once the review is over, re-running the store's job uploads the new one. With --deneme it says what it would do
+and sends nothing.
 
 This is a development tool for the workflow: it talks to Google's OAuth server and the Chrome Web Store only, never
 from the installed program."""
@@ -43,6 +46,11 @@ API = "https://chromewebstore.googleapis.com"
 UPLOAD = "https://chromewebstore.googleapis.com/upload"
 POLL_SECONDS = 5.0
 POLL_TIMES = 60
+# A submitted revision in these states still counts: a new upload must be newer than it. A rejected or cancelled one
+# no longer does.
+UNDER_WAY = frozenset({"PENDING_REVIEW", "STAGED", "PUBLISHED_TO_TESTERS"})
+# The store takes no new package while a submission waits for its review or, staged, to be published.
+WAITING = frozenset({"PENDING_REVIEW", "STAGED"})
 
 type Send = Callable[[urllib.request.Request], tuple[int, bytes]]
 
@@ -112,17 +120,38 @@ def zip_version(path: Path) -> str:
     return str(cast(dict[str, Any], found)["version"])
 
 
+def _revision(status: Mapping[str, Any], part: str) -> tuple[str, list[str]] | None:
+    """A revision's state and versions from fetchStatus's answer."""
+    revision = status.get(part)
+    if not isinstance(revision, dict):
+        return None
+    found = cast(dict[str, Any], revision)
+    versions = [
+        str(cast(dict[str, Any], channel)["crxVersion"])
+        for channel in found.get("distributionChannels") or []
+        if isinstance(channel, dict) and isinstance(cast(dict[str, Any], channel).get("crxVersion"), str)
+    ]
+    return str(found.get("state", "")), versions
+
+
 def store_versions(status: Mapping[str, Any]) -> list[str]:
-    """The versions the item has published and has sent for review, from fetchStatus's answer."""
+    """The versions a new upload must be newer than: the published one and a submitted one still under way."""
     found: list[str] = []
-    for part in ("publishedItemRevisionStatus", "submittedItemRevisionStatus"):
-        revision = status.get(part)
-        if not isinstance(revision, dict):
-            continue
-        for channel in cast(dict[str, Any], revision).get("distributionChannels") or []:
-            if isinstance(channel, dict) and isinstance(cast(dict[str, Any], channel).get("crxVersion"), str):
-                found.append(str(cast(dict[str, Any], channel)["crxVersion"]))
+    published = _revision(status, "publishedItemRevisionStatus")
+    if published:
+        found += published[1]
+    submitted = _revision(status, "submittedItemRevisionStatus")
+    if submitted and submitted[0] in UNDER_WAY:
+        found += submitted[1]
     return found
+
+
+def waiting(status: Mapping[str, Any]) -> str:
+    """The submitted version still waiting for its review or to be published, with its state; else empty."""
+    submitted = _revision(status, "submittedItemRevisionStatus")
+    if not submitted or submitted[0] not in WAITING:
+        return ""
+    return f"{', '.join(submitted[1]) or '?'} ({submitted[0]})"
 
 
 def send(request: urllib.request.Request) -> tuple[int, bytes]:
@@ -188,9 +217,16 @@ class Store:
 def release(store: Store, package: Path, dry_run: bool = False, sleep: Callable[[float], None] = time.sleep) -> str:
     """Upload the package when its version is newer than what the store has, and send it for review; what was done."""
     version = zip_version(package)
-    known = store_versions(store.status())
+    status = store.status()
+    known = store_versions(status)
     if any(not newer(version, other) for other in known):
         return f"{version} mağazadakinden ({', '.join(known)}) yeni değil; yüklenmedi"
+    held = waiting(status)
+    if held:
+        raise StoreError(
+            f"mağazada {held} bekliyor; {version} yüklenmedi. İnceleme bitince iş akışının mağaza işini yeniden "
+            "çalıştırın"
+        )
     if dry_run:
         return f"{version} yüklenecekti (mağazada: {', '.join(known) or 'yok'})"
     uploaded = store.upload(package.read_bytes())
