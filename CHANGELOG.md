@@ -4,6 +4,20 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [1.0.1] — 2026-11-15 — Tarayıcı eklentisi Chrome Web Store'da
+
+### Değişenler
+
+- Tarayıcı eklentisi, İplikçi Nedim Köprüsü, Chrome Web Store'da herkese açık yayımlandı:
+  <https://chromewebstore.google.com/detail/biegljgcnlkdokmfpdejecddgaekplof>. Tarayıcı eklentisi ekranı ve kurulum
+  sihirbazı artık önce mağazayı gösterir: "Chrome Web Store'da aç" ile eklenti tek tıkla eklenir, geliştirici modu
+  gerekmez ve eklentiyi tarayıcı kendisi günceller. Klasörden yükleme adımları "Mağazayı kullanamıyorsanız: klasörden
+  yükleyin" altında durur.
+- Eklentiyi daha önce klasörden yüklediyseniz mağazadakine geçin: mağazadan ekleyin, Tarayıcı eklentisi ekranında
+  yeni bir eşleştirme kodu alıp mağazadan gelen eklentiye girin, sonra tarayıcının eklentiler sayfasından eskisini
+  kaldırın. İkisi birden kalırsa aynı iletileri iki kez getirir. Eskisinin eşleşmesini "Eşleşmiş eklentiler"
+  listesinden "İptal et" ile kapatabilirsiniz.
+
 ## [1.0.0] — 2026-11-15 — İlk herkese açık sürüm
 
 ### Eklenenler
