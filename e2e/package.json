@@ -6,7 +6,8 @@
   "license": "BSD-3-Clause",
   "type": "module",
   "scripts": {
-    "test": "playwright test"
+    "test": "playwright test",
+    "gorseller": "playwright test -c gorseller.config.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",
