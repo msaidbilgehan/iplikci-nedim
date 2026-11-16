@@ -4,6 +4,15 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [1.0.9] — 2026-11-16 — Bildirim kuralına not
+
+### Eklenenler
+
+- Bir bildirim kuralına kendi notunuzu yazabilirsiniz: kuralın her bildiriminin sonuna eklenir ve bildirim gelince ne
+  yapacağınızı hatırlatır (ör. "EUR bozdurmayı unutmayın"). Kural düzenleyicide "Not" alanı vardır; kural listesi
+  notu gösterir; Claude da kural eklerken not yazabilir. Bir kural şimdiye dek yalnızca olayı söylüyordu: kart son
+  ödemesinden önce döviz bozdurmayı hatırlatmak isteyen kullanıcının bildirimi bunu söylemiyordu.
+
 ## [1.0.8] — 2026-11-16 — Hareketsiz hesap özeti ve faizden kesilen vergi
 
 ### Düzeltilenler

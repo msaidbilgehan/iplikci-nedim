@@ -432,6 +432,10 @@ says what the waiting must show); the Windows and Linux checks come later (K25).
   printed balance. The daily-interest account posts gross interest and the tax withheld from it in a row of its own:
   `movements.classify` makes that tax income too (it nets the interest; the eight readers using it re-read once), and
   the shipped "Faiz Geliri" takes "BRUT FAIZ".
+- v1.0.9 (2026-11-16): the user asked İplikçi Nedim to remind them to convert EUR before the TEB card's due date. A
+  rule could only tell its event, so an alert rule now has a `not` (`AlertRule.note`, one line, 200 at most):
+  `app/notify` adds it under each notification of the rule on every channel; the editor has a "Not" field, the list
+  shows it, the API (`AlertRuleModel.note`) and MCP `alerts` add (`note`) carry it.
 
 The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's
 web interface).

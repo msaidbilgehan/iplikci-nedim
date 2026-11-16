@@ -11,6 +11,11 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 
 ## Değişiklik kaydı
 
+- 2026-11-16 (67) — Bildirim kuralına not (v1.0.9):
+  - [Mimari](v1/architecture.md) §14 ve [özellikler](v1/features.md) F13: kuralın `not`'u, her bildiriminin sonuna
+    eklenen tek satırlık yazıdır. Kullanıcı, kart son ödemesinden önce döviz bozdurmayı İplikçi Nedim'in
+    hatırlatmasını istedi; kurallar yalnızca olayı söyleyebiliyordu.
+
 - 2026-11-16 (66) — Hareketsiz hesap özeti ve faizden kesilen vergi (v1.0.8):
   - [Banka biçimleri](domain/bank-formats.md), İş Bankası: hareketsiz dönemin özeti satır basmaz, yalnızca hazırlandığı
     andaki bakiyeyi yazar; günlük faizli hesap faizi brüt yazar, vergisini ayrı satırla keser. Kullanıcının e-postayla
