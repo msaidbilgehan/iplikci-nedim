@@ -309,10 +309,11 @@ class Series:
 
     def price_change(self) -> tuple[Decimal, Decimal, date] | None:
         """(old price, new price, first payment at the new price) when the latest price has held
-        for at least two payments and differs from the three payments before it. A payee that bills in a foreign
-        currency is compared by what it bills, the amount a card statement prints beside the TL one: its TL amount
-        moves with the rate every month (a plan at 4 USD a month is no price rise as the dollar climbs). The prices
-        given are TL, as the payments were."""
+        for at least two payments and differs from the three payments before it. The old price, too, was paid at least
+        twice: a series' first payment may be a part of a month or an offer, after which the plan's own price is no
+        rise. A payee that bills in a foreign currency is compared by what it bills, the amount a card statement prints
+        beside the TL one: its TL amount moves with the rate every month (a plan at 4 USD a month is no price rise as
+        the dollar climbs). The prices given are TL, as the payments were."""
         billed = _billed_tail(self.payments)
         paid = self.payments[-len(billed) :] if billed else self.payments
         amounts = [abs(t.amount) for t in paid]
@@ -320,7 +321,7 @@ class Series:
         i = len(prices) - 1
         while i > 0 and _change(prices[i - 1], prices[-1]) <= Decimal("0.02"):
             i -= 1
-        if len(prices) - i < 2 or i == 0:
+        if len(prices) - i < 2 or i < 2:
             return None
         if _change(median(prices[max(0, i - 3) : i]), prices[-1]) <= Decimal("0.05"):
             return None
@@ -373,13 +374,32 @@ def _fit(s: Series, t: Transaction, limit: Decimal) -> Decimal | None:
 
 def _chain(payee: str, items: list[Transaction], limit: Decimal) -> list[Series]:
     series: list[Series] = []
-    for t in items:
-        fits = [(score, s) for s in series if (score := _fit(s, t, limit)) is not None]
+    for i, t in enumerate(items):
+        later = items[i + 1 :]
+        fits = [
+            (score, s)
+            for s in series
+            if (score := _fit(s, t, limit)) is not None
+            and not (_repriced(score) and _old_price_goes_on(s, t, later, limit))
+        ]
         if fits:
             min(fits, key=lambda f: f[0])[1].payments.append(t)
         else:
             series.append(Series(payee, [t]))
     return series
+
+
+def _repriced(score: Decimal) -> bool:
+    """Whether a _fit score continues a series only at a new price on its usual day."""
+    return 1 <= score < 2
+
+
+def _old_price_goes_on(s: Series, t: Transaction, later: list[Transaction], limit: Decimal) -> bool:
+    """Whether a later payment within t's cycle continues s at its old price. Then t, which continues s only at a new
+    price, is another charge of the payee (a second plan, a top-up), and s has not changed its price."""
+    return any(
+        (u.date - t.date).days < _GAP[0] and (score := _fit(s, u, limit)) is not None and score < 1 for u in later
+    )
 
 
 def _months(payments: list[Transaction]) -> int:
@@ -405,7 +425,8 @@ def _split(payee: str, items: list[Transaction]) -> list[Series]:
 def _resume(series: list[Series], items: list[Transaction]) -> None:
     """Payments after the payee's newest series that are too few for a series of their own continue
     it when they come back within _RESUME days at a similar amount (a phone bill paid from an account
-    without documents for two months). Otherwise the bill would read as ended while it is still paid."""
+    without documents for two months). Otherwise the bill would read as ended while it is still paid. A payment
+    within the cycle of the series' last one is another charge, not the series coming back."""
     if not series:
         return
     newest = max(series, key=lambda s: s.last.date)
@@ -413,7 +434,7 @@ def _resume(series: list[Series], items: list[Transaction]) -> None:
     for t in items:
         if (
             id(t) not in taken
-            and 0 < (t.date - newest.last.date).days <= _RESUME
+            and _GAP[0] <= (t.date - newest.last.date).days <= _RESUME
             and _change(newest.last.amount, t.amount) <= _SIMILAR
         ):
             newest.payments.append(t)

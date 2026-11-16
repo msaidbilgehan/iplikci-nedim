@@ -28,9 +28,14 @@ Kullanıcı yalnızca toplamları değil, yorumu ve stratejiyi istiyor. Kullanı
   - Ayda bir ödeme alan bir ödeme alanı, tutar ne olursa olsun tek bir seridir (faturalar mevsime göre değişir).
   - 100 günlük bir aradan sonra seri bölünür.
   - Aynı ödeme alanının birden çok aboneliği tutarlarından ayırt edilir.
+  - Serinin her zamanki gününde yeni bir tutarla gelen ödeme seriyi yeni fiyatla sürdürebilir. Ama aynı dönem içinde
+    (15 günden kısa bir sürede) ödeme alanının eski fiyattan bir ödemesi daha gelirse yeni tutarlı ödeme başka bir
+    çekimdir (ikinci bir plan, ek kullanım): seri eski fiyatıyla sürer (v1.0.5'e dek seri yeni tutara geçiyor, zam
+    sanılıyordu).
 - 200 güne kadar bir aradan sonra gelen ve kendi başına seri olamayacak kadar az ödeme, ödeme alanının en yeni serisini
   sürdürür. Ödeme alanı tutara göre zincirleniyorsa benzer tutardaki seri sürer. Bu, faturanın arada belgesi olmayan bir
-  hesaptan ödendiği, bitmediği anlamına gelir.
+  hesaptan ödendiği, bitmediği anlamına gelir. Serinin son ödemesinden 15 günden kısa süre sonra gelen ödeme bu yolla
+  seriye katılmaz: o, serinin geri gelişi değil, aynı dönemin başka bir çekimidir.
 - Diğer kategorilerde yalnızca aydan aya %10 içinde kalan bir tutar seri oluşturur.
 - Ayda 5'ten fazla ödeme alan bir ödeme alanı abonelik değil, alışveriş yeridir.
 
@@ -54,6 +59,9 @@ Biten bir "Gerekli" fatura "Belgelerde yok" diye gösterilir: belgesi olmayan bi
 
 - Son fiyat en az iki ödemedir sürüyorsa ve kendinden önceki üç ödemenin medyanından %5'ten fazla farklıysa yeni
   fiyattır. Birbirinden %2 içinde kalan tutarlar aynı fiyat sayılır. Değişimin günü yeni fiyatın ilk ödemesidir.
+- Eski fiyat da en az iki kez ödenmiş olmalıdır. Serinin ilk ödemesi ayın bir parçası (kıst dönem) ya da bir
+  kampanya olabilir; ardından gelen planın kendi fiyatı zam değildir (v1.0.5'e dek yeni açılan bir aboneliğin ilk
+  faturası zam bildirimi doğuruyordu).
 - Yurt dışından dövizle faturalanan bir ödeme (kart ekstresi TL tutarın yanında döviz tutarını da yazar: "4,00 USD")
   döviz tutarıyla karşılaştırılır. Aylık 4 dolarlık bir planın TL tutarı her ay kurla oynar; bu zam değildir. Yalnızca
   son ödemeyle aynı dövizde yazılı son ödemelere bakılır. Gösterilen eski ve yeni fiyat yine TL'dir.

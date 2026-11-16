@@ -49,6 +49,7 @@ def categorize(cat, description, kind=TransactionKind.PURCHASE, bank_category=""
         ("ÖRNEK PETROL MARKET", "Akaryakıt", None),  # earliest keyword wins
         ("ORNEK GIDA LOKANTA TARIM", "Restoran & Yemek", None),  # weak "GIDA" loses
         ("IYZICO*AMAZON TURKEY PE ISTANBUL TR", "Dijital Abonelikler", "Amazon Prime"),
+        ("Google GOOGLE*ONE 01M London GBGB", "Dijital Abonelikler", "Google One"),  # Google's descriptor since 2026-11
         ("ORNEK ELEKTROMARKET", "Elektronik", None),
         ("UBER EATS YEMEK", "Restoran & Yemek", "Uber Eats"),  # food delivery, not a ride
         ("UBER *TRIP HELP.UBER.COM", "Toplu Taşıma & Taksi", "Uber"),

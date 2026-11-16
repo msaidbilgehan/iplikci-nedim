@@ -292,6 +292,24 @@ def test_a_plan_billed_in_dollars_rises_when_its_dollar_price_does_and_says_it_i
     assert s.price_change() == (Decimal("121.10"), Decimal("153.10"), date(2026, 8, 9))
 
 
+def test_another_charge_of_a_payee_is_no_price_rise_while_the_plan_goes_on_at_its_old_price():
+    # A plan billed on the 26th each month. One month the payee also charges twice its price on the 23rd and the 24th
+    # (a second plan, a top-up), and the plan comes on the 26th at its old price: the plan has not risen.
+    plan = [billed(d, "Örnek Yapay Zekâ", "6000.00", "120,00 USD") for d in monthly(date(2026, 6, 26), 4)]
+    extra = [billed(date(2026, 10, day), "Örnek Yapay Zekâ", "12600.00", "240,00 USD") for day in (23, 24)]
+    october = billed(date(2026, 10, 26), "Örnek Yapay Zekâ", "6200.00", "120,00 USD")
+    (s,) = find_series(plan + extra + [october], REGULAR)
+    assert (s.last.date, s.monthly, s.price_change()) == (date(2026, 10, 26), Decimal("6200.00"), None)
+
+
+def test_a_first_payment_for_part_of_a_month_is_no_old_price():
+    # A new plan's first bill covers the days left in its month: the plan's own price after it is no rise.
+    amounts = [Decimal("39.00"), Decimal(85), Decimal(85)]
+    plan = [tx(d, "Örnek Ofis", a) for d, a in zip(monthly(date(2026, 9, 1), 3), amounts, strict=True)]
+    (s,) = find_series(plan, REGULAR)
+    assert s.price_change() is None
+
+
 def test_a_plan_billed_in_dollars_only_lately_is_compared_from_then_on():
     # Paid in TL until July, in dollars from August: the dollar months alone say whether the price held.
     lira = ["99.90", "99.90", "99.90", "135.50", "136.20"]
