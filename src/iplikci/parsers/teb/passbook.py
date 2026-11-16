@@ -128,7 +128,7 @@ def read(doc: SourceDocument) -> ParseResult:
 
 class Passbook:
     id = ID
-    version = 2
+    version = 3
     bank = "TEB"
     name = "TEB dijital hesap cüzdanı"
     document_type = DocumentKind.ACCOUNT_STATEMENT

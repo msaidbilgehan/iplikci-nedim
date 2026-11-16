@@ -53,7 +53,7 @@ def read(doc: SourceDocument) -> ParseResult:
 
 class AccountXls:
     id = ID
-    version = 1
+    version = 2
     bank = "Garanti BBVA"
     name = "Garanti BBVA hesap hareketleri (XLS)"
     document_type = DocumentKind.ACCOUNT_STATEMENT

@@ -76,6 +76,8 @@ _CARD_PAYMENT = (
 )
 _FX = ("DOVIZ AL", "DOVIZ SAT", "DVZ AL", "ALTIN")
 _BILL_LABELS = ("FATURA", "TELEKOMUNIKASYON", "KURUM ODEMESI")
+# Interest the bank gives back ("faiz iadesi", "faiz iptali") is a cost returned, as on the cards.
+_GIVEN_BACK = ("IADE", "IPTAL")
 
 
 def classify(m: Movement, currency: str) -> TransactionKind | str | None:
@@ -86,6 +88,8 @@ def classify(m: Movement, currency: str) -> TransactionKind | str | None:
     fx_row = any(p in f for p in _FX)
     if currency != TRY and fx_row:
         return None  # the TL side of the same conversion carries it
+    if m.amount > 0 and "FAIZ" in f and not any(p in f for p in _GIVEN_BACK):
+        return TransactionKind.INCOME  # interest the account earns ("net faiz geliri" on a deposit)
     if any(p in f for p in _FEES):
         return TransactionKind.INTEREST_FEE
     if "MAAS ODEMESI" in f or "MAASODEMESI" in f:

@@ -239,6 +239,25 @@ def test_category_type_decides_transfer_kind(tmp_path):
     assert not cat.resolve_kind(candidate("FAST", 300.0, "Tanımadığım Kişi"))
 
 
+@pytest.mark.parametrize("amount", [250.0, -250.0])
+def test_a_fund_bought_or_sold_from_an_account_is_saving(cat, amount):
+    # The account a fund is bought from prints the fund's name and the units: "… PORTFÖY PARA PİYASASI (TL) FO alış
+    # bedeli". It is no money sent to a person.
+    fund = Transaction(
+        date=date(2025, 1, 1),
+        description="1000 Pay ORN-ÖRNEK PORTFÖY PARA PİYASASI (TL) FO alış bedeli,",
+        amount=amount,
+        kind=TransactionKind.TRANSFER_CANDIDATE,
+        account="b",
+    )
+    assert cat.resolve_kind(fund) and (fund.kind, fund.category) == (TransactionKind.INVESTMENT, "Yatırım Fonu")
+
+
+def test_the_interest_a_deposit_earns_is_interest_income(cat):
+    t = categorize(cat, "CEPTETEB Marifetli Hesap net faiz geliri %45", kind=TransactionKind.INCOME, amount=-12.34)
+    assert (t.category, t.group, t.necessity) == ("Faiz Geliri", "Birikim & Yatırım", None)
+
+
 def test_an_income_takes_only_a_category_that_counts_money_in_as_income(tmp_path, cat):
     # A word of a shop's category in an employer's name makes a salary no electronics purchase.
     salary = "Maaş Ödemesi: ORNEK ELEKTRONIK ANONIM SIRKETI Kurumun Maas Odemesi"
@@ -324,10 +343,15 @@ def test_ended_payment_needs_a_month(tmp_path):
 
 
 def test_shipped_rules_hold_no_personal_decisions(cat):
-    # Payees of rent and dues, family, employers, ended payments and a merchant's necessity are the user's own.
+    # Payees of rent and dues, family, employers, ended payments and a merchant's necessity are the user's own. The
+    # one income the shipped rules name is the interest a bank pays, by the bank's own words.
     assert (cat.ended, cat.merchant_necessity) == ({}, {})
     assert not {"Gelir", "Aile & Kişiler"} & set(cat.groups)
-    assert {c: t for c, t in cat.types.items() if t != "yatirim"} == {OTHER_INCOME: "gelir", TO_PEOPLE: "kisi"}
+    assert {c: t for c, t in cat.types.items() if t != "yatirim"} == {
+        OTHER_INCOME: "gelir",
+        TO_PEOPLE: "kisi",
+        "Faiz Geliri": "gelir",
+    }
 
 
 def test_shipped_rules_name_the_commitment_categories(cat):

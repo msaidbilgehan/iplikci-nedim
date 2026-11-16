@@ -306,6 +306,12 @@ göndermez.
     (v0.9.16'da düzeldi).
 - İlk satırın öncesinde bakiye yazmaz. Bu yüzden on satırda dokuz bakiye denetlenir. Hesap cüzdanın ilk günü
   açıldıysa (`Hesap Açılış Tarihi`) sıfırdan başlar; ilk satır da denetlenir.
+- CEPTETEB Marifetli faizini her iş günü, vergisi düşülmüş olarak yatırır: "CEPTETEB Marifetli Hesap net faiz geliri
+  %<oran>". Hesaba giren ve iade ya da iptal olmayan faiz gelirdir (`movements.classify`, bütün hesap dökümleri);
+  v1.0.3'e dek "Ek Hesap (KMH) Faizi" sayılıyordu, gideri azaltıyordu.
+- Hesaptan alınan fon, pay sayısı ve adıyla yazar: "<pay> Pay <kod>-<kurucu> PORTFÖY PARA PİYASASI (TL) FO alış
+  bedeli," (açıklama kaydırılır, kesilir). Genel kurallardaki "Yatırım Fonu" onu birikim sayar; v1.0.3'e dek kişiye
+  gönderilen para sayılıyordu. Fonun kendisini gösteren bir belge yoktur; değeri varlıklara girmez.
 
 **Banka içi havale dekontu PDF'i** (`teb.transfer_receipt`, "BANKA İÇİ PARA TRANSFER DEKONTU"): CEPTETEB'in
 uygulamasının paylaştığı, iki TEB hesabı arasındaki aktarmanın dekontu.

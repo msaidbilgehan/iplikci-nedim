@@ -71,7 +71,7 @@ def read(doc: SourceDocument) -> ParseResult:
 
 class AccountXls:
     id = ID
-    version = 2
+    version = 3
     bank = "İş Bankası"
     name = "İş Bankası hesap özeti (XLS)"
     document_type = DocumentKind.ACCOUNT_STATEMENT

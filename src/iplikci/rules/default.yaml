@@ -230,6 +230,14 @@ Birikim & Yatırım:
   Şirket Sermayesi:
     _tür: yatırım
     _: [SERMAYE]
+  Yatırım Fonu:
+    # Bankanın sattığı fonlar ("… PORTFÖY PARA PİYASASI FONU alış bedeli"): alış birikime gider, satış ondan gelir.
+    _tür: yatırım
+    _: [PORTFOY, PARA PIYASASI, YATIRIM FONU]
+  Faiz Geliri:
+    # Mevduatın kazandırdığı faiz ("net faiz geliri"). Ödenen faiz ve ücretler Banka & Finans'tadır.
+    _tür: gelir
+    _: [FAIZ GELIRI]
 
 Diğer:
   Vergi & Resmi İşlemler:

@@ -68,6 +68,12 @@ _banka_kategorileri: …          # Garanti'nin ekstrede yazdığı başlıklar�
   (`gelir` ya da `kişi` türünde bir kategori, ya da "Diğer Gelirler"). Başka bir kategorinin kuralı tutarsa satır
   "Diğer Gelirler"de kalır: işverenin adındaki "ELEKTRONİK" maaşı elektronik alışverişi yapmaz (v0.9.9'a dek
   yapıyordu).
+- Hesap dökümlerinde hesaba giren faiz, iade ya da iptal değilse, okuyucunun gözünde gelirdir (mevduatın faizi).
+  Genel kurallardaki "Faiz Geliri" (`gelir`) bankanın yazdığı "faiz geliri"ni alır; başka sözlerle yazılan faiz
+  "Diğer Gelirler"de kalır, o bankanın sözü görülünce kurala eklenir. Ödenen faizler ve ücretler türlerine göre
+  "Banka & Finans"tadır. Genel kurallarda adı geçen tek gelir budur: ödeyenin adı değil, bankanın sözüdür.
+- Hesaptan alınan ya da satılan fon ("… PORTFÖY PARA PİYASASI FONU alış bedeli") genel kurallardaki "Yatırım Fonu"dur
+  (`yatırım`): birikimdir, kişiye gönderilen para değildir.
 - `_hariç`, kategorinin desenleri bir kelimenin başında tutsa da o kategoriye ait olmayan kelimelerdir. Açıklamada
   bu kelimelerden biriyle başlayan yerdeki eşleşme yok sayılır; daha sonra geçen bir eşleşme yine sayılır
   ("KİRALIK DAİRE EKİM KİRASI" kiradır). Kategorinin bütün desenlerine (isimli, genel, `_zayıf`) uygulanır.

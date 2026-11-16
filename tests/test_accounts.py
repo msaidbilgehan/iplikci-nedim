@@ -43,6 +43,12 @@ def test_check_balances_newest_first():
         ("DÖVİZ ALIŞ EUR", 200.0, "", "EUR", None),  # its EUR side is dropped
         ("BAKİYE YETERSİZ", 0.0, "", "TRY", None),
         ("İGDAŞ", -118.0, "Fatura", "TRY", TransactionKind.PURCHASE),
+        # Interest the account earns is income; interest charged, and interest the bank gives back, is a cost.
+        ("CEPTETEB Marifetli Hesap net faiz geliri %45", 12.34, "", "TRY", TransactionKind.INCOME),
+        ("Vade Sonu Faiz", 85.0, "", "TRY", TransactionKind.INCOME),
+        ("Ek Hesap Faizi", -120.0, "", "TRY", TransactionKind.INTEREST_FEE),
+        ("Ek Hesap Faiz İadesi", 1.2, "", "TRY", TransactionKind.INTEREST_FEE),
+        ("KMH FAİZ İPTALİ", 1.2, "", "TRY", TransactionKind.INTEREST_FEE),
         (
             "Veli Örneksoy",
             -15000.0,

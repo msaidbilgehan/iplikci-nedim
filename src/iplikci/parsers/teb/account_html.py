@@ -55,7 +55,7 @@ def read(doc: SourceDocument) -> ParseResult:
 
 class AccountHtml:
     id = ID
-    version = 1
+    version = 2
     bank = "TEB"
     name = "TEB hesap hareketleri (CEPTETEB)"
     document_type = DocumentKind.ACCOUNT_STATEMENT
