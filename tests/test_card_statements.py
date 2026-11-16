@@ -15,7 +15,7 @@ from iplikci.fakes.files import scan_pdf
 from iplikci.parsers import contract
 from iplikci.parsers.common import BUSINESS_REASON, is_business
 from iplikci.parsers.contract import Document
-from iplikci.parsers.pdf import open_pdf, page_text
+from iplikci.parsers.pdf import open_pdf, page_text, recognized
 
 K = TransactionKind
 
@@ -204,6 +204,27 @@ def test_a_teb_statement_delivered_as_page_images_is_read_with_ocr(monkeypatch):
     assert (s.previous, s.total, s.verified, len(s.transactions)) == (Decimal(3250), Decimal(4716), True, 7)
     assert s.transactions[1].description == "MIGROS ORNEK SUBE ISTANBUL"  # the contactless icon ")))" is gone
     assert s.transactions[2].installment == "8/9" and all(t.ref for t in s.transactions)
+
+
+def test_a_teb_statement_read_with_ocr_keeps_every_row_whatever_marks_ocr_reads_on_it(monkeypatch):
+    # OCR read the contactless icon as "»))", "»)" and "1))", and a speck after an amount as a full stop
+    # ("TL.950,40."): that row had been lost, and the statement did not verify.
+    pages = teb.scanned_statement(icons=("»))", "»)", "1))"), specks=(4,))
+    monkeypatch.setattr(parsers, "ocr_available", lambda: True)
+    monkeypatch.setattr(contract.SourceDocument, "ocr_pages", property(lambda self: pages))
+    s = only(read(scan_pdf()))
+    assert (s.verified, len(s.transactions)) == (True, 7)
+    assert [(t.description, t.installment, t.original) for t in s.transactions[1:4]] == [
+        ("MIGROS ORNEK SUBE ISTANBUL", "", ""),
+        ("TEKNOSA ORNEK AVM", "8/9", ""),
+        ("ornek.com", "", "25,75 EUR"),
+    ]
+
+
+def test_ocr_writes_the_turkish_letter_for_the_look_alike_vision_may_give():
+    assert recognized("ornek.com (Yurtdıșı işlem tutarı EUR.25,75) ȘUBE") == (
+        "ornek.com (Yurtdışı işlem tutarı EUR.25,75) ŞUBE"
+    )
 
 
 # --- QNB -------------------------------------------------------------------------------------------------------

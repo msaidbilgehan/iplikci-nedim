@@ -32,6 +32,11 @@ _NEXT_CUT = re.compile(r"SONRAKIHESAPKESIMTARIHI:?(\d{2}/\d{2}/\d{4})")
 # not the card's.
 _MINIMUM = re.compile(r"MINIMUMODEMETUTARI:?(TL\.?[\d.]+,(?:\d{1,2}|-))")
 _LIMIT = re.compile(r"KARTLIMITI:?(TL\.?[\d.]+,(?:\d{1,2}|-))")
+# A row's amount cell as OCR reads it ("TL.1.139,-", "-TL.43.271,-"). OCR may read a speck after it as a full stop or a
+# comma ("TL.950,40."); the row is still the bank's.
+_OCR_AMOUNT = re.compile(r"(-?TL\.?[\d.]+,(?:\d{1,2}|-))[.,]?")
+# Marks after a row's text, as OCR reads them; a closing parenthesis is the icon's or the text's own.
+_MARKS = re.compile(r"[^\w)]+$")
 
 
 def _split_description(desc: str) -> tuple[str, str, str]:
@@ -134,6 +139,22 @@ def _tl(text: str) -> Decimal | None:
     return parse_tr_amount(m[0]) if m else None
 
 
+def _cell_amount(text: str) -> Decimal | None:
+    m = _OCR_AMOUNT.fullmatch(text.replace(" ", ""))
+    return parse_tr_amount(m[1]) if m else None
+
+
+def _without_icon(desc: str) -> str:
+    """The text without what OCR reads after it: any mark, and the contactless payment icon, read as ")))", "»))",
+    "»)" or "1))": a last word without letters that closes a parenthesis the text never opened. A closing parenthesis
+    that ends the text, like that of "(9/8. Taksit)", stays."""
+    desc = _MARKS.sub("", desc)
+    head, _, last = desc.rpartition(" ")
+    if head and ")" in last and not any(c.isalpha() for c in last) and desc.count(")") > desc.count("("):
+        desc = _MARKS.sub("", head)
+    return desc
+
+
 def _parse_ocr(doc: SourceDocument, pages: list[list[Line]]) -> ParseResult:
     """Each OCR "word" is one table cell: [sıra] [tarih] [açıklama] [tutar] [kalan taksit] [bonus]."""
     lines = [line for page in pages for line in page]
@@ -168,31 +189,18 @@ def _parse_ocr(doc: SourceDocument, pages: list[list[Line]]) -> ParseResult:
         if date_i is None or date_i > 1:
             continue
         rest = line.words[date_i + 1 :]
-        amount_i = next(
-            (i for i, w in enumerate(rest) if re.fullmatch(r"-?TL\.?[\d.]+,(?:\d{1,2}|-)", w.text.replace(" ", ""))),
-            None,
-        )
-        if amount_i is None or amount_i == 0:
+        amounts = ((i, _cell_amount(w.text)) for i, w in enumerate(rest))
+        amount_i, amount = next(((i, a) for i, a in amounts if a is not None), (None, None))
+        if amount_i is None or amount is None or amount_i == 0:
             continue
-        desc = " ".join(w.text for w in rest[:amount_i])
-        # The contactless payment icon, read as ")))", and any other mark after the text; a closing parenthesis that
-        # ends the text, like that of "(9/8. Taksit)", stays.
-        desc = re.sub(r"(?:\s+\)+|[^\w)])+$", "", desc).strip()
-        _add(
-            stmt,
-            account,
-            doc,
-            line,
-            parse_dmy(line.words[date_i].text),
-            desc,
-            parse_tr_amount(rest[amount_i].text.replace(" ", "")),
-        )
+        desc = _without_icon(" ".join(w.text for w in rest[:amount_i])).strip()
+        _add(stmt, account, doc, line, parse_dmy(line.words[date_i].text), desc, amount)
     return ParseResult(parser=ID, accounts=[account], statements=[stmt])
 
 
 class BonusCard:
     id = ID
-    version = 6
+    version = 7
     bank = "TEB"
     name = "TEB Bonus kart ekstresi"
     document_type = DocumentKind.CARD_STATEMENT

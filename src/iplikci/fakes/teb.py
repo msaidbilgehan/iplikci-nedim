@@ -176,11 +176,15 @@ def scanned_statement(
     previous: Decimal = Decimal(3250),
     last4: str = "1234",
     terms: CardTerms = BONUS_TERMS,
+    icons: Sequence[str] = (")))",),
+    specks: Sequence[int] = (),
 ) -> list[list[Line]]:
     """What OCR reads off a TEB Bonus statement delivered as page images: every text run a word of its own,
-    usually a table cell, with the contactless payment icon read as ")))". The box of terms on the left shares its
-    lines with the heading and the address on the right, and OCR reads the Ö of "Ödeme" as an O there; the cash
-    advance limit shares a line with a rate."""
+    usually a table cell. The box of terms on the left shares its lines with the heading and the address on the right,
+    and OCR reads the Ö of "Ödeme" as an O there; the cash advance limit shares a line with a rate.
+
+    The purchases from the second row on were contactless, one for each of icons, the way OCR read the icon after the
+    text (")))", "»))", "»)", "1))"). OCR read a speck after the amount of the rows specks numbers as a full stop."""
     total = previous + sum((charged(c) for c in cards), Decimal(0))
     due = [f"{terms.due:%d/%m/%Y}"] if terms.due is not None else []
     cells: list[list[str]] = [
@@ -203,13 +207,16 @@ def scanned_statement(
         ["ÖNCEKİ DÖNEM BORCU", _amount(previous)],
     ]
     n = 0
+    contactless = iter(icons)
     for rows in cards:
         for row in rows:
             if row.day is None or row.amount is None:
                 continue
             n += 1
-            text = row.text + (" )))" if n == 2 else "")  # a contactless purchase
-            cells.append([str(n), f"{row.day:%d/%m/%Y}", text, _amount(row.amount), "0,00"])
+            icon = next(contactless, "") if n >= 2 and row.amount > 0 else ""
+            text = f"{row.text} {icon}" if icon else row.text
+            amount = _amount(row.amount) + ("." if n in specks else "")
+            cells.append([str(n), f"{row.day:%d/%m/%Y}", text, amount, "0,00"])
     lines: list[Line] = []
     for i, line in enumerate(cells):
         top, x, words = 60.0 + 14 * i, 40.0, list[Word]()

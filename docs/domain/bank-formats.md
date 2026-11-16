@@ -248,10 +248,17 @@ Borcunuzun Tahsilatı")
   `python3` adıyla çalışan kopyası hepsini okudu. Önbellek Çöp'e taşınınca macOS onu yeniden kurar ve satırlar geri
   gelir. Doğrulanmış bir OCR ekstresi kod değişmeden doğrulanmaz olursa önce buna bakılır.
 - `(9/8. Taksit)` "9 taksitten 8'incisi" demektir.
-- `(Yurt dışı işlem tutarı EUR.25,75)` orijinal tutardır.
+- `(Yurt dışı işlem tutarı EUR.25,75)` orijinal tutardır. Sayfa resmi olarak gelen ekstre bunu bitişik yazar
+  ("Yurtdışı").
 - Bir ekstrede birden çok kart bölümü olabilir.
-- OCR, temassız ikonunu `)))` olarak okur. Okuyucu bunu satırın sonundan atar; metni bitiren kapama parantezi
-  (`(9/8. Taksit)` gibi) kalır.
+- OCR, temassız ikonunu `)))`, `»))`, `»)` ya da `1))` olarak okur (Ekim 2026'nın ekstresinden beri çoğu kez
+  `»`lı). Okuyucu metnin sonundaki, harf taşımayan ve metnin açmadığı bir parantezi kapatan son kelimeyi ikon sayıp
+  atar; metni bitiren kapama parantezi (`(9/8. Taksit)` gibi) kalır. v1.0.3'e dek `»`lı ikon açıklamada kalıyordu: aynı
+  işyeri ikonun okunuşuna göre iki işyeri görünüyordu ("ÖRNEK CAFE »)" ve "ÖRNEK CAFE »))").
+- OCR, bir tutarın arkasındaki lekeyi nokta okuyabilir ("TL.950,40."). Okuyucu tutar hücresinin sonundaki bir nokta ya
+  da virgülü yok sayar. v1.0.3'e dek böyle bir satır hiç okunmuyor, ekstre farkla doğrulanmıyordu (biçim alarmı).
+- Vision "ş" yerine benzeri olan Romence "ș"yi (virgüllü s) verebilir: "Yurtdıșı". Türkçede bu harf olmadığından OCR
+  okunanı "ş" yazar (`parsers.pdf.recognized`). v1.0.3'e dek böyle bir satırın orijinal tutarı açıklamada kalıyordu.
 - Metin katmanlı ekstre, ödeme bilgilerinden son ödeme tarihini ve gelecek ekstrenin tarihlerini yazar: "Son Ödeme
   Tarihi: 15/10/2026", "Bir Sonraki Hesap Kesim Tarihi: 04/11/2026", "Bir Sonraki Son Ödeme Tarihi: 14/11/2026".
   Kelimeler çoğu kez bitişiktir ("BirSonrakiHesapKesimTarihi :04/11/2026"). "Sonraki" ile başlayan son ödeme

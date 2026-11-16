@@ -85,6 +85,15 @@ def page_lines(page: Any, x_tolerance: float = 1.0, y_tolerance: float = 2.0) ->
 
 # --- OCR for statements delivered as page images (macOS Vision framework) ----
 
+# Vision may give the Romanian s with a comma below for the Turkish ş, the cedilla's look-alike ("Yurtdıșı"). A Turkish
+# document has no such letter.
+_LOOK_ALIKES = str.maketrans({"ș": "ş", "Ș": "Ş"})
+
+
+def recognized(text: str) -> str:
+    """A text run as OCR read it, with Vision's look-alike letters written as Turkish writes them."""
+    return text.translate(_LOOK_ALIKES)
+
 
 def ocr_available() -> bool:
     try:
@@ -120,7 +129,7 @@ def ocr_page_lines(data: bytes, page_index: int, y_tolerance: float = 4.0) -> li
         box = obs.boundingBox()  # normalized, origin at the bottom left
         words.append(
             Word(
-                str(obs.topCandidates_(1)[0].string()),
+                recognized(str(obs.topCandidates_(1)[0].string())),
                 box.origin.x * width,
                 (box.origin.x + box.size.width) * width,
                 (1 - box.origin.y - box.size.height) * height,
