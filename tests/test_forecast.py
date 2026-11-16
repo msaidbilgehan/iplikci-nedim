@@ -11,6 +11,7 @@ from iplikci.domain.dates import add_months
 from iplikci.domain.models import Account, Statement, Transaction
 from iplikci.forecast import (
     ESTIMATE,
+    Forecast,
     Spread,
     Start,
     counted_from,
@@ -83,7 +84,7 @@ def account_list(account: str, start: date, cut: date, total: int) -> Statement:
     )
 
 
-def card_statement(cut: date, total: int, paid: int = 0) -> Statement:
+def card_statement(cut: date, total: int, paid: int = 0, due: date | None = None) -> Statement:
     rows = [tx(cut, "Ödemeniz için teşekkürler", -paid, TransactionKind.CARD_PAYMENT, "card")] if paid else []
     return Statement(
         account="card",
@@ -93,6 +94,7 @@ def card_statement(cut: date, total: int, paid: int = 0) -> Statement:
         previous=None,
         total=Decimal(total),
         transactions=rows,
+        due_date=due,
     )
 
 
@@ -319,6 +321,42 @@ def test_a_card_paid_lately_from_another_account_is_not_paid_twice():
     assert [(i.account, i.amount) for i in cash.items] == [("cash", Decimal(9000))]
     assert ek.cards == Spread(Decimal(8000), tuple(MONTHS), after=date(2026, 11, 25))
     assert dict(ek.days)[date(2026, 11, 25)] == 0 and dict(ek.days)[date(2026, 11, 30)] < 0
+
+
+def test_a_statement_paid_before_its_due_date_leaves_the_forecast_as_it_was():
+    # The overdraft account paid the card each month; this statement was paid early from the current account. Until
+    # its due date it stands for the card's payments as it did unpaid, so the totals from that day on are the same.
+    overdraft = Account("ek", "Örnek Ek Hesap", "TEB", AccountType.OVERDRAFT, number="111222444")
+    naming = "5555 66** **** 1234 NO.LU KARTA ÖDEME"
+    months = [date(int(m[:4]), int(m[5:]), 5) for m in MONTHS]
+    txns = [tx(d, "Kart ödemesi", 8000, TransactionKind.CARD_PAYMENT, "ek", description=naming) for d in months]
+    coverage = {a: dict.fromkeys(MONTHS, 1.0) for a in ("cash", "ek")}
+    card, today = card_statement(date(2026, 11, 14), 9000, due=date(2026, 11, 24)), date(2026, 11, 16)
+    ek = account_list("ek", date(2026, 4, 1), date(2026, 10, 31), 0)
+    unpaid = dataset(
+        txns,
+        [account_list("cash", date(2026, 4, 1), date(2026, 10, 31), 50000), ek, card],
+        (CASH, CARD, overdraft),
+        coverage=coverage,
+    )
+    item = Due(date(2026, 11, 24), PaymentKind.CARD_DUE, CARD.label, "card", Decimal(9000), "dönem borcu")
+    before = forecast(unpaid, interpret(unpaid), today, [item])
+    payment = tx(today, "Kart ödemesi", 9000, TransactionKind.CARD_PAYMENT, description=naming)
+    paid = dataset(
+        [*txns, payment],
+        [account_list("cash", date(2026, 4, 1), today, 41000), ek, card],
+        (CASH, CARD, overdraft),
+        coverage=coverage,
+    )
+    after = forecast(paid, interpret(paid), today, [])  # paid in full: the calendar asks nothing of the card
+
+    def total(fc: Forecast, day: date) -> Decimal:
+        return sum((dict(a.days)[day] for a in fc.accounts), Decimal(0))
+
+    assert [a.cards.after for a in after.accounts if a.cards] == [date(2026, 11, 24)]
+    assert [total(after, day) for day in (date(2026, 11, 24), date(2026, 12, 20), after.end)] == [
+        total(before, day) for day in (date(2026, 11, 24), date(2026, 12, 20), before.end)
+    ]
 
 
 def test_a_card_nobody_is_seen_paying_stays_out_of_the_accounts():

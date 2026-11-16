@@ -223,12 +223,14 @@ nedenleri arasında sayılmaz.
   - Seri dışı çıkışlar, son altı tam ayın aylık medyanıyla günlere yayılır.
     - Yalnızca hesabın belgelerinin tamamen kapsadığı aylar sayılır; kendi hesaplar arası transferler ve `_biten`
       işyerleri girmez.
-    - Kart ödemeleri ayrı bir medyandır; hesabın o aylarda ödediği kartların takvimdeki son ödemelerinin en geç
-      gününden sonrasına yayılır, o güne kadar onları bu kalemler karşılar. Son ödemeyi hangi hesap üstlenirse
-      üstlensin böyledir: kartı aylarca ek hesaptan, son kez vadesizden ödeyen kullanıcının ekstresi vadesizden
-      düşülür, ek hesabın kart ödemeleri o güne dek sayılmaz (v1.0.5'e dek yalnızca son ödemeyi üstlenen hesapta
-      böyleydi; aynı borç iki kez sayılıyor, toplam erken eksiye düşüyordu). Başka bir kartın son ödemesi bir hesabın
-      kart ödemelerini ertelemez.
+    - Kart ödemeleri ayrı bir medyandır; hesabın o aylarda ödediği kartların en yeni ekstrelerinin son ödeme
+      günlerinin en geçinden sonrasına yayılır, o güne kadar onları bu ekstreler karşılar. Son ödemeyi hangi hesap
+      üstlenirse üstlensin böyledir: kartı aylarca ek hesaptan, son kez vadesizden ödeyen kullanıcının ekstresi
+      vadesizden düşülür, ek hesabın kart ödemeleri o güne dek sayılmaz (v1.0.5'e dek yalnızca son ödemeyi üstlenen
+      hesapta böyleydi; aynı borç iki kez sayılıyor, toplam erken eksiye düşüyordu). Ekstre son ödeme gününden önce
+      ödenince de böyledir: ödeme ödeyen hesabın bakiyesindedir, kart ödemeleri yine son ödeme gününden sonra başlar
+      (v1.0.6'ya dek ödenen ekstre takvimden düşünce kart ödemeleri bugünden başlıyordu; zamanında ödenen ekstre
+      toplamın eksiye düştüğü günü öne çekiyordu). Başka bir kartın son ödemesi bir hesabın kart ödemelerini ertelemez.
     - Seri dışı girişler öngörülmez: düzensiz gelir ileriye taşınmaz.
   - KMH faizi yalnızca belgede yazan aylık oranla hesaplanır; oran yoksa faiz tahmin edilmez (oranı okuyan bir okuyucu
     henüz yok).

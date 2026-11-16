@@ -8,8 +8,8 @@ from datetime import date
 from decimal import Decimal
 
 from ..analysis import Dataset
-from ..domain.codes import AccountType, Certainty, Necessity, PaymentKind, SeriesPeriod, SeriesStatus, TransactionKind
-from ..domain.models import TRY, Statement, Transaction
+from ..domain.codes import Certainty, Necessity, PaymentKind, SeriesPeriod, SeriesStatus, TransactionKind
+from ..domain.models import TRY, Transaction
 from ..domain.money import Money, round_half_up
 from ..domain.text import fold
 from ..forecast import AccountForecast, Forecast, Spread, Start, counted_from, forecast
@@ -22,6 +22,7 @@ from ..upcoming import (
     horizon_end,
     income_amount,
     installments_left,
+    newest_statements,
     next_day,
     series_id,
     upcoming,
@@ -192,15 +193,8 @@ def card_dues(ds: Dataset) -> list[CardDue]:
     """The credit cards' due dates and what their newest statements still ask: the statement's balance and its
     minimum payment less what was paid on the card since the cut (insights.paid_after), which the bank accounts'
     balances already count. A statement that prints no due date, or is paid off, asks nothing."""
-    newest: dict[str, Statement] = {}
-    for s in ds.statements:
-        account = ds.accounts.get(s.account)
-        if s.is_account or s.currency != TRY or account is None or account.type != AccountType.CREDIT_CARD:
-            continue
-        if s.account not in newest or s.cut_date > newest[s.account].cut_date:
-            newest[s.account] = s
     dues: list[CardDue] = []
-    for card, s in sorted(newest.items()):
+    for card, s in sorted(newest_statements(ds).items()):
         if s.due_date is None or s.total is None:
             continue
         paid = paid_after(ds, card, s.cut_date)

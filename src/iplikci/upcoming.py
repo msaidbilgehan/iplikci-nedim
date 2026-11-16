@@ -339,6 +339,18 @@ def loan_items(ds: Dataset, tl_: Timeline, series: Iterable[Series], start: date
     return found
 
 
+def newest_statements(ds: Dataset) -> dict[str, Statement]:
+    """Each credit card's newest TL statement, by card: the one its due date and what it still asks come from."""
+    newest: dict[str, Statement] = {}
+    for s in ds.statements:
+        account = ds.accounts.get(s.account)
+        if s.is_account or s.currency != TRY or account is None or account.type != AccountType.CREDIT_CARD:
+            continue
+        if s.account not in newest or s.cut_date > newest[s.account].cut_date:
+            newest[s.account] = s
+    return newest
+
+
 def card_due_items(ds: Dataset, dues: Iterable[CardDue], start: date, end: date) -> list[Due]:
     """The cards' due dates from start to end, with what their statements ask."""
     found: list[Due] = []

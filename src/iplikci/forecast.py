@@ -30,7 +30,7 @@ from .domain.models import TRY, Account, Transaction
 from .domain.money import round_half_up
 from .domain.text import fold
 from .insights import FULL, Insights, Series, month_name, month_of, pct
-from .upcoming import HORIZON, Due, horizon_end
+from .upcoming import HORIZON, Due, horizon_end, newest_statements
 
 ESTIMATE = "tahmin"  # what every forecast is labelled (F09)
 ZERO = Decimal(0)
@@ -413,8 +413,10 @@ def forecast(
                 elsewhere.append(item)
         elif _begin(found[taken.account], today) <= taken.day <= end:
             counted[taken.account].append(taken)
-    # A card's due date known in the calendar, by card (the newest statement's).
-    dues = {item.account: item.day for item in items if item.kind == PaymentKind.CARD_DUE}
+    # Each card's due date, by card: the calendar's while the newest statement asks something, that statement's once it
+    # is paid (the payment is in its payer's balance then).
+    dues = {card: s.due_date for card, s in newest_statements(ds).items() if s.due_date is not None}
+    dues |= {item.account: item.day for item in items if item.kind == PaymentKind.CARD_DUE}
     rates = overdraft_rates or {}
     accounts = [
         _account(ds, ins, account, start, counted[account], today, end, dues, rates.get(account))
@@ -444,20 +446,21 @@ def _account(
     dues: Mapping[str, date],
     rate: Decimal | None,
 ) -> AccountForecast:
+    begin = _begin(start, today)
     spend, cards = spreads(ds, ins, account)
     if cards is not None:
-        # Its card payments stand for the statements to come of the cards it paid. Until the latest due date the
-        # calendar knows of those cards, the dues stand for them, whichever account pays a due now (the dues it pays
-        # are among its items): a card paid lately from another account than before is not paid twice.
+        # Its card payments stand for the statements to come of the cards it paid. Until the latest due date of those
+        # cards' newest statements, the statements stand for them, paid or not, whichever account pays them (the dues
+        # it pays are among its items): a card paid lately from another account than before is not paid twice, and a
+        # statement paid before its due date leaves the forecast as it was.
         paid = cards_paid(ds, account, cards.months)
         known = [day for card, day in dues.items() if card in paid]
         known += [item.day for item in items if item.kind == PaymentKind.CARD_DUE]
-        if known:
+        if known := [day for day in known if day >= begin]:
             cards = replace(cards, after=max(known))
     by_day: dict[date, Decimal] = defaultdict(Decimal)
     for item in items:
         by_day[item.day] += item.amount
-    begin = _begin(start, today)
     balance, day, spread_before = start.balance, begin, ZERO
     points: list[tuple[date, Decimal]] = []
     while day <= end:
