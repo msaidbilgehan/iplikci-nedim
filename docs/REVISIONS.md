@@ -11,6 +11,16 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 
 ## Değişiklik kaydı
 
+- 2026-11-16 (63) — Yanlış zam bildirimleri, Google One ve öngörüde iki kez sayılan kart borcu (v1.0.5):
+  - [Yorum kuralları](domain/interpretation.md), düzenli ödemeler: aynı dönemde eski fiyatıyla da ödenen bir seriye
+    yeni tutarlı bir ödeme fiyat değişimi olarak katılmaz; seriyi sürdüren seyrek ödemeler aynı dönemden gelemez; eski
+    fiyat da en az iki kez ödenmiş olmalıdır. Kullanıcının bildirim kutusunda gerçek veriyle görülen iki yanlış zam
+    (ek çekimli bir abonelik, kıst ilk faturalı yeni bir abonelik) bunlardan doğuyordu.
+  - Uygulamayla gelen kurallarda Google One'ın yeni yazımı ("GOOGLE*ONE").
+  - [Yorum kuralları](domain/interpretation.md), bakiye öngörüsü: bir hesabın kart ödemeleri, o aylarda ödediği
+    kartların takvimdeki son ödeme gününden sonra başlar; son ödemeyi o kartı şimdi başka bir hesap ödüyor olsa da
+    (aynı ekstre iki kez düşülüyordu).
+
 - 2026-11-16 (62) — TEB ekstresinin OCR'ı, mevduat faizi ve fon alımı (v1.0.4):
   - [Banka biçimleri](domain/bank-formats.md), TEB: OCR'ın tutarın arkasına okuduğu nokta, Romence ș ve temassız
     ikonun yeni okunuşları; Marifetli'nin faizi ve cüzdandaki fon alımı. Kullanıcının Telegram'dan gönderdiği ekstre

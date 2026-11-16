@@ -407,6 +407,13 @@ says what the waiting must show); the Windows and Linux checks come later (K25).
   icon came as "»))", "»)" or "1))" and split merchants (`_without_icon`). On account lists, interest coming in that
   is no refund is income (`movements.classify`; the eight readers using it re-read once), "Faiz Geliri" in the shipped
   rules; a fund bought from an account ("… PORTFÖY PARA PİYASASI …") is "Yatırım Fonu", saving, not money to a person.
+- v1.0.5 (2026-11-16): two of the three price-rise notifications that statement brought were false. A payment that
+  continues a series only at a new price on its usual day does not when the old price is paid within the same cycle
+  (`insights._old_price_goes_on`: a second plan or a top-up of the payee); `_resume` takes no payment within a cycle of
+  the series' last; `Series.price_change` wants the old price paid twice (a first bill may be a part of a month).
+  Google One's new descriptor "GOOGLE*ONE" is in the shipped rules. The forecast spreads an account's card payments
+  after the latest calendar due of the cards it paid in the spread's months (`forecast.cards_paid`), whichever account
+  pays that due now: a card paid lately from another account was paid twice and the total went below zero too early.
 
 The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's
 web interface).

@@ -4,6 +4,23 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [1.0.5] — 2026-11-16 — Yanlış zam bildirimleri, Google One ve öngörüde iki kez sayılan kart borcu
+
+### Düzeltilenler
+
+- Bir ödeme alanı aynı ay içinde aboneliğinin iki katı tutarında başka bir çekim yapınca (ikinci bir plan, ek
+  kullanım) abonelik zamlanmış sanılıyordu, oysa abonelik birkaç gün sonra eski fiyatıyla ödenmişti. Artık aynı dönemde
+  eski fiyat da ödendiyse yeni tutarlı ödeme ayrı bir çekimdir; abonelik eski fiyatıyla sürer, zam bildirimi gitmez.
+- Yeni açılan bir aboneliğin kıst ilk faturası (ayın kalan günleri) "eski fiyat" sayılıyor, planın kendi fiyatı zam
+  diye bildiriliyordu. Artık eski fiyatın da en az iki kez ödenmiş olması gerekir. Aynı ödeme alanının aynı tutardaki
+  birkaç aboneliği birbirine karışmıyor.
+- Google One'ın Kasım'dan beri ekstrede "GOOGLE*ONE 01M" diye yazan ödemesi tanınmıyor, "Diğer Harcamalar"a düşüyor ve
+  Google One o ay ödenmemiş görünüyordu. Uygulamayla gelen kural artık bu yazımı da tanır.
+- Bakiye öngörüsü bir kart ekstresini iki kez düşebiliyordu: bir kez kartı en son ödeyen hesaptan son ödeme tutarı
+  olarak, bir kez de kartı daha önce aylarca ödemiş başka bir hesaptan "ayda şu kadar kart ödemesi" olarak, bugünden
+  başlayarak. Artık bir hesabın kart ödemeleri, ödediği kartların takvimdeki son ödeme gününden sonra başlar.
+  "Hesaplarınızın toplamı eksiye düşecek" bildirimi bu yüzden erken gelebiliyordu.
+
 ## [1.0.4] — 2026-11-16 — TEB ekstresinin OCR'ı, mevduat faizi ve fon alımı
 
 ### Düzeltilenler
