@@ -425,6 +425,13 @@ says what the waiting must show); the Windows and Linux checks come later (K25).
   investments at today's value on "Döviz ve yatırımlarla" (`lib/preferences`' third choice, `iplikci.forecast`);
   Takvim says the same in a sentence. The warning and İplikçi Nedim say "TL hesaplarınızın toplamı" ("Türk lirası" in
   the sayings, which name no "TL"); the story's Kalan says it is the month's result, not a balance.
+- v1.0.8 (2026-11-16): the user had İş Bankası mail its summaries. One for a quiet month printed no row, only "Mevcut
+  Bakiye", and stayed unverified: a baseline regression. `isbank.account_xls` (v4) tells a blank table down to the
+  footnote from rows it cannot read (`Statement.empty`, migration 22, carried by the wire and `storage/readings`); an
+  empty list is verified, and running up to the day it was made ("Belge Düzenleme Tarihi") it opens and closes at the
+  printed balance. The daily-interest account posts gross interest and the tax withheld from it in a row of its own:
+  `movements.classify` makes that tax income too (it nets the interest; the eight readers using it re-read once), and
+  the shipped "Faiz Geliri" takes "BRUT FAIZ".
 
 The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's
 web interface).

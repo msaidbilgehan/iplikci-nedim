@@ -4,6 +4,18 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [1.0.8] — 2026-11-16 — Hareketsiz hesap özeti ve faizden kesilen vergi
+
+### Düzeltilenler
+
+- İş Bankası'nın hareketsiz bir dönem için gönderdiği hesap özeti "doğrulanamadı" kalıyor, doğrulama tabanında
+  gerileme sayılıyordu. Banka böyle bir dönemde tabloya hiç satır basmaz, yalnızca o anki bakiyeyi yazar. Artık tablo
+  gerçekten boşsa liste doğrulanmış sayılır ve hesabın bakiyesi o günün bakiyesi olur. Okunamayan bir satırı olan
+  özet ise eskisi gibi doğrulanmamış kalır.
+- Günlük faizli hesabın faizinden kesilen vergi (stopaj) "Ek Hesap (KMH) Faizi" ve gereksiz harcama sayılıyor, faizin
+  kendisi "Diğer Gelirler"e düşüyordu. Artık ikisi de "Faiz Geliri"dir; vergi faiz gelirinden düşer, gider sayılmaz.
+  Hesap dökümlerinin sekiz okuyucusu yeni sürümle belgeleri bir kez yeniden okur.
+
 ## [1.0.7] — 2026-11-16 — Öngörü neyi saydığını söylüyor, döviz ve yatırımları da sayabiliyor
 
 ### Eklenenler

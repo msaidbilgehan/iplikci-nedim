@@ -11,6 +11,14 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 
 ## Değişiklik kaydı
 
+- 2026-11-16 (66) — Hareketsiz hesap özeti ve faizden kesilen vergi (v1.0.8):
+  - [Banka biçimleri](domain/bank-formats.md), İş Bankası: hareketsiz dönemin özeti satır basmaz, yalnızca hazırlandığı
+    andaki bakiyeyi yazar; günlük faizli hesap faizi brüt yazar, vergisini ayrı satırla keser. Kullanıcının e-postayla
+    gelen dolar hesabı özeti doğrulanamıyor, doğrulama tabanı gerileme gösteriyordu.
+  - [Defter](domain/ledger.md), doğrulama değişmezleri: banka hiç hareket basmadıysa liste olduğu gibi doğrulanır
+    (`Statement.empty`, göç 22).
+  - [Kategori kuralları](domain/categorization.md): faizden kesilen vergi faiz gelirinden düşer; gider değildir.
+
 - 2026-11-16 (65) — Öngörü neyi saydığını söylüyor, döviz ve yatırımları da sayabiliyor (v1.0.7):
   - [Özellikler](v1/features.md), Pano ve F09: "Önümüzdeki 30 gün" neyi saydığını ve neden her gün indiğini yazar;
     "Yalnız TL hesaplar" ya da "Döviz ve yatırımlarla" seçilir. Kullanıcı öngörünün yalnızca belgedeki TL'den başlayıp
