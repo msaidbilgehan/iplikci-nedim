@@ -57,6 +57,7 @@
     "elsewhereItem": "{{day}} {{title}} ({{account}}): {{amount}}",
     "skipped": "Öngörüye girmeyen hesaplar",
     "openHint": "Bir güne tıklayın: o gün beklenenler yukarıdaki listede gösterilir.",
-    "openWhat": "o gün beklenenler"
+    "openWhat": "o gün beklenenler",
+    "outside": "Öngörü yalnızca TL hesaplarınızı sayar. Döviz ve yatırımlarınız (bugünkü kurla {{amount}}) kurla ve piyasayla değiştiği için burada yok; Pano'daki \"Önümüzdeki 30 gün\" onları da sayabilir."
   }
 }

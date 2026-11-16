@@ -12,7 +12,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from iplikci.analysis import Dataset, DatedRate, PrintedRate, _to_tl, nearest, printed_rate
-from iplikci.app import account_pages, holdings, now
+from iplikci.app import account_pages, holdings, now, outlook
 from iplikci.app.analysis import analyze
 from iplikci.app.workspace import Workspace
 from iplikci.domain.codes import AccountType, RateSource, TransactionKind
@@ -229,6 +229,17 @@ def test_a_balance_is_valued_at_the_newest_rate_on_its_side_with_its_day_and_sou
     # The MVP's report and findings value the euros the same way.
     [mvp] = [h for h in a.insights.holdings if h.label == EURO.label]
     assert (mvp.value, mvp.note) == (Decimal("72904.20"), "kur 36,4521 (TCMB 30.10.2026 döviz alış kuru)")
+
+
+def test_the_forecast_names_the_foreign_accounts_it_leaves_out_with_their_value_in_tl(foreign_ws):
+    # The forecast counts TL accounts; what moves with a rate is named apart, valued as the balances are, so that a
+    # view can say what it leaves out and count it too.
+    store(foreign_ws, *PROVIDED)
+    a = analyze(foreign_ws, today=TODAY)
+    fc = outlook.cash_flow(a, TODAY).forecast
+    held = {b.account: b.value for b in now.outside(a, fc)}
+    assert held == {EURO.id: Decimal("72904.20"), "garanti-9000002": Decimal("-10955.34")}
+    assert {account.account for account in fc.accounts}.isdisjoint(held)
 
 
 def test_the_net_worth_is_told_in_euros_and_dollars_at_their_selling_rate(foreign_ws):

@@ -14,7 +14,7 @@
 // the next 30 to what the calendar expects on it.
 
 import type { TFunction } from "i18next";
-import { type ReactNode, useId } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router";
 
@@ -22,6 +22,7 @@ import { useForecast, useInsights, useSpending } from "../../api/queries";
 import type { CalendarItem, Dashboard, Forecast, MonthClosing, OpenAlert } from "../../api/types";
 import { cn } from "../../lib/cn";
 import { addDays, formatDay, formatMoney, formatMonth } from "../../lib/format";
+import { type Holdings, readHoldings, saveHoldings } from "../../lib/preferences";
 import { monthDays, monthIncome, monthOut, monthRows, monthSaving, rowsLink } from "../../lib/rows";
 import { untoldTotal } from "../accounts/UntoldNote";
 import { HBars } from "../charts/HBars";
@@ -44,6 +45,7 @@ import {
 import { LinkButton } from "../ui/LinkButton";
 import { INCOMING } from "../ui/Money";
 import { AddressStep, NextStep, ScreenLink } from "../ui/Say";
+import { Segmented } from "../ui/Segmented";
 
 const SMALL = "text-xs text-zinc-600 dark:text-zinc-300";
 const HOW = "text-sm text-zinc-700 dark:text-zinc-300";
@@ -579,8 +581,8 @@ function WhereItWent({ month, isOpen }: { month: string; isOpen: boolean }) {
 
 // --- the next 30 days ----------------------------------------------------------------------------------------------
 
-/** The accounts' balances summed day by day from today, for the days ahead. */
-function summed(forecast: Forecast, end: string): Array<{ day: string; value: number }> {
+/** The accounts' balances summed day by day from today, for the days ahead, with extra (minor units) on each day. */
+function summed(forecast: Forecast, end: string, extra = 0): Array<{ day: string; value: number }> {
   const byDay = new Map<string, number>();
   for (const account of forecast.accounts) {
     for (const point of account.days) {
@@ -589,7 +591,23 @@ function summed(forecast: Forecast, end: string): Array<{ day: string; value: nu
       }
     }
   }
-  return [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([day, value]) => ({ day, value }));
+  return [...byDay.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([day, value]) => ({ day, value: value + extra }));
+}
+
+/** What the line takes off every day: each account's money out tied to no day, the median month of its complete
+ * months, card payments apart; with the first and the last of those months. Undefined when nothing is spread. */
+function spreadOf(forecast: Forecast): { cards: number; spend: number; from: string; to: string } | undefined {
+  const spreads = forecast.accounts.flatMap((a) => [a.cards, a.spend]).filter((s) => s !== null);
+  const months = spreads.flatMap((s) => s.months).sort();
+  const sum = (list: Array<Forecast["accounts"][number]["spend"]>) =>
+    list.reduce((total, s) => total + (s?.monthly.minor ?? 0), 0);
+  const cards = sum(forecast.accounts.map((a) => a.cards));
+  const spend = sum(forecast.accounts.map((a) => a.spend));
+  const from = months[0];
+  const to = months[months.length - 1];
+  return from && to && cards + spend > 0 ? { cards, spend, from, to } : undefined;
 }
 
 function NextDays() {
@@ -608,8 +626,16 @@ function NextDays() {
 function Ahead({ forecast }: { forecast: Forecast }) {
   const { t } = useTranslation("dashboard");
   const listHeading = useId();
+  const [holdings, setHoldings] = useState<Holdings>(readHoldings);
   const end = addDays(forecast.today, AHEAD_DAYS - 1);
-  const points = summed(forecast, end);
+  // What moves with a rate or a market is left out of the forecast; the user may count it too, at today's value.
+  const valued = forecast.outside.filter((h) => h.value !== null);
+  const unvalued = forecast.outside.length - valued.length;
+  const held = valued.reduce((total, h) => total + (h.value?.minor ?? 0), 0);
+  const all = holdings === "all" && valued.length > 0;
+  const extra = all ? held : 0;
+  const points = summed(forecast, end, extra);
+  const spread = spreadOf(forecast);
   const items: CalendarItem[] = [...forecast.accounts.flatMap((a) => a.items), ...forecast.elsewhere]
     .filter((item) => item.day >= forecast.today && item.day <= end)
     .sort((a, b) => a.day.localeCompare(b.day));
@@ -623,7 +649,7 @@ function Ahead({ forecast }: { forecast: Forecast }) {
   const below = points.find((point) => point.value < 0);
   // The line starts today, after what was expected since the accounts' last documents: said, so that its first day and
   // the balances the other screens show do not read as two answers to one question.
-  const known = forecast.accounts.reduce((total, account) => total + account.start.balance.minor, 0);
+  const known = forecast.accounts.reduce((total, account) => total + account.start.balance.minor, 0) + extra;
   const now = points[0]?.value ?? known;
   const only = forecast.accounts.length === 1 ? forecast.accounts[0] : undefined;
   const scope = only
@@ -645,17 +671,59 @@ function Ahead({ forecast }: { forecast: Forecast }) {
         {below ? <ExclamationIcon className="mt-1 size-4 shrink-0" /> : null}
         <span>
           {below
-            ? t("overview.ahead.negative", { day: below.day, amount: formatMoney(tl(below.value)) })
-            : t("overview.ahead.safe", { day: lowest.day, amount: formatMoney(tl(lowest.value)) })}
+            ? t("overview.ahead.negative", {
+                context: all ? "all" : "",
+                day: below.day,
+                amount: formatMoney(tl(below.value)),
+              })
+            : t("overview.ahead.safe", {
+                context: all ? "all" : "",
+                day: lowest.day,
+                amount: formatMoney(tl(lowest.value)),
+              })}
+          {below && !all && held > 0 ? ` ${t("overview.ahead.convert", { amount: formatMoney(tl(held)) })}` : ""}
         </span>
       </p>
       <div className="grid items-start gap-4 lg:grid-cols-[3fr_2fr]">
         <div className="flex min-w-0 flex-col gap-2">
           <p className={HOW}>{t("overview.ahead.how")}</p>
+          {valued.length > 0 ? (
+            <div className="self-start">
+              <Segmented
+                legend={t("overview.ahead.holdings")}
+                options={[
+                  { value: "tl", label: t("overview.ahead.holdingsTl") },
+                  { value: "all", label: t("overview.ahead.holdingsAll") },
+                ]}
+                value={all ? "all" : "tl"}
+                onChange={(value) => {
+                  setHoldings(value);
+                  saveHoldings(value);
+                }}
+              />
+            </div>
+          ) : null}
           <p className={SMALL}>
             {scope}
             {start}
+            {valued.length > 0
+              ? ` ${t(all ? "overview.ahead.outsideCounted" : "overview.ahead.outside", {
+                  amount: formatMoney(tl(held)),
+                })}`
+              : ""}
+            {unvalued > 0 ? ` ${t("overview.ahead.unvalued", { count: unvalued })}` : ""}
+            {` ${t("overview.ahead.undocumented")}`}
           </p>
+          {spread ? (
+            <p className={SMALL}>
+              {t(spread.cards > 0 ? "overview.ahead.daily" : "overview.ahead.dailySpend", {
+                from: spread.from,
+                to: spread.to,
+                cards: formatMoney(tl(spread.cards)),
+                spend: formatMoney(tl(spread.spend)),
+              })}
+            </p>
+          ) : null}
           <LineChart
             title={t("overview.ahead.chart")}
             summary={t("overview.ahead.say", {
@@ -666,7 +734,9 @@ function Ahead({ forecast }: { forecast: Forecast }) {
               came: came.length,
               inAmount: formatMoney(sum(came)),
             })}
-            series={[{ key: "total", label: t("overview.ahead.line"), slot: IN_SLOT, points }]}
+            series={[
+              { key: "total", label: t(all ? "overview.ahead.lineAll" : "overview.ahead.line"), slot: IN_SLOT, points },
+            ]}
             height={220}
             open={{
               link: (day) => ({ screen: "calendar", id: day, query: {} }),

@@ -192,6 +192,9 @@ nedenleri arasında sayılmaz.
       olmayan bir giriş vardır (yukarıda, "Belgede görünmeyen giriş").
     - Bakiyesi hiçbir belgede yazmayan, bakiyesi en yeni belgeden 180 günden eski olan ve döviz ya da altın olan
       hesaplar öngörüye girmez; nedenleri yazılır.
+    - Döviz, altın ve yatırım hesapları bugünkü TL değerleriyle (net varlıktaki kurla; altının fiyatı belgede yoksa
+      değersiz) öngörünün yanında verilir. Öngörü onlar olmadan TL'nin ne zaman biteceğini söyler; Pano isteyene
+      onları bugünkü değerleriyle, değişmez sayarak çizgiye ekler. Uyarılar TL hesapları sayar.
     - Bakiyeyi yazan belgenin gününden bugüne kadarki günler de sayılır: döküm 31'inde bitip bugün ayın 2'siyse,
       1'inde beklenen maaş bugünkü bakiyededir; belge aksini gösterene dek beklenen sayılır. O günlerin beklenen
       kalemleri ve seri dışı çıkışların o günlere düşen payı bugünden önce işlenir; öngörünün notu günleri ve
@@ -305,7 +308,7 @@ klasör (demonunki gibi) de yakın son ödemeyi o an söyler (v1.0.2).
     - Kendi hesaplarından düzenli para aktarılan hesap: öngörünün seri dışı çıkışları yaydığı tam aylarda kendi
       hesaplardan gelen para, hesaptan çıkanın en az yarısıdır. Öngörü bu aktarmaları saymaz (kendi hesaplar arası
       transferler öngörüye girmez); hesap, kartı ödediği ve aktarmalar gelmediği için eksiye iner.
-  - Hesapların toplamı da izlenir ("Hesaplarınızın toplamı"): toplam bugün eksi değilken öngörüde eksiye düşerse
+  - TL hesapların toplamı da izlenir ("TL hesaplarınızın toplamı"): toplam bugün eksi değilken öngörüde eksiye düşerse
     söylenir. Kendi hesaplar arasındaki aktarmalar toplamda birbirini götürür, KMH'nin kullanılan kredisi borç olarak
     sayılır. Toplamın ilk eksi günü bir hesabın uyarısıyla aynı gün ve tutarsa (tek hesap) ikinci kez söylenmez.
   - Hesap önceki analizde eksiye düşmüyorduysa ya da gün öne geldiyse söylenir.

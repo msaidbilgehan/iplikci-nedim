@@ -26,6 +26,8 @@ function slotOf(index: number): Slot {
 /** The card's content: its loading and failure states stay with the card on the page. */
 export function ForecastView({ forecast }: { forecast: Forecast }) {
   const { t } = useTranslation("calendar");
+  // What moves with a rate or a market is not in these lines: said with its value today, so the totals add up.
+  const held = forecast.outside.reduce((total, h) => total + (h.value?.minor ?? 0), 0);
   return (
     <div className="flex flex-col gap-4">
         {forecast.accounts.length === 0 ? (
@@ -35,6 +37,11 @@ export function ForecastView({ forecast }: { forecast: Forecast }) {
         ) : (
           <Balances forecast={forecast} />
         )}
+        {held > 0 ? (
+          <p className="text-sm text-zinc-700 dark:text-zinc-300">
+            {t("forecast.outside", { amount: formatMoney({ minor: held, currency: "TRY" }) })}
+          </p>
+        ) : null}
         {forecast.notes.length > 0 ? (
           <ul className={LIST}>
             {forecast.notes.map((note) => (

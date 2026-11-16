@@ -9,8 +9,9 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 
-from ...app import outlook
+from ...app import now, outlook
 from ...app.analysis import Analysis, account_labels
+from ...app.now import AccountType
 from ...app.outlook import (
     AccountForecast,
     Certainty,
@@ -27,7 +28,7 @@ from ...app.outlook import (
 from ...app.workspace import Busy
 from ..context import Context, context_of
 from ..guard import Principal
-from ..models import AccountRefOut, MoneyOut
+from ..models import AccountRefOut, MoneyOut, money
 from ..problems import Problem
 from .deps import only
 
@@ -156,6 +157,16 @@ class SkippedOut(BaseModel):
     reason: str
 
 
+class OutsideOut(BaseModel):
+    """A holding the forecast leaves out, its value moving with a rate or a market: foreign currency, gold or
+    brokerage."""
+
+    account: AccountRefOut
+    type: AccountType
+    balance: MoneyOut  # in the account's currency (grams of gold as "GR")
+    value: MoneyOut | None  # in TL today: at the providers' newest rate, or the market value; null without one (gold)
+
+
 class ForecastOut(BaseModel):
     label: str  # "tahmin": always an estimate
     today: date
@@ -163,6 +174,7 @@ class ForecastOut(BaseModel):
     accounts: list[AccountForecastOut]
     elsewhere: list[CalendarItemOut]  # items no account's forecast takes: paid by card, or from an unknown account
     skipped: list[SkippedOut]  # accounts without a forecast, and why
+    outside: list[OutsideOut]  # what the user holds besides the TL accounts, for a view that counts it too
     notes: list[str]
 
 
@@ -317,5 +329,14 @@ def forecast(request: Request) -> ForecastOut:
         accounts=[_forecast(account, labels) for account in result.accounts],
         elsewhere=[calendar_item(item, labels) for item in result.elsewhere],
         skipped=[SkippedOut(account=_account(account, labels), reason=why) for account, why in result.skipped],
+        outside=[
+            OutsideOut(
+                account=_account(b.account, labels),
+                type=b.type,
+                balance=money(b.balance, b.currency),
+                value=None if b.value is None else _money(b.value),
+            )
+            for b in now.outside(a, result)
+        ],
         notes=result.notes,
     )

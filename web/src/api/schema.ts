@@ -879,6 +879,7 @@ export interface ForecastOut {
   accounts: AccountForecastOut[];
   elsewhere: CalendarItemOut[];
   skipped: SkippedOut[];
+  outside: OutsideOut[];
   notes: string[];
 }
 
@@ -1642,6 +1643,14 @@ export interface OutcomeOut {
   ok: boolean;
   error: string;
   tries: number;
+}
+
+/** A holding the forecast leaves out, its value moving with a rate or a market: foreign currency, gold or brokerage. */
+export interface OutsideOut {
+  account: AccountRefOut;
+  type: AccountType;
+  balance: MoneyOut;
+  value: MoneyOut | null;
 }
 
 export interface OverdraftOut {

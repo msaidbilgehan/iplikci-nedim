@@ -123,7 +123,7 @@ def _text(kind: EventKind, target: str, d: Mapping[str, Any], full: bool) -> str
     if kind is E.BALANCE_FORECAST_NEGATIVE:
         when, balance = _when(d.get("days")), _tl(d.get("balance", ""))
         if not full:
-            subject = f"bakiye{_about(d)}" if d.get("account") else "hesaplarınızın toplamı"
+            subject = f"bakiye{_about(d)}" if d.get("account") else "TL hesaplarınızın toplamı"
             return f"Öngörüye göre {subject} {when} eksiye düşüyor: {balance}."
         return f"{title}: öngörüye göre bakiye {_day(d.get('day'))} günü ({when}) {balance} olacak."
     if kind is E.EXPECTED_PAYMENT_MISSING:

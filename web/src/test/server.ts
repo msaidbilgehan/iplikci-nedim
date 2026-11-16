@@ -872,6 +872,21 @@ export const FORECAST: Forecast = {
       reason: "bakiyesi hiçbir belgede yazmıyor",
     },
   ],
+  // What the forecast leaves out: euros valued at today's rate, gold without a price.
+  outside: [
+    {
+      account: { id: "garanti-eur-9000001", label: "Garanti Vadesiz EUR" },
+      type: "fx",
+      balance: { minor: 50000, currency: "EUR" },
+      value: tl(2500000),
+    },
+    {
+      account: { id: "teb-altin-1", label: "TEB Altın" },
+      type: "gold",
+      balance: { minor: 472, currency: "GR" },
+      value: null,
+    },
+  ],
   notes: [
     "Bu bir tahmindir: belgelerdeki son bakiyeden ve geçmiş ödemelerden çıkarıldı.",
   ],

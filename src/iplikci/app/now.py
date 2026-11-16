@@ -20,7 +20,7 @@ from ..domain.codes import CARD_TYPES, DEFAULT_EXPENSE_KINDS, AccountType, Certa
 from ..domain.labels import format_amount, format_rate
 from ..domain.models import TRY, Statement, Transaction
 from ..domain.money import round_half_up
-from ..forecast import STALE_DAYS
+from ..forecast import STALE_DAYS, Forecast
 from ..fx.book import to_tl
 from ..insights import (
     balance_rate,
@@ -51,6 +51,7 @@ __all__ = [
     "balances",
     "cards",
     "now",
+    "outside",
     "pace",
     "upcoming",
 ]
@@ -325,6 +326,18 @@ def balances(a: Analysis) -> tuple[list[Balance], list[Unknown]]:
     order = {kind: i for i, kind in enumerate(_ORDER)}
     found.sort(key=lambda b: order.get(b.type, len(order)))
     return found, unknown
+
+
+# What the cash-flow forecast leaves out but the user holds: their value moves with a rate or a market (forecast).
+_OUTSIDE = frozenset({AccountType.FX, AccountType.GOLD, AccountType.BROKERAGE})
+
+
+def outside(a: Analysis, fc: Forecast) -> list[Balance]:
+    """The foreign currency, gold and brokerage accounts the forecast leaves out, each with its value in TL today when
+    a rate or a market value gives one: the forecast counts TL accounts only, and says what it does not count."""
+    counted = {account.account for account in fc.accounts}
+    found, _ = balances(a)
+    return [b for b in found if b.type in _OUTSIDE and b.account not in counted]
 
 
 def _spent(rows: list[Transaction]) -> Decimal:

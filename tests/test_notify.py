@@ -215,9 +215,9 @@ def test_a_balance_below_zero_is_told_in_summary_by_its_bank_or_as_the_total():
     account = {"account": "teb-1234", "title": "TEB Vadesiz TL 1234", "day": "2026-11-20", "days": 3, "about": "TEB"}
     said = content.render(E.BALANCE_FORECAST_NEGATIVE, "k", {**account, "balance": "-500"}, DetailLevel.SUMMARY)
     assert said.body == "Öngörüye göre bakiye (TEB) 3 gün sonra eksiye düşüyor: -500,00 TL."
-    total = {"account": "", "title": "Hesaplarınızın toplamı", "day": "2026-11-20", "days": 3, "balance": "-500"}
+    total = {"account": "", "title": "TL hesaplarınızın toplamı", "day": "2026-11-20", "days": 3, "balance": "-500"}
     assert content.render(E.BALANCE_FORECAST_NEGATIVE, "k", total, DetailLevel.SUMMARY).body == (
-        "Öngörüye göre hesaplarınızın toplamı 3 gün sonra eksiye düşüyor: -500,00 TL."
+        "Öngörüye göre TL hesaplarınızın toplamı 3 gün sonra eksiye düşüyor: -500,00 TL."
     )
 
 

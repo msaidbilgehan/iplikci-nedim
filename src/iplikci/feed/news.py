@@ -66,7 +66,9 @@ LATE_DAYS = HORIZON  # a payment or income that did not come is news as long aft
 # A price change is news while the payment that made it certain is this recent: a card statement shows a payment up
 # to a month after it and comes days after its cut.
 REPRICED_DAYS = 45
-TOTAL = "Hesaplarınızın toplamı"  # what the accounts' summed forecast is called where an account's name would stand
+# What the TL accounts' summed forecast is called where an account's name would stand: foreign currency, gold and
+# investments are not in it (forecast: TL accounts only), so "TL" says so.
+TOTAL = "TL hesaplarınızın toplamı"
 _EXPECTED = ("devam", "bitti")  # running, or ended as its documents went past it; a cancelled series is not expected
 
 

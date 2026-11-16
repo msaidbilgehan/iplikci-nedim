@@ -89,7 +89,9 @@ describe("Overview", () => {
     expect(within(story).getByText("Birikim")).toBeInTheDocument();
     expect(within(story).getByText("4.800,00 TL")).toBeInTheDocument();
     expect(within(story).getByText("6.500,00 TL")).toBeInTheDocument(); // left: 40.000 − 28.700 − 4.800
-    expect(within(story).getByText("gelen paradan giden ve birikim çıkınca")).toBeInTheDocument();
+    expect(
+      within(story).getByText("gelen paradan giden ve birikim çıkınca; ayın sonucu, bugünkü bakiye değil"),
+    ).toBeInTheDocument();
     expect(
       within(story).getByText(
         "Gelen paranın %12'si birikime gitti, %16'sı elinizde kaldı. İyi gidiyor.",
@@ -435,14 +437,24 @@ describe("Overview", () => {
     const ahead = await region("Önümüzdeki 30 gün");
     expect(
       await within(ahead).findByText(
-        "Dikkat: 03.12.2026'da paranız eksiye düşüyor (−14.019,00 TL). " +
-          "Bir ödemeyi erteleyin ya da hesaba para aktarın.",
+        "Dikkat: 03.12.2026'da TL hesaplarınız eksiye düşüyor (−14.019,00 TL). " +
+          "Bir ödemeyi erteleyin ya da TL hesabınıza para aktarın. " +
+          "Döviz ve yatırımlarınızda 25.000,00 TL var: bir kısmını bozdurup TL hesabınıza aktarabilirsiniz.",
+      ),
+    ).toBeInTheDocument();
+    // What the line counts and what it leaves out, and why it goes down every day.
+    expect(
+      within(ahead).getByText(
+        "Çizgi, ödemelerinizin çıktığı Örnek Vadesiz TL hesabını gösterir. Son belgelerde 1.000,00 TL vardı; o " +
+          "günden bugüne beklenen gelir ve ödemeler eklenince bugün yaklaşık 999,00 TL. Döviz ve yatırımlarınız " +
+          "(bugünkü kurla 25.000,00 TL) bu çizgide yok: değerleri kurla ve piyasayla değişir. Fiyatı belgelerde " +
+          "olmayan 1 hesap (altın gibi) sayılmadı. Belgesi hiç gelmemiş hesaplarınız da bu çizgide yok.",
       ),
     ).toBeInTheDocument();
     expect(
       within(ahead).getByText(
-        "Çizgi, ödemelerinizin çıktığı Örnek Vadesiz TL hesabını gösterir. Son belgelerde 1.000,00 TL vardı; o " +
-          "günden bugüne beklenen gelir ve ödemeler eklenince bugün yaklaşık 999,00 TL.",
+        "Çizgi her gün biraz iner: Nisan 2026 – Eylül 2026 arasındaki tipik bir ayda bu hesaplardan 30,00 TL " +
+          "harcama çıktı; öngörü bunu günlere yayar.",
       ),
     ).toBeInTheDocument();
     const coming = within(ahead).getByRole("list", { name: "Yaklaşan ödemeler ve gelirler" });
@@ -466,8 +478,29 @@ describe("Overview", () => {
     renderScreen(<Overview found={DASHBOARD} />);
     const ahead = await region("Önümüzdeki 30 gün");
     expect(
-      await within(ahead).findByText("Paranız 30 gün boyunca yetiyor: en az 14.12.2026'da 971,00 TL kalıyor."),
+      await within(ahead).findByText("TL hesaplarınız 30 gün boyunca yetiyor: en az 14.12.2026'da 971,00 TL kalıyor."),
     ).toBeInTheDocument();
+  });
+
+  it("counts foreign currency and investments too when asked, at today's value, and remembers it", async () => {
+    try {
+      renderScreen(<Overview found={DASHBOARD} />);
+      const ahead = await region("Önümüzdeki 30 gün");
+      const choice = await within(ahead).findByRole("group", { name: "Çizgide sayılanlar" });
+      expect(within(choice).getByRole("radio", { name: "Yalnız TL hesaplar" })).toBeChecked();
+      await userEvent.click(within(choice).getByRole("radio", { name: "Döviz ve yatırımlarla" }));
+      expect(
+        within(ahead).getByText(
+          "Döviz ve yatırımlarınızla birlikte paranız 30 gün boyunca yetiyor: en az 14.12.2026'da 10.970,00 TL kalıyor.",
+        ),
+      ).toBeInTheDocument();
+      expect(
+        within(ahead).getByText(/Döviz ve yatırımlarınız da bugünkü kurla \(25\.000,00 TL\) eklendi/),
+      ).toBeInTheDocument();
+      expect(window.localStorage.getItem("iplikci.forecast")).toBe("all");
+    } finally {
+      window.localStorage.removeItem("iplikci.forecast");
+    }
   });
 
   it("puts the open alerts first, each level in words, then the assessment's advice with its way on", async () => {

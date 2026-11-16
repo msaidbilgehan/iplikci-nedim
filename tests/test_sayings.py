@@ -233,7 +233,11 @@ def test_a_month_still_open_is_never_the_best_one():
     ("negative", "mood", "reason"),
     [
         (Negative(0, False, True), Mood.CRITICAL, "Öngörüye göre hesaplarınızdan biri bugün eksiye düşecek."),
-        (Negative(1, True, True), Mood.CRITICAL, "Öngörüye göre hesaplarınızın toplamı yarın eksiye düşecek."),
+        (
+            Negative(1, True, True),
+            Mood.CRITICAL,
+            "Öngörüye göre Türk lirası hesaplarınızın toplamı yarın eksiye düşecek.",
+        ),
         (Negative(40, False, False), Mood.WARNING, "Öngörüye göre hesaplarınızdan biri 40 gün sonra eksiye düşecek."),
     ],
 )

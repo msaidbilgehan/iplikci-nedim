@@ -208,7 +208,8 @@ def _share(m: MonthFacts) -> Decimal:
 
 
 def _going_negative(n: Negative) -> tuple[Situation, Mood, str]:
-    whose = "hesaplarınızın toplamı" if n.total else "hesaplarınızdan biri"
+    # Words only, never "TL" (the lines name no amount): the forecast counts the lira accounts alone.
+    whose = "Türk lirası hesaplarınızın toplamı" if n.total else "hesaplarınızdan biri"
     when = {0: "bugün", 1: "yarın"}.get(n.days, f"{n.days} gün sonra")
     mood = Mood.CRITICAL if n.critical else Mood.WARNING
     return Situation.GOING_NEGATIVE, mood, f"Öngörüye göre {whose} {when} eksiye düşecek."

@@ -482,6 +482,15 @@ def test_the_forecast_runs_each_bank_account_day_by_day_as_an_estimate(demo_clie
             "reason": "bakiyesi hiçbir belgede yazmıyor",  # known only from receipts
         }
     ]
+    # What the forecast leaves out but the demo holds, with its value in TL for a view that counts it too.
+    assert found["outside"] == [
+        {
+            "account": {"id": "garanti-yatirim-1234567-101", "label": "Garanti BBVA Yatırım 1234567-101"},
+            "type": "brokerage",
+            "balance": tl(134200),
+            "value": tl(134200),
+        }
+    ]
     assert found["notes"][0].startswith("Bu bir tahmindir")
 
 

@@ -741,6 +741,8 @@ Teknoloji ADR-0008'dedir. Ekranlar ve davranışları [features.md](features.md)
 - **Görünüm:**
   - Açık ve koyu tema.
   - "Sade" ve "Ayrıntılı" görünüm.
+  - Pano'nun öngörüsünde sayılanlar: "Yalnız TL hesaplar" ya da "Döviz ve yatırımlarla". Tema ve görünüm gibi
+    tarayıcının `localStorage`'ında kalır (`lib/preferences`); uyarılar her zaman TL hesapları sayar.
   - Terimler sözlüğü (üzerine gelince açıklama).
   - Durum renkleri her zaman ikon ve etiketle.
   - Klavyeyle kullanım; WCAG AA kontrast.

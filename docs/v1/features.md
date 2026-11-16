@@ -331,6 +331,13 @@ G7 · Çekirdek
     kapanmamış ay için "şimdiye kadar" der.
   - Önümüzdeki 30 gün: hesaptaki paranın günlük tahmini, eksiye düştüğü ilk gün ya da en düşük gün, yaklaşan ödemeler ve
     gelirler. Çizginin son belgelerdeki bakiyeden bugüne nasıl geldiği söylenir.
+    - Neyi saydığı tutarlarıyla yazılır: TL hesaplar; döviz ve yatırımlar bugünkü kurla değerleriyle "bu çizgide yok"
+      diye, fiyatı belgelerde olmayanlar (altın) ve belgesi hiç gelmemiş hesaplar da. Çizginin her gün neden indiği de
+      söylenir: tipik bir aydaki kart ödemeleri ve başka harcamalar, hangi aylardan oldukları ile.
+    - "Yalnız TL hesaplar" ya da "Döviz ve yatırımlarla": ikincisi döviz ve yatırımları bugünkü değerleriyle çizgiye
+      ekler, değişmez sayar; seçim hatırlanır. TL hesaplar eksiye düşüp döviz ve yatırım varken cümle, onlardan bir
+      kısmının bozdurulabileceğini söyler. Kullanıcının isteği (2026-11-16): öngörü yalnızca belgedeki TL'den
+      başlayıp her gün inerken elindeki paranın daha fazla olduğunu görüyordu.
   - "Ne yapmalısınız?": açık uyarılar düzeyi sözle yazılarak, ardından Değerlendirme'nin önerilen adımları (en çok
     dört); bekleyen işlerin sayısı Yapılacaklar'a götürür.
   - Her grafiğin üstünde nasıl okunacağını anlatan bir cümle vardır; her grafiğin tablo görünümü de vardır.
@@ -413,8 +420,10 @@ G10, K7 · Çekirdek
   - Varsayımlar görünür; örneğin hangi ödemenin hangi hesaptan çıkacağı geçmiş ödemelerden çıkarılır.
   - Hesabın eksiye düştüğü gün ve tutar.
   - Uyarı: ek hesabın (KMH) ve kendi hesaplarından düzenli para aktarılan hesabın eksi günleri uyarı sayılmaz; notları
-    nedenini yazar. Hesapların toplamı eksiye düşerse uyarılır
+    nedenini yazar. TL hesapların toplamı eksiye düşerse uyarılır ("TL hesaplarınızın toplamı")
     ([domain/interpretation.md](../domain/interpretation.md#akış-olayları)).
+  - Öngörü TL hesapları sayar. Döviz, altın ve yatırım hesapları bugünkü TL değerleriyle ayrıca verilir (değeri
+    olmayanınki boş); Takvim onların bu çizgilerde olmadığını tutarıyla söyler, Pano isteyene onları da sayar.
   - KMH faizi tahmini, oran belgede yazıyorsa.
 - **Etiket:** öngörü her zaman "tahmin" etiketi taşır.
 - **Bir gün:** adresteki gün (`?gun=`) listeyi o güne daraltır; "Bütün günleri göster" geri döner. Öngörü

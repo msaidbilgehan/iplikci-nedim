@@ -138,6 +138,7 @@ import type {
   OpenMonthOut,
   OtherSendersOut,
   OutcomeOut,
+  OutsideOut,
   OverdraftOut,
   PaceOut,
   PageLinesOut,
@@ -238,6 +239,8 @@ export type Calendar = CalendarOut;
 export type CalendarItem = CalendarItemOut;
 export type Forecast = ForecastOut;
 export type AccountForecast = AccountForecastOut;
+// What the forecast leaves out but the user holds: foreign currency, gold, brokerage, with its TL value today.
+export type ForecastHolding = OutsideOut;
 export type Invoices = InvoicesOut;
 export type InvoiceItem = InvoiceOut;
 export type OtherSenders = OtherSendersOut;
