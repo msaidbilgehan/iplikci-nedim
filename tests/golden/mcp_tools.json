@@ -677,7 +677,7 @@
   {
     "name": "alerts",
     "title": "Bildirim kuralları",
-    "description": "Bildirim kurallarını listeler (action=list; olaylar, koşulları ve kanalların durumu ile), yeni kural ekler (action=add: name, event, isteğe bağlı days, amount, text, channels, detail, quiet_hours) ya da bir kuralı kapatır (action=close) veya yeniden açar (action=open; name ile). Ekleme, kapatma ve açma için verilen plan kuralı ve (açık bir kuralda) son 30 günün olaylarından kaç bildirim çıkacağını içerir; onaylanınca değişiklik rules/alerts.yaml'a yazılır, önceki dosya kural geçmişinde saklanır. Okunamayacak bir kural için plan verilmez; listelemek yalnızca okur. İki adımlıdır: plan_id olmadan çağrılınca hiçbir şey değişmez, ne değişeceği bir plan_id ile döner; planı kullanıcıya gösterin. Kullanıcı onaylarsa aynı aracı yalnızca plan_id ile çağırın: plan bir kez ve gösterildiği gibi uygulanır; dayandığı şey o arada değiştiyse uygulanmaz ve yeni plan gerekir. Servis kapalıyken plan alınabilir, uygulanamaz.",
+    "description": "Bildirim kurallarını listeler (action=list; olaylar, koşulları ve kanalların durumu ile), yeni kural ekler (action=add: name, event, isteğe bağlı days, amount, text, channels, detail, quiet_hours, note) ya da bir kuralı kapatır (action=close) veya yeniden açar (action=open; name ile). Ekleme, kapatma ve açma için verilen plan kuralı ve (açık bir kuralda) son 30 günün olaylarından kaç bildirim çıkacağını içerir; onaylanınca değişiklik rules/alerts.yaml'a yazılır, önceki dosya kural geçmişinde saklanır. Okunamayacak bir kural için plan verilmez; listelemek yalnızca okur. İki adımlıdır: plan_id olmadan çağrılınca hiçbir şey değişmez, ne değişeceği bir plan_id ile döner; planı kullanıcıya gösterin. Kullanıcı onaylarsa aynı aracı yalnızca plan_id ile çağırın: plan bir kez ve gösterildiği gibi uygulanır; dayandığı şey o arada değiştiyse uygulanmaz ve yeni plan gerekir. Servis kapalıyken plan alınabilir, uygulanamaz.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -760,6 +760,11 @@
         "quiet_hours": {
           "type": "boolean",
           "description": "false: sessiz saatte de hemen gider"
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "kuralın her bildiriminin sonuna eklenen yazı"
         },
         "plan_id": {
           "type": "string",

@@ -272,6 +272,7 @@ function RuleItem({ rule, events, labels, busy, onToggle, onEdit, onDelete }: Ru
           {t("rules.detail", { detail: detailWords(rule, labels, t) })}
           {rule.quiet === false ? ` · ${t("rules.loud")}` : ""}
         </p>
+        {rule.note ? <p>{t("rules.note", { note: rule.note })}</p> : null}
         <Detailed>
           <p className={MUTED}>
             {t("rules.code")} <code>{rule.event}</code>

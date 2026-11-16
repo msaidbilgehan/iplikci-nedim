@@ -71,6 +71,8 @@ def test_a_rule_is_read_from_its_turkish_keys():
         ("- {ad: X, olay: transaction.large, kosul: {tutar: -5}}", "sıfır ya da daha büyük"),
         ("- {ad: X, olay: month.closed, ayrinti: uzun}", "'ayrinti' şunlardan biri"),
         ("- {ad: X, olay: month.closed}\n- {ad: x, olay: month.ended}", "iki kural var"),
+        ("- {ad: X, olay: month.closed, not: [bir, iki]}", "'not' en çok 200 harflik"),
+        (f"- {{ad: X, olay: month.closed, not: {'a' * 201}}}", "'not' en çok 200 harflik"),
         ("ad: X", "bir kural listesi olmalı"),
     ],
 )
@@ -724,6 +726,21 @@ def test_telegram_is_set_up_with_the_token_read_from_a_line_never_an_argument(ws
     out = capsys.readouterr().out
     assert "Bot doğrulandı: @ornek_bot" in out and "/start " in out and "Eşleşti" in out
     assert TOKEN not in out and keyring == {"telegram-bot": TOKEN}
+
+
+def test_a_rules_note_is_written_read_back_and_said_under_each_of_its_notifications(ws, desk):
+    # The user's own words: what to do when the notification comes (a reminder to convert currency, say).
+    noted = AlertRule("Kartın son ödemesine 1 hafta", E.PAYMENT_DUE_SOON, Condition(days=7), note="Döviz bozdurun.")
+    notify.save_rules(ws, [*DEFAULTS, noted], Actor.USER)
+    assert 'not: "Döviz bozdurun."' in ws.layout.alert_rules.read_text(encoding="utf-8")
+    assert notify.load_rules(ws).rules[-1] == noted
+    started(ws)
+    happen(ws, E.PAYMENT_DUE_SOON, due(6).target, **due(6).detail)
+    notify.take_events(ws, NOON)
+    told = [n for n in rows(ws) if n.rule == noted.name]
+    assert {n.channel for n in told} == {Channel.IN_APP, Channel.DESKTOP}  # Telegram is not set up here
+    assert all(n.body.endswith("\nDöviz bozdurun.") for n in told)
+    assert all("\n" not in n.body for n in rows(ws) if n.rule != noted.name)  # a rule without one adds nothing
 
 
 def test_a_rule_may_send_in_the_quiet_hours_too(ws, desk):

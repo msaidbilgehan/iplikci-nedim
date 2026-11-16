@@ -73,6 +73,7 @@ def test_the_rules_are_read_with_the_token_and_changed_only_from_the_services_ow
         "detail": None,
         "enabled": True,
         "quiet": True,
+        "note": "",
     }
     due = next(e for e in found["events"] if e["kind"] == "payment.due_soon")
     assert (due["label"], due["days"], due["amount"], due["text"]) == ("Son ödeme yaklaşıyor", True, True, True)
@@ -81,11 +82,13 @@ def test_the_rules_are_read_with_the_token_and_changed_only_from_the_services_ow
         "event": "transaction.large",
         "condition": {"amount": 750000},
         "channels": ["telegram"],
+        "note": " Bütçeye bakın. ",  # the user's own words under each notification
     }
     assert client.put("/api/rules/alerts", json={"rules": [rule]}, headers=bearer()).status_code == 403
     signed_in(client)
     saved = client.put("/api/rules/alerts", json={"rules": [rule]}, headers=OWN_PAGE).json()
     assert saved["own"] and saved["rules"][0]["condition"] == {"days": None, "amount": 750000, "text": ""}
+    assert saved["rules"][0]["note"] == "Bütçeye bakın."
     assert "tutar: 7500" in ws.layout.alert_rules.read_text(encoding="utf-8")
     with ws.db() as db:
         assert [e.action for e in audit.entries(db)] == ["rules.alerts_changed"]

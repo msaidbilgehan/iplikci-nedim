@@ -522,6 +522,11 @@ kullanıcıya açık olduğu için anahtarları Türkçedir:
 - ad: Büyük harcama
   olay: transaction.large
   kanallar: [masaustu]
+- ad: Kartın son ödemesine 1 hafta
+  olay: payment.due_soon
+  kosul: {gun: 7, metin: TEB}
+  kanallar: [masaustu, telegram]
+  not: "Ekstre tutarı kadar dövizi bozdurun."  # kullanıcının yazısı, her bildirimin sonuna eklenir
 ```
 
 Hazır kurallar baştan açıktır; kurulum sihirbazı Telegram ya da e-posta bağlanınca hangilerinin oraya da gideceğini
@@ -545,6 +550,9 @@ Aşama 5'te (2026-11-02) bunlara ay bitti ile tarayıcı eklentisinin iki uyarı
 tanımadı) eklendi. Kurallar `notify` paketinde, teslimler `app.notify`'da ve `notifications` tablosundadır:
 - Bir kural `kosul`'da `gun`, `tutar` ve `metin`'i yalnızca olayı onları taşıyorsa kullanabilir.
 - `sessiz_saat: false` olan kural sessiz saatte de gönderir.
+- `not`, kullanıcının o kural için yazdığı tek satırlık (en çok 200 harf) yazıdır; kuralın her kanaldaki bildiriminin
+  metninin sonuna yeni satırla eklenir: bildirim gelince ne yapılacağını hatırlatır (v1.0.9; kullanıcının dövizini
+  kart ekstresinin son ödemesinden önce bozdurma hatırlatması).
 - Uygulama içi kutu kuralın kanal listesinden bağımsız olarak her bildirimi alır.
 Ayrıntılar [ADR-0010](../adr/0010-notification-channels.md)'un uygulama notundadır.
 

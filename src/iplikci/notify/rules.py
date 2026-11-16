@@ -8,6 +8,7 @@ the user changes one. The file is the user's, so its keys and values are Turkish
       ayrinti: ozet                  # tam, ozet or asgari; left out, each channel's own level from the settings
       sessiz_saat: false             # goes out at once in the quiet hours too; left out, it keeps to them
       acik: false                    # left out, the rule is on
+      not: "EUR bozdurmayı unutmayın" # the user's own words, added to each notification the rule sends
 
 A rule speaks once of an event's key (its kind and target) on each channel; a later event with the same key finds
 the notification there (app.notify). A file the program would not read is refused whole, with the reason.
@@ -30,8 +31,9 @@ DETAIL_NAMES: dict[str, DetailLevel] = {
     "ozet": DetailLevel.SUMMARY,
     "asgari": DetailLevel.MINIMAL,
 }
-_KEYS = ("ad", "olay", "kosul", "kanallar", "ayrinti", "sessiz_saat", "acik")
+_KEYS = ("ad", "olay", "kosul", "kanallar", "ayrinti", "sessiz_saat", "acik", "not")
 _NAME_LIMIT = 80
+NOTE_LIMIT = 200  # a line or two under the notification, as a reminder of what to do
 MAX_DAYS = 60  # the calendar's horizon (F09): a due date further away is no event yet
 
 E = EventKind
@@ -77,6 +79,8 @@ class AlertRule:
     detail: DetailLevel | None = None  # None: each channel's own level from the settings
     enabled: bool = True
     quiet: bool = True  # keeps to the quiet hours; False: goes out at once even then
+    # The user's own words, added to each notification the rule sends: what to do when it comes ("" for none).
+    note: str = ""
 
     @property
     def key(self) -> str:
@@ -119,6 +123,7 @@ HEADER = """\
 #   ayrinti   tam, ozet ya da asgari; yazılmazsa her kanalın kendi ayarı
 #   sessiz_saat  false: sessiz saatte de hemen gider (yazılmazsa sessiz saatte özete kalır)
 #   acik      false: kural kapalı
+#   not       isteğe bağlı: kuralın her bildiriminin sonuna eklenen yazınız, ör. "EUR bozdurmayı unutmayın"
 """
 
 
@@ -186,7 +191,14 @@ def _read(item: Any, where: str) -> AlertRule:
         _detail(values.get("ayrinti"), where),
         bool(enabled),
         bool(quiet),
+        _note(values.get("not", ""), where),
     )
+
+
+def _note(value: Any, where: str) -> str:
+    if not isinstance(value, str) or len(value.strip()) > NOTE_LIMIT or "\n" in value.strip():
+        raise RulesError(f"{where}: 'not' en çok {NOTE_LIMIT} harflik tek satırlık bir yazı olmalı")
+    return value.strip()
 
 
 def _condition(value: Any, event: EventKind, where: str) -> Condition:
@@ -284,6 +296,8 @@ def dump(rules: Sequence[AlertRule]) -> str:
             lines.append("  sessiz_saat: false")
         if not rule.enabled:
             lines.append("  acik: false")
+        if rule.note:
+            lines.append(f"  not: {_quoted(rule.note)}")
     return "\n".join(lines) + "\n"
 
 

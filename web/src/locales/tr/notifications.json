@@ -189,7 +189,8 @@
     "deleteTitle": "“{{name}}” kuralı silinsin mi?",
     "deleteAbout": "Kural listeden çıkar; bu olay için bildirim gelmez. Eski kural dosyası kural geçmişinde saklanır.",
     "deleteConfirm": "Kuralı sil",
-    "deleting": "Siliniyor…"
+    "deleting": "Siliniyor…",
+    "note": "Not: {{note}}"
   },
   "words": {
     "onTheDay": "günü gelince",
@@ -236,6 +237,9 @@
     "would": "Son {{days, number}} günde {{count, number}} kez bildirim verirdi.",
     "wouldNot": "Son {{days, number}} günde hiç bildirim vermezdi.",
     "newest": "En yenileri:",
-    "all": "Bildirimler:"
+    "all": "Bildirimler:",
+    "note": "Not (isteğe bağlı)",
+    "noteExample": "ör. EUR bozdurmayı unutmayın",
+    "noteHint": "Bu kuralın her bildiriminin sonuna eklenir: bildirim gelince ne yapacağınızı hatırlatır."
   }
 }

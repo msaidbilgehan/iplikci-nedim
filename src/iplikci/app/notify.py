@@ -434,6 +434,7 @@ def _notify(
         for channel in (Channel.IN_APP, *(c for c in rule.channels if c in ready)):
             level = _level(rule, channel, settings)
             message = content.render(e.kind, e.target, e.detail, level)
+            body = f"{message.body}\n{rule.note}" if rule.note else message.body  # the user's own words, last
             inside = channel is Channel.IN_APP
             n = Notification(
                 id=0,
@@ -445,7 +446,7 @@ def _notify(
                 channel=channel,
                 detail=level,
                 title=message.title,
-                body=message.body,
+                body=body,
                 status=DeliveryStatus.SENT
                 if inside
                 else DeliveryStatus.HELD

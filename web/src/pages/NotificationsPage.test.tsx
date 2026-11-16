@@ -670,6 +670,7 @@ describe("NotificationsPage", () => {
           detail: null,
           enabled: true,
           quiet: true,
+          note: "",
         },
       });
       await userEvent.selectOptions(event, "Son ödeme yaklaşıyor");
@@ -690,6 +691,8 @@ describe("NotificationsPage", () => {
       await userEvent.click(within(editor).getByRole("checkbox", { name: "Masaüstü" }));
       await userEvent.selectOptions(within(editor).getByLabelText("Ayrıntı düzeyi"), "Tam");
       await userEvent.click(within(editor).getByRole("checkbox", { name: "Sessiz saatlere uy" }));
+      // The user's own words go with each notification of the rule: one line, its spaces as one.
+      await userEvent.type(within(editor).getByLabelText("Not (isteğe bağlı)"), "  Kirayı  ayın 5'inde yatırın ");
       await userEvent.click(within(editor).getByRole("button", { name: "Kaydet" }));
       expect(await within(rules).findByText("Kurallar kaydedildi")).toBeInTheDocument();
       expect(sent).toEqual([
@@ -703,12 +706,14 @@ describe("NotificationsPage", () => {
             detail: "full",
             enabled: true,
             quiet: false,
+            note: "Kirayı ayın 5'inde yatırın",
           },
         ],
       ]);
       expect(within(rules).queryByRole("form")).toBeNull();
       expect(within(rules).getByRole("button", { name: "Yeni kural" })).toHaveFocus();
       expect(within(rules).getByText("Kira yaklaşıyor")).toBeInTheDocument();
+      expect(within(rules).getByText("Not: Kirayı ayın 5'inde yatırın")).toBeInTheDocument();
     });
 
     it("edits a rule in place, starting from what it says", async () => {

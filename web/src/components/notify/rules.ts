@@ -53,7 +53,10 @@ export interface RuleDraft {
   detail: DetailLevel | ""; // "": each channel's own level
   enabled: boolean;
   quiet: boolean;
+  note: string; // the user's own words, added to each notification the rule sends
 }
+
+export const NOTE_LIMIT = 200; // as the service takes it: a line or two under the notification
 
 export const NEW_RULE: RuleDraft = {
   name: "",
@@ -65,6 +68,7 @@ export const NEW_RULE: RuleDraft = {
   detail: "",
   enabled: true,
   quiet: true,
+  note: "",
 };
 
 export function draftOf(rule: AlertRule): RuleDraft {
@@ -80,6 +84,7 @@ export function draftOf(rule: AlertRule): RuleDraft {
     detail: rule.detail ?? "",
     enabled: rule.enabled ?? true,
     quiet: rule.quiet ?? true,
+    note: rule.note ?? "",
   };
 }
 
@@ -132,6 +137,7 @@ export function checkDraft(
       detail: draft.detail || null,
       enabled: draft.enabled,
       quiet: draft.quiet,
+      note: draft.note.replace(/\s+/g, " ").trim().slice(0, NOTE_LIMIT),
     },
   };
 }

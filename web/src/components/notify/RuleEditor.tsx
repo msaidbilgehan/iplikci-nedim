@@ -17,6 +17,7 @@ import {
   type DraftField,
   draftOf,
   NEW_RULE,
+  NOTE_LIMIT,
   type RuleDraft,
   TEXT_LIMIT,
   withoutFields,
@@ -47,6 +48,8 @@ export function RuleEditor({ rule, events, labels, saving, refusal, onSave, onCa
     amount: useId(),
     text: useId(),
   };
+  const noteId = useId();
+  const noteHint = useId();
   const nameField = useRef<HTMLInputElement>(null);
   const event = events.find((candidate) => candidate.kind === draft.event);
 
@@ -175,6 +178,23 @@ export function RuleEditor({ rule, events, labels, saving, refusal, onSave, onCa
           ))}
         </select>
       </label>
+      <div className="flex flex-col gap-1 text-sm">
+        <label htmlFor={noteId}>{t("editor.note")}</label>
+        <input
+          id={noteId}
+          type="text"
+          value={draft.note}
+          maxLength={NOTE_LIMIT}
+          autoComplete="off"
+          aria-describedby={noteHint}
+          placeholder={t("editor.noteExample")}
+          onChange={(e) => change({ note: e.target.value })}
+          className={`max-w-md ${FIELD}`}
+        />
+        <p id={noteHint} className={MUTED}>
+          {t("editor.noteHint")}
+        </p>
+      </div>
       <QuietAndOn draft={draft} onChange={change} />
       <div className="flex flex-wrap gap-2">
         <Button type="submit" disabled={saving}>

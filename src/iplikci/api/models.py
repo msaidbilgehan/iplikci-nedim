@@ -463,6 +463,8 @@ class AlertRuleModel(BaseModel):
     detail: DetailLevel | None = None  # null: each channel's own level
     enabled: bool = True
     quiet: bool = True  # keeps to the quiet hours; false: goes out at once even then
+    # The user's own words, added to each notification the rule sends; one line ("" for none).
+    note: str = Field(default="", max_length=200, pattern=r"^[^\n]*$")
 
 
 class EventInfoOut(BaseModel):

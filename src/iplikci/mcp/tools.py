@@ -1010,6 +1010,7 @@ def _alert_view(rule: notify.AlertRule) -> Json:
         "detail": DETAIL_LEVEL[rule.detail] if rule.detail else None,
         "enabled": rule.enabled,
         "quietHours": rule.quiet,
+        "note": rule.note or None,
     }
 
 
@@ -1026,6 +1027,7 @@ def _alert_from(args: Args) -> notify.AlertRule:
         tuple(notify.Channel(ch) for ch in args.get("channels", ["desktop", "telegram"])),
         notify.DetailLevel(args["detail"]) if args.get("detail") else None,
         quiet=args.get("quiet_hours", True),
+        note=str(args.get("note", "")).strip(),
     )
 
 
@@ -2440,7 +2442,8 @@ TOOLS = (
         "alerts",
         "Bildirim kuralları",
         "Bildirim kurallarını listeler (action=list; olaylar, koşulları ve kanalların durumu ile), yeni kural ekler "
-        "(action=add: name, event, isteğe bağlı days, amount, text, channels, detail, quiet_hours) ya da bir kuralı "
+        "(action=add: name, event, isteğe bağlı days, amount, text, channels, detail, quiet_hours, note) ya da bir "
+        "kuralı "
         "kapatır (action=close) veya yeniden açar (action=open; name ile). Ekleme, kapatma ve açma için verilen plan "
         "kuralı ve (açık bir kuralda) son 30 günün olaylarından kaç bildirim çıkacağını içerir; onaylanınca "
         "değişiklik rules/alerts.yaml'a yazılır, önceki dosya kural geçmişinde saklanır. Okunamayacak bir kural için "
@@ -2455,6 +2458,7 @@ TOOLS = (
             channels={"type": "array", "items": {"type": "string", "enum": ["desktop", "telegram", "email"]}},
             detail={"type": "string", "enum": ["full", "summary", "minimal"]},
             quiet_hours={"type": "boolean", "description": "false: sessiz saatte de hemen gider"},
+            note={"type": "string", "maxLength": 200, "description": "kuralın her bildiriminin sonuna eklenen yazı"},
             plan_id=_PLAN_ID,
         ),
         _two_step("alerts", _alerts),

@@ -772,9 +772,16 @@ def test_the_alert_rules_are_listed_added_closed_and_opened_again(server, ws):
     assert not failed and not found["own"] and found["rules"][0]["name"] == "Son ödemeye 3 gün"
     assert {e["event"] for e in found["events"]} >= {"payment.due_soon", "transaction.large"}
     plan, (added, failed) = approved_alert(
-        server, action="add", name="Büyük market", event="transaction.large", amount=7500, text="market"
+        server,
+        action="add",
+        name="Büyük market",
+        event="transaction.large",
+        amount=7500,
+        text="market",
+        note="Bütçeye bakın.",
     )
     assert (plan["action"], plan["rule"]["amount"], plan["before"]) == ("add", 7500.0, None)
+    assert plan["rule"]["note"] == "Bütçeye bakın."  # said under each notification of the rule
     assert plan["lastDays"]["days"] == 30 and "rules/alerts.yaml" in plan["note"]  # the shipped rules get written
     assert not failed and added["own"] and added["rules"][-1]["amount"] == 7500.0
     plan, (closed, _) = approved_alert(server, action="close", name="büyük MARKET")

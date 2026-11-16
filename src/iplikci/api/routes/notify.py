@@ -75,6 +75,7 @@ def _rule_out(rule: AlertRule) -> AlertRuleModel:
         detail=rule.detail,
         enabled=rule.enabled,
         quiet=rule.quiet,
+        note=rule.note,
     )
 
 
@@ -88,6 +89,7 @@ def _rule_in(rule: AlertRuleModel) -> AlertRule:
         rule.detail,
         rule.enabled,
         rule.quiet,
+        rule.note.strip(),
     )
 
 

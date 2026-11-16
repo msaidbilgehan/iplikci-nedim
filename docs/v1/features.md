@@ -524,7 +524,8 @@ G8 · Çekirdek (enflasyon V1+)
 G12, K10 · Çekirdek
 
 - **Kural düzenleyici:** olay, koşul, kanallar, ayrıntı düzeyi ve sessiz saat seçilir. Önizleme, kuralın son 30 günde
-  kaç kez tetikleneceğini gösterir.
+  kaç kez tetikleneceğini gösterir. İsteğe bağlı bir not, kuralın her bildiriminin sonuna eklenir ("ör. EUR bozdurmayı
+  unutmayın"); kural listesi onu "Not: …" diye gösterir.
 - **Hazır kurallar** ([mimari §14](architecture.md#14-bildirimler)) varsayılan olarak açıktır.
 - **Kanallar:** kendine e-posta, Telegram (bot ve eşleştirme kodu), masaüstü, uygulama içi. E-posta kanalı, uygulama
   şifresine izin veren bir gönderici hesap ister. Gelişmiş Koruma'daki hesapta varsayılan kanallar Telegram ve

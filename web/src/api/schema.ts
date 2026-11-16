@@ -137,6 +137,7 @@ export interface AlertRuleModel {
   detail?: DetailLevel | null;
   enabled?: boolean;
   quiet?: boolean;
+  note?: string;
 }
 
 export interface AlertRulesIn {
