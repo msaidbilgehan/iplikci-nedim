@@ -414,6 +414,10 @@ says what the waiting must show); the Windows and Linux checks come later (K25).
   Google One's new descriptor "GOOGLE*ONE" is in the shipped rules. The forecast spreads an account's card payments
   after the latest calendar due of the cards it paid in the spread's months (`forecast.cards_paid`), whichever account
   pays that due now: a card paid lately from another account was paid twice and the total went below zero too early.
+- v1.0.6 (2026-11-16): the user paid that statement before its due date and got the warning again, nine days earlier.
+  A paid statement leaves the calendar, so the spread started today. The spread now waits for the due date of the
+  cards' newest statements, paid or not (`upcoming.newest_statements`, which `app/outlook.card_dues` reads too), so
+  paying a statement on time leaves the forecast as it was.
 
 The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's
 web interface).

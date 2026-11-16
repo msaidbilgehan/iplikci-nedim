@@ -4,6 +4,15 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [1.0.6] — 2026-11-16 — Zamanında ödenen ekstre öngörüyü öne çekmiyor
+
+### Düzeltilenler
+
+- Bir kart ekstresini son ödeme gününden önce ödeyince bakiye öngörüsü kötüleşiyordu: ödenen ekstre takvimden düşünce,
+  kartı ödeyen hesabın "ayda şu kadar kart ödemesi" son ödeme gününden sonra değil bugünden başlıyordu. Ekstreyi
+  zamanında ödeyen kullanıcıya "hesaplarınızın toplamı eksiye düşecek" bildirimi dokuz gün erken bir günle yeniden
+  geldi. Artık ödenen ekstre de son ödeme gününe kadar kartın ödemelerini karşılar; öngörü ödemeden önceki gibi kalır.
+
 ## [1.0.5] — 2026-11-16 — Yanlış zam bildirimleri, Google One ve öngörüde iki kez sayılan kart borcu
 
 ### Düzeltilenler

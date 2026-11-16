@@ -11,6 +11,11 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 
 ## Değişiklik kaydı
 
+- 2026-11-16 (64) — Zamanında ödenen ekstre öngörüyü öne çekmiyor (v1.0.6):
+  - [Yorum kuralları](domain/interpretation.md), bakiye öngörüsü: bir hesabın kart ödemeleri, ödediği kartların en
+    yeni ekstrelerinin son ödeme gününden sonra başlar, ekstre ödenmiş olsa da. Kullanıcı ekstresini zamanında ödeyince
+    toplamın eksiye düştüğü gün dokuz gün öne kaymış, bildirimi yeniden gelmişti.
+
 - 2026-11-16 (63) — Yanlış zam bildirimleri, Google One ve öngörüde iki kez sayılan kart borcu (v1.0.5):
   - [Yorum kuralları](domain/interpretation.md), düzenli ödemeler: aynı dönemde eski fiyatıyla da ödenen bir seriye
     yeni tutarlı bir ödeme fiyat değişimi olarak katılmaz; seriyi sürdüren seyrek ödemeler aynı dönemden gelemez; eski
