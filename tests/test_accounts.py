@@ -46,6 +46,9 @@ def test_check_balances_newest_first():
         # Interest the account earns is income; interest charged, and interest the bank gives back, is a cost.
         ("CEPTETEB Marifetli Hesap net faiz geliri %45", 12.34, "", "TRY", TransactionKind.INCOME),
         ("Vade Sonu Faiz", 85.0, "", "TRY", TransactionKind.INCOME),
+        ("BRÜT FAİZ %30.00 ÜZERİNDEN 1 GÜN", 41.10, "", "TRY", TransactionKind.INCOME),
+        # The tax withheld from that interest nets it: what the account keeps is the income, no cost and no spending.
+        ("BRÜT FAİZDEN %17.50 GELİR VERGİSİ STOPAJI", -7.19, "", "TRY", TransactionKind.INCOME),
         ("Ek Hesap Faizi", -120.0, "", "TRY", TransactionKind.INTEREST_FEE),
         ("Ek Hesap Faiz İadesi", 1.2, "", "TRY", TransactionKind.INTEREST_FEE),
         ("KMH FAİZ İPTALİ", 1.2, "", "TRY", TransactionKind.INTEREST_FEE),
@@ -151,6 +154,38 @@ def test_isbank_account_xls_finds_branch_and_account_at_the_end_of_the_iban():
     sent = next(t for t in s.transactions if t.amount == 15000)
     assert (sent.counterparty, sent.kind) == ("VELİ ÖRNEKSOY", TransactionKind.TRANSFER_CANDIDATE)  # "AD*" FAST text
     assert next(t for t in s.transactions if t.amount == Decimal("8.86")).kind == TransactionKind.INTEREST_FEE
+
+
+def test_isbank_account_xls_without_a_movement_is_verified_at_the_balance_it_was_made_at():
+    # The bank prints no row for a quiet period, only blank ones down to its footnote, and the balance the summary
+    # was made at: a list running up to that day opened and closed at it.
+    [s] = _read("HesapOzeti.xls", isbank.quiet_account_xls()).statements
+    assert (s.empty, s.verified, s.transactions) == (True, True, [])
+    assert (s.start, s.cut_date, s.previous, s.total) == (
+        date(2026, 10, 1),
+        date(2026, 10, 31),
+        Decimal("2500.00"),
+        Decimal("2500.00"),
+    )
+
+
+def test_isbank_account_xls_made_after_its_period_knows_no_balance_of_it():
+    # Made on 16 November, the balance printed is not the one of 31 October: the quiet list is verified, its balance
+    # unknown.
+    data = isbank.account_xls((), Decimal(2500), made=date(2026, 11, 16), below=isbank.FOOTNOTE_ROWS)
+    [s] = _read("HesapOzeti.xls", data).statements
+    assert (s.empty, s.verified, s.previous, s.total) == (True, True, None, None)
+
+
+def test_isbank_account_xls_with_a_row_it_cannot_read_is_not_an_empty_list():
+    # A row the reader could not read is no quiet period: the list stays unverified, as a changed format would.
+    unread = [["Bilinmeyen biçim", "?", "1.000,00"], *isbank.FOOTNOTE_ROWS]
+    [s] = _read(
+        "HesapOzeti.xls", isbank.account_xls((), Decimal(2500), made=date(2026, 10, 31), below=unread)
+    ).statements
+    assert (s.empty, s.verified, s.total) == (False, False, None)
+    without_note = isbank.account_xls((), Decimal(2500), made=date(2026, 10, 31))  # nothing shows the table ended
+    assert _read("HesapOzeti.xls", without_note).statements[0].verified is False
 
 
 def test_isbank_account_xls_names_whom_a_transfer_between_accounts_at_the_bank_went_to():

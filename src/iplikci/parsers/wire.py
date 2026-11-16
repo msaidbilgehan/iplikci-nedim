@@ -196,6 +196,7 @@ def _statement(s: Statement) -> Json:
         "checks_total": s.checks_total,
         "balances": {month: str(v) for month, v in s.balances.items()},
         "one_off": s.one_off,
+        "empty": s.empty,
         "due_date": s.due_date.isoformat() if s.due_date else None,
         "minimum_payment": _money(s.minimum_payment),
         "credit_limit": _money(s.credit_limit),
@@ -214,9 +215,10 @@ def _statement(s: Statement) -> Json:
 
 
 def _statement_from(data: Any) -> Statement:
-    total_is_sum, one_off = data["total_is_sum"], data["one_off"]
-    if not isinstance(total_is_sum, bool) or not isinstance(one_off, bool):
-        raise TypeError(f"expected booleans, got {type(total_is_sum).__name__} and {type(one_off).__name__}")
+    # A reading stored before an empty list was told apart has no "empty": its list printed rows.
+    total_is_sum, one_off, empty = data["total_is_sum"], data["one_off"], data.get("empty", False)
+    if not all(isinstance(flag, bool) for flag in (total_is_sum, one_off, empty)):
+        raise TypeError(f"expected booleans, got {[type(f).__name__ for f in (total_is_sum, one_off, empty)]}")
     return Statement(
         account=_str(data["account"]),
         cut_date=_date(data["cut_date"]),
@@ -231,6 +233,7 @@ def _statement_from(data: Any) -> Statement:
         checks_total=_int(data["checks_total"]),
         balances={_str(month): _decimal(v) for month, v in data["balances"].items()},
         one_off=one_off,
+        empty=empty,
         due_date=_optional(_date, data["due_date"]),
         minimum_payment=_optional(_decimal, data["minimum_payment"]),
         credit_limit=_optional(_decimal, data["credit_limit"]),

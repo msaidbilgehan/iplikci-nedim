@@ -153,15 +153,22 @@ ACCOUNT_MOVES: tuple[tuple[Move, str], ...] = (
 )
 
 
+# What the bank prints under the table: blank rows, then its note on the sign of the amounts.
+FOOTNOTE_ROWS: tuple[tuple[Cell, ...], ...] = ((), (), ("(*) Çekilen tutar '-' ile gösterilmiştir.",))
+
+
 def account_xls(
     moves: Sequence[tuple[Move, str]] = ACCOUNT_MOVES,
     opening: Decimal = Decimal(1000),
     holder: str = HOLDER,
     period: tuple[date, date] = (date(2026, 10, 1), date(2026, 10, 31)),
+    made: date | None = None,
+    below: Sequence[Sequence[Cell]] = (),
 ) -> bytes:
     """An İş Bankası "Hesap Özeti" export (XLS) of account 1234-0123456: the holder and the account above a table
     of rows, newest first. The text column has an empty neighbour before the reference; the reader joins the
-    cells between the two headings."""
+    cells between the two headings. made: the day the summary was made ("Belge Düzenleme Tarihi"), printed beside
+    the balance it had then; below: what the bank prints under the rows (FOOTNOTE_ROWS)."""
     balanced = with_balances([m for m, _ in moves], opening)
     head: list[list[Cell]] = [
         ["TÜRKİYE İŞ BANKASI A.Ş."],
@@ -169,6 +176,7 @@ def account_xls(
         [f"Sayın {holder}"],
         ["Ürün-Döviz Tipi", "Vadesiz - TL", "IBAN", "TR00 0006 4000 0011 2340 1234 56"],
         ["Mevcut Bakiye", f"{format_amount(balanced[-1][1] if balanced else opening)} TL"],
+        *([["Belge Düzenleme Tarihi", f"{made:%d.%m.%Y} - 10:30:00"]] if made else []),
         ["Sorgulama Kriterleri", f"{period[0]:%d.%m.%Y} - {period[1]:%d.%m.%Y}"],
         [],
         ["Tarih/Saat", "İşlem Tipi", "İşlem Tutarı*", "Bakiye", "Açıklama", None, "Referans"],
@@ -177,7 +185,14 @@ def account_xls(
         [f"{m.day:%d/%m/%Y}-10:00:00", kind, float(m.amount), float(balance), m.text, None, f"{n:08d}"]
         for n, ((m, balance), (_, kind)) in enumerate(zip(balanced, moves, strict=True), 1)
     ]
-    return xls_file("Hesap Özeti", head + rows[::-1])
+    return xls_file("Hesap Özeti", head + rows[::-1] + [list(row) for row in below])
+
+
+def quiet_account_xls() -> bytes:
+    """A month of account 1234-0123456 without a movement, as İş Bankası sends it: no row, only blank ones down to
+    its footnote, and the balance it had when the summary was made on the period's last day."""
+    period = (date(2026, 10, 1), date(2026, 10, 31))
+    return account_xls((), Decimal("2500.00"), period=period, made=period[1], below=FOOTNOTE_ROWS)
 
 
 # --- receipts and passbooks -------------------------------------------------------------------------------------
@@ -303,6 +318,9 @@ def specimens() -> list[Specimen]:
     return [
         Specimen("isbank-maximum-ekstre.pdf", maximum_statement(), "isbank.maximum_card", "isbank-1234", 8),
         Specimen("isbank-hesap-ozeti.xls", account_xls(), "isbank.account_xls", "isbank-1234-0123456", 6),
+        Specimen(
+            "isbank-hesap-ozeti-hareketsiz.xls", quiet_account_xls(), "isbank.account_xls", "isbank-1234-0123456", 0
+        ),
         Specimen("isbank-fast-dekont.pdf", fast_receipt(), "isbank.receipt", "isbank-1234-0123456", 2),
         Specimen("isbank-e-cuzdan.pdf", passbook(), "isbank.passbook", "isbank-1234-0765432", 1),
         Specimen("isbank-kart-borcu-tahsilati.eml", collection_notice(), "isbank.notice.collection", "isbank-1234", 1),

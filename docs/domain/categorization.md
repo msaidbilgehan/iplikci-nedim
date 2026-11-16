@@ -69,9 +69,13 @@ _banka_kategorileri: …          # Garanti'nin ekstrede yazdığı başlıklar�
   "Diğer Gelirler"de kalır: işverenin adındaki "ELEKTRONİK" maaşı elektronik alışverişi yapmaz (v0.9.9'a dek
   yapıyordu).
 - Hesap dökümlerinde hesaba giren faiz, iade ya da iptal değilse, okuyucunun gözünde gelirdir (mevduatın faizi).
-  Genel kurallardaki "Faiz Geliri" (`gelir`) bankanın yazdığı "faiz geliri"ni alır; başka sözlerle yazılan faiz
-  "Diğer Gelirler"de kalır, o bankanın sözü görülünce kurala eklenir. Ödenen faizler ve ücretler türlerine göre
-  "Banka & Finans"tadır. Genel kurallarda adı geçen tek gelir budur: ödeyenin adı değil, bankanın sözüdür.
+  Genel kurallardaki "Faiz Geliri" (`gelir`) bankanın yazdığı "faiz geliri"ni ve İş Bankası'nın günlük "BRÜT FAİZ %…
+  ÜZERİNDEN n GÜN" satırını alır; başka sözlerle yazılan faiz "Diğer Gelirler"de kalır, o bankanın sözü görülünce
+  kurala eklenir. Ödenen faizler ve ücretler türlerine göre "Banka & Finans"tadır. Genel kurallarda adı geçen tek gelir
+  budur: ödeyenin adı değil, bankanın sözüdür.
+- O faizden kesilen vergi ("BRÜT FAİZDEN %17.50 GELİR VERGİSİ STOPAJI") de gelirdir ve faiz gelirinden düşer: gelir,
+  hesabın elinde kalandır. Ödenen faiz ya da harcama değildir (v1.0.8'e dek "Ek Hesap (KMH) Faizi" ve gereksiz
+  harcama sayılıyordu).
 - Hesaptan alınan ya da satılan fon ("… PORTFÖY PARA PİYASASI FONU alış bedeli") genel kurallardaki "Yatırım Fonu"dur
   (`yatırım`): birikimdir, kişiye gönderilen para değildir.
 - `_hariç`, kategorinin desenleri bir kelimenin başında tutsa da o kategoriye ait olmayan kelimelerdir. Açıklamada

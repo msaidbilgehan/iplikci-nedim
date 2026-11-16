@@ -156,6 +156,7 @@ def full_result() -> ParseResult:
         balances={"2026-09": Decimal("12.30"), "2026-10": Decimal(0)},
         securities=[Security("ORNEK", "ÖRNEK SANAYİ A.Ş.", Decimal("20.5"), Decimal(1342), date(2026, 10, 30))],
         one_off=True,
+        empty=True,
         due_date=date(2026, 10, 15),
         minimum_payment=Decimal("1258.21"),
         credit_limit=Decimal("60000.00"),
@@ -176,6 +177,12 @@ def full_result() -> ParseResult:
 def test_a_readers_result_crosses_back_unchanged():
     result = full_result()
     assert wire.load(json.loads(json.dumps(wire.dump(result)))) == result
+
+
+def test_a_reading_stored_before_empty_lists_were_told_apart_reads_as_a_list_with_rows():
+    data = wire.dump(full_result())
+    del data["statements"][0]["empty"]
+    assert wire.load(data).statements[0].empty is False
 
 
 GONE = object()

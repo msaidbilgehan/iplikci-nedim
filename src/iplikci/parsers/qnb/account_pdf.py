@@ -87,7 +87,7 @@ def read(doc: SourceDocument) -> ParseResult:
 
 class AccountPdf:
     id = ID
-    version = 2
+    version = 3
     bank = "QNB"
     name = "QNB hesap hareketleri (PDF)"
     document_type = DocumentKind.ACCOUNT_STATEMENT

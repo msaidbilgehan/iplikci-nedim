@@ -257,6 +257,11 @@ def test_a_fund_bought_or_sold_from_an_account_is_saving(cat, amount):
 def test_the_interest_a_deposit_earns_is_interest_income(cat):
     t = categorize(cat, "CEPTETEB Marifetli Hesap net faiz geliri %45", kind=TransactionKind.INCOME, amount=-12.34)
     assert (t.category, t.group, t.necessity) == ("Faiz Geliri", "Birikim & Yatırım", None)
+    # İş Bankası posts the gross interest every day and takes the tax off it in a row of its own: both are the
+    # interest income, which nets to what the account keeps.
+    gross = categorize(cat, "BRÜT FAİZ %30.00 ÜZERİNDEN 1 GÜN", kind=TransactionKind.INCOME, amount=-41.10)
+    tax = categorize(cat, "BRÜT FAİZDEN %17.50 GELİR VERGİSİ STOPAJI", kind=TransactionKind.INCOME, amount=7.19)
+    assert (gross.category, tax.category, tax.necessity) == ("Faiz Geliri", "Faiz Geliri", None)
 
 
 def test_an_income_takes_only_a_category_that_counts_money_in_as_income(tmp_path, cat):

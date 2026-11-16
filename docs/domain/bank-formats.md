@@ -212,6 +212,14 @@ de yoktur.
   HESABA <AD SOYAD> Hesaplar Arası Akt". Karşı taraf, `HESABA` ile "Hesaplar Arası" arasındaki addır. Ad
   kullanıcınınsa öbür hesabın belgesi gelmemiş olsa da aktarma kendi hesaplar arasıdır (v0.9.17'ye dek ad okunmuyor,
   aktarma kişilere gönderilen sayılıyordu).
+- Hareketsiz bir dönemin özeti tabloya satır basmaz: başlığın altında birkaç boş satır, sonra dipnot ("(*) Çekilen
+  tutar '-' ile gösterilmiştir."). Bakiyeyi yalnızca tablonun üstündeki "Mevcut Bakiye" yazar; o, özetin hazırlandığı
+  andaki bakiyedir ("Belge Düzenleme Tarihi: 31.10.2026 - 10:30:00"). Dönem o güne kadar sürüyorsa liste o bakiyeyle
+  açılıp kapanır; daha önce bitiyorsa bakiyesi bilinmez. Böyle bir liste boştur (`empty`) ve doğrulanmış sayılır;
+  tabloda okunamayan bir satır varsa boş sayılmaz (v1.0.8'e dek hareketsiz özet "doğrulanamadı" kalıyordu).
+- Günlük faizli hesap faizi her gün brüt yazar ("BRÜT FAİZ %30.00 ÜZERİNDEN 1 GÜN"; hafta sonu birikip "3 GÜN") ve
+  vergisini ayrı bir satırla keser ("BRÜT FAİZDEN %17.50 GELİR VERGİSİ STOPAJI"). İkisi de faiz gelirine girer; vergi
+  onu düşürür.
 
 **FAST/EFT dekont PDF'i** (`isbank.receipt`)
 

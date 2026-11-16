@@ -126,6 +126,9 @@ class Statement:
     checks_ok: int = 0
     checks_total: int = 0
     balances: dict[str, Decimal] = field(default_factory=dict[str, Decimal])  # "YYYY-MM" -> month-end balance
+    # Account lists: the bank printed no movement in the period at all (blank rows down to its footnote, not rows
+    # the reader could not read). Nothing to check and nothing missed: the list is verified as it stands.
+    empty: bool = False
     # Investment accounts: the securities held at the end of the statement (previous / total are the cash).
     securities: list[Security] = field(default_factory=list[Security])
     # A passbook (e-cüzdan): the account as the bank sent it once, when it opened. Banks mail no monthly list after
@@ -169,6 +172,8 @@ class Statement:
     @property
     def verified(self) -> bool:
         if self.is_account:
+            if self.empty and not self.transactions:
+                return True
             return self.checks_total > 0 and self.checks_ok == self.checks_total
         return self.difference is not None and abs(self.difference) <= TOLERANCE
 

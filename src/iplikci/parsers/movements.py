@@ -90,6 +90,10 @@ def classify(m: Movement, currency: str) -> TransactionKind | str | None:
         return None  # the TL side of the same conversion carries it
     if m.amount > 0 and "FAIZ" in f and not any(p in f for p in _GIVEN_BACK):
         return TransactionKind.INCOME  # interest the account earns ("net faiz geliri" on a deposit)
+    if m.amount < 0 and "FAIZ" in f and "STOPAJ" in f:
+        # The tax withheld from that interest ("BRÜT FAİZDEN %17.50 GELİR VERGİSİ STOPAJI"): the income is what the
+        # account keeps, so it nets the interest; it is no interest paid and no spending.
+        return TransactionKind.INCOME
     if any(p in f for p in _FEES):
         return TransactionKind.INTEREST_FEE
     if "MAAS ODEMESI" in f or "MAASODEMESI" in f:

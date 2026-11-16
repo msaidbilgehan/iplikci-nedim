@@ -83,7 +83,7 @@ Okumanın üç sonucu vardır:
 | Belge | Kural |
 |---|---|
 | Kart ekstresi | Önceki bakiye artı satırlar, bankanın yazdığı toplama eşittir (V1'de en çok 1 kuruş fark). |
-| Hesap listesi | Her satırda yazan bakiye, bir önceki bakiye artı tutara eşittir. |
+| Hesap listesi | Her satırda yazan bakiye, bir önceki bakiye artı tutara eşittir. Banka dönem boyunca hiç hareket basmadıysa (tablo dipnotuna kadar boş satırlardır, okunamayan satır yoktur; `empty`) liste olduğu gibi doğrulanmış sayılır. |
 | Yatırım ekstresi | Nakit bakiyeleri satır satır tutar. Yazılan kapanış nakdi, hisse toplamı ve portföy toplamı (hisseler + nakit) de tutar. |
 
 Bir değişiklikten sonra daha az doğrulanan ekstre ya da yeni bir "okunamadı" belgesi çıkıyorsa bu bir gerilemedir ve

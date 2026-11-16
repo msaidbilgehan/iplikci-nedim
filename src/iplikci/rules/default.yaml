@@ -235,9 +235,11 @@ Birikim & Yatırım:
     _tür: yatırım
     _: [PORTFOY, PARA PIYASASI, YATIRIM FONU]
   Faiz Geliri:
-    # Mevduatın kazandırdığı faiz ("net faiz geliri"). Ödenen faiz ve ücretler Banka & Finans'tadır.
+    # Mevduatın kazandırdığı faiz: TEB'in "net faiz geliri", İş Bankası'nın günlük "BRÜT FAİZ %… ÜZERİNDEN n GÜN" satırı
+    # ve ondan kesilen "BRÜT FAİZDEN … GELİR VERGİSİ STOPAJI" (faiz gelirinden düşer). Ödenen faiz ve ücretler Banka &
+    # Finans'tadır.
     _tür: gelir
-    _: [FAIZ GELIRI]
+    _: [FAIZ GELIRI, BRUT FAIZ]
 
 Diğer:
   Vergi & Resmi İşlemler:

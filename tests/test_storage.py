@@ -207,6 +207,7 @@ def sample() -> ParseResult:
         balances={"2026-10": Decimal("39.99")},
         securities=[Security("ORNEK", "ÖRNEK SANAYİ A.Ş.", Decimal(20), Decimal(1342), date(2026, 10, 30))],
         one_off=True,
+        empty=True,  # kept as stored, whatever its rows: the reader says so
     )
     receipt = [
         Transaction(

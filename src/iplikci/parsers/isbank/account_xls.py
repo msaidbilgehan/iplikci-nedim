@@ -4,9 +4,14 @@ A FAST, EFT or havale row names the other side first ("<AD SOYAD>*<açıklama>*�
 the bank ("Para Transferi") names the account it went to and its holder: "1234/0123456 HESABA <AD SOYAD> Hesaplar
 Arası Akt"; the user's own name there makes it a transfer between own accounts, whether or not a document of the other
 account has come.
+
+A period without a movement prints no row at all: blank rows down to the footnote ("(*) Çekilen tutar …") and the
+balance at the time the summary was made ("Mevcut Bakiye", "Belge Düzenleme Tarihi") above the table. Such a list is
+empty (nothing to check, nothing missed); running up to the day it was made, it opened and closed at that balance.
 """
 
 import re
+from decimal import Decimal
 
 from ...domain.codes import DocumentKind
 from ...domain.models import ParseResult
@@ -18,6 +23,7 @@ from ..movements import Movement, build_statement
 from ..sheet import cells, key_values, to_date, to_number
 
 ID = "isbank.account_xls"
+FOOTNOTE = "(*)"  # the bank's note under the table: "(*) Çekilen tutar '-' ile gösterilmiştir."
 
 
 def _receiver(desc: str) -> str:
@@ -30,6 +36,21 @@ def _receiver(desc: str) -> str:
     start = folded.index("HESABA") + 1
     end = next((j for j in range(start, len(folded) - 1) if folded[j : j + 2] == ["HESAPLAR", "ARASI"]), start)
     return " ".join(words[start:end])
+
+
+def _blank_table(rows: list[list[object]]) -> bool:
+    """Whether the table holds nothing but blank rows down to the bank's footnote: no row of it unread."""
+    for row in rows:
+        found = cells(row)
+        if found:
+            return found[0].startswith(FOOTNOTE)
+    return False
+
+
+def _printed(text: str) -> Decimal | None:
+    """The amount of "Mevcut Bakiye: 1.250,00 USD"."""
+    found = re.search(r"-?[\d.]+,\d{2}", text)
+    return to_number(found[0]) if found else None
 
 
 def read(doc: SourceDocument) -> ParseResult:
@@ -65,13 +86,18 @@ def read(doc: SourceDocument) -> ParseResult:
         counterparty = desc.split("*")[0].strip() if named else _receiver(desc)
         moves.append(Movement(d, desc, amount, to_number(r[col["Bakiye"]]), label, counterparty, doc.row_ref(i)))
     start, end = period_of(info.get("Sorgulama Kriterleri", ""))
-    stmt = build_statement(doc, account, moves, start, end, oldest_first=False)
+    empty = not moves and _blank_table(rows[header + 1 :])
+    printed, made = _printed(balance_text), to_date(info.get("Belge Düzenleme Tarihi", ""))
+    # Without a movement, the balance the summary was made at is the balance of a period running up to that day.
+    known = printed if empty and made is not None and end is not None and end >= made else None
+    stmt = build_statement(doc, account, moves, start, end, oldest_first=False, opening=known, closing=known)
+    stmt.empty = empty
     return ParseResult(parser=ID, accounts=[account], statements=[stmt], holder=holder)
 
 
 class AccountXls:
     id = ID
-    version = 3
+    version = 4
     bank = "İş Bankası"
     name = "İş Bankası hesap özeti (XLS)"
     document_type = DocumentKind.ACCOUNT_STATEMENT
