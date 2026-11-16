@@ -302,6 +302,25 @@ def test_a_card_is_paid_from_the_account_that_paid_it_last_at_the_share_the_user
     assert cash.items[0].amount == Decimal(4500) and cash.items[0].basis.endswith("ekstrenin %50'si")
 
 
+def test_a_card_paid_lately_from_another_account_is_not_paid_twice():
+    # The card was paid from the overdraft account each month, from the current account lately: the statement's due
+    # date, on the current account, stands for the overdraft account's card payments too until that day.
+    overdraft = Account("ek", "Örnek Ek Hesap", "TEB", AccountType.OVERDRAFT, number="111222444")
+    naming = "5555 66** **** 1234 NO.LU KARTA ÖDEME"
+    months = [date(int(m[:4]), int(m[5:]), 5) for m in MONTHS]
+    txns = [tx(d, "Kart ödemesi", 8000, TransactionKind.CARD_PAYMENT, "ek", description=naming) for d in months]
+    txns.append(tx(date(2026, 10, 5), "Kart ödemesi", 9000, TransactionKind.CARD_PAYMENT, description=naming))
+    statements = [account_list(a, date(2026, 4, 1), date(2026, 10, 31), 0) for a in ("cash", "ek")]
+    coverage = {a: dict.fromkeys(MONTHS, 1.0) for a in ("cash", "ek")}
+    ds = dataset(txns, statements, (CASH, CARD, overdraft), coverage=coverage)
+    item = Due(date(2026, 11, 25), PaymentKind.CARD_DUE, CARD.label, "card", Decimal(9000), "dönem borcu")
+    result = forecast(ds, interpret(ds), date(2026, 11, 15), [item])
+    cash, ek = sorted(result.accounts, key=lambda a: a.account)
+    assert [(i.account, i.amount) for i in cash.items] == [("cash", Decimal(9000))]
+    assert ek.cards == Spread(Decimal(8000), tuple(MONTHS), after=date(2026, 11, 25))
+    assert dict(ek.days)[date(2026, 11, 25)] == 0 and dict(ek.days)[date(2026, 11, 30)] < 0
+
+
 def test_a_card_nobody_is_seen_paying_stays_out_of_the_accounts():
     ds = dataset(statements=[account_list("cash", date(2026, 7, 1), date(2026, 10, 31), 30000)])
     item = Due(date(2026, 11, 25), PaymentKind.CARD_DUE, CARD.label, "card", Decimal(9000), "dönem borcu")

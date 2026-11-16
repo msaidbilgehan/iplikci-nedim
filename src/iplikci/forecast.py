@@ -16,7 +16,7 @@ TL, for the next 60 days. An estimate (tahmin), always labelled as one.
 
 from calendar import monthrange
 from collections import defaultdict
-from collections.abc import Collection, Iterable, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from decimal import Decimal
@@ -26,7 +26,7 @@ from statistics import median
 from .analysis import Dataset, Start, start_of, whole
 from .domain.codes import CARD_TYPES, AccountType, PaymentKind, TransactionKind
 from .domain.labels import format_amount
-from .domain.models import TRY
+from .domain.models import TRY, Account, Transaction
 from .domain.money import round_half_up
 from .domain.text import fold
 from .insights import FULL, Insights, Series, month_name, month_of, pct
@@ -255,16 +255,34 @@ def paying_account(ds: Dataset, card: str) -> str | None:
     found = ds.accounts.get(card)
     if found is None:
         return None
-    digits = found.number[-4:]
-    alone = sum(1 for a in ds.accounts.values() if a.bank == found.bank and a.type in CARD_TYPES) == 1
+    pays = _payment_to(ds, found)
     payer = None
     for t in ds.transactions:  # by day: the last match is the newest
-        source = ds.accounts.get(t.account)
-        if t.kind not in CARD_PAYMENTS or t.amount <= 0 or source is None or source.type in CARD_TYPES:
-            continue
-        if (digits and digits in t.description) or (alone and source.bank == found.bank):
+        if pays(t):
             payer = t.account
     return payer
+
+
+def _payment_to(ds: Dataset, card: Account) -> Callable[[Transaction], bool]:
+    """Whether a bank account's row is a payment to card: it names the card's last digits, or it was made at the card's
+    bank when the bank has no other card."""
+    digits = card.number[-4:]
+    alone = sum(1 for a in ds.accounts.values() if a.bank == card.bank and a.type in CARD_TYPES) == 1
+
+    def pays(t: Transaction) -> bool:
+        source = ds.accounts.get(t.account)
+        if t.kind not in CARD_PAYMENTS or t.amount <= 0 or source is None or source.type in CARD_TYPES:
+            return False
+        return bool(digits and digits in t.description) or (alone and source.bank == card.bank)
+
+    return pays
+
+
+def cards_paid(ds: Dataset, account: str, months: Collection[str]) -> set[str]:
+    """The cards the account's card payments of those months went to."""
+    rows = [t for t in ds.transactions if t.account == account and month_of(t.date) in months]
+    cards = [a for a in ds.accounts.values() if a.type in CARD_TYPES]
+    return {card.id for card in cards if any(map(_payment_to(ds, card), rows))}
 
 
 def paid_share(ds: Dataset, card: str) -> PaidShare | None:
@@ -395,8 +413,11 @@ def forecast(
                 elsewhere.append(item)
         elif _begin(found[taken.account], today) <= taken.day <= end:
             counted[taken.account].append(taken)
+    # A card's due date known in the calendar, by card (the newest statement's).
+    dues = {item.account: item.day for item in items if item.kind == PaymentKind.CARD_DUE}
+    rates = overdraft_rates or {}
     accounts = [
-        _account(ds, ins, account, start, counted[account], today, end, (overdraft_rates or {}).get(account))
+        _account(ds, ins, account, start, counted[account], today, end, dues, rates.get(account))
         for account, start in found.items()
     ]
     notes = [
@@ -420,12 +441,19 @@ def _account(
     items: list[Due],
     today: date,
     end: date,
+    dues: Mapping[str, date],
     rate: Decimal | None,
 ) -> AccountForecast:
     spend, cards = spreads(ds, ins, account)
-    dues = [item.day for item in items if item.kind == PaymentKind.CARD_DUE]
-    if cards is not None and dues:
-        cards = replace(cards, after=max(dues))  # until then the due dates known stand for the card payments
+    if cards is not None:
+        # Its card payments stand for the statements to come of the cards it paid. Until the latest due date the
+        # calendar knows of those cards, the dues stand for them, whichever account pays a due now (the dues it pays
+        # are among its items): a card paid lately from another account than before is not paid twice.
+        paid = cards_paid(ds, account, cards.months)
+        known = [day for card, day in dues.items() if card in paid]
+        known += [item.day for item in items if item.kind == PaymentKind.CARD_DUE]
+        if known:
+            cards = replace(cards, after=max(known))
     by_day: dict[date, Decimal] = defaultdict(Decimal)
     for item in items:
         by_day[item.day] += item.amount
