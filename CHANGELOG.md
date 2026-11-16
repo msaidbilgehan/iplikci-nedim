@@ -4,6 +4,23 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [1.0.4] — 2026-11-16 — TEB ekstresinin OCR'ı, mevduat faizi ve fon alımı
+
+### Düzeltilenler
+
+- Sayfa resmi olarak gelen TEB Bonus ekstresinde OCR bir tutarın arkasındaki lekeyi nokta okuyunca ("TL.950,40.")
+  o satır hiç okunmuyordu: ekstre bankanın toplamıyla tutmuyor, okuyucu biçim alarmı veriyor, ayı "kontrol gerekli"
+  bırakıyordu. Artık satır okunur ve ekstre doğrulanır.
+- Aynı ekstrelerde OCR "Yurtdışı"nın ş'sini Romence ș olarak okuyabiliyordu; o satırların yabancı para tutarı
+  açıklamada kalıyordu. Artık orijinal tutar ("5,00 USD") yerine oturur.
+- Temassız ödeme ikonu OCR'da "»))", "»)" ya da "1))" diye okununca açıklamada kalıyordu; aynı kafe ikonun okunuşuna
+  göre iki ayrı işyeri görünüyordu. Artık atılır.
+- Mevduatın kazandırdığı faiz (CEPTETEB Marifetli'nin "net faiz geliri") "Ek Hesap (KMH) Faizi" sayılıyor, gideri
+  azaltıyordu. Artık gelirdir: yeni "Faiz Geliri" kategorisi. Ödenen faiz ve geri verilen faiz eskisi gibi Banka &
+  Finans'tadır. Bu yüzden hesap dökümlerinin okuyucuları belgeleri bir kez yeniden okur.
+- Hesaptan alınan fon ("… PORTFÖY PARA PİYASASI FONU alış bedeli") kişilere gönderilen para sayılıyordu. Artık
+  birikimdir: yeni "Yatırım Fonu" kategorisi; fonun satışı da birikimden gelen paradır.
+
 ## [1.0.3] — 2026-11-15 — Eklentinin mağaza metni yeniden yazıldı
 
 ### Değişenler

@@ -11,6 +11,13 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 
 ## Değişiklik kaydı
 
+- 2026-11-16 (62) — TEB ekstresinin OCR'ı, mevduat faizi ve fon alımı (v1.0.4):
+  - [Banka biçimleri](domain/bank-formats.md), TEB: OCR'ın tutarın arkasına okuduğu nokta, Romence ș ve temassız
+    ikonun yeni okunuşları; Marifetli'nin faizi ve cüzdandaki fon alımı. Kullanıcının Telegram'dan gönderdiği ekstre
+    bir satırı okunmadığı için doğrulanmıyordu.
+  - [Kategori kuralları](domain/categorization.md): hesaba giren faiz gelirdir ("Faiz Geliri"), hesaptan alınan fon
+    birikimdir ("Yatırım Fonu"). Hesap dökümlerinin sekiz okuyucusu yeni sürümle belgeleri bir kez yeniden okur.
+
 - 2026-11-15 (61) — Eklentinin mağaza metni yeniden yazıldı (v1.0.3):
   - Mağaza metni ([`extension/store/listing.md`](../extension/store/listing.md)): yeni özet satırı (manifestte,
     eklenti 0.9.2) ve uzun açıklama, metni yazarken uyulacaklarla. Kullanıcının uyarısı: eski metin neyin eklentisi

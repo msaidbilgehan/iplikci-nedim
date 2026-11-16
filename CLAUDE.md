@@ -401,6 +401,12 @@ says what the waiting must show); the Windows and Linux checks come later (K25).
   Gmail eklentisi: …", 132 characters at most, `tests/test_extension_folder.py` keeps it equal to `listing.md`'s); the
   long description says what the program does, what the extension takes and leaves alone, the three steps and the
   banks, with the rules for writing it in `extension/store/listing.md`. 0.9.1's review was withdrawn for it.
+- v1.0.4 (2026-11-16): a TEB Bonus statement sent through the Telegram bot did not verify. Its OCR read a speck after
+  one amount as a full stop and the row was lost (`teb.bonus_card` 7 takes `_OCR_AMOUNT`); Vision gave the Romanian ș
+  for ş ("Yurtdıșı"), so foreign amounts stayed in descriptions (`parsers.pdf.recognized` writes ş); the contactless
+  icon came as "»))", "»)" or "1))" and split merchants (`_without_icon`). On account lists, interest coming in that
+  is no refund is income (`movements.classify`; the eight readers using it re-read once), "Faiz Geliri" in the shipped
+  rules; a fund bought from an account ("… PORTFÖY PARA PİYASASI …") is "Yatırım Fonu", saving, not money to a person.
 
 The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's
 web interface).
