@@ -11,6 +11,15 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 
 ## Değişiklik kaydı
 
+- 2026-11-16 (65) — Öngörü neyi saydığını söylüyor, döviz ve yatırımları da sayabiliyor (v1.0.7):
+  - [Özellikler](v1/features.md), Pano ve F09: "Önümüzdeki 30 gün" neyi saydığını ve neden her gün indiğini yazar;
+    "Yalnız TL hesaplar" ya da "Döviz ve yatırımlarla" seçilir. Kullanıcı öngörünün yalnızca belgedeki TL'den başlayıp
+    hızla indiğini görüyor, elindeki paranın daha fazla olduğunu biliyordu; dövizin dışarıda kalmasını anlıyor, bunun
+    söylenmesini ve isteğe bağlı sayılmasını istedi.
+  - [Yorum kuralları](domain/interpretation.md): döviz, altın ve yatırım hesapları öngörünün yanında bugünkü
+    değerleriyle verilir; uyarılar TL hesapları sayar ("TL hesaplarınızın toplamı").
+  - [Mimari](v1/architecture.md) §18: öngörüde sayılanlar, tema ve görünüm gibi tarayıcıda kalan bir tercihtir.
+
 - 2026-11-16 (64) — Zamanında ödenen ekstre öngörüyü öne çekmiyor (v1.0.6):
   - [Yorum kuralları](domain/interpretation.md), bakiye öngörüsü: bir hesabın kart ödemeleri, ödediği kartların en
     yeni ekstrelerinin son ödeme gününden sonra başlar, ekstre ödenmiş olsa da. Kullanıcı ekstresini zamanında ödeyince

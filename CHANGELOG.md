@@ -4,6 +4,24 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [1.0.7] — 2026-11-16 — Öngörü neyi saydığını söylüyor, döviz ve yatırımları da sayabiliyor
+
+### Eklenenler
+
+- Pano'nun "Önümüzdeki 30 gün" kartında "Yalnız TL hesaplar" ve "Döviz ve yatırımlarla" seçeneği. İkincisi
+  döviz ve yatırım hesaplarını bugünkü değerleriyle çizgiye ekler; seçim hatırlanır.
+
+### Değişenler
+
+- Öngörü neyi saydığını tutarlarıyla yazıyor: çizgi TL hesapları gösterir; döviz ve yatırımlar bugünkü değerleriyle,
+  fiyatı belgelerde olmayanlar (altın) ve belgesi hiç gelmemiş hesaplar "bu çizgide yok" diye söylenir. Çizginin her
+  gün neden indiği de yazıyor: tipik bir ayın kart ödemeleri ve başka harcamaları, hangi aylardan oldukları ile.
+  Takvim'in öngörüsü de dövizin ve yatırımların çizgilerde olmadığını tutarıyla söylüyor.
+- TL hesaplar eksiye düşüp döviz ve yatırım varken Pano, onlardan bir kısmının bozdurulabileceğini söylüyor.
+- Uyarı ve İplikçi Nedim'in sözü "hesaplarınızın toplamı" yerine "TL hesaplarınızın toplamı" diyor: döviz elinde
+  duran kullanıcı, paranın eksiye düşeceğini okuyunca bunun TL hesaplar için olduğunu anlamıyordu.
+- Pano'daki ayın "Kalan"ı, bunun ayın sonucu olduğunu, bugünkü bakiye olmadığını söylüyor.
+
 ## [1.0.6] — 2026-11-16 — Zamanında ödenen ekstre öngörüyü öne çekmiyor
 
 ### Düzeltilenler

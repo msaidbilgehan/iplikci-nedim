@@ -418,6 +418,13 @@ says what the waiting must show); the Windows and Linux checks come later (K25).
   A paid statement leaves the calendar, so the spread started today. The spread now waits for the due date of the
   cards' newest statements, paid or not (`upcoming.newest_statements`, which `app/outlook.card_dues` reads too), so
   paying a statement on time leaves the forecast as it was.
+- v1.0.7 (2026-11-16): the user read a month's "Kalan" as their balance and saw the forecast start from their
+  documented TL alone and fall every day. The forecast counts TL accounts only; `app/now.outside` gives the FX, gold
+  and brokerage accounts it leaves out with their TL value (`ForecastOut.outside`). The Pano's "Önümüzdeki 30 gün"
+  says what the line counts, what it leaves out and why it falls (the spreads' typical month), and counts FX and
+  investments at today's value on "Döviz ve yatırımlarla" (`lib/preferences`' third choice, `iplikci.forecast`);
+  Takvim says the same in a sentence. The warning and İplikçi Nedim say "TL hesaplarınızın toplamı" ("Türk lirası" in
+  the sayings, which name no "TL"); the story's Kalan says it is the month's result, not a balance.
 
 The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's
 web interface).
