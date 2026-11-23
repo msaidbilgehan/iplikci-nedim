@@ -33,6 +33,17 @@ def test_a_job_with_a_key_is_queued_once(ws):
         assert jobs.add(db, "backup.daily", key="backup.daily@2026-11-02") is not None
 
 
+def test_a_waiting_job_is_a_queued_or_running_one(ws):
+    with ws.db() as db:
+        assert jobs.waiting(db, "update.install") is None
+        job_id = jobs.add(db, "update.install")
+        assert jobs.waiting(db, "update.install").id == job_id
+        jobs.claim(db, iso(datetime.now(ISTANBUL) + timedelta(seconds=1)))
+        assert jobs.waiting(db, "update.install").status == jobs.RUNNING
+        jobs.finish(db, job_id, iso(datetime.now(ISTANBUL)))
+        assert jobs.waiting(db, "update.install") is None
+
+
 def test_the_same_job_without_a_key_waits_once_but_may_follow_a_running_one(ws):
     with ws.db() as db:
         first = jobs.add(db, "analysis.refresh")
@@ -119,6 +130,33 @@ def test_the_worker_runs_what_is_queued_while_it_waits(ws):
     finally:
         worker.stop()
     assert seen == [{"n": 1}]
+
+
+def test_a_job_that_starts_the_service_again_leaves_the_rest_of_the_queue(ws):
+    seen: list[str] = []
+
+    def install(_payload) -> None:
+        seen.append("install")
+        worker.finish_soon()  # what an installed update does before the service starts again
+
+    worker = Worker(ws.connect, {"install": install, "x": lambda _p: seen.append("x")}, idle=0.05)
+    with ws.db() as db:
+        first = jobs.add(db, "install")
+        second = jobs.add(db, "x")
+    worker.start()
+    try:
+        deadline = clock.monotonic() + 5
+        while clock.monotonic() < deadline:
+            with ws.db() as db:
+                if jobs.get(db, first).status == jobs.DONE:
+                    break
+            clock.sleep(0.01)
+        clock.sleep(0.3)  # six idle checks: a worker that went on would have run the next job by now
+    finally:
+        worker.stop()
+    assert seen == ["install"]
+    with ws.db() as db:
+        assert jobs.get(db, second).status == jobs.QUEUED  # the next version's
 
 
 def test_periodic_jobs_run_once_a_period_and_once_after_a_sleep(ws):

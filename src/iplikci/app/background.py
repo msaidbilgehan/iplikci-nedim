@@ -4,8 +4,8 @@ can end a month); each time the feed compares it with the last one and records t
 notifications follow at once (they also run every five minutes). A backup is made every night and its restore
 rehearsed every month. The exchange rates are fetched every day from 16:30, the history's missing days with them,
 and TÜFE every day at 10:30 when the user gave an EVDS key. A document sent to the Telegram bot is fetched and taken in
-as its own job, queued by the service's ear for the bot (ADR-0021). Once a day from 05:00 the service checks whether
-a newer version is released and, as the settings say, installs it (ADR-0022)."""
+as its own job, queued by the service's ear for the bot (ADR-0021). Every three hours the service checks whether a newer
+version is released and, as the settings say, installs it (ADR-0022)."""
 
 import sqlite3
 from collections.abc import Callable
@@ -52,7 +52,7 @@ PERIODIC = (
     # The month's TÜFE, with the user's EVDS key only; without one the job asks nothing.
     Periodic(prices.FETCH_JOB, daily(prices.DAILY_AT)),
     # Whether a newer version is released (ADR-0022); with [updates] mode = "off" the job asks nothing.
-    Periodic(update.CHECK_JOB, daily(update.DAILY_AT)),
+    Periodic(update.CHECK_JOB, every(update.CHECK_EVERY)),
 )
 
 

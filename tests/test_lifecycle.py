@@ -243,6 +243,38 @@ def test_the_running_service_ends_with_the_code_asked_for():
     assert (life.server.should_exit, life.code) == (True, 75)
 
 
+def test_an_installed_update_ends_the_service_and_leaves_the_queue_to_the_new_version(ws, monkeypatch):
+    import time as clock
+
+    from iplikci.app import background
+    from iplikci.storage import jobs
+
+    seen: list[str] = []
+
+    def handlers(_ws, restart):
+        return {"update.install": lambda _p: (seen.append("install"), restart()), "x": lambda _p: seen.append("x")}
+
+    monkeypatch.setattr(background, "handlers", handlers)
+    monkeypatch.setattr(background, "PERIODIC", ())
+    life = runner.Life()
+    worker = runner.worker(ws, life)
+    with ws.db() as db:
+        first = jobs.add(db, "update.install", {"version": "99.0.0"})
+        jobs.add(db, "update.install", {"version": "99.0.0", "asked": True})  # the user's click beside the check's
+        jobs.add(db, "x")
+    worker.start()
+    try:
+        deadline = clock.monotonic() + 5
+        while life.code != lifecycle.RESTART and clock.monotonic() < deadline:
+            clock.sleep(0.01)
+        clock.sleep(0.3)
+    finally:
+        worker.stop()
+    assert life.code == lifecycle.RESTART and seen == ["install"]
+    with ws.db() as db:
+        assert jobs.get(db, first).status == jobs.DONE and jobs.counts(db).get("queued", 0) == 2
+
+
 def test_unregistering_leaves_the_running_process_alone(tmp_path):
     calls: list[list[str]] = []
 

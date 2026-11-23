@@ -68,6 +68,11 @@ class Worker:
         """Look for due jobs now instead of at the next idle check."""
         self._wake.set()
 
+    def finish_soon(self) -> None:
+        """Take no other job after the one at hand: a job that has the service start again (an installed update) leaves
+        the rest of the queue to the version that starts. Unlike stop, it waits for nothing, so the job may call it."""
+        self._stopping.set()
+
     def stop(self, timeout: float = 30.0) -> None:
         """Stop after the job at hand; a job that outlives the timeout is queued again at the next start."""
         self._stopping.set()

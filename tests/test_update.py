@@ -5,7 +5,7 @@ import base64
 import hashlib
 import json
 import tempfile
-from datetime import time
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -145,6 +145,23 @@ def test_a_newer_version_is_installed_by_itself_only_when_the_mode_says_auto(ws,
     assert queued(ws, update.INSTALL_JOB) == [{"version": NEXT}]
 
 
+def test_an_install_queued_or_under_way_is_never_queued_twice(ws, github):
+    github.publish()
+    mode(ws, "auto")
+    update.check(ws, here=APP)
+    found = update.state(ws, APP)
+    assert found.installing == NEXT  # queued by the check: under way for every screen, no question asked
+    assert update.request_install(ws, Actor.USER, here=APP) == NEXT  # the user's click while it waits adds none
+    update.check(ws, here=APP)  # nor does the next check
+    assert queued(ws, update.INSTALL_JOB) == [{"version": NEXT}]
+    with ws.db() as db:
+        jobs.claim(db, "2999-01-01T00:00:00+00:00")  # the worker took it
+        assert jobs.counts(db).get("running", 0) == 1
+    assert update.state(ws, APP).installing == NEXT
+    assert update.request_install(ws, Actor.USER, here=APP) == NEXT
+    assert queued(ws, update.INSTALL_JOB) == []
+
+
 def test_a_copy_installed_by_hand_is_only_told(ws, github):
     github.publish()
     found = update.check(ws, here=BY_HAND)
@@ -178,9 +195,11 @@ def test_releases_github_does_not_show_say_where_they_must_be(ws, github):
     assert "ulaşılamadı" in update.check(ws, here=APP).check_error
 
 
-def test_the_check_runs_daily_from_five_and_the_worker_knows_both_jobs(ws):
+def test_the_check_runs_every_three_hours_and_the_worker_knows_both_jobs(ws):
     [job] = [p for p in background.PERIODIC if p.kind == update.CHECK_JOB]
-    assert job.period.__qualname__.startswith("daily") and update.DAILY_AT == time(5, 0)
+    at = datetime(2026, 11, 23, 10, 15, tzinfo=UTC)
+    assert job.period.__qualname__.startswith("every") and update.CHECK_EVERY == 180
+    assert job.period(at) == "2026-11-23T09:00"  # one check from nine to twelve: a release is seen within three hours
     assert {update.CHECK_JOB, update.INSTALL_JOB} <= set(background.handlers(ws))
     assert kinds.LABELS[update.CHECK_JOB] == "Yeni sürüm denetimi"
 

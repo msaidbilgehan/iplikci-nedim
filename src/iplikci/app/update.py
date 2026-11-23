@@ -1,9 +1,11 @@
 """The program's own updates (ADR-0022, F21): whether a newer version is released, and putting it in place.
 
-Once a day, from 05:00, the service fetches the latest release's manifest from GitHub through egress and believes it
-only once its signature checks with a key the program carries. A newer version is installed by itself when the
-settings say "auto" and an installer put this copy here; "ask" waits for the user, and "off" never asks GitHub unless
-the user does. Installing downloads this system's file, checks its size and SHA-256 against the manifest, takes a
+Every three hours the service fetches the latest release's manifest from GitHub through egress and believes it only
+once its signature checks with a key the program carries; until v1.0.11 it looked once a day, from 05:00, and a version
+released in the morning waited for the next day. A newer version is installed by itself when the settings say "auto"
+and an installer put this copy here; "ask" waits for the user, whom every screen asks (the interface's update banner),
+and "off" never asks GitHub unless the user does. One install is under way at a time: a second request while one is
+queued or running adds none, and the screens show it as installing from the moment it is queued. Installing downloads this system's file, checks its size and SHA-256 against the manifest, takes a
 backup, puts the new version in place (update.install) and has the service start again with it. The new version says
 at its start how it went and removes what the old one left. An install of a version that did not come up is not tried
 again by itself after TRIES attempts; the user may still ask for it.
@@ -19,7 +21,7 @@ import tempfile
 import time as clock
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime, time
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
@@ -39,7 +41,7 @@ from .workspace import Busy, Workspace
 
 CHECK_JOB = UPDATE_CHECK
 INSTALL_JOB = UPDATE_INSTALL
-DAILY_AT = time(5, 0)
+CHECK_EVERY = 180  # minutes between the checks, counted from midnight (jobs.schedule.every)
 STATE = "guncelleme.json"  # in run/
 MANIFEST_LIMIT = 256 << 10
 SIGNATURE_LIMIT = 4 << 10
@@ -108,6 +110,9 @@ def state(ws: Workspace, here: Installation | None = None) -> UpdateState:
     if available is not None and not newer(available.version, __version__):
         available = None
     going = record.get("installing")
+    installing = str(cast(dict[str, Any], going).get("to", "")) if isinstance(going, dict) else ""
+    if not installing and available is not None and _queued_install(ws):
+        installing = available.version  # queued by the check or the user: under way from now on
     return UpdateState(
         version=__version__,
         mode=ws.fresh_settings().updates.mode,
@@ -117,7 +122,7 @@ def state(ws: Workspace, here: Installation | None = None) -> UpdateState:
         checked_at=str(record.get("checked_at", "")),
         check_error=str(record.get("check_error", "")),
         available=available,
-        installing=str(cast(dict[str, Any], going).get("to", "")) if isinstance(going, dict) else "",
+        installing=installing,
         last=_outcome(record.get("last")),
         page=source.page(available.tag) if available is not None else source.page(),
     )
@@ -151,6 +156,8 @@ def request_install(ws: Workspace, actor: Actor, here: Installation | None = Non
         raise UpdateError("Kurulacak yeni bir sürüm yok. Önce yeni sürümü denetleyin.")
     if current.available.size == 0:
         raise UpdateError(f"Bu sürümde bu sistem için güncelleme dosyası yok; kurulum paketini indirin: {current.page}")
+    if current.installing:
+        return current.installing  # already queued (by the check in "auto") or under way: one install at a time
     with ws.db() as db:
         jobs.add(db, INSTALL_JOB, {"version": current.available.version, "asked": True})
         audit.record(db, actor, REQUESTED, current.available.version)
@@ -184,7 +191,8 @@ def check(ws: Workspace, *, forced: bool = False, here: Installation | None = No
         log.info("version %s is released; this is %s", release.version, __version__)
         if settings.updates.mode == "auto" and found.automatic and _tries(record, release.version) < TRIES:
             with ws.db() as db:
-                jobs.add(db, INSTALL_JOB, {"version": release.version})
+                if jobs.waiting(db, INSTALL_JOB) is None:
+                    jobs.add(db, INSTALL_JOB, {"version": release.version})
     return state(ws, found)
 
 
@@ -282,6 +290,12 @@ def latest(settings: config.Settings) -> Manifest:
 
 
 # --- helpers --------------------------------------------------------------------------------------------------------
+
+
+def _queued_install(ws: Workspace) -> bool:
+    """Whether an install job is queued or running."""
+    with ws.db() as db:
+        return jobs.waiting(db, INSTALL_JOB) is not None
 
 
 def _must_install_here(ws: Workspace, found: Installation) -> None:

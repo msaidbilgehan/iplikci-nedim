@@ -167,9 +167,18 @@ def context(ws: Workspace, life: Life | None = None) -> Context:
 
 
 def worker(ws: Workspace, life: "Life | None" = None) -> Worker:
-    """The job worker; an update it installs ends the service through life, to start again with the new version."""
-    restart = (lambda: life.end(lifecycle.RESTART)) if life is not None else (lambda: None)
-    return Worker(ws.connect, background.handlers(ws, restart), background.PERIODIC)
+    """The job worker; an update it installs ends the service through life, to start again with the new version, and
+    the worker takes no other job meanwhile: a second install queued beside the first (the check's in "auto" and the
+    user's click) would put the same version in place again before the restart."""
+
+    def restart() -> None:
+        if life is None:
+            return
+        found.finish_soon()
+        life.end(lifecycle.RESTART)
+
+    found = Worker(ws.connect, background.handlers(ws, restart), background.PERIODIC)
+    return found
 
 
 def watcher(ws: Workspace, jobs: Worker) -> IdleWatcher:

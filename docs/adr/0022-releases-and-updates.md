@@ -48,17 +48,20 @@ Durum: Kabul edildi · Tarih: 2026-11-10 · Dayanak: K29, K14, K22 · [ADR-0009]
 ### Uygulamanın güncellenmesi
 
 - **Ayar:** `[updates] mode`:
-  - `auto` (varsayılan): günde bir denetler, yeni sürümü kendiliğinden kurar;
-  - `ask`: denetler ve haber verir, kullanıcı "Şimdi güncelle" deyince kurar;
+  - `auto` (varsayılan): üç saatte bir denetler, yeni sürümü bulunca hemen kendiliğinden kurar;
+  - `ask`: üç saatte bir denetler, yeni sürümü her ekranın üstünde sorar; kullanıcı "Şimdi güncelle" deyince kurar;
   - `off`: GitHub'a hiç sormaz; kullanıcı "Şimdi denetle" derse bir kez sorar.
 
   Demo veri klasörü `off` ile kurulur.
-- **Denetim** (`update.check` işi, her gün 05:00'ten sonraki ilk fırsatta):
+- **Denetim** (`update.check` işi, gece yarısından sayılan üç saatlik dilimlerin her birinde bir kez; bilgisayar
+  uyurken kaçan dilim uyanınca bir kez; v1.0.11'den önce her gün 05:00'ten sonraki ilk fırsatta):
   - Bildirge ve imzası indirilir. İmza programın bildiği bir anahtarla doğrulanmazsa hiçbir şey kurulmaz; Sistem ve
     Ayarlar sorunu söyler.
   - Ürün adı tutmalı, sürüm çalışandan yeni olmalıdır: eski bir bildirge geri döndüremez.
   - Bu sistemin güncelleme dosyası yoksa (ör. Intel Mac) "bu sistem için güncelleme dosyası yok" denir.
-- **Kurulum** (`update.install` işi):
+- **Kurulum** (`update.install` işi; aynı anda bir tane):
+  - Kuyruğa girdiği andan bitene dek ekranlar sürümü "kuruluyor" diye gösterir. Bir kurulum kuyruktayken ya da
+    sürerken ikinci bir istek (denetimin ya da kullanıcının) yeni iş eklemez.
   - Bildirge yeniden indirilip doğrulanır. Dosya akışla indirilir; boyutu ve SHA-256'sı bildirgeyle aynı olmalıdır.
   - Önce bir yedek alınır (neden: güncelleme).
   - Yeni program yerine konmadan önce kendi Python'uyla açılır ve sürümünü söyler.
@@ -69,7 +72,8 @@ Durum: Kabul edildi · Tarih: 2026-11-10 · Dayanak: K29, K14, K22 · [ADR-0009]
       yeni Python'u başlatacak biçimde yeniden yazılır. Eski AppImage açılırsa en yeni kopyayı çalıştırır.
     - **Windows:** kurulum programı sessiz çalıştırılır (`/VERYSILENT`). Servisi kendisi durdurur, dosyaları
       değiştirir, sonra uygulamayı tarayıcı açmadan çalıştırır; uygulama servisi yeniden kaydeder.
-  - macOS ve Linux'ta servis 75 koduyla biter, servis yöneticisi onu yeni sürümle başlatır.
+  - macOS ve Linux'ta servis 75 koduyla biter, servis yöneticisi onu yeni sürümle başlatır. Bu sırada iş kuyruğundan
+    başka iş alınmaz: kuyrukta kalanı yeni sürüm yapar.
 - **Bitiş:** yeni sürüm açılırken sonucu yazar (hangi sürümden hangisine, ne zaman). Eski programın dosyalarını
   kaldırır: macOS'ta eski `Contents`, Linux'ta eski kopyalar. Bunlar belge değildir. Kurulan sürüm açılmadıysa sonuç
   hata olarak kalır; aynı sürüm kendiliğinden ikinci kez denenmez.
@@ -99,7 +103,8 @@ Durum: Kabul edildi · Tarih: 2026-11-10 · Dayanak: K29, K14, K22 · [ADR-0009]
     sürüme dosya koysa da kurulmaz.
   - Açılamayan bir paket yayımlanmaz.
 - Olumsuz:
-  - GitHub'a günde bir istek gider: kullanıcının IP adresi GitHub'a görünür. Ayarlar'dan kapatılır.
+  - GitHub'a üç saatte bir istek gider (günde en çok sekiz): kullanıcının IP adresi GitHub'a görünür. Ayarlar'dan
+    kapatılır.
   - Sürümlerin herkese açık bir yerde durması gerekir.
   - İmza anahtarı kaybolursa kurulu kopyalar yeni sürümü kabul etmez; paket yeniden elle kurulur. Anahtarın yedeği
     sahibinin anahtar zincirindedir.
@@ -153,3 +158,23 @@ günlüklerinde yayıncı kimliği de görünmez. Eklentinin mağaza kimliği (`
 değişkenidir: işin koşulu onu ortamdan önce okur. Eski bir sürüm incelemedeyken yeni sürüm yüklenmez. İş bunu söyleyip
 başarısız olur; inceleme bitince iş yeniden çalıştırılır. İncelemedeki sürümü geri çekmek incelemeyi baştan başlatır,
 iş akışı bunu hiç yapmaz.
+
+## Not (2026-11-23, güncellemenin akışı)
+
+1.0.10'un gelişinde kullanıcı iki şey gördü. "Önce bana sor"dayken öğleden sonra yayımlanan sürüm ne Ayarlar'da ne
+Pano'da göründü: servis günde bir, 05:00'te bakıyordu. "Kendiliğinden kur"a geçip "Şimdi denetle"ye basınca
+Ayarlar yine "Şimdi güncelle" düğmesini gösterdi. Kurulum kuyruktaydı ama iş başlayana dek ekran onu bilmiyordu.
+Düğmeye basılınca aynı sürüm için ikinci bir kurulum kuyruğa girdi. İlk kurulum servisi yeniden başlatırken iş
+kuyruğu ikinciyi de aldı; sürüm ikinci kez kuruldu.
+
+O günden beri:
+
+- Servis üç saatte bir bakar.
+- Kuyruktaki ya da süren kurulum "kuruluyor" sayılır ve ikinci bir kurulum eklenmez.
+- Kurulum servisi yeniden başlatınca iş kuyruğundan başka iş alınmaz.
+- "Önce bana sor"da yeni sürüm, Ayarlar dışında her ekranın üstünde bir şeritle sorulur.
+
+Gün içinde kendiliğinden kurulan bir sürüm servisi birkaç saniye durdurur. Açık sayfa yeniden bağlanır ve yeni
+arayüzle kendini bir kez yeniler (v0.7.3). O sırada süren bir "Gmail'de eksikleri tara" durur ve yeniden
+başlatılabileceğini söyler; yeniden başlatılınca eksikleri getirir.
+

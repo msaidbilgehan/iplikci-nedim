@@ -120,6 +120,12 @@ def failures(db: Database, limit: int = 10) -> list[Job]:
     return [_job(r) for r in rows]
 
 
+def waiting(db: Database, kind: str) -> Job | None:
+    """The oldest job of kind that is queued or running; None when none waits."""
+    row = db.one("SELECT * FROM jobs WHERE kind = ? AND status IN (?, ?) ORDER BY id LIMIT 1", (kind, QUEUED, RUNNING))
+    return None if row is None else _job(row)
+
+
 def last_done(db: Database, kind: str) -> Job | None:
     row = db.one(
         "SELECT * FROM jobs WHERE kind = ? AND status = ? ORDER BY finished_at DESC, id DESC LIMIT 1", (kind, DONE)
