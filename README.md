@@ -188,8 +188,8 @@ eşleştirdikten sonra eskisini eklentiler sayfasından kaldırın.
 
 ### Sonra
 
-İplikçi Nedim her gün yeni sürüm olup olmadığına bakar; varsa önce verilerinizin yedeğini alır, sonra kendini
-günceller.
+İplikçi Nedim üç saatte bir yeni sürüm olup olmadığına bakar; varsa önce verilerinizin yedeğini alır, sonra kendini
+günceller. Ayarlar → Güncellemeler'de "Önce bana sor"u seçerseniz yeni sürüm her ekranın üstünde sorulur.
 
 **Kaldırmak için** Ayarlar'daki "Kaldır"a basın, sonra uygulamayı çöp kutusuna sürükleyin. Verileriniz yalnızca siz
 isterseniz çöp kutusuna taşınır. Eklentiyi tarayıcının eklentiler sayfasından kaldırın.

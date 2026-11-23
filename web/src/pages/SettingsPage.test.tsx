@@ -70,6 +70,22 @@ describe("SettingsPage", () => {
     ]);
   });
 
+  it("lists the cards in one column, in the same order in both views", async () => {
+    serve();
+    const evds = "Enflasyondan arındırma (EVDS)";
+    const order = ["Adlar", "E-posta", "Güncellemeler", "Yedekler", evds, "Servis", "Diğer ayarlar"];
+    const shown = async () => {
+      await card("Diğer ayarlar");
+      return screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent);
+    };
+    const simple = renderScreen(<SettingsPage />, { path: "/ayarlar" });
+    expect(await shown()).toEqual(order);
+    simple.unmount();
+    localStorage.setItem("iplikci.view", "detailed");
+    renderScreen(<SettingsPage />, { path: "/ayarlar" });
+    expect(await shown()).toEqual([...order, "Ayarların değerleri"]);
+  });
+
   it("asks for a backup now and says when the last one was taken", async () => {
     serve();
     let asked = 0;

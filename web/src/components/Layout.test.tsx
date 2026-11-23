@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { stubSystemScheme } from "../test/media";
 import { renderScreen } from "../test/render";
-import { server } from "../test/server";
+import { server, UPDATE_FOUND } from "../test/server";
 import { Layout } from "./Layout";
 import { builtGroups, MENU, SETUP } from "./navigation";
 
@@ -36,6 +36,13 @@ describe("Layout", () => {
     const link = await screen.findByRole("link", { name: "Bildirimler (2 okunmamış)" });
     expect(link).toHaveAttribute("href", "/bildirimler");
     expect(within(link).getByText("2")).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("tells a new version above the screen, inside the content", async () => {
+    server.use(http.get("/api/update", () => HttpResponse.json(UPDATE_FOUND)));
+    renderScreen(<Layout />);
+    const banner = await screen.findByRole("region", { name: "Yeni sürüm hazır: 0.11.0" });
+    expect(screen.getByRole("main")).toContainElement(banner);
   });
 
   it("shows no count once every notification is seen", async () => {

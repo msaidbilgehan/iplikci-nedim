@@ -61,5 +61,20 @@
   "display": {
     "button": "Görünüm: {{view}}",
     "label": "Görünüm ve tema"
+  },
+  "update": {
+    "ready": "Yeni sürüm hazır: {{version}}",
+    "readyText": "Kurmadan önce verilerinizin yedeği alınır; İplikçi Nedim birkaç saniye içinde yeni sürümle yeniden açılır.",
+    "failedText": "Kendiliğinden kurulamadı; yeniden denemek için düğmeye basın. Neden kurulamadığı",
+    "settings": "Ayarlar'da yazıyor.",
+    "install": "Şimdi güncelle ({{size}})",
+    "notes": "Neler yeni?",
+    "refused": "Güncelleme başlatılamadı: {{error}}",
+    "installing": "{{version}} kuruluyor",
+    "installingText": "Önce yedek alınır, sonra İplikçi Nedim yeni sürümle yeniden açılır. Bu sayfa birkaç saniye bağlantısız kalabilir; sonra kendiliğinden yenilenir.",
+    "released": "Yeni sürüm çıktı: {{version}}",
+    "byHandText": "Bu kopya elle kurulduğu için kendini güncelleyemez.",
+    "page": "Sürümün sayfasını aç",
+    "newTab": "(yeni sekmede açılır)"
   }
 }

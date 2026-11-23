@@ -791,13 +791,14 @@ G4, G6 · Çekirdek · [K29](requirements.md#kararlar), [ADR-0022](../adr/0022-r
     hep `releases/latest/download/<ad>` adresindedir ve eklenti oraya götürür
     ([ADR-0024](../adr/0024-extension-leads-to-download.md)). Ölçüt: eklentinin sunduğu bir sistemin paketi eksikse
     sürüm yapılmaz; eklentinin deposu ve paket adları programınkilerle aynıdır (test edilir).
-- **Denetim:** servis her gün 05.00'ten sonraki ilk fırsatta son sürümün bildirgesine bakar. "Şimdi denetle" her zaman
-  bakar.
+- **Denetim:** servis üç saatte bir son sürümün bildirgesine bakar; bilgisayar uyurken kaçan denetim uyanınca bir kez
+  yapılır. "Şimdi denetle" her zaman bakar. v1.0.11'den önce günde bir, 05.00'te bakıyordu ve "Önce bana sor"dayken
+  öğleden sonra çıkan sürüm ertesi güne dek görünmüyordu.
   - Ölçüt: imzası programın taşıdığı anahtarla doğrulanmayan bildirgeye inanılmaz; sorun Ayarlar'da yazar.
   - Ölçüt: yalnızca daha yeni bir sürüm "yeni" sayılır; eski bir bildirge sürümü geri döndüremez.
   - Ölçüt: ayar "Denetleme" iken GitHub'a hiç sorulmaz (demo veri klasörü böyle kurulur, testler ağa çıkmaz).
-- **Kurulum:** ayar "Kendiliğinden kur" (varsayılan) ise yeni sürüm kendiliğinden, "Önce bana sor" ise "Şimdi güncelle"
-  ile kurulur. Önce bir yedek alınır (neden: güncelleme öncesi). Dosya bildirgedeki boyut ve özetle denetlenir, yeni
+- **Kurulum:** ayar "Kendiliğinden kur" (varsayılan) ise yeni sürüm bulunur bulunmaz kendiliğinden kurulur. "Önce bana
+  sor" ise Ayarlar dışında her ekranın üstündeki şerit ve Ayarlar'daki kart "Şimdi güncelle" ile kurmayı sorar. Önce bir yedek alınır (neden: güncelleme öncesi). Dosya bildirgedeki boyut ve özetle denetlenir, yeni
   sürüm yerine konmadan kendi Python'uyla açılıp sürümünü söyler; servis yeni sürümle yeniden başlar.
   - macOS: uygulamanın yolu değişmez, `Contents` tek adımda yer değiştirir.
   - Linux: yeni kopya `~/.local/lib/iplikci/<sürüm>`'e açılır, servis ondan başlar; eski AppImage en yeni kopyayı
@@ -807,8 +808,13 @@ G4, G6 · Çekirdek · [K29](requirements.md#kararlar), [ADR-0022](../adr/0022-r
   - Ölçüt: yeni sürüm açılınca sonucu söyler (hangi sürümden hangisine, ne zaman) ve eskinin dosyalarını kaldırır.
   - Ölçüt: açılmayan bir sürüm kendiliğinden iki kezden fazla denenmez; kullanıcı yine de kurabilir.
   - Ölçüt: elle kurulan kopya (uv tool, geliştirme kopyası) kendini güncellemez; yeni sürümü ve sayfasını gösterir.
+  - Ölçüt: kurulum kuyruğa girdiği andan bitene dek "kuruluyor" diye görünür ve kurmayı sormaz. Kuyruktayken ya da
+    sürerken ikinci bir kurulum eklenmez. Kurulum servisi yeniden başlatınca iş kuyruğundan başka iş alınmaz (test
+    edilir; 1.0.10'da aynı sürüm iki kez kuruldu).
 - **Arayüz:** Ayarlar'daki Güncellemeler kartı çalışan sürümü, son denetimi, yeni sürümü ve notunu, son kurulumu ve
-  ayarı gösterir; Sistem ekranı servis kartında yeni sürüm olup olmadığını söyler. `iplikci guncelleme` aynısını yapar.
+  ayarı gösterir. Ayarlar dışındaki her ekranın üstündeki şerit kurulmayı bekleyen sürümü "Şimdi güncelle" ve "Neler
+  yeni?" ile, süren kurulumu "kuruluyor" diye, elle kurulan kopyada sürümün sayfasıyla söyler. Ayarlar ekranı kartları
+  her iki görünümde tek sütunda, aynı sırada dizer (kullanıcının isteği, 2026-11-23: iki sütun karışık görünüyordu); Sistem ekranı servis kartında yeni sürüm olup olmadığını söyler. `iplikci guncelleme` aynısını yapar.
 - **Eklenti:** mağazadaki eklentiyi tarayıcı günceller; iş akışı yeni sürümünü mağazaya yükler (mağazadakinden yeni
   değilse yüklemez). Paketlenmemiş eklenti programla birlikte yenilenir. Eklenti mağazada herkese açık listelenir;
   ilk giden sürüm 0.9.0'dır.

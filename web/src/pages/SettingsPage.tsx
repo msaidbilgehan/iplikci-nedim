@@ -89,39 +89,19 @@ function Cards({ settings, onEnding }: { settings: Settings; onEnding: (ending: 
       </div>
     </Card>
   );
-  const service = <ServiceCard home={settings.home} onEnding={onEnding} />;
-  const evds = <EvdsCard />;
-  const updates = <UpdatesCard />;
-  const more = <MoreCard />;
-  if (view === "simple") {
-    // Two columns that do not move as a card grows: the names and e-mail on one side, the backups, the service and the
-    // other screens on the other. A phone stacks them in the detailed view's order.
-    return (
-      <div className="grid items-start gap-4 lg:grid-cols-2">
-        <div className="flex min-w-0 flex-col gap-4">
-          {names}
-          {mail}
-          {evds}
-        </div>
-        <div className="flex min-w-0 flex-col gap-4">
-          {backup}
-          {service}
-          {updates}
-          {more}
-        </div>
-      </div>
-    );
-  }
+  // One column in both views, read from top to bottom (the user's wish of 2026-11-23; two columns of cards that grew
+  // apart read as clutter): who the user is, how e-mail comes in, the program's updates, the backups, the TÜFE key,
+  // the service itself and the other screens. The detailed view adds the raw values.
   return (
-    <div className="grid items-start gap-4">
+    <div className="flex max-w-3xl flex-col gap-4">
       {names}
       {mail}
+      <UpdatesCard />
       {backup}
-      {service}
-      {updates}
-      {evds}
-      {more}
-      <RawCard settings={settings} />
+      <EvdsCard />
+      <ServiceCard home={settings.home} onEnding={onEnding} />
+      <MoreCard />
+      {view === "detailed" ? <RawCard settings={settings} /> : null}
     </div>
   );
 }

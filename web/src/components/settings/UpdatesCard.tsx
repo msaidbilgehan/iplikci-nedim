@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 
 import { useCheckUpdate, useInstallUpdate, useUpdate, useUpdateMode } from "../../api/queries";
 import type { UpdateMode, UpdateRelease, UpdateState } from "../../api/types";
+import { cn } from "../../lib/cn";
 import { formatDay, formatSize, formatTime } from "../../lib/format";
 import { Failure, Loading } from "../QueryState";
 import { Alert } from "../ui/Alert";
@@ -284,7 +285,9 @@ function plain(text: string): string {
   return text.replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/[`*_]/g, "");
 }
 
-function ReleaseNotes({ text }: { text: string }) {
+/** What a release brings, as its changelog says it; the list scrolls inside its box, which the keyboard reaches too. */
+export function ReleaseNotes({ text }: { text: string }) {
+  const { t } = useTranslation("settings");
   const parts = notesParts(text);
   const blocks: ReactNode[] = [];
   let items: string[] = [];
@@ -317,5 +320,18 @@ function ReleaseNotes({ text }: { text: string }) {
     );
   }
   flush();
-  return <div className="flex max-h-80 flex-col gap-2 overflow-y-auto text-sm">{blocks}</div>;
+  return (
+    // A box that scrolls must be reachable by the keyboard, so it takes the focus itself.
+    <div
+      tabIndex={0}
+      role="region"
+      aria-label={t("updates.notes")}
+      className={cn(
+        "flex max-h-80 flex-col gap-2 overflow-y-auto text-sm",
+        "focus-visible:outline-2 focus-visible:outline-teal-600",
+      )}
+    >
+      {blocks}
+    </div>
+  );
 }

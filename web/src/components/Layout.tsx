@@ -1,7 +1,8 @@
 // The app's frame: a header with the logo and the name, the notification box's bell and the display settings (view and
 // theme, in one small panel), a grouped menu with an icon beside each screen — beside the screen on wide windows,
 // behind a menu button on narrow ones — and a skip link to the content for keyboard users. The menu shows the screens
-// built so far (navigation.ts) and how many notifications are not seen yet. A new screen opens at its top.
+// built so far (navigation.ts) and how many notifications are not seen yet. A new screen opens at its top. A new
+// version of the program is told above every screen but Settings (UpdateBanner).
 
 import * as Popover from "@radix-ui/react-popover";
 import { type KeyboardEvent, type ReactNode, useId, useLayoutEffect, useRef, useState } from "react";
@@ -14,6 +15,7 @@ import { cn } from "../lib/cn";
 import type { Theme, View } from "../lib/preferences";
 import { builtGroups, everydayScreens, MENU, otherGroups, type Screen, type ScreenGroup, SETUP } from "./navigation";
 import { useTheme, useView } from "./Preferences";
+import { UpdateBanner } from "./UpdateBanner";
 import { useFirstRun } from "./setup/useFirstRun";
 import { BellIcon, ChevronDownIcon, CloseIcon, MenuIcon, MonitorIcon, MoonIcon, SunIcon } from "./ui/Icons";
 import { Segmented } from "./ui/Segmented";
@@ -121,6 +123,7 @@ export function Layout() {
           </div>
         </nav>
         <main id="icerik" tabIndex={-1} className="min-w-0 flex-1 px-4 py-6 focus:outline-none lg:px-8">
+          <UpdateBanner />
           <Outlet />
         </main>
       </div>
