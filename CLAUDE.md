@@ -478,6 +478,18 @@ says what the waiting must show); the Windows and Linux checks come later (K25).
     "Döviz ve yatırımlarla" counts it from its day, and the TL total's warning counts it up to its lowest day
     (`negative_detail`'s `coming`).
   - `forecast._uncounted` names the income of the last 90 days the forecast does not expect again.
+- v1.0.13 (2026-11-23): the user sent the documents that show a transfer and asked why its receipt still stood under
+  "Ekstrede görünmeyen kanıt". The account's list had been downloaded at noon of its last day, the transfer came that
+  afternoon, and the next list started the day after: the next list had turned the receipt from provisional into
+  unmatched, and the month into a check.
+  - A list is taken at a moment of its last day. Where an account's next list starts the day after and no list covers
+    that night, they meet (`analysis.seams`, `Seam`): the earlier closing balance is the moment it was taken, the later
+    opening balance the day's end.
+  - Receipt rows no list shows that the bank may have booked on that day (`POSTING_DAYS`) and that make up the
+    difference to the cent are `no_statement` (`analysis._between_lists`): never `unmatched`, and never `provisional`,
+    which moved the later list's balance a second time (`start_of`).
+  - The earlier list's last month closes at the later opening balance (`end_at_next_opening`): Ay sonu's balance, the
+    KMH use and `debt_at` tell the day's end.
 
 The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's
 web interface).

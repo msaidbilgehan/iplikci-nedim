@@ -11,6 +11,13 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 
 ## Değişiklik kaydı
 
+- 2026-11-23 (71) — Döküm indirildikten sonra gelen para (v1.0.13):
+  - [Defter kuralları](domain/ledger.md), "Kanıtlar": bir hareket listesi son gününün bir anında alınır. Sonraki liste
+    ertesi gün başlıyorsa ikisi buluşur. Bu durumda listelerin göstermediği, bakiyelerinin farkını kuruşu kuruşuna
+    karşılayan kanıtlar `no_statement` olarak sayılır. Önceki listenin son ayı da sonrakinin açılış bakiyesiyle kapanır.
+  - Kullanıcı, transferi gösteren belgeleri gönderdiği hâlde dekontun neden "Ekstrede görünmeyen kanıt" olarak
+    kaldığını sordu.
+
 - 2026-11-23 (70) — Her ay gelen gelir, vadeli hesap faizi ve sayılmayan gelirler (v1.0.12):
   - [Kategori kuralları](domain/categorization.md): `_düzenli_gelir` (ödeyen, aylık tutar, para birimi, gün).
   - [Yorum kuralları](domain/interpretation.md): "Bildirilen gelir". Öngörüde vadeli hesap faizi (faiz satırlarının

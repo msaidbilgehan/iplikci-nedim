@@ -4,6 +4,22 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [1.0.13] — 2026-11-23 — Döküm indirildikten sonra gelen para
+
+### Düzeltilenler
+
+- Bir hesap dökümü son gününün ortasında indirilmişse, o gün daha sonra gelen bir transferin dekontu "Ekstrede
+  görünmeyen kanıt" oluyordu. Dekont toplamlara girmiyor, ay da "kontrol"e düşüyordu. Program dökümü o günün
+  tamamını kapsıyor sayıyordu; oysa döküm yalnızca indirildiği ana kadarını gösterir. Hareketi gösteren başka belgeler
+  gönderilse de uyarı kalkmıyordu.
+  - Hesabın sonraki dökümü ertesi gün başlıyorsa açılış bakiyesi o günün sonudur. Önceki dökümün kapanış bakiyesiyle
+    arasındaki farkı kuruşu kuruşuna karşılayan dekontlar artık sayılır ve uyarı çıkmaz; ay yeniden kapanır.
+  - Farkı karşılamayan dekont, eskisi gibi bakılacak bir kanıt olarak kalır.
+  - Sonraki döküm o güne kadar yalnızca birkaç gün kapsıyorsa böyle bir dekont "geçici" sayılıyor ve o dökümün
+    bakiyesine ikinci kez ekleniyordu. Artık eklenmez.
+- Böyle bir dökümün son ayının bakiyesi artık sonraki dökümün açılış bakiyesi. Ay sonu'nun bakiyesi, Değerlendirme'nin
+  KMH kullanımı ve o günün borçları dökümün indirildiği anı değil, günün sonunu gösterir.
+
 ## [1.0.12] — 2026-11-23 — Her ay gelen gelir, vadeli hesap faizi ve sayılmayan gelirler
 
 ### Eklenenler
