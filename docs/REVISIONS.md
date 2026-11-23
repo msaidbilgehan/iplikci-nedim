@@ -11,6 +11,15 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 
 ## Değişiklik kaydı
 
+- 2026-11-23 (68) — Birikim döviz, altın ve vadeli hesabı da sayıyor (v1.0.10):
+  - [Yorum kuralları](domain/interpretation.md), "Ay sonu kapanışı": birikim, ayda birikime net giden paradır (BES ve
+    yatırım ödemeleri, döviz ve altın alım-satımı, döviz, altın, vadeli ve yatırım hesaplarının giriş ve çıkışları);
+    eksisi "birikimden kullanılan"dır. Gelir gideri karşılayıp birikim gelirin bıraktığını aşınca ay eksiyle bitmiş
+    sayılmaz. Kullanıcı Pano'daki "BES, döviz, altın ve diğer yatırımlara ayrılan para"nın yalnızca BES'i saydığını
+    gördü.
+  - [Özellikler](v1/features.md) F06: birikimin parçaları ve satırları, birikimden kullanılan ay. [Banka
+    biçimleri](domain/bank-formats.md), İş Bankası: "Ürün-Döviz Tipi" "Vadeli Hesap" ise hesap vadelidir.
+
 - 2026-11-16 (67) — Bildirim kuralına not (v1.0.9):
   - [Mimari](v1/architecture.md) §14 ve [özellikler](v1/features.md) F13: kuralın `not`'u, her bildiriminin sonuna
     eklenen tek satırlık yazıdır. Kullanıcı, kart son ödemesinden önce döviz bozdurmayı İplikçi Nedim'in

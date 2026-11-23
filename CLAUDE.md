@@ -436,6 +436,17 @@ says what the waiting must show); the Windows and Linux checks come later (K25).
   rule could only tell its event, so an alert rule now has a `not` (`AlertRule.note`, one line, 200 at most):
   `app/notify` adds it under each notification of the rule on every channel; the editor has a "Not" field, the list
   shows it, the API (`AlertRuleModel.note`) and MCP `alerts` add (`note`) carry it.
+- v1.0.10 (2026-11-23): the user saw the Pano's "Birikim" say "BES, döviz, altın ve diğer yatırımlara ayrılan para"
+  and count BES alone. A month's saving is what went into the savings, net (`insights.saving_of`, `savings`,
+  `SAVINGS_ACCOUNTS`): investment rows, currency and gold trades by their TL side (the readers drop the foreign side)
+  and every row of an FX, gold, deposit or brokerage account; money moved within the savings adds nothing.
+  - `month_end.Totals.saving` and `saving_parts`, the Pano, Ay sonu, Değerlendirme's flow, the Excel export, MCP
+    `month_end` and the sayings count the same. Each part leads to its rows: İşlemler's `saving` filter,
+    `TotalsOut.saving`, `RowOut.saving` ("birikime girdi" / "birikimden çıktı").
+  - A month that drew on its savings shows "Birikimden kullanılan"; the verdicts weigh what the income left without it
+    (`app.sayings._kept`), and saving beyond the income's surplus is a warning, not a month in the red.
+  - İş Bankası's "Ürün-Döviz Tipi: Vadeli Hesap" (its daily-interest account too) is a deposit (`isbank.account_xls`
+    v5). The kind `investment` is labelled "BES ve yatırım".
 
 The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's
 web interface).

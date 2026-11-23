@@ -4,6 +4,30 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [1.0.10] — 2026-11-23 — Birikim döviz, altın ve vadeli hesabı da sayıyor
+
+### Düzeltilenler
+
+- Pano'daki "Birikim", altındaki yazının söylediği gibi BES'le birlikte dövizi, altını, vadeli hesapları ve yatırım
+  hesaplarını da sayıyor. Şimdiye dek yalnızca BES ve fon ödemelerini sayıyordu: TL ile alınan döviz ve altın, döviz
+  hesabında kalan gelir ve vadeli hesaba aktarılan para birikimde görünmüyor, ayın "Kalan"ına karışıyordu. Birikim
+  artık o ay birikime net giden paradır: BES ve yatırım ödemeleri, döviz ve altın alımları (satışlar düşülür) ve
+  döviz, altın, vadeli ve yatırım hesaplarına giren para (oradan çıkan düşülür). Pano, Ay sonu, Değerlendirme'nin
+  "Gelir ve gider" tablosu, Excel dışa aktarımı ve Claude'un ay sonu aracı aynı rakamı söylüyor.
+- Birikimin altında parçaları yazıyor ("Döviz: 12.500,00 TL", "Bireysel Emeklilik (BES): 1.000,00 TL"); her parça o
+  ayın kendi işlemlerine götürür. İşlemler'de bu satırların her biri birikime girdiğini ya da birikimden çıktığını ve
+  hepsinin birikime ne kattığını söylüyor.
+- Döviz bozdurulan ya da vadeliden para çekilen bir ayda Pano "Birikimden kullanılan"ı gösteriyor; ayın hükmü gelirin
+  bıraktığını onsuz söylüyor ve "birikimden … kullanıldı" diye ekliyor.
+- Gelir gideri karşıladığı hâlde birikime ayrılan para gelirin bıraktığını aşınca (döviz ya da altın önceki aylardan
+  kalan parayla alınınca) ay "eksiyle bitti" sayılmıyor: hüküm kritik değil, uyarı. "Kapanan aylardan kaçında gelen
+  para gideni geçti" sayımı da birikimi gitmiş saymıyor.
+- İş Bankası'nın günlük faizli hesabı vadesiz sayılıyordu; hesap özeti onu "Vadeli Hesap" diye yazıyor. Artık vadeli
+  hesaptır ("İş Bankası Vadeli TL …") ve birikimde sayılır. İş Bankası hesap özetleri yeni sürümle bir kez yeniden
+  okunur.
+- İşlem türlerinden "Birikim & yatırım (döviz, altın, BES)" artık "BES ve yatırım": bu türde döviz ve altın alımları
+  yoktu, onlar "Döviz & Altın Alım-Satımı" kategorisindedir.
+
 ## [1.0.9] — 2026-11-16 — Bildirim kuralına not
 
 ### Eklenenler
