@@ -42,6 +42,7 @@ const TONES: Readonly<Record<string, Tone>> = {
   "mail.bridge_alarm": "warning",
   "mail.bridge_silent": "warning",
   "backup.failed": "critical",
+  "sync.failed": "warning",
   "bridge.paired": "good",
 };
 

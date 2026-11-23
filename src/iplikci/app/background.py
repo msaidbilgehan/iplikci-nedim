@@ -17,7 +17,7 @@ from ..jobs.schedule import Periodic, daily, every, monthly
 from ..jobs.worker import Handler
 from ..storage import audit, events, feed_state, jobs
 from ..vault import trash
-from . import access, backup, bridge, fx, intake, mail, notify, now, outlook, prices, telegram, update, uploads
+from . import access, backup, bridge, fx, intake, mail, notify, now, outlook, prices, sync, telegram, update, uploads
 from .analysis import analyze
 from .kinds import (
     BACKUP_DAILY,
@@ -63,7 +63,8 @@ def _no_restart() -> None:
 def handlers(ws: Workspace, restart: Callable[[], None] = _no_restart) -> dict[str, Handler]:
     """What each kind of job does in ws; restart ends the service to start again, as an installed update needs."""
     return {
-        REFRESH: lambda _payload: (refresh(ws), request_notify(ws)),
+        # A new analysis follows what changed here: the sync folder hears of it at once (ADR-0025).
+        REFRESH: lambda _payload: (refresh(ws), request_notify(ws), sync.wake()),
         NOTIFY: lambda _payload: notify.run(ws),
         PURGE: lambda _payload: purge(ws),
         mail.FETCH_JOB: lambda _payload: poll_mail(ws),

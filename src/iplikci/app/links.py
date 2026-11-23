@@ -31,6 +31,7 @@ class Screen(StrEnum):
     FX = "fx"  # /doviz
     TODO = "todo"  # /yapilacaklar: the kind of item to see to
     SYSTEM = "system"  # /sistem
+    SETTINGS = "settings"  # /ayarlar
     NOTIFICATIONS = "notifications"  # /bildirimler
 
 

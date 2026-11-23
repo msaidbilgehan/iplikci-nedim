@@ -7,6 +7,7 @@ import re
 import signal
 import sys
 import threading
+import time
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -18,12 +19,14 @@ import uvicorn
 from .. import __version__
 from ..api.app import create_app
 from ..api.context import Context
-from ..app import access, background, calls, extension, fx, lifecycle, mail, telegram, update
+from ..app import access, background, calls, extension, fx, lifecycle, mail, notify, telegram, update
+from ..app import sync as sync_app
 from ..app.workspace import Workspace
 from ..ingest.inbox import InboxWatcher
 from ..ingest.mail.idle import IdleWatcher
 from ..ingest.telegram import BotWatcher, Heard
 from ..jobs.worker import Worker
+from ..sync.watcher import SyncWatcher
 from ..update.install import Kind
 from . import instance, logs
 from .manager import Program
@@ -207,6 +210,40 @@ def bot_watcher(ws: Workspace, jobs: Worker) -> BotWatcher:
     return BotWatcher(listen)
 
 
+READY_KEPT = 300.0  # seconds the channels this computer can send on are trusted: they read the keyring
+
+
+class Ready:
+    """The channels leaving the computer that it can send on now, asked at most every READY_KEPT seconds: a sync
+    round each minute would otherwise read Telegram's token and the e-mail's password from the keyring each time."""
+
+    def __init__(self, ask: Callable[[], tuple[str, ...]], kept: float = READY_KEPT) -> None:
+        self._ask = ask
+        self._kept = kept
+        self._at = -kept
+        self._found: tuple[str, ...] = ()
+
+    def __call__(self) -> tuple[str, ...]:
+        if time.monotonic() - self._at >= self._kept:
+            self._found = self._ask()
+            self._at = time.monotonic()
+        return self._found
+
+
+def sync_watcher(ws: Workspace, jobs: Worker) -> SyncWatcher:
+    """The sync folder's rounds (ADR-0025): what another computer changed makes the analysis again here."""
+    ready = Ready(lambda: notify.external_ready(ws))
+
+    def one_round() -> bool:
+        done = sync_app.run_round(ws, ready)
+        if done.refresh:
+            background.request_refresh(ws)
+            jobs.wake()
+        return done.more
+
+    return SyncWatcher(one_round)
+
+
 def run(ws: Workspace, announce: Callable[[str], None] = _say) -> int:
     """Serve until interrupted (KeyboardInterrupt) or ended from the interface; the exit code (app.lifecycle).
     instance.AlreadyRunning when another process serves this data folder. A stop the system asks for (SIGTERM, as
@@ -278,6 +315,9 @@ def _serve(ws: Workspace, announce: Callable[[str], None]) -> int:
     inbox.start()
     bot = bot_watcher(ws, jobs)
     bot.start()
+    shared = sync_watcher(ws, jobs)
+    shared.start()
+    unregister = sync_app.register(shared.wake)
     program = ProgramWatch(life)
     program.start()
     place = place_watch(ws, life)
@@ -305,6 +345,8 @@ def _serve(ws: Workspace, announce: Callable[[str], None]) -> int:
         if place is not None:
             place.stop()
         program.stop()
+        unregister()
+        shared.stop()
         bot.stop()
         inbox.stop()
         ear.stop()

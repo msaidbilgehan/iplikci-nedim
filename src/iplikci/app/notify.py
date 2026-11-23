@@ -34,7 +34,7 @@ from ..storage import notifications as stored
 from ..storage.db import Database
 from ..storage.events import Event
 from ..storage.notifications import Notification
-from . import mail
+from . import mail, sync
 from .workspace import Workspace
 
 log = logging.getLogger("iplikci.notify")
@@ -400,7 +400,11 @@ def take_events(ws: Workspace, at: datetime | None = None) -> int:
         ready = (
             []
             if mail.first_read(db, settings)
-            else [s.channel for s in channel_states(ws, db, settings) if s.ready and s.channel is not Channel.IN_APP]
+            else [
+                s.channel
+                for s in channel_states(ws, db, settings)
+                if s.ready and s.channel is not Channel.IN_APP and sync.sends(db, settings, s.channel)
+            ]
         )
         quiet = timing.quiet(settings.notify.quiet_hours, at)
         made = 0
@@ -483,6 +487,16 @@ def deliver(ws: Workspace, at: datetime | None = None, senders: Mapping[Channel,
         if not due and not any(held.values()):
             return out
         carriers = dict(senders) if senders is not None else open_senders(ws, db, settings)
+        # ADR-0025: with the sync on, another computer may send this channel's notifications; what waits here for it
+        # is given up, so it never goes twice nor late, once this computer sends it again.
+        for channel in sync.EXTERNAL:
+            if not sync.sends(db, settings, channel):
+                carriers.pop(channel, None)
+                elsewhere = [n.id for n in due if n.channel == channel] + [n.id for n in held[channel]]
+                if elsewhere:
+                    stored.give_up(db, elsewhere, ELSEWHERE)
+                    out.failed += len(elsewhere)
+                due = [n for n in due if n.channel != channel]
         quiet = timing.quiet(settings.notify.quiet_hours, at)
         for n in due:
             _send(db, n, carriers, quiet, at, out)
@@ -490,6 +504,19 @@ def deliver(ws: Workspace, at: datetime | None = None, senders: Mapping[Channel,
             for channel in PUSH:
                 out.digests += _digest(db, channel, carriers, at)
     return out
+
+
+ELSEWHERE = "Bu kanalın bildirimlerini eşitlenen başka bir bilgisayar gönderiyor; buradan gönderilmedi."
+
+
+def external_ready(ws: Workspace) -> tuple[str, ...]:
+    """The channels leaving the computer that this one can send on now (on and set up), for the sync to tell which
+    computer sends them (ADR-0025). Telegram's token and the e-mail's password are read from the keyring."""
+    settings = _settings(ws)
+    with ws.db() as db:
+        return tuple(
+            s.channel.value for s in channel_states(ws, db, settings) if s.ready and s.channel in sync.EXTERNAL
+        )
 
 
 def _over_rate(db: Database, channel: Channel, at: datetime) -> bool:

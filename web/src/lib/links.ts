@@ -58,6 +58,7 @@ const ADDRESSES: Record<Destination["screen"], Address> = {
   fx: list("fx", "/doviz"),
   todo: list("todo", "/yapilacaklar", "tur"),
   system: list("system", "/sistem"),
+  settings: list("settings", "/ayarlar"),
   notifications: list("notifications", "/bildirimler"),
 };
 

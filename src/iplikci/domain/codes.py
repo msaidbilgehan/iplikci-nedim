@@ -234,6 +234,7 @@ class EventKind(StrEnum):
     MAIL_BRIDGE_ALARM = "mail.bridge_alarm"
     MAIL_BRIDGE_SILENT = "mail.bridge_silent"
     BACKUP_FAILED = "backup.failed"
+    SYNC_FAILED = "sync.failed"  # the sync folder has not worked for hours (ADR-0025); told once a day
     BRIDGE_PAIRED = "bridge.paired"
     BRIDGE_REVOKED = "bridge.revoked"
 

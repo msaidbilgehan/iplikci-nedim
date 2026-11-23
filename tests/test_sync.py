@@ -74,6 +74,11 @@ def rounds(*computers: Workspace, times: int = 2) -> None:
                 pass
 
 
+def sends(ws: Workspace, channel: Channel) -> bool:
+    with ws.db() as db:
+        return sync.sends(db, config.load(ws.layout.settings), channel)
+
+
 def ledger(ws: Workspace) -> set[tuple[object, ...]]:
     return {(t.fingerprint, t.date, t.amount, t.category, t.note) for t in analyze(ws).dataset.transactions}
 
@@ -233,16 +238,14 @@ def test_one_computer_sends_telegram_and_another_takes_over_when_it_goes_silent(
     sync.turn_on(b, str(drive))
     rounds(b)
     sync.run_round(b, channels=lambda: ("telegram",))
-    with a.db() as db_a, b.db() as db_b:
-        assert sync.sends(a, db_a, Channel.TELEGRAM)
-        assert not sync.sends(b, db_b, Channel.TELEGRAM)
-        assert sync.sends(b, db_b, Channel.DESKTOP)  # every computer's own
+    assert sends(a, Channel.TELEGRAM)
+    assert not sends(b, Channel.TELEGRAM)
+    assert sends(b, Channel.DESKTOP)  # every computer's own
     later = datetime.now(UTC) + sync.TAKEOVER_AFTER + timedelta(minutes=1)
     sync.run_round(b, channels=lambda: ("telegram",), now=later)
     sync.run_round(a, channels=lambda: ("telegram",), now=later)
-    with a.db() as db_a, b.db() as db_b:
-        assert sync.sends(b, db_b, Channel.TELEGRAM)
-        assert not sync.sends(a, db_a, Channel.TELEGRAM)
+    assert sends(b, Channel.TELEGRAM)
+    assert not sends(a, Channel.TELEGRAM)
 
 
 def test_the_user_moves_the_notifications_to_this_computer(a, b, drive):
@@ -253,9 +256,8 @@ def test_the_user_moves_the_notifications_to_this_computer(a, b, drive):
     sync.claim(b, ["telegram"])
     sync.run_round(b, channels=lambda: ("telegram",))
     sync.run_round(a, channels=lambda: ("telegram", "email"))
-    with a.db() as db_a, b.db() as db_b:
-        assert sync.sends(b, db_b, Channel.TELEGRAM) and not sync.sends(a, db_a, Channel.TELEGRAM)
-        assert sync.sends(a, db_a, Channel.EMAIL) and not sync.sends(b, db_b, Channel.EMAIL)
+    assert sends(b, Channel.TELEGRAM) and not sends(a, Channel.TELEGRAM)
+    assert sends(a, Channel.EMAIL) and not sends(b, Channel.EMAIL)
     with pytest.raises(sync.SyncError):
         sync.claim(b, [])
 
@@ -272,8 +274,7 @@ def test_turning_it_off_leaves_the_folder_and_lets_the_channels_go(a, b, drive):
     sync.turn_on(b, str(drive))
     rounds(b)
     sync.run_round(b, channels=lambda: ("telegram",))
-    with b.db() as db:
-        assert sync.sends(b, db, Channel.TELEGRAM)
+    assert sends(b, Channel.TELEGRAM)
 
 
 def test_a_folder_that_holds_other_files_is_refused_and_a_missing_one_is_a_problem(a, tmp_path, drive):

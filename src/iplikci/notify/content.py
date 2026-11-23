@@ -223,6 +223,10 @@ def _plain(kind: EventKind, target: str, d: Mapping[str, Any]) -> str:
         E.MAIL_AUTH_FAILED: "E-posta girişi reddedildi ve alım durdu; e-posta kurulumunu yenileyin.",
         E.MAIL_BRIDGE_ALARM: "Tarayıcı eklentisi Gmail'in sayfasını tanımadı ve durdu; eklentiyi güncelleyin.",
         E.MAIL_BRIDGE_SILENT: "Tarayıcı eklentisi bir gündür görünmedi; yeni e-postalar tarayıcı açılınca gelir.",
+        E.SYNC_FAILED: (
+            "Eşitleme saatlerdir çalışmıyor: veriler öteki bilgisayarlara ve eşitleme klasörüne gitmiyor. "
+            "Ayarlar'daki Eşitleme ve yedek bölümüne bakın."
+        ),
         E.DOCUMENT_RECEIVED: "Yeni bir belge geldi.",
         E.DOCUMENT_PROCESSED: "Bir belge okundu.",
         E.DOCUMENT_UNPROCESSED: "Bir belge tanınmadı; işlenmeden saklandı.",

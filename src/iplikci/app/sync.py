@@ -180,11 +180,11 @@ def _clock(db: Database, device: str) -> Clock:
 # --- who sends the notifications that leave the computer ------------------------------------------------
 
 
-def sends(ws: Workspace, db: Database, channel: Channel) -> bool:
+def sends(db: Database, settings: config.Settings, channel: Channel) -> bool:
     """Whether this computer sends the channel's notifications (and, for Telegram, reads the bot's messages): always
     without the sync, and for the interface's box and the desktop; with it, when this computer holds the channel or
     no computer does yet (the next round gives it to one that can send)."""
-    if channel not in EXTERNAL or not config.load(ws.layout.settings).sync.folder:
+    if channel not in EXTERNAL or not settings.sync.folder:
         return True
     me = _me(db)
     if me is None:

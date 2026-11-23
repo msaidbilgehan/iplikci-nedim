@@ -233,6 +233,7 @@ EVENT_KIND: dict[EventKind, str] = {
     EventKind.MAIL_BRIDGE_ALARM: "Eklenti Gmail sayfasını tanımadı",
     EventKind.MAIL_BRIDGE_SILENT: "Tarayıcı eklentisi görünmüyor",
     EventKind.BACKUP_FAILED: "Yedek alınamadı",
+    EventKind.SYNC_FAILED: "Eşitleme çalışmıyor",
     EventKind.BRIDGE_PAIRED: "Eklenti eşleşti",
     EventKind.BRIDGE_REVOKED: "Eklentinin eşleşmesi iptal edildi",
 }

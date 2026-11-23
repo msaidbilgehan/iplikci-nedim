@@ -33,7 +33,7 @@ from ..report import CLOSING_MONTHS
 from ..storage import bridges, documents, events
 from ..storage.db import Database
 from ..upcoming import Due
-from . import accounts, backup, holdings, now, outlook, system, todos, transactions
+from . import accounts, backup, holdings, now, outlook, sync, system, todos, transactions
 from .accounts import Freshness
 from .analysis import Analysis, account_labels
 from .bridge import SILENCE
@@ -87,6 +87,7 @@ class AlertKind(StrEnum):
     MAIL_STOPPED = "mail_stopped"  # the mailbox refused the login, and the e-mail intake stopped
     BRIDGE_SILENT = "bridge_silent"  # the browser extension was not seen for a day
     BACKUP_FAILED = "backup_failed"  # the newest backup, or its rehearsal, failed
+    SYNC_FAILED = "sync_failed"  # the sync folder has not worked for hours (ADR-0025)
 
 
 class AlertLevel(StrEnum):
@@ -407,6 +408,16 @@ def _backup(ws: Workspace, db: Database) -> list[Alert]:
     return found
 
 
+def _sync(ws: Workspace, at: datetime) -> list[Alert]:
+    """The sync folder, when its rounds have not done their work for sync.FAILED_AFTER."""
+    state = sync.status(ws)
+    since = datetime.fromisoformat(state.since) if state.on and state.problem and state.since else None
+    if since is None or at - since < sync.FAILED_AFTER:
+        return []
+    text = f"Eşitleme çalışmıyor: {state.problem}. Veriler öteki bilgisayarlara ve eşitleme klasörüne gitmiyor."
+    return [Alert(AlertKind.SYNC_FAILED, AlertLevel.WARNING, "Eşitleme çalışmıyor", text, 1, "", Link(Screen.SETTINGS))]
+
+
 def _say_alerts(found: list[Alert]) -> str:
     if not found:
         return "Açık uyarı yok."
@@ -430,6 +441,7 @@ def alerts(ws: Workspace, a: Analysis, today: date, listed: list[Todo], at: date
     found += _negatives(a, today)
     with ws.db() as db:
         found += _documents(db, listed) + _mail(ws, db, at) + _backup(ws, db)
+    found += _sync(ws, at)
     found.sort(key=lambda alert: alert.level != AlertLevel.CRITICAL)
     return OpenAlerts(found, _say_alerts(found), Link(Screen.NOTIFICATIONS))
 

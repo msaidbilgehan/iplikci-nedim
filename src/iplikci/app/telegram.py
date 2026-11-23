@@ -35,7 +35,7 @@ from ..notify.channels import CONFLICT, FILE_LIMIT, TOO_LARGE, Fetch, Post, Send
 from ..settings import config
 from ..storage import audit, feed_state, jobs
 from ..storage.db import Database
-from . import intake, kinds, notify, uploads
+from . import intake, kinds, notify, sync, uploads
 from .notify import BOT, OFFSET, PAIRING, NotifyError, PostFor
 from .workspace import Workspace
 
@@ -259,7 +259,13 @@ def _listening(db: Database, settings: config.Settings, at: datetime) -> bool:
     waits for its code. Only then is the keyring read and Telegram asked."""
     if feed_state.load(db, BOT) is None or Channel.TELEGRAM in notify.stopped_channels(db):
         return False
-    if settings.notify.telegram_chat and settings.notify.telegram_documents:
+    # ADR-0025: with the sync on, the computer that sends Telegram's notifications reads the bot; two reading it
+    # would cut each other's reads (Telegram's conflict). A pairing begun here is read here all the same.
+    if (
+        settings.notify.telegram_chat
+        and settings.notify.telegram_documents
+        and sync.sends(db, settings, Channel.TELEGRAM)
+    ):
         return True
     return _open(feed_state.load(db, PAIRING), at)
 

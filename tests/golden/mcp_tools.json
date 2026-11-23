@@ -722,6 +722,7 @@
             "mail.bridge_alarm",
             "mail.bridge_silent",
             "backup.failed",
+            "sync.failed",
             "bridge.paired",
             "bridge.revoked"
           ]

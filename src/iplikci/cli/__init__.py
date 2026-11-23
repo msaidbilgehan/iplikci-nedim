@@ -18,6 +18,7 @@ iplikci servis kur|kaldir|durum|yeniden-baslat   arka plan servisi (launchd, sys
 iplikci ac                      arayüzü tek kullanımlık giriş bağlantısıyla aç (servis çalışıyor olmalı)
 iplikci uygulama                uygulamayı aç: servisi kaydet ve başlat, arayüzü aç (kurulum paketinin başlatıcısı)
 iplikci yedek al|liste|geri-yukle|prova   yedek al, listele, geri yükle; geri yüklemenin provası
+iplikci esitleme durum|yerler|ac|kapat|simdi|buradan   Google Drive ile eşitleme ve yedek; bildirimleri gönderen
 iplikci dogrula --taban         doğrulama tabanını al, öncekiyle karşılaştır (gerilemede çıkış kodu 1)
 iplikci dev demo [KLASÖR]       sahte belgelerle demo veri klasörü kur
 iplikci dev parser probe|debug DOSYA   okuyucular belgeyi tanıyor mu; okuyan okuyucu ne okuyor
@@ -37,6 +38,7 @@ from .notify import notify_command, telegram_command
 from .rates import rates_command
 from .report import month_end_command, report
 from .service import app_command, open_command, service_command
+from .sync import sync_command
 from .transactions import transaction_command
 from .update import update_command
 from .verify import verify_command
@@ -56,6 +58,7 @@ COMMANDS: dict[str, Callable[[list[str]], int]] = {
     "ac": open_command,
     "uygulama": app_command,
     "yedek": backup_command,
+    "esitleme": sync_command,
     "dev": dev_command,
 }
 

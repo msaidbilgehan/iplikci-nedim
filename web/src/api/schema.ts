@@ -103,7 +103,7 @@ export interface AlertConditionModel {
 }
 
 /** What an open alert is about. */
-export type AlertKind = "finding" | "negative" | "unreadable" | "format_alarm" | "mail_stopped" | "bridge_silent" | "backup_failed";
+export type AlertKind = "finding" | "negative" | "unreadable" | "format_alarm" | "mail_stopped" | "bridge_silent" | "backup_failed" | "sync_failed";
 
 export type AlertLevel = "warning" | "critical";
 
@@ -703,7 +703,7 @@ export interface EventInfoOut {
 }
 
 /** What the event log records (architecture §13); the alert rules name these (architecture §14). */
-export type EventKind = "document.received" | "document.processed" | "document.unprocessed" | "document.unreadable" | "transaction.created" | "transaction.confirmed" | "transaction.large" | "evidence.unmatched" | "invoice.matched" | "invoice.pending" | "invoice.unmatched" | "payment.due_soon" | "expected_payment.missing" | "balance.forecast_negative" | "subscription.price_changed" | "subscription.paid_after_cancel" | "income.received" | "income.late" | "month.ended" | "month.closed" | "month.needs_check" | "parser.format_alarm" | "mail.auth_failed" | "mail.bridge_alarm" | "mail.bridge_silent" | "backup.failed" | "bridge.paired" | "bridge.revoked";
+export type EventKind = "document.received" | "document.processed" | "document.unprocessed" | "document.unreadable" | "transaction.created" | "transaction.confirmed" | "transaction.large" | "evidence.unmatched" | "invoice.matched" | "invoice.pending" | "invoice.unmatched" | "payment.due_soon" | "expected_payment.missing" | "balance.forecast_negative" | "subscription.price_changed" | "subscription.paid_after_cancel" | "income.received" | "income.late" | "month.ended" | "month.closed" | "month.needs_check" | "parser.format_alarm" | "mail.auth_failed" | "mail.bridge_alarm" | "mail.bridge_silent" | "backup.failed" | "sync.failed" | "bridge.paired" | "bridge.revoked";
 
 export interface EventOut {
   id: number;
@@ -886,6 +886,10 @@ export interface FlowsOut {
   nodes: FlowNodeOut[];
   edges: FlowEdgeOut[];
   note: string;
+}
+
+export interface FolderIn {
+  folder: string;
 }
 
 export interface ForecastOut {
@@ -1509,6 +1513,10 @@ export interface MonthTotalsOut {
 /** How the situation stands, as the Pano's verdicts colour it; the face takes its colour. */
 export type Mood = "good" | "warning" | "critical" | "neutral";
 
+export interface NameIn {
+  name: string;
+}
+
 export interface NamedAccountOut {
   id: string;
   label: string;
@@ -1955,6 +1963,10 @@ export interface RestoringOut {
   restarts: boolean;
 }
 
+export interface RoundOut {
+  asked: boolean;
+}
+
 export interface RowLabelsOut {
   merchant: string;
   category: string;
@@ -2061,7 +2073,7 @@ export interface ScheduleMonthOut {
  * (a series' id), calendar (a day, YYYY-MM-DD, or "" for the days from today on), forecast (an account's id), insights,
  * fx, todo (a kind of item to see to), system, notifications. A list screen opens with the link's query as its filters.
  */
-export type Screen = "document" | "documents" | "transaction" | "transactions" | "account" | "accounts" | "month" | "invoice" | "invoices" | "subscription" | "calendar" | "forecast" | "insights" | "fx" | "todo" | "system" | "notifications";
+export type Screen = "document" | "documents" | "transaction" | "transactions" | "account" | "accounts" | "month" | "invoice" | "invoices" | "subscription" | "calendar" | "forecast" | "insights" | "fx" | "todo" | "system" | "settings" | "notifications";
 
 /** One part of a search of many (q="market, kira"): a row is listed when one of the parts finds it. */
 export interface SearchPartOut {
@@ -2075,6 +2087,10 @@ export interface SecurityOut {
   quantity: string;
   value: MoneyOut;
   as_of: string;
+}
+
+export interface SendersIn {
+  channels?: string[];
 }
 
 export interface SeriesOut {
@@ -2291,6 +2307,45 @@ export interface SubscriptionsOut {
   income_candidates: IncomeCandidateOut[];
 }
 
+export interface SyncDeviceOut {
+  id: string;
+  name: string;
+  app: string;
+  system: string;
+  seen_at: string;
+  channels: string[];
+  left: boolean;
+  me: boolean;
+}
+
+export interface SyncOut {
+  on: boolean;
+  folder: string;
+  service: string;
+  device: string;
+  name: string;
+  devices: SyncDeviceOut[];
+  senders: Record<string, string>;
+  ready: string[];
+  last_at: string;
+  ok_at: string;
+  problem: string;
+  since: string;
+  waiting_down: number;
+  waiting_up: number;
+  documents: number;
+}
+
+export interface SyncPlaceOut {
+  service: string;
+  account: string;
+  folder: string;
+  exists: boolean;
+  devices: SyncDeviceOut[];
+  usable: boolean;
+  problem: string;
+}
+
 export interface SystemOut {
   service: ServiceOut;
   documents: Record<string, number>;
@@ -2483,6 +2538,11 @@ export interface TrendOut {
   threshold: MoneyOut;
   real?: RealTrendOut | null;
   real_note?: string;
+}
+
+export interface TurnOnIn {
+  folder: string;
+  name?: string;
 }
 
 export interface UnknownMailOut {

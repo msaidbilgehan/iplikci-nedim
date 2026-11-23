@@ -110,6 +110,7 @@ DEFAULTS: tuple[AlertRule, ...] = (
     _rule("Tarayıcı eklentisi görünmüyor", E.MAIL_BRIDGE_SILENT),
     _rule("Eklenti Gmail sayfasını tanımadı", E.MAIL_BRIDGE_ALARM),
     _rule("Yedek alınamadı", E.BACKUP_FAILED),
+    _rule("Eşitleme çalışmıyor", E.SYNC_FAILED),
 )
 
 HEADER = """\
