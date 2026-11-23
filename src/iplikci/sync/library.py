@@ -20,7 +20,6 @@ import os
 import re
 import secrets
 import shutil
-import sys
 import tempfile
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
@@ -149,12 +148,10 @@ def write_file(path: Path, data: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=_WRITING)
     try:
-        with os.fdopen(fd, "wb") as f:
+        with os.fdopen(fd, "wb") as f:  # mkstemp made it the user's alone (0600)
             f.write(data)
             f.flush()
             os.fsync(f.fileno())
-        if sys.platform != "win32":
-            os.chmod(name, 0o600)
         os.replace(name, path)
     except BaseException:
         Path(name).unlink(missing_ok=True)
