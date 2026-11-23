@@ -564,6 +564,47 @@ describe("Overview", () => {
     }
   });
 
+  it("counts a salary expected into a currency account from its day on, with foreign currency only", async () => {
+    const salary = {
+      day: "2026-12-01",
+      kind: "income" as const,
+      title: "Örnek Yazılım Ltd",
+      account: { id: "garanti-7654321", label: "Garanti BBVA Vadesiz EUR 7654321" },
+      direction: "in" as const,
+      amount: tl(10200000),
+      minimum: null,
+      basis: "kurallarınızda her ay 2.000,00 EUR, ayın 1'i; bugünkü kurla 102.000,00 TL",
+      series: "fp-yazilim",
+      fingerprints: [],
+    };
+    server.use(
+      http.get("/api/forecast", () =>
+        HttpResponse.json({ ...FORECAST, elsewhere: [salary], outside_income: [salary] }),
+      ),
+    );
+    try {
+      renderScreen(<Overview found={DASHBOARD} />);
+      const ahead = await region("Önümüzdeki 30 gün");
+      expect(
+        await within(ahead).findByText(/beklenen 1 gelir \(bugünkü kurla 102\.000,00 TL\) bu çizgide yok/),
+      ).toBeInTheDocument();
+      const choice = within(ahead).getByRole("group", { name: "Çizgide sayılanlar" });
+      await userEvent.click(within(choice).getByRole("radio", { name: "Döviz ve yatırımlarla" }));
+      // 25.000 TL held from today, the salary's 102.000 TL from 1 December on: the lowest day is the one before it.
+      expect(
+        within(ahead).getByText(
+          "Döviz ve yatırımlarınızla birlikte paranız 30 gün boyunca yetiyor: " +
+            "en az 30.11.2026'da 25.984,00 TL kalıyor.",
+        ),
+      ).toBeInTheDocument();
+      expect(
+        within(ahead).getByText(/beklenen 1 gelir de \(bugünkü kurla 102\.000,00 TL\) geldiği günden/),
+      ).toBeInTheDocument();
+    } finally {
+      window.localStorage.removeItem("iplikci.forecast");
+    }
+  });
+
   it("puts the open alerts first, each level in words, then the assessment's advice with its way on", async () => {
     renderScreen(<Overview found={DASHBOARD} />);
     const todo = await region("Ne yapmalısınız?");

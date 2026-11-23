@@ -17,13 +17,13 @@ import { Button } from "../ui/Button";
 import { RuleDiff } from "./RuleDiff";
 import { monthChoices, monthOf, paidAfter, type Wording } from "./series";
 
-const INPUT = cn(
+export const INPUT = cn(
   "min-h-11 w-full rounded-md border px-3 text-sm",
   "border-zinc-300 bg-white text-zinc-900 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100",
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600",
 );
 const SMALL = "text-xs text-zinc-600 dark:text-zinc-300";
-const SECTION = "flex flex-col gap-3 rounded-md border border-zinc-200 p-3 dark:border-zinc-700";
+export const SECTION = "flex flex-col gap-3 rounded-md border border-zinc-200 p-3 dark:border-zinc-700";
 
 interface PreviewProps {
   change: RuleChange;
@@ -34,7 +34,7 @@ interface PreviewProps {
 }
 
 /** A previewed rule edit: the difference it makes in the rule file and what it does, then "Kaydet". */
-function RulePreview({ change, effect, saving, onSave, onCancel }: PreviewProps) {
+export function RulePreview({ change, effect, saving, onSave, onCancel }: PreviewProps) {
   const { t } = useTranslation("subscriptions");
   const caption = useId();
   if (!change.diff) {

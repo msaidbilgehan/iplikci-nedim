@@ -469,10 +469,87 @@ describe("SubscriptionsPage", () => {
     expect(await within(row).findByRole("button", { name: "Yeniden bekle: Örnek İşveren A.Ş." })).toBeInTheDocument();
   });
 
+  it("declares a new salary as monthly: its month's parts said, the amount typed, previewed, saved", async () => {
+    const user = userEvent.setup();
+    const candidate = {
+      payee: "Örnek Yazılım Ltd",
+      account: { id: "garanti-7654321", label: "Garanti BBVA Vadesiz EUR 7654321" },
+      month: "2026-10",
+      parts: [
+        { minor: 150000, currency: "EUR" },
+        { minor: 50000, currency: "EUR" },
+      ],
+      amount: { minor: 200000, currency: "EUR" },
+      day: 1,
+    };
+    server.use(
+      http.get("/api/subscriptions", () => HttpResponse.json({ ...SUBSCRIPTIONS, income_candidates: [candidate] })),
+    );
+    const diff = "+_düzenli_gelir:\n+  Örnek Yazılım Ltd: {tutar: 2200, para: EUR, gün: 1}";
+    const { previewed, saved } = serveRules(diff);
+    renderScreen(<SubscriptionsPage />);
+    const income = await screen.findByRole("region", { name: "Düzenli gelirler" });
+    await user.click(within(income).getByRole("button", { name: "Her ay gelen bir gelir ekle…" }));
+    const form = within(income).getByRole("region", { name: "Her ay gelen bir gelir" });
+    expect(within(form).getByText("Örnek Yazılım Ltd")).toBeInTheDocument(); // the one payer to choose
+    const amount = within(form).getByLabelText("Ayda gelen tutar (EUR)");
+    expect(amount).toHaveValue("2.000");
+    expect(amount).toHaveAccessibleDescription(/Ekim 2026 ayında gelen: 1\.500,00 EUR \+ 500,00 EUR/);
+    expect(within(form).getByLabelText("Ayın kaçında gelir?")).toHaveValue(1);
+    await user.clear(amount);
+    await user.type(amount, "2.200");
+    await user.click(within(form).getByRole("button", { name: "Önizle" }));
+    expect(
+      await within(form).findByText(
+        "Kaydedince Örnek Yazılım Ltd her ay 2.200,00 EUR gelir diye sayılır, ayın 1. günü: takvim ve öngörü onu " +
+          "ilk ödemesinden itibaren bekler.",
+      ),
+    ).toBeInTheDocument();
+    const declared = { action: "income", merchant: "Örnek Yazılım Ltd", amount: "2200.00", currency: "EUR", day: 1 };
+    expect(previewed).toEqual([declared]);
+    await user.click(within(form).getByRole("button", { name: "Kaydet" }));
+    expect(
+      await within(income).findByText("Kaydedildi: Örnek Yazılım Ltd her ay 2.200,00 EUR gelir diye sayılıyor."),
+    ).toBeInTheDocument();
+    expect(saved).toEqual([declared]);
+  });
+
+  it("says an income is declared, at today's rate, and takes the declaration back", async () => {
+    const user = userEvent.setup();
+    const [salary] = SUBSCRIPTIONS.income;
+    const declared = {
+      ...salary!,
+      declared: { amount: { minor: 200000, currency: "EUR" }, day: 1 },
+      amount: { minor: 10200000, currency: "TRY" },
+    };
+    server.use(http.get("/api/subscriptions", () => HttpResponse.json({ ...SUBSCRIPTIONS, income: [declared] })));
+    const { previewed, saved } = serveRules("-_düzenli_gelir:");
+    renderScreen(<SubscriptionsPage />);
+    const item = await card("Düzenli gelirler", declared.payee);
+    expect(item).toHaveTextContent("Her ay 2.000,00 EUR, ayın 1. günü: sizin bildirdiğiniz");
+    expect(item).toHaveTextContent("Beklenen 102.000,00 TL (bugünkü kurla)");
+    await user.click(within(item).getByRole("button", { name: `Her ay gelir değil: ${declared.payee}` }));
+    const form = within(item).getByRole("region", { name: "Her ay gelir değil" });
+    await user.click(within(form).getByRole("button", { name: "Önizle" }));
+    await user.click(await within(form).findByRole("button", { name: "Kaydet" }));
+    expect(
+      await screen.findByText(`Kaydedildi: ${declared.payee} artık her ay gelir diye yazılı değil.`),
+    ).toBeInTheDocument();
+    expect(previewed).toEqual([{ action: "not_income", merchant: declared.payee }]);
+    expect(saved).toEqual(previewed);
+  });
+
   it("says when no series is known yet, and where the documents are", async () => {
     server.use(
       http.get("/api/subscriptions", () =>
-        HttpResponse.json({ window: [], as_of: "2026-11-01", series: [], income: [], installments: [] }),
+        HttpResponse.json({
+          window: [],
+          as_of: "2026-11-01",
+          series: [],
+          income: [],
+          installments: [],
+          income_candidates: [],
+        }),
       ),
     );
     renderScreen(<SubscriptionsPage />);

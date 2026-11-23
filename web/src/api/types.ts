@@ -54,6 +54,8 @@ import type {
   DocumentPageOut,
   DocumentRowOut,
   DocumentViewOut,
+  DeclaredIncomeOut,
+  DeclaredOut,
   EndedIn,
   EndedOut,
   EvdsOut,
@@ -126,7 +128,10 @@ import type {
   MonthTotalsOut,
   Necessity,
   NetWorthOut,
+  IncomeCandidateOut,
+  IncomeIn,
   NotEndedIn,
+  NotIncomeIn,
   NotificationOut,
   NotificationsOut,
   NotificationsReadOut,
@@ -330,12 +335,20 @@ export type { Necessity, TransferStep }; // how the ledger resolved a transfer: 
 export type EndedPayment = EndedOut;
 export type EndedRule = EndedIn;
 export type NotEndedRule = NotEndedIn;
-// The edits the screens preview, then write: a merchant rule, an ended payment and its undoing, and the Rules
-// screen's commitment category, merchant's own necessity and whole file.
+// The income the user says comes every month (`_düzenli_gelir`): "Her ay gelir…" writes one, "Kaldır" takes it back.
+export type DeclaredIncome = DeclaredIncomeOut;
+export type Declared = DeclaredOut;
+export type IncomeRule = IncomeIn;
+export type NotIncomeRule = NotIncomeIn;
+export type IncomeCandidate = IncomeCandidateOut; // a payer whose recent income makes no running series yet
+// The edits the screens preview, then write: a merchant rule, an ended payment and its undoing, a monthly income and
+// its undoing, and the Rules screen's commitment category, merchant's own necessity and whole file.
 export type RuleEdit =
   | MerchantRule
   | EndedRule
   | NotEndedRule
+  | IncomeRule
+  | NotIncomeRule
   | CommitmentIn
   | MerchantNecessityIn
   | WriteRulesIn;

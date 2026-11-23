@@ -338,6 +338,7 @@ export function series(overrides: Partial<Series> = {}): Series {
       since: "2026-07-03",
     },
     listed: true,
+    declared: null,
     payments: [
       {
         fingerprint: "fp-kira-10",
@@ -524,6 +525,7 @@ export const SUBSCRIPTIONS: Subscriptions = {
       fingerprint: "fp-elektronik",
     },
   ],
+  income_candidates: [],
 };
 
 function item(overrides: Partial<CalendarItem>): CalendarItem {
@@ -894,6 +896,7 @@ export const FORECAST: Forecast = {
       value: null,
     },
   ],
+  outside_income: [],
   notes: [
     "Bu bir tahmindir: belgelerdeki son bakiyeden ve geçmiş ödemelerden çıkarıldı.",
   ],
@@ -2788,6 +2791,7 @@ export const CATEGORY_RULES: CategoryRules = {
   ],
   merchant_necessity: [],
   history: [],
+  income: [],
 };
 
 /** A document's place with no page, line, sheet or row: a receipt or a notice found as a whole. */
@@ -3795,6 +3799,7 @@ export const OWN_RULES: CategoryRules = {
     "personal 2026-11-02 10.00.00.yaml",
     "personal 2026-10-20 08.30.00.yaml",
   ],
+  income: [],
 };
 
 /** A change's preview: three market rows become café rows, and the file gains the merchant. */

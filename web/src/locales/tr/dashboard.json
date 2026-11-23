@@ -250,7 +250,11 @@
       "lineAll": "Döviz ve yatırımlarla birlikte para (tahmin)",
       "safe_all": "Döviz ve yatırımlarınızla birlikte paranız 30 gün boyunca yetiyor: en az {{day, onDay}} {{amount}} kalıyor.",
       "negative_all": "Dikkat: döviz ve yatırımlarınız da sayılınca {{day, onDay}} paranız eksiye düşüyor ({{amount}}). Bir ödemeyi erteleyin.",
-      "convert": "Döviz ve yatırımlarınızda {{amount}} var: bir kısmını bozdurup TL hesabınıza aktarabilirsiniz."
+      "convert": "Döviz ve yatırımlarınızda {{amount}} var: bir kısmını bozdurup TL hesabınıza aktarabilirsiniz.",
+      "coming_one": "Döviz hesaplarınıza beklenen 1 gelir (bugünkü kurla {{amount}}) bu çizgide yok: TL'ye bozdurdukça geçer.",
+      "coming_other": "Döviz hesaplarınıza beklenen {{count}} gelir (bugünkü kurla {{amount}}) bu çizgide yok: TL'ye bozdurdukça geçer.",
+      "comingCounted_one": "Döviz hesaplarınıza beklenen 1 gelir de (bugünkü kurla {{amount}}) geldiği günden itibaren eklendi.",
+      "comingCounted_other": "Döviz hesaplarınıza beklenen {{count}} gelir de (bugünkü kurla {{amount}}) geldiği günden itibaren eklendi."
     },
     "todo": {
       "title": "Ne yapmalısınız?",

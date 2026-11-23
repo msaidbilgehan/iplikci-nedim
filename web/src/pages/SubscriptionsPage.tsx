@@ -2,8 +2,9 @@
 // their last and next payment and their price change, then what ended or was cancelled, the regular income and the
 // card purchases with installments left. A payment after the month the user cancelled one leads the screen as a
 // warning. A series' panel (?seri=<id>) shows the payments it rests on, each leading to its row, and "İptal ettim" or
-// "Yeniden bekle", the change shown before it is written. Every number comes from /api/subscriptions; the statuses'
-// and periods' names from /api/labels.
+// "Yeniden bekle", the change shown before it is written. An income that came lately but makes no series yet (a new
+// job's salary) can be declared as coming every month ("Her ay gelen bir gelir ekle…"). Every number comes from
+// /api/subscriptions; the statuses' and periods' names from /api/labels.
 
 import type { TFunction } from "i18next";
 import { useState } from "react";
@@ -13,12 +14,14 @@ import { Link, useSearchParams } from "react-router";
 import { useCategoryRules, useLabels, useSubscriptions } from "../api/queries";
 import type { CategoryRules, Labels, Series, Subscriptions } from "../api/types";
 import { Empty, Failure, Loading } from "../components/QueryState";
+import { IncomeForm, startOf } from "../components/subscriptions/IncomeForm";
 import { IncomeList } from "../components/subscriptions/IncomeList";
 import { InstallmentList } from "../components/subscriptions/InstallmentList";
 import { type Act, SeriesPanel } from "../components/subscriptions/SeriesPanel";
 import { NAME, type Opening, SeriesList, SMALL } from "../components/subscriptions/SeriesList";
 import { isRunning, SERIES } from "../components/subscriptions/series";
 import { Alert } from "../components/ui/Alert";
+import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { PageHeader } from "../components/ui/PageHeader";
 import { NextStep, Say } from "../components/ui/Say";
@@ -95,7 +98,8 @@ function Overview({ found, labels, rules, opening }: OverviewProps) {
   const periodic = listed.filter((series) => series.period !== "month" && isRunning(series));
   const ended = listed.filter((series) => !isRunning(series));
   const income = found.income.filter((series) => series.listed);
-  if (listed.length === 0 && income.length === 0 && found.installments.length === 0) {
+  const candidates = found.income_candidates;
+  if (listed.length === 0 && income.length === 0 && found.installments.length === 0 && candidates.length === 0) {
     return (
       <Empty title={t("empty")}>
         <p>{t("emptyText")}</p>
@@ -128,10 +132,15 @@ function Overview({ found, labels, rules, opening }: OverviewProps) {
           <SeriesList series={ended} kind="ended" caption={t("ended.caption")} {...shared} />
         </Card>
       ) : null}
-      {income.length > 0 ? (
+      {income.length > 0 || candidates.length > 0 ? (
         <Card title={t("income.title")}>
-          <p className={`mb-3 ${SMALL}`}>{t("income.text")}</p>
-          <IncomeList income={income} {...shared} />
+          {income.length > 0 ? (
+            <>
+              <p className={`mb-3 ${SMALL}`}>{t("income.text")}</p>
+              <IncomeList income={income} {...shared} />
+            </>
+          ) : null}
+          {candidates.length > 0 ? <DeclareIncome found={found} /> : null}
         </Card>
       ) : null}
       {found.installments.length > 0 ? (
@@ -140,6 +149,39 @@ function Overview({ found, labels, rules, opening }: OverviewProps) {
         </Card>
       ) : null}
     </>
+  );
+}
+
+/** "Her ay gelen bir gelir ekle…": the payers whose income came lately and makes no series yet, to declare one. */
+function DeclareIncome({ found }: { found: Subscriptions }) {
+  const { t } = useTranslation("subscriptions");
+  const [open, setOpen] = useState(false);
+  const [said, setSaid] = useState("");
+  return (
+    <div className="mt-4 flex flex-col gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-700">
+      <p className="text-sm">{t("income.addText")}</p>
+      <Button
+        variant="secondary"
+        className="self-start"
+        aria-expanded={open}
+        onClick={() => {
+          setSaid("");
+          setOpen((was) => !was);
+        }}
+      >
+        {open ? t("income.close") : t("income.add")}
+      </Button>
+      {said ? <Alert tone="good" title={said} live /> : null}
+      {open ? (
+        <IncomeForm
+          starts={found.income_candidates.map(startOf)}
+          onSaved={(text) => {
+            setOpen(false);
+            setSaid(text);
+          }}
+        />
+      ) : null}
+    </div>
   );
 }
 

@@ -119,3 +119,38 @@ test("düzenli bir gelir artık gelmiyor diye bitirilir, önizlenip kaydedilir v
   await page.keyboard.press("Escape");
   await expect(income.getByRole("button", { name: `Artık gelmiyor: ${payer}` })).toBeVisible(SAVES);
 });
+
+test("her ay gelen bir gelir formu ödeyenin ayını söyler, önizlenir ve erişilebilirlik denetiminden geçer", async ({
+  page,
+}) => {
+  // The demo's salary is a series already: offered as a payer whose income makes none yet, it shows the form on the
+  // service's own screen. Nothing is saved: the other tests read the same rule file.
+  await page.route("**/api/subscriptions", async (route) => {
+    const response = await route.fetch();
+    const found = await response.json();
+    const candidate = {
+      payee: "Örnek İşveren A.Ş.",
+      account: { id: "teb-123456789", label: "TEB Vadesiz TL 123456789" },
+      month: "2026-10",
+      parts: [{ minor: 4000000, currency: "TRY" }],
+      amount: { minor: 4000000, currency: "TRY" },
+      day: 1,
+    };
+    await route.fulfill({ response, json: { ...found, income_candidates: [candidate] } });
+  });
+  await page.goto("/abonelikler");
+  await loaded(page);
+  const income = page.getByRole("region", { name: "Düzenli gelirler" });
+  await income.getByRole("button", { name: "Her ay gelen bir gelir ekle…" }).click();
+  const form = income.getByRole("region", { name: "Her ay gelen bir gelir" });
+  await expect(form.getByLabel("Ayda gelen tutar (TL)")).toHaveValue("40.000");
+  await form.getByLabel("Ayda gelen tutar (TL)").fill("42.000");
+  await form.getByRole("button", { name: "Önizle" }).click();
+  await expect(
+    form.getByText("Kaydedince Örnek İşveren A.Ş. her ay 42.000,00 TL gelir diye sayılır, ayın 1. günü", {
+      exact: false,
+    }),
+  ).toBeVisible(SAVES);
+  expect(await violations(page, "main")).toEqual([]);
+  await form.getByRole("button", { name: "Vazgeç" }).click();
+});

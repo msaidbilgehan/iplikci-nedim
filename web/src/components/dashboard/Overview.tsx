@@ -627,8 +627,17 @@ function WhereItWent({ month, isOpen }: { month: string; isOpen: boolean }) {
 
 // --- the next 30 days ----------------------------------------------------------------------------------------------
 
-/** The accounts' balances summed day by day from today, for the days ahead, with extra (minor units) on each day. */
-function summed(forecast: Forecast, end: string, extra = 0): Array<{ day: string; value: number }> {
+/**
+ * The accounts' balances summed day by day from today, for the days ahead, with extra (minor units) on each day and,
+ * when counted, the income expected into the foreign currency and investment accounts from its day on (in TL at
+ * today's rate): the user converts it as they need it, so the TL lines never count it.
+ */
+function summed(
+  forecast: Forecast,
+  end: string,
+  extra = 0,
+  coming: readonly CalendarItem[] = [],
+): Array<{ day: string; value: number }> {
   const byDay = new Map<string, number>();
   for (const account of forecast.accounts) {
     for (const point of account.days) {
@@ -637,9 +646,11 @@ function summed(forecast: Forecast, end: string, extra = 0): Array<{ day: string
       }
     }
   }
+  const cameBy = (day: string) =>
+    coming.reduce((total, item) => total + (item.day <= day ? item.amount.minor : 0), 0);
   return [...byDay.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([day, value]) => ({ day, value: value + extra }));
+    .map(([day, value]) => ({ day, value: value + extra + cameBy(day) }));
 }
 
 /** What the line takes off every day: each account's money out tied to no day, the median month of its complete
@@ -678,9 +689,12 @@ function Ahead({ forecast }: { forecast: Forecast }) {
   const valued = forecast.outside.filter((h) => h.value !== null);
   const unvalued = forecast.outside.length - valued.length;
   const held = valued.reduce((total, h) => total + (h.value?.minor ?? 0), 0);
-  const all = holdings === "all" && valued.length > 0;
+  // The income expected into the currency accounts within these days, which only the second view counts.
+  const coming = forecast.outside_income.filter((item) => item.day <= end);
+  const comingTotal = coming.reduce((total, item) => total + item.amount.minor, 0);
+  const all = holdings === "all" && (valued.length > 0 || coming.length > 0);
   const extra = all ? held : 0;
-  const points = summed(forecast, end, extra);
+  const points = summed(forecast, end, extra, all ? coming : []);
   const spread = spreadOf(forecast);
   const items: CalendarItem[] = [...forecast.accounts.flatMap((a) => a.items), ...forecast.elsewhere]
     .filter((item) => item.day >= forecast.today && item.day <= end)
@@ -733,7 +747,7 @@ function Ahead({ forecast }: { forecast: Forecast }) {
       <div className="grid items-start gap-4 lg:grid-cols-[3fr_2fr]">
         <div className="flex min-w-0 flex-col gap-2">
           <p className={HOW}>{t("overview.ahead.how")}</p>
-          {valued.length > 0 ? (
+          {valued.length > 0 || coming.length > 0 ? (
             <div className="self-start">
               <Segmented
                 legend={t("overview.ahead.holdings")}
@@ -755,6 +769,12 @@ function Ahead({ forecast }: { forecast: Forecast }) {
             {valued.length > 0
               ? ` ${t(all ? "overview.ahead.outsideCounted" : "overview.ahead.outside", {
                   amount: formatMoney(tl(held)),
+                })}`
+              : ""}
+            {coming.length > 0
+              ? ` ${t(all ? "overview.ahead.comingCounted" : "overview.ahead.coming", {
+                  count: coming.length,
+                  amount: formatMoney(tl(comingTotal)),
                 })}`
               : ""}
             {unvalued > 0 ? ` ${t("overview.ahead.unvalued", { count: unvalued })}` : ""}

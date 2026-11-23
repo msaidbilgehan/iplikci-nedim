@@ -33,8 +33,18 @@
   "income": {
     "title": "Düzenli gelirler",
     "caption": "Düzenli gelirler",
-    "text": "Beklenen tutar son üç gelişin medyanı.",
-    "cancelled": "Artık gelmiyor"
+    "text": "Beklenen tutar son üç gelişin medyanı; her ay gelir diye eklediğiniz bir gelirde yazdığınız tutar (döviz ise bugünkü kurla).",
+    "cancelled": "Artık gelmiyor",
+    "declared": "Her ay {{amount}}, ayın {{day}}. günü: sizin bildirdiğiniz",
+    "declaredRate": "bugünkü kurla",
+    "declaredOwn": "sizin bildirdiğiniz",
+    "change": "Değiştir…",
+    "changeOf": "Değiştir: {{payee}}",
+    "remove": "Her ay gelir değil…",
+    "removeOf": "Her ay gelir değil: {{payee}}",
+    "add": "Her ay gelen bir gelir ekle…",
+    "addText": "Yeni bir işin maaşı gibi, belgelerde henüz üç ay görünmediği için düzenli sayılmayan bir gelir var: her ay geldiğini bildirirseniz takvim ve öngörü onu ilk ödemesinden itibaren sayar.",
+    "close": "Kapat"
   },
   "installments": {
     "title": "Taksitli alışverişler",
@@ -163,5 +173,24 @@
     "save": "Kaydet",
     "saving": "Kaydediliyor…",
     "cancel": "Vazgeç"
+  },
+  "declare": {
+    "title": "Her ay gelen bir gelir",
+    "text": "Ayda ne kadar ve ayın kaçında geldiğini yazın. Takvim ve öngörü onu ilk ödemesinden itibaren bekler; döviz gelirini bugünkü kurla sayar. Gelmezse gecikti diye haber verilir.",
+    "payee": "Ödeyen",
+    "amount": "Ayda gelen tutar ({{currency}})",
+    "amountHint": "Bir ayda gelen toplam tutar.",
+    "parts": "{{month}} ayında gelen: {{parts}}. Bir ayda gelen toplamı yazın; fazladan ya da eksik gelen bir ödeme varsa onu saymayın.",
+    "day": "Ayın kaçında gelir?",
+    "dayHint": "1 ile 31 arası; daha kısa aylarda ayın son günü sayılır.",
+    "tl": "TL",
+    "effect": "Kaydedince {{payee}} her ay {{amount}} gelir diye sayılır, ayın {{day}}. günü: takvim ve öngörü onu ilk ödemesinden itibaren bekler.",
+    "saved": "Kaydedildi: {{payee}} her ay {{amount}} gelir diye sayılıyor."
+  },
+  "undeclare": {
+    "title": "Her ay gelir değil",
+    "text": "{{payee}} kişisel kurallarınızda her ay gelir diye yazılı. Kaldırırsanız belgeler onu üç ayda düzenli bir seri yapana dek takvim ve öngörü onu beklemez.",
+    "effect": "Kaydedince {{payee}} kurallarınızdan çıkar; yalnızca belgelerin gösterdiği düzenle beklenir.",
+    "saved": "Kaydedildi: {{payee}} artık her ay gelir diye yazılı değil."
   }
 }
