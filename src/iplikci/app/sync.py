@@ -355,7 +355,7 @@ _peers: dict[Path, _Peers] = {}  # by data folder: the service's rounds keep it 
 def run_round(ws: Workspace, channels: Callable[[], Sequence[str]] = lambda: (), now: datetime | None = None) -> Round:
     """One round (see the module's description). channels: the external channels this computer can send on now."""
     at = now or datetime.now(UTC)
-    settings = ws.fresh_settings()
+    settings = config.load(ws.layout.settings)
     if not settings.sync.folder:
         _peers.pop(ws.home, None)
         return Round()
