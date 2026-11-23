@@ -3,17 +3,38 @@ and /api/forecast answer and the MCP tools of the same names tell. They read the
 (analysis.Current) and work the days ahead out on request, as of the day asked: the analysis is made again only when
 the documents change, while the days ahead move every day."""
 
-from dataclasses import dataclass
-from datetime import date
+from collections import defaultdict
+from collections.abc import Iterable
+from dataclasses import dataclass, field
+from datetime import date, timedelta
 from decimal import Decimal
 
-from ..analysis import Dataset
-from ..domain.codes import Certainty, Necessity, PaymentKind, SeriesPeriod, SeriesStatus, TransactionKind
-from ..domain.models import TRY, Transaction
+from ..analysis import Dataset, payments
+from ..domain.codes import (
+    CARD_TYPES,
+    AccountType,
+    Certainty,
+    Necessity,
+    PaymentKind,
+    SeriesPeriod,
+    SeriesStatus,
+    TransactionKind,
+)
+from ..domain.models import TRY, DeclaredIncome, Transaction
 from ..domain.money import Money, round_half_up
 from ..domain.text import fold
 from ..forecast import AccountForecast, Forecast, Spread, Start, counted_from, forecast
-from ..insights import V1_STATUS, PeriodicSeries, Series, listed, month_name, paid_after
+from ..insights import (
+    V1_STATUS,
+    PeriodicSeries,
+    Series,
+    brought,
+    listed,
+    month_name,
+    month_of,
+    paid_after,
+    row_currency,
+)
 from ..upcoming import (
     CardDue,
     Due,
@@ -96,6 +117,20 @@ class SeriesView:
     price_change: PriceChange | None
     listed: bool  # on the list: running, or a commitment that ended or an income the user ended within the window
     rows: tuple[Row, ...]
+    declared: DeclaredIncome | None = None  # an income the user's rules say comes every month (`_düzenli_gelir`)
+
+
+@dataclass(frozen=True, slots=True)
+class IncomeCandidate:
+    """A payer whose income came lately and makes no running series: what declaring it as monthly would start from."""
+
+    payee: str
+    account: str  # where its newest income came
+    currency: str  # its newest income's
+    month: str  # the newest month it came in, YYYY-MM
+    parts: tuple[Decimal, ...]  # that month's payments in currency, oldest first
+    day: int  # the day of the month its largest payment of that month came on
+    total: Decimal  # in TL, all it brought within CANDIDATE_DAYS
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,6 +141,7 @@ class Subscriptions:
     income: list[SeriesView]
     installments: list[Installment]
     labels: dict[str, str]  # the accounts' labels by id
+    candidates: list[IncomeCandidate] = field(default_factory=list[IncomeCandidate])  # the most it brought first
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,6 +212,7 @@ def _view(s: Series, ds: Dataset, window: list[str], income: bool = False) -> Se
         price_change=PriceChange(change[0], change[1], change[2]) if change else None,
         listed=listed(s, ds, window),
         rows=tuple(_row(t) for t in s.payments),
+        declared=s.declared,
     )
 
 
@@ -186,7 +223,56 @@ def subscriptions(a: Analysis) -> Subscriptions:
     window = ins.timeline.window
     series = [_view(s, ds, window) for s in [*ins.series, *ins.periodic]]
     income = [_view(s, ds, window, income=True) for s in ins.income]
-    return Subscriptions(window, ins.timeline.as_of, series, income, installments_left(ds), _labels(ds))
+    candidates = income_candidates(ds, ins.income, ins.timeline.as_of)
+    return Subscriptions(window, ins.timeline.as_of, series, income, installments_left(ds), _labels(ds), candidates)
+
+
+CANDIDATE_DAYS = 92  # how far back an income counts as recent enough to declare as monthly
+# Accounts no salary is paid into: a deposit's, gold's and a brokerage account's income is interest, a dividend or a
+# trade, which the forecast counts its own way or not at all.
+_NOT_PAID_INTO = frozenset({AccountType.DEPOSIT, AccountType.GOLD, AccountType.BROKERAGE, *CARD_TYPES})
+
+
+def income_candidates(ds: Dataset, income: Iterable[Series], as_of: date) -> list[IncomeCandidate]:
+    """The payers whose income came within CANDIDATE_DAYS of as_of and makes no running series, none the user declared
+    or ended: a salary that just started, whose documents cannot make it a series for three months. Each with its
+    newest month's payments in its currency, the parts a salary paid in two comes in; the most it brought first."""
+    counted = {fold(s.merchant) for s in income if s.running} | set(ds.declared) | set(ds.ended)
+    since = as_of - timedelta(days=CANDIDATE_DAYS)
+    by_payee: dict[str, list[Transaction]] = defaultdict(list)
+    for t in payments(ds):
+        account = ds.accounts.get(t.account)
+        if (
+            t.kind != TransactionKind.INCOME
+            or t.amount >= 0
+            or not t.merchant
+            or t.date < since
+            or account is None
+            or account.type in _NOT_PAID_INTO
+            or fold(t.merchant) in counted
+        ):
+            continue
+        by_payee[fold(t.merchant)].append(t)
+    found: list[IncomeCandidate] = []
+    for rows in by_payee.values():
+        rows.sort(key=lambda t: t.date)
+        newest = rows[-1]
+        currency, month = row_currency(newest), month_of(newest.date)
+        parts = [(t, got) for t in rows if month_of(t.date) == month and (got := brought(t, currency)) is not None]
+        largest = max(parts, key=lambda part: part[1])[0]
+        total = -sum((t.amount for t in rows), Decimal(0))
+        found.append(
+            IncomeCandidate(
+                newest.merchant,
+                newest.account,
+                currency,
+                month,
+                tuple(got for _, got in parts),
+                largest.date.day,
+                total,
+            )
+        )
+    return sorted(found, key=lambda c: (-c.total, fold(c.payee)))
 
 
 def card_dues(ds: Dataset) -> list[CardDue]:

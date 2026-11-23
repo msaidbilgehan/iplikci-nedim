@@ -19,10 +19,22 @@ from statistics import median
 from .analysis import NO_STATEMENT, PROVISIONAL, Dataset
 from .domain.codes import CARD_TYPES, AccountType, InvoiceKind, InvoiceStatus, PaymentKind, TransactionKind
 from .domain.dates import cut_after
-from .domain.labels import SERIES_PERIOD, format_amount
+from .domain.labels import SERIES_PERIOD, currency_label, format_amount
 from .domain.models import TRY, Statement, Transaction
 from .domain.text import fold
-from .insights import Insights, PeriodicSeries, Series, Timeline, month_end, month_name, month_of, settle, shift
+from .insights import (
+    Insights,
+    PeriodicSeries,
+    Series,
+    Timeline,
+    declared_days,
+    month_end,
+    month_name,
+    month_of,
+    possessive,
+    settle,
+    shift,
+)
 from .invoices import InvoiceMatch, similar
 
 HORIZON = 60  # days the calendar and the cash-flow forecast look ahead, today the first of them (F09)
@@ -147,6 +159,8 @@ def next_day(s: Series) -> date:
     """The day a series' next payment is expected, whether that is past or to come."""
     if isinstance(s, PeriodicSeries):
         return s.last.date + timedelta(days=s.cadence)
+    if s.declared is not None:
+        return declared_days(s, s.last.date, s.last.date + timedelta(days=_AFTER_LAST + 62))[0]
     # The usual day comes again between _AFTER_LAST and _AFTER_LAST + 31 days (and a turn) after the last payment.
     return monthly_days(s.payments, s.last.date, s.last.date + timedelta(days=_AFTER_LAST + 62))[0]
 
@@ -222,19 +236,35 @@ def periodic_items(series: Iterable[PeriodicSeries], ended: Mapping[str, str], s
 
 
 def income_amount(s: Series) -> Decimal:
-    """What a regular income is expected to bring: the median of its last three amounts."""
+    """What a regular income is expected to bring: the median of its last three amounts; a declared one's declared
+    amount in TL today (insights.declared_in_tl), when a rate gives it."""
+    if s.declared_tl is not None:
+        return s.declared_tl
     return median(abs(t.amount) for t in s.payments[-3:])
+
+
+def _income_basis(s: Series) -> str:
+    declared = s.declared
+    if declared is None:
+        return f"son üç tutarın medyanı ({_months(s.payments[-3:])})"
+    amount = f"{format_amount(declared.amount)} {currency_label(declared.currency)}"
+    said = f"kurallarınızda her ay {amount}, ayın {declared.day}'{possessive(declared.day)}"
+    if declared.currency == TRY or s.declared_tl is None:
+        return said
+    return f"{said}; bugünkü kurla {_tl(s.declared_tl)}"
 
 
 def income_items(series: Iterable[Series], ended: Mapping[str, str], start: date, end: date) -> list[Due]:
     """The salary and the other running income series, on the series' day, into the account they last came to; one the
-    user ended (`_biten`) up to the month they gave as its last."""
+    user ended (`_biten`) up to the month they gave as its last. A declared income comes on its declared day."""
     found: list[Due] = []
     for s in series:
         if not s.running:
             continue
-        basis = f"son üç tutarın medyanı ({_months(s.payments[-3:])})"
-        for day in monthly_days(s.payments, start, until(s, ended, end)):
+        basis = _income_basis(s)
+        last = until(s, ended, end)
+        days = declared_days(s, start, last) if s.declared is not None else monthly_days(s.payments, start, last)
+        for day in days:
             found.append(
                 Due(
                     day,

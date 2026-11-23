@@ -383,6 +383,7 @@ export interface CategoryRulesOut {
   content: string;
   categories: CategoryOut[];
   ended: EndedOut[];
+  income: DeclaredIncomeOut[];
   merchant_necessity: MerchantNecessityOut[];
   history: string[];
 }
@@ -536,6 +537,19 @@ export interface DataFreshnessOut {
 export interface DaysOut {
   start: string;
   end: string;
+}
+
+/** An income the user's rules say comes every month (`_düzenli_gelir`). */
+export interface DeclaredIncomeOut {
+  merchant: string;
+  amount: MoneyOut;
+  day: number;
+}
+
+/** An income the user's rules say comes every month (`_düzenli_gelir`). */
+export interface DeclaredOut {
+  amount: MoneyOut;
+  day: number;
 }
 
 export interface DeliveredOut {
@@ -882,6 +896,7 @@ export interface ForecastOut {
   elsewhere: CalendarItemOut[];
   skipped: SkippedOut[];
   outside: OutsideOut[];
+  outside_income: CalendarItemOut[];
   notes: string[];
 }
 
@@ -1081,6 +1096,25 @@ export interface InCurrencyOut {
   rate_day: string | null;
   note: string;
   rate_source?: RateSource | null;
+}
+
+/** A payer whose income came lately and makes no running series: what declaring it as monthly would start from. */
+export interface IncomeCandidateOut {
+  payee: string;
+  account: AccountRefOut;
+  month: string;
+  parts: MoneyOut[];
+  amount: MoneyOut;
+  day: number;
+}
+
+/** An income that comes every month ("Her ay gelir"): counted from its first payment on, at this amount and day. */
+export interface IncomeIn {
+  action: "income";
+  merchant: string;
+  amount: number | string;
+  currency: string;
+  day: number;
 }
 
 export interface IncomeOut {
@@ -1507,6 +1541,12 @@ export interface NetWorthOut {
 /** A payment expected again. */
 export interface NotEndedIn {
   action: "not_ended";
+  merchant: string;
+}
+
+/** An income no longer written as monthly: it counts again once its documents make it a series. */
+export interface NotIncomeIn {
+  action: "not_income";
   merchant: string;
 }
 
@@ -2054,6 +2094,7 @@ export interface SeriesOut {
   price_change: PriceChangeOut | null;
   listed: boolean;
   payments: PaymentOut[];
+  declared: DeclaredOut | null;
 }
 
 /** How far apart a series' payments are: about a month, half a year or a year. */
@@ -2247,6 +2288,7 @@ export interface SubscriptionsOut {
   series: SeriesOut[];
   income: SeriesOut[];
   installments: InstallmentOut[];
+  income_candidates: IncomeCandidateOut[];
 }
 
 export interface SystemOut {

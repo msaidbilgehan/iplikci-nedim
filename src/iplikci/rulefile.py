@@ -1,7 +1,8 @@
 """Edit the user's rule file (rules/personal.yaml) as text, so the user's comments and layout survive.
 
-A few narrow edits are automated: a named merchant rule under a category, an entry in `_biten`, a merchant's own
-necessity (`_gereklilik_işyeri`) and the commitment categories (`_düzenli`). Anything else is a whole new text the
+A few narrow edits are automated: a named merchant rule under a category, an entry in `_biten`, an income that comes
+every month (`_düzenli_gelir`), a merchant's own necessity (`_gereklilik_işyeri`) and the commitment categories
+(`_düzenli`). Anything else is a whole new text the
 caller writes. Every change is validated by building the categorizer from it,
 over the rules shipped with the app, before the file is replaced; the previous file goes to the history.
 """
@@ -13,6 +14,7 @@ import re
 import tempfile
 from collections.abc import Mapping
 from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 
 import yaml
@@ -199,6 +201,51 @@ def add_ended(text: str, merchant: str, month: str, note: str = "") -> str:
             lines[j] = entry if note or not old_note else f"  {_scalar(key, key=True)}: {month}{old_note[0]}\n"
             return "".join(lines)
     lines.insert(end, entry)
+    return "".join(lines)
+
+
+def _number(value: Decimal) -> str:
+    """An amount as the rule file writes it: plain digits, a point before the decimals ("1800", "1250.5")."""
+    text = format(value.normalize(), "f")
+    return text if "." not in text else text.rstrip("0").rstrip(".")
+
+
+def add_income(text: str, merchant: str, amount: Decimal, currency: str, day: int) -> str:
+    """List an income in `_düzenli_gelir`: it comes every month, amount in its currency (TL or a code such as EUR),
+    on day of the month. An entry the payer already has is replaced; its comment stays."""
+    if amount <= 0 or not amount.is_finite():
+        raise ValueError("tutar sıfırdan büyük olmalı")
+    if not 1 <= day <= 31:
+        raise ValueError("gün 1 ile 31 arasında olmalı")
+    money = "TL" if currency in ("TL", "TRY") else currency
+    value = f"{{tutar: {_number(amount)}, para: {money}, gün: {day}}}"
+    lines = _lines(text)
+    start = _top(lines, "_DUZENLI_GELIR")
+    if start is None:
+        gap = "\n" if lines and lines[-1].strip() else ""
+        return "".join(lines) + (
+            f"{gap}# Her ay geldiğini bildiğiniz gelirler: ödeyenin işlemlerdeki adı, aylık tutarı, para birimi ve "
+            "geldiği gün.\n_düzenli_gelir:\n" + f"  {_scalar(merchant, key=True)}: {value}\n"
+        )
+    if re.match(r"^[^#]*:\s*\{\}", lines[start]):
+        lines[start] = re.sub(r":\s*\{\}", ":", lines[start], count=1)
+    end = _block_end(lines, start)
+    for j in range(start + 1, end):
+        key = _key(lines[j]) if _is_content(lines[j]) else None
+        if key is not None and fold(key) == fold(merchant):
+            comment = re.search(r"\s+#[^}]*$", lines[j].rstrip("\n"))
+            lines[j] = f"  {_scalar(key, key=True)}: {value}{comment[0] if comment else ''}\n"
+            return "".join(lines)
+    lines.insert(end, f"  {_scalar(merchant, key=True)}: {value}\n")
+    return "".join(lines)
+
+
+def remove_income(text: str, merchant: str) -> str:
+    """Take an income off `_düzenli_gelir`: it counts again only once its documents make it a series."""
+    lines = _lines(text)
+    start = _top(lines, "_DUZENLI_GELIR")
+    if start is None or not _drop_entry(lines, start, merchant):
+        raise ValueError(f"'{merchant}' kişisel kurallarda her ay gelen bir gelir olarak yazılı değil")
     return "".join(lines)
 
 

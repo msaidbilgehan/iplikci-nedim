@@ -188,9 +188,10 @@ def negative_detail(
 ) -> dict[str, Any]:
     """What a forecast's first day below zero tells (first: the day and the balance), as the notification and the
     dashboard's alert say it (notify.content.forecast_negative). The TL accounts' total also tells why and what
-    covers it: whether an income is expected into them, its lowest within the forecast's days, and what the foreign
-    currency and investments the forecast leaves out are worth today. An income that comes in another currency, which
-    the user converts as needed, leaves the TL accounts' total falling though the money is there."""
+    covers it: whether an income is expected into them (besides a deposit's interest), its lowest within the
+    forecast's days, what the foreign currency and investments the forecast leaves out are worth today, and the income
+    expected into them by its lowest day. An income that comes in another currency, which the user converts as
+    needed, leaves the TL accounts' total falling though the money is there."""
     day, balance = first
     detail: dict[str, Any] = {
         "account": account,
@@ -202,9 +203,12 @@ def negative_detail(
     lowest = fc.total_lowest
     if not account and lowest is not None:
         detail["income"] = fc.expects_income
+        detail["interest"] = fc.earns_interest
         detail["lowest"], detail["lowest_day"] = money(lowest[1]), lowest[0].isoformat()
         if cover > 0:
             detail["cover"] = money(cover)
+        if (coming := fc.coming(lowest[0])) > 0:
+            detail["coming"] = money(coming)  # the income expected into the foreign currency accounts by then
     return detail
 
 

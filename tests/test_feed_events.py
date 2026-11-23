@@ -264,6 +264,7 @@ def test_the_totals_shortfall_tells_its_lowest_whether_an_income_comes_and_what_
             "days": 11,
             "balance": "-100.00",
             "income": False,
+            "interest": False,
             "lowest": "-4900.00",
             "lowest_day": "2027-01-13",
             "cover": "6000.00",

@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
@@ -12,7 +13,7 @@ from iplikci.categorize import (
     display_name,
 )
 from iplikci.domain.codes import AccountType, CategoryReason, Necessity, TransactionKind
-from iplikci.domain.models import Account, Transaction
+from iplikci.domain.models import Account, DeclaredIncome, Transaction
 
 from conftest import PEOPLE_RULES
 
@@ -339,6 +340,39 @@ def test_ended_payments_and_regular_categories(tmp_path):
     c = Categorizer(rules)
     assert c.ended == {"ORNEK DERGI": "2025-10", "ORNEK KULUP": "2025-01"}
     assert c.regular == {"Dijital Abonelikler"}
+
+
+def test_an_income_the_user_says_comes_monthly_is_read_with_its_amount_currency_and_day(tmp_path):
+    rules = tmp_path / "k.yaml"
+    rules.write_text(
+        "_düzenli_gelir:\n  Örnek Yazılım: {tutar: 1800, para: EUR, gün: 5}\n"
+        "  Örnek Kira Geliri: {tutar: 7500.5, gün: 5}\n",
+        encoding="utf-8",
+    )
+    c = Categorizer(rules)
+    assert c.income == {
+        "ORNEK YAZILIM": DeclaredIncome("Örnek Yazılım", Decimal(1800), "EUR", 5),
+        "ORNEK KIRA GELIRI": DeclaredIncome("Örnek Kira Geliri", Decimal("7500.5"), "TRY", 5),  # TL when left out
+    }
+
+
+@pytest.mark.parametrize(
+    ("entry", "reason"),
+    [
+        ("1800", "yazılmalı"),
+        ("{tutar: 0, gün: 1}", "sıfırdan büyük"),
+        ("{tutar: bin, gün: 1}", "sıfırdan büyük"),
+        ("{tutar: 1800, para: avro, gün: 1}", "üç harfli"),
+        ("{tutar: 1800, gün: 32}", "1 ile 31"),
+        ("{tutar: 1800}", "1 ile 31"),
+        ("{tutar: 1800, gün: 1, saat: 9}", "bilinmeyen alan: saat"),
+    ],
+)
+def test_a_monthly_income_the_program_cannot_read_says_why(tmp_path, entry, reason):
+    rules = tmp_path / "k.yaml"
+    rules.write_text(f"_düzenli_gelir:\n  Örnek Yazılım: {entry}\n", encoding="utf-8")
+    with pytest.raises(ValueError, match=reason):
+        Categorizer(rules)
 
 
 def test_ended_payment_needs_a_month(tmp_path):

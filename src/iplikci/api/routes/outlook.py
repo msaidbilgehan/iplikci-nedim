@@ -52,6 +52,13 @@ class PriceChangeOut(BaseModel):
     since: date  # the first payment at the new price
 
 
+class DeclaredOut(BaseModel):
+    """An income the user's rules say comes every month (`_düzenli_gelir`)."""
+
+    amount: MoneyOut  # in its currency
+    day: int  # of the month
+
+
 class SeriesOut(BaseModel):
     id: str  # the calendar's items name the series they continue by it
     payee: str  # the payer, for regular income
@@ -69,6 +76,18 @@ class SeriesOut(BaseModel):
     price_change: PriceChangeOut | None
     listed: bool  # on the list of regular payments: running, or a commitment that ended within the window
     payments: list[PaymentOut]
+    declared: DeclaredOut | None  # an income the user says comes every month; its amount is then `amount` in TL
+
+
+class IncomeCandidateOut(BaseModel):
+    """A payer whose income came lately and makes no running series: what declaring it as monthly would start from."""
+
+    payee: str
+    account: AccountRefOut  # where its newest income came
+    month: str  # the newest month it came in, YYYY-MM
+    parts: list[MoneyOut]  # that month's payments, in its currency
+    amount: MoneyOut  # their sum
+    day: int  # the day of the month its largest payment of that month came on
 
 
 class InstallmentOut(BaseModel):
@@ -91,6 +110,7 @@ class SubscriptionsOut(BaseModel):
     series: list[SeriesOut]  # monthly payments, then periodic ones
     income: list[SeriesOut]
     installments: list[InstallmentOut]
+    income_candidates: list[IncomeCandidateOut]  # the most they brought first
 
 
 class CalendarItemOut(BaseModel):
@@ -175,6 +195,9 @@ class ForecastOut(BaseModel):
     elsewhere: list[CalendarItemOut]  # items no account's forecast takes: paid by card, or from an unknown account
     skipped: list[SkippedOut]  # accounts without a forecast, and why
     outside: list[OutsideOut]  # what the user holds besides the TL accounts, for a view that counts it too
+    # The income expected into those accounts (among elsewhere), in TL at today's rate: that view counts it from its
+    # day on, as the user converts it; the TL lines never do.
+    outside_income: list[CalendarItemOut]
     notes: list[str]
 
 
@@ -226,6 +249,11 @@ def series_out(view: SeriesView, labels: dict[str, str]) -> SeriesOut:
             )
             for r in view.rows
         ],
+        declared=(
+            DeclaredOut(amount=money(view.declared.amount, view.declared.currency), day=view.declared.day)
+            if view.declared is not None
+            else None
+        ),
     )
 
 
@@ -304,6 +332,17 @@ def subscriptions(request: Request) -> SubscriptionsOut:
         series=[series_out(view, labels) for view in found.series],
         income=[series_out(view, labels) for view in found.income],
         installments=[installment_out(i, labels) for i in found.installments],
+        income_candidates=[
+            IncomeCandidateOut(
+                payee=c.payee,
+                account=_account(c.account, labels),
+                month=c.month,
+                parts=[money(part, c.currency) for part in c.parts],
+                amount=money(sum(c.parts, Decimal(0)), c.currency),
+                day=c.day,
+            )
+            for c in found.candidates
+        ],
     )
 
 
@@ -338,5 +377,6 @@ def forecast(request: Request) -> ForecastOut:
             )
             for b in now.outside(a, result)
         ],
+        outside_income=[calendar_item(item, labels) for item in result.outside_income],
         notes=result.notes,
     )

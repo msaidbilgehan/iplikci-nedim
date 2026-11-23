@@ -52,7 +52,7 @@ from .domain.codes import (
     TransactionKind,
 )
 from .domain.labels import MONTHS, RATE_SOURCE, SAVING_PART, format_amount, format_rate
-from .domain.models import TRY, Account, Transaction
+from .domain.models import TRY, Account, DeclaredIncome, Transaction
 from .domain.money import CENT, round_half_up, to_decimal
 from .domain.text import fold
 
@@ -270,6 +270,10 @@ class Series:
     payments: list[Transaction] = field(default_factory=list)
     status: str = ""
     expected: date | None = None  # the next payment if the series goes on
+    # An income the user's rules say comes every month (`_düzenli_gelir`): a series from its first payment, expected at
+    # the declared amount (declared_tl: in TL today, at the providers' rate for a foreign currency) on the declared day.
+    declared: DeclaredIncome | None = None
+    declared_tl: Decimal | None = None
 
     @property
     def last(self) -> Transaction:
@@ -282,7 +286,9 @@ class Series:
     @property
     def monthly(self) -> Decimal:
         """Amount to expect next: the last one, or the median of the last three when it moves
-        from month to month (bills)."""
+        from month to month (bills); a declared income's declared amount."""
+        if self.declared_tl is not None:
+            return self.declared_tl
         recent = [abs(t.amount) for t in self.payments[-3:]]
         if len(recent) >= 2 and _change(recent[-1], recent[-2]) > _STRICT:
             return median(recent)
@@ -294,10 +300,14 @@ class Series:
 
     @property
     def cadence(self) -> int:
-        return round(median(self.gaps)) if self.gaps else 30
+        if self.declared is not None or not self.gaps:
+            return 30  # a declared income comes monthly, however its first payments fell
+        return round(median(self.gaps))
 
     @property
     def day(self) -> int:
+        if self.declared is not None:
+            return self.declared.day
         return round(median(t.date.day for t in self.payments[-4:]))
 
     @property
@@ -477,7 +487,10 @@ def settle(s: Series, seen_until: dict[str, date], ended: dict[str, str], as_of:
     month of its last payment: cancelled). A series the user ended runs on while that month's payment is still to
     come; a payment that goes on after the month is paid after cancelling, a warning, and still expected. An income
     is never that: money that came after the month the user gave does not make it run again."""
-    s.expected = s.last.date + timedelta(days=s.cadence)
+    if s.declared is not None:
+        s.expected = declared_days(s, s.last.date, s.last.date + timedelta(days=_DECLARED_SPAN))[0]
+    else:
+        s.expected = s.last.date + timedelta(days=s.cadence)
     seen = max(seen_until.get(t.account, t.date) for t in s.payments[-2:])
     over = seen >= s.expected + timedelta(days=s.grace) or as_of > s.expected + timedelta(days=_STALE)
     last_month = ended.get(fold(s.merchant))
@@ -510,11 +523,93 @@ def _outgoing(ds: Dataset) -> list[Transaction]:
     ]
 
 
+# --- the income the user declares -------------------------------------------------------------------------------
+# A salary that just started has no three months of documents yet, and its first months may come in parts (1.500 EUR
+# on the 1st, 500 on the 27th): the user says what it brings and when (`_düzenli_gelir`). Its schedule rests on the
+# newest payment that brought at least half of the declared amount; the next comes on the declared day at least
+# _AFTER_PAID days later, as a monthly series' does (upcoming._AFTER_LAST).
+_AFTER_PAID = 15
+_DECLARED_SPAN = _AFTER_PAID + 62  # the next declared day comes within this many days of the anchor
+# The amount a foreign-currency account's row brought in its currency, as the ledger writes it beside the TL amount
+# ("1.500,00 EUR × 50,0000").
+_ORIGINAL = re.compile(r"^(\d{1,3}(?:\.\d{3})*|\d+),(\d{2}) ([A-Z]{3})\b")
+
+
+def row_currency(t: Transaction) -> str:
+    """The currency an income row came in: the one its original writes beside the TL amount, else TL."""
+    found = _ORIGINAL.match(t.original.strip())
+    return found[3] if found else TRY
+
+
+def brought(t: Transaction, currency: str) -> Decimal | None:
+    """What an income row brought in currency: its TL amount for TL, the amount its original writes in that currency;
+    None when the row came in another currency."""
+    if currency == TRY:
+        return None if _ORIGINAL.match(t.original.strip()) else abs(t.amount)
+    found = _ORIGINAL.match(t.original.strip())
+    if found is None or found[3] != currency:
+        return None
+    return Decimal(f"{found[1].replace('.', '')}.{found[2]}")
+
+
+def declared_anchor(s: Series) -> date:
+    """The day a declared income's schedule counts from: its newest payment that brought at least half of the declared
+    amount, else its newest payment."""
+    declared = s.declared
+    if declared is None:
+        return s.last.date
+    half = declared.amount / 2
+    full = [t.date for t in s.payments if (got := brought(t, declared.currency)) is not None and got >= half]
+    return max(full, default=s.last.date)
+
+
+def declared_days(s: Series, start: date, end: date) -> list[date]:
+    """The days from start to end a declared income is expected on: the declared day of each month (a shorter month's
+    last day), from the first one at least _AFTER_PAID days after its anchor."""
+    declared = s.declared
+    if declared is None:
+        return []
+    anchor = declared_anchor(s)
+    found: list[date] = []
+    month = month_of(anchor)
+    while (when := _on_day(month, declared.day)) <= end:
+        if when >= start and (when - anchor).days >= _AFTER_PAID:
+            found.append(when)
+        month = shift(month, 1)
+    return found
+
+
+def _on_day(month: str, day: int) -> date:
+    return min(date.fromisoformat(f"{month}-01") + timedelta(days=day - 1), month_end(month))
+
+
+def _declared_series(ds: Dataset, rows: list[Transaction], found: list[Series]) -> list[Series]:
+    """The income series with the user's word on them (`_düzenli_gelir`): a declared payer's income rows make one
+    series from the first on, in place of any its documents made, at the declared amount (in TL today) and day."""
+    if not ds.declared:
+        return found
+    kept = [s for s in found if fold(s.merchant) not in ds.declared]
+    for key, declared in ds.declared.items():
+        paid = sorted((t for t in rows if fold(t.merchant) == key), key=lambda t: t.date)
+        if paid:
+            kept.append(Series(paid[-1].merchant, paid, declared=declared, declared_tl=declared_in_tl(ds, declared)))
+    return kept
+
+
+def declared_in_tl(ds: Dataset, declared: DeclaredIncome) -> Decimal | None:
+    """A declared income's amount in TL today: at the providers' newest buying rate for a foreign currency (else the
+    documents' newest, insights.balance_rate); None without either."""
+    if declared.currency == TRY:
+        return declared.amount
+    rate = balance_rate(ds, declared.currency, declared.amount)
+    return None if rate is None else round_half_up(declared.amount * rate.rate)
+
+
 def regular_payments(ds: Dataset, tl_: Timeline) -> tuple[list[Series], list[Series]]:
     """(outgoing series, income series), running ones and larger amounts first."""
     inc = [t for t in payments(ds) if t.kind == TransactionKind.INCOME and t.amount < 0]
     result = []
-    for group in (find_series(_outgoing(ds), ds.regular), find_series(inc, set())):
+    for group in (find_series(_outgoing(ds), ds.regular), _declared_series(ds, inc, find_series(inc, set()))):
         for s in group:
             settle(s, tl_.seen_until, ds.ended, tl_.as_of)
         result.append(sorted(group, key=lambda s: (not s.running, -s.monthly)))
@@ -526,6 +621,8 @@ def listed(s: Series, ds: Dataset, window: list[str]) -> bool:
     cancelled within the window; an ended purchase only when it was a commitment (a bill, not a shop visited monthly),
     an ended income only when the user ended it (so that they can take it back)."""
     recent = month_of(s.last.date) >= window[0]
+    if s.declared is not None:
+        return True  # the user's word: listed while it stands, so that they see when it stops coming
     if s.status == "bitti":
         commitment = s.last.category in ds.regular or s.last.kind != TransactionKind.PURCHASE
         return recent and commitment and s.last.kind != TransactionKind.INCOME

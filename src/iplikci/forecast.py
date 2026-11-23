@@ -17,7 +17,7 @@ TL, for the next 60 days. An estimate (tahmin), always labelled as one.
 from calendar import monthrange
 from collections import defaultdict
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
 from decimal import Decimal
 from itertools import pairwise
@@ -68,6 +68,23 @@ class PaidShare:
     of: int  # statements looked at
 
 
+@dataclass(frozen=True)
+class Earned:
+    """What a deposit earns, as its documents' interest rows tell (earned): their net sum over the balances that
+    earned it, a day's for one TL. A balance that moved (money taken out for a card's statement) earns its own."""
+
+    rate: Decimal  # net interest a day, for one TL of the balance
+    total: Decimal  # the rows' net interest
+    first: date
+    last: date
+    daily: Decimal  # at the balance the forecast starts from
+
+    @property
+    def yearly(self) -> Decimal:
+        """The rate for a year, in percent: what the note says."""
+        return self.rate * 365 * 100
+
+
 @dataclass
 class AccountForecast:
     account: str
@@ -81,6 +98,7 @@ class AccountForecast:
     interest: Decimal | None = None  # overdraft interest on the days below zero, only at a rate a document prints
     overdraft: bool = False  # an overdraft account (KMH): below zero is its credit in use
     funded: bool = False  # topped up from the user's own accounts for what it pays (funded_by_own)
+    earned: Earned | None = None  # a deposit's net interest a day, added to every day
 
     @property
     def negative(self) -> tuple[date, Decimal] | None:
@@ -112,6 +130,9 @@ class Forecast:
     skipped: list[tuple[str, str]]  # (account, why it has no forecast), by the accounts' labels
     notes: list[str]  # what every account's forecast assumes, in Turkish
     label: str = ESTIMATE
+    # The income expected into the foreign currency, gold and brokerage accounts the forecast leaves out (among
+    # elsewhere): money the user converts as they need, in TL at today's rate; none of the TL lines counts it.
+    outside_income: list[Due] = field(default_factory=list[Due])
 
     def summed(self) -> list[tuple[date, Decimal]]:
         """The accounts' summed balance at each day's end, from today: the transfers between own accounts cancel out
@@ -139,6 +160,15 @@ class Forecast:
     def expects_income(self) -> bool:
         """Whether an income is expected into the accounts within the forecast's days (an item of money in)."""
         return any(item.amount < 0 for account in self.accounts for item in account.items)
+
+    @property
+    def earns_interest(self) -> bool:
+        """Whether a deposit among the accounts earns interest the forecast counts."""
+        return any(account.earned is not None for account in self.accounts)
+
+    def coming(self, until: date) -> Decimal:
+        """What the income expected into the accounts the forecast leaves out brings from today to until, in TL."""
+        return -sum((item.amount for item in self.outside_income if item.day <= until), ZERO)
 
     @property
     def warnings(self) -> list[tuple[str, tuple[date, Decimal]]]:
@@ -441,12 +471,106 @@ def forecast(
         "Düzenli ödemeler en son hangi hesaptan ödendiyse oradan, gelirler en son hangi hesaba geldiyse oraya sayıldı.",
         "Seri dışındaki düzensiz gelirler ve kendi hesaplarınız arasındaki transferler öngörüye girmez.",
     ]
+    if uncounted := _uncounted(ds, ins, today):
+        notes.append(uncounted)
     by_card = sum(
         1 for item in elsewhere if item.account in ds.accounts and ds.accounts[item.account].type in CARD_TYPES
     )
     if by_card:
         notes.append(f"Kartla ödenen {by_card} kalem kartın ekstresine girer; hesaptan kart ödemesiyle çıkar.")
-    return Forecast(today, end, accounts, elsewhere, skipped, notes)
+    outside = [
+        item
+        for item in elsewhere
+        if item.amount < 0 and item.account in ds.accounts and ds.accounts[item.account].type in OUTSIDE_TYPES
+    ]
+    if outside:
+        notes.append(
+            f"Döviz ve yatırım hesaplarına {len(outside)} gelir bekleniyor, bugünkü kurla toplam "
+            f"{_tl(-sum((item.amount for item in outside), ZERO))}: TL hesaplarına bozdurdukça geçer, bu yüzden TL "
+            "çizgisinde yok."
+        )
+    return Forecast(today, end, accounts, elsewhere, skipped, notes, outside_income=outside)
+
+
+# The accounts the forecast leaves out, as their value moves with a rate or a market (app.now.outside lists them).
+OUTSIDE_TYPES = frozenset({AccountType.FX, AccountType.GOLD, AccountType.BROKERAGE})
+_UNCOUNTED_DAYS = 90  # how far back the income the forecast does not expect again is named
+_UNCOUNTED_NAMED = 3  # the payers named by name; the rest are counted
+
+
+def _uncounted(ds: Dataset, ins: Insights, today: date) -> str:
+    """The income of the last _UNCOUNTED_DAYS the forecast does not expect again, by payer, the most first: no
+    running series made of it, or one that ended. A deposit's interest is counted (earned); "" for none. The user can
+    say an income comes every month (`_düzenli_gelir`): a salary that just started has no series yet."""
+    since = today - timedelta(days=_UNCOUNTED_DAYS - 1)
+    running = {fold(s.merchant) for s in ins.income if s.running}
+    ended = {fold(s.merchant) for s in ins.income if not s.running} | set(ds.ended)
+    totals: dict[str, Decimal] = defaultdict(Decimal)
+    names: dict[str, str] = {}
+    for t in ds.transactions:
+        account = ds.accounts.get(t.account)
+        if (
+            t.kind != TransactionKind.INCOME
+            or t.amount >= 0
+            or not since <= t.date <= today
+            or account is None
+            or account.type == AccountType.DEPOSIT
+            or fold(t.merchant or t.description) in running
+        ):
+            continue
+        key = fold(t.merchant or t.description)
+        totals[key] -= t.amount
+        names.setdefault(key, t.merchant or t.description)
+    if not totals:
+        return ""
+    ranked = sorted(totals, key=lambda key: (-totals[key], key))
+    named = [
+        f"{names[key]} {_tl(totals[key])}" + (" (bitti)" if key in ended else "") for key in ranked[:_UNCOUNTED_NAMED]
+    ]
+    rest = len(ranked) - len(named)
+    listed = ", ".join(named) + (f" ve {rest} kaynak daha" if rest else "")
+    return (
+        f"Son {_UNCOUNTED_DAYS} günde ({_day(since)}–{_day(today)}) gelen ama öngörünün yeniden beklemediği gelirler: "
+        f"{listed}. Her ay düzenli gelmedikleri ya da bittikleri için sayılmadılar; her ay geleceğini bildiğiniz bir "
+        "geliri Düzenli ödemeler ekranında ekleyebilirsiniz."
+    )
+
+
+_INTEREST_DAYS = 30  # a deposit's daily interest is the mean of its interest rows of this many days at most
+_INTEREST_LEAST = 3  # and of this many days at least
+
+
+def earned(ds: Dataset, account: str, start: Start) -> Earned | None:
+    """What a deposit earns, from its documents: its interest rows (the income on it, the tax withheld from it counted
+    in) of the last _INTEREST_DAYS up to the day its newest balance is of, over the balances that earned them. A bank
+    posts the interest daily (a weekend's on the Monday), each day's for the day before; so the rows from the first to
+    that day were earned by the balances at the end of the days before them, which the rows give back from the
+    balance its document prints. None for any other account, or before _INTEREST_LEAST days of it."""
+    found = ds.accounts.get(account)
+    if found is None or found.type != AccountType.DEPOSIT:
+        return None
+    until = start.on
+    rows = [t for t in ds.transactions if t.account == account and t.date <= until]
+    since = until - timedelta(days=_INTEREST_DAYS - 1)
+    interest = [t for t in rows if t.kind == TransactionKind.INCOME and t.date >= since]
+    total = -sum((t.amount for t in interest), ZERO)
+    if total <= 0:
+        return None
+    first = min(t.date for t in interest)
+    if (until - first).days + 1 < _INTEREST_LEAST:
+        return None
+    moved: dict[date, Decimal] = defaultdict(Decimal)
+    for t in rows:
+        moved[t.date] += t.amount  # above zero money out, as a row's
+    balance, base, day = start.stated, ZERO, until
+    while day >= first:
+        balance += moved[day]  # the balance at the end of the day before
+        base += max(balance, ZERO)
+        day -= timedelta(days=1)
+    if base <= 0:
+        return None
+    rate = total / base
+    return Earned(rate, total, first, until, max(start.balance, ZERO) * rate)
 
 
 def _account(
@@ -475,11 +599,13 @@ def _account(
     by_day: dict[date, Decimal] = defaultdict(Decimal)
     for item in items:
         by_day[item.day] += item.amount
+    gained = earned(ds, account, start)
+    earning = gained.rate if gained is not None else ZERO  # a deposit's interest a day, for one TL
     balance, day, spread_before = start.balance, begin, ZERO
     points: list[tuple[date, Decimal]] = []
     while day <= end:
         spread = sum((s.on(day) for s in (spend, cards) if s is not None), ZERO)
-        balance -= by_day[day] + spread
+        balance += max(balance, ZERO) * earning - by_day[day] - spread  # the day's interest on what it starts with
         if day >= today:
             points.append((day, round_half_up(balance)))
         else:
@@ -502,6 +628,14 @@ def _account(
     found.interest, note = _interest(found, rate)
     if note:
         found.notes.append(note)
+    found.earned = gained
+    if gained is not None:
+        yearly = f"{gained.yearly:.1f}".replace(".", ",")
+        found.notes.append(
+            f"Faiz geliri: {_day(gained.first)}–{_day(gained.last)} arasında işlenen net faiz {_tl(gained.total)}; "
+            f"bakiyenin yıllık net getirisi yaklaşık %{yearly}. Öngörü her gün bakiyeye bu oranla faiz ekler: bugünkü "
+            f"bakiyeyle günde {_tl(round_half_up(gained.daily))}."
+        )
     found.overdraft = ds.accounts[account].type == AccountType.OVERDRAFT
     if found.overdraft:
         found.notes.append("Ek hesap (KMH): eksi bakiye kullanılan krediyi gösterir; eksiye düşmesi uyarı sayılmaz.")

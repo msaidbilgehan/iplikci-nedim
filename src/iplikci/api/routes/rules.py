@@ -17,7 +17,7 @@ from ...app.rules import Actor, Change, Necessity, RulesError, TransactionKind
 from ...app.workspace import Busy, Workspace
 from ..context import context_of
 from ..guard import Principal
-from ..models import MoneyOut
+from ..models import MoneyOut, money
 from ..problems import Problem
 from .deps import only
 
@@ -48,10 +48,19 @@ class MerchantNecessityOut(BaseModel):
     necessity: Necessity
 
 
+class DeclaredIncomeOut(BaseModel):
+    """An income the user's rules say comes every month (`_düzenli_gelir`)."""
+
+    merchant: str  # the payer as the rule file writes it
+    amount: MoneyOut  # in its currency
+    day: int  # of the month
+
+
 class CategoryRulesOut(BaseModel):
     content: str  # the user's rule file as it is (YAML, Turkish keys); "" before the first change
     categories: list[CategoryOut]
     ended: list[EndedOut]  # newest month first
+    income: list[DeclaredIncomeOut]  # by payer
     merchant_necessity: list[MerchantNecessityOut]
     history: list[str]  # the rule file's earlier versions, newest first
 
@@ -89,6 +98,23 @@ class NotEndedIn(BaseModel):
     merchant: Name
 
 
+class IncomeIn(BaseModel):
+    """An income that comes every month ("Her ay gelir"): counted from its first payment on, at this amount and day."""
+
+    action: Literal["income"]
+    merchant: Name
+    amount: Decimal = Field(gt=0, max_digits=14, decimal_places=2)
+    currency: str = Field(pattern=r"^[A-Z]{3}$")  # TRY for the lira
+    day: int = Field(ge=1, le=31)
+
+
+class NotIncomeIn(BaseModel):
+    """An income no longer written as monthly: it counts again once its documents make it a series."""
+
+    action: Literal["not_income"]
+    merchant: Name
+
+
 class CommitmentIn(BaseModel):
     """A category of commitments (its payments are regular even when the amount changes), or no longer."""
 
@@ -106,7 +132,7 @@ class MerchantNecessityIn(BaseModel):
 
 
 RuleChangeIn = Annotated[
-    WriteRulesIn | MerchantRuleIn | EndedIn | NotEndedIn | CommitmentIn | MerchantNecessityIn,
+    WriteRulesIn | MerchantRuleIn | EndedIn | NotEndedIn | IncomeIn | NotIncomeIn | CommitmentIn | MerchantNecessityIn,
     Field(discriminator="action"),
 ]
 
@@ -188,6 +214,10 @@ def _text(ws: Workspace, analysis: Analysis, body: RuleChangeIn) -> str:
             return rules.ended(ws, analysis.dataset, body.merchant, body.month, body.note)
         case NotEndedIn():
             return rules.not_ended(ws, body.merchant)
+        case IncomeIn():
+            return rules.income(ws, analysis.dataset, body.merchant, body.amount, body.currency, body.day)
+        case NotIncomeIn():
+            return rules.not_income(ws, body.merchant)
         case CommitmentIn():
             return rules.commitment(ws, body.category, body.on)
         case MerchantNecessityIn():
@@ -206,6 +236,9 @@ def category_rules(request: Request) -> CategoryRulesOut:
         content=found.content,
         categories=[CategoryOut.model_validate(c, from_attributes=True) for c in found.categories],
         ended=[EndedOut(merchant=e.merchant, month=e.month, own=e.own) for e in found.ended],
+        income=[
+            DeclaredIncomeOut(merchant=i.merchant, amount=money(i.amount, i.currency), day=i.day) for i in found.income
+        ],
         merchant_necessity=[MerchantNecessityOut(merchant=m, necessity=n) for m, n in found.merchant_necessity.items()],
         history=found.history,
     )

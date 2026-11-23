@@ -20,7 +20,7 @@ from ..analysis import Dataset, build
 from ..categorize import DEFAULT_RULES, Categorizer, RuleSet, group_slot
 from ..domain.codes import Actor, Necessity, TransactionKind
 from ..domain.labels import NECESSITY
-from ..domain.models import Transaction
+from ..domain.models import DeclaredIncome, Transaction
 from ..domain.money import round_half_up
 from ..domain.text import fold
 from ..fx.book import RateBook
@@ -83,6 +83,7 @@ class RulesView:
     content: str  # the user's rule file as it is; "" before the first change
     categories: list[CategoryInfo]  # in the order of the groups (their colours) and of the files
     ended: list[Ended]
+    income: list[DeclaredIncome]  # the income the user's rules say comes every month (`_düzenli_gelir`), by payer
     merchant_necessity: dict[str, Necessity]  # merchant as written -> its own level
     history: list[str]  # the rule file's earlier versions, newest first
 
@@ -177,6 +178,7 @@ def read(ws: Workspace) -> RulesView:
         content=text,
         categories=categories,
         ended=sorted(ended.values(), key=lambda e: (e.month, fold(e.merchant)), reverse=True),
+        income=sorted(rules.income.values(), key=lambda i: fold(i.merchant)),
         merchant_necessity={written.get(m, m): level for m, level in rules.merchant_necessity.items()},
         history=history,
     )
@@ -334,6 +336,25 @@ def ended(ws: Workspace, ds: Dataset, merchant: str, month: str, note: str = "")
 def not_ended(ws: Workspace, merchant: str) -> str:
     """The user's rules with a payment expected again."""
     return _edited(lambda: rulefile.remove_ended(_personal(ws), merchant))
+
+
+def income(ws: Workspace, ds: Dataset, merchant: str, amount: Decimal, currency: str, day: int) -> str:
+    """The user's rules with an income that comes every month (`_düzenli_gelir`): amount in its currency on day of the
+    month, counted from its first payment on. The payer is named as the ledger names its income."""
+    names = {t.merchant for t in ds.transactions if t.merchant and t.kind == TransactionKind.INCOME}
+    match = next((m for m in names if fold(m) == fold(merchant)), None)
+    if match is None:
+        close = difflib.get_close_matches(merchant, sorted(names), n=5, cutoff=0.5)
+        hint = f" (yakın adlar: {', '.join(close)})" if close else ""
+        raise RulesError(
+            f"'{merchant}' adından gelen bir gelir işlemlerde yok; işlemlerde göründüğü adı kullanın{hint}"
+        )
+    return _edited(lambda: rulefile.add_income(_personal(ws), match, amount, currency, day))
+
+
+def not_income(ws: Workspace, merchant: str) -> str:
+    """The user's rules without the income's monthly entry: it counts once its documents make it a series."""
+    return _edited(lambda: rulefile.remove_income(_personal(ws), merchant))
 
 
 def commitment(ws: Workspace, category: str, on: bool) -> str:

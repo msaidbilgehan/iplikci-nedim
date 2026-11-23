@@ -1,5 +1,7 @@
 """Editing the user's rule file as text: the user's comments and layout survive every change."""
 
+from decimal import Decimal
+
 import pytest
 import yaml
 
@@ -90,6 +92,25 @@ def test_an_ended_payment_is_taken_off_the_list_and_an_unknown_one_is_refused():
     rulefile.validate(text)
     with pytest.raises(ValueError, match="bitmiş olarak yazılı değil"):
         rulefile.remove_ended(RULES, "Örnek Dergi")
+
+
+def test_a_monthly_income_is_added_changed_and_taken_off_with_its_comment_kept():
+    text = rulefile.add_income(RULES, "Örnek Yazılım", Decimal("1800.00"), "EUR", 5)
+    assert "# Her ay geldiğini bildiğiniz gelirler" in text and "# Deneme kuralları" in text
+    assert "_düzenli_gelir:\n  Örnek Yazılım: {tutar: 1800, para: EUR, gün: 5}\n" in text
+    rulefile.validate(text)
+    commented = text.replace("gün: 5}\n", "gün: 5}  # sözleşme\n")
+    changed = rulefile.add_income(commented, "örnek yazılım", Decimal("2750.50"), "EUR", 3)
+    assert "  Örnek Yazılım: {tutar: 2750.5, para: EUR, gün: 3}  # sözleşme\n" in changed  # the entry's own spelling
+    tl = rulefile.add_income(changed, "Örnek Kira Geliri", Decimal(7500), "TRY", 5)
+    assert yaml.safe_load(tl)["_düzenli_gelir"]["Örnek Kira Geliri"] == {"tutar": 7500, "para": "TL", "gün": 5}
+    back = rulefile.remove_income(tl, "Örnek Yazılım")
+    assert "Örnek Yazılım" not in back and "Örnek Kira Geliri" in back
+    rulefile.validate(back)
+    with pytest.raises(ValueError, match="her ay gelen bir gelir olarak yazılı değil"):
+        rulefile.remove_income(back, "Örnek Yazılım")
+    with pytest.raises(ValueError, match="sıfırdan büyük"):
+        rulefile.add_income(RULES, "Örnek Yazılım", Decimal(0), "EUR", 1)
 
 
 def test_a_merchants_own_necessity_is_set_changed_and_taken_back():

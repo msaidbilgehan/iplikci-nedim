@@ -343,7 +343,8 @@ def _negatives(a: Analysis, today: date) -> list[Alert]:
     found: list[Alert] = []
     for account, (day, balance) in fc.warnings:
         detail = negative_detail(fc, account, labels.get(account, account) if account else TOTAL, (day, balance), cover)
-        covered = "cover" in detail and Decimal(detail["cover"]) >= -Decimal(detail["lowest"])
+        held = Decimal(detail.get("cover", "0")) + Decimal(detail.get("coming", "0"))
+        covered = "lowest" in detail and held > 0 and held >= -Decimal(detail["lowest"])
         short = None if account else Short(bool(detail.get("income")), covered)
         level = AlertLevel.CRITICAL if (day - today).days < DUE_DAYS and not covered else AlertLevel.WARNING
         title = "Hesap eksiye düşecek" if account else "TL hesaplarının toplamı eksiye düşecek"

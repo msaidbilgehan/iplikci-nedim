@@ -105,6 +105,29 @@ def test_a_payment_is_ended_and_expected_again(client, demo_ws):
     assert unknown.status_code == 400 and "işlemlerde yok" in unknown.json()["title"]
 
 
+def test_an_income_is_declared_monthly_at_its_amount_and_day_and_taken_back(client):
+    signed_in(client)
+    change = {"action": "income", "merchant": "örnek işveren a.ş.", "amount": "42000", "currency": "TRY", "day": 3}
+    assert client.put("/api/rules/categories", json=change, headers=OWN_PAGE).json()["saved"]
+    found = client.get("/api/rules/categories", headers=bearer()).json()["income"]
+    assert found == [{"merchant": "Örnek İşveren A.Ş.", "amount": {"minor": 4200000, "currency": "TRY"}, "day": 3}]
+    [salary] = client.get("/api/subscriptions", headers=bearer()).json()["income"]
+    assert salary["declared"] == {"amount": {"minor": 4200000, "currency": "TRY"}, "day": 3}
+    assert salary["amount"] == {"minor": 4200000, "currency": "TRY"} and salary["next_day"].endswith("-03")
+    back = client.put(
+        "/api/rules/categories", json={"action": "not_income", "merchant": "Örnek İşveren A.Ş."}, headers=OWN_PAGE
+    )
+    assert back.json()["saved"] and client.get("/api/rules/categories", headers=bearer()).json()["income"] == []
+    [salary] = client.get("/api/subscriptions", headers=bearer()).json()["income"]
+    assert salary["declared"] is None and salary["amount"] == {"minor": 4000000, "currency": "TRY"}
+    unknown = client.post(
+        "/api/rules/categories/preview",
+        json={"action": "income", "merchant": "Spotify", "amount": "10", "currency": "TRY", "day": 1},
+        headers=bearer(),
+    )
+    assert unknown.status_code == 400 and "gelen bir gelir işlemlerde yok" in unknown.json()["title"]
+
+
 def test_a_commitment_category_and_a_merchants_own_necessity_are_set_and_taken_back(client):
     signed_in(client)
     on = {"action": "commitment", "category": "Kafe & Kahve", "on": True}

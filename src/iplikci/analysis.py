@@ -39,7 +39,7 @@ from .domain.codes import (
 from .domain.dates import add_months
 from .domain.fingerprint import Fingerprints
 from .domain.labels import EVIDENCE_STATUS, format_amount, format_rate
-from .domain.models import TRY, Account, Invoice, ParseResult, Statement, Transaction
+from .domain.models import TRY, Account, DeclaredIncome, Invoice, ParseResult, Statement, Transaction
 from .domain.money import CENT, round_half_up
 from .domain.text import fold
 from .fx.book import EMPTY, RateBook, to_tl
@@ -95,6 +95,8 @@ class Dataset:
     warnings: list[str] = field(default_factory=list)
     rates: dict[str, list[tuple[date, Decimal]]] = field(default_factory=dict)  # currency -> (date, TRY rate)
     ended: dict[str, str] = field(default_factory=dict)  # folded merchant -> last month (the rules' `_biten`)
+    # Folded payer -> the income the user says comes every month (the rules' `_düzenli_gelir`).
+    declared: dict[str, DeclaredIncome] = field(default_factory=dict)
     regular: set[str] = field(default_factory=set)  # commitment categories (the rules' `_düzenli`)
     receipts: list[ReceiptLine] = field(default_factory=list)  # every receipt row, counted or not
     invoices: list[InvoiceMatch] = field(default_factory=list)  # non-bank bills and receipts, never counted (F14)
@@ -1069,6 +1071,7 @@ def build(
         warnings=warnings,
         rates={cur: sorted(found) for cur, found in rates.items()},
         ended=categorizer.ended,
+        declared=categorizer.income,
         regular=categorizer.regular,
         receipts=lines,
         invoices=invoices,

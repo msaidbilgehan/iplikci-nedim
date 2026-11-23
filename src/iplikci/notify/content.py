@@ -173,27 +173,36 @@ def forecast_negative(d: Mapping[str, Any], full: bool) -> str:
 
 
 def _covered(d: Mapping[str, Any], full: bool) -> str:
-    """Why the TL accounts' total falls and whether the foreign currency and investments cover it, in a sentence or
-    two after the first; "" for an event stored before they were told."""
-    said = " Öngörü TL hesaplarınıza düzenli bir gelir beklemiyor." if d.get("income") is False and full else ""
+    """Why the TL accounts' total falls and whether the foreign currency and investments cover it, with the income
+    expected into them by then, in a sentence or two after the first; "" for an event stored before they were told."""
+    besides = " vadeli hesap faizi dışında" if d.get("interest") else ""
+    said = (
+        f" Öngörü TL hesaplarınıza{besides} düzenli bir gelir beklemiyor." if d.get("income") is False and full else ""
+    )
     try:
-        cover, lowest = Decimal(str(d["cover"])), Decimal(str(d["lowest"]))
+        lowest = Decimal(str(d["lowest"]))
+        cover, coming = Decimal(str(d.get("cover", "0"))), Decimal(str(d.get("coming", "0")))
     except (KeyError, InvalidOperation):
         return said
-    short, worth = _tl(-lowest), _tl(cover)
-    if cover >= -lowest:
-        if not full:
-            return " Döviz ve yatırımlarınız bunu karşılıyor."
+    if cover <= 0 and coming <= 0:
+        return said
+    enough = cover + coming >= -lowest
+    if not full:
+        held = "Döviz ve yatırımlarınız" if cover > 0 else "Döviz hesaplarınıza gelecek gelir"
+        if cover > 0 and coming > 0:
+            held = "Döviz ve yatırımlarınız ile oraya gelecek gelir"
+        return f" {held} bunu karşılıyor." if enough else f" {held} bunun hepsini karşılamıyor."
+    parts = [f"döviz ve yatırımlarınız bugünkü değeriyle {_tl(cover)}"] if cover > 0 else []
+    if coming > 0:
+        parts.append(f"o güne kadar döviz hesaplarınıza bugünkü kurla {_tl(coming)} daha gelmesi bekleniyor")
+    what = ", ".join(parts)
+    if enough:
         until = _day(d.get("lowest_day"))
         return (
-            f"{said} {until} gününe kadar en çok {short} eksik kalıyor; döviz ve yatırımlarınız bugünkü değeriyle "
-            f"{worth}: eksiye düşmeden önce bir kısmını TL'ye çevirmeniz yeter."
+            f"{said} {until} gününe kadar en çok {_tl(-lowest)} eksik kalıyor; {what}: eksiye düşmeden önce bir "
+            "kısmını TL'ye çevirmeniz yeter."
         )
-    if not full:
-        return " Döviz ve yatırımlarınız bunun hepsini karşılamıyor."
-    return (
-        f"{said} En çok {short} eksik kalıyor; döviz ve yatırımlarınız bugünkü değeriyle {worth}, hepsini karşılamıyor."
-    )
+    return f"{said} En çok {_tl(-lowest)} eksik kalıyor; {what}, hepsini karşılamıyor."
 
 
 def _plain(kind: EventKind, target: str, d: Mapping[str, Any]) -> str:

@@ -25,6 +25,18 @@ class Account:
 
 
 @dataclass(frozen=True)
+class DeclaredIncome:
+    """An income the user says comes every month (the rules' `_düzenli_gelir`): what it brings in its currency and the
+    day of the month it comes on. It counts from its first payment, as no three months of documents have to show it
+    first; a month shorter than the day takes its last day."""
+
+    merchant: str  # the payer as the rule file writes it
+    amount: Decimal  # in its currency, above zero
+    currency: str  # TRY, or a foreign currency's code
+    day: int  # 1-31
+
+
+@dataclass(frozen=True)
 class SourceRef:
     """Where a row is printed in its document (architecture §10): a PDF page with the line's box or its line number
     in the page's text, a spreadsheet's sheet and row, or a span of an HTML document's text."""

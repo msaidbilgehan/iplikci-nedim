@@ -3,14 +3,15 @@
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from typing import cast
 
 import yaml
 
 from .domain.codes import CARD_TYPES, AccountType, CategoryReason, Necessity, TransactionKind
 from .domain.labels import NECESSITY
-from .domain.models import Account, Transaction
+from .domain.models import TRY, Account, DeclaredIncome, Transaction
 from .domain.text import fold, nfc, title_tr
 
 # The generic rules shipped with the app. The user's own rules go above them in a file of their own.
@@ -20,7 +21,7 @@ PERSONAL_TEMPLATE = """\
 # onlardan önce gelir. Yapı aynıdır: Ana grup → Kategori → İşletme ya da kişi adı → [desenler].
 #
 # Kişiye özgü kararlar buraya yazılır: kira ve aidat alıcıları, aile ve kişiler, gelir kaynakları, biten
-# ödemeler (_biten), bir işyerinin gerekliliği (_gereklilik_işyeri).
+# ödemeler (_biten), her ay gelen gelirler (_düzenli_gelir), bir işyerinin gerekliliği (_gereklilik_işyeri).
 """
 
 FINANCE_GROUP = "Banka & Finans"
@@ -140,6 +141,39 @@ def _ended(entries: dict, name: str) -> dict[str, str]:
     return out
 
 
+# `_düzenli_gelir`'s fields, folded: the amount, its currency (TL when left out) and the day of the month.
+_INCOME_FIELDS = ("TUTAR", "PARA", "GUN")
+_CURRENCY = re.compile(r"[A-Z]{3}")
+
+
+def _declared(entries: dict, name: str) -> dict[str, DeclaredIncome]:
+    """`_düzenli_gelir`: payer -> {tutar, para, gün}, an income the user says comes every month."""
+    out: dict[str, DeclaredIncome] = {}
+    for merchant, value in entries.items():
+        where = f"{name}: _düzenli_gelir altında '{merchant}'"
+        if not isinstance(value, dict):  # the user's file, not a bug: a ValueError, as every other rule's
+            example = "{tutar: 1800, para: EUR, gün: 5}"
+            raise ValueError(f"{where} için {{tutar: …, para: …, gün: …}} yazılmalı (ör. {example})")  # noqa: TRY004
+        fields = {fold(str(k)): v for k, v in cast(dict[object, object], value).items()}
+        if unknown := sorted(set(fields) - set(_INCOME_FIELDS)):
+            raise ValueError(f"{where} için bilinmeyen alan: {', '.join(unknown).lower()} (tutar, para, gün)")
+        try:
+            amount = Decimal(str(fields.get("TUTAR", "")))
+        except InvalidOperation:
+            amount = Decimal(0)
+        if not amount.is_finite() or amount <= 0:
+            raise ValueError(f"{where} için tutar sıfırdan büyük bir sayı olmalı (ör. tutar: 1800)")
+        currency = str(fields.get("PARA", "TL")).strip().upper()
+        currency = TRY if currency in ("TL", TRY) else currency
+        if not _CURRENCY.fullmatch(currency):
+            raise ValueError(f"{where} için para TL ya da üç harfli bir kod olmalı (ör. para: EUR)")
+        day = fields.get("GUN")
+        if not isinstance(day, int) or isinstance(day, bool) or not 1 <= day <= 31:
+            raise ValueError(f"{where} için gün 1 ile 31 arasında bir sayı olmalı (ör. gün: 1)")
+        out[fold(str(merchant))] = DeclaredIncome(nfc(str(merchant)), amount, currency, day)
+    return out
+
+
 def _earliest(rules: list[Rule], f: str, sq: str, unless: Mapping[str, Sequence[str]]) -> Rule | None:
     best, best_pos = None, None
     for rule in rules:
@@ -161,6 +195,7 @@ class RuleSet:
     necessity: dict[str, Necessity] = field(default_factory=dict)  # category -> level
     merchant_necessity: dict[str, Necessity] = field(default_factory=dict)  # folded merchant -> level
     ended: dict[str, str] = field(default_factory=dict)  # folded merchant -> last month with a payment
+    income: dict[str, DeclaredIncome] = field(default_factory=dict)  # folded payer -> the income it brings monthly
     regular: set[str] = field(default_factory=set)  # categories of commitments: rent, dues, bills, subscriptions
     named: list[Rule] = field(default_factory=list)
     generic: list[Rule] = field(default_factory=list)
@@ -193,6 +228,9 @@ class RuleSet:
                 continue
             if key == "_BITEN":
                 rules.ended = _ended(categories or {}, name)
+                continue
+            if key == "_DUZENLI_GELIR":
+                rules.income = _declared(categories or {}, name)
                 continue
             if key == "_DUZENLI":
                 rules.regular = {nfc(str(c)) for c in categories or []}
@@ -258,6 +296,7 @@ class Categorizer:
         self.necessity: dict[str, Necessity] = {}
         self.merchant_necessity: dict[str, Necessity] = {}
         self.ended: dict[str, str] = {}
+        self.income: dict[str, DeclaredIncome] = {}
         self.regular: set[str] = set()
         # From the bottom layer up: an upper layer's value replaces the one below; the defaults' group order (and
         # so the colours) stays, and groups only an upper layer has come after them. A category's `_hariç` adds up:
@@ -271,6 +310,7 @@ class Categorizer:
             self.necessity.update(layer.necessity)
             self.merchant_necessity.update(layer.merchant_necessity)
             self.ended.update(layer.ended)
+            self.income.update(layer.income)
             self.regular |= layer.regular
         for group in (FINANCE_GROUP, OTHER_GROUP):
             if group not in self.groups:
