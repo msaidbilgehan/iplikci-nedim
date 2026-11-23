@@ -120,6 +120,8 @@ describe("SetupPage: the steps", () => {
     const folder = await panel("Veri klasörü");
     expect(within(folder).getByText("/veri/iplikci")).toBeInTheDocument(); // once: the step says it, not its note too
     expect(within(folder).queryByRole("button", { name: "Geri" })).not.toBeInTheDocument(); // the first step
+    // Another computer's data comes from the sync folder, set on the Settings screen (ADR-0025).
+    expect(within(folder).getByRole("link", { name: "Eşitleme ve yedek" })).toHaveAttribute("href", "/ayarlar");
     await user.click(screen.getByRole("link", { name: /^Bankalar ve göndericiler/ }));
     const senders = await panel("Bankalar ve göndericiler");
     const banks = within(senders).getByRole("list", { name: "Okunan banka adresleri" });

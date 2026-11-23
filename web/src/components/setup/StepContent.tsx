@@ -4,6 +4,7 @@
 // remote access only say where they stand.
 
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router";
 
 import { useSystem } from "../../api/queries";
 import type { Settings, SetupStep } from "../../api/types";
@@ -13,7 +14,7 @@ import { UploadPanel } from "../../pages/UploadPanel";
 import { ChannelsCard } from "../notify/ChannelsCard";
 import { TelegramCard } from "../notify/TelegramCard";
 import { BusinessNamesEditor, HINT, NamesEditor } from "../settings/NameList";
-import { MailEditor } from "../settings/MailFields";
+import { LINK, MailEditor } from "../settings/MailFields";
 import { Facts } from "../ui/Card";
 
 interface StepContentProps {
@@ -37,7 +38,18 @@ function Fields({ step, done, settings }: StepContentProps) {
   const { t } = useTranslation("setup");
   switch (step) {
     case "data_folder":
-      return <Facts items={[[t("folder"), <code className="break-all">{settings.home}</code>]]} />;
+      return (
+        <div className="flex flex-col gap-3">
+          <Facts items={[[t("folder"), <code className="break-all">{settings.home}</code>]]} />
+          {/* ADR-0025: a new computer brings the data from the sync folder; any computer backs up to it. */}
+          <p className="text-sm">
+            {t("sync.text")}{" "}
+            <Link to="/ayarlar" className={LINK}>
+              {t("sync.link")}
+            </Link>
+          </p>
+        </div>
+      );
     case "names":
       return <NamesEditor settings={settings} />;
     case "business_names":

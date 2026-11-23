@@ -39,6 +39,10 @@
     "remote": "Arayüzü bu bilgisayarın dışından, örneğin telefonunuzdan açmak için."
   },
   "folder": "Veri klasörü",
+  "sync": {
+    "text": "Başka bir bilgisayarınızda İplikçi Nedim kullanıyorsanız ya da verilerinizi Google Drive'da yedeklemek istiyorsanız, eşitlemeyi Ayarlar'dan açın; öteki bilgisayarın verileri buraya gelir.",
+    "link": "Eşitleme ve yedek"
+  },
   "banks": "Okunan banka adresleri ({{count, number}})",
   "banksList": "Okunan banka adresleri",
   "service": {
