@@ -24,6 +24,7 @@ import json
 import logging
 import os
 import platform as platform_module
+import sqlite3
 import threading
 import time
 from collections.abc import Callable, Iterable, Sequence
@@ -379,8 +380,8 @@ def run_round(ws: Workspace, channels: Callable[[], Sequence[str]] = lambda: (),
         _bring_originals(ws, path, peers, remote, result)
         with ws.lock(timeout=5.0):
             applied = _merge(ws, me, remote, at)
-    except Busy:
-        applied = None  # a long reading holds the documents: the next round merges
+    except (Busy, sqlite3.OperationalError):
+        applied = None  # a long reading holds the documents, or the database stayed busy: the next round merges
     except OSError as exc:
         return _failed(ws, at, f"eşitleme klasörü okunamadı: {exc.strerror or exc}")
     if applied is not None:
@@ -590,8 +591,12 @@ def _stamp_changes(
         elif mine != row.local:
             if mine == digest(row.value):
                 stored.settle(db, kind, key, mine)  # the winner put in place by a round a stop cut short
-            else:
-                stored.put(db, stored.Row(kind, key, clock.now().text, value, mine, True))
+                continue
+            change = Entry(kind, key, clock.now(), value)
+            if wins(Entry(kind, key, Stamp.parse(row.stamp), row.value), change):
+                stored.put(db, stored.Row(kind, key, change.stamp.text, value, mine, True))
+            else:  # a document's change here never undoes its removal: the removal is put in place again
+                stored.put(db, replace(row, local=mine, applied=False))
     for (kind, key), row in rows.items():
         if (kind, key) in own or kind in shared.SYNC_KINDS or row.local == "":
             continue
