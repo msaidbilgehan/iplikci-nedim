@@ -14,7 +14,7 @@ set of data, and a computer whose folder went missing is no loss.
 
 import hashlib
 import json
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, cast
@@ -81,13 +81,14 @@ def removed_document(value: str | None) -> bool:
 
 def _rank(entry: Entry) -> tuple[bool, Stamp]:
     if entry.kind == Kind.DOCUMENT:
-        return removed_document(entry.value), entry.stamp
+        # A computer's data from before it joined (stamped zero) holds no removal over what the others keep.
+        return removed_document(entry.value) and entry.stamp.ms > 0, entry.stamp
     return False, entry.stamp
 
 
 def wins(current: Entry | None, incoming: Entry) -> bool:
     """Whether incoming takes the place of current: the later change, except that a document's removal beats every
-    version that keeps it."""
+    version that keeps it (one made since the computers share their data)."""
     return current is None or _rank(incoming) > _rank(current)
 
 
@@ -112,6 +113,7 @@ class Published:
     app: str  # the program's version that wrote it
     written_at: str  # UTC, ISO 8601
     entries: tuple[Entry, ...]
+    dropped: int = 0  # pieces left out on reading: not of the shape their kind has (a damaged or forged file)
 
 
 def encode(p: Published) -> bytes:
@@ -140,9 +142,10 @@ def entries_digest(entries: Iterable[Entry]) -> str:
     return h.hexdigest()
 
 
-def decode(data: bytes) -> Published:
+def decode(data: bytes, valid: Callable[[Entry], bool] = lambda _entry: True) -> Published:
     """A state file read back; StateError when it is not one this program reads (Newer when a newer version wrote it).
-    Pieces of kinds this version does not know are kept as they are: a newer computer's pieces pass through."""
+    A piece valid refuses is left out and counted. Pieces of kinds this version does not know are kept as they are: a
+    newer computer's pieces pass through."""
     try:
         value: Any = json.loads(data.decode("utf-8"))
     except (UnicodeDecodeError, ValueError) as exc:
@@ -156,12 +159,26 @@ def decode(data: bytes) -> Published:
     if not isinstance(version, int) or version > VERSION:
         raise Newer(f"durum dosyasını İplikçi Nedim'in daha yeni bir sürümü yazmış ({fields.get('app', '?')})")
     try:
-        entries = tuple(_entry(row) for row in fields["entries"])
-        return Published(
-            str(fields["library"]), str(fields["device"]), str(fields["app"]), str(fields["written_at"]), entries
-        )
-    except (KeyError, TypeError, ValueError, StampError) as exc:
+        rows = cast(list[Any], fields["entries"])
+        library, device = str(fields["library"]), str(fields["device"])
+        app, written_at = str(fields["app"]), str(fields["written_at"])
+    except (KeyError, TypeError) as exc:
         raise StateError(f"durum dosyası bozuk: {exc}") from exc
+    if not isinstance(rows, list):
+        raise StateError("durum dosyası bozuk: kayıtlar bir liste değil")
+    entries: list[Entry] = []
+    dropped = 0
+    for row in rows:
+        try:
+            entry = _entry(row)
+        except (TypeError, ValueError, StampError):
+            dropped += 1
+            continue
+        if valid(entry):
+            entries.append(entry)
+        else:
+            dropped += 1
+    return Published(library, device, app, written_at, tuple(entries), dropped)
 
 
 def _entry(row: Any) -> Entry:

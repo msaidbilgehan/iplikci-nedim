@@ -413,8 +413,8 @@ def _sync(ws: Workspace, at: datetime) -> list[Alert]:
     found = sync.trouble(ws)
     if found is None or at - datetime.fromisoformat(found[1]) < sync.FAILED_AFTER:
         return []
-    text = f"Eşitleme çalışmıyor: {found[0]}. Veriler öteki bilgisayarlara ve eşitleme klasörüne gitmiyor."
-    return [Alert(AlertKind.SYNC_FAILED, AlertLevel.WARNING, "Eşitleme çalışmıyor", text, 1, "", Link(Screen.SETTINGS))]
+    text = f"Eşitleme saatlerdir sorunlu: {found[0]}. Ayrıntısı Ayarlar'daki Eşitleme ve yedek kartında."
+    return [Alert(AlertKind.SYNC_FAILED, AlertLevel.WARNING, "Eşitleme sorunlu", text, 1, "", Link(Screen.SETTINGS))]
 
 
 def _say_alerts(found: list[Alert]) -> str:

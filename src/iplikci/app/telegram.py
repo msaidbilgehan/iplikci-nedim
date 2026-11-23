@@ -181,6 +181,7 @@ def _pair(ws: Workspace, db: Database, update: Update, at: datetime) -> bool:
     if not hmac.compare_digest(update.start_code.encode(), str(found.get("code", "")).encode()):
         return False
     config.update(ws.layout.settings, "notify", {"telegram_chat": update.chat})
+    sync.channels_changed()  # a paired bot may make this computer the one that sends Telegram (ADR-0025)
     feed_state.save(db, PAIRING, found | {"paired": True})
     notify.resume_channel(db, Channel.TELEGRAM)
     audit.record(db, Actor.USER, notify.TELEGRAM_PAIRED, "telegram")

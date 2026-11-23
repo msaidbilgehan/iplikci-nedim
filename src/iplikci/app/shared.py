@@ -15,8 +15,9 @@ computers that write a value a little differently never answer each other's chan
 
 import json
 import logging
+import re
 import tomllib
-from collections.abc import Callable
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, cast
@@ -31,27 +32,28 @@ from ..storage.annotations import Annotation, Part, Subject
 from ..storage.db import Database
 from ..storage.documents import DocumentRow, Source
 from ..storage.memories import Memory
-from ..sync.state import Kind, canonical
+from ..sync.state import Entry, Kind, canonical, digest
 from .workspace import Workspace
 
 log = logging.getLogger("iplikci.sync")
 
 # The settings every computer shares: they decide what the documents say and how the user is told. The rest is the
-# computer's own (its port, its e-mail account, its channels, its backups, its updates, its sync folder).
+# computer's own (its port, its e-mail account, its channels, its backups, its updates, its sync folder), and so are
+# the two that guard it: whether a sender must be verified (DMARC) and what MCP masks. Whoever can write into the sync
+# folder must never be able to turn those off on every computer.
 SHARED_SETTINGS: tuple[tuple[str, str], ...] = (
     ("identity", "names"),
     ("identity", "business_names"),
     ("mail", "bank_senders"),
     ("mail", "other_senders"),
-    ("mail", "verify_sender"),
     ("notify", "quiet_hours"),
     ("notify", "detail"),
     ("fx", "providers"),
-    ("privacy", "mcp_masking"),
 )
 PERSONAL_RULES = "rules/personal.yaml"
 ALERT_RULES = "rules/alerts.yaml"
 REMOVED_BY_SYNC = "document.removed"  # the audit log's action, as a removal made here
+KEPT_AGAIN = "document.kept_again"  # the audit log's action: a document removed here that the others keep
 _RULES_WAIT = 30.0  # seconds a rule file's change may wait for another
 
 
@@ -215,6 +217,82 @@ def own_value(ws: Workspace, db: Database, kind: str, key: str) -> str | None:
     return None
 
 
+# --- what another computer's piece must look like ----------------------------------------------------------
+
+_SHA256 = re.compile(r"[0-9a-f]{64}")
+_KEY_LONGEST = 500  # a fingerprint, an account's id, a note's name: short handles
+_SOURCE_KEY_LONGEST = 5000  # an arrival's key holds its file's name, where it came from and the message's id
+
+
+def _fields(value: str | None, shape: Mapping[str, type]) -> bool:
+    """Whether value is a JSON object with at least these fields of these types (a newer version may add more)."""
+    if value is None:
+        return True
+    try:
+        found: Any = json.loads(value)
+    except ValueError:
+        return False
+    if not isinstance(found, dict):
+        return False
+    data = cast(dict[str, Any], found)
+    for name, kind in shape.items():
+        if name not in data:
+            return False
+        field = data[name]
+        if kind is bool:
+            if not isinstance(field, bool):
+                return False
+        elif isinstance(field, bool) or not isinstance(field, kind):  # a bool is an int to isinstance
+            return False
+    return True
+
+
+_ANNOTATION = {"subject": dict, "note": str, "tags": list, "category": str, "necessity": str, "parts": list,
+               "created_at": str, "updated_at": str, "actor": str}  # fmt: skip
+_ALIAS = {"alias": str, "updated_at": str, "actor": str}
+_MEMORY = {"kind": str, "description": str, "body": str, "created_at": str, "updated_at": str, "actor": str}
+_DOCUMENT = {"name": str, "size": int, "added_at": str, "parent": str, "removed": bool, "reason": str}
+_SOURCE = {"sender": str, "subject": str, "sent_at": str, "received_at": str}
+_SENDER = {"device": str, "since": str}
+_FILE = {"text": str}
+
+
+def _source_key(key: str) -> bool:
+    try:
+        found: Any = json.loads(key)
+    except ValueError:
+        return False
+    if not isinstance(found, list):
+        return False
+    parts = cast(list[Any], found)
+    return len(parts) == 5 and all(isinstance(p, str) for p in parts) and bool(_SHA256.fullmatch(parts[0]))
+
+
+def valid(entry: Entry) -> bool:
+    """Whether another computer's piece has its kind's shape: a damaged or forged file's pieces never reach the
+    database. A kind this version does not know passes through as it is (a newer computer's)."""
+    kind, key, value = entry.kind, entry.key, entry.value
+    if not key or len(key) > (_SOURCE_KEY_LONGEST if kind == Kind.SOURCE else _KEY_LONGEST):
+        return False
+    if kind == Kind.ANNOTATION:
+        return _fields(value, _ANNOTATION)
+    if kind == Kind.ALIAS:
+        return _fields(value, _ALIAS)
+    if kind == Kind.MEMORY:
+        return _fields(value, _MEMORY)
+    if kind == Kind.DOCUMENT:
+        return bool(_SHA256.fullmatch(key)) and value is not None and _fields(value, _DOCUMENT)
+    if kind == Kind.SOURCE:
+        return _source_key(key) and value is not None and _fields(value, _SOURCE)
+    if kind == Kind.SETTING:
+        return tuple(key.split(".", 1)) in SHARED_SETTINGS
+    if kind == Kind.FILE:
+        return key in (PERSONAL_RULES, ALERT_RULES) and _fields(value, _FILE)
+    if kind == Kind.SENDER:
+        return key in ("telegram", "email") and _fields(value, _SENDER)
+    return True
+
+
 # --- putting a winner in place ----------------------------------------------------------------------------
 
 
@@ -225,10 +303,20 @@ class Applied:
     counts: dict[str, int] = field(default_factory=dict[str, int])
     added: list[str] = field(default_factory=list[str])  # documents that came
     removed: list[str] = field(default_factory=list[str])  # documents removed
+    files: list[str] = field(default_factory=list[str])  # the settings and rule files changed, by their keys
     settings: bool = False  # a shared setting changed here: the readers' company names follow
 
     def note(self, kind: str) -> None:
         self.counts[kind] = self.counts.get(kind, 0) + 1
+
+    def take(self, other: "Applied") -> None:
+        """What a piece put in place, once it is kept."""
+        for kind, n in other.counts.items():
+            self.counts[kind] = self.counts.get(kind, 0) + n
+        self.added += other.added
+        self.removed += other.removed
+        self.files += other.files
+        self.settings = self.settings or other.settings
 
     @property
     def any(self) -> bool:
@@ -340,36 +428,53 @@ def _put_document(ws: Workspace, db: Database, sha256: str, data: dict[str, Any]
         if not removed and not ws.vault.has(sha256):
             raise Waits("its bytes are not here yet")
         documents.arrive(db, row)
-        if not removed:
+        if removed:
+            applied.removed.append(sha256)  # bytes brought in before the removal came go to the Trash
+        else:
             applied.added.append(sha256)
+        return
+    if not removed and here.status is DocumentStatus.REMOVED:
+        # Kept by the others, removed here before this computer joined them: the folder's data wins (ADR-0025).
+        if not ws.vault.has(sha256):
+            raise Waits("its bytes are not here yet")
+        documents.arrive(db, row)
+        documents.reopen(db, sha256)
+        audit.record(db, Actor.SYNC, KEPT_AGAIN, sha256)
+        applied.added.append(sha256)
         return
     documents.arrive(db, row)  # the name, the time and the message it came in, as the winner says
     if removed and here.status is not DocumentStatus.REMOVED:
-        # Removed on another computer (by the user, or as a company's document): to the Trash here too (ADR-0003).
-        where = ws.vault.remove(sha256) if ws.vault.has(sha256) else None
+        # Removed on another computer (by the user, or as a company's document): its rows go now, its bytes to the
+        # Trash once the round's changes are kept (ADR-0003), never while the database waits on the move.
         readings.clear(db, sha256)
         documents.set_status(db, sha256, DocumentStatus.REMOVED, row.reason)
-        audit.record(db, Actor.SYNC, REMOVED_BY_SYNC, sha256, trash=where.parent.name if where else "")
         applied.removed.append(sha256)
     elif removed and here.reason != row.reason:
         documents.set_status(db, sha256, DocumentStatus.REMOVED, row.reason)
 
 
-def put_file(ws: Workspace, kind: str, key: str, value: str | None, expected: str, own: Callable[[], str]) -> None:
+def put_file(ws: Workspace, kind: str, key: str, value: str | None, expected: str) -> str:
     """Put a winner of a file kind in place, unless the file changed since the round compared it (expected: the
-    digest it had then; own: its digest now). Waits when it cannot be yet."""
+    digest its value had then); the digest of the value written, taken under the file's lock, so a change the user
+    makes right after is a change of this computer's own. Waits when it cannot be yet."""
     data: Any = None if value is None else json.loads(value)
     if kind == Kind.SETTING:
         section, name = key.split(".", 1)
         if (section, name) not in SHARED_SETTINGS:
             raise Waits(f"{key} is not a setting this version shares")
-        if own() != expected:
-            raise Waits("changed here meanwhile")
+
+        def unchanged(tables: dict[str, Any]) -> bool:
+            table = tables.get(section)
+            here = canonical(_plain(table[name])) if isinstance(table, dict) and name in table else None
+            return digest(here) == expected
+
         try:
-            config.update(ws.layout.settings, section, {name: data})
+            config.update(ws.layout.settings, section, {name: data}, guard=unchanged)
+        except config.Changed as exc:
+            raise Waits("changed here meanwhile") from exc
         except config.SettingsError as exc:  # a value this version does not take (a newer one's)
             raise Waits(str(exc)) from exc
-        return
+        return digest(None if data is None else canonical(_plain(data)))
     if kind == Kind.FILE:
         paths = _rule_files(ws)
         if key not in paths:
@@ -386,7 +491,7 @@ def put_file(ws: Workspace, kind: str, key: str, value: str | None, expected: st
                 raise Waits(f"{key}: {exc}") from exc
         try:
             with locks.held(path.with_name(f".{path.name}.kilit"), _RULES_WAIT):
-                if own() != expected:
+                if digest(file_values(ws).get(key)) != expected:
                     raise Waits("changed here meanwhile")
                 if text is not None:
                     rulefile.replace(path, text, ws.layout.rules_history)
@@ -394,5 +499,5 @@ def put_file(ws: Workspace, kind: str, key: str, value: str | None, expected: st
                     rulefile.retire(path, ws.layout.rules_history)
         except locks.LockTimeout as exc:
             raise Waits("the rule file is being changed here") from exc
-        return
+        return digest(None if text is None else canonical({"text": text}))
     raise Waits(f"{kind} is not a file kind")

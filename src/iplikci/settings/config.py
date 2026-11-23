@@ -350,12 +350,22 @@ _CHANGING = threading.Lock()
 _WAIT = 30.0  # seconds; a change takes milliseconds
 
 
-def update(path: Path, section: str, values: dict[str, Any]) -> Settings:
+class Changed(Exception):
+    """The file changed since the caller last read it (update's guard refused): nothing was written."""
+
+
+def update(
+    path: Path, section: str, values: dict[str, Any], guard: Callable[[dict[str, Any]], bool] | None = None
+) -> Settings:
     """Set keys of one section of settings.toml, keeping everything else in the file as it was, comments too. The
     result is checked before it is written, so a value the program would refuse never reaches the file. A value of
-    None removes its key. Returns the new settings."""
+    None removes its key. guard, when given, sees the file's tables as they are, under the lock, and the change is
+    made only if it says yes (Changed otherwise): the sync puts another computer's value in place only over the value
+    it compared. Returns the new settings."""
     with _CHANGING, locks.held(path.with_name(f".{path.name}.kilit"), _WAIT):
         text = path.read_text(encoding="utf-8") if path.exists() else ""
+        if guard is not None and not guard(tomllib.loads(text) if text else {}):
+            raise Changed(path.name)
         try:
             document = tomlkit.parse(text)
         except tomlkit.exceptions.ParseError as exc:

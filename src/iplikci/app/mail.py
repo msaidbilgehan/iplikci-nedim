@@ -40,7 +40,7 @@ from ..storage import mail as mail_store
 from ..storage.db import Database, now
 from ..storage.documents import Source
 from ..vault.store import sha256_of
-from . import intake, kinds
+from . import intake, kinds, sync
 from .workspace import Workspace, file_lock
 
 FETCH_JOB = kinds.MAIL_FETCH
@@ -379,6 +379,7 @@ def setup_imap(ws: Workspace, address: str, password: str, start: date | None = 
     with ws.db() as db:
         mail_store.forget(db, IMAP)  # a fresh start: a stopped connector runs again
         jobs.add(db, FETCH_JOB)
+    sync.channels_changed()  # e-mail notifications may go from this computer now (ADR-0025)
     return acc, stored, folder
 
 
@@ -398,6 +399,7 @@ def remove(ws: Workspace) -> bool:
     config.update(ws.layout.settings, "mail", {"address": None, "start_day": None, "connector": None})
     with ws.db() as db:
         mail_store.forget(db, IMAP)
+    sync.channels_changed()
     return True
 
 

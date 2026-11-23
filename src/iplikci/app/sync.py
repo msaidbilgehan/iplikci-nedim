@@ -4,15 +4,20 @@ Settings screen shows.
 
 A round:
 
-1. reads the state files the other computers wrote (only those that changed) and this computer's own (after a
-   restore the database may be behind what it wrote);
+1. reads the state files the other computers wrote (only those that changed; a file that could not be read is read
+   again in the next round) and this computer's own (after a restore the database may be behind what it wrote);
 2. brings into the archive the originals of documents that came from the others, each checked against its name;
 3. stamps what changed here since the last round, merges the others' pieces (the later change wins; a document's
    removal is never undone) and puts the winners in place, each only if this computer's own value has not changed
-   meanwhile;
-4. hands over who sends Telegram and e-mail notifications when the computer that did has gone silent;
-5. puts this computer's new originals into its part of the folder, writes its state file when a piece changed and its
+   meanwhile, each on its own (a piece that cannot be put in place holds up no other);
+4. sends the bytes of documents removed meanwhile to the Trash, once the round's changes are kept;
+5. hands over who sends Telegram and e-mail notifications when the computer that did has gone silent;
+6. puts this computer's new originals into its part of the folder, writes its state file when a piece changed and its
    cihaz.json every five minutes.
+
+A computer joining a set of data merges nothing until it has read another computer's state file: until then it could
+not tell its own old data from the others' newer one. While the folder cannot be reached, or the sync is off, the
+rounds still stamp what changes here, so the change keeps the time it was made at.
 
 The database never goes into the folder: each computer reads the documents itself and makes its own analysis and
 feed from the same documents, annotations, rules and settings. Telegram's and e-mail's notifications go from one
@@ -34,7 +39,8 @@ from pathlib import Path
 from typing import Any, cast
 
 from .. import __version__
-from ..domain.codes import Actor, Channel
+from ..domain.codes import Actor, Channel, DocumentStatus
+from ..notify import timing
 from ..settings import config
 from ..storage import audit, documents, events
 from ..storage import sync as stored
@@ -68,19 +74,24 @@ SELF = "self"  # sync_state: this computer's id, its machine, the set of data it
 CLOCK = "clock"  # sync_state: the last stamp the clock gave or saw
 LAST = "last"  # sync_state: how the last round went
 PUBLISHED = "published"  # sync_state: the digest of the pieces the state file was last written with
+CATCH_UP = "catch_up"  # sync_state: channel → since when the notifications this computer took over are to be made
 FAILED = "sync.failed"  # the system event: the sync has not worked for FAILED_AFTER; told once a day
 
 HEARTBEAT_EVERY = timedelta(minutes=5)  # how often cihaz.json says this computer is there
 TAKEOVER_AFTER = timedelta(minutes=30)  # silence after which another computer sends a channel's notifications
+CLAIM_GRACE = timedelta(minutes=10)  # a channel just taken is not let go on an old word that it cannot send
+FREE_CATCH_UP = timedelta(minutes=10)  # a channel nobody sent: the notifications made since then are sent
 FAILED_AFTER = timedelta(hours=6)  # how long a problem lasts before it is told as an event
 OBJECTS_PER_ROUND = 300  # originals copied in or out in one round; the next follows after a short pause
 BYTES_PER_ROUND = 200 << 20
 LISTING_KEPT = 30 * 60.0  # seconds a listing of the folder's originals is trusted
+LEFTOVER_AGE = 3600.0  # seconds after which a half-written file in this computer's part of the folder is removed
 EXTERNAL = (Channel.TELEGRAM, Channel.EMAIL)  # the channels whose notifications one computer sends
 ON, OFF, RENAMED, SENDER_SET = "sync.on", "sync.off", "sync.renamed", "sync.sender"  # the audit log's actions
 APPLIED = "sync.applied"
 RECEIVED = "document.received"  # the feed's event, as a document taken in here records it
 ARRIVALS_TOLD = 50  # more documents than this coming in one round are one event that counts them
+WAITING = "öteki bilgisayarların verileri bu bilgisayara henüz inmedi; katılmak için bekleniyor"
 
 
 class SyncError(Exception):
@@ -95,12 +106,14 @@ class Me:
     machine: str
     library: str
     since: str  # when it began syncing (UTC)
+    joining: bool = False  # it joined a set of data begun elsewhere and has not merged yet
 
 
 # --- waking the service's rounds --------------------------------------------------------------------------
 
 _wakers: list[Callable[[], None]] = []
 _wakers_lock = threading.Lock()
+_channels_changed = threading.Event()
 
 
 def register(waker: Callable[[], None]) -> Callable[[], None]:
@@ -124,6 +137,27 @@ def wake() -> None:
         waker()
 
 
+def channels_changed() -> None:
+    """A channel was set up, turned on or off, or stopped: the next round asks again which ones this computer can
+    send on, and comes at once."""
+    _channels_changed.set()
+    wake()
+
+
+def take_channels_changed() -> bool:
+    """Whether the channels changed since the last time this was asked."""
+    if _channels_changed.is_set():
+        _channels_changed.clear()
+        return True
+    return False
+
+
+def _forget_files(ws: Workspace) -> None:
+    """What the rounds keep of a folder, forgotten: the sync turned on elsewhere, or off."""
+    _peers.pop(ws.home, None)
+    _beats.pop(ws.home, None)
+
+
 # --- this computer --------------------------------------------------------------------------------------
 
 
@@ -133,7 +167,13 @@ def _me(db: Database) -> Me | None:
         return None
     value = cast(dict[str, Any], found)
     try:
-        return Me(str(value["device"]), str(value["machine"]), str(value["library"]), str(value.get("since", "")))
+        return Me(
+            str(value["device"]),
+            str(value["machine"]),
+            str(value["library"]),
+            str(value.get("since", "")),
+            bool(value.get("joining", False)),
+        )
     except KeyError:
         return None
 
@@ -142,7 +182,7 @@ def _save_me(db: Database, me: Me) -> None:
     stored.save(
         db,
         SELF,
-        {"device": me.device, "machine": me.machine, "library": me.library, "since": me.since},
+        {"device": me.device, "machine": me.machine, "library": me.library, "since": me.since, "joining": me.joining},
     )
 
 
@@ -181,26 +221,46 @@ def _clock(db: Database, device: str) -> Clock:
 
 def sends(db: Database, settings: config.Settings, channel: Channel) -> bool:
     """Whether this computer sends the channel's notifications (and, for Telegram, reads the bot's messages): always
-    without the sync, and for the interface's box and the desktop; with it, when this computer holds the channel or
-    no computer does yet (the next round gives it to one that can send)."""
+    without the sync, and for the interface's box and the desktop; with it, only when this computer holds the channel.
+    A channel nobody holds yet is taken by the next round of a computer that can send on it, which then sends what was
+    made meanwhile; a copied data folder holds nothing of the computer it was copied from."""
     if channel not in EXTERNAL or not settings.sync.folder:
         return True
     me = _me(db)
     if me is None:
         return True
+    if me.machine != machine.fingerprint():
+        return False
     row = stored.get(db, Kind.SENDER, channel.value)
-    holder = _holder(row.value) if row else None
-    return holder is None or holder == me.device
+    return row is not None and _holder(row.value) == me.device
 
 
 def _holder(value: str | None) -> str | None:
+    found = _sender(value)
+    return found[0] if found else None
+
+
+def _sender(value: str | None) -> tuple[str, datetime | None] | None:
+    """(the computer, since when) a channel's sender piece names; None for none."""
     if value is None:
         return None
     try:
         found: Any = json.loads(value)
-        return str(found["device"])
-    except (ValueError, KeyError, TypeError):
+        return str(found["device"]), _parse_time(str(found.get("since", "")))
+    except (ValueError, KeyError, TypeError, AttributeError):
         return None
+
+
+def catch_ups(db: Database) -> dict[str, str]:
+    """The channels this computer took over whose notifications since a time are still to be made: channel → UTC."""
+    found = stored.load(db, CATCH_UP)
+    return {str(k): str(v) for k, v in cast(dict[str, Any], found).items()} if isinstance(found, dict) else {}
+
+
+def caught_up(db: Database, channel: str) -> None:
+    left = catch_ups(db)
+    if left.pop(channel, None) is not None:
+        stored.save(db, CATCH_UP, left)
 
 
 # --- turning it on and off --------------------------------------------------------------------------------
@@ -233,32 +293,36 @@ def turn_on(
         before = _me(db)
         fingerprint = machine.fingerprint()
         device = before.device if before and before.machine == fingerprint else library.new_device_id()
-        if before is not None and before.library != library_id:
+        same = before is not None and before.library == library_id
+        if before is not None and not same:
             forgotten = stored.forget(db)  # another set of data: what this computer knew of the last one goes
             log.info("the sync moved to another set of data; %d pieces of the last one forgotten", forgotten)
-        me = Me(device, fingerprint, library_id, before.since if before and before.library == library_id else at)
+        joining = before.joining if same and before is not None else not begins
+        me = Me(device, fingerprint, library_id, before.since if same and before else at, joining)
         _save_me(db, me)
         audit.record(db, actor, ON, device, began=begins)
     config.update(ws.layout.settings, "sync", {"folder": str(path), "name": name.strip() or None})
+    _forget_files(ws)
     settings = ws.fresh_settings()
     try:
         _heartbeat(path, me, settings, tuple(channels), left=False)
     except OSError as exc:
         raise SyncError(f"klasöre yazılamadı: {exc.strerror or exc}") from exc
-    wake()
+    channels_changed()
     return status(ws)
 
 
 def turn_off(ws: Workspace, actor: Actor = Actor.USER) -> "Status":
     """Stop sharing: this computer's part of the folder stays (the others may still need its originals); the channels
-    it sent go to the others; its data stays as it is."""
+    it sent go to the others; its data stays as it is. A data folder copied from another computer says nothing for
+    that computer."""
     settings = ws.fresh_settings()
     if not settings.sync.folder:
         return status(ws)
     path = Path(settings.sync.folder)
     with ws.db() as db:
         me = _me(db)
-        if me is not None:
+        if me is not None and me.machine == machine.fingerprint() and not me.joining:
             clock = _clock(db, me.device)
             with db.transaction():
                 for channel in EXTERNAL:
@@ -267,12 +331,14 @@ def turn_off(ws: Workspace, actor: Actor = Actor.USER) -> "Status":
                         stored.put(db, stored.Row(Kind.SENDER, channel.value, clock.now().text, None, "", True))
                 stored.save(db, CLOCK, clock.last.text)
             try:
-                _publish_state(ws, db, path, me, force=True)
-                _heartbeat(path, me, settings, (), left=True)
+                if library.marker(path) == me.library:
+                    _publish_state(ws, db, path, me, force=True)
+                    _heartbeat(path, me, settings, (), left=True)
             except (OSError, LibraryError):
                 log.warning("the sync folder could not be told that this computer left")
         audit.record(db, actor, OFF, me.device if me else "")
     config.update(ws.layout.settings, "sync", {"folder": None})
+    _forget_files(ws)
     return status(ws)
 
 
@@ -285,30 +351,45 @@ def rename(ws: Workspace, name: str, actor: Actor = Actor.USER) -> "Status":
 
 
 def claim(ws: Workspace, channels: Iterable[str], actor: Actor = Actor.USER) -> "Status":
-    """This computer sends the given channels' notifications from now on (the Settings screen's button)."""
+    """This computer sends the given channels' notifications from now on (the Settings screen's button). What the
+    quiet hours kept back for the digest on the computer that sent them is made again here."""
     settings = ws.fresh_settings()
     if not settings.sync.folder:
         raise SyncError("eşitleme kapalı: bildirimleri zaten bu bilgisayar gönderiyor")
     wanted = [c for c in EXTERNAL if c.value in set(channels)]
     if not wanted:
         raise SyncError("bu bilgisayarda gönderilebilecek bir kanal yok: önce Telegram'ı ya da e-postayı kurun")
+    now = datetime.now(UTC)
     with ws.db() as db:
         me = _me(db)
-        if me is None:
+        if me is None or me.joining:
             raise SyncError("eşitleme henüz başlamadı; biraz sonra yeniden deneyin")
         clock = _clock(db, me.device)
         with db.transaction():
             for channel in wanted:
-                _give(db, clock, channel, me.device)
+                row = stored.get(db, Kind.SENDER, channel.value)
+                if row is None or _holder(row.value) != me.device:
+                    _give(db, clock, channel, me.device, now, _quiet_since(settings, now))
             stored.save(db, CLOCK, clock.last.text)
         audit.record(db, actor, SENDER_SET, me.device, channels=[c.value for c in wanted])
-    wake()
+    channels_changed()
     return status(ws)
 
 
-def _give(db: Database, clock: Clock, channel: Channel, device: str, at: datetime | None = None) -> None:
-    value = canonical({"device": device, "since": _iso(at or datetime.now(UTC))})
+def _give(
+    db: Database, clock: Clock, channel: Channel, device: str, at: datetime, catch_up: datetime | None = None
+) -> None:
+    """The channel to this computer; catch_up: the notifications made here since then are made on it too."""
+    value = canonical({"device": device, "since": _iso(at)})
     stored.put(db, stored.Row(Kind.SENDER, channel.value, clock.now().text, value, "", True))
+    if catch_up is not None and catch_up < at:
+        stored.save(db, CATCH_UP, catch_ups(db) | {channel.value: _iso(catch_up)})
+
+
+def _quiet_since(settings: config.Settings, at: datetime) -> datetime:
+    """When the quiet hours holding at began (at itself outside them): what they kept back is in the next digest."""
+    local = at.astimezone()
+    return timing.quiet_since(settings.notify.quiet_hours, local).astimezone(UTC)
 
 
 # --- a round ---------------------------------------------------------------------------------------------
@@ -329,16 +410,17 @@ class Round:
 
 @dataclass
 class _Peers:
-    """What the other computers wrote, as the last rounds read it: a file is read again only when it changed, and the
-    folder's originals are listed again only when one is looked for that the last listing did not have."""
+    """What the other computers wrote, as the last rounds read it: a file is read again only when it changed (one that
+    could not be read, always), and the folder's originals are listed again only when one is looked for that the last
+    listing did not have."""
 
-    states: dict[str, tuple[tuple[int, int] | None, Published | None, str]] = field(
-        default_factory=dict[str, tuple[tuple[int, int] | None, Published | None, str]]
+    states: dict[str, tuple[tuple[int, int] | None, Published]] = field(
+        default_factory=dict[str, tuple[tuple[int, int] | None, Published]]
     )
     devices: dict[str, Device] = field(default_factory=dict[str, Device])
     in_folder: dict[str, Path] = field(default_factory=dict[str, Path])  # the originals the last listing found
     listed_at: float = -LISTING_KEPT  # time.monotonic() of the last listing
-    removed: int = -1  # removed documents the last round knew: this computer's copies of new ones leave the folder
+    removed: int = -1  # documents removed here the last round knew: this computer's copies of new ones leave
 
     def listing(self, path: Path, fresh: bool = False) -> dict[str, Path]:
         """The folder's originals; listed again when asked, or when the last listing is older than LISTING_KEPT
@@ -353,33 +435,57 @@ _peers: dict[Path, _Peers] = {}  # by data folder: the service's rounds keep it 
 
 
 def run_round(ws: Workspace, channels: Callable[[], Sequence[str]] = lambda: (), now: datetime | None = None) -> Round:
-    """One round (see the module's description). channels: the external channels this computer can send on now."""
+    """One round (see the module's description). channels: the external channels this computer can send on now.
+    Whatever goes wrong is the round's problem, shown on the Settings screen; the next round tries again."""
     at = now or datetime.now(UTC)
+    try:
+        return _round(ws, channels, at)
+    except Exception as exc:  # the round's boundary: the error is shown, never left to stop the rounds unseen
+        log.exception("a sync round failed")
+        return _failed(ws, at, f"beklenmeyen bir hata ({type(exc).__name__}); bir sonraki turda yeniden denenecek")
+
+
+def _round(ws: Workspace, channels: Callable[[], Sequence[str]], at: datetime) -> Round:
     settings = config.load(ws.layout.settings)
-    if not settings.sync.folder:
-        _peers.pop(ws.home, None)
-        return Round()
-    path = Path(settings.sync.folder)
     with ws.db() as db:
         me = _me(db)
-    if me is None:
-        return _failed(ws, at, "eşitlemenin kaydı bu veritabanında yok; Ayarlar'dan yeniden açın")
+    if not settings.sync.folder:
+        _peers.pop(ws.home, None)
+        if me is not None and not me.joining:
+            _stamp_only(ws, me)  # a change made while the sync is off keeps the time it was made at
+        return Round()
+    path = Path(settings.sync.folder)
     try:
         found = library.marker(path)
     except LibraryError as exc:
-        return _failed(ws, at, str(exc))
+        return _stamped_failure(ws, me, at, str(exc))
     if found is None:
-        return _failed(ws, at, "eşitleme klasörü bulunamadı; Google Drive (ya da eşitleme uygulamanız) çalışıyor mu?")
+        problem = "eşitleme klasörü bulunamadı; Google Drive (ya da eşitleme uygulamanız) çalışıyor mu?"
+        return _stamped_failure(ws, me, at, problem)
+    if me is None:
+        me = _register(ws, found)  # the settings name a folder this database never joined (a restored one)
     if found != me.library:
-        return _failed(ws, at, "eşitleme klasörü başka bir veri kümesine ait; Ayarlar'dan yeniden seçin")
+        return _stamped_failure(ws, me, at, "eşitleme klasörü başka bir veri kümesine ait; Ayarlar'dan yeniden seçin")
     me = _same_machine(ws, me)
+    _clean_leftovers(path, me)
     peers = _peers.setdefault(ws.home, _Peers())
-    remote, problems = _read_peers(path, me, peers)
+    remote, read, problems = _read_peers(path, me, peers)
     result = Round(ran=True)
+    ready = tuple(channels())
+    if me.joining and not read:
+        # Nothing of the others is here yet: merging now would take this computer's old data for the newest.
+        _heartbeat_if_due(ws, path, me, settings, ready, at)
+        result.problem = "; ".join([WAITING, *problems])
+        _record(ws, at, result)
+        return result
     try:
         _bring_originals(ws, path, peers, remote, result)
         with ws.lock(timeout=5.0):
-            applied = _merge(ws, me, remote, at)
+            applied = _merge(ws, me, remote)
+        if me.joining:
+            me = replace(me, joining=False)
+            with ws.db() as db:
+                _save_me(db, me)
     except (Busy, sqlite3.OperationalError):
         applied = None  # a long reading holds the documents, or the database stayed busy: the next round merges
     except OSError as exc:
@@ -389,10 +495,10 @@ def run_round(ws: Workspace, channels: Callable[[], Sequence[str]] = lambda: (),
         result.refresh = applied.changes_numbers
         if applied.settings:
             ws.fresh_settings()  # the readers' company names, as the settings say now
-    ready = tuple(channels())
+    _sweep_removed(ws)
     try:
         with ws.db() as db:
-            _hand_over(db, me, peers.devices, ready, at)
+            _hand_over(db, me, peers.devices, ready, settings, at)
             _put_originals(ws, path, me, peers, result)
             _publish_state(ws, db, path, me)
         _heartbeat_if_due(ws, path, me, settings, ready, at)
@@ -401,6 +507,15 @@ def run_round(ws: Workspace, channels: Callable[[], Sequence[str]] = lambda: (),
     result.problem = "; ".join(problems)
     _record(ws, at, result)
     return result
+
+
+def _register(ws: Workspace, library_id: str) -> Me:
+    """A database whose settings name a sync folder it never joined: it joins it now, its data older than all."""
+    me = Me(library.new_device_id(), machine.fingerprint(), library_id, _iso(datetime.now(UTC)), joining=True)
+    with ws.db() as db:
+        _save_me(db, me)
+        audit.record(db, Actor.SYSTEM, ON, me.device, began=False)
+    return me
 
 
 def _same_machine(ws: Workspace, me: Me) -> Me:
@@ -416,28 +531,47 @@ def _same_machine(ws: Workspace, me: Me) -> Me:
     return moved
 
 
-def _read_peers(path: Path, me: Me, peers: _Peers) -> tuple[list[Entry], list[str]]:
-    """The pieces in every computer's state file, this computer's own included; what kept one from being read."""
+def _clean_leftovers(path: Path, me: Me) -> None:
+    """Half-written files a stop left in this computer's part of the folder: removed once they are an hour old (a
+    write in progress is never that old)."""
+    cutoff = time.time() - LEFTOVER_AGE
+    for leftover in library.leftovers(path, me.device):
+        try:
+            if leftover.stat().st_mtime < cutoff:
+                library.remove_leftover(leftover)
+        except OSError:
+            continue
+
+
+def _read_peers(path: Path, me: Me, peers: _Peers) -> tuple[list[Entry], int, list[str]]:
+    """The pieces in every computer's state file, this computer's own included; how many files were read; what kept
+    a file from being read, or left pieces of it out."""
     entries: list[Entry] = []
     problems: list[str] = []
+    read = 0
     for device in library.devices(path):
         folder = library.device_dir(path, device)
         described = library.read_device(path, device)
         if described is not None:
             peers.devices[device] = described
+        name = described.name if described else device
         key = library.stat_key(folder / library.STATE_FILE)
         known = peers.states.get(device)
         if known is not None and known[0] == key:
-            published, problem = known[1], known[2]
+            published = known[1]
         else:
             published, problem = _read_state(folder / library.STATE_FILE, me)
-            peers.states[device] = (key, published, problem)
-        if problem:
-            name = described.name if described else device
-            problems.append(f"{name}: {problem}")
-        if published is not None:
-            entries.extend(published.entries)
-    return entries, problems
+            if problem:
+                problems.append(f"{name}: {problem}")
+            if published is None:
+                peers.states.pop(device, None)  # read again in the next round
+                continue
+            peers.states[device] = (key, published)
+        if published.dropped:
+            problems.append(f"{name}: durum dosyasında okunamayan {published.dropped} kayıt atlandı")
+        entries.extend(published.entries)
+        read += 1
+    return entries, read, problems
 
 
 def _read_state(path: Path, me: Me) -> tuple[Published | None, str]:
@@ -448,7 +582,7 @@ def _read_state(path: Path, me: Me) -> tuple[Published | None, str]:
     except OSError as exc:
         return None, f"durum dosyası okunamadı ({exc.strerror or exc})"
     try:
-        published = decode_state(data)
+        published = decode_state(data, shared.valid)
     except Newer as exc:
         return None, f"{exc}; bu bilgisayardaki İplikçi Nedim'i güncelleyin"
     except StateError:
@@ -504,19 +638,37 @@ def _bring_originals(ws: Workspace, path: Path, peers: _Peers, remote: list[Entr
         budget -= size
 
 
+def _sweep_removed(ws: Workspace) -> None:
+    """The bytes of documents removed here that are still in the archive, to the Trash (ADR-0003): a removal another
+    computer made is kept in the database first and its bytes move after, so the database never waits on a move; bytes
+    brought in before their removal came go the same way."""
+    with ws.db() as db:
+        left = [d.sha256 for d in documents.every(db, [DocumentStatus.REMOVED]) if ws.vault.has(d.sha256)]
+    for sha256 in left:
+        try:
+            where = ws.vault.remove(sha256)
+        except (VaultError, OSError):
+            log.warning("a removed document's bytes could not go to the Trash; the next round tries again")
+            continue
+        ws.vault.drop_derived(sha256)
+        with ws.db() as db:
+            audit.record(db, Actor.SYNC, shared.REMOVED_BY_SYNC, sha256, trash=where.parent.name)
+
+
 def _put_originals(ws: Workspace, path: Path, me: Me, peers: _Peers, result: Round) -> None:
     """This computer's originals of kept documents that are nowhere in the folder, into its part of it; its copies of
-    removed documents out of it (to the Trash)."""
+    documents removed here out of it (to the Trash). A removal is followed only once it is in place here."""
     with ws.db() as db:
         winners = {key: e for (_, key), e in _winners(db, [], [Kind.DOCUMENT]).items()}
-    removed = {key for key, e in winners.items() if removed_document(e.value)}
+        removed_here = {d.sha256 for d in documents.every(db, [DocumentStatus.REMOVED])}
+    removed = {key for key, e in winners.items() if removed_document(e.value)} & removed_here
     if len(removed) != peers.removed:
         for sha256, where in library.objects(path, me.device).items():
             if sha256 in removed:
                 library.withdraw(where, ws.home)
                 peers.in_folder.pop(sha256, None)
         peers.removed = len(removed)
-    local = [sha for sha in ws.vault.objects() if sha in winners and sha not in removed]
+    local = [sha for sha in ws.vault.objects() if sha in winners and sha not in removed_here]
     missing = [sha for sha in local if sha not in peers.listing(path)]
     if not missing:
         return
@@ -540,7 +692,30 @@ def _put_originals(ws: Workspace, path: Path, me: Me, peers: _Peers, result: Rou
 # --- merging -------------------------------------------------------------------------------------------------
 
 
-def _merge(ws: Workspace, me: Me, remote: list[Entry], at: datetime) -> shared.Applied:
+def _stamped_failure(ws: Workspace, me: Me | None, at: datetime, problem: str) -> Round:
+    """A round that cannot reach the folder still stamps what changed here."""
+    if me is not None and not me.joining:
+        _stamp_only(ws, me)
+    return _failed(ws, at, problem)
+
+
+def _stamp_only(ws: Workspace, me: Me) -> None:
+    """Stamp what changed here, without the folder: once it is back, the change keeps the time it was made at, and a
+    later change on another computer wins over it. Only for a computer that has shared its data before."""
+    try:
+        with ws.lock(timeout=5.0), ws.db() as db:
+            files = shared.file_kind_values(ws)
+            clock = _clock(db, me.device)
+            with db.transaction():
+                rows = stored.every(db)
+                if rows:
+                    _stamp_changes(db, rows, shared.db_values(db) | files, clock, zero=False)
+                    stored.save(db, CLOCK, clock.last.text)
+    except (Busy, sqlite3.OperationalError):
+        return  # the next round stamps it
+
+
+def _merge(ws: Workspace, me: Me, remote: list[Entry]) -> shared.Applied:
     """Stamp this computer's changes, merge the others' and put the winners in place."""
     applied = shared.Applied()
     files = shared.file_kind_values(ws)
@@ -548,17 +723,15 @@ def _merge(ws: Workspace, me: Me, remote: list[Entry], at: datetime) -> shared.A
         clock = _clock(db, me.device)
         with db.transaction():
             own = shared.db_values(db) | files
-            rows = stored.every(db)
-            # The first round of a computer whose folder already holds data (joining another computer's, or its own
-            # written before a restore): its own data is stamped older than all, so what was decided there wins.
-            zero = not rows and bool(remote)
-            _stamp_changes(db, rows, own, clock, zero)
+            # A computer joining another computer's data (or a database restored from before the sync) stamps its
+            # own data older than all: what was decided in the folder wins wherever both have a value.
+            _stamp_changes(db, stored.every(db), own, clock, zero=me.joining)
             _take_remote(db, stored.every(db), remote, clock)
             stored.save(db, CLOCK, clock.last.text)
         _apply_db(ws, db, applied)
         _apply_files(ws, db, applied)
         if applied.any:
-            audit.record(db, Actor.SYNC, APPLIED, "", **applied.counts)
+            audit.record(db, Actor.SYNC, APPLIED, "", files=applied.files, **applied.counts)
         _tell_arrivals(db, applied.added)
     return applied
 
@@ -581,7 +754,8 @@ def _stamp_changes(
     clock: Clock,
     zero: bool,
 ) -> None:
-    """This computer's values that changed since they were last compared: stamped now (zero: as older than all)."""
+    """This computer's values that changed since they were last compared: stamped now (zero: a value never stamped
+    before is older than all)."""
     for (kind, key), value in own.items():
         row = rows.get((kind, key))
         mine = digest(value)
@@ -625,6 +799,8 @@ _ORDER: dict[str, int] = {Kind.DOCUMENT.value: 0, Kind.SOURCE.value: 1}  # a doc
 
 
 def _apply_db(ws: Workspace, db: Database, applied: shared.Applied) -> None:
+    """Put the waiting winners of the database's kinds in place, each on its own: one that cannot be put in place
+    (its bytes still to come, a value this version does not read) is rolled back alone and holds up no other."""
     waiting = sorted(
         (r for r in stored.waiting(db) if r.kind in shared.DB_KINDS), key=lambda r: (_ORDER.get(r.kind, 2), r.key)
     )
@@ -632,36 +808,38 @@ def _apply_db(ws: Workspace, db: Database, applied: shared.Applied) -> None:
         return
     with db.transaction():
         for row in waiting:
-            if digest(shared.own_value(ws, db, row.kind, row.key)) != row.local:
-                continue  # changed here meanwhile: the next round stamps that change, and it wins
+            piece = shared.Applied()
+            db.execute("SAVEPOINT piece")
             try:
-                shared.put_db(ws, db, row.kind, row.key, row.value, applied)
+                if digest(shared.own_value(ws, db, row.kind, row.key)) == row.local:
+                    shared.put_db(ws, db, row.kind, row.key, row.value, piece)
+                    stored.settle(db, row.kind, row.key, digest(shared.own_value(ws, db, row.kind, row.key)))
+                # else: changed here meanwhile; the next round stamps that change, and it wins
             except shared.Waits:
-                continue
-            except (KeyError, TypeError, ValueError):
-                log.warning("a piece of another computer's data could not be read; it waits for a newer version")
-                continue
-            stored.settle(db, row.kind, row.key, digest(shared.own_value(ws, db, row.kind, row.key)))
+                db.execute("ROLLBACK TO piece")
+            except Exception:  # a piece's boundary: it waits, logged, while the others go on
+                db.execute("ROLLBACK TO piece")
+                log.warning("a piece of another computer's data could not be put in place; it waits", exc_info=True)
+            else:
+                applied.take(piece)
+            db.execute("RELEASE piece")
 
 
 def _apply_files(ws: Workspace, db: Database, applied: shared.Applied) -> None:
     for row in stored.waiting(db):
         if row.kind not in shared.FILE_KINDS:
             continue
-
-        def own(kind: str = row.kind, key: str = row.key) -> str:
-            return digest(shared.own_value(ws, db, kind, key))
-
         try:
-            shared.put_file(ws, row.kind, row.key, row.value, row.local, own)
+            written = shared.put_file(ws, row.kind, row.key, row.value, row.local)
         except shared.Waits as exc:
             log.info("a shared %s waits: %s", row.kind, exc)
             continue
-        except (KeyError, TypeError, ValueError):
-            log.warning("a piece of another computer's data could not be read; it waits for a newer version")
+        except Exception:  # a piece's boundary, as for the database's kinds
+            log.warning("a piece of another computer's data could not be put in place; it waits", exc_info=True)
             continue
-        stored.settle(db, row.kind, row.key, own())
+        stored.settle(db, row.kind, row.key, written)
         applied.note(row.kind)
+        applied.files.append(row.key)
         if row.kind == Kind.SETTING:
             applied.settings = True
 
@@ -669,25 +847,35 @@ def _apply_files(ws: Workspace, db: Database, applied: shared.Applied) -> None:
 # --- the senders -------------------------------------------------------------------------------------------
 
 
-def _hand_over(db: Database, me: Me, devices: dict[str, Device], ready: Sequence[str], at: datetime) -> None:
+def _hand_over(
+    db: Database, me: Me, devices: dict[str, Device], ready: Sequence[str], settings: config.Settings, at: datetime
+) -> None:
     """Give this computer a channel nobody sends, or one whose computer has gone silent, can no longer send on it or
-    left; let a channel go that this computer can no longer send on."""
+    left, with the notifications it may have missed; let a channel go that this computer can no longer send on."""
     clock = _clock(db, me.device)
     changed = False
     with db.transaction():
         for channel in EXTERNAL:
             row = stored.get(db, Kind.SENDER, channel.value)
-            holder = _holder(row.value) if row else None
+            found = _sender(row.value) if row else None
+            holder, since = found if found else (None, None)
             can = channel.value in ready
             if holder == me.device:
-                if not can:
+                if not can and (since is None or at - since > CLAIM_GRACE):
                     stored.put(db, stored.Row(Kind.SENDER, channel.value, clock.now().text, None, "", True))
                     changed = True
                 continue
             if not can:
                 continue
-            if holder is None or _gone(devices.get(holder), channel, me, at):
-                _give(db, clock, channel, me.device, at)
+            if holder is None:
+                _give(db, clock, channel, me.device, at, at - FREE_CATCH_UP)
+                changed = True
+                continue
+            d = devices.get(holder)
+            if _gone(d, channel, me, at):
+                seen = _parse_time(d.seen_at) if d else None
+                missed = (seen or at - TAKEOVER_AFTER) - HEARTBEAT_EVERY
+                _give(db, clock, channel, me.device, at, min(missed, _quiet_since(settings, missed)))
                 changed = True
         if changed:
             stored.save(db, CLOCK, clock.last.text)

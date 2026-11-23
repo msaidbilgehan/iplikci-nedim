@@ -229,12 +229,14 @@ def stop_channel(db: Database, channel: Channel, reason: str) -> None:
     if stopped.get(channel) != reason:
         feed_state.save(db, STOPPED, stopped | {channel.value: reason})
     log.warning("the %s channel stopped: a refused login or token", channel)
+    sync.channels_changed()  # another computer may send it now (ADR-0025)
 
 
 def resume_channel(db: Database, channel: Channel) -> None:
     stopped = stopped_channels(db)
     if channel in stopped:
         feed_state.save(db, STOPPED, {k: v for k, v in stopped.items() if k != channel})
+        sync.channels_changed()
 
 
 def telegram_token() -> str:
@@ -389,13 +391,14 @@ def take_events(ws: Workspace, at: datetime | None = None) -> int:
     at = at or _now()
     settings = _settings(ws)
     with ws.db() as db:
+        made = _catch_up(ws, db, settings, at)
         last = feed_state.load(db, CURSOR)
         if not isinstance(last, int):  # the first run: what happened before it is no news
             feed_state.save(db, CURSOR, events.newest(db))
-            return 0
+            return made
         found = events.since(db, last, EVENTS_PER_RUN)
         if not found:
-            return 0
+            return made
         rules = load_rules(ws).rules
         ready = (
             []
@@ -407,11 +410,31 @@ def take_events(ws: Workspace, at: datetime | None = None) -> int:
             ]
         )
         quiet = timing.quiet(settings.notify.quiet_hours, at)
-        made = 0
         with db.transaction():
             for event_id, e in found:
                 made += _notify(db, event_id, e, rules, ready, settings, quiet, _iso(at))
             feed_state.save(db, CURSOR, found[-1][0])
+    return made
+
+
+def _catch_up(ws: Workspace, db: Database, settings: config.Settings, at: datetime) -> int:
+    """A channel this computer took over from another one (ADR-0025): the notifications of the events since the other
+    went silent are made here on it, so none is lost in between; what the quiet hours keep back goes in the digest.
+    How many were made."""
+    asked = sync.catch_ups(db)
+    if not asked:
+        return 0
+    ready = {s.channel for s in channel_states(ws, db, settings) if s.ready}
+    rules = load_rules(ws).rules
+    quiet = timing.quiet(settings.notify.quiet_hours, at)
+    made = 0
+    with db.transaction():
+        for value, since in asked.items():
+            channel = Channel(value)
+            if channel in ready and sync.sends(db, settings, channel) and not mail.first_read(db, settings):
+                for event_id, e in events.since_time(db, since):
+                    made += _notify(db, event_id, e, rules, [channel], settings, quiet, _iso(at))
+            sync.caught_up(db, value)
     return made
 
 
@@ -659,6 +682,7 @@ def set_preferences(
         for channel in channels:
             resume_channel(db, channel)
         audit.record(db, Actor.USER, SETTINGS_CHANGED, "notify", channels=len(values["channels"]))
+    sync.channels_changed()
     return saved
 
 
@@ -739,6 +763,7 @@ def set_telegram_token(ws: Workspace, token: str, actor: Actor, post_for: PostFo
         feed_state.save(db, OFFSET, 0)
         resume_channel(db, Channel.TELEGRAM)
         audit.record(db, actor, TELEGRAM_SET, "telegram")
+    sync.channels_changed()
     return TokenSet(name, kept)
 
 
@@ -751,3 +776,4 @@ def remove_telegram(ws: Workspace, actor: Actor) -> None:
             feed_state.save(db, name, None)
         resume_channel(db, Channel.TELEGRAM)
         audit.record(db, actor, TELEGRAM_REMOVED, "telegram")
+    sync.channels_changed()

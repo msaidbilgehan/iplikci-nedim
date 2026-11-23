@@ -142,9 +142,23 @@ def arrive(db: Database, doc: DocumentRow) -> None:
         if cursor.rowcount:
             _index(db, doc.sha256, doc.name)
             return
+        renamed = db.scalar("SELECT name != ? FROM documents WHERE sha256 = ?", (doc.name, doc.sha256))
         db.execute(
             "UPDATE documents SET name = ?, size = ?, parent = ?, added_at = ? WHERE sha256 = ?",
             (doc.name, doc.size, doc.parent, doc.added_at, doc.sha256),
+        )
+        if renamed:
+            found = get(db, doc.sha256)
+            if found is not None:
+                _index(db, doc.sha256, f"{found.name} {found.display_name} {found.title}")
+
+
+def reopen(db: Database, sha256: str) -> None:
+    """A removed document kept again (another computer's, ADR-0025): unread, so the next analysis reads it."""
+    with db.transaction():
+        db.execute(
+            "UPDATE documents SET status = ?, reason = '', read_at = '' WHERE sha256 = ?",
+            (DocumentStatus.UNPROCESSED, sha256),
         )
 
 

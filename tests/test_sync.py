@@ -3,6 +3,7 @@ Each test's computers are data folders beside each other; the "Google Drive" is 
 
 import json
 import shutil
+import sqlite3
 import tempfile
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -13,6 +14,7 @@ from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 from iplikci.app import annotate, dashboard, memory, notify, sync, telegram
+from iplikci.app import shared as shared_module
 from iplikci.app.analysis import analyze
 from iplikci.app.workspace import Workspace
 from iplikci.domain.codes import Actor, Channel, DeliveryStatus, DocumentStatus, MemoryKind
@@ -20,6 +22,7 @@ from iplikci.fakes import teb
 from iplikci.settings import config
 from iplikci.storage import aliases, annotations, audit, documents, events, feed_state, memories, notifications
 from iplikci.storage import db as database
+from iplikci.storage import sync as stored
 from iplikci.sync import library, machine, places
 from iplikci.sync.clock import Clock, Stamp
 from iplikci.sync.state import Entry, Kind, Published, StateError, decode, encode, merge
@@ -352,9 +355,10 @@ def test_a_state_file_half_brought_or_from_a_newer_version_is_left_for_later(a, 
     state.write_bytes(whole[: len(whole) // 2])
     sync.turn_on(b, str(drive))
     result = sync.run_round(b)
-    assert result.ran and not result.problem  # read again in the next round
+    assert result.ran and result.problem == sync.WAITING  # nothing merged until the others' data is read whole
     with b.db() as db:
         assert not documents.every(db)
+    assert not (library.device_dir(drive, sync.status(b).device) / library.STATE_FILE).exists()
     newer = json.loads(whole)
     newer["version"] = 99
     state.write_bytes(json.dumps(newer).encode())
@@ -642,3 +646,305 @@ def test_changes_made_one_after_another_with_the_sync_between_them_keep_the_last
                 for ws in computers:
                     sync.run_round(ws)
         assert _essence(computers[0]) == _essence(computers[1]) == _essence(alone)
+
+
+# --- what the review found (ADR-0025's failure cases) ----------------------------------------------------------
+
+
+def _device(ws: Workspace) -> str:
+    with ws.db() as db:
+        return sync._me(db).device
+
+
+def _hide(drive: Path, device: str, where: Path) -> Path:
+    """A computer's part of the folder not here yet (the sync service still bringing it); where it is kept."""
+    return library.device_dir(drive, device).rename(where / f"gizli-{device}")
+
+
+def test_a_computer_joining_before_the_others_data_is_here_waits_and_then_lets_the_folder_win(a, b, drive, tmp_path):
+    add(a, "ocak.xls", teb.account_export(JANUARY))
+    fingerprint = note_on_coffee(a, "a'nın notu")
+    config.update(a.layout.settings, "identity", {"names": ["Klasördeki Ad"]})
+    sync.turn_on(a, str(drive))
+    rounds(a)
+    hidden = _hide(drive, _device(a), tmp_path)
+    add(b, "ocak.xls", teb.account_export(JANUARY))
+    note_on_coffee(b, "b'nin daha yeni notu")
+    config.update(b.layout.settings, "identity", {"names": ["Eski Ad"]})
+    b.rules.write_text(RULES + "\nEski:\n  Kural:\n    _: [ESKI]\n", encoding="utf-8")
+    sync.turn_on(b, str(drive))
+    for _ in range(3):
+        assert sync.run_round(b).problem == sync.WAITING
+    assert not (library.device_dir(drive, _device(b)) / library.STATE_FILE).exists()  # nothing of b's goes out yet
+    hidden.rename(library.device_dir(drive, _device(a)))
+    rounds(b, a, b)
+    for ws in (a, b):
+        with ws.db() as db:
+            assert annotations.get(db, fingerprint).note == "a'nın notu"
+        assert config.load(ws.layout.settings).identity.names == ("Klasördeki Ad",)
+        assert "ESKI" not in ws.rules.read_text(encoding="utf-8")
+    assert not sync.status(b).problem
+
+
+def test_a_state_file_that_could_not_be_read_is_read_again_in_the_next_round(a, b, drive):
+    add(a, "ocak.xls", teb.account_export(JANUARY))
+    sync.turn_on(a, str(drive))
+    rounds(a)
+    state = library.device_dir(drive, _device(a)) / library.STATE_FILE
+    sync.turn_on(b, str(drive))
+    state.chmod(0)  # the sync service cannot give it now; its size and time stay as they are
+    try:
+        assert sync.run_round(b).problem
+    finally:
+        state.chmod(0o600)
+    rounds(b)
+    with b.db() as db:
+        assert [d.name for d in documents.every(db)] == ["ocak.xls"]
+
+
+def test_a_change_made_while_the_folder_is_away_keeps_its_time_and_a_later_one_wins(a, b, drive, tmp_path):
+    add(a, "ocak.xls", teb.account_export(JANUARY))
+    fingerprint = note_on_coffee(a, "ilk")
+    sync.turn_on(a, str(drive))
+    rounds(a)
+    sync.turn_on(b, str(drive))
+    rounds(b, a, b)
+    away = drive.rename(tmp_path / "drive-gitti")  # Google Drive not running on either computer
+    note_on_coffee(b, "b'de önce")
+    assert "bulunamadı" in sync.run_round(b).problem  # stamped all the same
+    note_on_coffee(a, "a'da sonra")
+    sync.run_round(a)
+    away.rename(drive)
+    rounds(b, a, b)
+    for ws in (a, b):
+        with ws.db() as db:
+            assert annotations.get(db, fingerprint).note == "a'da sonra"
+
+
+def test_a_change_made_while_the_sync_is_off_keeps_its_time(a, b, drive):
+    add(a, "ocak.xls", teb.account_export(JANUARY))
+    fingerprint = note_on_coffee(a, "ilk")
+    sync.turn_on(a, str(drive))
+    rounds(a)
+    sync.turn_on(b, str(drive))
+    rounds(b, a, b)
+    sync.turn_off(b)
+    note_on_coffee(b, "kapalıyken")
+    sync.run_round(b)
+    note_on_coffee(a, "sonra")
+    rounds(a)
+    sync.turn_on(b, str(drive))
+    rounds(b, a, b)
+    for ws in (a, b):
+        with ws.db() as db:
+            assert annotations.get(db, fingerprint).note == "sonra"
+
+
+def _forge(drive: Path, device: str, rows: list[list[object]]) -> None:
+    """Pieces written into a computer's state file by someone else (a damaged or forged file)."""
+    state = library.device_dir(drive, device) / library.STATE_FILE
+    value = json.loads(state.read_bytes())
+    value["entries"] += rows
+    state.write_bytes(json.dumps(value, ensure_ascii=False).encode())
+
+
+def test_a_malformed_or_forged_piece_is_left_out_and_the_rounds_go_on(a, b, drive):
+    add(a, "ocak.xls", teb.account_export(JANUARY))
+    sync.turn_on(a, str(drive))
+    rounds(a)
+    stamp = "0000000000001.00000.aaaaaaaaaaaa"
+    _forge(
+        drive,
+        _device(a),
+        [
+            [
+                "document",
+                "../../disari",
+                stamp,
+                {"name": "x", "size": 1, "added_at": "", "parent": "", "removed": True, "reason": ""},
+            ],
+            ["source", "bir anahtar değil", stamp, {"sender": "", "subject": "", "sent_at": "", "received_at": ""}],
+            ["alias", "hesap-1", stamp, {"alias": ["liste"], "updated_at": "", "actor": "user"}],
+            ["memory", "gelecek", "9999999999999.99999.aaaaaaaaaaaa", None],
+            ["setting", "mail.verify_sender", stamp, False],
+            ["rate", "2026-01-01 tcmb USD", stamp, {"buying": "1"}],  # a newer version's kind passes through
+        ],
+    )
+    sync.turn_on(b, str(drive))
+    result = sync.run_round(b)
+    assert result.ran and "5 kayıt atlandı" in result.problem
+    rounds(b)
+    with b.db() as db:
+        assert [d.name for d in documents.every(db)] == ["ocak.xls"]
+        assert not aliases.every(db)
+        assert stored.get(db, "rate", "2026-01-01 tcmb USD") is not None
+        assert stored.load(db, sync.CLOCK) < "9"  # the clock took no stamp from 2286
+    assert config.load(b.layout.settings).mail.verify_sender  # never another computer's to turn off
+
+
+def test_a_piece_that_cannot_be_put_in_place_holds_up_no_other(a, b, drive, monkeypatch):
+    add(a, "ocak.xls", teb.account_export(JANUARY))
+    with a.db() as db:
+        memories.write(db, "bir-not", MemoryKind.USER, "bir not", "bir", Actor.MCP)
+    sync.turn_on(a, str(drive))
+    rounds(a)
+    real = shared_module.put_db
+
+    def failing(ws, db, kind, key, value, applied):
+        if kind == Kind.DOCUMENT:
+            raise sqlite3.ProgrammingError("bu sürümün okuyamadığı bir değer")
+        return real(ws, db, kind, key, value, applied)
+
+    monkeypatch.setattr(shared_module, "put_db", failing)
+    sync.turn_on(b, str(drive))
+    result = sync.run_round(b)
+    assert result.ran and not result.problem
+    with b.db() as db:
+        assert memories.get(db, "bir-not") is not None  # put in place beside the document that could not be
+        assert not documents.every(db)
+    monkeypatch.setattr(shared_module, "put_db", real)
+    rounds(b)
+    with b.db() as db:
+        assert [d.name for d in documents.every(db)] == ["ocak.xls"]
+
+
+def test_bytes_brought_in_before_their_removal_came_go_to_the_trash(a, b, drive, monkeypatch):
+    sync.turn_on(a, str(drive))
+    rounds(a)
+    sync.turn_on(b, str(drive))
+    rounds(b)
+    add(a, "subat.xls", FEBRUARY)
+    rounds(a)
+    with a.db() as db:
+        [doc] = documents.every(db)
+    real = sync._merge
+    monkeypatch.setattr(sync, "_merge", lambda *args: (_ for _ in ()).throw(sync.Busy("okuma sürüyor")))
+    sync.run_round(b)  # the bytes come in; a long reading holds the documents, so nothing is merged
+    assert b.vault.has(doc.sha256)
+    monkeypatch.setattr(sync, "_merge", real)
+    from iplikci.app import documents as document_cases
+
+    document_cases.remove(a, doc.sha256, Actor.USER)
+    rounds(a, b)
+    with b.db() as db:
+        assert documents.get(db, doc.sha256).status is DocumentStatus.REMOVED
+    assert not b.vault.has(doc.sha256)  # to the Trash, never kept
+
+
+def test_a_joining_computers_old_removal_never_removes_what_the_others_keep(a, b, drive):
+    add(a, "ocak.xls", teb.account_export(JANUARY))
+    sync.turn_on(a, str(drive))
+    rounds(a)
+    add(b, "ocak.xls", teb.account_export(JANUARY))
+    with b.db() as db:
+        [doc] = documents.every(db)
+    from iplikci.app import documents as document_cases
+
+    document_cases.remove(b, doc.sha256, Actor.USER)  # long before b joined
+    sync.turn_on(b, str(drive))
+    rounds(b, a, b)
+    for ws in (a, b):
+        with ws.db() as db:
+            assert documents.get(db, doc.sha256).status is not DocumentStatus.REMOVED
+        assert ws.vault.has(doc.sha256)
+    assert ledger(a) == ledger(b)
+
+
+def test_a_removal_not_in_place_here_leaves_this_computers_original_in_the_folder(a, b, drive, monkeypatch):
+    add(a, "ocak.xls", teb.account_export(JANUARY))
+    sync.turn_on(a, str(drive))
+    rounds(a)
+    sync.turn_on(b, str(drive))
+    rounds(b, a, b)
+    with b.db() as db:
+        [doc] = documents.every(db)
+    from iplikci.app import documents as document_cases
+
+    document_cases.remove(b, doc.sha256, Actor.USER)
+    rounds(b)
+    real = shared_module.put_db
+    monkeypatch.setattr(shared_module, "put_db", lambda *args: (_ for _ in ()).throw(ValueError("okunamadı")))
+    sync.run_round(a)  # a merges the removal but cannot put it in place
+    assert library.object_path(drive, _device(a), doc.sha256).exists()
+    monkeypatch.setattr(shared_module, "put_db", real)
+    rounds(a)
+    assert not library.object_path(drive, _device(a), doc.sha256).exists()
+
+
+def test_a_channel_just_taken_is_not_let_go_on_an_old_word_that_it_cannot_send(a, b, drive):
+    sync.turn_on(a, str(drive))
+    sync.run_round(a, channels=lambda: ("telegram",))
+    sync.turn_on(b, str(drive))
+    rounds(b)
+    sync.claim(b, ["telegram"])
+    sync.run_round(b, channels=lambda: ())  # the service's list from before the bot was paired here
+    assert sends(b, Channel.TELEGRAM)
+    later = datetime.now(UTC) + sync.CLAIM_GRACE + timedelta(minutes=1)
+    sync.run_round(b, channels=lambda: (), now=later)
+    assert not sends(b, Channel.TELEGRAM)
+
+
+def test_the_computer_taking_telegram_over_sends_what_the_silent_one_missed(a, b, drive, monkeypatch):
+    for ws in (a, b):
+        config.update(ws.layout.settings, "notify", {"telegram_chat": 42, "quiet_hours": ""})
+        with ws.db() as db:
+            feed_state.save(db, notify.BOT, "deneme_bot")
+    monkeypatch.setattr(notify, "telegram_token", lambda: "belirtec")
+    sync.turn_on(a, str(drive))
+    sync.run_round(a, channels=lambda: ("telegram",))
+    sync.turn_on(b, str(drive))
+    rounds(b)
+    sync.run_round(b, channels=lambda: ("telegram",))
+    notify.take_events(b)  # b's first run: what happened before is no news
+    with b.db() as db:
+        events.append(db, "month.closed", "2026-10")  # a went silent (asleep) and told nobody
+    notify.take_events(b)
+    with b.db() as db:
+        assert not [n for n in notifications.every(db) if n.channel == Channel.TELEGRAM]
+    later = datetime.now(UTC) + sync.TAKEOVER_AFTER + timedelta(minutes=1)
+    sync.run_round(b, channels=lambda: ("telegram",), now=later)
+    assert sends(b, Channel.TELEGRAM)
+    notify.take_events(b)
+    with b.db() as db:
+        told = [n for n in notifications.every(db) if n.channel == Channel.TELEGRAM]
+        assert [n.key for n in told] == ["2026-10"]
+        assert not sync.catch_ups(db)
+    notify.take_events(b)
+    with b.db() as db:
+        assert len([n for n in notifications.every(db) if n.channel == Channel.TELEGRAM]) == 1  # once
+
+
+def test_a_copied_data_folder_says_nothing_for_the_computer_it_was_copied_from(a, drive, tmp_path, monkeypatch):
+    sync.turn_on(a, str(drive))
+    sync.run_round(a, channels=lambda: ("telegram",))
+    state = library.device_dir(drive, _device(a)) / library.STATE_FILE
+    before = state.read_bytes()
+    copy = Workspace.load(Path(shutil.copytree(a.home, tmp_path / "kopya")))
+    monkeypatch.setattr(machine, "fingerprint", lambda: "makine-2")
+    assert not sends(copy, Channel.TELEGRAM)  # the original holds it
+    sync.turn_off(copy)
+    assert state.read_bytes() == before
+    told = library.read_device(drive, _device(a))
+    assert told is not None and not told.left
+
+
+def test_the_sync_turned_on_in_another_folder_puts_the_originals_there(a, tmp_path, drive):
+    add(a, "ocak.xls", teb.account_export(JANUARY))
+    sync.turn_on(a, str(drive))
+    rounds(a)
+    other = tmp_path / "Dropbox" / library.DEFAULT_NAME
+    other.parent.mkdir()
+    sync.turn_on(a, str(other))
+    rounds(a)
+    [sha] = list(a.vault.objects())
+    assert library.object_path(other, _device(a), sha).exists()
+    assert sync.status(a).waiting_up == 0
+
+
+def test_a_settings_change_waits_when_the_file_changed_since_it_was_compared(a):
+    config.update(a.layout.settings, "notify", {"quiet_hours": "22:00-07:00"})
+    with pytest.raises(config.Changed):
+        config.update(a.layout.settings, "notify", {"quiet_hours": "23:00-08:00"}, guard=lambda tables: False)
+    assert config.load(a.layout.settings).notify.quiet_hours == "22:00-07:00"
+    with pytest.raises(shared_module.Waits):
+        shared_module.put_file(a, Kind.SETTING, "notify.quiet_hours", '"23:00-08:00"', expected="eski bir özet")

@@ -32,3 +32,13 @@ def quiet(hours: str, at: datetime) -> bool:
     if start == end:
         return False
     return start <= now < end if start < end else now >= start or now < end
+
+
+def quiet_since(hours: str, at: datetime) -> datetime:
+    """When the quiet hours that hold at (a local time) began; at itself outside them. A computer taking over a
+    channel sends what the last one kept back for the digest since then (ADR-0025)."""
+    if not quiet(hours, at):
+        return at
+    start = _clock(hours.split("-")[0])
+    began = at.replace(hour=start.hour, minute=start.minute, second=0, microsecond=0)
+    return began if began <= at else began - timedelta(days=1)

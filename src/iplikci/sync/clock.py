@@ -14,6 +14,9 @@ from dataclasses import dataclass
 
 _TEXT = re.compile(r"(\d{13})\.(\d{5})\.([0-9a-z]{1,32})")
 _COUNTER_MAX = 99_999  # five digits in the text; a busier millisecond moves on to the next one
+# 2200-01-01: a stamp beyond it is no computer's clock but a damaged or forged file. Taken in, it would carry every
+# later stamp past the thirteen digits the text holds.
+MAX_MS = 7_258_118_400_000
 
 
 class StampError(ValueError):
@@ -34,7 +37,7 @@ class Stamp:
     @classmethod
     def parse(cls, text: str) -> "Stamp":
         found = _TEXT.fullmatch(text)
-        if found is None:
+        if found is None or int(found[1]) > MAX_MS:
             raise StampError(f"geçersiz zaman damgası: {text[:40]!r}")
         return cls(int(found[1]), int(found[2]), found[3])
 

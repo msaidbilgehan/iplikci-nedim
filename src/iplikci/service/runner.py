@@ -224,7 +224,8 @@ class Ready:
         self._found: tuple[str, ...] = ()
 
     def __call__(self) -> tuple[str, ...]:
-        if time.monotonic() - self._at >= self._kept:
+        # A channel set up, turned on or off, or stopped (app.sync.channels_changed) is asked about at once.
+        if sync_app.take_channels_changed() or time.monotonic() - self._at >= self._kept:
             self._found = self._ask()
             self._at = time.monotonic()
         return self._found
