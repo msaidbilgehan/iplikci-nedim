@@ -2,13 +2,14 @@
 
 Every three hours the service fetches the latest release's manifest from GitHub through egress and believes it only
 once its signature checks with a key the program carries; until v1.0.11 it looked once a day, from 05:00, and a version
-released in the morning waited for the next day. A newer version is installed by itself when the settings say "auto"
+released after that waited for the next morning. A newer version is installed by itself when the settings say "auto"
 and an installer put this copy here; "ask" waits for the user, whom every screen asks (the interface's update banner),
 and "off" never asks GitHub unless the user does. One install is under way at a time: a second request while one is
-queued or running adds none, and the screens show it as installing from the moment it is queued. Installing downloads this system's file, checks its size and SHA-256 against the manifest, takes a
-backup, puts the new version in place (update.install) and has the service start again with it. The new version says
-at its start how it went and removes what the old one left. An install of a version that did not come up is not tried
-again by itself after TRIES attempts; the user may still ask for it.
+queued or running adds none, and the screens show it as installing from the moment it is queued. Installing downloads
+this system's file, checks its size and SHA-256 against the manifest, takes a backup, puts the new version in place
+(update.install) and has the service start again with it. The new version says at its start how it went and removes
+what the old one left. An install of a version that did not come up is not tried again by itself after TRIES attempts;
+the user may still ask for it.
 
 What the user is told is kept in run/guncelleme.json, which only the service's worker writes."""
 
