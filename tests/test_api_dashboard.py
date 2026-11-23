@@ -9,14 +9,16 @@ import pytest
 from fastapi.testclient import TestClient
 
 from iplikci import demo
+from iplikci.analysis import Start
 from iplikci.api.app import create_app
 from iplikci.api.context import Context
-from iplikci.app import background, backup, bridge, todos
+from iplikci.app import background, backup, bridge, now, outlook, todos
 from iplikci.app.mail import IMAP
 from iplikci.app.reading import FORMAT_ALARM
 from iplikci.app.workspace import Busy, Workspace
 from iplikci.domain.codes import Actor, DocumentStatus
 from iplikci.fakes import HOLDER, Move, garanti, isbank, teb
+from iplikci.forecast import AccountForecast, Forecast
 from iplikci.parsers import registry
 from iplikci.storage import events
 from iplikci.storage import mail as mail_store
@@ -279,6 +281,51 @@ def test_an_account_whose_forecast_goes_below_zero_is_an_alert(ws):
         "TEB Vadesiz TL 123456789: öngörüye göre bakiye 25.12.2026 günü (40 gün sonra) -146,03 TL olacak."
     )
     assert negative["link"] == link("forecast", TEB)
+
+
+def _falling_total(today: date, step: int = 100) -> outlook.CashFlow:
+    """Two TL accounts whose total goes below zero though neither warns of itself: a deposit that stays at 1.000 TL and
+    an overdraft account whose credit in use grows by step TL a day, with no income coming."""
+    days = [today + timedelta(days=i) for i in range(60)]
+
+    def account(id: str, balance: Decimal, step: Decimal, overdraft: bool) -> AccountForecast:
+        start = Start(balance, balance, today, False, 0, today)
+        path = [(day, balance + step * i) for i, day in enumerate(days)]
+        return AccountForecast(id, id, start, path, [], None, None, [], overdraft=overdraft)
+
+    accounts = [account("vadeli", Decimal(1000), Decimal(0), False), account("kmh", Decimal(0), Decimal(-step), True)]
+    return outlook.CashFlow(Forecast(today, days[-1], accounts, [], [], []), {})
+
+
+def test_a_total_the_foreign_currency_covers_says_so_and_is_no_alarm(ws, monkeypatch):
+    # The income comes in another currency: the TL accounts fall, the money is in the foreign currency accounts.
+    add(ws, "teb.xls", teb.account_export(teb.running_rows(list(teb.ACCOUNT_MOVES))))
+    today = date(2026, 11, 15)
+    monkeypatch.setattr(outlook, "cash_flow", lambda _a, day: _falling_total(day))
+    monkeypatch.setattr(now, "cover", lambda _a: Decimal(6000))
+    found = board(ws, today)
+    [negative] = [a for a in found["alerts"]["items"] if a["kind"] == "negative"]
+    assert (negative["level"], negative["title"]) == ("warning", "TL hesaplarının toplamı eksiye düşecek")
+    assert negative["text"] == (
+        "TL hesaplarınızın toplamı: öngörüye göre 26.11.2026 günü (11 gün sonra) -100,00 TL olacak. Öngörü TL "
+        "hesaplarınıza düzenli bir gelir beklemiyor. 13.01.2027 gününe kadar en çok 4.900,00 TL eksik kalıyor; döviz "
+        "ve yatırımlarınız bugünkü değeriyle 6.000,00 TL: eksiye düşmeden önce bir kısmını TL'ye çevirmeniz yeter."
+    )
+    first = found["sayings"][0]
+    assert (first["situation"], first["mood"]) == ("going_negative", "warning")
+    assert first["reason"].endswith("bir kısmını Türk lirasına çevirmeniz yeter.")
+    monkeypatch.setattr(outlook, "cash_flow", lambda _a, day: _falling_total(day, step=200))  # in six days
+    monkeypatch.setattr(now, "cover", lambda _a: Decimal(20000))
+    soon = board(ws, today)  # within the week, and the money is there: a warning still
+    assert [a["level"] for a in soon["alerts"]["items"] if a["kind"] == "negative"] == ["warning"]
+    monkeypatch.setattr(now, "cover", lambda _a: Decimal(1000))
+    short = board(ws, today)
+    [negative] = [a for a in short["alerts"]["items"] if a["kind"] == "negative"]
+    assert negative["level"] == "critical" and negative["text"].endswith("1.000,00 TL, hepsini karşılamıyor.")
+    assert (short["sayings"][0]["mood"], short["sayings"][0]["reason"]) == (
+        "critical",
+        "Öngörüye göre Türk lirası hesaplarınızın toplamı 6 gün sonra eksiye düşecek.",
+    )
 
 
 def test_unreadable_documents_and_a_readers_format_alarm_are_alerts_as_the_to_do_list_has_them(ws):

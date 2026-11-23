@@ -17,7 +17,7 @@ from ..jobs.schedule import Periodic, daily, every, monthly
 from ..jobs.worker import Handler
 from ..storage import audit, events, feed_state, jobs
 from ..vault import trash
-from . import access, backup, bridge, fx, intake, mail, notify, outlook, prices, telegram, update, uploads
+from . import access, backup, bridge, fx, intake, mail, notify, now, outlook, prices, telegram, update, uploads
 from .analysis import analyze
 from .kinds import (
     BACKUP_DAILY,
@@ -92,7 +92,7 @@ def refresh(ws: Workspace, today: date | None = None) -> list[str]:
     snapshot are saved together, so a stop between them can neither lose a change nor tell it twice."""
     day = today or date.today()
     a = analyze(ws, write=True, today=day)
-    after = snapshot.take(a.dataset, a.insights, a.months, day, outlook.card_dues(a.dataset))
+    after = snapshot.take(a.dataset, a.insights, a.months, day, outlook.card_dues(a.dataset), now.cover(a))
     with ws.db() as db, db.transaction():
         before = snapshot.Snapshot.load(feed_state.load(db, SNAPSHOT))
         changes = snapshot.diff(before, after)

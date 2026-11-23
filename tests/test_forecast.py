@@ -540,6 +540,15 @@ def test_the_accounts_total_warns_when_it_goes_below_zero_and_says_more_than_one
     result = forecast(ds, interpret(ds), date(2026, 11, 1), [due(date(2026, 11, 3), "Ev kirası", "cash", 5000)])
     assert result.total_negative == (date(2026, 11, 3), Decimal(-1000))
     assert result.warnings == [("", (date(2026, 11, 3), Decimal(-1000)))]  # the cash account stays at 1.000 TL
+    assert result.total_lowest == (date(2026, 11, 3), Decimal(-1000))  # the first day of the lowest
+    assert result.expects_income is False
+
+
+def test_the_total_says_its_lowest_and_whether_an_income_comes():
+    ds = dataset(statements=[account_list("cash", date(2026, 7, 1), date(2026, 10, 31), 1000)])
+    items = [due(date(2026, 11, 3), "Ev kirası", "cash", 5000), due(date(2026, 11, 10), "Maaş", "cash", -3000)]
+    result = forecast(ds, interpret(ds), date(2026, 11, 1), items)
+    assert result.total_lowest == (date(2026, 11, 3), Decimal(-4000)) and result.expects_income
 
 
 def test_one_account_below_zero_is_told_once_not_again_as_the_total():

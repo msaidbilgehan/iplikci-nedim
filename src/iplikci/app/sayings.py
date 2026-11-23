@@ -177,6 +177,8 @@ class Negative:
     days: int  # from today
     total: bool  # it is the accounts' total, not one account
     critical: bool  # within the week the dashboard calls critical
+    covered: bool = False  # the total, which the foreign currency and investments cover at today's value
+    income: bool = True  # an income is expected into the TL accounts within the forecast's days
 
 
 @dataclass(frozen=True, slots=True)
@@ -210,11 +212,16 @@ def _share(m: MonthFacts) -> Decimal:
 
 
 def _going_negative(n: Negative) -> tuple[Situation, Mood, str]:
-    # Words only, never "TL" (the lines name no amount): the forecast counts the lira accounts alone.
+    # Words only, never "TL" (the lines name no amount): the forecast counts the lira accounts alone. The total of
+    # someone whose income comes in another currency falls though the money is there: it says why and what to do.
     whose = "Türk lirası hesaplarınızın toplamı" if n.total else "hesaplarınızdan biri"
     when = {0: "bugün", 1: "yarın"}.get(n.days, f"{n.days} gün sonra")
-    mood = Mood.CRITICAL if n.critical else Mood.WARNING
-    return Situation.GOING_NEGATIVE, mood, f"Öngörüye göre {whose} {when} eksiye düşecek."
+    said = f"Öngörüye göre {whose} {when} eksiye düşecek"
+    if not n.covered:
+        return Situation.GOING_NEGATIVE, Mood.CRITICAL if n.critical else Mood.WARNING, f"{said}."
+    why = ", çünkü bu hesaplara düzenli gelir görünmüyor" if not n.income else ""
+    cover = "Döviz ve yatırımlarınız bunu karşılıyor: o güne kadar bir kısmını Türk lirasına çevirmeniz yeter."
+    return Situation.GOING_NEGATIVE, Mood.WARNING, f"{said}{why}. {cover}"
 
 
 def _verdict(m: MonthFacts) -> tuple[Situation, Mood, str]:
@@ -344,7 +351,9 @@ def _negative(board: Dashboard, today: date) -> Negative | None:
     first = min(found, key=lambda alert: alert.day or today, default=None)
     if first is None or first.day is None:
         return None
-    return Negative((first.day - today).days, first.account == "", first.level is AlertLevel.CRITICAL)
+    short = first.short
+    covered, income = (short.covered, short.income) if short is not None else (False, True)
+    return Negative((first.day - today).days, first.account == "", first.level is AlertLevel.CRITICAL, covered, income)
 
 
 def _comparable(board: Dashboard) -> Decimal | None:

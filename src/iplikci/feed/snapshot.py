@@ -23,6 +23,7 @@ note too: an update tells no old price change.
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
+from decimal import Decimal
 from typing import Any, cast
 
 from ..analysis import Dataset
@@ -30,7 +31,7 @@ from ..domain.codes import EvidenceStatus, InvoiceStatus, MonthStatus
 from ..insights import Insights, month_of, shift
 from ..month_end import MonthEnd
 from ..upcoming import CardDue
-from .news import DUE_SOON, NEGATIVE, OCCURRENCES, UNMATCHED, Found, find
+from .news import DUE_SOON, NEGATIVE, OCCURRENCES, UNMATCHED, ZERO, Found, find
 
 BULK = 50
 # What the first snapshot tells all the same: a payment due within the week is still ahead. The forecast's balance
@@ -112,13 +113,21 @@ class Snapshot:
         return replace(self, told=told)
 
 
-def take(ds: Dataset, ins: Insights, months: list[MonthEnd], today: date, dues: Sequence[CardDue] = ()) -> Snapshot:
-    """The snapshot of an analysis made on today; dues are the cards' due dates the outlook reads (app.outlook)."""
+def take(
+    ds: Dataset,
+    ins: Insights,
+    months: list[MonthEnd],
+    today: date,
+    dues: Sequence[CardDue] = (),
+    cover: Decimal = ZERO,
+) -> Snapshot:
+    """The snapshot of an analysis made on today; dues are the cards' due dates the outlook reads (app.outlook), cover
+    what the foreign currency and investments are worth in TL today (app.now.cover)."""
     # A split row's parts are the one row the documents brought: its fingerprint is what news compares (F04).
     rows = {t.split_of or t.fingerprint: (t.account, t.date.isoformat()) for t in ds.transactions if t.fingerprint}
     receipts = {line.txn.fingerprint: str(line.status) for line in ds.receipts if line.txn.fingerprint}
     invoices = {found.key: str(found.status) for found in ds.invoices}
-    found = find(ds, ins, today, dues)
+    found = find(ds, ins, today, dues, cover)
     day = today.isoformat()
     told = {kind: {f.key: day for f in found if f.kind == kind} for kind in OCCURRENCES}
     negative = {str(f.detail["account"]): str(f.detail["day"]) for f in found if f.kind == NEGATIVE}

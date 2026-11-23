@@ -26,8 +26,9 @@ from ..domain.codes import (
 )
 from ..domain.labels import TODO_KIND, format_amount
 from ..domain.models import TRY
-from ..feed.news import TO_PAY, TOTAL
+from ..feed.news import TO_PAY, TOTAL, negative_detail
 from ..insights import month_of, months_in, pct
+from ..notify.content import forecast_negative
 from ..report import CLOSING_MONTHS
 from ..storage import bridges, documents, events
 from ..storage.db import Database
@@ -125,6 +126,15 @@ class DueSoon:
 
 
 @dataclass(frozen=True, slots=True)
+class Short:
+    """The TL accounts' total going below zero: whether an income is expected into them within the forecast's days,
+    and whether the foreign currency and investments the forecast leaves out cover the shortfall at today's value."""
+
+    income: bool
+    covered: bool
+
+
+@dataclass(frozen=True, slots=True)
 class Alert:
     kind: AlertKind
     level: AlertLevel
@@ -134,6 +144,7 @@ class Alert:
     account: str  # the account it concerns; "" for none
     link: Link
     day: date | None = None  # a forecast's first day below zero; None for the other kinds
+    short: Short | None = None  # the TL accounts' total below zero: why, and what covers it
 
 
 @dataclass(frozen=True, slots=True)
@@ -322,18 +333,23 @@ def due_soon(a: Analysis, today: date) -> DueSoon:
 
 
 def _negatives(a: Analysis, today: date) -> list[Alert]:
-    """The accounts whose forecast warns of a day below zero (AccountForecast.warning), and the accounts' total."""
+    """The accounts whose forecast warns of a day below zero (AccountForecast.warning), and the accounts' total, as
+    the notification of "balance.forecast_negative" says them in full (notify.content). The total's says whether the
+    foreign currency and investments the forecast leaves out cover it (now.cover); covered, it is no critical one: the
+    money is there, in another currency."""
     labels = account_labels(a)
+    fc = outlook.cash_flow(a, today).forecast
+    cover = now.cover(a)
     found: list[Alert] = []
-    for account, (day, balance) in outlook.cash_flow(a, today).forecast.warnings:
-        name = labels.get(account, account) if account else TOTAL
-        left = (day - today).days
-        level = AlertLevel.CRITICAL if left < DUE_DAYS else AlertLevel.WARNING
-        when = {0: "bugün", 1: "yarın"}.get(left, f"{left} gün sonra")
-        # As the notification of "balance.forecast_negative" says it in full (notify.content).
-        text = f"{name}: öngörüye göre bakiye {_day(day)} günü ({when}) {_amount(balance)} olacak."
+    for account, (day, balance) in fc.warnings:
+        detail = negative_detail(fc, account, labels.get(account, account) if account else TOTAL, (day, balance), cover)
+        covered = "cover" in detail and Decimal(detail["cover"]) >= -Decimal(detail["lowest"])
+        short = None if account else Short(bool(detail.get("income")), covered)
+        level = AlertLevel.CRITICAL if (day - today).days < DUE_DAYS and not covered else AlertLevel.WARNING
+        title = "Hesap eksiye düşecek" if account else "TL hesaplarının toplamı eksiye düşecek"
+        text = forecast_negative(detail, full=True)
         link = Link(Screen.FORECAST, account)
-        found.append(Alert(AlertKind.NEGATIVE, level, "Hesap eksiye düşecek", text, 1, account, link, day))
+        found.append(Alert(AlertKind.NEGATIVE, level, title, text, 1, account, link, day, short))
     return found
 
 

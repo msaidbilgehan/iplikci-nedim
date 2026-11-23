@@ -113,18 +113,32 @@ class Forecast:
     notes: list[str]  # what every account's forecast assumes, in Turkish
     label: str = ESTIMATE
 
-    @property
-    def total_negative(self) -> tuple[date, Decimal] | None:
-        """The first day the accounts' summed balance is below zero, when it starts at zero or above today: the
-        transfers between own accounts cancel out in it, an overdraft's credit in use counts as owed."""
+    def summed(self) -> list[tuple[date, Decimal]]:
+        """The accounts' summed balance at each day's end, from today: the transfers between own accounts cancel out
+        in it, an overdraft's credit in use counts as owed."""
         total: dict[date, Decimal] = defaultdict(Decimal)
         for account in self.accounts:
             for day, balance in account.days:
                 total[day] += balance
-        days = sorted(total)
-        if not days or total[days[0]] < 0:
+        return sorted(total.items())
+
+    @property
+    def total_negative(self) -> tuple[date, Decimal] | None:
+        """The first day the accounts' summed balance is below zero, when it starts at zero or above today."""
+        days = self.summed()
+        if not days or days[0][1] < 0:
             return None
-        return next(((day, total[day]) for day in days if total[day] < 0), None)
+        return next(((day, balance) for day, balance in days if balance < 0), None)
+
+    @property
+    def total_lowest(self) -> tuple[date, Decimal] | None:
+        """The accounts' summed balance at its lowest within the forecast's days, on the first day it is that low."""
+        return min(self.summed(), key=lambda point: point[1], default=None)
+
+    @property
+    def expects_income(self) -> bool:
+        """Whether an income is expected into the accounts within the forecast's days (an item of money in)."""
+        return any(item.amount < 0 for account in self.accounts for item in account.items)
 
     @property
     def warnings(self) -> list[tuple[str, tuple[date, Decimal]]]:

@@ -69,6 +69,7 @@ REPRICED_DAYS = 45
 # What the TL accounts' summed forecast is called where an account's name would stand: foreign currency, gold and
 # investments are not in it (forecast: TL accounts only), so "TL" says so.
 TOTAL = "TL hesaplarınızın toplamı"
+ZERO = Decimal(0)
 _EXPECTED = ("devam", "bitti")  # running, or ended as its documents went past it; a cancelled series is not expected
 
 
@@ -93,10 +94,10 @@ def money(value: Decimal) -> str:
     return f"{round_half_up(value):.2f}"
 
 
-def find(ds: Dataset, ins: Insights, today: date, dues: Sequence[CardDue] = ()) -> list[Found]:
+def find(ds: Dataset, ins: Insights, today: date, dues: Sequence[CardDue] = (), cover: Decimal = ZERO) -> list[Found]:
     """Everything the analysis has to tell as of today, kind by kind. The calendar and the forecast are made as the
     outlook makes them (app.outlook.calendar and cash_flow), with the cards' dues the caller reads from the
-    statements."""
+    statements; cover is what the foreign currency and investments are worth in TL today (app.now.cover)."""
     items = upcoming(ds, ins, today, dues, since=counted_from(ds, today))
     confirmed = _confirmed(ds)
     banks = {a.id: a.bank for a in ds.accounts.values()}
@@ -104,7 +105,7 @@ def find(ds: Dataset, ins: Insights, today: date, dues: Sequence[CardDue] = ()) 
     cards = {a.id for a in ds.accounts.values() if a.type in CARD_TYPES}
     return [
         *due_soon(items, today, cards, banks, categories),
-        *negatives(forecast(ds, ins, today, items), banks),
+        *negatives(forecast(ds, ins, today, items), banks, cover),
         *missing(ds, ins, today),
         *late(ds, ins, today),
         *repriced(ins, today),
@@ -166,26 +167,45 @@ def due_soon(
     return found
 
 
-def negatives(fc: Forecast, banks: Mapping[str, str] | None = None) -> list[Found]:
+def negatives(fc: Forecast, banks: Mapping[str, str] | None = None, cover: Decimal = ZERO) -> list[Found]:
     """The bank accounts whose forecast goes below zero within its days and warns of it (AccountForecast.warning), at
-    the first such day; and the accounts' total, when it goes below zero after today. An account's is about its bank
-    (banks: each account's)."""
+    the first such day; and the accounts' total, when it goes below zero after today, with what covers it (cover: the
+    foreign currency and investments the forecast leaves out, in TL today; app.now.cover). An account's is about its
+    bank (banks: each account's)."""
     labels = {account.account: account.label for account in fc.accounts}
     banks = banks or {}
     found: list[Found] = []
     for account, (day, balance) in fc.warnings:
-        title = labels[account] if account else TOTAL
-        detail: dict[str, Any] = {
-            "account": account,
-            "title": title,
-            "day": day.isoformat(),
-            "days": (day - fc.today).days,
-            "balance": money(balance),
-        }
+        detail = negative_detail(fc, account, labels[account] if account else TOTAL, (day, balance), cover)
         found.append(
             Found(NEGATIVE, f"{account or 'toplam'}|{day.isoformat()}", _about(detail, banks.get(account, "")))
         )
     return found
+
+
+def negative_detail(
+    fc: Forecast, account: str, title: str, first: tuple[date, Decimal], cover: Decimal = ZERO
+) -> dict[str, Any]:
+    """What a forecast's first day below zero tells (first: the day and the balance), as the notification and the
+    dashboard's alert say it (notify.content.forecast_negative). The TL accounts' total also tells why and what
+    covers it: whether an income is expected into them, its lowest within the forecast's days, and what the foreign
+    currency and investments the forecast leaves out are worth today. An income that comes in another currency, which
+    the user converts as needed, leaves the TL accounts' total falling though the money is there."""
+    day, balance = first
+    detail: dict[str, Any] = {
+        "account": account,
+        "title": title,
+        "day": day.isoformat(),
+        "days": (day - fc.today).days,
+        "balance": money(balance),
+    }
+    lowest = fc.total_lowest
+    if not account and lowest is not None:
+        detail["income"] = fc.expects_income
+        detail["lowest"], detail["lowest_day"] = money(lowest[1]), lowest[0].isoformat()
+        if cover > 0:
+            detail["cover"] = money(cover)
+    return detail
 
 
 # --- the series --------------------------------------------------------------------------------------------------

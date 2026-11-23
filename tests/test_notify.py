@@ -223,6 +223,40 @@ def test_a_balance_below_zero_is_told_in_summary_by_its_bank_or_as_the_total():
     )
 
 
+def test_the_totals_shortfall_says_why_and_that_the_foreign_currency_covers_it():
+    # An income in another currency leaves the TL accounts falling though the money is there (feed.news).
+    total = {
+        "account": "",
+        "title": "TL hesaplarınızın toplamı",
+        "day": "2027-01-05",
+        "days": 43,
+        "balance": "-250.00",
+        "income": False,
+        "lowest": "-12000.00",
+        "lowest_day": "2027-01-20",
+        "cover": "30000.00",
+    }
+    full = content.render(E.BALANCE_FORECAST_NEGATIVE, "k", total, DetailLevel.FULL).body
+    assert full == (
+        "TL hesaplarınızın toplamı: öngörüye göre 05.01.2027 günü (43 gün sonra) -250,00 TL olacak. Öngörü TL "
+        "hesaplarınıza düzenli bir gelir beklemiyor. 20.01.2027 gününe kadar en çok 12.000,00 TL eksik kalıyor; döviz "
+        "ve yatırımlarınız bugünkü değeriyle 30.000,00 TL: eksiye düşmeden önce bir kısmını TL'ye çevirmeniz yeter."
+    )
+    summary = content.render(E.BALANCE_FORECAST_NEGATIVE, "k", total, DetailLevel.SUMMARY).body
+    assert summary == (
+        "Öngörüye göre TL hesaplarınızın toplamı 43 gün sonra eksiye düşüyor: -250,00 TL. Döviz ve yatırımlarınız "
+        "bunu karşılıyor."
+    )
+    short = {**total, "income": True, "cover": "5000"}
+    assert content.render(E.BALANCE_FORECAST_NEGATIVE, "k", short, DetailLevel.FULL).body.endswith(
+        "olacak. En çok 12.000,00 TL eksik kalıyor; döviz ve yatırımlarınız bugünkü değeriyle 5.000,00 TL, hepsini "
+        "karşılamıyor."
+    )
+    assert content.render(E.BALANCE_FORECAST_NEGATIVE, "k", short, DetailLevel.SUMMARY).body.endswith(
+        "Döviz ve yatırımlarınız bunun hepsini karşılamıyor."
+    )
+
+
 def test_a_month_and_one_event_for_many_are_told_plainly():
     assert content.render(E.MONTH_CLOSED, "2026-10", {}, DetailLevel.SUMMARY).body.startswith("Ekim 2026 kapandı")
     assert content.render(E.TRANSACTION_LARGE, "", {"count": 12}, DetailLevel.FULL).body == (

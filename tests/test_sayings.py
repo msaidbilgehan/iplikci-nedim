@@ -265,6 +265,28 @@ def test_a_forecast_below_zero_comes_before_everything(negative, mood, reason):
     assert {s.quote.id for s in choose(facts(negative=negative), TODAY)} == set(LINES[Situation.GOING_NEGATIVE])
 
 
+def test_a_total_the_foreign_currency_covers_says_why_and_what_to_do_without_alarm():
+    covered = Negative(38, True, False, covered=True, income=False)
+    assert said(facts(negative=covered))[0] == (
+        Situation.GOING_NEGATIVE,
+        Mood.WARNING,
+        (
+            "Öngörüye göre Türk lirası hesaplarınızın toplamı 38 gün sonra eksiye düşecek, çünkü bu hesaplara düzenli "
+            "gelir görünmüyor. Döviz ve yatırımlarınız bunu karşılıyor: o güne kadar bir kısmını Türk lirasına "
+            "çevirmeniz yeter."
+        ),
+    )
+    soon = Negative(2, True, True, covered=True, income=True)  # within the week, but the money is there
+    assert said(facts(negative=soon))[0] == (
+        Situation.GOING_NEGATIVE,
+        Mood.WARNING,
+        (
+            "Öngörüye göre Türk lirası hesaplarınızın toplamı 2 gün sonra eksiye düşecek. Döviz ve yatırımlarınız bunu "
+            "karşılıyor: o güne kadar bir kısmını Türk lirasına çevirmeniz yeter."
+        ),
+    )
+
+
 def test_debts_larger_than_the_money_are_a_wedding_on_borrowed_means():
     assert said(facts(net_worth="-0.01")) == [
         (Situation.IN_DEBT, Mood.WARNING, "Borçlarınız hesaplarınızdaki paradan fazla."),

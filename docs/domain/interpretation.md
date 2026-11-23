@@ -311,6 +311,14 @@ klasör (demonunki gibi) de yakın son ödemeyi o an söyler (v1.0.2).
   - TL hesapların toplamı da izlenir ("TL hesaplarınızın toplamı"): toplam bugün eksi değilken öngörüde eksiye düşerse
     söylenir. Kendi hesaplar arasındaki aktarmalar toplamda birbirini götürür, KMH'nin kullanılan kredisi borç olarak
     sayılır. Toplamın ilk eksi günü bir hesabın uyarısıyla aynı gün ve tutarsa (tek hesap) ikinci kez söylenmez.
+    - Toplamın uyarısı nedenini ve neyin karşıladığını da söyler. Öngörü TL hesaplara hiçbir gelir beklemiyorsa bunu
+      yazar. Toplamın öngörü günleri içindeki en düşük hâlini günüyle verir. Öngörünün dışında kalan döviz ve
+      yatırımların bugünkü değerini de yazar: altın fiyatsız sayılmaz, borçlar sayılmaz.
+    - Bu değer en düşük hâli karşılıyorsa uyarı "eksiye düşmeden önce bir kısmını TL'ye çevirmeniz yeter" der. Pano'da
+      kritik değil, uyarıdır; İplikçi Nedim'in sözü de uyarıdır.
+    - Karşılamıyorsa "hepsini karşılamıyor" der. Hafta içindeyse kritiktir.
+    - Neden (2026-11-23): geliri başka bir para biriminde gelip gerektikçe TL'ye çevrilince TL hesaplar her gün iner.
+      Uyarı yalnızca ilk eksi günü söylediği için kullanıcı parasının bittiğini sanmıştı.
   - Hesap önceki analizde eksiye düşmüyorduysa ya da gün öne geldiyse söylenir.
   - Gün yalnızca ileri kaydıysa yeni haber değildir. Bakiye bugün zaten eksideyse ilk eksi gün her gün bugündür;
     bakiyesi 60 günden eski bir hesabın öngörüsü her gün aynı bakiyeden başlar, günlere yayılan çıkışların

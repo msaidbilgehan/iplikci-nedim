@@ -121,11 +121,7 @@ def _text(kind: EventKind, target: str, d: Mapping[str, Any], full: bool) -> str
         minimum = f" Asgari ödeme {_tl(d['minimum'])}." if d.get("minimum") else ""
         return f"{title} · {payment}: {when} ({_day(d.get('due'))}), {amount}.{minimum}"
     if kind is E.BALANCE_FORECAST_NEGATIVE:
-        when, balance = _when(d.get("days")), _tl(d.get("balance", ""))
-        if not full:
-            subject = f"bakiye{_about(d)}" if d.get("account") else "TL hesaplarınızın toplamı"
-            return f"Öngörüye göre {subject} {when} eksiye düşüyor: {balance}."
-        return f"{title}: öngörüye göre bakiye {_day(d.get('day'))} günü ({when}) {balance} olacak."
+        return forecast_negative(d, full)
     if kind is E.EXPECTED_PAYMENT_MISSING:
         if not full:
             return f"Beklenen bir ödeme görünmedi{_about(d)}: {amount}."
@@ -158,6 +154,46 @@ def _text(kind: EventKind, target: str, d: Mapping[str, Any], full: bool) -> str
             return f"Bir dekont ekstrede görünmüyor{_about(d)}: {amount}."
         return f"{title}: {amount} tutarındaki dekont kapsayan ekstrede görünmüyor{_where(d)}."
     return _plain(kind, target, d)
+
+
+def forecast_negative(d: Mapping[str, Any], full: bool) -> str:
+    """balance.forecast_negative's text, which the dashboard's alert says in full too: an account's or the TL
+    accounts' total's first day below zero. The total's also says why it falls and what covers it (feed.news.
+    negative_detail): an income that comes in another currency leaves the TL accounts falling though the money is
+    there."""
+    when, balance = _when(d.get("days")), _tl(d.get("balance", ""))
+    if d.get("account"):
+        if not full:
+            return f"Öngörüye göre bakiye{_about(d)} {when} eksiye düşüyor: {balance}."
+        return f"{d.get('title', '')}: öngörüye göre bakiye {_day(d.get('day'))} günü ({when}) {balance} olacak."
+    if not full:
+        return f"Öngörüye göre TL hesaplarınızın toplamı {when} eksiye düşüyor: {balance}.{_covered(d, full)}"
+    first = f"{d.get('title', '')}: öngörüye göre {_day(d.get('day'))} günü ({when}) {balance} olacak."
+    return first + _covered(d, full)
+
+
+def _covered(d: Mapping[str, Any], full: bool) -> str:
+    """Why the TL accounts' total falls and whether the foreign currency and investments cover it, in a sentence or
+    two after the first; "" for an event stored before they were told."""
+    said = " Öngörü TL hesaplarınıza düzenli bir gelir beklemiyor." if d.get("income") is False and full else ""
+    try:
+        cover, lowest = Decimal(str(d["cover"])), Decimal(str(d["lowest"]))
+    except (KeyError, InvalidOperation):
+        return said
+    short, worth = _tl(-lowest), _tl(cover)
+    if cover >= -lowest:
+        if not full:
+            return " Döviz ve yatırımlarınız bunu karşılıyor."
+        until = _day(d.get("lowest_day"))
+        return (
+            f"{said} {until} gününe kadar en çok {short} eksik kalıyor; döviz ve yatırımlarınız bugünkü değeriyle "
+            f"{worth}: eksiye düşmeden önce bir kısmını TL'ye çevirmeniz yeter."
+        )
+    if not full:
+        return " Döviz ve yatırımlarınız bunun hepsini karşılamıyor."
+    return (
+        f"{said} En çok {short} eksik kalıyor; döviz ve yatırımlarınız bugünkü değeriyle {worth}, hepsini karşılamıyor."
+    )
 
 
 def _plain(kind: EventKind, target: str, d: Mapping[str, Any]) -> str:

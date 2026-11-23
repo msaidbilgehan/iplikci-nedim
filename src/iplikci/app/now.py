@@ -340,6 +340,14 @@ def outside(a: Analysis, fc: Forecast) -> list[Balance]:
     return [b for b in found if b.type in _OUTSIDE and b.account not in counted]
 
 
+def cover(a: Analysis) -> Decimal:
+    """What the foreign currency and the investments the forecast leaves out (outside) are worth in TL today: what
+    converting them would bring to the TL accounts when their total falls short. Gold without a price and debts count
+    nothing."""
+    found, _ = balances(a)
+    return sum((b.value for b in found if b.type in _OUTSIDE and b.value is not None and b.value > 0), ZERO)
+
+
 def _spent(rows: list[Transaction]) -> Decimal:
     return sum((t.amount for t in rows if t.kind in DEFAULT_EXPENSE_KINDS), ZERO)
 

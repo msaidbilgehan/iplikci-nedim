@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from datetime import date, timedelta
 from decimal import Decimal
 
-from iplikci.analysis import CONFIRMED, NOT_ON_STATEMENT, PROVISIONAL, Dataset, ReceiptLine
+from iplikci.analysis import CONFIRMED, NOT_ON_STATEMENT, PROVISIONAL, Dataset, ReceiptLine, Start
 from iplikci.app import background
 from iplikci.domain.codes import AccountType, EvidenceStatus, Necessity, RateSource, TransactionKind
 from iplikci.domain.dates import add_months
@@ -16,6 +16,7 @@ from iplikci.fakes import teb
 from iplikci.feed import news
 from iplikci.feed.news import Found
 from iplikci.feed.snapshot import BULK, Change, Snapshot, diff, take
+from iplikci.forecast import AccountForecast, Forecast
 from iplikci.fx.book import Quote, RateBook
 from iplikci.insights import interpret
 from iplikci.storage import events
@@ -239,6 +240,37 @@ def test_a_balance_below_zero_names_the_account_its_first_day_and_the_balance_th
             "about": "TEB",
         },
     )
+
+
+def test_the_totals_shortfall_tells_its_lowest_whether_an_income_comes_and_what_covers_it():
+    # A deposit that stays at 1.000 TL and an overdraft account whose credit in use grows by 100 TL a day: neither
+    # warns of itself, their total goes below zero in eleven days, and no income comes.
+    today = date(2026, 11, 15)
+    days = [today + timedelta(days=i) for i in range(60)]
+
+    def account(id: str, balance: int, step: int, overdraft: bool) -> AccountForecast:
+        start = Start(Decimal(balance), Decimal(balance), today, False, 0, today)
+        path = [(day, Decimal(balance - step * i)) for i, day in enumerate(days)]
+        return AccountForecast(id, id, start, path, [], None, None, [], overdraft=overdraft)
+
+    fc = Forecast(today, days[-1], [account("vadeli", 1000, 0, False), account("kmh", 0, 100, True)], [], [], [])
+    (total,) = news.negatives(fc, {}, Decimal(6000))  # the foreign currency and investments, in TL today
+    assert (total.target, total.detail) == (
+        "toplam|2026-11-26",
+        {
+            "account": "",
+            "title": news.TOTAL,
+            "day": "2026-11-26",
+            "days": 11,
+            "balance": "-100.00",
+            "income": False,
+            "lowest": "-4900.00",
+            "lowest_day": "2027-01-13",
+            "cover": "6000.00",
+        },
+    )
+    (bare,) = news.negatives(fc)  # nothing in another currency: no cover told
+    assert "cover" not in bare.detail and bare.detail["lowest"] == "-4900.00"
 
 
 def test_a_balance_below_zero_is_told_once_and_again_when_it_comes_sooner_or_after_it_recovered():
