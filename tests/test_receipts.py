@@ -6,11 +6,12 @@ from decimal import Decimal
 
 import pytest
 
-from iplikci.analysis import CONFIRMED, NO_STATEMENT, NOT_ON_STATEMENT, PROVISIONAL, build
+from iplikci import month_end
+from iplikci.analysis import CONFIRMED, NO_STATEMENT, NOT_ON_STATEMENT, PROVISIONAL, build, seams, start_of
 from iplikci.categorize import Categorizer
 from iplikci.domain.codes import AccountType, TransactionKind
 from iplikci.domain.models import Account, ParseResult, Statement, Transaction
-from iplikci.insights import interpret
+from iplikci.insights import debt_at, interpret
 from iplikci.parsers.contract import Document
 
 from conftest import PEOPLE_RULES
@@ -163,6 +164,80 @@ def test_a_receipt_from_before_the_accounts_documents_counts_as_it_is(cat):
     assert statuses(ds) == [("Giden Havale → VELİ ÖRNEKSOY", NO_STATEMENT)]
     [rent] = ds.transactions
     assert (rent.category, rent.provisional) == ("Kira", False)
+
+
+# --- a list taken during its last day ----------------------------------------------------------
+
+
+def taken_at_noon(*rows: Transaction, closing: Decimal = Decimal(-2000)) -> ParseResult:
+    """The overdraft account's June list, downloaded at noon on 30 June: the evening's movements are not in it."""
+    return listing(OVERDRAFT, date(2026, 6, 1), date(2026, 6, 30), *rows, closing=closing)
+
+
+def from_july(*rows: Transaction, opening: Decimal, end: date = date(2026, 7, 23)) -> ParseResult:
+    """The account's next list, from 1 July: it opens with the balance at the end of 30 June."""
+    return listing(OVERDRAFT, date(2026, 7, 1), end, *rows, closing=opening - sum((r.amount for r in rows), Decimal(0)))
+
+
+def paid_off(day: date = date(2026, 6, 30)) -> ParseResult:
+    """The receipt of the evening's transfer that paid the overdraft's debt off."""
+    return receipt(
+        "r1", OVERDRAFT, row(day, "Gelen FAST ← ÖRNEK İSİM SOYADOĞLU", Decimal(-2100), OVERDRAFT, who=HOLDER)
+    )
+
+
+def test_a_receipt_after_a_list_taken_that_day_counts_as_the_next_lists_opening_balance_tells(cat):
+    # The June list closes at −2.000 and the July list opens at +100: the transfer of 2.100 that came in between is in
+    # neither list's rows. The statements do cover 30 June, but not the hours after noon.
+    ds = analyse(cat, taken_at_noon(), from_july(opening=Decimal(100)), paid_off())
+    assert statuses(ds) == [("Gelen FAST ← ÖRNEK İSİM SOYADOĞLU", NO_STATEMENT)]
+    [came] = ds.transactions
+    assert (came.amount, came.kind, came.provisional) == (Decimal(-2100), TransactionKind.OWN_TRANSFER, False)
+    ins = interpret(ds)
+    assert "Ekstrede görünmeyen dekontlar" not in {f.title for f in ins.findings}
+    [june] = month_end.build(ds, ins, today=date(2026, 7, 23), months=["2026-06"])
+    [account] = june.accounts
+    assert (account.status, account.balance) == (month_end.CLOSED, Decimal(100))
+
+
+def test_a_receipt_dated_the_next_day_counts_when_the_balances_put_it_between_the_lists(cat):
+    # Sent around midnight: the receipt is dated 1 July, the bank booked it on 30 June after noon.
+    ds = analyse(cat, taken_at_noon(), from_july(opening=Decimal(100)), paid_off(date(2026, 7, 1)))
+    assert statuses(ds) == [("Gelen FAST ← ÖRNEK İSİM SOYADOĞLU", NO_STATEMENT)]
+
+
+def test_a_receipt_the_balances_between_two_lists_do_not_account_for_stays_a_look(cat):
+    # The July list opens where the June one closed: nothing came in between, so the lists' silence counts.
+    ds = analyse(cat, taken_at_noon(), from_july(opening=Decimal(-2000)), paid_off())
+    assert statuses(ds) == [("Gelen FAST ← ÖRNEK İSİM SOYADOĞLU", NOT_ON_STATEMENT)]
+    assert ds.transactions == []
+
+
+def test_a_receipt_between_two_lists_never_moves_the_later_lists_balance(cat):
+    # The July list reaches 2 July only, so the receipt's days (to 3 July) reach past it; its opening balance holds
+    # the transfer already, which must not move its closing balance a second time.
+    ds = analyse(cat, taken_at_noon(), from_july(opening=Decimal(100), end=date(2026, 7, 2)), paid_off())
+    assert statuses(ds) == [("Gelen FAST ← ÖRNEK İSİM SOYADOĞLU", NO_STATEMENT)]
+    found = start_of(ds, OVERDRAFT.id)
+    assert found is not None
+    assert (found.balance, found.moves) == (Decimal(100), 0)
+
+
+def test_the_next_lists_opening_balance_closes_the_month_the_earlier_list_was_taken_in(cat):
+    # Without a receipt too: the day's end is what the next list opens with, so the debt was paid off by June's end.
+    ds = analyse(cat, taken_at_noon(), from_july(opening=Decimal(100)))
+    june = next(s for s in ds.statements if s.cut_date == date(2026, 6, 30))
+    assert (june.total, june.balances) == (Decimal(-2000), {"2026-06": Decimal(100)})
+    assert debt_at(ds, date(2026, 6, 30)) == 0
+
+
+def test_lists_meet_only_where_no_list_covers_the_night_between_them(cat):
+    across = listing(OVERDRAFT, date(2026, 6, 25), date(2026, 7, 5), closing=Decimal(100))
+    ds = analyse(cat, taken_at_noon(), across, from_july(opening=Decimal(100)))
+    assert seams(ds.statements) == []
+    ds = analyse(cat, taken_at_noon(), from_july(opening=Decimal(100)))
+    [seam] = seams(ds.statements)
+    assert (seam.day, seam.moved) == (date(2026, 6, 30), Decimal(-2100))
 
 
 def test_an_own_transfer_receipt_is_told_apart_by_the_senders_name(cat):

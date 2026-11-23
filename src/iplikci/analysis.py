@@ -219,6 +219,61 @@ def one_list_per_day(statements: Sequence[Statement]) -> list[Statement]:
     ]
 
 
+@dataclass(frozen=True)
+class Seam:
+    """Two movement lists of one account, the later one starting the day after the earlier one ends, and no list
+    across that night. A list is taken at some moment of its last day (the day it is downloaded): what the bank books
+    on that day afterwards is in neither list's rows, but in the later list's opening balance."""
+
+    earlier: Statement
+    later: Statement
+    closing: Decimal  # the earlier list's closing balance: the moment it was taken
+    opening: Decimal  # the later list's opening balance: the end of the earlier one's last day
+
+    @property
+    def day(self) -> date:
+        return self.earlier.cut_date
+
+    @property
+    def moved(self) -> Decimal:
+        """What left the account on the seam's day after the earlier list was taken; below zero, what came in."""
+        return self.closing - self.opening
+
+
+def seams(statements: Iterable[Statement]) -> list[Seam]:
+    """Where an account's movement lists meet (Seam): both print the balance there, and no list of the account covers
+    both the earlier one's last day and the later one's first."""
+    by_account: dict[tuple[str, str], list[Statement]] = defaultdict(list)
+    for s in statements:
+        if s.is_account:
+            by_account[(s.account, s.currency)].append(s)
+    found: list[Seam] = []
+    for lists in by_account.values():
+        for later in lists:
+            if later.start is None or later.previous is None:
+                continue
+            day = later.start - timedelta(days=1)
+            if any((s.start or s.cut_date) <= day and s.cut_date >= later.start for s in lists):
+                continue  # a list covers that night: its own rows tell what moved
+            found += [
+                Seam(earlier, later, earlier.total, later.previous)
+                for earlier in lists
+                if earlier.cut_date == day and earlier.total is not None
+            ]
+    return found
+
+
+def end_at_next_opening(statements: Sequence[Statement]) -> list[Statement]:
+    """statements with the earlier list of each seam closing its last month at the balance the later one opens with:
+    the end of that day, where the earlier list prints the moment it was taken (Ay sonu's balance, an overdraft's use,
+    the debts on that day). A statement given here is never changed: one closing otherwise is a copy."""
+    ends = {id(seam.earlier): seam for seam in seams(statements) if seam.moved}
+    return [
+        replace(s, balances={**s.balances, f"{s.cut_date:%Y-%m}": seam.opening}) if (seam := ends.get(id(s))) else s
+        for s in statements
+    ]
+
+
 _ADVANCE = "TAKSITLI NAKIT AVANS"
 _CARD_DIGITS = re.compile(r"\*{4}\s?(\d{4})\b")  # a card as an account's line names it: "**** ****1234"
 _INSTALLMENT = re.compile(r"(\d+)/(\d+)")
@@ -402,7 +457,27 @@ def settle_receipts(
                 if line.status == NOT_ON_STATEMENT:
                     line.status = CONFIRMED
         lines += settled
+    for seam in seams(statements):
+        _between_lists(seam, lines)
     return lines
+
+
+def _between_lists(seam: Seam, lines: Sequence[ReceiptLine]) -> None:
+    """The receipt rows of the seam's account that no list shows and that the bank may have booked on the seam's day
+    (POSTING_DAYS), when they make up to the cent what moved after the earlier list was taken: then that is what they
+    are. They count as rows no list shows (NO_STATEMENT): not a look (NOT_ON_STATEMENT), as the earlier list does not
+    cover the hours they came in, nor waiting for a list (PROVISIONAL), as the later list's balance holds them."""
+    near = [
+        line
+        for line in lines
+        if line.txn.account == seam.earlier.account
+        and line.status is not CONFIRMED
+        and line.txn.date + timedelta(days=POSTING_DAYS[0]) <= seam.day
+        and seam.day <= line.txn.date + timedelta(days=POSTING_DAYS[1])
+    ]
+    if near and abs(sum((line.native for line in near), Decimal(0)) - seam.moved) <= CENT:
+        for line in near:
+            line.status = NO_STATEMENT
 
 
 # --- balances -------------------------------------------------------------------
@@ -1022,6 +1097,7 @@ def build(
     _drop_told_twice(receipts, notices)
     stmts = sorted(statements.values(), key=lambda s: (s.account, s.cut_date, s.currency))
     stmts = split_card_advances(stmts, accounts)
+    stmts = end_at_next_opening(stmts)
     # The rows the ledger counts: a day two lists of an account cover comes from one of them. Fingerprints are given
     # to those rows only, so a row keeps its fingerprint (and the user's notes) whichever list brings it.
     counted = one_list_per_day(stmts)
