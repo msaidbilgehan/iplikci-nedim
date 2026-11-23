@@ -3,21 +3,25 @@ Each test's computers are data folders beside each other; the "Google Drive" is 
 
 import json
 import shutil
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
-from iplikci.app import annotate, memory, sync
+from iplikci.app import annotate, memory, notify, sync, telegram
 from iplikci.app.analysis import analyze
 from iplikci.app.workspace import Workspace
-from iplikci.domain.codes import Actor, Channel, DocumentStatus, MemoryKind
+from iplikci.domain.codes import Actor, Channel, DeliveryStatus, DocumentStatus, MemoryKind
 from iplikci.fakes import teb
 from iplikci.settings import config
-from iplikci.storage import aliases, annotations, audit, documents, memories
+from iplikci.storage import aliases, annotations, audit, documents, events, feed_state, memories, notifications
 from iplikci.storage import db as database
-from iplikci.sync import library, machine
-from iplikci.sync.state import Kind, decode
+from iplikci.sync import library, machine, places
+from iplikci.sync.clock import Clock, Stamp
+from iplikci.sync.state import Entry, Kind, Published, StateError, decode, encode, merge
 
 from conftest import FEBRUARY, JANUARY, RULES, add
 
@@ -103,6 +107,19 @@ def test_a_second_computer_gets_the_documents_notes_and_rules_and_reads_the_same
     status = sync.status(b)
     assert status.on and len(status.devices) == 2 and status.devices[0].me
     assert status.waiting_down == 0 and status.waiting_up == 0 and not status.problem
+
+
+def test_a_document_from_another_computer_is_news_in_the_feed_as_it_came_in(a, b, drive):
+    sync.turn_on(a, str(drive))
+    rounds(a)
+    sync.turn_on(b, str(drive))
+    rounds(b)
+    add(a, "ocak.xls", teb.account_export(JANUARY))
+    rounds(a, b)
+    with b.db() as db:
+        [doc] = documents.every(db)
+        received = [e for e in events.entries(db, "document.received") if e.target == doc.sha256]
+    assert [e.detail for e in received] == [{"source": "import"}]
 
 
 def test_the_folder_holds_one_part_per_computer_with_its_state_and_originals(a, b, drive):
@@ -368,3 +385,139 @@ def test_claude_notes_written_through_mcp_reach_the_other_computer(a, b, drive):
     rounds(a, b)
     with b.db() as db:
         assert memories.get(db, "ev-kirasi") is not None
+
+
+# --- the notifications leaving the computer ----------------------------------------------------------------
+
+
+@dataclass
+class Recorder:
+    got: list[str] = field(default_factory=list)
+
+    def send(self, message) -> None:
+        self.got.append(message.title)
+
+
+def test_a_computer_that_does_not_send_telegram_gives_up_what_waits_for_it_there(a, b, drive):
+    sync.turn_on(a, str(drive))
+    sync.run_round(a, channels=lambda: ("telegram",))
+    sync.turn_on(b, str(drive))
+    rounds(b)
+    at = datetime.now(UTC)
+    with b.db() as db:
+        added = notifications.add(
+            db,
+            notifications.Notification(
+                id=0,
+                created_at=at.isoformat(),
+                rule="Ay kapandı",
+                event_id=1,
+                kind="month.closed",
+                key="2026-10",
+                channel=Channel.TELEGRAM,
+                detail="summary",
+                title="Ekim kapandı",
+                body="Ekim kapandı.",
+                status=DeliveryStatus.PENDING,
+            ),
+        )
+    telegram = Recorder()
+    notify.deliver(b, at, senders={Channel.TELEGRAM: telegram})
+    assert telegram.got == []
+    with b.db() as db:
+        [n] = [n for n in notifications.every(db) if n.id == added]
+    assert n.status == DeliveryStatus.FAILED and n.error == notify.ELSEWHERE
+    notify.deliver(a, at, senders={Channel.TELEGRAM: telegram})  # a has none waiting: nothing to send twice
+
+
+def test_only_the_computer_sending_telegram_reads_the_bot(a, b, drive):
+    for ws in (a, b):
+        config.update(ws.layout.settings, "notify", {"telegram_chat": 42})
+        with ws.db() as db:
+            feed_state.save(db, notify.BOT, "deneme_bot")
+    with b.db() as db:
+        assert telegram._listening(db, config.load(b.layout.settings), datetime.now(UTC))  # no sync: on its own
+    sync.turn_on(a, str(drive))
+    sync.run_round(a, channels=lambda: ("telegram",))
+    sync.turn_on(b, str(drive))
+    rounds(b)
+    for ws, reads in ((a, True), (b, False)):
+        with ws.db() as db:
+            assert telegram._listening(db, config.load(ws.layout.settings), datetime.now(UTC)) is reads
+
+
+# --- the merge, the clock and the places ---------------------------------------------------------------------
+
+
+def test_stamps_never_go_back_and_come_after_every_stamp_seen():
+    wall = iter([1000, 1000, 999, 5000])
+    clock = Clock("aaaaaaaaaaaa", wall=lambda: next(wall))
+    first, second, third = clock.now(), clock.now(), clock.now()
+    assert first < second < third  # the wall clock went back; the stamps did not
+    clock.observe(Stamp(9000, 7, "bbbbbbbbbbbb"))
+    assert clock.now() > Stamp(9000, 7, "bbbbbbbbbbbb")
+    assert Stamp.parse(third.text) == third
+
+
+entry_lists = st.lists(
+    st.tuples(
+        st.sampled_from([Kind.ANNOTATION, Kind.DOCUMENT]),
+        st.sampled_from(["k1", "k2"]),
+        st.integers(0, 50),
+        st.sampled_from([None, '{"note":"x"}', '{"removed":false}', '{"removed":true}']),
+    ),
+    max_size=12,
+)
+
+
+def _entries(raw) -> list[Entry]:
+    # A stamp is never given twice: the position stands for the counter.
+    return [Entry(kind, key, Stamp(ms, i, "aaaaaaaaaaaa"), value) for i, (kind, key, ms, value) in enumerate(raw)]
+
+
+@given(entry_lists, st.randoms())
+def test_merging_gives_the_same_pieces_in_any_order_and_however_often(raw, random):
+    entries = _entries(raw)
+    shuffled = list(entries)
+    random.shuffle(shuffled)
+    assert merge(entries) == merge(shuffled) == merge(entries + entries)
+    half = len(entries) // 2
+    assert merge([*merge(entries[:half]).values(), *entries[half:]]) == merge(entries)
+
+
+@given(entry_lists)
+def test_a_documents_removal_wins_over_every_version_that_keeps_it(raw):
+    for (kind, _), winner in merge(_entries(raw)).items():
+        removed = [e for e in _entries(raw) if e.id == winner.id and e.value == '{"removed":true}']
+        if kind == Kind.DOCUMENT and removed:
+            assert winner.value == '{"removed":true}'
+
+
+def test_the_state_file_reads_back_as_written():
+    entries = (
+        Entry(Kind.ANNOTATION, "parmak-izi", Stamp(1, 0, "aaaaaaaaaaaa"), '{"note":"çay","tags":["iş"]}'),
+        Entry(Kind.MEMORY, "silinen", Stamp(2, 1, "bbbbbbbbbbbb"), None),
+    )
+    published = Published("kume", "aaaaaaaaaaaa", "1.1.0", "2026-11-24T10:00:00+00:00", entries)
+    assert decode(encode(published)) == published
+    with pytest.raises(StateError):
+        decode(b'{"format": "baska"}')
+
+
+def test_google_drive_is_found_under_the_users_cloud_storage_and_the_others_after_it(tmp_path):
+    home = tmp_path / "ev"
+    (home / "Library" / "CloudStorage" / "GoogleDrive-kisi@example.com" / "Drive'ım").mkdir(parents=True)
+    (home / "Library" / "CloudStorage" / "GoogleDrive-kisi@example.com" / "Diğer bilgisayarlar").mkdir()
+    (home / "Library" / "Mobile Documents" / "com~apple~CloudDocs").mkdir(parents=True)
+    found = places.found(home, "darwin", {}, volumes=tmp_path / "yok")
+    assert [(p.label, p.account, p.root.name) for p in found] == [
+        ("Google Drive", "kisi@example.com", "Drive'ım"),
+        ("iCloud Drive", "", "com~apple~CloudDocs"),
+    ]
+    assert places.kind_of(found[0].root / "İplikçi Nedim", found) == found[0]
+
+
+def test_google_drive_is_found_on_its_own_drive_letter_on_windows(tmp_path):
+    (tmp_path / "G" / "My Drive").mkdir(parents=True)
+    found = places.found(tmp_path / "ev", "win32", {}, drive_root=lambda letter: tmp_path / letter)
+    assert [(p.label, p.root) for p in found] == [("Google Drive", tmp_path / "G" / "My Drive")]

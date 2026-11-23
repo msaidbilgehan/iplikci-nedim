@@ -35,7 +35,7 @@ from typing import Any
 from .. import __version__
 from ..domain.codes import Actor, Channel
 from ..settings import config
-from ..storage import audit, events
+from ..storage import audit, documents, events
 from ..storage import sync as stored
 from ..storage.db import Database
 from ..sync import library, machine
@@ -78,6 +78,8 @@ LISTING_KEPT = 30 * 60.0  # seconds a listing of the folder's originals is trust
 EXTERNAL = (Channel.TELEGRAM, Channel.EMAIL)  # the channels whose notifications one computer sends
 ON, OFF, RENAMED, SENDER_SET = "sync.on", "sync.off", "sync.renamed", "sync.sender"  # the audit log's actions
 APPLIED = "sync.applied"
+RECEIVED = "document.received"  # the feed's event, as a document taken in here records it
+ARRIVALS_TOLD = 50  # more documents than this coming in one round are one event that counts them
 
 
 class SyncError(Exception):
@@ -560,7 +562,19 @@ def _merge(ws: Workspace, me: Me, remote: list[Entry], at: datetime) -> shared.A
         _apply_files(ws, db, applied)
         if applied.any:
             audit.record(db, Actor.SYNC, APPLIED, "", **applied.counts)
+        _tell_arrivals(db, applied.added)
     return applied
+
+
+def _tell_arrivals(db: Database, added: Sequence[str]) -> None:
+    """The documents that came from another computer, into the feed as they came in on it: one event each, or one that
+    counts them when many came at once (a computer joining, or back after a long time)."""
+    if len(added) > ARRIVALS_TOLD:
+        events.append(db, RECEIVED, "", count=len(added))
+        return
+    for sha256 in added:
+        first = next(iter(documents.sources(db, sha256)), None)
+        events.record(db, RECEIVED, sha256, **({"source": first.kind.value} if first else {}))
 
 
 def _stamp_changes(
@@ -813,11 +827,8 @@ def status(ws: Workspace) -> Status:
         kept = [key for (kind, key), r in rows.items() if kind == Kind.DOCUMENT and not removed_document(r.value)]
         documents = len(kept)
         waiting_down = sum(1 for sha in kept if not ws.vault.has(sha))
-        try:
-            folder_objects = _listing(path)
-            waiting_up = sum(1 for sha in kept if ws.vault.has(sha) and sha not in folder_objects)
-        except OSError:
-            waiting_up = 0
+        folder_objects = _peers.setdefault(ws.home, _Peers()).listing(path)  # the rounds' listing while fresh
+        waiting_up = sum(1 for sha in kept if ws.vault.has(sha) and sha not in folder_objects)
     place = known_places.kind_of(path, known_places.found()) if path else None
     return Status(
         on=on,
