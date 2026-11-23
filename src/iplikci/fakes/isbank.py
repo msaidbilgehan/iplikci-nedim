@@ -164,17 +164,20 @@ def account_xls(
     period: tuple[date, date] = (date(2026, 10, 1), date(2026, 10, 31)),
     made: date | None = None,
     below: Sequence[Sequence[Cell]] = (),
+    product: str = "Vadesiz - TL",
+    iban: str = "TR00 0006 4000 0011 2340 1234 56",
 ) -> bytes:
-    """An İş Bankası "Hesap Özeti" export (XLS) of account 1234-0123456: the holder and the account above a table
-    of rows, newest first. The text column has an empty neighbour before the reference; the reader joins the
-    cells between the two headings. made: the day the summary was made ("Belge Düzenleme Tarihi"), printed beside
-    the balance it had then; below: what the bank prints under the rows (FOOTNOTE_ROWS)."""
+    """An İş Bankası "Hesap Özeti" export (XLS) of account 1234-0123456 (the IBAN's last eleven digits): the holder
+    and the account above a table of rows, newest first. The text column has an empty neighbour before the reference;
+    the reader joins the cells between the two headings. made: the day the summary was made ("Belge Düzenleme
+    Tarihi"), printed beside the balance it had then; below: what the bank prints under the rows (FOOTNOTE_ROWS);
+    product: the account's "Ürün-Döviz Tipi"."""
     balanced = with_balances([m for m, _ in moves], opening)
     head: list[list[Cell]] = [
         ["TÜRKİYE İŞ BANKASI A.Ş."],
         ["Hesap Özeti"],
         [f"Sayın {holder}"],
-        ["Ürün-Döviz Tipi", "Vadesiz - TL", "IBAN", "TR00 0006 4000 0011 2340 1234 56"],
+        ["Ürün-Döviz Tipi", product, "IBAN", iban],
         ["Mevcut Bakiye", f"{format_amount(balanced[-1][1] if balanced else opening)} TL"],
         *([["Belge Düzenleme Tarihi", f"{made:%d.%m.%Y} - 10:30:00"]] if made else []),
         ["Sorgulama Kriterleri", f"{period[0]:%d.%m.%Y} - {period[1]:%d.%m.%Y}"],
@@ -186,6 +189,22 @@ def account_xls(
         for n, ((m, balance), (_, kind)) in enumerate(zip(balanced, moves, strict=True), 1)
     ]
     return xls_file("Hesap Özeti", head + rows[::-1] + [list(row) for row in below])
+
+
+DEPOSIT_MOVES: tuple[tuple[Move, str], ...] = (
+    (Move(date(2026, 11, 10), f"1234/0123456 HESAPTAN {HOLDER} Hesaplar Arası Akt", Decimal(30000)), "Para Transferi"),
+    (Move(date(2026, 11, 12), "BRÜT FAİZ %30.00 ÜZERİNDEN 1 GÜN", Decimal("25.00")), "Faiz"),
+    (Move(date(2026, 11, 12), "BRÜT FAİZDEN %17.50 GELİR VERGİSİ STOPAJI", Decimal("-4.38")), "Vergi"),
+)
+
+
+def deposit_xls() -> bytes:
+    """The "Hesap Özeti" of an interest-earning account, 1234-0234567: İş Bankası names its product "Vadeli Hesap", the
+    daily-interest one too. Filled from the current account, it earns a day's gross interest and has the tax withheld
+    from it."""
+    period = (date(2026, 11, 10), date(2026, 11, 20))
+    iban = "TR00 0006 4000 0011 2340 2345 67"
+    return account_xls(DEPOSIT_MOVES, Decimal(0), period=period, product="Vadeli Hesap", iban=iban)
 
 
 def quiet_account_xls() -> bytes:
@@ -321,6 +340,7 @@ def specimens() -> list[Specimen]:
         Specimen(
             "isbank-hesap-ozeti-hareketsiz.xls", quiet_account_xls(), "isbank.account_xls", "isbank-1234-0123456", 0
         ),
+        Specimen("isbank-vadeli-hesap-ozeti.xls", deposit_xls(), "isbank.account_xls", "isbank-1234-0234567", 3),
         Specimen("isbank-fast-dekont.pdf", fast_receipt(), "isbank.receipt", "isbank-1234-0123456", 2),
         Specimen("isbank-e-cuzdan.pdf", passbook(), "isbank.passbook", "isbank-1234-0765432", 1),
         Specimen("isbank-kart-borcu-tahsilati.eml", collection_notice(), "isbank.notice.collection", "isbank-1234", 1),

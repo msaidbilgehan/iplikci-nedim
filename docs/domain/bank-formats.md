@@ -220,6 +220,10 @@ de yoktur.
 - Günlük faizli hesap faizi her gün brüt yazar ("BRÜT FAİZ %30.00 ÜZERİNDEN 1 GÜN"; hafta sonu birikip "3 GÜN") ve
   vergisini ayrı bir satırla keser ("BRÜT FAİZDEN %17.50 GELİR VERGİSİ STOPAJI"). İkisi de faiz gelirine girer; vergi
   onu düşürür.
+- Başlıktaki "Ürün-Döviz Tipi" hesabın ürünüdür: "Vadesiz Hesap", "Vadesiz YP Hesap" (döviz) ya da "Vadeli Hesap".
+  Banka günlük faizli hesabı ("Günlük Kazandıran") da "Vadeli Hesap" diye yazar. Vadeli hesap mevduattır
+  (`deposit`): birikimi tutar, ayın harcandığı hesap değildir; adı "İş Bankası Vadeli TL …" olur. v1.0.10'a dek ürün
+  okunmuyor, günlük faizli hesap vadesiz sayılıyordu.
 
 **FAST/EFT dekont PDF'i** (`isbank.receipt`)
 

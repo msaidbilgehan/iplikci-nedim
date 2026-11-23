@@ -8,12 +8,16 @@ account has come.
 A period without a movement prints no row at all: blank rows down to the footnote ("(*) Çekilen tutar …") and the
 balance at the time the summary was made ("Mevcut Bakiye", "Belge Düzenleme Tarihi") above the table. Such a list is
 empty (nothing to check, nothing missed); running up to the day it was made, it opened and closed at that balance.
+
+"Ürün-Döviz Tipi" names the account's product: "Vadesiz Hesap", "Vadesiz YP Hesap" (foreign currency) or "Vadeli
+Hesap", which the bank prints for its interest-earning accounts, the daily one ("Günlük Kazandıran") too. A "Vadeli"
+account is a deposit: it holds savings, not the money a month is spent from.
 """
 
 import re
 from decimal import Decimal
 
-from ...domain.codes import DocumentKind
+from ...domain.codes import AccountType, DocumentKind
 from ...domain.models import ParseResult
 from ...domain.text import fold
 from ..accounts import bank_account, period_of
@@ -70,7 +74,8 @@ def read(doc: SourceDocument) -> ParseResult:
     for cur in ("USD", "EUR", "GBP"):
         if cur in balance_text:
             currency = cur
-    account = bank_account("İş Bankası", number, currency)
+    deposit = "VADELI" in fold(info.get("Ürün-Döviz Tipi", ""))
+    account = bank_account("İş Bankası", number, currency, AccountType.DEPOSIT if deposit else None)
     names = [str(v).strip() for v in rows[header]]
     col = {n: i for i, n in enumerate(names) if n}
     desc_start, desc_end = col["Açıklama"], col.get("Referans", len(names))
@@ -97,7 +102,7 @@ def read(doc: SourceDocument) -> ParseResult:
 
 class AccountXls:
     id = ID
-    version = 4
+    version = 5
     bank = "İş Bankası"
     name = "İş Bankası hesap özeti (XLS)"
     document_type = DocumentKind.ACCOUNT_STATEMENT

@@ -156,6 +156,27 @@ def test_isbank_account_xls_finds_branch_and_account_at_the_end_of_the_iban():
     assert next(t for t in s.transactions if t.amount == Decimal("8.86")).kind == TransactionKind.INTEREST_FEE
 
 
+def test_isbank_account_xls_reads_a_vadeli_hesap_as_a_deposit_that_earns_interest():
+    # The bank prints "Vadeli Hesap" for its interest-earning accounts, the daily one too: savings, not a current
+    # account. The day's gross interest is income and the tax withheld from it nets it.
+    r = _read("HesapOzeti.xls", isbank.deposit_xls())
+    [account] = r.accounts
+    assert (account.id, account.type, account.label) == (
+        "isbank-1234-0234567",
+        AccountType.DEPOSIT,
+        "İş Bankası Vadeli TL 1234-0234567",
+    )
+    [s] = r.statements
+    assert s.verified and s.total == Decimal("30020.62")
+    assert sorted((t.amount, t.kind) for t in s.transactions) == [
+        (Decimal(-30000), TransactionKind.TRANSFER_CANDIDATE),
+        (Decimal("-25.00"), TransactionKind.INCOME),
+        (Decimal("4.38"), TransactionKind.INCOME),
+    ]
+    current = _read("HesapOzeti.xls", isbank.account_xls()).accounts[0]
+    assert (current.type, current.label) == (AccountType.CURRENT, "İş Bankası Vadesiz TL 1234-0123456")
+
+
 def test_isbank_account_xls_without_a_movement_is_verified_at_the_balance_it_was_made_at():
     # The bank prints no row for a quiet period, only blank ones down to its footnote, and the balance the summary
     # was made at: a list running up to that day opened and closed at it.
