@@ -138,6 +138,16 @@ Dekontlar (ve V1'de e-posta gövdesindeki banka bildirimleri), gün gün hesabı
 | `eslesmedi` | `unmatched` | Ekstreler kanıtın bütün günlerini kapsıyor ama böyle bir satır yok. Satır hiçbir toplama girmez; bulgu olarak işaretlenir (ay kapanışında "kontrol"). |
 | `ekstresiz` | `no_statement` | O günleri kapsayan ekstre yok. Sebebi ekstrenin hiç olmaması, ilk ekstreden önce kalması, bir boşluk ya da belgeleri en yeni ekstreden `ACTIVE_DAYS` = 180 günden eski olan bir hesap olabilir. Satır sayılır. |
 
+- Bir hareket listesi son gününün bir anında, indirildiği anda alınır; o günün sonraki hareketleri listede yoktur.
+  Hesabın sonraki listesi ertesi gün başlıyorsa ve o geceyi kapsayan başka bir liste yoksa iki liste buluşur
+  (`analysis.seams`): öncekinin kapanış bakiyesi alındığı anı, sonrakinin açılış bakiyesi günün sonunu yazar.
+  - Listelerin göstermediği ve bankanın o güne işlemiş olabileceği (`POSTING_DAYS`) kanıt satırları iki bakiyenin
+    farkını kuruşu kuruşuna karşılıyorsa o fark onlardır: `no_statement` olarak sayılırlar. `unmatched` olmazlar, çünkü
+    önceki liste o saatleri kapsamaz. `provisional` da olmazlar, çünkü sonraki listenin bakiyesinde zaten vardırlar ve
+    onu ikinci kez değiştirmemelidirler.
+  - Farkı karşılamayan kanıt `unmatched` kalır.
+  - Önceki listenin son ayının bakiyesi sonrakinin açılış bakiyesidir (`analysis.end_at_next_opening`). Ay sonu'nun
+    bakiyesi, KMH kullanımı ve o günün borçları listenin alındığı anı değil, günün sonunu gösterir.
 - Ekstresi olmayan bir kart için ödeme dekontu (`ekstresiz_kart`), kartın ekstreleri dekont tarihinde ya da daha önce
   başlıyorsa `kart_odemesi` olur; ekstreler ödediği alışverişleri zaten gösterir.
 - Kanıttaki transfer satırları adaydır (`aday`) ve liste satırlarıyla birlikte çözülür.
