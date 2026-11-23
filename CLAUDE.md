@@ -463,6 +463,21 @@ says what the waiting must show); the Windows and Linux checks come later (K25).
     FX and investments the forecast leaves out, at today's value), and `notify.content.forecast_negative` words it for
     the notification and the dashboard's alert alike. Covered, it is a warning, not critical (`dashboard.Short`), and
     İplikçi Nedim says to convert part of it in time.
+- v1.0.12 (2026-11-23): the user asked why the income rows were not counted. Only an income series (three months) is;
+  a salary that started lately counted nowhere until its third month.
+  - `_düzenli_gelir` (`categorize._declared`, `domain.models.DeclaredIncome`, `Dataset.declared`) makes a payer's
+    income one series from its first payment (`insights._declared_series`), at the declared amount in TL at the
+    providers' buying rate (`declared_in_tl`), on the declared day. Its schedule counts from the newest payment that
+    brought half of it (`declared_anchor`, `declared_days`): a salary paid in parts.
+  - `rulefile.add_income` and `remove_income`, the rules actions `income` and `not_income`. On Düzenli ödemeler,
+    "Her ay gelen bir gelir ekle…" (`components/subscriptions/IncomeForm`, `outlook.income_candidates`,
+    `SubscriptionsOut.income_candidates`); the list's "Değiştir…" and "Her ay gelir değil…".
+  - The forecast adds a deposit's interest at the rate its interest rows tell over the balances that earned them
+    (`forecast.earned`, `Earned`). A mean daily amount would have kept a card payment's money earning.
+  - `Forecast.outside_income` is the income into the FX, gold and brokerage accounts. A note tells it. The Pano's
+    "Döviz ve yatırımlarla" counts it from its day, and the TL total's warning counts it up to its lowest day
+    (`negative_detail`'s `coming`).
+  - `forecast._uncounted` names the income of the last 90 days the forecast does not expect again.
 
 The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's
 web interface).

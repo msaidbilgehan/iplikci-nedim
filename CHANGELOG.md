@@ -4,6 +4,30 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [1.0.12] — 2026-11-23 — Her ay gelen gelir, vadeli hesap faizi ve sayılmayan gelirler
+
+### Eklenenler
+
+- Düzenli ödemeler'de "Her ay gelen bir gelir ekle…". Bir gelir ancak üç ayrı ayda gelince düzenli sayılıyordu;
+  yeni başlayan bir maaş aylarca hiçbir yerde sayılmıyordu.
+  - Ayda gelen tutarı, para birimini ve ayın gününü yazarsınız. Form, ödeyenin en yeni ayında gelenleri parçalarıyla
+    gösterir.
+  - Takvim ve öngörü geliri ilk ödemesinden itibaren bekler; dövizle geliyorsa bugünkü kurla.
+  - Gelir listesinde "sizin bildirdiğiniz" diye görünür. "Değiştir…" ile tutarı ve günü değiştirirsiniz, "Her ay gelir
+    değil…" ile kaldırırsınız.
+  - Gelmezse gecikti diye haber verilir.
+- Vadeli hesapların faizi öngörüye giriyor. Belgelerdeki faiz satırlarından bakiyenin yıllık net getirisi bulunur ve
+  öngörü her gün bakiyeye bu oranla faiz ekler. Bakiye azalınca faiz de azalır: karta ödemek için çekilen para artık
+  faiz getirmez.
+- Döviz hesaplarına beklenen gelir artık görünüyor.
+  - TL çizgisine girmez, çünkü onu siz bozdurdukça TL'ye geçer. Öngörünün notu ve Pano kaç gelir beklendiğini ve
+    bugünkü kurla toplamını yazar.
+  - Pano'nun "Döviz ve yatırımlarla" çizgisi bu geliri geldiği günden itibaren ekler.
+  - TL toplamının eksiye düşeceği uyarısı da onu sayar: "o güne kadar döviz hesaplarınıza bugünkü kurla … daha
+    gelmesi bekleniyor".
+- Öngörünün notu son 90 günde gelip yeniden beklenmeyen gelirleri ödeyene göre, tutarlarıyla yazar. Bitenleri "bitti"
+  diye ayırır.
+
 ## [1.0.11] — 2026-11-23 — Yeni sürümü soran ekranlar, tek sütunda Ayarlar ve öngörünün nedeni
 
 ### Düzeltilenler

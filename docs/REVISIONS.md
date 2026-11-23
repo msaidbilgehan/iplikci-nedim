@@ -11,6 +11,13 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 
 ## Değişiklik kaydı
 
+- 2026-11-23 (70) — Her ay gelen gelir, vadeli hesap faizi ve sayılmayan gelirler (v1.0.12):
+  - [Kategori kuralları](domain/categorization.md): `_düzenli_gelir` (ödeyen, aylık tutar, para birimi, gün).
+  - [Yorum kuralları](domain/interpretation.md): "Bildirilen gelir". Öngörüde vadeli hesap faizi (faiz satırlarının
+    onu kazandıran bakiyelere oranı), döviz hesaplarına beklenen gelir ve sayılmayan gelirlerin notu.
+  - [Özellikler](v1/features.md) F06, F08, F09. Kullanıcı, gelir türündeki satırların öngörüde sayılması gerekmez mi
+    diye sordu: üç ay dolmadan bir gelir hiçbir yerde sayılmıyordu.
+
 - 2026-11-23 (69) — Yeni sürümü soran ekranlar ve öngörünün nedeni (v1.0.11):
   - [ADR-0022](adr/0022-releases-and-updates.md):
     - Denetim üç saatte birdir.
