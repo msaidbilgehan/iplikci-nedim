@@ -410,11 +410,10 @@ def _backup(ws: Workspace, db: Database) -> list[Alert]:
 
 def _sync(ws: Workspace, at: datetime) -> list[Alert]:
     """The sync folder, when its rounds have not done their work for sync.FAILED_AFTER."""
-    state = sync.status(ws)
-    since = datetime.fromisoformat(state.since) if state.on and state.problem and state.since else None
-    if since is None or at - since < sync.FAILED_AFTER:
+    found = sync.trouble(ws)
+    if found is None or at - datetime.fromisoformat(found[1]) < sync.FAILED_AFTER:
         return []
-    text = f"Eşitleme çalışmıyor: {state.problem}. Veriler öteki bilgisayarlara ve eşitleme klasörüne gitmiyor."
+    text = f"Eşitleme çalışmıyor: {found[0]}. Veriler öteki bilgisayarlara ve eşitleme klasörüne gitmiyor."
     return [Alert(AlertKind.SYNC_FAILED, AlertLevel.WARNING, "Eşitleme çalışmıyor", text, 1, "", Link(Screen.SETTINGS))]
 
 

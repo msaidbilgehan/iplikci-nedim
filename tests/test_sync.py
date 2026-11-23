@@ -12,7 +12,7 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-from iplikci.app import annotate, memory, notify, sync, telegram
+from iplikci.app import annotate, dashboard, memory, notify, sync, telegram
 from iplikci.app.analysis import analyze
 from iplikci.app.workspace import Workspace
 from iplikci.domain.codes import Actor, Channel, DeliveryStatus, DocumentStatus, MemoryKind
@@ -309,6 +309,27 @@ def test_a_folder_that_holds_other_files_is_refused_and_a_missing_one_is_a_probl
     assert not result.ran and "bulunamadı" in result.problem
     assert not (drive / library.MARKER).exists()  # never made again behind the user's back
     assert sync.status(a).problem
+
+
+def test_a_sync_that_has_not_worked_for_hours_is_an_alert_and_told_once_a_day(a, tmp_path, drive):
+    sync.turn_on(a, str(drive))
+    (drive / library.MARKER).rename(tmp_path / "isaret-baska-yerde")
+    began = datetime.now(UTC)
+    sync.run_round(a, now=began)
+    assert sync.trouble(a) is not None
+    alerts = dashboard.alerts(a, analyze(a), began.date(), [], at=began + timedelta(hours=1)).items
+    assert not [x for x in alerts if x.kind == dashboard.AlertKind.SYNC_FAILED]  # a passing problem: no alert yet
+    later = began + sync.FAILED_AFTER + timedelta(minutes=1)
+    sync.run_round(a, now=later)
+    sync.run_round(a, now=later + timedelta(minutes=1))
+    alerts = dashboard.alerts(a, analyze(a), later.date(), [], at=later).items
+    [alert] = [x for x in alerts if x.kind == dashboard.AlertKind.SYNC_FAILED]
+    assert "bulunamadı" in alert.text and alert.link.screen == "settings"
+    with a.db() as db:
+        assert len(events.entries(db, sync.FAILED)) == 1  # told once that day
+    (tmp_path / "isaret-baska-yerde").rename(drive / library.MARKER)
+    sync.run_round(a, now=later + timedelta(minutes=2))
+    assert sync.trouble(a) is None
 
 
 def test_inspect_tells_a_new_folder_from_one_another_computer_began(a, b, drive):

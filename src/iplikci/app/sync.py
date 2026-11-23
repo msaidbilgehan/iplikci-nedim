@@ -772,6 +772,18 @@ def _record(ws: Workspace, at: datetime, result: Round) -> None:
         log.warning("the sync round could not do its work")
 
 
+def trouble(ws: Workspace) -> tuple[str, str] | None:
+    """Why the rounds cannot do their work and since when, while the sync is on; None when they can (the Pano's
+    alert, which must not read the folder on every load)."""
+    if not config.load(ws.layout.settings).sync.folder:
+        return None
+    with ws.db() as db:
+        last = stored.load(db, LAST)
+    info = cast(dict[str, Any], last) if isinstance(last, dict) else {}
+    problem, since = str(info.get("problem", "")), str(info.get("since", ""))
+    return (problem, since) if problem and since else None
+
+
 # --- what the Settings screen shows --------------------------------------------------------------------------
 
 
