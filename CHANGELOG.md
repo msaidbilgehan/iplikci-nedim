@@ -4,6 +4,18 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [1.0.14] — 2026-11-24 — Yapılacaklar'da toplu işlem
+
+### Eklenenler
+
+- Yapılacaklar'da işler kutularıyla seçilip birlikte yok sayılabiliyor; her işi tek tek yok saymak gerekmiyor.
+  - Her işin yanında bir seçim kutusu var. Birden çok işi olan bir türde "Bu türdeki … işin hepsini seç" o türün
+    bütün işlerini, "Listedeki … işin hepsini seç" listelenen her işi seçer. Ayrıntılı görünümde türün kutusu
+    tablonun başlığındadır.
+  - Seçim varken ekranın üstünde kalan çubukta "Seçilenleri yok say" düğmesi var. Yok sayılanlar gösteriliyorsa
+    "Seçilenleri listeye geri al" da çıkar. Bildirimdeki "Geri al" hepsini birden geri getirir.
+  - Başka bir türe geçince ya da yok sayılanları gösterip gizleyince seçim sıfırlanır.
+
 ## [1.0.13] — 2026-11-23 — Döküm indirildikten sonra gelen para
 
 ### Düzeltilenler

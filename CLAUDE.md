@@ -490,6 +490,14 @@ says what the waiting must show); the Windows and Linux checks come later (K25).
     which moved the later list's balance a second time (`start_of`).
   - The earlier list's last month closes at the later opening balance (`end_at_next_opening`): Ay sonu's balance, the
     KMH use and `debt_at` tell the day's end.
+- v1.0.14 (2026-11-24): the user found taking the to-do list's items off one by one tiring.
+  - `POST /api/todos/ignored` takes `keys` (one to a thousand), and `app/todos.ignore` a list of keys. A key given
+    alone as a str is refused: it would be read letter by letter.
+  - Yapılacaklar has a checkbox per item (`components/todo/Choice`), and a kind with more items has a box that chooses
+    them all (the table's heading in the detailed view). The bar (`components/todo/BulkBar`) has a box for every item
+    listed; it stays under the header while items are chosen.
+  - The bar offers "Seçilenleri yok say (n)" and "Seçilenleri listeye geri al (n)". The notice's "Geri al" puts them
+    all back. Another view (a kind, the items taken off shown or hidden) starts with none chosen.
 
 The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's
 web interface).
