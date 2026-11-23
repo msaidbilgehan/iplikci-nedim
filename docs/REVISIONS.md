@@ -11,6 +11,18 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 
 ## Değişiklik kaydı
 
+- 2026-11-23 (69) — Yeni sürümü soran ekranlar ve öngörünün nedeni (v1.0.11):
+  - [ADR-0022](adr/0022-releases-and-updates.md):
+    - Denetim üç saatte birdir.
+    - Kuyruktaki kurulum "kuruluyor" sayılır; ikinci kurulum eklenmez.
+    - Kurulum servisi yeniden başlatınca iş kuyruğu başka iş almaz.
+    - Not (2026-11-23): 1.0.10 "Önce bana sor"da hiçbir ekranda sorulmadı, "Kendiliğinden kur"da iki kez kuruldu.
+  - [Özellikler](v1/features.md) F21: Ayarlar dışında her ekranın üstünde yeni sürüm şeridi; Ayarlar'da kartlar tek
+    sütunda.
+  - [Yorum kuralları](domain/interpretation.md), "Eksiye düşen hesap": TL hesapların toplamının uyarısı şunları
+    söyler: gelir beklenip beklenmediği, toplamın en düşük hâli, döviz ve yatırımların bugünkü değeri. Döviz ve
+    yatırımlar açığı karşılıyorsa uyarı kritik değildir.
+
 - 2026-11-23 (68) — Birikim döviz, altın ve vadeli hesabı da sayıyor (v1.0.10):
   - [Yorum kuralları](domain/interpretation.md), "Ay sonu kapanışı": birikim, ayda birikime net giden paradır (BES ve
     yatırım ödemeleri, döviz ve altın alım-satımı, döviz, altın, vadeli ve yatırım hesaplarının giriş ve çıkışları);

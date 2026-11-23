@@ -266,9 +266,9 @@ says what the waiting must show); the Windows and Linux checks come later (K25).
     notes) and signs it with the `UPDATE_SIGNING_KEY` secret (Ed25519, key `2026-11` in `update/keys.TRUSTED`; its
     backup is in the owner's keychain). `gh release create` publishes it in `vars.RELEASE_REPO` or this repo, and
     `packaging/chrome_store.py` sends the extension to the store once `vars.CWS_ITEM_ID` is set.
-  - The service looks daily from 05:00 (job `update.check`) at
-    `github.com/<update.source.REPO>/releases/latest/download/…` through `egress.https_download`, which follows
-    redirects to GitHub's file hosts only. Nothing whose signature, size or digest fails is installed. By
+  - The service looks every three hours (job `update.check`, `app/update.CHECK_EVERY`; daily from 05:00 until
+    v1.0.11) at `github.com/<update.source.REPO>/releases/latest/download/…` through `egress.https_download`, which
+    follows redirects to GitHub's file hosts only. Nothing whose signature, size or digest fails is installed. By
     `[updates] mode` (`auto` by default, `ask`, `off`; the demo's is off) job `update.install` takes a backup
     (`before_update`), probes the new Python, puts it in place (macOS: the bundle's `Contents` swapped by
     `renamex_np`; Linux: a copy in `~/.local/lib/iplikci/<version>` and the unit retargeted; Windows: the setup run
@@ -447,6 +447,22 @@ says what the waiting must show); the Windows and Linux checks come later (K25).
     (`app.sayings._kept`), and saving beyond the income's surplus is a warning, not a month in the red.
   - İş Bankası's "Ürün-Döviz Tipi: Vadeli Hesap" (its daily-interest account too) is a deposit (`isbank.account_xls`
     v5). The kind `investment` is labelled "BES ve yatırım".
+- v1.0.11 (2026-11-23): the user tested 1.0.10's arrival through the program and asked why the TL total ran out so
+  soon.
+  - In "ask" mode no screen asked: the check ran daily at 05:00, after which the release came. In "auto" mode Ayarlar
+    still offered "Şimdi güncelle" for a version already queued, and the click queued a second install. The worker
+    ran it while the first one restarted the service, so the version was installed twice.
+  - Now the check runs every three hours (`every(update.CHECK_EVERY)`). A queued or running install job is
+    `UpdateState.installing` (`storage/jobs.waiting`), and `request_install` and the check add no second one. A job
+    that restarts the service stops the worker from taking another (`Worker.finish_soon`, `service/runner.worker`).
+  - `components/UpdateBanner` asks for the version on every screen but Ayarlar, says one installing, or leads a
+    MANUAL copy to the release's page. Ayarlar lists its cards in one column in both views.
+  - The forecast was right: the TL accounts expected no income (an income in another currency is not in their line)
+    and paid a typical month's card payments and other spending. The TL total's warning now says so and what covers
+    it: `feed.news.negative_detail` gives the total `income`, `lowest`/`lowest_day` and `cover` (`app/now.cover`: the
+    FX and investments the forecast leaves out, at today's value), and `notify.content.forecast_negative` words it for
+    the notification and the dashboard's alert alike. Covered, it is a warning, not critical (`dashboard.Short`), and
+    İplikçi Nedim says to convert part of it in time.
 
 The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's
 web interface).

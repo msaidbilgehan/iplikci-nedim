@@ -4,6 +4,30 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [1.0.11] — 2026-11-23 — Yeni sürümü soran ekranlar, tek sütunda Ayarlar ve öngörünün nedeni
+
+### Düzeltilenler
+
+- "Önce bana sor" seçiliyken yeni sürüm hiçbir ekranda sorulmuyordu. Program günde bir, sabah 05.00'te bakıyordu;
+  öğleden sonra çıkan bir sürüm ertesi sabaha dek görünmüyordu. Artık üç saatte bir bakar. Bulduğu sürümü Ayarlar
+  dışındaki her ekranın üstündeki bir şeritle sorar; şeritte "Şimdi güncelle" düğmesi ve "Neler yeni?" vardır.
+- "Kendiliğinden kur" seçiliyken "Şimdi denetle"ye basınca Ayarlar, kurulumu zaten başlamış sürüm için yine "Şimdi
+  güncelle"yi gösteriyordu. Basılınca aynı sürüm ikinci kez kuruluyordu.
+  - Artık sürüm kurulmayı beklediği andan itibaren her ekranda "kuruluyor" görünür.
+  - İkinci bir kurulum eklenmez.
+  - Kurulum programı yeniden başlatırken başka iş yapılmaz.
+- "TL hesaplarınızın toplamı … gün sonra eksiye düşecek" uyarısı artık nedenini ve neyin karşıladığını da söylüyor:
+  - Öngörü TL hesaplara gelir beklemiyorsa bunu yazar.
+  - Toplamın öngörü günleri içindeki en düşük hâlini verir.
+  - Döviz ve yatırımlarınızın bugünkü değerini verir.
+  - Döviz ve yatırımlar açığı karşılıyorsa "eksiye düşmeden önce bir kısmını TL'ye çevirmeniz yeter" der. Uyarı o
+    zaman kritik sayılmaz; İplikçi Nedim'in sözü ve bildirim de aynısını söyler.
+
+### Değişenler
+
+- Ayarlar'daki kartlar her iki görünümde tek sütunda, aynı sırayla dizilir: adlar, e-posta, güncellemeler, yedekler,
+  enflasyondan arındırma, servis, diğer ayarlar.
+
 ## [1.0.10] — 2026-11-23 — Birikim döviz, altın ve vadeli hesabı da sayıyor
 
 ### Düzeltilenler
