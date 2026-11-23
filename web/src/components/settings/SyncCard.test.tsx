@@ -51,11 +51,12 @@ describe("SyncCard while the sync is off", () => {
     expect(within(sync).getByText(about)).toBeInTheDocument();
     expect(await within(sync).findByText("Google Drive (kisi@example.com)")).toBeInTheDocument();
     expect(within(sync).getByText(SYNC_FOLDER)).toBeInTheDocument();
-    expect(within(sync).getByText("Klasör yok; bu bilgisayarın verileriyle başlatılır.")).toBeInTheDocument();
+    expect(within(sync).getByText(/^Klasör yok; bu bilgisayarın verileriyle başlatılır\./)).toBeInTheDocument();
     await user.click(within(sync).getByRole("button", { name: USE_DRIVE }));
     const asked = within(sync).getByRole("region", { name: CONFIRM });
     expect(within(asked).getByRole("heading", { name: CONFIRM })).toHaveFocus();
-    expect(within(asked).getByText(/Google Drive uygulaması onları arka planda yükler\.$/)).toBeInTheDocument();
+    expect(within(asked).getByText(/Google Drive uygulaması onları arka planda yükler\./)).toBeInTheDocument();
+    expect(within(asked).getByText(/yoksa iki ayrı veri kümesi olur\.$/)).toBeInTheDocument(); // wait for the folder
     expect(within(sync).queryByRole("button", { name: USE_DRIVE })).not.toBeInTheDocument(); // the list waits
     const name = within(asked).getByLabelText("Bu bilgisayarın adı");
     expect(name).toHaveAttribute("placeholder", "Dizüstü");
@@ -137,7 +138,7 @@ describe("SyncCard while the sync is off", () => {
     await user.type(field, dropbox);
     await user.click(within(sync).getByRole("button", { name: "Denetle" }));
     expect(await within(sync).findByRole("button", { name: "Bu klasörü kullan: Dropbox" })).toBeInTheDocument();
-    expect(within(sync).getByText("Klasör yok; bu bilgisayarın verileriyle başlatılır.")).toBeInTheDocument();
+    expect(within(sync).getByText(/^Klasör yok; bu bilgisayarın verileriyle başlatılır\./)).toBeInTheDocument();
     expect(asked).toEqual([{ folder: "/Users/ornek/Belgeler" }, { folder: dropbox }]);
   });
 
