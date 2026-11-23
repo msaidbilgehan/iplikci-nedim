@@ -14,6 +14,7 @@ from ..app.notify import Channel, ChannelStage, DeliveryStatus, DetailLevel, Eve
 from ..app.now import Pace, Untold
 from ..app.rows import Certainty, Direction, Necessity, RowView, TransactionKind
 from ..app.sayings import Mood, Saying, Situation
+from ..app.transactions import SavingPart, SavingShown
 
 
 class LoginLink(BaseModel):
@@ -77,6 +78,25 @@ def link_out(link: Link | None) -> LinkOut | None:
     return LinkOut(screen=link.screen, id=link.id, query=query)
 
 
+class SavingPartOut(BaseModel):
+    """A part of a month's saving: an investment category (BES, a fund) or a kind of savings account (currency, gold,
+    deposits, investment accounts)."""
+
+    part: SavingPart
+    category: str  # the investment rows' category; "" for a kind of savings account
+    label: str  # how the screens name it: the category, else the kind of savings
+    amount: MoneyOut  # above zero set aside, below zero taken out of the savings
+    link: LinkOut  # its rows of the month; their totals' saving is the amount
+
+
+def saving_part_out(found: SavingShown) -> SavingPartOut:
+    link = link_out(found.link)
+    assert link is not None  # a part always leads to its rows
+    return SavingPartOut(
+        part=found.part, category=found.category, label=found.label, amount=money(found.amount), link=link
+    )
+
+
 class RowOut(BaseModel):
     """A row of the ledger as the screens list it."""
 
@@ -110,6 +130,11 @@ class RowOut(BaseModel):
     # go by; the part's own is the row's with its number after it. "" for any other row.
     split_of: str
     split_parts: int  # a part of a split row: how many parts the row has; 0 for any other row
+    # What a counted row adds to the money set aside, above zero, or takes out of the savings, below zero, and where
+    # it went (BES and investments, currency, gold, a deposit, an investment account); null for a row that moves no
+    # money into or out of the savings. The rows of a month's saving add up to it.
+    saving: MoneyOut | None = None
+    saving_part: SavingPart | None = None
 
 
 def row_out(row: RowView, labels: dict[str, str]) -> RowOut:
@@ -138,6 +163,8 @@ def row_out(row: RowView, labels: dict[str, str]) -> RowOut:
         document=row.document,
         split_of=row.split_of,
         split_parts=row.split_parts,
+        saving=None if row.saving_part is None else money(row.saving),
+        saving_part=row.saving_part,
     )
 
 

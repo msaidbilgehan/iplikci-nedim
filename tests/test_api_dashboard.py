@@ -16,7 +16,7 @@ from iplikci.app.mail import IMAP
 from iplikci.app.reading import FORMAT_ALARM
 from iplikci.app.workspace import Busy, Workspace
 from iplikci.domain.codes import Actor, DocumentStatus
-from iplikci.fakes import HOLDER, Move, garanti, teb
+from iplikci.fakes import HOLDER, Move, garanti, isbank, teb
 from iplikci.parsers import registry
 from iplikci.storage import events
 from iplikci.storage import mail as mail_store
@@ -372,6 +372,23 @@ def test_a_month_waiting_for_a_cards_statement_says_by_when_it_closes(garanti_ws
     # Days after that cut the statement is late: the month still waits for it, but no day is promised.
     late = october(date(2026, 11, 11))
     assert (late["status"], late["closes_by"]) == ("waiting", None)
+
+
+def test_a_months_saving_holds_what_went_into_a_deposit_with_its_parts_leading_to_their_rows(ws):
+    """İş Bankası's "Vadeli Hesap", filled from the current account, earns interest: what came into it is set aside,
+    and the part's link lists the rows its saving adds up to."""
+    add(ws, "vadeli.xls", isbank.deposit_xls())
+    today = date(2026, 11, 21)
+    november = next(m for m in board(ws, today)["closing"]["months"] if m["month"] == "2026-11")
+    assert november["saving"] == tl(3002062)  # 30.000 moved in, 25,00 of interest less 4,38 of tax withheld
+    rows = link("transactions", **{"from": "2026-11-01", "to": "2026-11-30", "saving": "deposit"})
+    assert november["saving_parts"] == [
+        {"part": "deposit", "category": "", "label": "Vadeli hesap", "amount": tl(3002062), "link": rows}
+    ]
+    response = client_for(ws, today).get("/api/transactions", params=rows["query"], headers=bearer())
+    assert response.status_code == 200, response.text
+    found = response.json()
+    assert (len(found["rows"]), found["totals"]["saving"]) == (3, tl(3002062))
 
 
 def test_freshness_flags_a_card_whose_next_statement_is_late(garanti_ws):

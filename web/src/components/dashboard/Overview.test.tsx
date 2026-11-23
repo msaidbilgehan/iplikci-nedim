@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
-import type { Dashboard, MonthClosing } from "../../api/types";
+import type { Dashboard, MonthClosing, SavingPart } from "../../api/types";
 import { renderScreen } from "../../test/render";
 import { DASHBOARD, FORECAST, INSIGHTS, server, SPENDING } from "../../test/server";
 import { Overview } from "./Overview";
@@ -19,11 +19,18 @@ interface October {
   people?: number;
   debt?: number;
   saving?: number;
+  parts?: MonthClosing["saving_parts"];
+}
+
+/** A part of October's saving as the service gives it, leading to its rows. */
+function part(label: string, kind: SavingPart, minor: number, category = ""): MonthClosing["saving_parts"][number] {
+  const query = { from: "2026-10-01", to: "2026-10-31", saving: kind, ...(category ? { category } : {}) };
+  return { part: kind, category, label, amount: tl(minor), link: { screen: "transactions", id: "", query } };
 }
 
 /** The dashboard with October's money changed, as the service sums it: what went out is the spending, the money
  * sent to people and the loan principal; what is left is the income less what went out and what was saved. */
-function withOctober({ income, expense, people = 0, debt = 0, saving = 0 }: October): Dashboard {
+function withOctober({ income, expense, people = 0, debt = 0, saving = 0, parts = [] }: October): Dashboard {
   const out = expense + people + debt;
   const months = DASHBOARD.closing.months.map(
     (month): MonthClosing =>
@@ -36,6 +43,7 @@ function withOctober({ income, expense, people = 0, debt = 0, saving = 0 }: Octo
             debt: tl(debt),
             out: tl(out),
             saving: tl(saving),
+            saving_parts: parts,
             left: tl(income - out - saving),
           }
         : month,
@@ -95,6 +103,59 @@ describe("Overview", () => {
     expect(
       within(story).getByText(
         "Gelen paranın %12'si birikime gitti, %16'sı elinizde kaldı. İyi gidiyor.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("names what the saving is made of, each part leading to its rows of the month", async () => {
+    const parts = [
+      part("Döviz", "fx", 1250000),
+      part("Bireysel Emeklilik (BES)", "investment", 100000, "Bireysel Emeklilik (BES)"),
+      part("Vadeli hesap", "deposit", -200000),
+    ];
+    renderScreen(<Overview found={withOctober({ income: 9000000, expense: 4000000, saving: 1150000, parts })} />);
+    const story = await region("Ekim 2026: paranız ne durumda?");
+    expect(within(story).getByText("BES, döviz, altın, vadeli hesap ve diğer yatırımlara ayrılan para")).toBeVisible();
+    const listed = within(story).getByRole("list", { name: "Birikimin parçaları" });
+    expect(within(listed).getByRole("link", { name: "Döviz: 12.500,00 TL" })).toHaveAttribute(
+      "href",
+      "/islemler?from=2026-10-01&to=2026-10-31&saving=fx",
+    );
+    expect(within(listed).getByRole("link", { name: "Bireysel Emeklilik (BES): 1.000,00 TL" })).toHaveAttribute(
+      "href",
+      "/islemler?from=2026-10-01&to=2026-10-31&saving=investment&category=Bireysel+Emeklilik+%28BES%29",
+    );
+    // A part that went the other way says so: money taken out of the deposit within a month that saved.
+    expect(within(listed).getByRole("link", { name: "Vadeli hesap: 2.000,00 TL çıktı" })).toBeInTheDocument();
+  });
+
+  it("says what was taken out of the savings, and that more went out than came in", async () => {
+    // Euros sold for 30.000 to cover 35.000 of spending out of an income of 20.000.
+    const parts = [part("Döviz", "fx", -3000000)];
+    renderScreen(<Overview found={withOctober({ income: 2000000, expense: 3500000, saving: -3000000, parts })} />);
+    const story = await region("Ekim 2026: paranız ne durumda?");
+    expect(within(story).getByText("Birikimden kullanılan")).toBeInTheDocument();
+    expect(within(story).getByRole("link", { name: "Döviz: 30.000,00 TL" })).toBeInTheDocument();
+    expect(
+      within(story).getByText(
+        "gelen paraya birikimden kullanılan eklenip giden çıkınca; ayın sonucu, bugünkü bakiye değil",
+      ),
+    ).toBeInTheDocument();
+    expect(within(story).getByText("15.000,00 TL")).toBeInTheDocument(); // left: 20.000 + 30.000 − 35.000
+    expect(
+      within(story).getByText(
+        "Giden para gelenden 15.000,00 TL fazla; bu ay birikimden 30.000,00 TL kullanıldı. " +
+          "Aşağıda paranın nereye gittiğine bakın.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("says what was left of the income when money taken out of the savings came beside it", async () => {
+    renderScreen(<Overview found={withOctober({ income: 4000000, expense: 2000000, saving: -1000000 })} />);
+    const story = await region("Ekim 2026: paranız ne durumda?");
+    expect(
+      within(story).getByText(
+        "Gelen paranın %50'si elinizde kaldı; ayrıca birikimden 10.000,00 TL kullanıldı. İyi gidiyor.",
       ),
     ).toBeInTheDocument();
   });
@@ -386,12 +447,12 @@ describe("Overview", () => {
   it("draws a month's saving below the line, leading to its savings", async () => {
     renderScreen(<Overview found={withOctober({ income: 4000000, expense: 2000000, saving: 500000 })} />);
     const months = await region("Aylara göre gelen ve giden");
-    expect(within(months).getByText(/mavi çubuk birikime ayrılan parayı gösterir/)).toBeInTheDocument();
+    expect(within(months).getByText(/mavi çubuk birikime \(BES, döviz, altın, vadeli hesap, yatırım\)/)).toBeVisible();
     await userEvent.click(within(months).getByRole("tab", { name: "Tablo" }));
     const october = within(within(months).getByRole("table")).getByRole("row", { name: /^Ekim 2026/ });
     expect(within(october).getByRole("link", { name: "−5.000,00 TL" })).toHaveAttribute(
       "href",
-      "/islemler?from=2026-10-01&to=2026-10-31&kind=investment",
+      "/islemler?from=2026-10-01&to=2026-10-31&saving=investment&saving=fx&saving=gold&saving=deposit&saving=brokerage",
     );
   });
 

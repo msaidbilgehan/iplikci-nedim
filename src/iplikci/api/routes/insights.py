@@ -73,8 +73,9 @@ class FlowOut(BaseModel):
     people: MoneyOut
     unnamed_people: MoneyOut  # of it, sent to people the statement does not name
     debt: MoneyOut
+    # Set aside: BES, investments, currency, gold and deposits; below zero what was taken out of the savings.
     saving: MoneyOut
-    fx: MoneyOut  # foreign currency and gold bought with TL; below zero when sold
+    fx: MoneyOut  # foreign currency and gold bought with TL, part of saving; below zero when sold
     left: MoneyOut  # may be below zero: then minor is negative
     debt_start: MoneyOut
     debt_end: MoneyOut

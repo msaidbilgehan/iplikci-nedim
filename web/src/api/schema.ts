@@ -432,6 +432,7 @@ export interface ClosingOut {
   people: MoneyOut;
   debt: MoneyOut;
   saving: MoneyOut;
+  saving_parts: SavingPartOut[];
   income: MoneyOut | null;
   left: MoneyOut | null;
   income_note: string;
@@ -1429,6 +1430,7 @@ export interface MonthEndTotalsOut {
   people: MoneyOut;
   debt: MoneyOut;
   saving: MoneyOut;
+  saving_parts: SavingPartOut[];
   fees: MoneyOut;
   left: MoneyOut | null;
 }
@@ -1946,6 +1948,8 @@ export interface RowOut {
   document: string;
   split_of: string;
   split_parts: number;
+  saving?: MoneyOut | null;
+  saving_part?: SavingPart | null;
 }
 
 export interface RuleChangeOut {
@@ -1960,6 +1964,24 @@ export interface RuleChangeOut {
 
 /** The rule file a category rule is in (docs/domain/categorization.md): the user's own goes above the shipped. */
 export type RuleLayer = "own" | "shipped";
+
+/**
+ * Where money set aside went, or came back from (docs/domain/interpretation.md, "Birikim"): a pension or an investment
+ * paid from an account that holds no savings, or an account that holds them.
+ */
+export type SavingPart = "investment" | "fx" | "gold" | "deposit" | "brokerage";
+
+/**
+ * A part of a month's saving: an investment category (BES, a fund) or a kind of savings account (currency, gold,
+ * deposits, investment accounts).
+ */
+export interface SavingPartOut {
+  part: SavingPart;
+  category: string;
+  label: string;
+  amount: MoneyOut;
+  link: LinkOut;
+}
 
 /**
  * İplikçi Nedim's word on the money (F06): a line of his, the situation it is said about and how that stands. The
@@ -2364,6 +2386,7 @@ export interface TotalsOut {
   money_in: MoneyOut;
   provisional: number;
   excluded: number;
+  saving: MoneyOut;
 }
 
 /**

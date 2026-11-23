@@ -158,9 +158,11 @@ class MonthFacts:
     month: str  # YYYY-MM
     income: Decimal
     out: Decimal  # what went out and is gone: spending, money sent to people, loan principal (dashboard.Closing.out)
-    left: Decimal  # the income less what went out and what was saved, as the month-end page says
+    # What the income left: the income less what went out and what was set aside, as the month-end page says. Money
+    # taken out of the savings (currency sold, a deposit drawn) is no income of the month: it leaves this as it is.
+    left: Decimal
     fees: Decimal  # interest and fees, part of the spending
-    saving: Decimal  # what went to savings and investments
+    saving: Decimal  # what was set aside (month_end.Totals.saving); below zero taken out of the savings
     foreign_income: bool  # income came into a foreign-currency account in it
     best: int  # how many closed months it left the most money of; 0 when it is not the best of BEST_OF or more
     # Every document of it came and checks out; an open month's figures are the documents' so far: its card statements'
@@ -219,15 +221,21 @@ def _verdict(m: MonthFacts) -> tuple[Situation, Mood, str]:
     """The month's verdict, as the Pano's: more went out than came in, little left, a part of it left, or nothing
     moved. What is left is the month-end page's: the income less the spending, the money sent to people, the loan
     principal repaid and what was saved. A month still open says it for now: the documents still to come can only add
-    to what went out, so what went out beyond the money in already did ("şimdiden")."""
+    to what went out, so what went out beyond the money in already did ("şimdiden"). More set aside than the income
+    left is no overspending: the income covered what went out, the accounts' money the rest of the saving."""
     at = _in(m.month)
     now = "" if m.closed else "şimdilik "
-    if m.left < 0:
+    if m.left < 0 and m.out > m.income:
         saved = " ve birikime ayrılan" if m.saving > 0 else ""
         more = "gelen paradan fazlaydı" if m.closed else "şimdiden gelen paradan fazla"
         return Situation.OVERSPENT, Mood.CRITICAL, f"{at} giden{saved} para, {more}."
     if m.income == 0:  # nothing went out either, or refunds only
         return Situation.QUIET, Mood.NEUTRAL, f"{at} {now}ne gelir geldi ne harcama yapıldı."
+    if m.left < 0:
+        reason = (
+            f"{at} gelen paranın {now}hepsi harcandı ya da birikime ayrıldı; birikime hesaplardaki paradan da eklendi."
+        )
+        return Situation.THIN, Mood.WARNING, reason
     if m.left == 0:
         return Situation.THIN, Mood.WARNING, f"{at} gelen paranın {now}hepsi harcandı ya da ayrıldı."
     if _share(m) < THIN:
@@ -306,6 +314,12 @@ def choose(facts: Facts, today: date) -> list[Saying]:
 # --- the facts, from the dashboard ------------------------------------------------------------------------------------
 
 
+def _kept(income: Decimal, month: Closing) -> Decimal:
+    """What a month's income left: Closing.left, but money taken out of the savings, which the month did not earn,
+    is not counted as left."""
+    return income - month.out - max(month.saving, ZERO)
+
+
 def _story(a: Analysis, months: list[Closing], today: date) -> MonthFacts | None:
     """The Pano's story month: the newest ended month whose income is known, closed or still open, as the Pano tells
     it (web dashboard/Overview). A closed one is the best when it left the most money of the closed months; an open one
@@ -314,9 +328,9 @@ def _story(a: Analysis, months: list[Closing], today: date) -> MonthFacts | None
     if not known:
         return None
     story, income = known[-1]
-    left = income - story.out - story.saving  # Closing.left, which is None only without the income
+    left = _kept(income, story)
     closed = story.status is MonthStatus.CLOSED
-    before = [i - c.out - c.saving for c, i in known[:-1] if c.status is MonthStatus.CLOSED]
+    before = [_kept(i, c) for c, i in known[:-1] if c.status is MonthStatus.CLOSED]
     good = income > 0 and left / income >= THIN
     count = len(before) + 1
     best = count if closed and good and count >= BEST_OF and all(left > b for b in before) else 0

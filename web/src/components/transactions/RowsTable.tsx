@@ -1,7 +1,9 @@
 // The ledger's rows as a table (F04, and an account's page in F07): the day, the row's name, the account, the kind, the
 // category, the necessity and the amount with its certainty; a row the statements leave out ("ekstrede yok") stays
 // in the list but faded, as it counts in no total. Each name opens the row's detail; a column's heading sorts by it.
-// The simple view keeps the day, the name and the amount; the detailed view shows every column.
+// The simple view keeps the day, the name and the amount; the detailed view shows every column. A month's saving's
+// rows say which way each moved the savings: euros earned came into them, euros sold left them, though both are money
+// coming into an account.
 
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
@@ -9,7 +11,7 @@ import { Link } from "react-router";
 import type { Sort } from "../../api/schema";
 import type { Labels, Row } from "../../api/types";
 import { cn } from "../../lib/cn";
-import { formatDay } from "../../lib/format";
+import { formatDay, formatMoney } from "../../lib/format";
 import { labelOf } from "../../lib/labels";
 import { useView } from "../Preferences";
 import { Button } from "../ui/Button";
@@ -34,6 +36,7 @@ interface RowsTableProps {
   onSort?: (column: Sort) => void; // without it the headings do not sort
   rowHref: (fingerprint: string) => string; // the address that opens a row's detail
   selecting?: Selecting; // the rows a bulk action will change
+  saving?: boolean; // the rows are a saving's (the saving filter): say what each set aside or took out
 }
 
 /** Whether a row can carry a correction: one the statements leave out counts in nothing and carries none. */
@@ -46,7 +49,7 @@ export function partNumber(fingerprint: string): number {
   return Number(fingerprint.slice(fingerprint.lastIndexOf("-") + 1));
 }
 
-export function RowsTable({ rows, labels, ordering, onSort, rowHref, selecting }: RowsTableProps) {
+export function RowsTable({ rows, labels, ordering, onSort, rowHref, selecting, saving = false }: RowsTableProps) {
   const { t } = useTranslation("transactions");
   const { view } = useView();
   const detailed = view === "detailed";
@@ -140,6 +143,13 @@ export function RowsTable({ rows, labels, ordering, onSort, rowHref, selecting }
                   <span className={cn("block", SMALL)}>{t("table.installment", { installment: row.installment })}</span>
                 ) : null}
                 {row.original ? <span className={cn("block", SMALL)}>{row.original}</span> : null}
+                {saving && row.saving ? (
+                  <span className={cn("block font-medium", SMALL)}>
+                    {t(row.saving.minor < 0 ? "table.savingOut" : "table.savingIn", {
+                      amount: formatMoney({ minor: Math.abs(row.saving.minor), currency: row.saving.currency }),
+                    })}
+                  </span>
+                ) : null}
               </Td>
               {detailed ? <Td>{row.account.label}</Td> : null}
               {detailed ? <Td>{labelOf(labels, "TransactionKind", row.kind)}</Td> : null}

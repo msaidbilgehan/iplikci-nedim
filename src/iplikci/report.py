@@ -21,7 +21,7 @@ from .domain.codes import DEFAULT_EXPENSE_KINDS, Necessity, TransactionKind
 from .domain.labels import ACCOUNT_TYPE, KIND, NECESSITY, currency_label
 from .domain.money import round_half_up
 from .domain.text import fold, spreadsheet_text
-from .insights import HABIT_STATUS, STATUS, Insights, interpret, listed, month_of
+from .insights import HABIT_STATUS, STATUS, Insights, interpret, listed, month_of, saving_of
 
 CLOSING_MONTHS = 7  # months the report's closing card lists: the current one and six before it
 PROVISIONAL_LABEL = "Geçici (ekstre bekleniyor)"
@@ -451,10 +451,17 @@ def write_xlsx(
     _money(ws)
 
     flows = _monthly(ds, lambda t: t.kind)
+    # What each month set aside, as the month-end page counts it (insights.saving_of): BES and investments, currency,
+    # gold and deposits; below zero what was taken out of the savings.
+    saved: dict[str, Decimal] = defaultdict(Decimal)
+    for t in ds.transactions:
+        found = saving_of(t, ds.accounts)
+        if found is not None:
+            saved[month_of(t.date)] += found[1]
     ws = wb.create_sheet("Gelir-Gider")
     _sheet_header(
         ws,
-        ["Ay", "Gelir", "Gider", "Net (gelir − gider)", "Kişilere gönderilen", "Borç ödemeleri", "Birikim & yatırım"],
+        ["Ay", "Gelir", "Gider", "Net (gelir − gider)", "Kişilere gönderilen", "Borç ödemeleri", "Birikim"],
         [10, 16, 16, 18, 18, 16, 16],
     )
     for month in sorted(flows):
@@ -469,7 +476,7 @@ def write_xlsx(
                 _r(income - spent),
                 _r(f.get(TransactionKind.P2P_TRANSFER, ZERO)),
                 _r(f.get(TransactionKind.LOAN_PRINCIPAL, ZERO)),
-                _r(f.get(TransactionKind.INVESTMENT, ZERO)),
+                _r(saved.get(month, ZERO)),
             ]
         )
     _money(ws)
@@ -537,7 +544,7 @@ def _month_end_sheets(wb: Workbook, months: list[month_end.MonthEnd]) -> None:
             "Gelir",
             "Kişilere gönderilen",
             "Borç ödemesi",
-            "Birikim & yatırım",
+            "Birikim",
             "Ay sonunda kalan",
             "Geçici kayıt",
             "Ekstrede görünmeyen dekont",

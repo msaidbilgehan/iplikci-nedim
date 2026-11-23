@@ -138,11 +138,19 @@ def test_a_month_that_closed_in_the_red_is_a_dark_future():
     assert {s.quote.id for s in found} == set(LINES[Situation.OVERSPENT])  # the dark future among them
     assert first.reason == "Ekim 2026'da giden para, gelen paradan fazlaydı."
     # What was saved is taken off too, as the month-end page takes it.
-    saved = said(facts(story=month(out="36000", saving="4500")))[0]
+    saved = said(facts(story=month(out="41000", saving="4500")))[0]
     assert saved == (
         Situation.OVERSPENT,
         Mood.CRITICAL,
         "Ekim 2026'da giden ve birikime ayrılan para, gelen paradan fazlaydı.",
+    )
+    # More set aside than the income left is no month in the red: the income covered what went out, the accounts'
+    # money the rest of the saving (currency or gold bought with what was there before, say).
+    beyond = said(facts(story=month(out="36000", saving="4500")))[0]
+    assert beyond == (
+        Situation.THIN,
+        Mood.WARNING,
+        "Ekim 2026'da gelen paranın hepsi harcandı ya da birikime ayrıldı; birikime hesaplardaki paradan da eklendi.",
     )
 
 
@@ -203,10 +211,19 @@ def test_the_best_of_the_closed_months_comes_before_its_verdict():
             "Ekim 2026'da giden para, şimdiden gelen paradan fazla.",
         ),
         (
-            month(out="36000", saving="4500", closed=False),
+            month(out="41000", saving="4500", closed=False),
             Situation.OVERSPENT,
             Mood.CRITICAL,
             "Ekim 2026'da giden ve birikime ayrılan para, şimdiden gelen paradan fazla.",
+        ),
+        (
+            month(out="36000", saving="4500", closed=False),
+            Situation.THIN,
+            Mood.WARNING,
+            (
+                "Ekim 2026'da gelen paranın şimdilik hepsi harcandı ya da birikime ayrıldı; birikime hesaplardaki "
+                "paradan da eklendi."
+            ),
         ),
         (
             month(income="0", out="0", closed=False),

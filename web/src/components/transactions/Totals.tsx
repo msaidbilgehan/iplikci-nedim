@@ -1,7 +1,9 @@
 // What the rows a filter keeps add up to (F04): the money in, the money out and what is left between them, the
 // spending net of refunds (purchases, refunds, interest and fees: what was spent, not what moved), and how many rows
 // there are and how many count. The rows only a receipt or a notice shows yet and those the statements leave out, which
-// count in no total, are named when there are any. The simple view says it in a sentence first.
+// count in no total, are named when there are any. The simple view says it in a sentence first. A month's saving's rows
+// (the saving filter) also say what they set aside, the figure the Pano and the month-end page show: money coming into
+// a savings account and money going out of a current one both add to it, so neither money in nor out is it.
 
 import { useTranslation } from "react-i18next";
 
@@ -15,7 +17,12 @@ import { Term } from "../ui/Term";
 const SMALL = "text-xs text-zinc-600 dark:text-zinc-300";
 const TILE = "rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900";
 
-export function Totals({ totals }: { totals: TotalsData }) {
+interface TotalsProps {
+  totals: TotalsData;
+  saving?: boolean; // the rows are a saving's (the saving filter): say what they set aside
+}
+
+export function Totals({ totals, saving = false }: TotalsProps) {
   const { t } = useTranslation("transactions");
   const say =
     totals.count === 0
@@ -33,6 +40,13 @@ export function Totals({ totals }: { totals: TotalsData }) {
       <Say>
         {say} <span className="opacity-80">{t("hint")}</span>
       </Say>
+      {saving && totals.count > 0 ? (
+        <p className="text-base font-medium">
+          {t(totals.saving.minor < 0 ? "totals.savingDrawn" : "totals.saving", {
+            amount: formatMoney({ minor: Math.abs(totals.saving.minor), currency: totals.saving.currency }),
+          })}
+        </p>
+      ) : null}
       <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className={TILE}>
           <dt className="text-sm text-zinc-600 dark:text-zinc-300">{t("totals.moneyIn")}</dt>

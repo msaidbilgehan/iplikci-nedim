@@ -15,7 +15,15 @@ from decimal import Decimal
 from enum import StrEnum
 
 from .. import month_end
-from ..domain.codes import CARD_TYPES, Certainty, DocumentKind, DocumentStatus, MonthStatus, PaymentKind
+from ..domain.codes import (
+    CARD_TYPES,
+    Certainty,
+    DocumentKind,
+    DocumentStatus,
+    MonthStatus,
+    PaymentKind,
+    SavingPart,
+)
 from ..domain.labels import TODO_KIND, format_amount
 from ..domain.models import TRY
 from ..feed.news import TO_PAY, TOTAL
@@ -24,7 +32,7 @@ from ..report import CLOSING_MONTHS
 from ..storage import bridges, documents, events
 from ..storage.db import Database
 from ..upcoming import Due
-from . import accounts, backup, holdings, now, outlook, system, todos
+from . import accounts, backup, holdings, now, outlook, system, todos, transactions
 from .accounts import Freshness
 from .analysis import Analysis, account_labels
 from .bridge import SILENCE
@@ -32,6 +40,7 @@ from .holdings import InCurrency, Part
 from .links import Link, Screen, finding_link
 from .mail import BRIDGE, IMAP
 from .todos import Todo, TodoKind
+from .transactions import SavingShown
 from .workspace import Workspace
 
 # What the API names from here: the use case, its records and the codes they carry.
@@ -51,6 +60,8 @@ __all__ = [
     "NetWorth",
     "OpenAlerts",
     "Part",
+    "SavingPart",
+    "SavingShown",
     "ThisMonth",
     "TodoCount",
     "TodoKind",
@@ -148,10 +159,13 @@ class Closing:
     waiting: list[tuple[str, str]]  # (account, what closes its month) of the accounts that hold the month open
     link: Link
     fees: Decimal = ZERO  # interest and fees, part of expense
-    saving: Decimal = ZERO  # what went to savings and investments
+    # What was set aside (month_end.Totals.saving): BES, investments, currency, gold, deposits; below zero what was
+    # taken out of the savings.
+    saving: Decimal = ZERO
     people: Decimal = ZERO  # what was sent to people
     debt: Decimal = ZERO  # the loan principal repaid
     closes_by: date | None = None  # the cut of the last card statement the month waits for (MonthEnd.closes_by)
+    saving_parts: list[SavingShown] = field(default_factory=list[SavingShown])  # the largest first
 
     @property
     def out(self) -> Decimal:
@@ -452,6 +466,7 @@ def closing(a: Analysis, today: date) -> LastMonths:
                 people=me.totals.people,
                 debt=me.totals.debt,
                 closes_by=me.closes_by,
+                saving_parts=transactions.saving_shown(me.month, me.totals.saving_parts),
             )
         )
     ended = [c for c in found if c.status is not MonthStatus.RUNNING]

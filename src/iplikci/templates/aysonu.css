@@ -7,7 +7,8 @@
 .status-card .tone .icon { width: 22px; height: 22px; font-size: 13px; }
 .status-card p { margin: 0; color: var(--ink-2); }
 .kpis.month { grid-template-columns: 1.4fr repeat(3, 1fr); }
-@media (max-width: 1100px) { .kpis.month { grid-template-columns: repeat(2, 1fr); } }
+.kpis.month.five { grid-template-columns: 1.4fr repeat(4, 1fr); }
+@media (max-width: 1100px) { .kpis.month, .kpis.month.five { grid-template-columns: repeat(2, 1fr); } }
 .split { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 28px; }
 @media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
 table.bars td { vertical-align: middle; }

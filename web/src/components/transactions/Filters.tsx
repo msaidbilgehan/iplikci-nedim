@@ -1,9 +1,9 @@
 // The Transactions screen's filters (F04): the period, the account, the kind, the category (by group), the necessity,
 // the certainty, tags and a text search, each kept in the address in the API's names. The İşlemler screen adds a
 // named period beside the search ("Bu ay", "Geçen ay", … or days of one's own), which way the money goes and the
-// amount's bounds; the Değerlendirme screen, which has its own period presets, keeps the days in the panel. A merchant
-// or a group comes with a link from another screen and shows as a chip; every filter that is set has a chip that takes
-// it off. The search and the period are always in view, the rest behind one button, so the rows come first.
+// amount's bounds; the Değerlendirme screen, which has its own period presets, keeps the days in the panel. A merchant,
+// a group or a month's saving comes with a link from another screen and shows as a chip; every filter that is set has a
+// chip that takes it off. The search and the period are always in view, the rest behind one button, so the rows come first.
 
 import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -14,7 +14,7 @@ import { liraInput, parseLira } from "../../lib/amount";
 import { cn } from "../../lib/cn";
 import { formatDay, formatMoney, formatMonth } from "../../lib/format";
 import { labelOf } from "../../lib/labels";
-import { monthDays, SPENDING_KINDS } from "../../lib/rows";
+import { monthDays, SAVING_PARTS, SPENDING_KINDS } from "../../lib/rows";
 import { searchInWords } from "../../lib/search";
 import { selectionOf, withSelection } from "../../lib/selection";
 import { SLOT_BG, slotOf } from "../charts/palette";
@@ -207,6 +207,18 @@ export function Filters({ params, onChange, labels, accounts, rules, rows = fals
       name: t("filters.group"),
       value,
       onRemove: () => set((next) => removeValue(next, "group", value)),
+    });
+  }
+  // A month's saving comes with every part of it, a part of it with its own: the saving's rows, one chip.
+  const saving = params.getAll("saving");
+  if (saving.length > 0) {
+    chips.push({
+      key: "saving",
+      name: t("filters.saving"),
+      value: SAVING_PARTS.every((part) => saving.includes(part))
+        ? t("filters.savingAll")
+        : saving.map((part) => labelOf(labels, "SavingPart", part)).join(", "),
+      onRemove: () => set((next) => next.delete("saving")),
     });
   }
   for (const value of params.getAll("tag")) {

@@ -112,9 +112,9 @@ class Flow:
     people: Decimal  # sent to other people
     unnamed_people: Decimal  # of it, sent to people the statement does not name (the bank's name only)
     debt: Decimal  # debt principal repaid
-    saving: Decimal  # pension and other investments
-    fx: Decimal  # foreign currency and gold bought (above zero) or sold with TL
-    left: Decimal  # income less all of the above but foreign currency
+    saving: Decimal  # set aside: BES, investments, currency, gold and deposits; below zero taken out of them
+    fx: Decimal  # foreign currency and gold bought (above zero) or sold with TL, part of saving
+    left: Decimal  # income less all of the above but fx, which saving holds
     debt_start: Decimal  # card balances and overdraft use before the window …
     debt_end: Decimal  # … and at its end
     other_typical: Decimal  # median month of money to people and debt repaid, last six months

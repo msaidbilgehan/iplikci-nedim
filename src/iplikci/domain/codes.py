@@ -68,6 +68,17 @@ class AccountType(StrEnum):
 CARD_TYPES: tuple[AccountType, ...] = (AccountType.CREDIT_CARD, AccountType.DEBIT_CARD)
 
 
+class SavingPart(StrEnum):
+    """Where money set aside went, or came back from (docs/domain/interpretation.md, "Birikim"): a pension or an
+    investment paid from an account that holds no savings, or an account that holds them."""
+
+    INVESTMENT = "investment"  # BES, funds, shares and capital: the rows of kind investment
+    FX = "fx"  # foreign currency: its accounts, and what TL bought or a sale brought
+    GOLD = "gold"  # gold: its accounts, and what TL bought or a sale brought
+    DEPOSIT = "deposit"  # term and interest-earning accounts
+    BROKERAGE = "brokerage"  # investment accounts
+
+
 class EvidenceStatus(StrEnum):
     """What the statements say about a receipt's or a bank notice's row (docs/domain/ledger.md)."""
 

@@ -35,6 +35,7 @@ from .codes import (
     PaymentKind,
     RateSource,
     RuleLayer,
+    SavingPart,
     SeriesPeriod,
     SeriesStatus,
     SetupStep,
@@ -72,7 +73,7 @@ KIND: dict[TransactionKind, str] = {
     TransactionKind.P2P_TRANSFER: "Kişilere gönderilen para",
     TransactionKind.LOAN_PRINCIPAL: "Kredi & borç anapara ödemesi",
     TransactionKind.CASH_ADVANCE: "Nakit avans / çekim",
-    TransactionKind.INVESTMENT: "Birikim & yatırım (döviz, altın, BES)",
+    TransactionKind.INVESTMENT: "BES ve yatırım",
     TransactionKind.INCOME: "Gelir",
     TransactionKind.CARD_PAYMENT_NO_STATEMENT: "Ekstresi olmayan kart ödemesi",
     TransactionKind.CARD_PAYMENT: "Kredi kartı borç ödemesi",
@@ -330,6 +331,14 @@ NECESSITY_REASON: dict[NecessityReason, str] = {
     NecessityReason.DEFAULT: "Kural yok: belirsiz",
 }
 
+SAVING_PART: dict[SavingPart, str] = {
+    SavingPart.INVESTMENT: "BES ve yatırım",
+    SavingPart.FX: "Döviz",
+    SavingPart.GOLD: "Altın",
+    SavingPart.DEPOSIT: "Vadeli hesap",
+    SavingPart.BROKERAGE: "Yatırım hesabı",
+}
+
 FORECAST_PART: dict[ForecastPart, str] = {
     ForecastPart.REGULAR: "Düzenli ödemeler",
     ForecastPart.INSTALLMENTS: "Kalan taksitler",
@@ -457,6 +466,7 @@ TABLES: dict[type[StrEnum], dict[StrEnum, str]] = {
     UnusualKind: _table(UNUSUAL_KIND),
     NecessityReason: _table(NECESSITY_REASON),
     ForecastPart: _table(FORECAST_PART),
+    SavingPart: _table(SAVING_PART),
     SetupStep: _table(SETUP_STEP),
 }
 

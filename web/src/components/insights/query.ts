@@ -6,7 +6,7 @@
 
 import type { CategoryRules, Destination, Installment, MonthTable, Series } from "../../api/types";
 import { queryOf } from "../../lib/links";
-import { monthDays, rowsLink, SPENDING_KINDS } from "../../lib/rows";
+import { monthDays, rowsLink, SAVING_PARTS, SPENDING_KINDS } from "../../lib/rows";
 import { isFound, type SearchPart, searchParts } from "../../lib/search";
 import { selectionOf } from "../../lib/selection";
 import { fold } from "../../lib/turkish";
@@ -149,6 +149,19 @@ export function monthKindOf(params: URLSearchParams, month: string, kind: string
     query.delete(name);
   }
   return monthOf(query, params, month, { kind });
+}
+
+/**
+ * A month's saving as "Gelir ve gider" counts it: the address's filters but its kinds, categories, groups and levels,
+ * with the rows that set money aside or took it out of the savings (BES and investments, currency, gold, deposits).
+ */
+export function monthSavingOf(params: URLSearchParams, month: string): Destination {
+  const query = filtersOf(params, false);
+  for (const name of ["kind", "category", "group", "necessity"]) {
+    query.delete(name);
+  }
+  const link = monthOf(query, params, month, {});
+  return { ...link, query: { ...link.query, saving: [...SAVING_PARTS] } };
 }
 
 /** The address with a kind the spending leaves out added to the ones it counts. */

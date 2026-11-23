@@ -434,7 +434,7 @@ def test_a_split_a_rule_change_no_longer_takes_is_previewed_flagged_and_put_on_t
     listed = own.get("/api/todos", headers=bearer()).json()
     [todo] = [t for t in listed["items"] if t["kind"] == "split_dropped"]
     assert (todo["target"], todo["link"]["screen"], todo["link"]["id"]) == (fp, "transaction", fp)
-    assert "2 parçaya" in todo["detail"] and "Birikim & yatırım" in todo["detail"]
+    assert "2 parçaya" in todo["detail"] and "BES ve yatırım" in todo["detail"]
     assert listed["counts"]["split_dropped"] == 1
 
 

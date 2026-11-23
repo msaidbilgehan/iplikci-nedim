@@ -810,7 +810,11 @@ def _totals(t: month_end.Totals) -> Json:
         "income": None if t.income is None else round_half_up(t.income),
         "people": round_half_up(t.people),
         "debt": round_half_up(t.debt),
+        # Set aside: BES and investments, currency, gold, deposits; below zero taken out of the savings.
         "saving": round_half_up(t.saving),
+        "savingParts": [
+            {"part": line.part, "label": line.label, "amount": round_half_up(line.amount)} for line in t.saving_parts
+        ],
         "feesAndInterest": round_half_up(t.fees),
         "left": None if t.left is None else round_half_up(t.left),
     }
@@ -2544,7 +2548,9 @@ TOOLS = (
         "Ay sonu ve kapanış",
         "Ay sonu raporu ve ekstre ile kapanış. month verilmezse son aylar: her ayın durumu (closed: bütün "
         "hesapların ekstresi/dökümü ayın tamamını kapsıyor, tutarlı ve dekontlar eşleşti; waiting: ekstre "
-        "bekleniyor; missing: belge eksik; check: kontrol gerekli; running: ay sürüyor), gider, gelir, kalan. "
+        "bekleniyor; missing: belge eksik; check: kontrol gerekli; running: ay sürüyor), gider, gelir, birikim "
+        "(saving: BES ve yatırımlara, döviz ve altına, vadeli ve yatırım hesaplarına net giden para; eksiyse "
+        "birikimden kullanılan; savingParts parçaları), kalan. "
         "month ile o ayın ayrıntısı: hesap hesap hangi ekstre ya da döküm bekleniyor (sonraki kesim tarihi: "
         "nextCutPrinted true ise bir önceki ekstrenin yazdığı gün, değilse bir ay sonrasına göre tahmin), ay "
         "sonu bakiyeleri, gider dağılımı, düzenli ödemeler, ekstresi gelmeden dekontlardan işlenen geçici kayıtlar "

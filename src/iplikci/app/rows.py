@@ -14,7 +14,7 @@ from decimal import Decimal
 from enum import StrEnum
 
 from ..analysis import CONFIRMED, NOT_ON_STATEMENT, PROVISIONAL, Dataset, ReceiptLine
-from ..domain.codes import DEFAULT_EXPENSE_KINDS, Certainty, Necessity, TransactionKind
+from ..domain.codes import DEFAULT_EXPENSE_KINDS, Certainty, Necessity, SavingPart, TransactionKind
 from ..domain.models import TRY, Transaction
 
 # What the API names from here: the codes a row carries, and the records.
@@ -25,6 +25,7 @@ __all__ = [
     "Necessity",
     "RowView",
     "Rows",
+    "SavingPart",
     "TransactionKind",
     "certainty_of",
     "direction",
@@ -78,9 +79,19 @@ class RowView:
     document: str  # the sha256 of the document it is printed in
     split_of: str  # a part of a split row: the row's fingerprint; "" for any other row
     split_parts: int  # a part of a split row: how many parts the row has; 0 for any other row
+    # What a counted row adds to the money set aside, and where it went (insights.saving_of): above zero set aside,
+    # below zero taken out of the savings; none for a row that moves no money into or out of them.
+    saving_part: SavingPart | None = None
+    saving: Decimal = Decimal(0)
 
 
-def view(t: Transaction, certainty: Certainty, currency: str = TRY, counted: bool = True) -> RowView:
+def view(
+    t: Transaction,
+    certainty: Certainty,
+    currency: str = TRY,
+    counted: bool = True,
+    saving: tuple[SavingPart, Decimal] | None = None,
+) -> RowView:
     return RowView(
         fingerprint=t.fingerprint,
         day=t.date,
@@ -107,6 +118,8 @@ def view(t: Transaction, certainty: Certainty, currency: str = TRY, counted: boo
         document=t.document,
         split_of=t.split_of,
         split_parts=t.split_parts,
+        saving_part=saving[0] if saving is not None and counted else None,
+        saving=saving[1] if saving is not None and counted else Decimal(0),
     )
 
 

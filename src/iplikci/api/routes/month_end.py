@@ -9,7 +9,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Path, Request
 from pydantic import BaseModel
 
-from ...app import closing
+from ...app import closing, transactions
 from ...app.analysis import Analysis, account_labels
 from ...app.closing import EvidenceStatus, MonthEnd, MonthStatus, StatementCheck
 from ...app.exports import ExportKind
@@ -17,7 +17,18 @@ from ...app.links import Link, Screen
 from ...app.workspace import Busy
 from ..context import Context, context_of
 from ..guard import Principal
-from ..models import AccountRefOut, LinkOut, MoneyOut, RowOut, account_ref, link_out, money, row_out
+from ..models import (
+    AccountRefOut,
+    LinkOut,
+    MoneyOut,
+    RowOut,
+    SavingPartOut,
+    account_ref,
+    link_out,
+    money,
+    row_out,
+    saving_part_out,
+)
 from ..problems import Problem
 from .deps import only
 
@@ -33,7 +44,10 @@ class MonthEndTotalsOut(BaseModel):
     income: MoneyOut | None  # null when no bank account's list covers half the month
     people: MoneyOut  # money sent to people
     debt: MoneyOut  # loan principal repaid
+    # What was set aside: BES and investments, currency, gold, deposits and investment accounts; below zero what was
+    # taken out of the savings (currency sold, a deposit drawn).
     saving: MoneyOut
+    saving_parts: list[SavingPartOut]  # the saving's parts, the largest first
     fees: MoneyOut  # interest and fees, part of expense
     left: MoneyOut | None  # income less the rest; null without income
 
@@ -159,13 +173,14 @@ def _optional(value: Decimal | None, currency: str = "TRY") -> MoneyOut | None:
     return None if value is None else money(value, currency)
 
 
-def _totals(t: closing.Totals) -> MonthEndTotalsOut:
+def _totals(t: closing.Totals, month: str) -> MonthEndTotalsOut:
     return MonthEndTotalsOut(
         expense=money(t.expense),
         income=_optional(t.income),
         people=money(t.people),
         debt=money(t.debt),
         saving=money(t.saving),
+        saving_parts=[saving_part_out(p) for p in transactions.saving_shown(month, t.saving_parts)],
         fees=money(t.fees),
         left=_optional(t.left),
     )
@@ -183,7 +198,7 @@ def _month(me: MonthEnd) -> MonthEndOut:
         name=me.name,
         status=me.status,
         summary=me.summary,
-        totals=_totals(me.totals),
+        totals=_totals(me.totals, me.month),
         provisional=len(me.provisional),
         unmatched=len(me.unmatched),
         income_note=me.income_note,
@@ -255,7 +270,7 @@ def month_detail(request: Request, month: Month) -> MonthEndDetailOut:
     ]
     return MonthEndDetailOut(
         month=_month(me),
-        previous=None if me.previous is None else _totals(me.previous),
+        previous=None if me.previous is None else _totals(me.previous, closing.shift(me.month, -1)),
         typical=_optional(me.typical),
         typical_months=me.typical_months,
         accounts=[_account(ac, labels) for ac in me.accounts],

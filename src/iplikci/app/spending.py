@@ -119,7 +119,7 @@ class FlowMonth:
     net: Decimal  # income − expense
     people: Decimal  # sent to other people
     debt: Decimal  # debt principal repaid
-    saving: Decimal  # pension and other investments
+    saving: Decimal  # set aside (insights.saving_of); below zero taken out of the savings
     left: Decimal  # what is left after all of them
 
 
@@ -378,7 +378,12 @@ def _flow(a: Analysis, f: Filter, rows: list[RowView], income_months: list[str],
         return _by_month(_counted(a, _kinds(f, kind)))
 
     income, people = by_kind(TransactionKind.INCOME), by_kind(TransactionKind.P2P_TRANSFER)
-    debt, saving = by_kind(TransactionKind.LOAN_PRINCIPAL), by_kind(TransactionKind.INVESTMENT)
+    debt = by_kind(TransactionKind.LOAN_PRINCIPAL)
+    # What was set aside, as the month-end page counts it (insights.saving_of): BES and investments, currency, gold,
+    # deposits; less what was taken out of the savings.
+    saving: dict[str, Decimal] = defaultdict(Decimal)
+    for r in _counted(a, _kinds(f)):
+        saving[month_of(r.day)] += r.saving
     out: list[FlowMonth] = []
     for m in income_months:
         came, went = -income.get(m, ZERO), spent.get(m, ZERO)

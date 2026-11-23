@@ -18,7 +18,7 @@ Her türde aynıdır: `tutar > 0` paranın kullanıcıdan çıkması, `tutar < 0
 | `kisiye_transfer` | `p2p_transfer` | Kişilere gönderilen para | hayır |
 | `kredi_anapara` | `loan_principal` | Kredi & borç anapara ödemesi | hayır |
 | `nakit_avans` | `cash_advance` | Nakit avans / çekim | hayır |
-| `yatirim` | `investment` | Birikim & yatırım (döviz, altın, BES) | hayır |
+| `yatirim` | `investment` | BES ve yatırım (fon, hisse, sermaye) | hayır |
 | `gelir` | `income` | Gelir | hayır |
 | `ekstresiz_kart` | `card_payment_no_statement` | Ekstresi olmayan kart ödemesi | hayır |
 | `kart_odemesi` | `card_payment` | Kredi kartı borç ödemesi | hayır |

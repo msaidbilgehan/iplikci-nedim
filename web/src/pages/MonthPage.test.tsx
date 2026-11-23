@@ -130,6 +130,48 @@ describe("MonthPage: the totals", () => {
     ).toBeInTheDocument();
   });
 
+  it("says what the month set aside and what of, each part leading to its rows", async () => {
+    const detail = monthEndDetail("2026-10");
+    const totals = {
+      ...detail.month.totals,
+      saving: { minor: 1150000, currency: "TRY" },
+      saving_parts: [
+        {
+          part: "fx" as const,
+          category: "",
+          label: "Döviz",
+          amount: { minor: 1250000, currency: "TRY" },
+          link: { screen: "transactions" as const, id: "", query: { from: "2026-10-01", to: "2026-10-31", saving: "fx" } },
+        },
+        {
+          part: "deposit" as const,
+          category: "",
+          label: "Vadeli hesap",
+          amount: { minor: -100000, currency: "TRY" },
+          link: {
+            screen: "transactions" as const,
+            id: "",
+            query: { from: "2026-10-01", to: "2026-10-31", saving: "deposit" },
+          },
+        },
+      ],
+    };
+    server.use(
+      http.get("/api/month-end/2026-10", () =>
+        HttpResponse.json({ ...detail, month: { ...detail.month, totals } }),
+      ),
+    );
+    open("2026-10");
+    const found = await card("Toplamlar");
+    const saving = within(found).getByText("Birikim (BES, yatırım, döviz, altın, vadeli hesap)").nextElementSibling;
+    expect(saving).toHaveTextContent("11.500,00 TL");
+    expect(within(found).getByRole("link", { name: "Döviz: 12.500,00 TL" })).toHaveAttribute(
+      "href",
+      "/islemler?from=2026-10-01&to=2026-10-31&saving=fx",
+    );
+    expect(within(found).getByRole("link", { name: "Vadeli hesap: 1.000,00 TL çıktı" })).toBeInTheDocument();
+  });
+
   it("puts where the income comes from under the income", async () => {
     open("2026-10");
     const totals = await card("Toplamlar");

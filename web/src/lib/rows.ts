@@ -2,7 +2,9 @@
 // screen narrowed by the API's own filters, so the rows it lists add up to the number. A month is its first and last
 // day. Spending is its kinds written out — purchases, refunds, interest and fees (domain.codes.DEFAULT_EXPENSE_KINDS)
 // — so the list keeps no card payment, transfer or saving, which the spending leaves out; what went out adds the money
-// sent to people and the loan principal repaid, and a month's saving is its savings and investments.
+// sent to people and the loan principal repaid. A month's saving is the rows that set money aside or took it out of the
+// savings (the API's saving filter): BES and investments, currency and gold bought or sold with TL, and what came into
+// or left an account that holds savings; their totals' saving is the month's.
 
 import type { Destination } from "../api/types";
 import { addDays } from "./format";
@@ -40,9 +42,12 @@ export function monthOut(month: string, query: LinkQuery = {}): Destination {
   return monthRows(month, { kind: [...OUT_KINDS], ...query });
 }
 
-/** What a month set aside: its savings and investments. */
+/** Where money set aside goes, as the API's saving filter names it (domain.codes.SavingPart). */
+export const SAVING_PARTS = ["investment", "fx", "gold", "deposit", "brokerage"] as const;
+
+/** What a month set aside, or took out of the savings: the rows of every part of its saving. */
 export function monthSaving(month: string, query: LinkQuery = {}): Destination {
-  return monthRows(month, { kind: "investment", ...query });
+  return monthRows(month, { saving: [...SAVING_PARTS], ...query });
 }
 
 /** A month's income, narrowed further by the query given. */

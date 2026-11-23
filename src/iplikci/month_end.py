@@ -51,6 +51,7 @@ from .domain.money import TOLERANCE, round_half_up
 from .insights import (
     NOT_BANK_ACCOUNTS,
     Insights,
+    SavingLine,
     Series,
     complete_months,
     debt_at,
@@ -59,6 +60,7 @@ from .insights import (
     month_of,
     receipt_amount,
     salary_timing,
+    savings,
     shift,
     span,
     tl,
@@ -287,8 +289,11 @@ class Totals:
     expense: Decimal  # purchases, refunds, interest and fees
     people: Decimal
     debt: Decimal  # loan principal repaid
+    # What was set aside (insights.saving_of): BES and investments, currency, gold, deposits and investment accounts;
+    # below zero what was taken out of the savings (currency sold, a deposit drawn).
     saving: Decimal
     fees: Decimal  # interest and fees, part of expense
+    saving_parts: tuple[SavingLine, ...] = ()  # the saving's parts, the largest first
 
     @property
     def left(self) -> Decimal | None:
@@ -411,18 +416,21 @@ class _Shared:
 
     def totals(self, month: str) -> Totals:
         sums: dict[str, Decimal] = defaultdict(Decimal)
-        for t in self.by_month.get(month, []):
+        rows = self.by_month.get(month, [])
+        for t in rows:
             sums["expense" if t.kind in DEFAULT_EXPENSE_KINDS else t.kind] += t.amount
             if t.kind == TransactionKind.INTEREST_FEE:
                 sums["fees"] += t.amount
         income = -sums[TransactionKind.INCOME] if self.income_known(month) else None
+        saving, parts = savings(rows, self.ds.accounts)
         return Totals(
             income,
             sums["expense"],
             sums[TransactionKind.P2P_TRANSFER],
             sums[TransactionKind.LOAN_PRINCIPAL],
-            sums[TransactionKind.INVESTMENT],
+            saving,
             sums["fees"],
+            parts,
         )
 
     # -- closing --------------------------------------------------------------------------------
@@ -880,7 +888,13 @@ def render_month(me: MonthEnd, ds: Dataset, months: list[str], made: datetime, h
             "gelir − gider − kişilere − borç − birikim" if t.left is not None else "gelir bilinmediği için yok",
         ),
     ]
-    kpis = f'<section class="kpis month" aria-label="Özet">{"".join(tiles)}</section>'
+    if t.saving:
+        # BES, investments, currency, gold and deposits: what went into them, or what came out of them for spending.
+        parts = " · ".join(f"{line.label} {tl(line.amount)}" for line in t.saving_parts)
+        title = "Birikime ayrılan" if t.saving > 0 else "Birikimden kullanılan"
+        tiles.insert(3, _tile(title, _e(tl(abs(t.saving))), parts))
+    wide = " five" if len(tiles) == 5 else ""
+    kpis = f'<section class="kpis month{wide}" aria-label="Özet">{"".join(tiles)}</section>'
 
     debt = (
         f'<p class="hint">Ay sonunda kart ekstre borçları ve ek hesap kullanımı (belgelerin gösterdiği kadarıyla): '

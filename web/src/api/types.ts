@@ -161,6 +161,8 @@ import type {
   RestoringOut,
   RowOut,
   RuleChangeOut,
+  SavingPart,
+  SavingPartOut,
   SayingOut,
   SearchPartOut,
   SeriesOut,
@@ -413,6 +415,9 @@ export type UpdateMode = UpdateOut["mode"];
 export type RealTrend = RealTrendOut;
 export type OpenAlert = AlertOut;
 export type MonthClosing = ClosingOut;
+// A part of a month's saving (BES, a fund, currency, gold, deposits, investment accounts) with its rows of the month.
+export type { SavingPart };
+export type SavingShare = SavingPartOut;
 export type Freshness = FreshnessOut;
 export type TodoSummary = TodoSummaryOut;
 

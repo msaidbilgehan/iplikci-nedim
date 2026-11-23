@@ -17,21 +17,24 @@ import { Badge } from "../ui/Badge";
 import { Card } from "../ui/Card";
 import { ScreenLink } from "../ui/Say";
 import { Table, Td, Th } from "../ui/Table";
-import { monthKindOf, monthRowsOf } from "./query";
+import { monthKindOf, monthRowsOf, monthSavingOf } from "./query";
 
 const SMALL = "text-xs text-zinc-600 dark:text-zinc-300";
 const COLUMNS = ["income", "expense", "net", "people", "debt", "saving", "left"] as const;
 type Column = (typeof COLUMNS)[number];
-// The kind of the rows each column of money counts, but the spending's, which is the spending cards' own.
+// The kind of the rows each column of money counts, but the spending's, which is the spending cards' own, and the
+// saving's, which are the rows that set money aside or took it out of the savings.
 const KINDS: Partial<Record<Column, string>> = {
   income: "income",
   people: "p2p_transfer",
   debt: "loan_principal",
-  saving: "investment",
 };
 
 /** Where a month's column leads: its rows on the İşlemler screen, with the screen's filters; net and left nowhere. */
 function rowsOf(params: URLSearchParams, month: string, column: Column): Destination | null {
+  if (column === "saving") {
+    return monthSavingOf(params, month);
+  }
   const kind = KINDS[column];
   if (kind) {
     return monthKindOf(params, month, kind);

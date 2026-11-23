@@ -17,6 +17,8 @@
     "certainty": "Kesinlik",
     "tag": "Etiket",
     "tagAdd": "Etiket ekle",
+    "saving": "Birikim",
+    "savingAll": "BES, yatırım, döviz, altın, vadeli ve yatırım hesapları",
     "merchant": "İşyeri",
     "q": "Ara",
     "qHint": "Açıklama, işyeri, not ya da etiket. Virgülle birkaçını birden arayın: market, kira",
@@ -80,10 +82,14 @@
     "netNote": "giren eksi çıkan",
     "rows": "{{count}} işlem",
     "provisionalWord": "geçici",
-    "excludedWord": "ekstrede yok"
+    "excludedWord": "ekstrede yok",
+    "saving": "Bu işlemlerle birikime {{amount}} ayrıldı (birikime giren para, birikimden çıkan düşülünce).",
+    "savingDrawn": "Bu işlemlerle birikimden {{amount}} kullanıldı (birikimden çıkan para, birikime giren düşülünce)."
   },
   "table": {
     "caption": "İşlemler, {{order}}",
+    "savingIn": "birikime girdi: {{amount}}",
+    "savingOut": "birikimden çıktı: {{amount}}",
     "sortedBy": "{{column}} sırasına göre, {{direction}}",
     "ascending": "artan",
     "descending": "azalan",

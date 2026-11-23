@@ -19,6 +19,7 @@ newest month is usually partial.
 
 import re
 from collections import defaultdict
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
 from decimal import Decimal
@@ -45,12 +46,13 @@ from .domain.codes import (
     AccountType,
     Necessity,
     RateSource,
+    SavingPart,
     SeriesPeriod,
     SeriesStatus,
     TransactionKind,
 )
-from .domain.labels import MONTHS, RATE_SOURCE, format_amount, format_rate
-from .domain.models import TRY, Transaction
+from .domain.labels import MONTHS, RATE_SOURCE, SAVING_PART, format_amount, format_rate
+from .domain.models import TRY, Account, Transaction
 from .domain.money import CENT, round_half_up, to_decimal
 from .domain.text import fold
 
@@ -834,6 +836,72 @@ def trend(ds: Dataset, tl_: Timeline, in_series: set[int]) -> Trend | None:
     return Trend(before, recent, avg(before), avg(recent), avg(before, skip), avg(recent, skip), changes[:8], big)
 
 
+# --- savings -----------------------------------------------------------------------------------
+
+# The accounts that hold savings: what comes into them is set aside, what leaves them comes out of the savings. The
+# others (current accounts, overdrafts, cards, loans) are where the month's money is spent from.
+SAVINGS_ACCOUNTS: dict[AccountType, SavingPart] = {
+    AccountType.FX: SavingPart.FX,
+    AccountType.GOLD: SavingPart.GOLD,
+    AccountType.DEPOSIT: SavingPart.DEPOSIT,
+    AccountType.BROKERAGE: SavingPart.BROKERAGE,
+}
+
+
+@dataclass(frozen=True, slots=True)
+class SavingLine:
+    """A part of a month's saving: an investment category (BES, a fund) or a kind of savings account."""
+
+    part: SavingPart
+    category: str  # the investment rows' category; "" for an account's part
+    amount: Decimal  # above zero set aside, below zero taken out of the savings
+
+    @property
+    def label(self) -> str:
+        """How the screens name it: the investment's category ("Bireysel Emeklilik (BES)"), else the kind of
+        savings ("Döviz")."""
+        return self.category or SAVING_PART[self.part]
+
+
+def saving_of(t: Transaction, accounts: Mapping[str, Account]) -> tuple[SavingPart, Decimal] | None:
+    """What row t adds to the money set aside (docs/domain/interpretation.md, "Birikim") and where it went: above zero
+    what went into the savings, below zero what came out of them; None for a row that moves no money into or out of
+    them.
+
+    - A row of a savings account (foreign currency, gold, a deposit, an investment account) adds what came into it
+      (income, interest, a transfer from a current account) and takes off what left it (a transfer back, a card paid
+      from it, spending).
+    - Elsewhere, a pension or investment payment (kind investment) is set aside, and a currency or gold trade (an own
+      transfer in "Döviz & Altın Alım-Satımı") puts the TL it paid into the savings or takes out what a sale brought:
+      the readers drop the trade's foreign side (parsers.movements.classify), so its TL side stands for it.
+    - Money moved within the savings adds nothing: a fund or a share bought with a savings account's money, currency
+      bought with a deposit's, a transfer between two savings accounts (its two sides cancel)."""
+    account = accounts.get(t.account)
+    held = SAVINGS_ACCOUNTS.get(account.type) if account is not None else None
+    trade = t.kind == TransactionKind.OWN_TRANSFER and t.category == FX_CATEGORY
+    if held is not None:
+        return None if t.kind == TransactionKind.INVESTMENT or trade else (held, -t.amount)
+    if t.kind == TransactionKind.INVESTMENT:
+        return SavingPart.INVESTMENT, t.amount
+    if trade:
+        return (SavingPart.GOLD if "ALTIN" in fold(t.description) else SavingPart.FX), t.amount
+    return None
+
+
+def savings(rows: Iterable[Transaction], accounts: Mapping[str, Account]) -> tuple[Decimal, tuple[SavingLine, ...]]:
+    """What rows set aside in all (below zero: took out of the savings), and its parts, the largest first: each
+    investment category, then each kind of savings account. A part that adds up to nothing is left out."""
+    parts: dict[tuple[SavingPart, str], Decimal] = defaultdict(Decimal)
+    for t in rows:
+        found = saving_of(t, accounts)
+        if found is not None:
+            part, amount = found
+            parts[part, t.category if part is SavingPart.INVESTMENT else ""] += amount
+    lines = [SavingLine(part, category, amount) for (part, category), amount in parts.items() if amount]
+    lines.sort(key=lambda line: (-abs(line.amount), list(SavingPart).index(line.part), line.category))
+    return sum((line.amount for line in lines), ZERO), tuple(lines)
+
+
 # --- money in and out ---------------------------------------------------------------------
 
 
@@ -846,8 +914,8 @@ class Flow:
     expense: Decimal
     people: Decimal  # money sent to other people
     debt: Decimal  # debt principal repaid
-    saving: Decimal  # pension and other investments
-    fx: Decimal  # foreign currency and gold bought (+) or sold (-) with TL
+    saving: Decimal  # what was set aside: BES, investments, currency, gold and deposits (saving_of)
+    fx: Decimal  # foreign currency and gold bought (+) or sold (-) with TL, part of saving
     unnamed_people: Decimal  # sent to people the statement does not name (bank name only)
     debt_start: Decimal = ZERO  # card statement balances and overdraft use before the window
     debt_end: Decimal = ZERO  # and at its end
@@ -876,6 +944,9 @@ def flow(ds: Dataset, tl_: Timeline) -> Flow | None:
             sums["fx"] += t.amount
         if t.kind == TransactionKind.P2P_TRANSFER and _bank_name(t.merchant):
             sums["unnamed"] += t.amount
+        saved = saving_of(t, ds.accounts)
+        if saved is not None:
+            sums["saving"] += saved[1]
     n = len(months)
     base = tl_.window[-6:]
     other = dict.fromkeys(base, ZERO)
@@ -888,7 +959,7 @@ def flow(ds: Dataset, tl_: Timeline) -> Flow | None:
         sums["expense"] / n,
         sums[TransactionKind.P2P_TRANSFER] / n,
         sums[TransactionKind.LOAN_PRINCIPAL] / n,
-        sums[TransactionKind.INVESTMENT] / n,
+        sums["saving"] / n,
         sums["fx"] / n,
         sums["unnamed"] / n,
         debt_at(ds, month_end(shift(tl_.window[0], -1))),
@@ -1361,12 +1432,19 @@ def _balance(c: _Context) -> None:
     if not fl:
         return
     share = fl.expense / fl.income if fl.income else 0
+    # Money taken out of the savings (currency sold, a deposit drawn) leaves more in the accounts, but the income did
+    # not earn it: the tone weighs what the income left.
+    if fl.saving >= 0:
+        rest = f", borç ödemesi {tl(fl.debt)} ve birikime ayrılan {tl(fl.saving)} de düşülünce"
+    else:
+        rest = f" ve borç ödemesi {tl(fl.debt)} düşülüp birikimden kullanılan {tl(-fl.saving)} eklenince"
     text = (
         f"{_window_text(c.window)} arasındaki {len(c.window)} tam ayda ortalama gelir {tl(fl.income)}, gider "
-        f"{tl(fl.expense)} (gelirin {pct(share)}). Kişilere gönderilen {tl(fl.people)}, borç ödemesi "
-        f"{tl(fl.debt)} ve BES/birikim {tl(fl.saving)} de düşülünce ayda {tl(fl.left)} kalıyor."
+        f"{tl(fl.expense)} (gelirin {pct(share)}). Kişilere gönderilen {tl(fl.people)}{rest} ayda {tl(fl.left)} "
+        "kalıyor."
     )
-    tone = "iyi" if fl.left >= Decimal("0.15") * fl.income else "dikkat"
+    kept = fl.left + min(fl.saving, ZERO)
+    tone = "iyi" if kept >= Decimal("0.15") * fl.income else "dikkat"
     c.ins.findings.append(Finding(tone, "Gelir ve gider dengesi", text))
 
 

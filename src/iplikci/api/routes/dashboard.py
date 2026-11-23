@@ -22,12 +22,14 @@ from ..models import (
     LinkOut,
     MoneyOut,
     PaceOut,
+    SavingPartOut,
     SayingOut,
     UntoldOut,
     account_ref,
     link_out,
     money,
     pace_out,
+    saving_part_out,
     saying_out,
     untold_out,
 )
@@ -130,7 +132,10 @@ class ClosingOut(BaseModel):
     out: MoneyOut
     people: MoneyOut  # what was sent to people, part of out
     debt: MoneyOut  # the loan principal repaid, part of out
-    saving: MoneyOut  # what went to savings and investments
+    # What was set aside: BES and investments, currency, gold, deposits and investment accounts; below zero what was
+    # taken out of the savings (currency sold, a deposit drawn).
+    saving: MoneyOut
+    saving_parts: list[SavingPartOut]  # the saving's parts, the largest first
     income: MoneyOut | None  # null when no account list covers enough of the month to know it
     # The income less what went out and what was saved; below zero when more went out. As the month-end page says.
     left: MoneyOut | None
@@ -256,6 +261,7 @@ def _closing(c: dashboard.Closing, labels: dict[str, str]) -> ClosingOut:
         people=money(c.people),
         debt=money(c.debt),
         saving=money(c.saving),
+        saving_parts=[saving_part_out(p) for p in c.saving_parts],
         income=None if c.income is None else money(c.income),
         left=None if c.left is None else money(c.left),
         income_note=c.income_note,

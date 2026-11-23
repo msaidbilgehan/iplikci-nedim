@@ -474,6 +474,7 @@ def _detail(found: accounts.Detail, labels: dict[str, str]) -> AccountDetailOut:
             money_in=money(t.money_in),
             provisional=t.provisional,
             excluded=t.excluded,
+            saving=money(t.saving),
         ),
         offset=page.offset,
         next=page.next,

@@ -313,14 +313,25 @@ G7 · Çekirdek
       yalındır. Süren ay oklarda yoktur; hikâye onu yalnızca henüz biten bir ay yokken anlatır.
     - Biten ama geliri henüz bilinmeyen bir ay (hesap dökümleri ayın yarısını kapsamıyor) neden anlatılmadığını bir
       cümleyle söyler: o aya kadar gelen belgelere göre ne harcandığı ve o ayın Ay sonu sayfasına giden bağlantı.
-    - Giden harcama, kişilere gönderilen para ve ödenen kredi anaparasıdır; birikim (BES, döviz, altın, yatırım)
-      ayrıca gösterilir. Kalan, Ay sonu'nun kalanıdır: gelenden giden ve birikim düşülür (v0.9.9, kullanıcının
+    - Giden harcama, kişilere gönderilen para ve ödenen kredi anaparasıdır; birikim (BES, döviz, altın, vadeli hesap,
+      yatırım) ayrıca gösterilir. Kalan, Ay sonu'nun kalanıdır: gelenden giden ve birikim düşülür (v0.9.9, kullanıcının
       isteğiyle; önceden yalnızca harcama düşülüyordu ve Ay sonu'yla ayrışabiliyordu).
-    - Hüküm birikimi de söyler: "Gelen paranın %12'si birikime gitti, %16'sı elinizde kaldı."
+    - Birikim, ayda birikime net giden paradır ([yorum kuralları](../domain/interpretation.md), "Birikim"): BES ve
+      yatırımlar, TL ile alınan döviz ve altın, döviz, altın, vadeli ve yatırım hesaplarına giren para (dövizle gelen
+      gelir de, hesapta kaldıkça). Altında parçaları yazar ("Bireysel Emeklilik (BES): 1.000,00 TL", "Döviz:
+      12.500,00 TL"), her biri o ayın kendi satırlarına götürür; ters yöne giden parça bunu söyler ("Vadeli hesap:
+      2.000,00 TL çıktı"). v1.0.10'a dek yalnızca BES ve yatırım türü sayılıyordu; kullanıcı yazının döviz ve altını
+      söyleyip saymadığını gördü.
+    - Birikimden para kullanılan ayda (bozdurulan döviz, vadeliden çekilen) figür "Birikimden kullanılan" olur, Kalan
+      onu da içerir; hüküm gelirin bıraktığını onsuz söyler ve "birikimden X kullanıldı" diye ekler.
+    - Hüküm birikimi de söyler: "Gelen paranın %12'si birikime gitti, %16'sı elinizde kaldı." Gelir gideni karşıladığı
+      hâlde birikim gelirin bıraktığını aşarsa hüküm uyarıdır, kritik değil: para harcanmadı, birikime gitti.
   - Son belgelere göre hesaplardaki para, neye dayandığıyla: kart borçları düşülünce, bakiyesi bilinmeyen hesaplar.
-  - Aylara göre gelen (yeşil, çizginin üstünde), giden (turuncu, altında) ve birikim (mavi, altında; varsa) çubukları;
-    kapanmamış aylar soluk. Gideni işlemlerine götürür (harcama, kişilere gönderilen, kredi anaparası), birikimi
-    birikim satırlarına; ayın adı ya da sütunun boş yeri ayın bütün işlemlerine.
+  - Aylara göre gelen (yeşil, çizginin üstünde), giden (turuncu, altında) ve birikim (mavi, altında; birikimden
+    kullanılan ayda üstünde; varsa) çubukları; kapanmamış aylar soluk. Gideni işlemlerine götürür (harcama, kişilere
+    gönderilen, kredi anaparası), birikimi birikim satırlarına (İşlemler'in `saving` süzgeci); ayın adı ya da sütunun
+    boş yeri ayın bütün işlemlerine. "Kapanan N ayın M'sinde gelen para gideni geçti" gelen ile gideni karşılaştırır:
+    birikime ayrılan para gitmiş sayılmaz.
     - Kapanmamış bir ayın sütununun üstünde durumu yazar: ekstrelerini bekleyen ay "bekliyor" ve kapanacağı gün
       ("~20.11", son beklenen kartın kesimi), süren ay "sürüyor", belgesi eksik ay "eksik", bakılması gereken ay
       "kontrol". Grafiğin altında her kapanmamış ayın bir cümlesi ve işlemlerine bağlantısı vardır: "Ekim 2026 eksik

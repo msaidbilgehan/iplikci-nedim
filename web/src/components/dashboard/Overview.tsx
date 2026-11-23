@@ -1,7 +1,9 @@
 // The simple view's home (F06), for anyone, with or without finance words: where the money stands, read as pictures
 // first. The newest ended month's money in, out, saved and left as figures and one bar, with a sentence saying how it
 // went: out is the spending, the money sent to people and the loan principal repaid, and left is the income less what
-// went out and what was saved, as the month-end page says. A month that ended but still waits for documents (a card's
+// went out and what was saved, as the month-end page says. What was saved is what went into the savings, net (BES and
+// investments, currency, gold, deposits; docs/domain/interpretation.md, "Birikim"), its parts each leading to their
+// rows; a month that drew on its savings says what it took, and its verdict weighs the income without it. A month that ended but still waits for documents (a card's
 // statement covers its last days weeks later) is told at once, its figures and its verdict "for now" (şimdilik), with
 // what it waits for and by when; until v0.10.1 the story waited for the month to close and told the one before it
 // for weeks. The arrows beside its title go to the months before (?ay=). An ended month whose money in is not known
@@ -19,7 +21,7 @@ import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router";
 
 import { useForecast, useInsights, useSpending } from "../../api/queries";
-import type { CalendarItem, Dashboard, Forecast, MonthClosing, OpenAlert } from "../../api/types";
+import type { CalendarItem, Dashboard, Forecast, MonthClosing, OpenAlert, SavingShare } from "../../api/types";
 import { cn } from "../../lib/cn";
 import { addDays, formatDay, formatMoney, formatMonth } from "../../lib/format";
 import { type Holdings, readHoldings, saveHoldings } from "../../lib/preferences";
@@ -92,6 +94,7 @@ interface FigureProps {
   hint: string;
   value: string;
   tone?: "in" | "out" | "saved" | "left" | "over";
+  children?: ReactNode; // what the figure is made of, under its hint
 }
 
 const DOTS: Readonly<Record<NonNullable<FigureProps["tone"]>, string>> = {
@@ -102,7 +105,7 @@ const DOTS: Readonly<Record<NonNullable<FigureProps["tone"]>, string>> = {
   over: "bg-status-critical",
 };
 
-function Figure({ label, hint, value, tone = "in" }: FigureProps) {
+function Figure({ label, hint, value, tone = "in", children }: FigureProps) {
   return (
     <div className="min-w-0 flex-1 rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800/60">
       <dt className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
@@ -119,28 +122,59 @@ function Figure({ label, hint, value, tone = "in" }: FigureProps) {
         {value}
       </dd>
       <dd className={`mt-0.5 ${SMALL}`}>{hint}</dd>
+      {children}
     </div>
+  );
+}
+
+/**
+ * Where the month's saving went, or came from: each investment category and kind of savings with its amount, a link to
+ * its rows of the month. A part taken out of the savings says so beside a saving, and the other way round.
+ */
+function SavingParts({ parts, drawn }: { parts: readonly SavingShare[]; drawn: boolean }) {
+  const { t } = useTranslation("dashboard");
+  if (parts.length === 0) {
+    return null;
+  }
+  return (
+    <dd className={cn("mt-1", SMALL)}>
+      <ul aria-label={t(drawn ? "overview.story.drawnParts" : "overview.story.savedParts")} className="flex flex-col">
+        {parts.map((part) => {
+          const against = drawn ? part.amount.minor > 0 : part.amount.minor < 0;
+          const amount = formatMoney(tl(Math.abs(part.amount.minor)));
+          return (
+            <li key={`${part.part}-${part.category}`}>
+              <ScreenLink link={part.link}>
+                {part.label}: {against ? t(drawn ? "overview.story.partIn" : "overview.story.partOut", { amount }) : amount}
+              </ScreenLink>
+            </li>
+          );
+        })}
+      </ul>
+    </dd>
   );
 }
 
 interface Money {
   moneyIn: number; // minor units, as every figure here
   moneyOut: number; // spending, money sent to people and loan principal repaid
-  saved: number;
+  saved: number; // set aside; below zero taken out of the savings (currency sold, a deposit drawn)
   left: number; // moneyIn less moneyOut and saved: below zero when more went out
 }
 
 /**
  * Money in as the bar's whole, and what went out, what was saved and what was left as its parts, each named under it
  * with its share; when more went out, what went out and was saved is the whole, what came in a part and the rest is
- * what went out beyond it. The sentence beside it says the same in words, so the bar itself is hidden from screen
- * readers.
+ * what went out beyond it. Money taken out of the savings is money in beside the income. The sentence beside it says
+ * the same in words, so the bar itself is hidden from screen readers.
  */
 function MoneyBar({ moneyIn, moneyOut, saved, left }: Money) {
   const { t } = useTranslation("dashboard");
+  const drawn = Math.max(-saved, 0);
+  const setAside = Math.max(saved, 0);
   if (left < 0) {
-    const whole = Math.max(moneyOut + saved, 1);
-    const came = Math.max(moneyIn, 0) / whole;
+    const whole = Math.max(moneyOut + setAside, 1);
+    const came = (Math.max(moneyIn, 0) + drawn) / whole;
     const beyond = -left / whole;
     return (
       <div aria-hidden="true" className="flex flex-col gap-1">
@@ -149,13 +183,13 @@ function MoneyBar({ moneyIn, moneyOut, saved, left }: Money) {
           <span className="h-full bg-status-critical" style={{ width: `${beyond * 100}%` }} />
         </div>
         <div className={cn("flex justify-between gap-3", SMALL)}>
-          <span>{t("overview.story.barIncome", { share: came })}</span>
+          <span>{t("overview.story.barIncome", { share: came, context: drawn > 0 ? "drawn" : "" })}</span>
           <span>{t("overview.story.barOver", { share: beyond })}</span>
         </div>
       </div>
     );
   }
-  const whole = Math.max(moneyIn, 1);
+  const whole = Math.max(moneyIn + drawn, 1);
   const parts = [
     { key: "out", share: moneyOut / whole, fill: SLOT_BG[OUT_SLOT], said: "overview.story.barSpent" },
     { key: "saved", share: saved / whole, fill: SLOT_BG[SAVE_SLOT], said: "overview.story.barSaved" },
@@ -196,22 +230,29 @@ function verdictOf(
   isOpen: boolean,
   t: TFunction<"dashboard">,
 ): { tone: Tone; said: string } {
-  const share = moneyIn > 0 ? left / moneyIn : 0;
-  const context = saved > 0 ? "saved" : "";
-  const savedShare = moneyIn > 0 ? saved / moneyIn : 0;
+  // Money taken out of the savings is no income of the month: what the income left is reckoned without it, and the
+  // verdict says it was taken. More set aside than the income left is no overspending: the income covered what went
+  // out, the rest of the saving came from the accounts' money.
+  const drawn = Math.max(-saved, 0);
+  const kept = left - drawn;
+  const share = moneyIn > 0 ? kept / moneyIn : 0;
+  const context = saved > 0 ? "saved" : drawn > 0 ? "drawn" : "";
+  const savedShare = moneyIn > 0 ? Math.max(saved, 0) / moneyIn : 0;
+  const words = { share, saved: savedShare, drawn: formatMoney(tl(drawn)), context };
   if (moneyIn === 0 && moneyOut === 0 && saved === 0) {
     return { tone: "good", said: t(isOpen ? "overview.story.quietOpen" : "overview.story.quiet") };
   }
-  if (left < 0) {
-    const amount = formatMoney(tl(-left));
-    return { tone: "critical", said: t(isOpen ? "overview.story.overOpen" : "overview.story.over", { amount, context }) };
+  if (kept < 0) {
+    const amount = formatMoney(tl(-kept));
+    return {
+      tone: moneyIn < moneyOut ? "critical" : "warning",
+      said: t(isOpen ? "overview.story.overOpen" : "overview.story.over", { ...words, amount }),
+    };
   }
   if (moneyIn > 0 && share < THIN) {
-    const said = t(isOpen ? "overview.story.thinOpen" : "overview.story.thin", { share, saved: savedShare, context });
-    return { tone: "warning", said };
+    return { tone: "warning", said: t(isOpen ? "overview.story.thinOpen" : "overview.story.thin", words) };
   }
-  const said = t(isOpen ? "overview.story.goodOpen" : "overview.story.good", { share, saved: savedShare, context });
-  return { tone: "good", said };
+  return { tone: "good", said: t(isOpen ? "overview.story.goodOpen" : "overview.story.good", words) };
 }
 
 interface MonthStoryProps {
@@ -286,17 +327,21 @@ function MonthStory({ found, month, months, isLatest }: MonthStoryProps) {
             value={formatMoney(month.out)}
             tone="out"
           />
-          {money.saved > 0 ? (
+          {money.saved !== 0 ? (
             <Figure
-              label={t("overview.story.saved")}
-              hint={t("overview.story.savedHint")}
-              value={formatMoney(month.saving)}
+              label={t(money.saved > 0 ? "overview.story.saved" : "overview.story.drawn")}
+              hint={t(money.saved > 0 ? "overview.story.savedHint" : "overview.story.drawnHint")}
+              value={formatMoney(tl(Math.abs(money.saved)))}
               tone="saved"
-            />
+            >
+              <SavingParts parts={month.saving_parts} drawn={money.saved < 0} />
+            </Figure>
           ) : null}
           <Figure
             label={over ? t("overview.story.overLabel") : t(isOpen ? "overview.story.leftOpen" : "overview.story.left")}
-            hint={t("overview.story.leftHint", { context: money.saved > 0 ? "saved" : "" })}
+            hint={t("overview.story.leftHint", {
+              context: money.saved > 0 ? "saved" : money.saved < 0 ? "drawn" : "",
+            })}
             value={formatMoney(tl(Math.abs(money.left)))}
             tone={over ? "over" : "left"}
           />
@@ -440,7 +485,8 @@ function MonthsChart({ months }: { months: readonly MonthClosing[] }) {
     return null;
   }
   const closed = months.filter((m) => m.status === "closed");
-  const ahead = closed.filter((m) => (m.left?.minor ?? 0) > 0).length;
+  // Money in beyond money out: what was set aside is still the user's, so a month that saved much is ahead too.
+  const ahead = closed.filter((m) => (m.income?.minor ?? 0) > m.out.minor).length;
   const say =
     closed.length === 0
       ? t("overview.months.sayNone")

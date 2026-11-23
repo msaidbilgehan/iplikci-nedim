@@ -1,5 +1,6 @@
 // A month's totals by calendar month (F11; docs/domain/interpretation.md, "Ay sonu kapanışı"): the spending, the
-// income where a bank list covers half the month, what went to people, to loans and to savings, and what is left. Only
+// income where a bank list covers half the month, what went to people, to loans and to savings (or came out of them),
+// each part of the saving leading to its rows, and what is left. Only
 // closed months are compared with each other — an open month lacks the days its statements have not reached — so the
 // month before and the typical month (the median of up to six complete months before this one) stand beside a closed
 // month only.
@@ -12,7 +13,7 @@ import type { Money, MonthEndDetail, MonthEndTotals } from "../../api/types";
 import { formatMoney } from "../../lib/format";
 import { Detailed, Simple } from "../Preferences";
 import { Card, Facts } from "../ui/Card";
-import { Say } from "../ui/Say";
+import { Say, ScreenLink } from "../ui/Say";
 import { Table, Td, Th } from "../ui/Table";
 import { Term } from "../ui/Term";
 import { SMALL } from "./parts";
@@ -36,6 +37,7 @@ export function TotalsCard({ detail, previousClosed }: TotalsCardProps) {
   const previous = closed && previousClosed ? detail.previous : null;
   const typical = closed ? detail.typical : null;
   const shown = (value: Money | null) => (value ? formatMoney(value) : t("unknown"));
+  const named = (item: Item) => t(item === "saving" && totals.saving.minor < 0 ? "totals.drawn" : `totals.${item}`);
   const say =
     totals.income && totals.left
       ? t("totals.say", {
@@ -85,8 +87,14 @@ export function TotalsCard({ detail, previousClosed }: TotalsCardProps) {
           items={[
             ...ITEMS.filter((item) => !WHEN_SOME.has(item) || (totals[item]?.minor ?? 0) !== 0).map(
               (item): [string, ReactNode] => [
-                t(`totals.${item}`),
-                item === "income" ? income(totals.income) : shown(totals[item]),
+                named(item),
+                item === "income" ? (
+                  income(totals.income)
+                ) : item === "saving" ? (
+                  <SavingCell totals={totals} />
+                ) : (
+                  shown(totals[item])
+                ),
               ],
             ),
             ...(detail.debt_end ? [[t("totals.debtEnd"), formatMoney(detail.debt_end)] as [string, ReactNode]] : []),
@@ -110,6 +118,36 @@ export function TotalsCard({ detail, previousClosed }: TotalsCardProps) {
         </ul>
       ) : null}
     </Card>
+  );
+}
+
+/**
+ * The month's saving, what was taken out of the savings said so by its label, and under it each part (BES, a fund,
+ * currency, gold, deposits) leading to its rows of the month; a part that went the other way says which way.
+ */
+function SavingCell({ totals }: { totals: MonthEndTotals }) {
+  const { t } = useTranslation("monthEnd");
+  const drawn = totals.saving.minor < 0;
+  const abs = (value: Money) => formatMoney({ minor: Math.abs(value.minor), currency: value.currency });
+  return (
+    <>
+      {abs(totals.saving)}
+      {totals.saving_parts.length > 0 ? (
+        <ul className={`whitespace-normal ${SMALL}`}>
+          {totals.saving_parts.map((part) => {
+            const against = drawn ? part.amount.minor > 0 : part.amount.minor < 0;
+            const amount = abs(part.amount);
+            return (
+              <li key={`${part.part}-${part.category}`}>
+                <ScreenLink link={part.link}>
+                  {part.label}: {against ? t(drawn ? "totals.partIn" : "totals.partOut", { amount }) : amount}
+                </ScreenLink>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </>
   );
 }
 
@@ -149,9 +187,9 @@ function TotalsTable({ totals, previous, typical, debtEnd, incomeNote }: TotalsT
       <tbody>
         {ITEMS.map((item) => (
           <tr key={item}>
-            <Td>{t(`totals.${item}`)}</Td>
+            <Td>{t(item === "saving" && totals.saving.minor < 0 ? "totals.drawn" : `totals.${item}`)}</Td>
             <Td className={amount}>
-              {cell(totals[item])}
+              {item === "saving" ? <SavingCell totals={totals} /> : cell(totals[item])}
               {item === "income" && incomeNote ? (
                 <span className={`block whitespace-normal ${SMALL}`}>{incomeNote}</span>
               ) : null}

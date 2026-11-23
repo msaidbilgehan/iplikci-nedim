@@ -399,6 +399,28 @@ ekstre gelmeden sayılır.
   anaparasıdır; birikim ayrıca gösterilir. Nakit avans ve çekim, kart ödemeleri ve kendi hesaplar arası transferler
   hiçbirine girmez; taksitli nakit avansın taksitleri anapara ve faiz diye ayrılınca anaparası kredi ödemesi, faizi
   harcama olur ([defter](ledger.md)).
+- **Birikim**, ayda birikime net giden paradır (`insights.saving_of`, `savings`); Pano, Ay sonu, Değerlendirme'nin
+  "Gelir ve gider" tablosu, Excel dışa aktarımı, MCP `month_end` ve İplikçi Nedim aynısını sayar:
+  - BES ve yatırım ödemeleri (`investment` türü: BES, fon, hisse, sermaye), birikim hesabı olmayan bir hesaptan
+    ödendiyse; fon satışı gibi geri gelen para eksi yazar.
+  - Döviz ve altın alım-satımı ("Döviz & Altın Alım-Satımı" kategorisindeki kendi hesaplar arası transfer): alışta
+    ödenen TL birikime girer, satışta gelen TL birikimden çıkar. Okuyucular işlemin döviz tarafını satır yapmaz
+    (`parsers.movements.classify`), onun yerini TL tarafı tutar.
+  - Birikim hesapları (döviz, altın, vadeli, yatırım hesabı; `insights.SAVINGS_ACCOUNTS`): hesaba giren her para
+    (gelir, faiz, vadesizden aktarılan) birikime girer, çıkan her para (vadesize geri dönen, oradan ödenen kart borcu,
+    harcama) birikimden çıkar. Dövizle gelen gelir, döviz hesabında kaldıkça birikimdir; bozdurulunca birikimden çıkar.
+  - Birikimin içinde kalan para hiçbir şey eklemez: vadeli hesabın parasıyla alınan fon, mevduatla alınan döviz, iki
+    birikim hesabı arasındaki transfer.
+  - Eksi birikim "birikimden kullanılan"dır: bozdurulan döviz ya da altın, vadeliden çekilen para. Kalan onu da içerir;
+    ama ay hükmü gelirin bıraktığını onsuz söyler (`app.sayings._kept`), Pano "birikimden X kullanıldı" der.
+  - Birikimin parçaları (her yatırım kategorisi; döviz, altın, vadeli hesap, yatırım hesabı) kendi satırlarına götürür:
+    İşlemler'in `saving` süzgeci bir ayın birikim satırlarını tutar, toplamlardaki `saving` onların birikime kattığıdır.
+  - v1.0.10'a dek birikim yalnızca `investment` türüydü: TL ile alınan döviz ve altın, döviz hesabında kalan gelir ve
+    vadeli hesaba giden para ne birikimde ne gidende sayılıyordu, hepsi Kalan'a düşüyordu. Pano'nun "BES, döviz, altın
+    ve diğer yatırımlara ayrılan para" yazısı tutmuyordu.
+- Giden para gelenden fazlaysa ay eksiyle biter (kritik). Gelir gideni karşıladığı hâlde birikim gelirin bıraktığını
+  aşıyorsa (döviz ya da altın önceki aylardan kalan parayla alındıysa) bu eksiyle bitiş değildir: hüküm uyarıdır, "gelen
+  paranın hepsi harcandı ya da birikime ayrıldı" der.
 - Maaş serisi ayda hiç ödeme yapmadıysa ya da iki kez ödediyse, not bunu söyler (`insights.salary_timing`).
 - Maaşı önceki ayın son günü yatan bir ay gelir 0 ve eksi "kalan" gösterir. Bu beklenen bir durumdur; sayfa ve dizin
   nedenini söyler.

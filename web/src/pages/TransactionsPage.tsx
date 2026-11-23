@@ -159,7 +159,7 @@ export default function TransactionsPage() {
         <>
           <SearchParts parts={list.data.search_parts} params={params} />
           <OpenMonths months={list.data.open} />
-          <Totals totals={list.data.totals} />
+          <Totals totals={list.data.totals} saving={params.has("saving")} />
           <BulkBar
             selected={selected}
             categories={rules.data?.categories ?? []}
@@ -191,6 +191,7 @@ export default function TransactionsPage() {
                   onTogglePage: (on) =>
                     select((next) => toggle(next, rows.filter(isCorrectable).map((row) => row.fingerprint), on)),
                 }}
+                saving={params.has("saving")}
               />
               <Pager
                 offset={offset}

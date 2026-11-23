@@ -11,6 +11,7 @@ import TransactionsPage from "./TransactionsPage";
 afterEach(() => localStorage.clear());
 
 const table = () => screen.findByRole("table", { name: /^İşlemler,/ });
+const tl = (minor: number) => ({ minor, currency: "TRY" });
 
 /** The requests the list made, each with its query. */
 function listen(): URLSearchParams[] {
@@ -97,6 +98,34 @@ describe("TransactionsPage: the list", () => {
     expect(screen.getByLabelText("Dönem")).toHaveValue("custom");
     expect(screen.getByLabelText("Başlangıç")).toHaveValue("2026-06-01");
     expect(screen.getByLabelText("Bitiş")).toHaveValue("2026-06-30");
+  });
+
+  it("lists a month's saving with what its rows set aside, the chip naming every part of it", async () => {
+    const asked: URLSearchParams[] = [];
+    server.use(
+      http.get("/api/transactions", ({ request }) => {
+        asked.push(new URL(request.url).searchParams);
+        const rows = TRANSACTIONS.rows.map((row) =>
+          row.fingerprint === PURCHASE.fingerprint ? { ...row, saving: tl(-125000), saving_part: "fx" as const } : row,
+        );
+        return HttpResponse.json({ ...TRANSACTIONS, rows, totals: { ...TRANSACTIONS.totals, saving: tl(1150000) } });
+      }),
+    );
+    const user = userEvent.setup();
+    const parts = "saving=investment&saving=fx&saving=gold&saving=deposit&saving=brokerage";
+    const { location } = renderScreen(<TransactionsPage />, { path: `/islemler?from=2026-10-01&to=2026-10-31&${parts}` });
+    await table();
+    expect(asked[0]!.getAll("saving")).toEqual(["investment", "fx", "gold", "deposit", "brokerage"]);
+    expect(screen.getByText("BES, yatırım, döviz, altın, vadeli ve yatırım hesapları")).toBeInTheDocument();
+    expect(
+      screen.getByText("Bu işlemlerle birikime 11.500,00 TL ayrıldı (birikime giren para, birikimden çıkan düşülünce)."),
+    ).toBeInTheDocument();
+    // Each row says which way it moved the savings: what came into them, what left them.
+    const rows = within(await table()).getAllByRole("row");
+    const purchase = rows.find((row) => within(row).queryByRole("link", { name: PURCHASE.title }));
+    expect(purchase).toHaveTextContent("birikimden çıktı: 1.250,00 TL");
+    await user.click(screen.getByRole("button", { name: "Birikim süzgecini kaldır" }));
+    expect(location()).not.toContain("saving=");
   });
 
   it("offers the periods by name beside the search and asks for the one chosen", async () => {

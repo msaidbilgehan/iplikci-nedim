@@ -1,9 +1,11 @@
 """The Transactions screen (F04): the ledger's rows filtered, sorted and paged with the totals of what the filters
 keep, as CSV too; one row with why it is what it is; corrections on one row or many; the views the user keeps; the
 tags the rows carry. Reading needs a session or the token; changing, the service's own pages. The filters' names are
-the screen's address query: period, from, to, account, kind, category, group, necessity, certainty, tag, merchant,
-direction, min, max, q. A named period stands for its days, from and to, reckoned from the service's today. The
-search q is read by domain.search: a comma between its parts finds the rows of any one ("market, kira")."""
+the screen's address query: period, from, to, account, kind, category, group, necessity, certainty, tag, saving,
+merchant, direction, min, max, q. A named period stands for its days, from and to, reckoned from the service's today.
+The search q is read by domain.search: a comma between its parts finds the rows of any one ("market, kira"). saving
+keeps the rows that set money aside or took it out of the savings, by where it went: the rows a month's saving adds up
+to, their net in the totals' saving."""
 
 from datetime import date
 from decimal import Decimal
@@ -33,6 +35,7 @@ from ...app.transactions import (
     Printed,
     RateSource,
     RuleLayer,
+    SavingPart,
     Sort,
     TransactionKind,
     TransferStep,
@@ -61,6 +64,9 @@ class TotalsOut(BaseModel):
     money_in: MoneyOut
     provisional: int  # counted rows only a receipt or a notice shows yet
     excluded: int  # rows never counted
+    # What the counted rows set aside, less what they took out of the savings: with the saving filter, the saving
+    # they add up to; above zero set aside.
+    saving: MoneyOut
 
 
 class DaysOut(BaseModel):
@@ -144,6 +150,7 @@ def filters(
     necessity: Annotated[list[Necessity] | None, Many] = None,
     certainty: Annotated[list[Certainty] | None, Many] = None,
     tag: Annotated[list[str] | None, Many] = None,
+    saving: Annotated[list[SavingPart] | None, Many] = None,
     merchant: Annotated[str, Query(max_length=200)] = "",
     direction: Direction | None = None,
     least: Annotated[Decimal | None, Query(alias="min", ge=0, max_digits=14, decimal_places=2)] = None,
@@ -162,6 +169,7 @@ def filters(
         necessities=frozenset(necessity or ()),
         certainties=frozenset(certainty or ()),
         tags=frozenset(tag or ()),
+        savings=frozenset(saving or ()),
         merchant=merchant.strip(),
         text=q.strip(),
         direction=direction,
@@ -200,6 +208,7 @@ def transaction_list(
             money_in=money(t.money_in),
             provisional=t.provisional,
             excluded=t.excluded,
+            saving=money(t.saving),
         ),
         offset=found.offset,
         next=found.next,

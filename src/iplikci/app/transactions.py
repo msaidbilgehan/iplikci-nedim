@@ -32,6 +32,7 @@ from ..domain.codes import (
     NecessityReason,
     RateSource,
     RuleLayer,
+    SavingPart,
     TransactionKind,
     TransferStep,
 )
@@ -39,7 +40,7 @@ from ..domain.labels import CERTAINTY, KIND, NECESSITY, currency_label
 from ..domain.models import Reason, Transaction
 from ..domain.search import parse
 from ..domain.text import fold, spreadsheet_text
-from ..insights import month_of, shift
+from ..insights import SavingLine, month_of, saving_of, shift
 from ..month_end import first_day, last_day
 from ..storage import annotations, audit, documents, feed_state
 from ..storage.annotations import Annotation
@@ -71,12 +72,15 @@ __all__ = [
     "RateSource",
     "RowView",
     "RuleLayer",
+    "SavingPart",
+    "SavingShown",
     "Sort",
     "Totals",
     "TransactionKind",
     "TransferStep",
     "open_months",
     "period_days",
+    "saving_shown",
     "tag_counts",
 ]
 
@@ -145,6 +149,9 @@ class Filter:
     necessities: frozenset[Necessity] = frozenset()
     certainties: frozenset[Certainty] = frozenset()
     tags: frozenset[str] = frozenset()
+    # The rows that set money aside or took it out of the savings, by where it went (insights.saving_of): the rows a
+    # month's saving adds up to.
+    savings: frozenset[SavingPart] = frozenset()
     merchant: str = ""  # one merchant or person, as the rules name it
     text: str = ""  # the search (domain.search): in the row's names, its description, category, note, tags or account
     direction: Direction | None = None  # money in or money out only
@@ -162,6 +169,7 @@ class Filter:
             and (not self.necessities or row.necessity in self.necessities)
             and (not self.certainties or row.certainty in self.certainties)
             and (not self.tags or not self.tags.isdisjoint(row.tags))
+            and (not self.savings or row.saving_part in self.savings)
             and (not self.merchant or fold(row.merchant) == fold(self.merchant))
             and (self.direction is None or row.direction is self.direction)
             and (self.least is None or row.amount >= self.least)
@@ -185,6 +193,7 @@ class Filter:
             ("necessity", frozenset(n.value for n in self.necessities)),
             ("certainty", frozenset(c.value for c in self.certainties)),
             ("tag", self.tags),
+            ("saving", frozenset(p.value for p in self.savings)),
         )
         for name, values in many:
             pairs += [(name, value) for value in sorted(values)]
@@ -204,6 +213,28 @@ class Filter:
 def rows_link(f: Filter) -> Link:
     """The Transactions screen narrowed to the rows f keeps."""
     return Link(Screen.TRANSACTIONS, query=f.query())
+
+
+@dataclass(frozen=True, slots=True)
+class SavingShown:
+    """A part of a month's saving as the screens name it, with the rows it adds up to."""
+
+    part: SavingPart
+    category: str  # the investment rows' category; "" for a kind of savings account
+    label: str  # the category, else the kind of savings ("Döviz")
+    amount: Decimal  # above zero set aside, below zero taken out of the savings
+    link: Link  # its rows of the month; their totals' saving is the amount
+
+
+def saving_shown(month: str, parts: Iterable[SavingLine]) -> list[SavingShown]:
+    """A month's saving parts (month_end.Totals.saving_parts), each leading to its rows of the month."""
+    start, end = first_day(month), last_day(month)
+
+    def rows(line: SavingLine) -> Link:
+        categories = frozenset({line.category}) if line.category else frozenset[str]()
+        return rows_link(Filter(start=start, end=end, savings=frozenset({line.part}), categories=categories))
+
+    return [SavingShown(line.part, line.category, line.label, line.amount, rows(line)) for line in parts]
 
 
 def _searched(row: RowView, label: str) -> str:
@@ -229,6 +260,9 @@ class Totals:
     money_in: Decimal
     provisional: int  # counted rows only a receipt or a notice shows yet
     excluded: int  # rows never counted
+    # What the rows set aside, less what they took out of the savings (insights.saving_of): with the saving filter,
+    # the month's saving they add up to.
+    saving: Decimal = Decimal(0)
 
 
 @dataclass(frozen=True, slots=True)
@@ -257,7 +291,11 @@ def labels(a: Analysis) -> dict[str, str]:
 def every_row(a: Analysis) -> list[RowView]:
     """The counted rows and the excluded ones, oldest first."""
     rows = Rows(a.dataset)
-    found = [view(t, Certainty.PROVISIONAL if t.provisional else Certainty.CONFIRMED) for t in a.dataset.transactions]
+    accounts = a.dataset.accounts
+    found = [
+        view(t, Certainty.PROVISIONAL if t.provisional else Certainty.CONFIRMED, saving=saving_of(t, accounts))
+        for t in a.dataset.transactions
+    ]
     for line in rows.excluded():
         found.append(view(line.txn, Certainty.EXCLUDED, rows.currency(line.txn.account), counted=False))
     return sorted(found, key=lambda r: (r.day, r.account, r.fingerprint))
@@ -304,7 +342,7 @@ def ordered(rows: Sequence[RowView], sort: Sort, descending: bool, names: Mappin
 
 def totals(rows: Iterable[RowView]) -> Totals:
     count = counted = provisional = excluded = 0
-    spent = money_out = money_in = Decimal(0)
+    spent = money_out = money_in = saving = Decimal(0)
     for r in rows:
         count += 1
         if not r.counted:
@@ -319,7 +357,8 @@ def totals(rows: Iterable[RowView]) -> Totals:
             money_out += r.amount
         else:
             money_in += r.amount
-    return Totals(count, counted, spent, money_out, money_in, provisional, excluded)
+        saving += r.saving
+    return Totals(count, counted, spent, money_out, money_in, provisional, excluded, saving)
 
 
 @dataclass(frozen=True, slots=True)

@@ -4,8 +4,11 @@
 
 import type { Sort } from "../../api/schema";
 
-/** The filters with many values: each value a choice of its own (?account=a&account=b). */
-export const MANY = ["account", "kind", "category", "group", "necessity", "certainty", "tag"] as const;
+/**
+ * The filters with many values: each value a choice of its own (?account=a&account=b). `saving` keeps the rows that set
+ * money aside or took it out of the savings, by where it went; a month's saving links with it.
+ */
+export const MANY = ["account", "kind", "category", "group", "necessity", "certainty", "tag", "saving"] as const;
 /**
  * The filters with one value: a named period (its days reckoned by the service from today, so a kept view moves with
  * time) or the days from and to, which way the money goes and the amount's bounds in TL.
