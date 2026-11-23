@@ -73,7 +73,8 @@ describe("SettingsPage", () => {
   it("lists the cards in one column, in the same order in both views", async () => {
     serve();
     const evds = "Enflasyondan arındırma (EVDS)";
-    const order = ["Adlar", "E-posta", "Güncellemeler", "Yedekler", evds, "Servis", "Diğer ayarlar"];
+    const sync = "Eşitleme ve yedek";
+    const order = ["Adlar", "E-posta", "Güncellemeler", "Yedekler", sync, evds, "Servis", "Diğer ayarlar"];
     const shown = async () => {
       await card("Diğer ayarlar");
       return screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent);

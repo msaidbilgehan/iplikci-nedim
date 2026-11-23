@@ -59,6 +59,9 @@ import type {
   Setup,
   Spending,
   Subscriptions,
+  SyncDevice,
+  SyncPlace,
+  SyncState,
   SystemStatus,
   TagCount,
   TodoItem,
@@ -4096,6 +4099,83 @@ export const EVDS_KEPT: EvdsState = {
   behind: false,
 };
 
+// --- the sync folder (ADR-0025, F22) -------------------------------------------------------------------------------
+
+/** This computer in the sync's set: a Mac that can send Telegram's notifications. */
+export const SYNC_ME: SyncDevice = {
+  id: "a1b2c3d4e5f60718",
+  name: "Dizüstü",
+  app: "1.0.14",
+  system: "macOS",
+  seen_at: "2026-11-24T08:00:00+00:00",
+  channels: ["telegram"],
+  left: false,
+  me: true,
+};
+
+/** Another computer in the set, which can send both channels. */
+export const SYNC_OTHER: SyncDevice = {
+  id: "f0e1d2c3b4a59687",
+  name: "Masaüstü",
+  app: "1.0.13",
+  system: "Windows",
+  seen_at: "2026-11-24T07:59:00+00:00",
+  channels: ["telegram", "email"],
+  left: false,
+  me: false,
+};
+
+/** The sync folder in a Google Drive account's own drive, as the places name it. */
+export const SYNC_FOLDER = "/Users/ornek/Library/CloudStorage/GoogleDrive-kisi@example.com/My Drive/İplikçi Nedim";
+
+/** The sync's state as GET /api/sync gives it: off on a computer that never turned it on, unless told otherwise. */
+export function syncState(overrides: Partial<SyncState> = {}): SyncState {
+  return {
+    on: false,
+    folder: "",
+    service: "",
+    device: "",
+    name: SYNC_ME.name,
+    devices: [],
+    senders: {},
+    ready: [],
+    last_at: "",
+    ok_at: "",
+    problem: "",
+    since: "",
+    waiting_down: 0,
+    waiting_up: 0,
+    documents: 0,
+    ...overrides,
+  };
+}
+
+/** On in Google Drive with another computer, which sends Telegram's notifications and e-mail's; this one could send
+ * Telegram's. */
+export const SYNC_ON: SyncState = syncState({
+  on: true,
+  folder: SYNC_FOLDER,
+  service: "Google Drive",
+  device: SYNC_ME.id,
+  devices: [SYNC_ME, SYNC_OTHER],
+  senders: { telegram: SYNC_OTHER.id, email: SYNC_OTHER.id },
+  ready: ["telegram"],
+  last_at: "2026-11-24T08:00:00+00:00",
+  ok_at: "2026-11-24T08:00:00+00:00",
+  documents: 42,
+});
+
+/** Google Drive's folder on this computer, where the sync folder would be made. */
+export const SYNC_PLACE: SyncPlace = {
+  service: "Google Drive",
+  account: "kisi@example.com",
+  folder: SYNC_FOLDER,
+  exists: false,
+  devices: [],
+  usable: true,
+  problem: "",
+};
+
 /** The tags the user gave rows, the most used first (GET /api/tags). */
 export const TAGS: TagCount[] = [
   { tag: "iş", count: 3 },
@@ -4278,6 +4358,9 @@ export const handlers = [
   http.get("/api/settings/evds", () => HttpResponse.json(EVDS_NONE)),
   http.put("/api/settings/evds", () => HttpResponse.json(EVDS_KEPT)),
   http.delete("/api/settings/evds", () => new HttpResponse(null, { status: 204 })),
+  // the sync folder (ADR-0025): off, and no sync service's folder on this computer
+  http.get("/api/sync", () => HttpResponse.json(syncState())),
+  http.get("/api/sync/places", () => HttpResponse.json([])),
   // the service's own life (ADR-0017)
   http.get("/api/service", () => HttpResponse.json(serviceState())),
   http.get("/api/backups", () => HttpResponse.json(BACKUPS)),

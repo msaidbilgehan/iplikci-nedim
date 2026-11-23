@@ -78,6 +78,7 @@ import type {
   FlowNodeOut,
   FlowOut,
   FlowsOut,
+  FolderIn,
   ForecastOut,
   ForecastPart,
   FreshnessOut,
@@ -126,6 +127,7 @@ import type {
   MonthStatus,
   MonthTableOut,
   MonthTotalsOut,
+  NameIn,
   Necessity,
   NetWorthOut,
   IncomeCandidateOut,
@@ -164,12 +166,14 @@ import type {
   RemovedOut,
   ReparsedOut,
   RestoringOut,
+  RoundOut,
   RowOut,
   RuleChangeOut,
   SavingPart,
   SavingPartOut,
   SayingOut,
   SearchPartOut,
+  SendersIn,
   SeriesOut,
   SeriesStatus,
   ServiceEndingOut,
@@ -186,6 +190,9 @@ import type {
   StatementOut,
   StepOut,
   SubscriptionsOut,
+  SyncDeviceOut,
+  SyncOut,
+  SyncPlaceOut,
   SystemOut,
   TagOut,
   TelegramCheckOut,
@@ -204,6 +211,7 @@ import type {
   TransactionsOut,
   TransferStep,
   TrendOut,
+  TurnOnIn,
   UntoldOut,
   UnusualKind,
   UnusualOut,
@@ -472,3 +480,15 @@ export type ServiceState = ServiceStateOut;
 export type ServiceEnding = ServiceEndingOut;
 export type BackupItem = BackupOut;
 export type Restoring = RestoringOut;
+
+// The sync folder (ADR-0025, F22): whether it is on and where, the computers in it, which one sends Telegram's and
+// e-mail's notifications, how the last round went; the places on this computer it can go, and what turning it on in
+// one would do (begin a set of data there, or join the one another computer began).
+export type SyncState = SyncOut;
+export type SyncDevice = SyncDeviceOut;
+export type SyncPlace = SyncPlaceOut;
+export type SyncFolder = FolderIn; // a folder the user typed, to inspect
+export type SyncTurnOn = TurnOnIn; // the folder, and this computer's name as the others show it
+export type SyncName = NameIn;
+export type SyncSenders = SendersIn; // the channels this computer sends from now on
+export type SyncRound = RoundOut;

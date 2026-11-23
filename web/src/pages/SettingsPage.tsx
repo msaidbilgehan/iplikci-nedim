@@ -1,5 +1,6 @@
 // The Settings screen (F17): the setup wizard's fields, to change at any time — the user's names and the company names,
-// how e-mail comes in and from which day, how long backups are kept — a backup on request or put back, the service's
+// how e-mail comes in and from which day, how long backups are kept — a backup on request or put back, the sync folder
+// that shares the data with the user's other computers and keeps its copy off this one (ADR-0025, F22), the service's
 // state with stopping, restarting and removing it (ADR-0017), the program's own updates (ADR-0022, F21), the optional
 // EVDS key that brings TÜFE (F12), and where
 // the rest is set: the notifications, the browser extension, the documents, the non-bank senders and the wizard
@@ -21,6 +22,7 @@ import { BackupEditor, BackupNow } from "../components/settings/BackupField";
 import { EvdsCard } from "../components/settings/EvdsKey";
 import { LINK, MailEditor } from "../components/settings/MailFields";
 import { BusinessNamesEditor, HINT, NamesEditor } from "../components/settings/NameList";
+import { SyncCard } from "../components/settings/SyncCard";
 import { UpdatesCard } from "../components/settings/UpdatesCard";
 import { BackupRestore, type Ending, EndingState, ServiceCard, showsCards } from "../components/settings/ServiceLife";
 import { Card, Facts } from "../components/ui/Card";
@@ -90,14 +92,15 @@ function Cards({ settings, onEnding }: { settings: Settings; onEnding: (ending: 
     </Card>
   );
   // One column in both views, read from top to bottom (the user's wish of 2026-11-23; two columns of cards that grew
-  // apart read as clutter): who the user is, how e-mail comes in, the program's updates, the backups, the TÜFE key,
-  // the service itself and the other screens. The detailed view adds the raw values.
+  // apart read as clutter): who the user is, how e-mail comes in, the program's updates, the backups and the sync
+  // folder beside them, the TÜFE key, the service itself and the other screens. The detailed view adds the raw values.
   return (
     <div className="flex max-w-3xl flex-col gap-4">
       {names}
       {mail}
       <UpdatesCard />
       {backup}
+      <SyncCard />
       <EvdsCard />
       <ServiceCard home={settings.home} onEnding={onEnding} />
       <MoreCard />

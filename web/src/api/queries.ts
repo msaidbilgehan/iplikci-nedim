@@ -78,6 +78,13 @@ import type {
   Setup,
   Spending,
   Subscriptions,
+  SyncFolder,
+  SyncName,
+  SyncPlace,
+  SyncRound,
+  SyncSenders,
+  SyncState,
+  SyncTurnOn,
   SystemStatus,
   TagCount,
   TelegramBot,
@@ -1294,3 +1301,97 @@ export async function serviceAnswer(before: string): Promise<ServiceAnswer> {
 /** Which service answers after a restart or a restore; the new one says how its restore went. */
 export type ServiceAnswer =
   { kind: "new"; state: ServiceState } | { kind: "signedOut" | "old" | "down" };
+
+// --- the sync folder (ADR-0025, F22) ---------------------------------------------------------------------------------
+
+// Under the System screen's key: every event of the stream refreshes them, a failing sync's among them.
+const syncKey = [...keys.system, "sync"] as const;
+const syncPlacesKey = [...syncKey, "places"] as const;
+const SYNC = "/api/sync";
+
+export const SYNC_WAIT_MS = 3_000; // how often the card asks while a round it asked for has not run yet
+export const SYNC_MOVING_MS = 10_000; // while documents still go between this computer and the folder
+const SYNC_ON_MS = 60_000; // otherwise while the sync is on: a round runs every minute
+
+/**
+ * How often the sync's state is asked again. The service runs its rounds without telling the event stream, so the card
+ * asks every few seconds while a round it asked for has not run (the last round is still the one it ran after), every
+ * ten while documents move, once a minute while the sync is on, and never while it is off.
+ */
+export function syncInterval(state: SyncState | undefined, askedAfter: string | null): number | false {
+  if (askedAfter !== null && state?.last_at === askedAfter) {
+    return SYNC_WAIT_MS;
+  }
+  if (!state?.on) {
+    return false;
+  }
+  return state.waiting_down > 0 || state.waiting_up > 0 ? SYNC_MOVING_MS : SYNC_ON_MS;
+}
+
+/**
+ * Whether the sync is on and where, the computers in it, who sends which channel and how the last round went.
+ * askedAfter: the last round's time when the user asked for a new one; null when no round is asked for.
+ */
+export function useSync(askedAfter: string | null = null) {
+  return useQuery({
+    queryKey: syncKey,
+    queryFn: () => api.get<SyncState>(SYNC),
+    refetchInterval: (query) => syncInterval(query.state.data, askedAfter),
+  });
+}
+
+/** The sync services' folders on this computer (Google Drive's first), each with the sync folder in it. */
+export function useSyncPlaces() {
+  return useQuery({
+    queryKey: syncPlacesKey,
+    queryFn: () => api.get<SyncPlace[]>(`${SYNC}/places`),
+  });
+}
+
+/** What turning the sync on in a folder the user typed would do: begin a set of data there, or join one. */
+export function useInspectSyncFolder() {
+  return useMutation({
+    mutationFn: (folder: string) => api.post<SyncPlace>(`${SYNC}/inspect`, { folder } satisfies SyncFolder),
+  });
+}
+
+/** A change to the sync, answered with its state as it is now; the places are asked again, as they may differ. */
+function useSyncChange<T>(change: (body: T) => Promise<SyncState>) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: change,
+    onSuccess: (state) => {
+      client.setQueryData(syncKey, state);
+      void client.invalidateQueries({ queryKey: syncPlacesKey });
+    },
+  });
+}
+
+/** Share this computer's data through a folder: begin a set of data there, or join the one another computer began. */
+export function useTurnOnSync() {
+  return useSyncChange((body: SyncTurnOn) => api.put<SyncState>(SYNC, body));
+}
+
+/** Stop sharing: the folder and this computer's data stay as they are. */
+export function useTurnOffSync() {
+  return useSyncChange<void>(() => api.delete<SyncState>(SYNC));
+}
+
+/** This computer's name as the others show it; empty: the computer's own. */
+export function useRenameSyncComputer() {
+  return useSyncChange((name: string) => api.put<SyncState>(`${SYNC}/name`, { name } satisfies SyncName));
+}
+
+/** This computer sends the given channels' notifications from now on; the service refuses a channel it cannot send. */
+export function useSendFromHere() {
+  return useSyncChange((channels: string[]) =>
+    api.put<SyncState>(`${SYNC}/senders`, { channels } satisfies SyncSenders),
+  );
+}
+
+/** Ask the service for a round now; the sync's state tells how it went within seconds. */
+export function useSyncRound() {
+  return useMutation({
+    mutationFn: () => api.post<SyncRound>(`${SYNC}/round`),
+  });
+}
