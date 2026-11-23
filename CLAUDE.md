@@ -498,6 +498,36 @@ says what the waiting must show); the Windows and Linux checks come later (K25).
     listed; it stays under the header while items are chosen.
   - The bar offers "Seçilenleri yok say (n)" and "Seçilenleri listeye geri al (n)". The notice's "Geri al" puts them
     all back. Another view (a kind, the items taken off shown or hidden) starts with none chosen.
+- v1.1.0 (2026-11-24, K33, ADR-0025): the user asked to sync the data through Google Drive so that nothing is lost
+  (a free, easy backup) and that the app run on several computers with an up-to-date feed on each.
+  - The program writes into the folder Google Drive's desktop app mirrors (`[sync] folder`, by default
+    `My Drive/İplikçi Nedim`; iCloud Drive, Dropbox and OneDrive work too) and never calls Drive itself: no new host
+    (ADR-0009), and Advanced Protection lets only verified apps reach Drive. `sync/places` finds the services' folders.
+  - The database never goes into the folder. Each computer writes only `cihaz-<id>/` (`cihaz.json` heartbeat,
+    `durum.json` with every shared piece, `belgeler/ab/<sha256>` originals no other computer put there) and merges
+    the others' pieces (`sync/state`): the later hybrid-logical-clock stamp wins (`sync/clock`), a document's removal
+    beats every version that keeps it. Shared: documents and their arrivals, annotations, aliases, Claude's notes, the
+    two rule files and `app/shared.SHARED_SETTINGS`; each computer's own: readings, analysis, events, notifications,
+    audit, mail account, bridge, Telegram token, port, backups, updates, rates.
+  - `sync_entries` (migration 23) keeps each piece's winner and the digest of this computer's own value when last
+    compared (`local`): a round stamps what changed here, merges, and puts a winner in place only if the own value has
+    not changed meanwhile; what is put in place is read back, so no ping-pong. A computer joining a folder that holds
+    data (or a restored database) stamps its own data `Stamp.zero`: the folder's wins where both have a value.
+  - The service's `sync/watcher` runs `app/sync.run_round` every minute and after every refresh; another computer's
+    change requests a refresh. Originals come in through `vault.adopt` (checked against their names), 300 or 200 MB a
+    round. A data folder copied to another machine (`sync/machine.fingerprint`) takes a new device id.
+  - Telegram and e-mail go from one computer: a `sender` piece per channel (`app/sync.sends`, used by
+    `app/notify.take_events`/`deliver` and `app/telegram._listening`); another computer that can send takes over after
+    30 minutes of silence and makes what the silent one missed (`sync.catch_ups`, `notify._catch_up`: from its last
+    sign of life, or the quiet hours' start); "Bu bilgisayar göndersin" claims it. A non-sender gives up what waits
+    for that channel; nobody sends a channel nobody holds. `sync.channels_changed` makes the service ask again which
+    channels it can send on.
+  - A joining computer (`Me.joining`) merges nothing until it has read another computer's state file; rounds stamp
+    changes also while the folder is away or the sync is off; `shared.valid` drops malformed pieces; each winner is put
+    in place in its own savepoint; removed documents' bytes go to the Trash after the commit (`_sweep_removed`).
+    Sender verification and MCP masking are never shared (whoever writes into the folder must not turn them off).
+  - Ayarlar's "Eşitleme ve yedek" card (`components/settings/SyncCard`), `/api/sync*`, `iplikci esitleme`, a
+    `sync.failed` event once a day and a Pano alert after six hours without a working round, `Actor.SYNC` in the audit.
 
 The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's
 web interface).
@@ -529,7 +559,7 @@ The MVP was retired on 2026-10-31 (K17, ADR-0018): İplikçi Nedim starts with n
 | `docs/v1/features.md` | Feature specs with acceptance criteria and the MVP parity checklist |
 | `docs/v1/roadmap.md` | Phases 0–8 and the 1.0 release, exit criteria, MVP module mapping, first-session steps |
 | `docs/v1/migration.md` | What V1 took from the MVP, the MVP archive, how V1 builds its own history |
-| `docs/adr/` | Decision records 0001–0023 |
+| `docs/adr/` | Decision records 0001–0025 |
 | `docs/yayin.md` | How a version is released, the signing key, the workflow's secrets, the Chrome Web Store |
 | `docs/domain/` | Bank formats and traps, ledger, categorization and interpretation rules |
 
@@ -663,7 +693,9 @@ v0.10.4 added `domain/search` (the search box's syntax) and, in `web/`, `lib/sea
 `components/transactions/SearchParts`. v0.11.0 added `app/memory` (Claude's notes), `storage/memories` and
 `api/routes/memory`; in `web/`, `components/claude/MemoryCard`. v1.0.0 added `service/desktop` (the Linux menu entry)
 with `service/icons`; in `extension/`, `bridge/program` (the installers' addresses) and `ui/program` (the download
-guide).
+guide). v1.1.0 added `sync` (`clock`, `state`, `library` the folder's layout, `places`, `machine`, `watcher`),
+`app/sync` (rounds, turning on and off, senders, status), `app/shared` (each shared kind's own value and how a winner
+is put in place), `storage/sync`, `api/routes/sync` and `cli/sync`; in `web/`, `components/settings/SyncCard`.
 The rest keeps the MVP's flat layout (`analysis`, `insights`, `month_end`, `report` with its `templates`, …) until the
 phases in the roadmap's MVP module table move it. Next to them: `fakes` (the fake document builders and every
 reader's specimens, shared with the tests and the demo), `demo` (the demo data folder), `baseline` (the verification
@@ -717,6 +749,7 @@ uv run python packaging/build.py               # this system's installer and upd
 uv run python packaging/release.py --tag vX.Y.Z --files dist/surum --notes dist/notlar.md   # the signed manifest
 uv run python packaging/chrome_store.py iplikci-kopru-X.Y.Z.zip --deneme   # what the store upload would do
 uv run iplikci guncelleme durum | denetle | kur | mod otomatik|sor|kapali   # updates: state, check, install, mode
+uv run iplikci esitleme durum | yerler | ac KLASÖR | kapat | simdi | buradan   # the sync folder (ADR-0025)
 uv run iplikci uygulama                        # what the installed app runs when opened; refuses a development copy
 uv run iplikci dev api-tipleri web/src/api/schema.ts   # the interface's API types from the OpenAPI document (ADR-0007)
 (cd extension && npm ci && npm run typecheck && npm test && npm run build)   # the extension; load extension/dist

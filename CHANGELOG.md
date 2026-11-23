@@ -4,6 +4,35 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [1.1.0] — 2026-11-24 — Google Drive'da yedek, birden çok bilgisayar
+
+### Eklenenler
+
+- Ayarlar'da "Eşitleme ve yedek" kartı (isteğe bağlı, kapalı gelir). Google Drive'ın bilgisayardaki klasörü seçilince
+  belgeler, notlar, hesap adları, Claude'un notları, kategori ve bildirim kuralları ve paylaşılan ayarlar Google
+  Drive'daki "İplikçi Nedim" klasörüne gider. Bilgisayar bozulsa ya da kaybolsa veriler orada durur. iCloud Drive,
+  Dropbox ve OneDrive'ın klasörleri de olur.
+  - İkinci bir bilgisayarda aynı klasör seçilince bütün veriler oraya gelir. Belgeler orada yeniden okunur ve defter
+    aynı çıkar. Bir bilgisayardaki değişiklik ve yeni belge bir iki dakika içinde ötekine geçer. Her bilgisayarın
+    akışı günceldir; öteki bilgisayardan gelen belge akışta "Yeni bir belge geldi" diye görünür.
+  - Aynı şey iki bilgisayarda değişirse sonraki değişiklik kazanır; bilgisayarların saat farkı buna karışmaz. Silmeler
+    de yayılır. Kaldırılan bir belge öteki bilgisayarlarda da çöp kutusuna gider ve geri gelmez.
+  - Katılan bilgisayarın eski verisinden ötekilerde olmayanlar kalır. İkisinde de olanlarda klasördeki geçerli olur;
+    eski kurallar Kurallar geçmişinde kalır. Katılan bilgisayar, Google Drive öteki bilgisayarın verilerini indirene
+    dek bekler; eski verisini en yenisi sanmaz.
+  - Drive çalışmazken ya da eşitleme kapalıyken yapılan değişiklik de yapıldığı zamanla sayılır; başka bilgisayarda
+    sonra yapılan değişiklik onu yener.
+  - Telegram ve e-posta bildirimleri tek bilgisayardan gider, botu da yalnızca o okur: bildirim iki kez gelmez. O
+    bilgisayar yarım saat görünmezse gönderebilen başka biri devralır ve arada kaçan bildirimleri gönderir. Kartta "Bu
+    bilgisayar göndersin" de var.
+  - Kart klasörü, bilgisayarları, son eşitlemeyi ve taşınmayı bekleyen belgeleri gösterir. "Şimdi eşitle" ve
+    "Eşitlemeyi kapat" düğmeleri vardır. Eşitleme altı saat çalışmazsa Pano uyarır ve "Eşitleme çalışmıyor"
+    bildirimi günde bir kez gelir.
+  - Veritabanı klasöre girmez: her bilgisayar kendi veritabanını tutar ve Drive'daki klasörde yalnızca kendi alt
+    klasörüne yazar. İplikçi Nedim Google'a kendisi bağlanmaz; dosyaları Google Drive uygulaması taşır. Şirket
+    belgeleri gitmez.
+- `iplikci esitleme durum | yerler | ac | kapat | simdi | buradan`; `iplikci servis durum` eşitlemeyi de söyler.
+
 ## [1.0.14] — 2026-11-24 — Yapılacaklar'da toplu işlem
 
 ### Eklenenler
