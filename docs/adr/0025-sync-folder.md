@@ -68,11 +68,14 @@ eşitleme kapsam dışı" maddesini değiştirir; [ADR-0004](0004-sqlite-primary
 | Hesap adları | Denetim kaydı (öteki bilgisayardan gelen değişiklik "Eşitleme" diye yazılır) |
 | Claude'un notları | E-posta hesabı ve şifresi, tarayıcı eklentisinin eşleşmesi, Telegram belirteci |
 | `rules/personal.yaml` ve `rules/alerts.yaml` | `rules/history/` (her bilgisayar kendi eski sürümlerini tutar) |
-| Ayarlardan: adlar ve şirket adları, banka ve diğer göndericiler, göndericinin denetlenmesi, sessiz saat ve ayrıntı düzeyleri, kur sağlayıcıları, MCP maskeleme | Ayarlardan: port, uzaktan erişim, e-posta bağlantısı, açık kanallar, Telegram sohbeti, yedekler, güncelleme biçimi, eşitleme klasörü ve bilgisayarın adı |
+| Ayarlardan: adlar ve şirket adları, banka ve diğer göndericiler, sessiz saat ve ayrıntı düzeyleri, kur sağlayıcıları | Ayarlardan: port, uzaktan erişim, e-posta bağlantısı, göndericinin denetlenmesi (DMARC), MCP maskeleme, açık kanallar, Telegram sohbeti, yedekler, güncelleme biçimi, eşitleme klasörü ve bilgisayarın adı |
 | Telegram'ı ve e-postayı hangi bilgisayarın gönderdiği | Döviz kurları ve TÜFE (her bilgisayar kendisi çeker), doğrulama tabanı, yedekler |
 
 Şirket belgeleri arşive hiç girmediği için klasöre de gitmez. Okuma sırasında şirket belgesi çıkan bir belge
 kaldırılır. Kaldırılması öteki bilgisayarlara yayılır, aslı da klasörden çıkar (çöp kutusuna).
+
+Göndericinin denetlenmesi ve MCP maskeleme bilgisayarın korumasıdır: eşitleme klasörüne yazabilen biri onları bütün
+bilgisayarlarda kapatamamalı. Bu yüzden paylaşılmazlar.
 
 ### Birleştirme
 
@@ -82,9 +85,14 @@ kaldırılır. Kaldırılması öteki bilgisayarlara yayılır, aslı da klasör
   kimliği. Saat kendi verdiği ya da gördüğü damgaların hiçbirinden geri bir damga vermez. Böylece öteki bilgisayarın
   değişikliği birleştikten sonra yapılan değişiklik, iki bilgisayarın saati ne derse desin, ondan sonra gelir. Aynı
   milisaniyede iki bilgisayarda yapılan değişikliklerde bilgisayarın kimliği karar verir.
-- İki sürümden damgası sonra olan kazanır. Bir belgenin kaldırılması, belgeyi tutan her sürümü yener: kaldırma geri
-  alınmaz (ADR-0003). Birleştirmenin sonucu sürümlerin geliş sırasına ve kaç kez geldiklerine bağlı değildir. Aynı
-  sürümleri görmüş her bilgisayar aynı parçaları tutar (`tests/test_sync.py`'deki özellik testleri).
+- İki sürümden damgası sonra olan kazanır. Bilgisayarlar verilerini paylaşmaya başladıktan sonra yapılan bir belge
+  kaldırma, belgeyi tutan her sürümü yener: kaldırma geri alınmaz (ADR-0003). Birleştirmenin sonucu sürümlerin geliş
+  sırasına ve kaç kez geldiklerine bağlı değildir. Aynı sürümleri görmüş her bilgisayar aynı parçaları tutar
+  (`tests/test_sync.py`'deki özellik ve model testleri).
+- Ötekilerin her parçası türünün biçimine uymalıdır: belge anahtarı bir sha256, değerin alanları beklenen türlerde, damga
+  2200'den önce. Uymayan parça bozuk ya da sahte bir dosyanındır; alınmaz, sayılır ve Ayarlar'da söylenir. Bu sürümün
+  bilmediği türler olduğu gibi geçer. Kazananların her biri ayrı bir kayıt noktasında yerine konur: konamayan biri tek
+  başına geri alınır ve ötekileri bekletmez.
 - Bir bilgisayarın durum dosyası kendi parçalarını ve birleştirdiklerini, yani bildiği her şeyi taşır. Tek bir dosya
   bütün veri kümesini taşır. Alt klasörü kaybolan bilgisayar kayıp değildir.
 - Bir tur kendi bilgisayarındaki değerleri son karşılaştırıldıkları hâlleriyle karşılaştırır (`sync_entries.local`).
@@ -99,11 +107,12 @@ kaldırılır. Kaldırılması öteki bilgisayarlara yayılır, aslı da klasör
 
 - Bir bilgisayar, ötekilerin tuttuğu ve kendisinde olmayan belgelerin asıllarını klasörden arşivine alır. Her biri
   adıyla karşılaştırılır; bozuk bir kopya alınmaz, yayılmaz. Belge okunmamış olarak gelir ve sıradaki analiz onu
-  okur. Akış "Yeni bir belge geldi" der: belge ilk geldiği bilgisayardaki geliş yoluyla, tek tek. Bir turda 50'den çok
+  okur. Başka bir bilgisayarda kaldırılan belge önce veritabanında kaldırılır; baytları turun değişiklikleri
+  saklandıktan sonra çöp kutusuna gider. Kaldırılması gelmeden arşive giren baytlar da öyle. Akış "Yeni bir belge geldi" der: belge ilk geldiği bilgisayardaki geliş yoluyla, tek tek. Bir turda 50'den çok
   belge gelirse hepsi tek bir olayda sayılır.
 - Bir bilgisayar kendi asıllarından klasörde hiçbir bilgisayarda olmayanları kendi alt klasörüne koyar. Kaldırılan
-  bir belgenin kendi kopyasını alt klasöründen çıkarır (çöp kutusuna; Drive kendi çöp kutusunda bir süre daha tutar).
-  Kimse başka bir bilgisayarın alt klasörüne yazmaz.
+  bir belgenin kendi kopyasını, kaldırma kendisinde yerine konunca alt klasöründen çıkarır (çöp kutusuna; Drive kendi
+  çöp kutusunda bir süre daha tutar). Kimse başka bir bilgisayarın alt klasörüne yazmaz.
 - Bir turda en çok 300 belge ya da 200 MB taşınır. İş kaldıysa bir sonraki tur iki saniye sonra gelir. Bütün bir
   arşivin ilk kopyası böylece başka bir işi bekletmeden sürer. Kullanıcı bir alt klasörü silerse, aslını tutan
   bilgisayarlar onu yarım saat içinde kendi alt klasörlerine yeniden koyar.
@@ -111,9 +120,14 @@ kaldırılır. Kaldırılması öteki bilgisayarlara yayılır, aslı da klasör
 ### Katılmak, geri yüklemek, başka bilgisayara taşınmak
 
 - Eşitleme ilk kez açılırken klasörde veri kümesi yoksa bu bilgisayar onu başlatır. Verisi gerçek damgalarla gider.
-- Klasörde veri kümesi varsa bilgisayar ona katılır. Kendi eski verisi bütün damgalardan önceki bir damgayla gider.
-  İki bilgisayarda da olan bir parçada klasördeki geçerli olur; yalnızca bu bilgisayarda olan kalır ve ötekilere
-  gider. Kuralları değişen bilgisayarın eski kuralları `rules/history/`'de kalır.
+- Klasörde veri kümesi varsa bilgisayar ona katılır. Öteki bir bilgisayarın durum dosyasını okuyabilene dek hiçbir
+  şey birleştirmez: Drive o dosyayı henüz indirmediyse kendi eski verisini en yenisi sanardı. Ayarlar bunu "bekleniyor"
+  diye söyler. Sonra kendi eski verisi bütün damgalardan önceki bir damgayla gider. İki bilgisayarda da olan bir
+  parçada klasördeki geçerli olur; yalnızca bu bilgisayarda olan kalır ve ötekilere gider. Katılan bilgisayarın eskiden
+  kaldırdığı bir belgeyi ötekiler tutuyorsa belge ona geri gelir. Kuralları değişen bilgisayarın eski kuralları
+  `rules/history/`'de kalır.
+- Klasöre ulaşılamazken ya da eşitleme kapalıyken de turlar bu bilgisayardaki değişiklikleri damgalar. Değişiklik
+  yapıldığı zamanın damgasını taşır; başka bir bilgisayarda ondan sonra yapılan değişiklik kazanır.
 - Yedekten geri yüklenen veritabanı eşitlemenin kayıtlarını da geri getirir. Bilgisayar kendi yazdığı durum
   dosyasıyla ötekilerinkini birleştirir ve kaldığı yerden yetişir. Geri yükleme öteki bilgisayarların sonraki
   değişikliklerini geri almaz.
@@ -128,9 +142,13 @@ kaldırılır. Kaldırılması öteki bilgisayarlara yayılır, aslı da klasör
   bilgisayar okur: iki bilgisayar botu birlikte okusaydı Telegram okumaları birbirine kestirirdi.
 - Kanalı kimse tutmuyorsa onu gönderebilen ilk bilgisayar alır. Tutan bilgisayar yarım saat görünmezse, kanalı artık
   gönderemiyorsa ya da eşitlemeyi kapattıysa, gönderebilen başka bir bilgisayar devralır. Kullanıcı Ayarlar'dan
-  "Bu bilgisayar göndersin" diyerek de alır.
-- Kanalı tutmayan bilgisayarda o kanal için bekleyen bildirimler bırakılır ("başka bir bilgisayar gönderiyor"). Bir
-  bildirim iki kez ya da günler sonra gitmez.
+  "Bu bilgisayar göndersin" diyerek de alır. Yeni alınan kanal, bilgisayarın gönderebildiği kanalların eski bir
+  listesine bakılarak on dakika içinde bırakılmaz. Bir kanal kurulunca ya da değişince liste hemen yeniden sorulur.
+- Kanalı devralan bilgisayar, öncekinin kaçırmış olabileceği bildirimleri kendi olaylarından yapar. Bunlar öncekinin
+  son görüldüğü andan beş dakika öncesinden beri olan olaylardır; sessiz saatteyse sessiz saatin başından beri. Sessiz
+  saatin tuttukları özete girer. Kanalı tutmayan bilgisayarda o kanal için bekleyen bildirimler bırakılır ("başka bir
+  bilgisayar gönderiyor"). Kanalı kimse tutmuyorsa hiçbir bilgisayar göndermez; onu alan bilgisayar son on dakikanın
+  bildirimlerini yapar.
 - Uygulama içi kutu ve masaüstü bildirimleri her bilgisayarın kendisinindir. Her bilgisayar akışını kendi analizinden
   üretir ve kendi ekranında gösterir.
 
@@ -141,7 +159,10 @@ kaldırılır. Kaldırılması öteki bilgisayarlara yayılır, aslı da klasör
 - Tur ötekilerin durum dosyalarından yalnızca değişenleri okur. Kendi durum dosyasını bir parça değişince, kendi
   `cihaz.json`'unu beş dakikada bir yazar.
 - Tur altı saat boyunca işini yapamazsa `sync.failed` olayı günde bir kez yazılır, Pano'da da uyarı çıkar. Örnek
-  nedenler: klasör yok, daha yeni bir sürümün dosyası, yazma hatası.
+  nedenler: klasör yok, daha yeni bir sürümün dosyası, yazma hatası. Turun her beklenmedik hatası da sorun olarak
+  söylenir; tur sessizce durmaz.
+- Bir dosya okunamazsa (Drive o an veremedi, yarım indi) sonraki turda yeniden okunur. Yalnızca okunabilen dosya,
+  değişene dek yeniden okunmaz.
 
 ### Sürümler
 
@@ -169,7 +190,8 @@ kaldırılır. Kaldırılması öteki bilgisayarlara yayılır, aslı da klasör
 - Aynı parça iki bilgisayarda bir dakika içinde değişirse sonra damgalanan kazanır. Öteki bilgisayardaki değişiklik
   kaybolur; kural dosyalarında o bilgisayarın geçmişinde kalır.
 - Telegram'ı tutan bilgisayarın Drive'ı uzun süre eşitleyemezse öteki bilgisayar kanalı devralır. Aradaki sürede bir
-  bildirim iki kez gidebilir.
+  bildirim iki kez gidebilir. Devralan bilgisayarın telafisi, öncekinin sessiz saatte hemen gönderdiği acil bir
+  bildirimi yineleyebilir. Önceki bilgisayarın yeniden denemeyi beklettiği bir bildirim kaybolabilir.
 - Belgenin metni OCR ile okunuyorsa, onu yalnızca macOS'taki bir bilgisayar okuyabilir (mimari §2).
 - İki bilgisayar boş bir klasörde aynı anda başlarsa iki ayrı veri kümesi olabilir. Drive uygulaması yeni kurulan
   bilgisayarda klasörü henüz indirmeden eşitleme açılırsa da bu olur. Ayarlar, klasörde öteki bilgisayarın adı

@@ -930,9 +930,10 @@ folder = ""                         # eşitleme klasörü, ör. Google Drive'da 
 name = ""                           # bu bilgisayarın öteki bilgisayarlarda görünen adı; boş: bilgisayarın kendi adı
 ```
 
-Eşitleme açıkken şu ayarlar bütün bilgisayarlarda aynıdır (ADR-0025): `[identity]`, `[mail]`'in `bank_senders`,
-`other_senders` ve `verify_sender`'ı, `[notify]`'ın `quiet_hours` ve `detail`'i, `[fx] providers` ve `[privacy]`.
-Gerisi her bilgisayarın kendisinindir.
+Eşitleme açıkken şu ayarlar bütün bilgisayarlarda aynıdır (ADR-0025): `[identity]`, `[mail]`'in `bank_senders` ve
+`other_senders`'ı, `[notify]`'ın `quiet_hours` ve `detail`'i, `[fx] providers`. Gerisi her bilgisayarın kendisinindir;
+göndericinin denetlenmesi (`verify_sender`) ve MCP maskeleme de, eşitleme klasörüne yazabilen biri onları bütün
+bilgisayarlarda kapatamasın diye.
 
 | Sır | Yeri |
 |---|---|
