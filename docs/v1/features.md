@@ -775,6 +775,10 @@ Veri kalitesi · Çekirdek
   - eşi bulunamayan düzeltmeler,
   - okuyucu alarmları.
 - **Çözüm:** her madde için tek tıkla bir yol vardır: kural ekle, belge yükle, yok say, Claude'a ver.
+- **Toplu işlem:** maddeler kutularıyla seçilir. Bir türün kutusu o türün bütün maddelerini, listenin kutusu
+  listelenen her maddeyi seçer. Seçilenler tek adımda yok sayılır ya da listeye geri alınır; "Geri al" hepsini birden
+  geri getirir. Seçim çubuğu seçim varken ekranın üstünde kalır. Başka bir tür ya da yok sayılanların gösterilmesi
+  seçimi sıfırlar.
 - **Panoda:** yapılacakların sayısı görünür.
 
 ## F20 — Dışa aktarım ve yedek
