@@ -56,3 +56,20 @@ def restore(db: Database, alias: Alias) -> None:
             "INSERT INTO account_aliases (account, alias, updated_at, actor) VALUES (?, ?, ?, ?)",
             (alias.account, alias.alias, alias.updated_at, alias.actor),
         )
+
+
+def put(db: Database, alias: Alias) -> None:
+    """A name as another computer has it (ADR-0025), with its own time and author; the one here replaced."""
+    with db.transaction():
+        db.execute(
+            "INSERT INTO account_aliases (account, alias, updated_at, actor) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT (account) DO UPDATE SET alias = excluded.alias, updated_at = excluded.updated_at, "
+            "actor = excluded.actor",
+            (alias.account, alias.alias, alias.updated_at, alias.actor),
+        )
+
+
+def drop(db: Database, account: str) -> None:
+    """A name another computer took away (ADR-0025)."""
+    with db.transaction():
+        db.execute("DELETE FROM account_aliases WHERE account = ?", (account,))

@@ -119,6 +119,14 @@ class Updates:
 
 
 @dataclass(frozen=True, slots=True)
+class Sync:
+    # ADR-0025: the folder a sync service mirrors (Google Drive's, iCloud Drive's, Dropbox's) where this computer
+    # shares its data with the user's other computers and keeps a copy off the computer; empty: the sync is off.
+    folder: str = ""
+    name: str = ""  # this computer's name as the others show it; empty: the computer's own name
+
+
+@dataclass(frozen=True, slots=True)
 class Settings:
     identity: Identity = Identity()
     server: Server = Server()
@@ -128,6 +136,7 @@ class Settings:
     privacy: Privacy = Privacy()
     backup: Backup = Backup()
     updates: Updates = Updates()
+    sync: Sync = Sync()
 
 
 # --- reading ------------------------------------------------------------------------------------------
@@ -234,6 +243,13 @@ def _location(where: str, value: Any) -> str:
     return text
 
 
+def _device_name(where: str, value: Any) -> str:
+    text = _text(where, value)
+    if len(text) > 60:
+        raise SettingsError(f"{where} en çok 60 harf olmalı")
+    return text
+
+
 def _quiet_hours(where: str, value: Any) -> str:
     text = _text(where, value)
     if text and not _HOURS.fullmatch(text):
@@ -306,6 +322,7 @@ _SCHEMA: dict[str, tuple[type, dict[str, Check]]] = {
     "privacy": (Privacy, {"mcp_masking": _one_of("off", "accounts", "accounts_and_names")}),
     "backup": (Backup, {"keep_days": _days, "folder": _location}),
     "updates": (Updates, {"mode": _one_of(*UPDATE_MODES)}),
+    "sync": (Sync, {"folder": _location, "name": _device_name}),
 }
 
 

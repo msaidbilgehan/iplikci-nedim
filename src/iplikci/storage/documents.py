@@ -130,6 +130,24 @@ def restore(db: Database, doc: DocumentRow) -> None:
         _index(db, doc.sha256, doc.name)
 
 
+def arrive(db: Database, doc: DocumentRow) -> None:
+    """A document as another computer keeps it (ADR-0025): a new one comes unread (or removed, as it was there); one
+    here takes its name, size, time and message, its reading left as it is."""
+    with db.transaction():
+        cursor = db.execute(
+            "INSERT OR IGNORE INTO documents (sha256, name, size, status, reason, parent, added_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (doc.sha256, doc.name, doc.size, doc.status, doc.reason, doc.parent, doc.added_at),
+        )
+        if cursor.rowcount:
+            _index(db, doc.sha256, doc.name)
+            return
+        db.execute(
+            "UPDATE documents SET name = ?, size = ?, parent = ?, added_at = ? WHERE sha256 = ?",
+            (doc.name, doc.size, doc.parent, doc.added_at, doc.sha256),
+        )
+
+
 def get(db: Database, sha256: str) -> DocumentRow | None:
     row = db.one("SELECT * FROM documents WHERE sha256 = ?", (sha256,))
     return None if row is None else _row(row)
@@ -266,6 +284,49 @@ def add_source(db: Database, sha256: str, source: Source) -> bool:
             ),
         )
     return bool(cursor.rowcount)
+
+
+def put_source(db: Database, sha256: str, source: Source) -> None:
+    """An arrival as another computer recorded it (ADR-0025); the same arrival here takes its details."""
+    with db.transaction():
+        db.execute(
+            "INSERT INTO document_sources "
+            "(sha256, kind, original, origin, message_id, sender, subject, sent_at, received_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (sha256, kind, original, origin, message_id) DO UPDATE SET "
+            "sender = excluded.sender, subject = excluded.subject, sent_at = excluded.sent_at, "
+            "received_at = excluded.received_at",
+            (
+                sha256,
+                source.kind,
+                source.original,
+                source.origin,
+                source.message_id,
+                source.sender,
+                source.subject,
+                source.sent_at,
+                source.received_at,
+            ),
+        )
+
+
+def every_source(db: Database) -> list[tuple[str, Source]]:
+    """Every arrival of every document, with the document's sha256."""
+    return [
+        (
+            r["sha256"],
+            Source(
+                kind=SourceKind(r["kind"]),
+                original=r["original"],
+                origin=r["origin"],
+                message_id=r["message_id"],
+                sender=r["sender"],
+                subject=r["subject"],
+                sent_at=r["sent_at"],
+                received_at=r["received_at"],
+            ),
+        )
+        for r in db.rows("SELECT * FROM document_sources ORDER BY id")
+    ]
 
 
 def has_source(db: Database, sha256: str, source: Source) -> bool:

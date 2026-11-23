@@ -95,3 +95,29 @@ def restore(db: Database, memory: Memory) -> None:
                 memory.actor,
             ),
         )
+
+
+def put(db: Database, memory: Memory) -> None:
+    """A note as another computer has it (ADR-0025), with its own times and author; the one here replaced."""
+    with db.transaction():
+        db.execute(
+            "INSERT INTO memories (name, kind, description, body, created_at, updated_at, actor) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (name) DO UPDATE SET kind = excluded.kind, "
+            "description = excluded.description, body = excluded.body, created_at = excluded.created_at, "
+            "updated_at = excluded.updated_at, actor = excluded.actor",
+            (
+                memory.name,
+                memory.kind,
+                memory.description,
+                memory.body,
+                memory.created_at,
+                memory.updated_at,
+                memory.actor,
+            ),
+        )
+
+
+def drop(db: Database, name: str) -> None:
+    """A note another computer took away (ADR-0025)."""
+    with db.transaction():
+        db.execute("DELETE FROM memories WHERE name = ?", (name,))

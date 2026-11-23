@@ -160,6 +160,7 @@ ACTOR: dict[Actor, str] = {
     Actor.MCP: "MCP",
     Actor.SYSTEM: "Sistem",
     Actor.MIGRATION: "Taşıma",
+    Actor.SYNC: "Eşitleme",
 }
 
 UNIT: dict[Unit, str] = {Unit.GRAM: "gram", Unit.SHARE: "adet"}

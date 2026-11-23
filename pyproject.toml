@@ -93,6 +93,7 @@ include = [
     "src/iplikci/service",
     "src/iplikci/settings",
     "src/iplikci/storage",
+    "src/iplikci/sync",
     "src/iplikci/upcoming.py",
     "src/iplikci/update",
     "src/iplikci/vault",

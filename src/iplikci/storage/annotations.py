@@ -201,3 +201,34 @@ def remove(db: Database, fingerprint: str, actor: Actor) -> bool:
         if cursor.rowcount:
             audit.record(db, actor, "annotation.removed", fingerprint)
     return bool(cursor.rowcount)
+
+
+def put(db: Database, annotation: Annotation) -> None:
+    """An annotation as another computer has it (ADR-0025), with its own times and author; the one here replaced.
+    The sync records what it put in place in the audit log, once a round."""
+    with db.transaction():
+        db.execute(
+            "INSERT INTO annotations (fingerprint, note, tags, category, necessity, subject, created_at, updated_at, "
+            "actor, parts) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (fingerprint) DO UPDATE SET "
+            "note = excluded.note, tags = excluded.tags, category = excluded.category, "
+            "necessity = excluded.necessity, subject = excluded.subject, created_at = excluded.created_at, "
+            "updated_at = excluded.updated_at, actor = excluded.actor, parts = excluded.parts",
+            (
+                annotation.fingerprint,
+                annotation.note,
+                json.dumps(list(annotation.tags), ensure_ascii=False),
+                annotation.category,
+                annotation.necessity or "",
+                json.dumps(asdict(annotation.subject), ensure_ascii=False, sort_keys=True),
+                annotation.created_at,
+                annotation.updated_at,
+                annotation.actor,
+                parts_json(annotation.parts),
+            ),
+        )
+
+
+def drop(db: Database, fingerprint: str) -> None:
+    """An annotation another computer took away (ADR-0025); the sync records it in the audit log."""
+    with db.transaction():
+        db.execute("DELETE FROM annotations WHERE fingerprint = ?", (fingerprint,))

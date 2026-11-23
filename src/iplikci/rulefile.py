@@ -285,6 +285,14 @@ def replace(path: Path, text: str, history: Path) -> Path | None:
     return backup
 
 
+def retire(path: Path, history: Path) -> Path:
+    """Move a rule file into history (another computer has none: the rules below it apply); returns where it went."""
+    history.mkdir(parents=True, exist_ok=True)
+    target = _free(history / f"{path.stem} {datetime.now():%Y-%m-%d %H.%M.%S}{path.suffix}")
+    os.replace(path, target)
+    return target
+
+
 def _free(path: Path) -> Path:
     """path, or 'name (2).ext' and so on if it exists: a history copy never replaces another."""
     candidate, n = path, 2

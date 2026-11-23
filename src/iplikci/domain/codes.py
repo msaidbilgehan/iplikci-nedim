@@ -164,6 +164,7 @@ class Actor(StrEnum):
     MCP = "mcp"
     SYSTEM = "system"
     MIGRATION = "migration"
+    SYNC = "sync"  # put in place from another computer's change, through the sync folder (ADR-0025)
 
 
 class BackupReason(StrEnum):
