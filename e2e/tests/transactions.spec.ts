@@ -73,6 +73,8 @@ test("dönem aramanın yanında seçilir; yön ve tutar süzgeçlerde, hepsi eri
   // The account filter's options read whole, numbers and all.
   await page.getByRole("button", { name: /^Hesap:/ }).click();
   await expect(page.getByRole("dialog", { name: "Hesap" })).toBeVisible();
+  // The list fades while the filtered rows come: axe would weigh the faded rows' colours.
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0, { timeout: 15_000 });
   const found = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   expect(found.violations.map((v) => `${v.id}: ${v.nodes[0]?.target.join(" ")}`)).toEqual([]);
 });
