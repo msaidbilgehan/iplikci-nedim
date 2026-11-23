@@ -3,12 +3,13 @@ Each test's computers are data folders beside each other; the "Google Drive" is 
 
 import json
 import shutil
+import tempfile
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
-from hypothesis import given
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 from iplikci.app import annotate, memory, notify, sync, telegram
@@ -521,3 +522,102 @@ def test_google_drive_is_found_on_its_own_drive_letter_on_windows(tmp_path):
     (tmp_path / "G" / "My Drive").mkdir(parents=True)
     found = places.found(tmp_path / "ev", "win32", {}, drive_root=lambda letter: tmp_path / letter)
     assert [(p.label, p.root) for p in found] == [("Google Drive", tmp_path / "G" / "My Drive")]
+
+
+# --- many computers, any order: they end with the same data ----------------------------------------------------
+
+operations = st.lists(
+    st.tuples(
+        st.integers(0, 2),  # the computer
+        st.sampled_from(["note", "unnote", "memory", "forget", "alias", "names", "rules", "round"]),
+        st.integers(0, 2),  # which piece
+        st.integers(0, 3),  # which value
+    ),
+    min_size=1,
+    max_size=25,
+)
+
+
+def _act(ws: Workspace, action: str, piece: int, value: int) -> None:
+    subject = annotations.Subject("hesap", "Hesap", "2026-01-01", 100, "TRY", f"satır {piece}")
+    with ws.db() as db:
+        if action == "note":
+            annotations.change(db, f"iz-{piece}", subject, Actor.USER, note=f"not {value}")
+        elif action == "unnote":
+            annotations.change(db, f"iz-{piece}", subject, Actor.USER, note="")
+        elif action == "memory":
+            memories.write(db, f"not-{piece}", MemoryKind.USER, f"açıklama {value}", f"metin {value}", Actor.MCP)
+        elif action == "forget":
+            memories.remove(db, f"not-{piece}", Actor.USER)
+        elif action == "alias":
+            aliases.change(db, f"hesap-{piece}", f"ad {value}" if value else "", Actor.USER)
+    if action == "names":
+        config.update(ws.layout.settings, "identity", {"names": [f"Kişi {value}"]})
+    elif action == "rules":
+        ws.rules.write_text(RULES + f"\nUlaşım:\n  Taksi {value}:\n    _: [TAKSI{value}]\n", encoding="utf-8")
+    elif action == "round":
+        sync.run_round(ws)
+
+
+def _shared(ws: Workspace) -> dict[tuple[str, str], str]:
+    from iplikci.app import shared
+
+    with ws.db() as db:
+        found = {k: v for k, v in shared.db_values(db).items() if k[0] != Kind.DOCUMENT and k[0] != Kind.SOURCE}
+    return found | shared.file_kind_values(ws)
+
+
+@settings(max_examples=30, deadline=None, suppress_health_check=[HealthCheck.too_slow])
+@given(operations)
+def test_computers_changing_the_same_pieces_in_any_order_end_with_the_same_data(steps):
+    with tempfile.TemporaryDirectory() as folder:
+        root = Path(folder)
+        (root / "drive").mkdir()
+        computers = [computer(root, name) for name in ("a", "b", "c")]
+        sync._peers.clear()
+        sync._beats.clear()
+        for ws in computers:
+            sync.turn_on(ws, str(root / "drive" / library.DEFAULT_NAME))
+            sync.run_round(ws)
+        for who, action, piece, value in steps:
+            _act(computers[who], action, piece, value)
+        for _ in range(3):  # everyone hears of everything
+            for ws in computers:
+                sync.run_round(ws)
+        first = _shared(computers[0])
+        assert all(_shared(ws) == first for ws in computers[1:])
+
+
+def _essence(ws: Workspace) -> dict[str, object]:
+    """What the user sees of the shared pieces, without the times a computer wrote them at."""
+    with ws.db() as db:
+        found: dict[str, object] = {f"note {k}": a.note for k, a in annotations.every(db).items()}
+        found |= {f"memory {m.name}": (m.kind, m.description, m.body) for m in memories.every(db)}
+        found |= {f"alias {k}": a.alias for k, a in aliases.every(db).items()}
+    found["names"] = config.load(ws.layout.settings).identity.names
+    found["rules"] = ws.rules.read_text(encoding="utf-8")
+    return found
+
+
+@settings(max_examples=20, deadline=None, suppress_health_check=[HealthCheck.too_slow])
+@given(operations)
+def test_changes_made_one_after_another_with_the_sync_between_them_keep_the_last_one(steps):
+    with tempfile.TemporaryDirectory() as folder:
+        root = Path(folder)
+        (root / "drive").mkdir()
+        computers = [computer(root, name) for name in ("a", "b")]
+        alone = computer(root, "tek")  # the same steps on one computer without the sync
+        sync._peers.clear()
+        sync._beats.clear()
+        for ws in computers:
+            sync.turn_on(ws, str(root / "drive" / library.DEFAULT_NAME))
+            sync.run_round(ws)
+        for who, action, piece, value in steps:
+            if action == "round":
+                continue
+            _act(computers[who % 2], action, piece, value)
+            _act(alone, action, piece, value)
+            for _ in range(2):
+                for ws in computers:
+                    sync.run_round(ws)
+        assert _essence(computers[0]) == _essence(computers[1]) == _essence(alone)
