@@ -1094,12 +1094,11 @@ export function useTodos(withIgnored: boolean) {
   });
 }
 
-/** Take an item off the list (ignored), or put it back. */
+/** Take items off the list (ignored), or put them back: one, or the ones the user chose together. */
 export function useIgnoreTodo() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (change: { key: string; ignored: boolean }) =>
-      api.post<void>("/api/todos/ignored", change),
+    mutationFn: (change: { keys: string[]; ignored: boolean }) => api.post<void>("/api/todos/ignored", change),
     onSettled: () => client.invalidateQueries({ queryKey: keys.dashboard }),
   });
 }

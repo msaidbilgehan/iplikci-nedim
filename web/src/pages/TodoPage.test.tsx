@@ -18,7 +18,7 @@ const NONE: Todos["counts"] = Object.fromEntries(Object.keys(TODOS.counts).map((
 
 /** The list as the service keeps it: an item taken off leaves it, one put back returns; what was asked, in order. */
 function serve(items: TodoItem[] = TODOS.items) {
-  const changes: Array<{ key: string; ignored: boolean }> = [];
+  const changes: Array<{ keys: string[]; ignored: boolean }> = [];
   let ignored = new Set<string>([IGNORED_TODO.key]);
   const all = [...items, IGNORED_TODO];
   server.use(
@@ -36,9 +36,11 @@ function serve(items: TodoItem[] = TODOS.items) {
       return HttpResponse.json({ items: listed, counts, ignored: ignored.size } satisfies Todos);
     }),
     http.post("/api/todos/ignored", async ({ request }) => {
-      const change = (await request.json()) as { key: string; ignored: boolean };
+      const change = (await request.json()) as { keys: string[]; ignored: boolean };
       changes.push(change);
-      ignored = new Set(change.ignored ? [...ignored, change.key] : [...ignored].filter((key) => key !== change.key));
+      ignored = new Set(
+        change.ignored ? [...ignored, ...change.keys] : [...ignored].filter((key) => !change.keys.includes(key)),
+      );
       return new HttpResponse(null, { status: 204 });
     }),
   );
@@ -165,13 +167,13 @@ describe("TodoPage: the steps", () => {
     const uncategorized = await region("Kategorisiz işlemler");
     await user.click(within(uncategorized).getByRole("button", { name: "Yok say: Örnek Kafe" }));
     const done = await screen.findByText("“Örnek Kafe” listeden çıkarıldı.");
-    expect(changes).toEqual([{ key: "uncategorized:ornek kafe", ignored: true }]);
+    expect(changes).toEqual([{ keys: ["uncategorized:ornek kafe"], ignored: true }]);
     await waitFor(() => expect(screen.queryByRole("region", { name: "Kategorisiz işlemler" })).not.toBeInTheDocument());
     await waitFor(() => expect(done.closest("[tabindex]")).toHaveFocus()); // its button left with it
     expect(screen.getByText("2 iş yok sayıldı.")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Geri al" }));
     expect(await screen.findByText("“Örnek Kafe” listeye geri alındı.")).toBeInTheDocument();
-    expect(changes.at(-1)).toEqual({ key: "uncategorized:ornek kafe", ignored: false });
+    expect(changes.at(-1)).toEqual({ keys: ["uncategorized:ornek kafe"], ignored: false });
     expect(await region("Kategorisiz işlemler")).toBeInTheDocument();
   });
 
@@ -185,7 +187,7 @@ describe("TodoPage: the steps", () => {
     expect(within(restore.closest("li")!).getByText("Yok sayıldı")).toBeInTheDocument();
     await user.click(restore);
     expect(await screen.findByText("“Eski Kitapçı” listeye geri alındı.")).toBeInTheDocument();
-    expect(changes).toEqual([{ key: IGNORED_TODO.key, ignored: false }]);
+    expect(changes).toEqual([{ keys: [IGNORED_TODO.key], ignored: false }]);
     expect(screen.getByRole("button", { name: "Yok sayılanları göster" })).toHaveAttribute("aria-pressed", "true");
   });
 
@@ -253,5 +255,122 @@ describe("TodoPage: the steps", () => {
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(upload).toHaveFocus();
+  });
+});
+
+describe("TodoPage: the bulk steps", () => {
+  // Two more documents no reader takes: the kind has three items to choose from.
+  const unread = (letter: string, title: string) =>
+    todo({ ...TODOS.items[2], key: `document:${letter.repeat(64)}`, title, target: letter.repeat(64) });
+  const DOCUMENTS = [...TODOS.items, unread("c", "MusteriBilgiFormu.pdf"), unread("d", "HizmetSozlesmesi.pdf")];
+  const box = (name: string) => screen.getByRole("checkbox", { name });
+
+  it("takes the items chosen off the list together, says how many, and puts them all back on undo", async () => {
+    const changes = serve();
+    const user = userEvent.setup();
+    renderScreen(<TodoPage />, { path: "/yapilacaklar" });
+    await user.click(await screen.findByRole("checkbox", { name: "Seç: Örnek Kafe" }));
+    await user.click(box("Seç: TalimatFormu.pdf"));
+    const bar = await region("Seçili işler");
+    expect(within(bar).getByText("2 iş seçildi")).toBeInTheDocument();
+    await user.click(within(bar).getByRole("button", { name: "Seçilenleri yok say (2)" }));
+    expect(await screen.findByText("2 iş listeden çıkarıldı.")).toBeInTheDocument();
+    expect(changes).toEqual([{ keys: ["uncategorized:ornek kafe", `document:${TALIMAT}`], ignored: true }]);
+    await waitFor(() => expect(screen.queryByRole("region", { name: "İşlenmeyen belge" })).not.toBeInTheDocument());
+    expect(screen.queryByText(/iş seçildi$/)).not.toBeInTheDocument(); // what was done is no longer chosen
+    await user.click(screen.getByRole("button", { name: "Geri al" }));
+    expect(await screen.findByText("2 iş listeye geri alındı.")).toBeInTheDocument();
+    expect(changes.at(-1)).toEqual({ keys: ["uncategorized:ornek kafe", `document:${TALIMAT}`], ignored: false });
+    expect(await region("İşlenmeyen belge")).toBeInTheDocument();
+  });
+
+  it("chooses every item listed at once, and none again", async () => {
+    serve();
+    const user = userEvent.setup();
+    renderScreen(<TodoPage />, { path: "/yapilacaklar" });
+    await user.click(await screen.findByRole("checkbox", { name: "Listedeki 4 işin hepsini seç" }));
+    for (const title of ["Örnek Kafe", "Örnek Vadesiz TL", "TalimatFormu.pdf", "Örnek Süpermarket"]) {
+      expect(box(`Seç: ${title}`)).toBeChecked();
+    }
+    const bar = await region("Seçili işler");
+    expect(within(bar).getByText("4 iş seçildi")).toBeInTheDocument();
+    await user.click(within(bar).getByRole("button", { name: "Seçimi kaldır" }));
+    expect(box("Seç: Örnek Kafe")).not.toBeChecked();
+    expect(box("Listedeki 4 işin hepsini seç")).not.toBeChecked();
+  });
+
+  it("chooses a kind's items from its own checkbox, half-ticked while only some are chosen", async () => {
+    const changes = serve(DOCUMENTS);
+    const user = userEvent.setup();
+    renderScreen(<TodoPage />, { path: "/yapilacaklar" });
+    const documents = await region("İşlenmeyen belge");
+    const kind = within(documents).getByRole("checkbox", { name: "Bu türdeki 3 işin hepsini seç" });
+    await user.click(within(documents).getByRole("checkbox", { name: "Seç: MusteriBilgiFormu.pdf" }));
+    expect(kind).not.toBeChecked();
+    expect(kind).toHaveProperty("indeterminate", true);
+    await user.click(kind);
+    expect(kind).toBeChecked();
+    expect(box("Seç: Örnek Kafe")).not.toBeChecked(); // another kind's items stay as they were
+    await user.click(screen.getByRole("button", { name: "Seçilenleri yok say (3)" }));
+    expect(await screen.findByText("3 iş listeden çıkarıldı.")).toBeInTheDocument();
+    expect(changes.at(-1)?.keys).toEqual([
+      `document:${TALIMAT}`,
+      `document:${"c".repeat(64)}`,
+      `document:${"d".repeat(64)}`,
+    ]);
+  });
+
+  it("puts back the chosen items taken off, beside taking off the chosen ones still listed", async () => {
+    const changes = serve();
+    const user = userEvent.setup();
+    renderScreen(<TodoPage />, { path: "/yapilacaklar" });
+    await user.click(await screen.findByRole("button", { name: "Yok sayılanları göster" }));
+    await user.click(await screen.findByRole("checkbox", { name: "Seç: Eski Kitapçı" }));
+    await user.click(box("Seç: Örnek Kafe"));
+    const bar = await region("Seçili işler");
+    expect(within(bar).getByRole("button", { name: "Seçilenleri yok say (1)" })).toBeInTheDocument();
+    await user.click(within(bar).getByRole("button", { name: "Seçilenleri listeye geri al (1)" }));
+    expect(await screen.findByText("“Eski Kitapçı” listeye geri alındı.")).toBeInTheDocument();
+    expect(changes).toEqual([{ keys: [IGNORED_TODO.key], ignored: false }]);
+    expect(box("Seç: Örnek Kafe")).toBeChecked(); // still chosen: it was not part of what was done
+  });
+
+  it("starts with nothing chosen in another kind's view", async () => {
+    serve();
+    const user = userEvent.setup();
+    renderScreen(<TodoPage />, { path: "/yapilacaklar" });
+    await user.click(await screen.findByRole("checkbox", { name: "Seç: Örnek Kafe" }));
+    await user.click(screen.getByRole("link", { name: "Eksik belge (1)" }));
+    expect(await screen.findByRole("checkbox", { name: "Seç: Örnek Vadesiz TL" })).not.toBeChecked();
+    expect(screen.queryByRole("region", { name: "Seçili işler" })).not.toBeInTheDocument(); // one item: its own box
+    await user.click(screen.getByRole("link", { name: "Tümü (4)" }));
+    expect(await screen.findByRole("checkbox", { name: "Seç: Örnek Kafe" })).not.toBeChecked();
+  });
+
+  it("chooses a kind's rows from the table's heading in the detailed view", async () => {
+    localStorage.setItem("iplikci.view", "detailed");
+    serve(DOCUMENTS);
+    const user = userEvent.setup();
+    renderScreen(<TodoPage />, { path: "/yapilacaklar" });
+    const table = await screen.findByRole("table", { name: "İşlenmeyen belge: bekleyen işler" });
+    await user.click(within(table).getByRole("checkbox", { name: "İşlenmeyen belge: hepsini seç" }));
+    expect(within(table).getAllByRole("checkbox", { checked: true })).toHaveLength(4); // the heading's and three rows'
+    expect(within(await region("Seçili işler")).getByText("3 iş seçildi")).toBeInTheDocument();
+  });
+
+  it("says in the bar when the chosen items could not be taken off", async () => {
+    serve();
+    server.use(
+      http.post("/api/todos/ignored", () =>
+        HttpResponse.json({ title: "Belgeler şu an okunuyor; birazdan yeniden deneyin." }, { status: 409 }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderScreen(<TodoPage />, { path: "/yapilacaklar" });
+    await user.click(await screen.findByRole("checkbox", { name: "Listedeki 4 işin hepsini seç" }));
+    await user.click(screen.getByRole("button", { name: "Seçilenleri yok say (4)" }));
+    const bar = await region("Seçili işler");
+    expect(await within(bar).findByRole("alert")).toBeInTheDocument();
+    expect(box("Seç: Örnek Kafe")).toBeChecked(); // nothing was done: the choice stays
   });
 });

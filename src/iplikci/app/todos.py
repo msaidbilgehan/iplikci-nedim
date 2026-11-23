@@ -6,7 +6,7 @@ an account's gap a new item, a merchant's rows stay one item however many come. 
 the feed's state; rebuilding the database from the primary data forgets it, and the items come back once."""
 
 from collections import defaultdict
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -348,13 +348,22 @@ def counts(ws: Workspace, analysis: Analysis, today: date) -> dict[TodoKind, int
     return found
 
 
-def ignore(ws: Workspace, key: str, on: bool, actor: Actor) -> None:
-    """Take an item off the list (on), or put it back."""
+def ignore(ws: Workspace, keys: Sequence[str], on: bool, actor: Actor) -> None:
+    """Take items off the list (on), or put them back: the ones the user chose together go together, and the audit log
+    keeps each.
+
+    Raises:
+        TypeError: keys is one key, not a list of them (a str is a sequence of one-letter keys).
+    """
+    if isinstance(keys, str):
+        raise TypeError(f"todos.ignore takes a list of keys, not the key {keys!r} alone")
+    at = datetime.now(UTC).isoformat(timespec="seconds")
     with ws.db() as db, db.transaction():
         ignored = _ignored(db)
-        if on:
-            ignored[key] = datetime.now(UTC).isoformat(timespec="seconds")
-        else:
-            ignored.pop(key, None)
+        for key in dict.fromkeys(keys):  # each once, in the order given
+            if on:
+                ignored[key] = at
+            else:
+                ignored.pop(key, None)
+            audit.record(db, actor, TODO_IGNORED if on else "todo.restored", key)
         feed_state.save(db, IGNORED, ignored)
-        audit.record(db, actor, TODO_IGNORED if on else "todo.restored", key)

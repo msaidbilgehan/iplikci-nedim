@@ -1,6 +1,8 @@
 """The to-do list (F19) for the Yapılacaklar screen and the dashboard's number: every item with the steps that
-settle it, and taking one off the list or putting it back. Reading needs a session or the token; changing, the
-service's own pages."""
+settle it, and taking items off the list or putting them back, one or many at once. Reading needs a session or the
+token; changing, the service's own pages."""
+
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
@@ -41,9 +43,12 @@ class TodosOut(BaseModel):
     ignored: int  # how many the user took off
 
 
+Key = Annotated[str, Field(min_length=1, max_length=1000)]
+
+
 class TodoIgnoredIn(BaseModel):
-    key: str = Field(min_length=1, max_length=1000)
-    ignored: bool  # true takes it off the list, false puts it back
+    keys: Annotated[list[Key], Field(min_length=1, max_length=1000)]  # the items the user chose, together
+    ignored: bool  # true takes them off the list, false puts them back
 
 
 @router.get("/api/todos", dependencies=READ)
@@ -83,5 +88,5 @@ def todo_list(request: Request, with_ignored: bool = Query(False)) -> TodosOut:
 
 @router.post("/api/todos/ignored", status_code=204, dependencies=WRITE)
 def todo_ignored(request: Request, body: TodoIgnoredIn) -> None:
-    """Take an item off the list, or put it back; the audit log keeps it."""
-    todos.ignore(context_of(request).ws, body.key, body.ignored, Actor.USER)
+    """Take items off the list, or put them back, all at once; the audit log keeps each."""
+    todos.ignore(context_of(request).ws, body.keys, body.ignored, Actor.USER)

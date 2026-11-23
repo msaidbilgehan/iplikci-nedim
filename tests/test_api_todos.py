@@ -13,7 +13,7 @@ from iplikci.api.context import Context
 from iplikci.app import todos, transactions
 from iplikci.app.analysis import analyze
 from iplikci.app.workspace import Workspace
-from iplikci.domain.codes import DocumentStatus, TodoAction, TodoKind
+from iplikci.domain.codes import Actor, DocumentStatus, TodoAction, TodoKind
 from iplikci.fakes import CardRow, garanti
 from iplikci.parsers.messages import CAMPAIGN
 from iplikci.storage import audit, documents
@@ -63,7 +63,7 @@ def test_an_item_names_the_account_as_the_user_named_it_and_keeps_its_key(demo_w
 def test_an_item_taken_off_the_list_stays_off_and_comes_back_on_request(demo_ws):
     client = client_for(demo_ws)
     key = client.get("/api/todos", headers=bearer()).json()["items"][1]["key"]
-    body = {"key": key, "ignored": True}
+    body = {"keys": [key], "ignored": True}
     assert client.post("/api/todos/ignored", json=body, headers=bearer()).status_code == 403  # the interface only
     url = client.post("/api/login-links", headers=bearer()).json()["url"]
     client.get(url, follow_redirects=False)
@@ -73,10 +73,35 @@ def test_an_item_taken_off_the_list_stays_off_and_comes_back_on_request(demo_ws)
     assert found["counts"]["unprocessed_document"] == 0 and found["ignored"] == 1
     every = client.get("/api/todos?with_ignored=true", headers=bearer()).json()["items"]
     assert next(t for t in every if t["key"] == key)["ignored"]
-    client.post("/api/todos/ignored", json={"key": key, "ignored": False}, headers=OWN_PAGE)
+    client.post("/api/todos/ignored", json={"keys": [key], "ignored": False}, headers=OWN_PAGE)
     assert key in {t["key"] for t in client.get("/api/todos", headers=bearer()).json()["items"]}
     with demo_ws.db() as db:
         assert [e.action for e in audit.entries(db)][-2:] == [todos.TODO_IGNORED, "todo.restored"]
+
+
+def test_the_items_chosen_together_leave_the_list_and_come_back_together(demo_ws):
+    client = client_for(demo_ws)
+    url = client.post("/api/login-links", headers=bearer()).json()["url"]
+    client.get(url, follow_redirects=False)
+    keys = [t["key"] for t in client.get("/api/todos", headers=bearer()).json()["items"]]
+    assert len(keys) == 2
+    assert client.post("/api/todos/ignored", json={"keys": keys, "ignored": True}, headers=OWN_PAGE).status_code == 204
+    found = client.get("/api/todos", headers=bearer()).json()
+    assert (found["items"], found["ignored"]) == ([], 2)
+    back = {"keys": [*keys, keys[0]], "ignored": False}  # a key given twice is put back once
+    assert client.post("/api/todos/ignored", json=back, headers=OWN_PAGE).status_code == 204
+    assert [t["key"] for t in client.get("/api/todos", headers=bearer()).json()["items"]] == keys
+    with demo_ws.db() as db:
+        done = [(e.action, e.target) for e in audit.entries(db)][-4:]
+    assert done == [(todos.TODO_IGNORED, k) for k in keys] + [("todo.restored", k) for k in keys]  # each one kept
+
+
+def test_taking_nothing_off_the_list_is_refused(demo_ws):
+    client = client_for(demo_ws)
+    url = client.post("/api/login-links", headers=bearer()).json()["url"]
+    client.get(url, follow_redirects=False)
+    assert client.post("/api/todos/ignored", json={"keys": [], "ignored": True}, headers=OWN_PAGE).status_code == 422
+    assert client.post("/api/todos/ignored", json={"keys": [""], "ignored": True}, headers=OWN_PAGE).status_code == 422
 
 
 def test_card_rows_no_rule_names_are_one_item_per_merchant_the_most_frequent_first(ws):
@@ -117,3 +142,10 @@ def test_a_message_knowingly_classified_is_no_item(ws):
         documents.set_status(db, "b" * 64, DocumentStatus.UNREADABLE, "bozuk PDF")
     found = todos.items(ws, before, demo.AS_OF)
     assert [t.target for t in found if t.kind is TodoKind.UNPROCESSED_DOCUMENT] == ["b" * 64]
+
+
+def test_one_key_given_alone_is_refused_rather_than_read_letter_by_letter(demo_ws):
+    with pytest.raises(TypeError, match="list of keys"):
+        todos.ignore(demo_ws, "document:abc", True, Actor.USER)
+    with demo_ws.db() as db:
+        assert audit.entries(db, todos.TODO_IGNORED) == []

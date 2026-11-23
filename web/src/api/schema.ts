@@ -2371,7 +2371,7 @@ export interface TodoCountOut {
 }
 
 export interface TodoIgnoredIn {
-  key: string;
+  keys: string[];
   ignored: boolean;
 }
 

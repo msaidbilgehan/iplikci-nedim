@@ -1,6 +1,7 @@
 // The Yapılacaklar screen (F19): what keeps the data from being complete and right, kind by kind in F19's order, each
 // item with the steps that settle it. The dashboard's count leads here, narrowed to a kind (?tur=). What the user takes
-// off the list can be put back at once, or later from the items taken off.
+// off the list can be put back at once, or later from the items taken off. Items chosen with their checkboxes, a kind's
+// or every one listed, are taken off or put back together.
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
@@ -10,6 +11,7 @@ import { Link, useSearchParams } from "react-router";
 import { keys, useIgnoreTodo, useLabels, useReparse, useTodos } from "../api/queries";
 import type { Labels, TodoItem, TodoKind, Todos } from "../api/types";
 import { Empty, Failure, Loading } from "../components/QueryState";
+import { TodoBulkBar } from "../components/todo/BulkBar";
 import type { TodoHandlers } from "../components/todo/Steps";
 import { TodoGroup } from "../components/todo/TodoGroup";
 import { Alert } from "../components/ui/Alert";
@@ -38,9 +40,18 @@ export default function TodoPage() {
 
 interface Notice {
   text: string;
-  undo: TodoItem | null; // the item just taken off, to put back
+  undo: readonly TodoItem[]; // the items just taken off, to put back together; none for nothing to undo
   at: number;
 }
+
+/** The items chosen for a bulk step, in the view they were chosen in: another kind or the items taken off shown or
+ * hidden is another view, which starts with none chosen. */
+interface Picked {
+  view: string;
+  keys: ReadonlySet<string>;
+}
+
+const NONE_PICKED: ReadonlySet<string> = new Set();
 
 /** The items' kinds in the order the list gives them: the service's counts first (F19's order), then any other. */
 function kindsOf(found: Todos): TodoKind[] {
@@ -69,6 +80,24 @@ function List({ found, labels, withIgnored, onWithIgnored }: ListProps) {
   const reparse = useReparse();
   const [notice, setNotice] = useState<Notice | null>(null);
   const noticeBox = useRef<HTMLDivElement>(null);
+  const view = `${chosen}|${String(withIgnored)}`;
+  const [picked, setPicked] = useState<Picked>({ view, keys: NONE_PICKED });
+  if (picked.view !== view) {
+    setPicked({ view, keys: NONE_PICKED }); // another view starts with none chosen, and so does coming back
+  }
+  const pickedKeys = picked.view === view ? picked.keys : NONE_PICKED;
+  const pick = (items: readonly TodoItem[], on: boolean) =>
+    setPicked((was) => {
+      const next = new Set(was.view === view ? was.keys : NONE_PICKED);
+      for (const item of items) {
+        if (on) {
+          next.add(item.key);
+        } else {
+          next.delete(item.key);
+        }
+      }
+      return { view, keys: next };
+    });
 
   // The step's button left with its item: the focus goes to what the step did, and to its undo.
   useEffect(() => {
@@ -83,18 +112,37 @@ function List({ found, labels, withIgnored, onWithIgnored }: ListProps) {
     return () => clearTimeout(timer);
   }, [notice]);
 
-  const say = (text: string, undo: TodoItem | null = null) => setNotice({ text, undo, at: Date.now() });
+  const say = (text: string, undo: readonly TodoItem[] = []) => setNotice({ text, undo, at: Date.now() });
+  // One item or many, together; what is done is said by its title, or by how many.
+  const change = (items: readonly TodoItem[], ignored: boolean) =>
+    ignore.mutate(
+      { keys: items.map((item) => item.key), ignored },
+      {
+        onSuccess: () => {
+          pick(items, false); // done with: no longer chosen
+          const [only] = items;
+          if (ignored) {
+            say(
+              only && items.length === 1
+                ? t("ignoredDone", { title: only.title })
+                : t("ignoredMany", { count: items.length }),
+              items,
+            );
+          } else {
+            say(
+              only && items.length === 1
+                ? t("restoredDone", { title: only.title })
+                : t("restoredMany", { count: items.length }),
+            );
+          }
+        },
+      },
+    );
+  // A step of the bulk bar failed: the bar says so, not each of its items.
+  const bulkFailed = ignore.isError && ignore.variables.keys.length > 1;
   const handlers: TodoHandlers = {
-    ignore: (item) =>
-      ignore.mutate(
-        { key: item.key, ignored: true },
-        { onSuccess: () => say(t("ignoredDone", { title: item.title }), item) },
-      ),
-    restore: (item) =>
-      ignore.mutate(
-        { key: item.key, ignored: false },
-        { onSuccess: () => say(t("restoredDone", { title: item.title })) },
-      ),
+    ignore: (item) => change([item], true),
+    restore: (item) => change([item], false),
     reparse: (item) =>
       reparse.mutate(item.target, {
         onSuccess: (done) =>
@@ -103,10 +151,10 @@ function List({ found, labels, withIgnored, onWithIgnored }: ListProps) {
         onSettled: () => void client.invalidateQueries({ queryKey: keys.dashboard }),
       }),
     busy: (item) =>
-      (ignore.isPending && ignore.variables.key === item.key) ||
+      (ignore.isPending && ignore.variables.keys.includes(item.key)) ||
       (reparse.isPending && reparse.variables === item.target),
     failure: (item) => {
-      if (ignore.isError && ignore.variables.key === item.key) {
+      if (ignore.isError && !bulkFailed && ignore.variables.keys.includes(item.key)) {
         return ignore.error.message;
       }
       return reparse.isError && reparse.variables === item.target ? reparse.error.message : "";
@@ -124,6 +172,7 @@ function List({ found, labels, withIgnored, onWithIgnored }: ListProps) {
   const counted = waiting.map((kind) =>
     t("kindCount", { kind: labelOf(labels, "TodoKind", kind), count: count(kind) }),
   );
+  const listed = groups.flatMap(([, items]) => items);
 
   return (
     <div className="flex flex-col gap-4">
@@ -138,12 +187,12 @@ function List({ found, labels, withIgnored, onWithIgnored }: ListProps) {
       >
         {notice ? (
           <Alert tone="good" title={notice.text} live>
-            {notice.undo ? (
+            {notice.undo.length > 0 ? (
               <Button
                 variant="secondary"
                 className="mt-2"
                 disabled={ignore.isPending}
-                onClick={() => notice.undo && handlers.restore(notice.undo)}
+                onClick={() => change(notice.undo, false)}
               >
                 {t("undo")}
               </Button>
@@ -163,8 +212,25 @@ function List({ found, labels, withIgnored, onWithIgnored }: ListProps) {
           <p>{t("emptyText")}</p>
         </Empty>
       ) : null}
+      <TodoBulkBar
+        listed={listed}
+        chosen={listed.filter((item) => pickedKeys.has(item.key))}
+        onChoose={pick}
+        onIgnore={(items) => change(items, true)}
+        onRestore={(items) => change(items, false)}
+        pending={ignore.isPending}
+        failure={bulkFailed ? ignore.error.message : ""}
+      />
       {groups.map(([kind, items]) => (
-        <TodoGroup key={kind} kind={kind} items={items} labels={labels} handlers={handlers} />
+        <TodoGroup
+          key={kind}
+          kind={kind}
+          items={items}
+          labels={labels}
+          handlers={handlers}
+          chosen={pickedKeys}
+          onChoose={pick}
+        />
       ))}
       {found.ignored > 0 || withIgnored ? (
         <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-700 dark:text-zinc-300">

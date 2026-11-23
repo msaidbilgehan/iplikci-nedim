@@ -342,7 +342,7 @@ def test_unreadable_documents_and_a_readers_format_alarm_are_alerts_as_the_to_do
     assert unreadable["link"] == link("documents", status="unreadable")
     assert (alarm["kind"], alarm["count"], alarm["link"]) == ("format_alarm", 1, link("system"))
     assert alarm["text"].startswith(f"{reader.name}: 1 belgede okuyucu bankanın biçimini tanımadı")
-    todos.ignore(ws, f"document:{first.sha256}", True, Actor.USER)  # taken off the to-do list: off the alerts too
+    todos.ignore(ws, [f"document:{first.sha256}"], True, Actor.USER)  # taken off the to-do list: off the alerts too
     assert [(a["kind"], a["count"]) for a in alerts(ws)] == [("unreadable", 1), ("format_alarm", 1)]
 
 
