@@ -98,7 +98,10 @@ def status_lines(found: sync.Status) -> list[str]:
     lines = [
         f"Eşitleme açık: {found.folder}" + (f" ({found.service})" if found.service else ""),
         f"Bu bilgisayar: {found.name}",
-        f"Belgeler: {found.documents}; gelmeyi bekleyen {found.waiting_down}, klasöre gitmeyi bekleyen {found.waiting_up}",
+        (
+            f"Belgeler: {found.documents}; gelmeyi bekleyen {found.waiting_down}, "
+            f"klasöre gitmeyi bekleyen {found.waiting_up}"
+        ),
     ]
     for d in found.devices:
         state = "eşitlemeyi kapattı" if d.left else f"son görülme {local_time(d.seen_at)}" if d.seen_at else ""

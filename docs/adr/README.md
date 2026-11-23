@@ -33,5 +33,6 @@ kullanıcı aksini söylemedikçe geçerlidir.
 | [0022](0022-releases-and-updates.md) | Sürümler GitHub'da yayımlanır; uygulama imzalı bildirgeyle kendini, eklentiyi mağaza günceller | K29, K14, K22 |
 | [0023](0023-claude-memory.md) | Claude'un hafızası İplikçi Nedim'de durur, MCP ile okunup yazılır | K30, K9 |
 | [0024](0024-extension-leads-to-download.md) | Programı bulamayan eklenti, son kurulum paketinin indirilmesine yeni bir sekmede yol gösterir; eklenti mağazada herkese açık | K31, K29, K14, K22 |
+| [0025](0025-sync-folder.md) | Veriler Google Drive'ın (ya da başka bir eşitleme uygulamasının) klasörü üzerinden bilgisayarlar arasında eşitlenir; klasör verilerin bilgisayar dışındaki kopyasıdır | K33, K14, K3 |
 
 Yeni kayıt: sıradaki numarayla `NNNN-kisa-ad.md`; başlık karar cümlesi olur; bu tabloya eklenir.

@@ -30,7 +30,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from .. import __version__
 from ..domain.codes import Actor, Channel
@@ -127,16 +127,12 @@ def wake() -> None:
 
 
 def _me(db: Database) -> Me | None:
-    value = stored.load(db, SELF)
-    if not isinstance(value, dict):
+    found = stored.load(db, SELF)
+    if not isinstance(found, dict):
         return None
+    value = cast(dict[str, Any], found)
     try:
-        return Me(
-            str(value["device"]),  # pyright: ignore[reportUnknownArgumentType] - checked dict
-            str(value["machine"]),  # pyright: ignore[reportUnknownArgumentType] - checked dict
-            str(value["library"]),  # pyright: ignore[reportUnknownArgumentType] - checked dict
-            str(value.get("since", "")),  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType] - checked dict
-        )
+        return Me(str(value["device"]), str(value["machine"]), str(value["library"]), str(value.get("since", "")))
     except KeyError:
         return None
 
@@ -751,7 +747,7 @@ def _record(ws: Workspace, at: datetime, result: Round) -> None:
     """The round's outcome for the Settings screen; a problem that lasts FAILED_AFTER is told once a day."""
     with ws.db() as db:
         last = stored.load(db, LAST)
-        before: dict[str, Any] = last if isinstance(last, dict) else {}  # pyright: ignore[reportUnknownVariableType] - checked dict
+        before = cast(dict[str, Any], last) if isinstance(last, dict) else {}
         since = str(before.get("since") or _iso(at)) if result.problem else ""
         value = {
             "at": _iso(at),
@@ -812,7 +808,7 @@ def status(ws: Workspace) -> Status:
         me = _me(db)
         last = stored.load(db, LAST) if on else None
         rows = stored.every(db, [Kind.DOCUMENT, Kind.SENDER]) if on else {}
-    info: dict[str, Any] = last if isinstance(last, dict) else {}  # pyright: ignore[reportUnknownVariableType] - checked dict
+    info = cast(dict[str, Any], last) if isinstance(last, dict) else {}
     senders = {key: holder for (kind, key), r in rows.items() if kind == Kind.SENDER and (holder := _holder(r.value))}
     devices: list[DeviceView] = []
     waiting_down = waiting_up = documents = 0

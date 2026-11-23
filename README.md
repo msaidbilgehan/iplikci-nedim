@@ -119,11 +119,31 @@ gösterir ve onayınızı bekler. Claude bağlantısı ekranı nasıl bağlanaca
 
 - İplikçi Nedim bilgisayarınızda çalışır. Bulut yok, hesap açmak yok, abonelik yok.
 - Belgeleriniz ve verileriniz bilgisayarınızdan çıkmaz; her gece yedeği alınır. Hiçbir belge kalıcı olarak silinmez.
+  İsterseniz bir kopyası kendi Google Drive'ınıza gider (aşağıda).
 - Banka şifrenizi ya da Gmail şifrenizi hiç istemez.
 - İnternete yalnızca banka e-postalarını okumak (yalnızca okur), döviz kurlarını TCMB'den almak, isterseniz
   Telegram'a bildirim göndermek ve yeni sürüm olup olmadığına bakmak için çıkar. Kullanımınızla ilgili hiçbir bilgi
   toplamaz.
 - Yalnızca kişisel paranızla ilgilenir: şirket kartları, ticari hesaplar ve bordro okunmaz.
+
+## Google Drive'da yedek, birden çok bilgisayar (isteğe bağlı)
+
+Bilgisayarınızda Google Drive uygulaması kuruluysa, Ayarlar'daki "Eşitleme ve yedek" kartında Google Drive'ınızı
+seçip eşitlemeyi açın.
+
+- Belgeleriniz, notlarınız, kurallarınız ve ayarlarınız Google Drive'ınızdaki "İplikçi Nedim" klasörüne kopyalanır.
+  Bilgisayarınız bozulsa ya da kaybolsa bile verileriniz orada durur. Bu ücretsizdir; Google Drive'ın ücretsiz alanı
+  yıllarca yeter.
+- İkinci bir bilgisayara İplikçi Nedim'i kurup aynı klasörü seçerseniz bütün verileriniz oraya da gelir. Bir
+  bilgisayarda yaptığınız değişiklik, yeni gelen belge ve not bir iki dakika içinde ötekinde de görünür. Her
+  bilgisayarın akışı günceldir.
+- Telegram ve e-posta bildirimleri tek bilgisayardan gelir, iki kez gelmez. O bilgisayar kapalı kalırsa öteki
+  devralır.
+- iCloud Drive, Dropbox ya da OneDrive kullanıyorsanız onların klasörü de olur.
+
+Yeni bir bilgisayarda verilerinizi geri getirmek için İplikçi Nedim'i kurun, Google Drive uygulamasının "İplikçi
+Nedim" klasörünü indirmesini bekleyin ve Ayarlar'da aynı klasörü seçin. Kart, klasörde hangi bilgisayarın verileri
+olduğunu gösterir.
 
 ## Hangi bankalar?
 
@@ -227,6 +247,14 @@ eklenti gerekmez. Bankadan indirdiğiniz belgeleri de "Belge ekle" ekranından y
 <summary><b>Bilgisayarım kapalıyken ne olur?</b></summary>
 
 Bir şey kaçmaz: bilgisayar açılınca gelen e-postaları ve bekleyen işleri kendisi tamamlar.
+</details>
+
+<details>
+<summary><b>Verilerim Google'a gitmiyor mu?</b></summary>
+
+Yalnızca siz eşitlemeyi açarsanız ve yalnızca kendi Google Drive'ınıza gider. Banka e-postalarınız zaten aynı
+hesabın Gmail'indedir. İplikçi Nedim Google'a kendisi bağlanmaz; dosyaları Google Drive uygulaması taşır. Şirket
+belgeleri hiçbir zaman gitmez.
 </details>
 
 <details>

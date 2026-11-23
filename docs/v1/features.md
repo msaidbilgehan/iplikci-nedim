@@ -837,6 +837,48 @@ G4, G6 · Çekirdek · [K29](requirements.md#kararlar), [ADR-0022](../adr/0022-r
   değilse yüklemez). Paketlenmemiş eklenti programla birlikte yenilenir. Eklenti mağazada herkese açık listelenir;
   ilk giden sürüm 0.9.0'dır.
 
+## F22 — Eşitleme ve yedek
+
+G6 · Çekirdek (isteğe bağlı) · [K33](requirements.md#kararlar), [ADR-0025](../adr/0025-sync-folder.md)
+
+- **Açmak:** Ayarlar'daki "Eşitleme ve yedek" kartı bu bilgisayardaki eşitleme klasörlerini listeler: önce Google
+  Drive'ınkini, sonra varsa iCloud Drive, Dropbox ve OneDrive'ınkini. Kullanıcı birini seçer (ya da bir klasörün tam
+  yolunu yazar). Kart ne olacağını söyler; kullanıcı onaylayınca eşitleme açılır.
+  - Klasörde veri kümesi yoksa bu bilgisayarın verileriyle başlatılır.
+  - Varsa bu bilgisayar ona katılır. Kart klasördeki bilgisayarların adlarını gösterir.
+  - Ölçüt: boş olmayan ve İplikçi Nedim'in işareti olmayan bir klasör reddedilir; program kullanıcının dosyalarının
+    arasına yazmaz.
+  - Ölçüt: işaret dosyası bulunamayan klasör (Drive çalışmıyor, klasör taşındı) kendiliğinden yeniden açılmaz; sorun
+    kartta yazar.
+- **Ne eşitlenir:** belgeler (asılları, adları, gelişleri, kaldırılmaları), notlar ve düzeltmeler, hesap adları,
+  Claude'un notları, kategori ve bildirim kuralları, paylaşılan ayarlar (adlar, şirket adları, göndericiler, sessiz saat
+  ve ayrıntı düzeyleri, kur sağlayıcıları, MCP maskeleme). Port, e-posta bağlantısı, kanallar, yedekler, güncelleme
+  biçimi ve eşitleme klasörü her bilgisayarın kendisinindir.
+  - Ölçüt: ikinci bilgisayar katılınca belgeleri klasörden alır, okur ve aynı defteri çıkarır: aynı işlemler, aynı
+    parmak izleri, aynı notlar (`tests/test_sync.py`).
+  - Ölçüt: veritabanı klasöre konmaz; her bilgisayar yalnızca kendi alt klasörüne yazar.
+  - Ölçüt: şirket belgesi klasöre gitmez; kaldırılan belgenin aslı klasörden de çıkar (çöp kutusuna).
+- **Birleştirme:** aynı parça iki bilgisayarda değişirse sonraki değişiklik kazanır. Damga karma mantıksal saattir,
+  bilgisayarların saat farkına bakmaz.
+  - Ölçüt: silme yayılır.
+  - Ölçüt: bir belgenin kaldırılması geri alınmaz.
+  - Ölçüt: birleştirmenin sonucu sürümlerin geliş sırasına ve tekrarına bağlı değildir (özellik testleri).
+  - Ölçüt: katılan bilgisayarın eski verisinden ötekilerde olmayanlar kalır; ikisinde de olanlarda klasördeki
+    geçerli olur.
+  - Ölçüt: eski bir yedek geri yüklenince bilgisayar klasörden yetişir; başka bir bilgisayara kopyalanan veri
+    klasörü yeni bir kimlik alır.
+- **Güncel akış:** servis dakikada bir ve her analizden sonra eşitler. Öteki bilgisayardan gelen değişiklik analizi
+  yeniden yaptırır. Akış ve bildirim kutusu her bilgisayarda kendi analizinden çıkar. Öteki bilgisayardan gelen belge
+  akışta "Yeni bir belge geldi" diye görünür.
+  - Ölçüt: Telegram'ın ve e-postanın bildirimleri tek bilgisayardan gider; botu yalnızca o okur. O bilgisayar yarım
+    saat görünmezse gönderebilen başka biri devralır; kullanıcı "Bu bilgisayar göndersin" diyebilir. Kanalı
+    tutmayan bilgisayarda bekleyen bildirim bırakılır, iki kez gitmez.
+- **Durum:** kart klasörü, bu bilgisayarın adını (değiştirilebilir), son eşitlemeyi, gelmeyi ve klasöre gitmeyi
+  bekleyen belgeleri, bilgisayarları (son görülme, sürüm) ve hangi kanalı kimin gönderdiğini gösterir. "Şimdi eşitle"
+  ve "Eşitlemeyi kapat" düğmeleri vardır. Kapatınca klasör de veriler de olduğu gibi kalır.
+  - Ölçüt: tur altı saat işini yapamazsa Pano'da uyarı çıkar ve `sync.failed` günde bir kez bildirilir.
+- Komut satırı: `iplikci esitleme durum | yerler | ac KLASÖR [--ad AD] | kapat | simdi | buradan [telegram|eposta]`.
+
 ## MVP eşitlik listesi
 
 Sürüm 1.0'dan önce bunların hepsi İplikçi Nedim'de çalışmalıdır. MVP 2026-10-31'de emekliye ayrıldı; bu liste onun

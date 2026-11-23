@@ -44,8 +44,8 @@ def service_command(argv: list[str]) -> int:
     commands.add_parser(
         "durum",
         help="servis çalışıyor mu; kuyruk, e-posta, kurlar ve disk",
-        description="Servisin çalışıp çalışmadığını, kaydını, kuyruğunu, e-posta alımını, yedekleri, döviz kurlarını "
-        "ve disk kullanımını yazar. Servis çalışmıyorsa 1 ile biter.",
+        description="Servisin çalışıp çalışmadığını, kaydını, kuyruğunu, e-posta alımını, yedekleri, eşitlemeyi, "
+        "döviz kurlarını ve disk kullanımını yazar. Servis çalışmıyorsa 1 ile biter.",
     )
     commands.add_parser(
         "yeniden-baslat",
@@ -175,6 +175,10 @@ def _service_status(ws: Workspace) -> int:
             print(_notify_line(client.call(ws, "GET", "/api/notify/settings")))
         except client.ServiceError:
             pass
+        try:  # nor one before ADR-0025 the sync
+            print(_sync_line(client.call(ws, "GET", "/api/sync")))
+        except client.ServiceError:
+            pass
     print(f"Günlük: {ws.logs / logs.LOG_NAME}")
     return 0 if holder is not None else 1
 
@@ -243,6 +247,23 @@ def _notify_line(found: dict[str, Any]) -> str:
         counts.append(f"{DELIVERY_STATUS[status].lower()} {n}")
     tail = f" · {', '.join(counts)}" if counts else " · henüz bildirim yok"
     return f"Bildirimler: {', '.join(channels) or 'kanal yok'}{tail}"
+
+
+def _sync_line(found: dict[str, Any]) -> str:
+    """The sync folder (ADR-0025): "Eşitleme: açık, Google Drive · 2 bilgisayar · son tur …"."""
+    if not found.get("on"):
+        return "Eşitleme: kapalı"
+    parts = [f"Eşitleme: açık, {found.get('service') or found.get('folder', '')}"]
+    devices: list[dict[str, Any]] = found.get("devices") or []
+    parts.append(f"{sum(1 for d in devices if not d.get('left'))} bilgisayar")
+    if found.get("last_at"):
+        parts.append(f"son tur {local_time(found['last_at'])}")
+    waiting = int(found.get("waiting_down", 0)) + int(found.get("waiting_up", 0))
+    if waiting:
+        parts.append(f"{waiting} belge taşınmayı bekliyor")
+    if found.get("problem"):
+        parts.append(f"sorun: {found['problem']}")
+    return " · ".join(parts)
 
 
 def _status_label(code: str) -> str:

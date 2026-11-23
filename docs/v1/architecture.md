@@ -23,7 +23,9 @@ Servis şu işleri yapar:
   masaüstü; ADR-0010) ve MCP'ye (ADR-0011) gider.
 
 Arayüz, servisin sunduğu bir React PWA'dır (ADR-0008). Bütün kişisel veri depo dışındaki veri klasöründe durur
-(ADR-0002). Ağa yalnızca izin verilen işler için çıkılır (ADR-0009).
+(ADR-0002). Ağa yalnızca izin verilen işler için çıkılır (ADR-0009). İsteyen kullanıcının belgeleri ve kararları
+Google Drive'ın (ya da başka bir eşitleme uygulamasının) klasörü üzerinden öteki bilgisayarlarına gider; klasör
+verilerin bilgisayar dışındaki kopyasıdır (ADR-0025).
 
 **Adlar:** ürün adı İplikçi Nedim, depo ve dağıtım adı `iplikci-nedim`. Teknik adların hepsi kısa adı kullanır:
 
@@ -79,7 +81,8 @@ dil.
 - Şirket belgeleri ve ticari hesaplar.
 - Birden çok kullanıcı, hane paylaşımı (ileride).
 - İnternet şubesine otomatik giriş ve ekran kazıma; açık bankacılık API'leri.
-- Bulut eşitleme, sunucuya kurulum.
+- Sunucuya kurulum ve bir bulut servisiyle doğrudan konuşan eşitleme. Bilgisayarlar arasındaki eşitleme kullanıcının
+  eşitleme uygulamasının klasöründen geçer (K33, ADR-0025); program buluta bağlanmaz.
 - Yapay zekâ asistanı ve strateji uzmanları (V2), yatırım tavsiyesi, vergi beyannamesi.
 
 ## 4. Seçenekler ve öneri
@@ -181,6 +184,7 @@ Python paketi `iplikci`, `src/iplikci/` altındadır:
 | `settings` | Veri klasörünü bulmak, `settings.toml`, anahtar zinciri, ortam değişkenleri. |
 | `storage` | SQLite bağlantısı, göçler, depo modülleri, FTS. |
 | `vault` | Nesne deposu, `staging`, türetilmiş veriler, çöp kutusuna taşıma, bütünlük denetimi. |
+| `sync` | Eşitleme klasörü (ADR-0025): karma mantıksal saat, parçaların birleştirilmesi, durum dosyası, klasörün düzeni, eşitleme uygulamalarının klasörlerini bulmak, makinenin kimliği, servisin tur iş parçacığı. Veritabanına ve ağa dokunmaz; `app/sync` onu veri klasörüyle çalıştırır, `app/shared` her paylaşılan parçanın bu bilgisayardaki değerini okur ve kazananı yerine koyar. |
 | `ingest` | E-posta bağlayıcıları (IMAP IDLE ve tarayıcı eklentisi köprüsünün alım ucu, ADR-0016) ve güven kuralı; yükleme; gelen klasörü; Telegram botunun dinleyicisi (ADR-0021); içe aktarma; zip ve mbox açma. |
 | `parsers` | Kayıt defteri, sözleşme, okuyucular; PDF, tablo, HTML ve e-posta yardımcıları; OCR. |
 | `ledger` | Birleştirme, maskeli hesap çözümü, kanıt uzlaştırma, transferler, kur çevirisi, fatura eşleştirme, kapsama. |
@@ -279,7 +283,8 @@ Defterin bir kuraldan ya da bulamadığından çözdüğü bir transfere verilen
 | `events` | **birincil** (günlük) | tür, zaman, yük, ilgili kimlikler |
 | `jobs`, `deliveries` | işletim | iş kuyruğu; gönderilen bildirimler |
 | `mail_accounts` | işletim | adres, klasör, UIDVALIDITY, son UID, başlangıç günü, son hata |
-| `audit_log` | **birincil** (günlük) | kim (kullanıcı, MCP, sistem, taşıma), ne, ne zaman, hedef |
+| `audit_log` | **birincil** (günlük) | kim (kullanıcı, MCP, sistem, taşıma, eşitleme), ne, ne zaman, hedef |
+| `sync_entries`, `sync_state` | işletim (eşitleme) | paylaşılan her parçanın kazanan değişikliği (damga, değer), bu bilgisayarın değerinin son karşılaştırıldığı özet, yerine konup konmadığı; bu bilgisayarın kimliği, katıldığı veri kümesi, saati, son tur (ADR-0025) |
 
 Kategori ve bildirim kuralları veritabanında değil, veri klasöründeki YAML dosyalarındadır (§20).
 
@@ -351,6 +356,19 @@ Durumların kuralları [domain/ledger.md](../domain/ledger.md)'dedir.
 
 Klasörün izni 0700, dosyalarınki 0600'dür. Uygulamayla gelen genel kategori kuralları paketin içindedir
 (`iplikci/rules/default.yaml`) ve kişisel kurallar onların üstüne biner.
+
+**Eşitleme klasörü** (ADR-0025, isteğe bağlı): veri klasörünün dışında, kullanıcının seçtiği ve bir eşitleme
+uygulamasının taşıdığı klasördür (varsayılan: Google Drive'da `İplikçi Nedim`). Veritabanı oraya girmez.
+
+```text
+İplikçi Nedim/
+├── iplikci-esitleme.json      # veri kümesinin kimliği; klasörü başlatan bilgisayar bir kez yazar
+├── BENİOKU.txt                # klasörün ne olduğu, yeni bilgisayarda nasıl geri getirileceği
+└── cihaz-<kimlik>/            # her bilgisayarın kendi alt klasörü; yalnızca o yazar
+    ├── cihaz.json             # adı, sürümü, son görülmesi, gönderebildiği kanallar
+    ├── durum.json             # bildiği bütün paylaşılan parçalar, damgalarıyla
+    └── belgeler/ab/<sha256>   # getirdiği ve klasörde başka bilgisayarda olmayan asıllar
+```
 
 ## 10. Okuyucular
 
@@ -474,7 +492,7 @@ yazılır (ADR-0014), SSE ile arayüze iletilir ve bildirim kurallarına girer.
 | `month.ended`, `month.closed`, `month.needs_check` | ay bitti / kapandı / kontrol gerekli |
 | `deposit.maturity_soon` | vadeli hesabın vadesi yaklaşıyor |
 | `fx.threshold_crossed`, `budget.threshold` | kur eşiği; bütçe %80 / %100 (V1+) |
-| `parser.format_alarm`, `mail.auth_failed`, `mail.bridge_alarm`, `mail.bridge_silent`, `backup.failed` | sistem olayları: okuyucu biçim alarmı; e-posta girişi reddedildi; eklentinin bir katmanı Gmail'in sayfasını tanımadı; eklenti bir gündür görünmedi; yedek alınamadı |
+| `parser.format_alarm`, `mail.auth_failed`, `mail.bridge_alarm`, `mail.bridge_silent`, `backup.failed`, `sync.failed` | sistem olayları: okuyucu biçim alarmı; e-posta girişi reddedildi; eklentinin bir katmanı Gmail'in sayfasını tanımadı; eklenti bir gündür görünmedi; yedek alınamadı; eşitleme altı saattir işini yapamıyor (günde bir) |
 | `bridge.paired`, `bridge.revoked` | tarayıcı eklentisi eşleşti / eşleşmesi iptal edildi (denetim kaydına da yazılır) |
 
 Aşama 5'in olaylarını her analizden sonra `feed/news.py` bulur. `target` bildirimin tekrar engelinin anahtarıdır,
@@ -544,7 +562,8 @@ sorar:
 - ekstrede görünmeyen dekont,
 - e-posta girişi reddedildi,
 - okuyucu biçim alarmı,
-- yedek alınamadı.
+- yedek alınamadı,
+- eşitleme çalışmıyor (v1.1.0, ADR-0025).
 
 Aşama 5'te (2026-11-02) bunlara ay bitti ile tarayıcı eklentisinin iki uyarısı (bir gündür görünmüyor, Gmail sayfasını
 tanımadı) eklendi. Kurallar `notify` paketinde, teslimler `app.notify`'da ve `notifications` tablosundadır:
@@ -857,6 +876,12 @@ Kullanıcı komutları Türkçedir; geliştirici komutları `dev` altında İngi
   şifreli yedeğine bırakılır. Uygulama düzeyinde şifreli dışa aktarma V1+ özelliğidir.
 - Geri yükleme ayda bir prova edilir (`iplikci dogrula --yeniden-kur` ile aynı denetimler).
 
+**Eşitleme** (ADR-0025, F22): eşitleme açıksa servis dakikada bir ve her analizden sonra bir tur yapar
+(`sync/watcher`, `app/sync.run_round`). Tur ötekilerin değişen durum dosyalarını okur, belgelerinin asıllarını
+arşive alır, bu bilgisayarın değişikliklerini damgalar, ötekilerinkini birleştirir ve kazananları yerine koyar. Sonra
+kendi asıllarını ve durum dosyasını klasöre yazar. Öteki bilgisayardan gelen bir değişiklik analizi yeniden yaptırır.
+Telegram'ın ve e-postanın bildirimleri, kanalı tutan bilgisayardan gider; botu yalnızca o okur.
+
 **Uyku ve uyanma:** IDLE bağlantısı koptuğunda bekleme süresi her denemede artar; uyanınca kaçırılan işler bir kez
 çalışır.
 
@@ -899,7 +924,15 @@ mcp_masking = "off"                 # "accounts" | "accounts_and_names"
 
 [backup]
 keep_days = 14
+
+[sync]                              # ADR-0025; her bilgisayarın kendisinin
+folder = ""                         # eşitleme klasörü, ör. Google Drive'da "İplikçi Nedim"; boş: eşitleme kapalı
+name = ""                           # bu bilgisayarın öteki bilgisayarlarda görünen adı; boş: bilgisayarın kendi adı
 ```
+
+Eşitleme açıkken şu ayarlar bütün bilgisayarlarda aynıdır (ADR-0025): `[identity]`, `[mail]`'in `bank_senders`,
+`other_senders` ve `verify_sender`'ı, `[notify]`'ın `quiet_hours` ve `detail`'i, `[fx] providers` ve `[privacy]`.
+Gerisi her bilgisayarın kendisinindir.
 
 | Sır | Yeri |
 |---|---|
@@ -928,6 +961,8 @@ komut satırı argümanına ya da günlüğe yazılmaz.
 | Hizmet engelleme | Dev ya da kötü niyetli belge | Alt süreçte süre ve bellek sınırı; boyut sınırları; zip bombasına karşı üye sınırı |
 | Yetki yükseltme | Belgedeki "talimat" | Belge metni veridir; yazan araçlar yalnızca kullanıcı onayıyla; `eval`, `shell=True` yok |
 | Yetki yükseltme | Eklenti belirtecinin çalınması | Belirteç e-posta alım uçlarına ve tek kullanımlık giriş bağlantısına yetkili (ADR-0019: profili okuyabilen bu kullanıcı veri klasörünü de okur); arayüzden iptal edilir |
+| Bilgi sızması | Eşitleme klasörünün (Google Drive) ele geçmesi | İsteğe bağlı; kullanıcının kendi hesabı (Gelişmiş Koruma); belgelerin çoğu zaten aynı hesabın Gmail'inde; şirket belgesi klasöre gitmez (ADR-0025) |
+| Kurcalama | Eşitleme klasörüne bozuk ya da başka bir dosya konması | Her asıl adıyla (sha256) karşılaştırılmadan arşive girmez; durum dosyası biçimi ve veri kümesinin kimliği denetlenir; kural ve ayar değerleri yazılmadan önce doğrulanır; okuyucular belgeyi yine alt süreçte okur |
 | Kurcalama | Sürüme başka birinin dosya koyması (GitHub'a sızan bir belirteç) ya da indirmenin bozulması | Bildirge programın taşıdığı Ed25519 anahtarıyla imzalı; her dosyanın boyutu ve SHA-256'sı bildirgede; yalnızca daha yeni sürüm; yeni sürüm yerine konmadan kendi Python'uyla açılıp sürümünü söyler; önce yedek (ADR-0022) |
 
 Bağımlılıklar kilit dosyasıyla sabitlenir; CI'da güvenlik açığı taraması (pip-audit, `npm audit`) ve gitleaks çalışır.
@@ -996,6 +1031,9 @@ rahattır. İlk darboğaz büyük olasılıkla defterin baştan kurulması olur;
 | Bilgisayar uyudu | Kaçırılan işler uyanınca bir kez çalışır. |
 | Disk doldu | Alım durur, sistem olayı üretilir; arşiv yazımı yarım kalmaz (`staging` + tek işlem). |
 | GitHub'a ulaşılamıyor ya da sürüm herkese açık değil | Denetim sorunu Ayarlar'da ve Sistem'de söyler; ertesi gün yeniden dener; program olduğu gibi çalışır. |
+| Eşitleme klasörü yok (Drive çalışmıyor, klasör taşındı) | Tur yapılmaz, klasör yeniden açılmaz; sorun Ayarlar'da yazar; altı saati geçerse Pano'da uyarı ve günde bir `sync.failed`. Program kendi verisiyle çalışmayı sürdürür. |
+| Öteki bilgisayar daha yeni bir sürümde | Onun durum dosyası okunmaz, Ayarlar "bu bilgisayarı güncelleyin" der; güncelleme üç saat içinde gelir. |
+| Telegram'ı tutan bilgisayar görünmüyor | Yarım saat sonra gönderebilen başka bir bilgisayar devralır. |
 | İmzası tutmayan bildirge ya da özeti tutmayan dosya | Hiçbir şey kurulmaz; neden Ayarlar'da yazar. |
 | Kurulan sürüm açılmadı | Açılan sürüm sonucu hata olarak yazar; aynı sürüm kendiliğinden iki kezden fazla denenmez. Güncellemeden önceki yedek Ayarlar'dan geri yüklenir. |
 
@@ -1011,10 +1049,13 @@ rahattır. İlk darboğaz büyük olasılıkla defterin baştan kurulması olur;
 | Google'ın otomatik istekleri sınırlaması | Seyrek ve sıralı istekler; 429 yanıtında artan bekleme; ilk tarama partilerle. |
 | Eklenti mağazasının politikası (inceleme, ret) | Listelenmemiş yayın; en az izin; gizlilik açıklaması. Olmazsa arayüzden "paketlenmemiş yükle" rehberi. |
 | E-posta gövdesi biçimlerinin sık değişmesi | Biçim alarmı; işlenmeyen e-postalar saklanır ve okuyucu düzelince yeniden okunur. |
+| Eşitleme uygulamasının dosyaları geç, yarım ya da sırasız taşıması | Her dosyanın tek yazanı var; dosya yanına yazılıp yerine taşınır; yarım dosya reddedilir ve sonraki turda yeniden okunur; asıllar adlarıyla denetlenir; birleştirmenin sonucu sıraya ve tekrara bağlı değil (ADR-0025). |
 
 ## 27. Fikrimi ne değiştirir
 
 - Birden çok kişinin birden çok cihazdan kullanması → sunucu, Postgres, gerçek kullanıcı hesapları.
+- Eşitlenen bilgisayarlarda aynı parçanın sık sık aynı anda değişmesi → parça düzeyinde "son yazan kazanır" yerine
+  alan düzeyinde birleştirme ya da bir sunucu.
 - Telefonun birincil cihaz olması → PWA'nın Tailscale üzerinden sürekli kullanımı ve Web Push.
 - Veri hacminin on kat beklenenden büyük çıkması → artımlı defter ve analiz için ayrı bir DuckDB kopyası.
 - Google'ın tarayıcı eklentilerinin Gmail'e erişimini kısıtlaması → ADR-0016'daki diğer seçenekler: ayrı bir posta
