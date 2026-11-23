@@ -7,7 +7,7 @@ Kaynak: MVP'nin `CLAUDE.md` ve `README.md` dosyaları (2026-10-31), kişisel kar
 | Katman | Yer | İçerik |
 |---|---|---|
 | Varsayılan | `src/iplikci/rules/default.yaml` (depoda) | Türkiye'de yaygın işyerleri için genel kurallar. Kişisel bilgi içermez. |
-| Kişisel | `<veri klasörü>/rules/personal.yaml` | Kullanıcının kararları ve kişileri: kira, aile, işveren, `_biten`, işyerine göre gereklilik… |
+| Kişisel | `<veri klasörü>/rules/personal.yaml` | Kullanıcının kararları ve kişileri: kira, aile, işveren, `_biten`, `_düzenli_gelir`, işyerine göre gereklilik… |
 
 Kişisel katman önce denenir:
 
@@ -56,6 +56,9 @@ _düzenli:                       # taahhüt kategorileri: tutar değişse de dü
 _biten:                         # bittiğini bildiğiniz ödemeler: işyeri ve son ödeme ayı
   <İşyeri>: 2026-10
 
+_düzenli_gelir:                 # her ay geldiğini bildiğiniz gelirler: ödeyen, aylık tutar, para birimi, gün
+  <Ödeyen>: {tutar: 1800, para: EUR, gün: 5}
+
 _banka_kategorileri: …          # Garanti'nin ekstrede yazdığı başlıkların eşlemesi
 ```
 
@@ -83,6 +86,10 @@ _banka_kategorileri: …          # Garanti'nin ekstrede yazdığı başlıklar�
   ("KİRALIK DAİRE EKİM KİRASI" kiradır). Kategorinin bütün desenlerine (isimli, genel, `_zayıf`) uygulanır.
   Türkçe ekler sayılamayacağı için desenin hangi eklerle tuttuğu yazılmaz; tutmaması gereken kelimeler yazılır.
 - `_biten`: YAML tam tarihleri tarih nesnesine çevirir; yalnızca yıl ve ay kullanılır.
+- `_düzenli_gelir`: ödeyen, işlemlerde göründüğü adıyla yazılır. `tutar` sıfırdan büyük bir sayıdır, `para` TL ya da
+  üç harfli bir koddur (yazılmazsa TL), `gün` 1 ile 31 arasındadır; daha kısa aylarda ayın son günü sayılır.
+  Düzenli ödemeler ekranının "Her ay gelen bir gelir ekle…"si ve gelirin "Değiştir…"i yazar, "Her ay gelir değil…"
+  siler ([yorum kuralları](interpretation.md), "Bildirilen gelir").
 - Dosya kullanıcıya açık olduğu için anahtarları ve yorumları Türkçedir.
 
 ## Eşleştirme sırası
@@ -101,6 +108,8 @@ _banka_kategorileri: …          # Garanti'nin ekstrede yazdığı başlıklar�
 
 - Kullanıcı bilgisi koda değil kurallara yazılır:
   - Kullanıcının bittiğini söylediği bir ödeme ya da alışkanlık `_biten`'e yazılır.
+  - Kullanıcının her ay geldiğini söylediği bir gelir (belgelerde henüz üç ay görünmeyen yeni bir maaş)
+    `_düzenli_gelir`'e yazılır.
   - Yanlış sınıflanan bir işyeri için isimli bir kural eklenir.
 - Komşusunu yakalayabilecek desenler `re:` ve çevre denetimiyle (lookaround) sabitlenir. Örnek:
   `(?<![A-Z])GETIR(?! ?ARAC)`.

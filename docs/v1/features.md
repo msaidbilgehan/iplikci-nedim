@@ -346,7 +346,8 @@ G7 · Çekirdek
       diye, fiyatı belgelerde olmayanlar (altın) ve belgesi hiç gelmemiş hesaplar da. Çizginin her gün neden indiği de
       söylenir: tipik bir aydaki kart ödemeleri ve başka harcamalar, hangi aylardan oldukları ile.
     - "Yalnız TL hesaplar" ya da "Döviz ve yatırımlarla": ikincisi döviz ve yatırımları bugünkü değerleriyle çizgiye
-      ekler, değişmez sayar; seçim hatırlanır. TL hesaplar eksiye düşüp döviz ve yatırım varken cümle, onlardan bir
+      ekler, değişmez sayar; döviz hesaplarına beklenen düzenli geliri de geldiği günden itibaren bugünkü kurla ekler
+      (v1.0.12); seçim hatırlanır. TL hesaplar eksiye düşüp döviz ve yatırım varken cümle, onlardan bir
       kısmının bozdurulabileceğini söyler. Kullanıcının isteği (2026-11-16): öngörü yalnızca belgedeki TL'den
       başlayıp her gün inerken elindeki paranın daha fazla olduğunu görüyordu.
   - "Ne yapmalısınız?": açık uyarılar düzeyi sözle yazılarak, ardından Değerlendirme'nin önerilen adımları (en çok
@@ -412,6 +413,16 @@ Ekranın adı "Düzenli ödemeler"dir (`/abonelikler`; 2026-11-02'ye dek "Abonel
 - **"İptal ettim":** `_biten`'e son ödemenin ayı yazılır. Sonra ödeme görünürse uyarı verilir.
 - **"Artık gelmiyor":** düzenli bir gelir de aynı yolla bitirilir (son gelişin ayı); o aydan sonra takvim ve öngörü onu
   beklemez. "Yeniden bekle" iki durumda da satırı kişisel kurallardan çıkarır.
+- **"Her ay gelen bir gelir ekle…":** son 92 günde gelmiş ama süren bir seri olmayan bir gelir, her ay geldiği
+  bildirilerek eklenir: yeni başlayan bir maaş gibi. Kullanıcının isteği (2026-11-23): bir gelir ancak üç ayrı ayda
+  gelince düzenli sayılıyordu, öncesinde ne takvimde ne öngörüde vardı.
+  - Form ödeyeni, ayda gelen tutarı (para biriminde) ve ayın gününü sorar. Ödeyenin en yeni ayında gelenleri
+    parçalarıyla yazar ("Ekim 2026 ayında gelen: 1.500,00 EUR + 500,00 EUR"); gün, o ayın en büyük ödemesinin günüdür.
+  - Kayıt `_düzenli_gelir`'e yazılır ([kategori kuralları](../domain/categorization.md)); her kural değişikliği gibi
+    önce önizlenir. Gelir listesinde "Her ay … , ayın … günü: sizin bildirdiğiniz" yazar. Beklenen tutar döviz ise
+    bugünkü kurla gösterilir. "Değiştir…" ve "Her ay gelir değil…" vardır.
+  - Ölçüt: bildirilen gelir ilk ödemesinden itibaren takvimde ve öngörüde bildirilen gün ve tutarla görünür (test
+    edilir).
 - **Taksitli alışverişler:** kalan taksit sayısı ve tutarı, bitiş ayı.
 - **V1+:** deneme süresi ve yenileme e-postalarından önceden uyarı; çift abonelik tespiti.
 
@@ -428,6 +439,9 @@ G10, K7 · Çekirdek
   - beklenen maaş.
 - **Öngörü**
   - Önümüzdeki 60 gün için hesap başına gün gün bakiye.
+  - Vadeli hesabın faizi, belgelerindeki faiz satırlarının bakiyeye oranıyla her güne eklenir. Döviz hesaplarına
+    beklenen gelir TL çizgisinde yoktur, notta yazar. Son 90 günde gelip beklenmeyen gelirler de notta tutarlarıyla
+    yazar ([yorum kuralları](../domain/interpretation.md)).
   - Varsayımlar görünür; örneğin hangi ödemenin hangi hesaptan çıkacağı geçmiş ödemelerden çıkarılır.
   - Hesabın eksiye düştüğü gün ve tutar.
   - Uyarı: ek hesabın (KMH) ve kendi hesaplarından düzenli para aktarılan hesabın eksi günleri uyarı sayılmaz; notları

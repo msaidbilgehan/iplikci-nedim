@@ -53,6 +53,19 @@ Kullanıcı yalnızca toplamları değil, yorumu ve stratejiyi istiyor. Kullanı
 - Düzenli bir gelir de `_biten`'e yazılarak bitirilir ("Artık gelmiyor"). O aydan sonra gelen para geliri yeniden
   başlatmaz ve uyarı değildir; gecikmiş gelir haberi de verilmez.
 
+**Bildirilen gelir** (`_düzenli_gelir`, v1.0.12)
+
+- Bir gelirin seri olması için üç ayrı ayda gelmesi gerekir; yeni bir işin maaşı aylarca hiçbir yerde sayılmaz.
+  Kullanıcı onun her ay geldiğini, tutarını, para birimini ve gününü bildirirse ödeyenin gelir satırları ilk ödemeden
+  itibaren tek bir seri olur, belgelerin kurduğu serinin yerine.
+- Beklenen tutar bildirilen tutardır. Döviz ise bugünkü TCMB alış kuruyla TL'ye çevrilir; kur yoksa belgelerin en
+  yeni kuruyla, o da yoksa son üç gelişin medyanıyla.
+- Takvimdeki günü bildirilen gündür (kısa aylarda ayın son günü). Sayım, bildirilen tutarın en az yarısını getiren en
+  yeni ödemeden başlar: sonraki gün ondan en az 15 gün sonradır. Parça parça gelen bir maaşın küçük parçası ayı
+  ilerletmez.
+- Seri, öteki gelirler gibi `_biten` ile biter. Belgeleri bildirilen günü ve 10 günlük payı ödemesiz geçerse gecikmiş
+  gelir haberi verilir; listede her zaman görünür.
+
 Biten bir "Gerekli" fatura "Belgelerde yok" diye gösterilir: belgesi olmayan bir hesaptan ödeniyor olabilir.
 
 **Fiyat değişimi**
@@ -195,6 +208,10 @@ nedenleri arasında sayılmaz.
     - Döviz, altın ve yatırım hesapları bugünkü TL değerleriyle (net varlıktaki kurla; altının fiyatı belgede yoksa
       değersiz) öngörünün yanında verilir. Öngörü onlar olmadan TL'nin ne zaman biteceğini söyler; Pano isteyene
       onları bugünkü değerleriyle, değişmez sayarak çizgiye ekler. Uyarılar TL hesapları sayar.
+    - Bu hesaplara beklenen düzenli gelir (dövizle gelen maaş) de TL çizgisine girmez: kullanıcı onu ihtiyaç oldukça
+      bozdurur. Öngörünün notu kaç gelir beklendiğini ve bugünkü kurla toplamını yazar. Pano'nun "Döviz ve
+      yatırımlarla" çizgisi onları geldikleri günden itibaren ekler; TL toplamının uyarısı en düşük güne kadar
+      gelecek olanı "karşılıyor" hesabına katar.
     - Bakiyeyi yazan belgenin gününden bugüne kadarki günler de sayılır: döküm 31'inde bitip bugün ayın 2'siyse,
       1'inde beklenen maaş bugünkü bakiyededir; belge aksini gösterene dek beklenen sayılır. O günlerin beklenen
       kalemleri ve seri dışı çıkışların o günlere düşen payı bugünden önce işlenir; öngörünün notu günleri ve
@@ -234,7 +251,17 @@ nedenleri arasında sayılmaz.
       ödenince de böyledir: ödeme ödeyen hesabın bakiyesindedir, kart ödemeleri yine son ödeme gününden sonra başlar
       (v1.0.6'ya dek ödenen ekstre takvimden düşünce kart ödemeleri bugünden başlıyordu; zamanında ödenen ekstre
       toplamın eksiye düştüğü günü öne çekiyordu). Başka bir kartın son ödemesi bir hesabın kart ödemelerini ertelemez.
-    - Seri dışı girişler öngörülmez: düzensiz gelir ileriye taşınmaz.
+    - Seri dışı girişler öngörülmez: düzensiz gelir ileriye taşınmaz. Öngörünün notu son 90 günde gelip yeniden
+      beklenmeyen gelirleri ödeyene göre, tutarlarıyla yazar (bitenleri "bitti" diye). İlk üçünü adıyla, gerisini
+      sayıyla söyler. Her ay geldiği bilinen bir gelir Düzenli ödemeler ekranında bildirilebilir.
+  - Vadeli hesabın faizi günlere eklenir.
+    - Oran, hesabın belgelerindeki faiz satırlarından çıkar: son 30 günün net faizi (kesilen vergi düşülmüş), onu
+      kazandıran gün sonu bakiyelerinin toplamına bölünür. Bir günün faizi bir önceki günün bakiyesinindir; bakiyeler
+      belgenin yazdığı bakiyeden geriye, satırlarla bulunur.
+    - Öngörü her gün o günün bakiyesine bu oranla faiz ekler. Bakiye değişince faiz de değişir: karta ödeme için
+      çekilen para artık faiz getirmez. Bu yüzden ortalama günlük tutar ileriye taşınmaz.
+    - En az 3 günlük faiz satırı gerekir. Hesabın notu günleri, net faizi ve yıllık net getiriyi yazar.
+    - TL toplamının uyarısı "Öngörü TL hesaplarınıza vadeli hesap faizi dışında düzenli bir gelir beklemiyor" der.
   - KMH faizi yalnızca belgede yazan aylık oranla hesaplanır; oran yoksa faiz tahmin edilmez (oranı okuyan bir okuyucu
     henüz yok).
   - Öngörü her zaman "tahmin" diye işaretlenir. Eksiye düştüğü gün uyarı sayılıyorsa `balance.forecast_negative`
