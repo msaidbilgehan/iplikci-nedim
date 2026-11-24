@@ -4,6 +4,18 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [1.1.3] — 2026-11-24 — Hesap kapandı
+
+### Eklenenler
+
+- Hesap sayfasında "Hesap kapandı" düğmesi. Kapattığınız bir hesabın kapandığı günü işaretleyin: hesap kapanmış
+  hesaplarla listelenir ve hiçbir toplama girmez. Ay sonu, öngörü ve yapılacaklar ondan artık belge beklemez; ay, o
+  hesabın gelmeyecek belgesi yüzünden açık kalmaz. Şimdiye dek program belgesi gelmeyen bir hesabı ancak 180 gün
+  sonra kapanmış sayıyordu.
+  - Gün bugünden sonra ya da hesabın belgelerdeki son hareketinden önce olamaz.
+  - "Kapanışı geri al" işareti kaldırır. İşaret belgeler yeniden okununca kaybolmaz; yedekler onu taşır, eşitleme
+    öteki bilgisayarlara götürür.
+
 ## [1.1.2] — 2026-11-24 — Belgesi gelmeyen hesaptan çıkan para
 
 ### Düzeltilenler

@@ -11,6 +11,15 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 
 ## Değişiklik kaydı
 
+- 2026-11-24 (76) — Hesap kapandı (v1.1.3):
+  - [Özellikler](v1/features.md), F07: "Hesap kapandı" işareti; günün sınırları, neyi değiştirdiği, geri alınması ve
+    nereye taşındığı.
+  - [Yorum kuralları](domain/interpretation.md): kapanan hesap toplamlara ve öngörüye girmez; ay sonu son belgesinden
+    sonrasını beklemez.
+  - [Defter kuralları](domain/ledger.md), "Kanıtlar": kapanan hesabın son listesinden sonraki dekontu `ekstresiz`dir.
+  - [ADR-0025](adr/0025-sync-folder.md): kapanan hesaplar paylaşılan yeni bir türdür.
+  - Kullanıcı bir hesabı kapattı ve programın, belgesi artık gelmeyecek hesabı 180 gün beklememesini istedi.
+
 - 2026-11-24 (75) — Belgesi gelmeyen hesaptan çıkan para (v1.1.2):
   - [Defter kuralları](domain/ledger.md), "Transferler": gelen tarafı gönderen hesabı yazmayan kendi aktarmanız,
     aynı bankada onu ödeyebilecek tek hesaptan çıkmış sayılır; o hesabın bakiyesinden düşülür.

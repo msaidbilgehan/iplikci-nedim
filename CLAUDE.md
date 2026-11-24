@@ -549,6 +549,18 @@ says what the waiting must show); the Windows and Linux checks come later (K25).
   - `start_of` takes it off (`_documented_start` is the balance as the account's own documents tell it; `Start.drawn`,
     `Start.told` adds it back); `untold_in` then counts the interest of the days in between as money no document tells.
     `insights.drawn_note` says it on Hesaplar, Şu an and Değerlendirme (`_with_drawn`), the forecast's first note too.
+- v1.1.3 (2026-11-24): the user closed that deposit and asked for an "account closed" button: an account whose
+  documents stopped counted as closed only after 180 days, and until then the month-end waited for its documents.
+  - `account_closures` (migration 24, `storage/closures`; primary data: the rebuild's dump v8 and the backups carry
+    it, the sync folder shares it as kind `closure`) holds the day the user says an account closed. The ledger gets
+    it from `build(…, closed=)` as `Dataset.closed`: a receipt after a closed account's last list is `no_statement`,
+    never `provisional`, and `drawn` takes nothing from an account closed before the transfer.
+  - `reach.closed(seen, marked)` adds them to the 180 days' accounts: Hesaplar lists them apart at 0, in no total
+    (Şu an, the net worth, Döviz, Değerlendirme); the month-end awaits nothing after their last document; the forecast
+    skips them with the day; the to-do list's document gaps and a card's next statement leave them out.
+  - `app/accounts.close` refuses a day after today or before the account's newest movement (a list may run past the
+    day it closed); `reopen` takes the mark away. `PUT`/`DELETE /api/accounts/{account}/closed`; the account page's
+    "Hesap kapandı" (`components/accounts/ClosingForm`); MCP `accounts` gives `closedOn`.
 
 The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's
 web interface).
@@ -717,6 +729,7 @@ with `service/icons`; in `extension/`, `bridge/program` (the installers' address
 guide). v1.1.0 added `sync` (`clock`, `state`, `library` the folder's layout, `places`, `machine`, `watcher`),
 `app/sync` (rounds, turning on and off, senders, status), `app/shared` (each shared kind's own value and how a winner
 is put in place), `storage/sync`, `api/routes/sync` and `cli/sync`; in `web/`, `components/settings/SyncCard`.
+v1.1.3 added `storage/closures` (the accounts the user closed); in `web/`, `components/accounts/ClosingForm`.
 The rest keeps the MVP's flat layout (`analysis`, `insights`, `month_end`, `report` with its `templates`, …) until the
 phases in the roadmap's MVP module table move it. Next to them: `fakes` (the fake document builders and every
 reader's specimens, shared with the tests and the demo), `demo` (the demo data folder), `baseline` (the verification
