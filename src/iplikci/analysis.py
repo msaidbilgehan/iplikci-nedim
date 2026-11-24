@@ -658,6 +658,31 @@ def _bank_fits(out: Transaction, inc: Transaction, accounts: dict[str, Account])
 _TO_ACCOUNT = re.compile(r"(\d{6,})\s+no\.?\s*lu\s+hesaba", re.IGNORECASE)
 
 
+def _named_receiver(out: Transaction, accounts: dict[str, Account]) -> str | None:
+    """The documented account an outgoing row names as the one the money went to (TEB's "12345678 no.lu hesaba"), as
+    the numbers compare when the bank prints them with leading zeros or a branch before them; None when it names no
+    other account the documents know."""
+    found = _TO_ACCOUNT.search(out.description)
+    if not found:
+        return None
+    printed = found[1].lstrip("0")
+    for key, account in accounts.items():
+        number = re.sub(r"\D", "", account.number).lstrip("0")
+        if key != out.account and len(number) >= 6 and printed.endswith(number):
+            return key
+    return None
+
+
+def _goes_to(out: Transaction, inc: Transaction, accounts: dict[str, Account]) -> bool:
+    """Whether the incoming side can be where the outgoing side says the money went: the account it names, else an
+    account at the bank it names (_bank_fits). TEB names both sides of a transfer between two TEB accounts by the
+    receiving account; another own account's side of the same amount that day is another transfer's."""
+    named = _named_receiver(out, accounts)
+    if named is not None and inc.account != named:
+        return False
+    return _bank_fits(out, inc, accounts)
+
+
 def sent_after(ds: Dataset, account: str, day: date) -> list[tuple[Transaction, bool]]:
     """Own transfers after day that another account's documents tell left for this account, or for an account at its
     bank, whose other side no document shows: a balance of day does not hold them. (row, True) when the row names this
@@ -704,8 +729,8 @@ def _pair_open(
     rows: list[Transaction], pool: list[Transaction], paired: set[int], accounts: dict[str, Account]
 ) -> None:
     """Pair each open row with an opposite row of the same amount in another own account from pool, the closest in
-    time within TRANSFER_DAYS and at the bank the outgoing side names, if it names one: both are an own transfer, each
-    naming the other."""
+    time within TRANSFER_DAYS, in the account or at the bank the outgoing side names, if it names one (_goes_to): both
+    are an own transfer, each naming the other."""
     for t in sorted(rows, key=lambda x: x.date):
         if t.kind != TransactionKind.TRANSFER_CANDIDATE or id(t) in paired:
             continue
@@ -715,7 +740,7 @@ def _pair_open(
                 continue
             out, inc = (t, other) if t.amount > 0 else (other, t)
             gap = abs((inc.date - out.date).days)
-            if _in_transfer_days(out, inc) and _bank_fits(out, inc, accounts) and (best is None or gap < best_gap):
+            if _in_transfer_days(out, inc) and _goes_to(out, inc, accounts) and (best is None or gap < best_gap):
                 best, best_gap = other, gap
         if best:
             t.kind = best.kind = TransactionKind.OWN_TRANSFER
@@ -727,8 +752,8 @@ def _pair_open(
 def _pair_own_sides(found: list[Transaction], paired: set[int], accounts: dict[str, Account]) -> None:
     """Pair the sides of transfers between own accounts that both name the user or an own account: they were found
     by name, so each knows it is an own transfer but not where the money went. An outgoing side takes the incoming
-    one of the same amount in another account, the closest in time within TRANSFER_DAYS, at the bank it names if it
-    names one."""
+    one of the same amount in another account, the closest in time within TRANSFER_DAYS, in the account or at the bank
+    it names, if it names one (_goes_to)."""
     incoming = sorted((t for t in found if t.amount < 0), key=lambda x: x.date)
     for out in sorted((t for t in found if t.amount > 0), key=lambda x: x.date):
         best, best_gap = None, 0
@@ -736,7 +761,7 @@ def _pair_own_sides(found: list[Transaction], paired: set[int], accounts: dict[s
             if id(inc) in paired or inc.account == out.account or abs(inc.amount + out.amount) > CENT:
                 continue
             gap = abs((inc.date - out.date).days)
-            if _in_transfer_days(out, inc) and _bank_fits(out, inc, accounts) and (best is None or gap < best_gap):
+            if _in_transfer_days(out, inc) and _goes_to(out, inc, accounts) and (best is None or gap < best_gap):
                 best, best_gap = inc, gap
         if best:
             paired.update((id(out), id(best)))

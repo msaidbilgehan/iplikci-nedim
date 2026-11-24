@@ -321,6 +321,8 @@ göndermez.
 - CEPTETEB Marifetli faizini her iş günü, vergisi düşülmüş olarak yatırır: "CEPTETEB Marifetli Hesap net faiz geliri
   %<oran>". Hesaba giren ve iade ya da iptal olmayan faiz gelirdir (`movements.classify`, bütün hesap dökümleri);
   v1.0.3'e dek "Ek Hesap (KMH) Faizi" sayılıyordu, gideri azaltıyordu.
+- TEB, iki TEB hesabı arasındaki aktarmada alıcı hesabın numarasını iki tarafa da yazar: "222333444 no.lu hesaba
+  gönderilmiştir." Gönderen tarafın karşılığı yalnızca o numaralı hesaptadır (`analysis._goes_to`, v1.1.1).
 - Hesaptan alınan fon, pay sayısı ve adıyla yazar: "<pay> Pay <kod>-<kurucu> PORTFÖY PARA PİYASASI (TL) FO alış
   bedeli," (açıklama kaydırılır, kesilir). Genel kurallardaki "Yatırım Fonu" onu birikim sayar; v1.0.3'e dek kişiye
   gönderilen para sayılıyordu. Fonun kendisini gösteren bir belge yoktur; değeri varlıklara girmez.

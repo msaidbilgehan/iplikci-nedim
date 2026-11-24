@@ -193,6 +193,13 @@ gittiyse Garanti hesabına gelen para Ziraat'e gidenin karşılığı olamaz; v0
 Banka, programın banka adları tablosunda yoksa adlarının "Türkiye", "Bankası", "A.Ş." gibi kelimeleri atılınca kalan
 kısmıyla karşılaştırılır.
 
+Giden satır paranın gittiği hesabı numarasıyla yazıyorsa (TEB'in "222333444 no.lu hesaba gönderilmiştir" satırı) ve o
+hesap belgelerde biliniyorsa, 4. ve 6. adımlar onu yalnızca o hesabın gelen parasıyla eşleştirir
+(`analysis._goes_to`). TEB iki TEB hesabı arasındaki aktarmanın iki tarafına da alıcı hesabın numarasını yazar. Para
+aynı gün aynı tutarla oradan başka bir bankadaki kendi hesabına gittiyse (TEB Vadesiz → TEB Ek Hesap → QNB), v1.1.1'e
+dek ilk aktarma sırası önce gelen QNB tarafını alıyordu. Ek Hesap'ın yalnızca "QNB BANK A.Ş." yazan satırı eşsiz
+kalıp kişiye giden para sayılıyordu.
+
 Kart ödemeleri ve kart tarafındaki alacakları birbirini götürür; asla harcama sayılmaz.
 
 **Yeri belli olmayan transfer** (`analysis.sent_after`): kendi transferinizin karşı tarafı hiçbir belgede yoksa ve

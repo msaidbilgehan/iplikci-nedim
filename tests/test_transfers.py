@@ -247,6 +247,44 @@ def test_a_named_transfer_pairs_only_at_the_bank_it_names(cat):
     assert (out.reason.pair, arrived.reason.pair, elsewhere.reason.pair) == ("c" * 16, "a" * 16, "")
 
 
+def test_a_transfer_that_names_the_receiving_account_pairs_only_with_that_accounts_side(cat):
+    # TEB names the account a transfer between two TEB accounts went to, on both sides. The same day the same amount
+    # went on from the second TEB account to the user's QNB account, whose side names the user: the first transfer's
+    # other side is the TEB account it names, whatever the order, and the bank-only row is the one that reached QNB.
+    accounts = {
+        **ACCOUNTS,
+        "teb-444555666": Account(
+            "teb-444555666", "TEB Ek Hesap 444555666", "TEB", AccountType.OVERDRAFT, number="444555666"
+        ),
+        "qnb-77788899": Account(
+            "qnb-77788899", "QNB Ek Hesap 77788899", "QNB", AccountType.OVERDRAFT, number="77788899"
+        ),
+    }
+    day = date(2026, 3, 10)
+    reached_qnb = cand(
+        day,
+        "Transfer İşlemleri - Gönderen: ÖRNEK İSİM SOYADOĞLU - kart ödemesi Türk Ekonomi Bankası A.Ş.",
+        Decimal(-300),
+        account="qnb-77788899",
+        counterparty="ÖRNEK İSİM SOYADOĞLU",
+    )
+    sent = cand(day, "444555666 no.lu hesaba gönderilmiştir.", Decimal(300))
+    arrived = cand(day, "444555666 no.lu hesaba gönderilmiştir.", Decimal(-300), account="teb-444555666")
+    to_qnb = cand(day, "QNB BANK A.Ş.", Decimal(300), account="teb-444555666")
+    for row, mark in zip((reached_qnb, sent, arrived, to_qnb), "abcd", strict=True):
+        row.fingerprint = mark * 16
+    _resolve_transfers(
+        [reached_qnb, sent, arrived, to_qnb], Own(["ÖRNEK İSİM SOYADOĞLU"], accounts), cat, [], accounts, []
+    )
+    assert (sent.reason.pair, arrived.reason.pair) == ("c" * 16, "b" * 16)
+    assert (to_qnb.kind, to_qnb.reason.transfer, to_qnb.reason.pair) == (
+        TransactionKind.OWN_TRANSFER,
+        TransferStep.PAIRED,
+        "a" * 16,
+    )
+    assert reached_qnb.reason.pair == "d" * 16
+
+
 def test_bank_only_payment_outside_coverage_goes_to_own_account(cat):
     covered = Statement(
         account="vakifbank-0999000000123456",
