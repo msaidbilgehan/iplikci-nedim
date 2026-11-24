@@ -10,7 +10,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
-from hypothesis import HealthCheck, given, settings
+from hypothesis import HealthCheck, example, given, settings
 from hypothesis import strategies as st
 
 from iplikci.app import annotate, dashboard, memory, notify, sync, telegram
@@ -512,9 +512,12 @@ def test_merging_gives_the_same_pieces_in_any_order_and_however_often(raw, rando
 
 
 @given(entry_lists)
+@example([(Kind.DOCUMENT, "k1", 0, '{"removed":true}'), (Kind.DOCUMENT, "k1", 0, None)])
 def test_a_documents_removal_wins_over_every_version_that_keeps_it(raw):
+    # Only a removal made since the computers share their data: one stamped zero is a computer's data from before it
+    # joined, which holds no removal over what the others keep (state._rank).
     for (kind, _), winner in merge(_entries(raw)).items():
-        removed = [e for e in _entries(raw) if e.id == winner.id and e.value == '{"removed":true}']
+        removed = [e for e in _entries(raw) if e.id == winner.id and e.value == '{"removed":true}' and e.stamp.ms > 0]
         if kind == Kind.DOCUMENT and removed:
             assert winner.value == '{"removed":true}'
 
