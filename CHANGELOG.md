@@ -4,6 +4,20 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [1.1.1] — 2026-11-24 — Hesabı adıyla yazan aktarma, değişen mevduat faizi
+
+### Düzeltilenler
+
+- İki TEB hesabı arasındaki aktarma artık yalnızca numarasını yazdığı hesaba bağlanıyor. TEB bu aktarmada alıcı
+  hesabın numarasını iki tarafa da yazar ("… no.lu hesaba gönderilmiştir"). Para aynı gün aynı tutarla oradan başka
+  bir bankadaki kendi hesabınıza gittiyse ilk aktarma o bankaya gelen parayla eşleşebiliyordu. İkinci aktarmanın
+  yalnızca bankayı yazan satırı da kişiye giden para sayılıyor, ayın "Kişilere" toplamını büyütüyordu.
+- Vadeli hesabın faizi öngörüde en yeni oranla sürüyor. Banka oranı değiştirince (yeni müşteri oranının bitmesi gibi)
+  öngörü son 30 günün ortalamasını kullanıyordu ve düşen bir faizi olduğundan büyük gösteriyordu. Artık en son
+  işlenen faizlerin oranı sürüyor; hesabın notu oranın hangi gün değiştiğini ve önceki oranı yazıyor. Belgenin son
+  gününe kadar henüz işlenmemiş faizin günleri de artık orana katılmıyor: her gün faiz işleyen bir hesabın oranı bu
+  yüzden biraz yükselebilir.
+
 ## [1.1.0] — 2026-11-24 — Google Drive'da yedek, birden çok bilgisayar
 
 ### Eklenenler

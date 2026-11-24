@@ -11,6 +11,15 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 
 ## Değişiklik kaydı
 
+- 2026-11-24 (74) — Hesabı adıyla yazan aktarma, değişen mevduat faizi (v1.1.1):
+  - [Defter kuralları](domain/ledger.md), "Transferler": alıcı hesabı numarasıyla yazan satır yalnızca o hesabın
+    gelen parasıyla eşleşir.
+  - [Yorum kuralları](domain/interpretation.md), öngörü: vadeli hesabın faizi en son işlenen faizlerin oranıyla
+    sürer; oran değişince hesabın notu söyler.
+  - [Banka biçimleri](domain/bank-formats.md), TEB: iki TEB hesabı arasındaki aktarmanın iki tarafı ve Marifetli'nin
+    düşen oranı.
+  - Kullanıcının maaştan sonraki durum kontrolünde iki hata bulundu; kullanıcı onları doğru şekilde düzeltmemi istedi.
+
 - 2026-11-24 (73) — Google Drive'da yedek, birden çok bilgisayar (v1.1.0):
   - [Gereksinimler](v1/requirements.md) K33: veriler Google Drive ile eşitlenir; program birden çok bilgisayarda
     çalışır, her birinde akış günceldir.

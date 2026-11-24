@@ -528,6 +528,16 @@ says what the waiting must show); the Windows and Linux checks come later (K25).
     Sender verification and MCP masking are never shared (whoever writes into the folder must not turn them off).
   - Ayarlar's "Eşitleme ve yedek" card (`components/settings/SyncCard`), `/api/sync*`, `iplikci esitleme`, a
     `sync.failed` event once a day and a Pano alert after six hours without a working round, `Actor.SYNC` in the audit.
+- v1.1.1 (2026-11-24): two errors the user's check after their salary found; the user asked to fix them properly.
+  - A row that names the receiving account ("<number> no.lu hesaba": TEB prints it on both sides of a transfer
+    between two TEB accounts) pairs only with that account's side (`analysis._goes_to`, before `_bank_fits`, in
+    `_pair_own_sides` and `_pair_open`). Money that went on the same day from the second TEB account to an own account
+    at another bank had taken the first transfer's other side, and the second transfer's bank-only row ended as money
+    sent to a person.
+  - A deposit's interest goes on at the rate of its newest postings (`forecast.earned`, `_postings`, `_RATE_CHANGE`):
+    each posting over the end-of-day balances since the one before; older postings count while they were paid at the
+    same rate (a fifth either way). The note says when the rate changed and the rate before (`Earned.before`). Days
+    after the last posting are no longer in the base. The 30 days' mean had carried a new customer's ended rate on.
 
 The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's
 web interface).
