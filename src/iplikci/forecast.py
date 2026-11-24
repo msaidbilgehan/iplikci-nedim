@@ -75,14 +75,10 @@ class Earned:
 
     rate: Decimal  # net interest a day, for one TL of the balance
     total: Decimal  # the rows' net interest
-    first: date
+    first: date  # the first posting at this rate
     last: date
     daily: Decimal  # at the balance the forecast starts from
-
-    @property
-    def yearly(self) -> Decimal:
-        """The rate for a year, in percent: what the note says."""
-        return self.rate * 365 * 100
+    before: Decimal | None = None  # the rate a day the postings before first were paid at, when it was another
 
 
 @dataclass
@@ -192,6 +188,11 @@ def _signed(value: Decimal) -> str:
 
 def _day(d: date) -> str:
     return f"{d:%d.%m.%Y}"
+
+
+def _yearly(rate: Decimal) -> str:
+    """A daily rate for one TL as a year's percentage, one decimal: "14,6"."""
+    return f"{rate * 365 * 100:.1f}".replace(".", ",")
 
 
 def _window(months: Sequence[str]) -> str:
@@ -536,41 +537,79 @@ def _uncounted(ds: Dataset, ins: Insights, today: date) -> str:
     )
 
 
-_INTEREST_DAYS = 30  # a deposit's daily interest is the mean of its interest rows of this many days at most
+_INTEREST_DAYS = 30  # a deposit's daily interest is read from its interest rows of this many days at most
 _INTEREST_LEAST = 3  # and of this many days at least
+# A posting that pays a fifth more or less for each TL than the postings after it was paid at another rate: banks
+# change a deposit's rate (a new customer's rate ends, the policy rate moves), and the rows tell it only by their size.
+_RATE_CHANGE = Decimal("0.2")
+
+
+@dataclass(frozen=True)
+class _Posting:
+    """A day's interest as the bank posted it, with the end-of-day balances that earned it."""
+
+    day: date
+    interest: Decimal  # net: the tax withheld from it counted in
+    base: Decimal  # the sum of the balances at the end of the days it pays for
+
+
+def _rate(postings: Sequence[_Posting]) -> Decimal:
+    return sum((p.interest for p in postings), ZERO) / sum((p.base for p in postings), ZERO)
+
+
+def _postings(rows: Sequence[Transaction], interest: Mapping[date, Decimal], start: Start) -> list[_Posting]:
+    """Each posting day's interest over the balances it pays for. A bank posts the interest daily (a weekend's on the
+    Monday), each posting for the end-of-day balances since the posting before it; the first for the day before it.
+    The balances come back from the one the account's document prints, row by row."""
+    first = min(interest)
+    moved: dict[date, Decimal] = defaultdict(Decimal)
+    for t in rows:
+        moved[t.date] += t.amount  # above zero money out, as a row's
+    held: dict[date, Decimal] = {}
+    balance, day = start.stated, start.on
+    while day >= first:
+        balance += moved[day]  # the balance at the end of the day before
+        held[day - timedelta(days=1)] = max(balance, ZERO)
+        day -= timedelta(days=1)
+    postings: list[_Posting] = []
+    since = first - timedelta(days=1)
+    for day in sorted(interest):
+        base = sum((held[since + timedelta(days=n)] for n in range((day - since).days)), ZERO)
+        postings.append(_Posting(day, interest[day], base))
+        since = day
+    return postings
 
 
 def earned(ds: Dataset, account: str, start: Start) -> Earned | None:
     """What a deposit earns, from its documents: its interest rows (the income on it, the tax withheld from it counted
-    in) of the last _INTEREST_DAYS up to the day its newest balance is of, over the balances that earned them. A bank
-    posts the interest daily (a weekend's on the Monday), each day's for the day before; so the rows from the first to
-    that day were earned by the balances at the end of the days before them, which the rows give back from the
-    balance its document prints. None for any other account, or before _INTEREST_LEAST days of it."""
+    in) of the last _INTEREST_DAYS up to the day its newest balance is of, over the balances that earned them, at the
+    rate the newest postings tell: older postings count only while they were paid at the same rate (_RATE_CHANGE), so
+    a rate that fell (or rose) is the one carried on. None for any other account, or before _INTEREST_LEAST days of
+    interest rows."""
     found = ds.accounts.get(account)
     if found is None or found.type != AccountType.DEPOSIT:
         return None
     until = start.on
     rows = [t for t in ds.transactions if t.account == account and t.date <= until]
     since = until - timedelta(days=_INTEREST_DAYS - 1)
-    interest = [t for t in rows if t.kind == TransactionKind.INCOME and t.date >= since]
-    total = -sum((t.amount for t in interest), ZERO)
-    if total <= 0:
-        return None
-    first = min(t.date for t in interest)
-    if (until - first).days + 1 < _INTEREST_LEAST:
-        return None
-    moved: dict[date, Decimal] = defaultdict(Decimal)
+    interest: dict[date, Decimal] = defaultdict(Decimal)
     for t in rows:
-        moved[t.date] += t.amount  # above zero money out, as a row's
-    balance, base, day = start.stated, ZERO, until
-    while day >= first:
-        balance += moved[day]  # the balance at the end of the day before
-        base += max(balance, ZERO)
-        day -= timedelta(days=1)
-    if base <= 0:
+        if t.kind == TransactionKind.INCOME and t.date >= since:
+            interest[t.date] -= t.amount
+    if sum(interest.values(), ZERO) <= 0 or (until - min(interest)).days + 1 < _INTEREST_LEAST:
         return None
-    rate = total / base
-    return Earned(rate, total, first, until, max(start.balance, ZERO) * rate)
+    postings = [p for p in _postings(rows, interest, start) if p.base > 0]
+    run: list[_Posting] = []
+    while postings:
+        now = postings[-1]
+        if run and abs(now.interest / now.base - _rate(run)) > _rate(run) * _RATE_CHANGE:
+            break
+        run.insert(0, postings.pop())
+    if not run or (rate := _rate(run)) <= 0:
+        return None
+    before = _rate(postings) if postings else None
+    total = sum((p.interest for p in run), ZERO)
+    return Earned(rate, total, run[0].day, until, max(start.balance, ZERO) * rate, before)
 
 
 def _account(
@@ -630,11 +669,16 @@ def _account(
         found.notes.append(note)
     found.earned = gained
     if gained is not None:
-        yearly = f"{gained.yearly:.1f}".replace(".", ",")
+        changed = ""
+        if gained.before is not None:
+            changed = (
+                f" Oran {_day(gained.first)} tarihinde değişti: önceki günlerde işlenen faiz yıllık net yaklaşık "
+                f"%{_yearly(gained.before)} ediyordu."
+            )
         found.notes.append(
             f"Faiz geliri: {_day(gained.first)}–{_day(gained.last)} arasında işlenen net faiz {_tl(gained.total)}; "
-            f"bakiyenin yıllık net getirisi yaklaşık %{yearly}. Öngörü her gün bakiyeye bu oranla faiz ekler: bugünkü "
-            f"bakiyeyle günde {_tl(round_half_up(gained.daily))}."
+            f"bakiyenin yıllık net getirisi yaklaşık %{_yearly(gained.rate)}.{changed} Öngörü her gün bakiyeye bu "
+            f"oranla faiz ekler: bugünkü bakiyeyle günde {_tl(round_half_up(gained.daily))}."
         )
     found.overdraft = ds.accounts[account].type == AccountType.OVERDRAFT
     if found.overdraft:

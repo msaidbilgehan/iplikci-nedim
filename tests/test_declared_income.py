@@ -155,6 +155,37 @@ def test_a_deposit_emptied_for_a_card_earns_on_what_is_left():
     assert round(deposit.earned.daily, 2) == Decimal("4.07")  # on 10.200 TL, not the 20 TL a day of 50.000
 
 
+def test_the_forecast_carries_on_the_rate_the_newest_interest_rows_tell_once_the_bank_changed_it():
+    # A new customer's rate ended: 60 TL a day on about 50.000 TL until 17 November, 20 TL since. The forecast adds the
+    # new rate, not the mean of the month's rows, and says when the rate changed.
+    ds = dataset()
+    ds.transactions = [t for t in ds.transactions if t.account != DEPOSIT.id] + [
+        row(date(2026, 11, d), "net faiz geliri", "-60.00" if d < 18 else "-20.00", DEPOSIT) for d in range(11, 21)
+    ]
+    deposit = next(a for a in forecast(ds, interpret(ds), TODAY, []).accounts if a.account == DEPOSIT.id)
+    assert deposit.earned is not None
+    assert deposit.earned.rate == Decimal(60) / Decimal(150480)  # over the balances of 17, 18 and 19 November
+    assert deposit.days[0] == (TODAY, Decimal("50260.07"))
+    assert deposit.notes[-1] == (
+        "Faiz geliri: 18.11.2026–20.11.2026 arasında işlenen net faiz 60,00 TL; bakiyenin yıllık net getirisi "
+        "yaklaşık %14,6. Oran 18.11.2026 tarihinde değişti: önceki günlerde işlenen faiz yıllık net yaklaşık %43,9 "
+        "ediyordu. Öngörü her gün bakiyeye bu oranla faiz ekler: bugünkü bakiyeyle günde 20,02 TL."
+    )
+
+
+def test_a_posting_for_a_weekend_is_no_change_of_rate():
+    # Monday's interest pays for Friday, Saturday and Sunday: three times a weekday's, at the same rate.
+    ds = dataset()
+    weekdays = [d for d in range(11, 21) if date(2026, 11, d).weekday() < 5]
+    ds.transactions = [t for t in ds.transactions if t.account != DEPOSIT.id] + [
+        row(date(2026, 11, d), "net faiz geliri", "-60.00" if date(2026, 11, d).weekday() == 0 else "-20.00", DEPOSIT)
+        for d in weekdays
+    ]
+    deposit = next(a for a in forecast(ds, interpret(ds), TODAY, []).accounts if a.account == DEPOSIT.id)
+    assert deposit.earned is not None and deposit.earned.before is None
+    assert deposit.earned.first == date(2026, 11, 11)
+
+
 def test_the_forecast_names_the_income_it_does_not_expect_again():
     ds = dataset()
     fc = forecast(ds, interpret(ds), TODAY, [])

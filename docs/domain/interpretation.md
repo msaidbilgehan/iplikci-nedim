@@ -255,12 +255,19 @@ nedenleri arasında sayılmaz.
       beklenmeyen gelirleri ödeyene göre, tutarlarıyla yazar (bitenleri "bitti" diye). İlk üçünü adıyla, gerisini
       sayıyla söyler. Her ay geldiği bilinen bir gelir Düzenli ödemeler ekranında bildirilebilir.
   - Vadeli hesabın faizi günlere eklenir.
-    - Oran, hesabın belgelerindeki faiz satırlarından çıkar: son 30 günün net faizi (kesilen vergi düşülmüş), onu
-      kazandıran gün sonu bakiyelerinin toplamına bölünür. Bir günün faizi bir önceki günün bakiyesinindir; bakiyeler
-      belgenin yazdığı bakiyeden geriye, satırlarla bulunur.
+    - Oran, hesabın belgelerindeki faiz satırlarından çıkar: net faiz (kesilen vergi düşülmüş), onu kazandıran gün
+      sonu bakiyelerinin toplamına bölünür. Banka faizi her iş günü işler; her işlenen faiz bir önceki işlenen günden
+      o güne kadarki günlerin bakiyesinindir (pazartesininki cuma, cumartesi ve pazarın). Bakiyeler belgenin yazdığı
+      bakiyeden geriye, satırlarla bulunur. Belgenin son gününe kadar henüz işlenmemiş faizin günleri sayılmaz.
+    - Banka oranı değiştirebilir (yeni müşteri oranının bitmesi, politika faizi). Bu yüzden oran son 30 günün
+      ortalaması değildir: en yeni işlenen faizden geriye, TL başına aynı oranda (beşte bir farkla) işlenmiş günler
+      alınır. Daha eski günler başka bir oranla işlenmişse not oranın hangi gün değiştiğini ve önceki oranı yazar.
+      v1.1.1'e dek oran 30 günün ortalamasıydı: %45'ten %15'e düşen bir hesabın faizi öngörüde düşüşten önceki
+      oranla yaklaşık üç kat büyük görünüyordu.
     - Öngörü her gün o günün bakiyesine bu oranla faiz ekler. Bakiye değişince faiz de değişir: karta ödeme için
       çekilen para artık faiz getirmez. Bu yüzden ortalama günlük tutar ileriye taşınmaz.
-    - En az 3 günlük faiz satırı gerekir. Hesabın notu günleri, net faizi ve yıllık net getiriyi yazar.
+    - En az 3 günlük faiz satırı gerekir. Hesabın notu oranın dayandığı günleri, net faizi ve yıllık net getiriyi
+      yazar.
     - TL toplamının uyarısı "Öngörü TL hesaplarınıza vadeli hesap faizi dışında düzenli bir gelir beklemiyor" der.
   - KMH faizi yalnızca belgede yazan aylık oranla hesaplanır; oran yoksa faiz tahmin edilmez (oranı okuyan bir okuyucu
     henüz yok).
