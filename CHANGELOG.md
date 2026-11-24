@@ -4,6 +4,18 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/)'a, sürüm nu
 [anlamsal sürümlemeye](https://semver.org/lang/tr/) dayanır. Her aşama bir sürümle biter
 ([yol haritası](docs/v1/roadmap.md)).
 
+## [1.1.2] — 2026-11-24 — Belgesi gelmeyen hesaptan çıkan para
+
+### Düzeltilenler
+
+- Belgesi henüz gelmeyen bir hesaptan kendi hesabınıza aktarılan para artık iki kez sayılmıyor. TEB, iki kendi
+  hesabınız arasındaki aktarmanın gelen tarafına yalnızca alıcı hesabın numarasını yazar ("… no.lu hesaba
+  gönderilmiştir"); gönderen hesabı yazmaz. Gönderenin o güne ait belgesi yoksa para hem onun eski bakiyesinde hem
+  alanın yeni bakiyesinde duruyor, toplamlar o kadar fazla görünüyordu. Artık aynı bankada bu parayı ödeyebilecek tek
+  hesap varsa para o hesaptan çıkmış sayılıyor. Hesaplar, Şu an, Değerlendirme ve öngörü bakiyeyi buna göre gösteriyor;
+  not paranın nereye geçtiğini ve geçici olduğunu söylüyor. Gönderen hesabın belgesi gelince kendi satırları geçerli
+  oluyor. Ödeyebilecek hesap yoksa ya da birden fazlaysa hiçbir bakiye değişmiyor.
+
 ## [1.1.1] — 2026-11-24 — Hesabı adıyla yazan aktarma, değişen mevduat faizi
 
 ### Düzeltilenler

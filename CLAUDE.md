@@ -538,6 +538,17 @@ says what the waiting must show); the Windows and Linux checks come later (K25).
     each posting over the end-of-day balances since the one before; older postings count while they were paid at the
     same rate (a fifth either way). The note says when the rate changed and the rate before (`Earned.before`). Days
     after the last posting are no longer in the base. The 30 days' mean had carried a new customer's ended rate on.
+- v1.1.2 (2026-11-24): the user moved a deposit's money to their TEB current account and on to İş Bankası, sent the
+  current account's cüzdan and expected the program to know the deposit was emptied. TEB writes only the receiving
+  account on the receiving side of a transfer between own accounts, so the deposit kept its older balance and the
+  totals counted the money twice.
+  - `analysis.drawn` places such an unpaired own transfer in ("<its own number> no.lu hesaba", `_names_itself`) on the
+    one account at that bank and in that currency whose balance is older (by at most `_DRAWN_WITHIN` days) and could
+    pay it: a deposit with the interest it may have earned since (`_MOST_INTEREST`), an overdraft no further than its
+    balance. The larger transfers of a day first; none moves when no account or several fit.
+  - `start_of` takes it off (`_documented_start` is the balance as the account's own documents tell it; `Start.drawn`,
+    `Start.told` adds it back); `untold_in` then counts the interest of the days in between as money no document tells.
+    `insights.drawn_note` says it on Hesaplar, Şu an and Değerlendirme (`_with_drawn`), the forecast's first note too.
 
 The e-mail path for Gmail accounts without app passwords is decided (ADR-0016: a browser extension that reads Gmail's
 web interface).

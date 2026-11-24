@@ -11,6 +11,12 @@ kendi klasöründe, fikirler ve karar bekleyen sorular [`BRAINSTORM.md`](BRAINST
 
 ## Değişiklik kaydı
 
+- 2026-11-24 (75) — Belgesi gelmeyen hesaptan çıkan para (v1.1.2):
+  - [Defter kuralları](domain/ledger.md), "Transferler": gelen tarafı gönderen hesabı yazmayan kendi aktarmanız,
+    aynı bankada onu ödeyebilecek tek hesaptan çıkmış sayılır; o hesabın bakiyesinden düşülür.
+  - [Banka biçimleri](domain/bank-formats.md), TEB: gelen taraf gönderen hesabı yazmaz.
+  - Kullanıcı, vadeli hesabındaki parayı başka hesabına aktardıktan sonra programın bunu kendisinin bilmesini bekledi.
+
 - 2026-11-24 (74) — Hesabı adıyla yazan aktarma, değişen mevduat faizi (v1.1.1):
   - [Defter kuralları](domain/ledger.md), "Transferler": alıcı hesabı numarasıyla yazan satır yalnızca o hesabın
     gelen parasıyla eşleşir.
