@@ -25,7 +25,7 @@
   },
   "closed": {
     "title": "Kapanmış hesaplar",
-    "text": "Belgeleri en yeni belgeden 180 günden eski; hiçbir toplama girmez."
+    "text": "Kapandı olarak işaretlediğiniz ya da belgeleri en yeni belgeden 180 günden eski hesaplar; hiçbir toplama girmez."
   },
   "account": {
     "select": "Birlikte göster: {{name}}",
@@ -87,7 +87,8 @@
     },
     "back": "Hesaplar",
     "bankName": "bankadaki adı {{label}}",
-    "closed": "kapanmış hesap"
+    "closed": "kapanmış hesap",
+    "closedOn": "{{day, onDay}} kapandı"
   },
   "alias": {
     "edit": "Adını değiştir",
@@ -98,6 +99,17 @@
     "cancel": "Vazgeç",
     "saved": "Hesabın adı kaydedildi.",
     "removed": "Hesap yeniden bankanın adıyla görünüyor."
+  },
+  "closing": {
+    "edit": "Hesap kapandı",
+    "change": "Kapanışı değiştir",
+    "label": "Hesabın kapandığı gün",
+    "hint": "Kapanan hesap kapanmış hesaplarla listelenir ve hiçbir toplama girmez; ay sonu, tahmin ve yapılacaklar ondan belge beklemez. Gün, hesabın belgelerdeki son hareketinden önce olamaz.",
+    "save": "Kapandı olarak işaretle",
+    "reopen": "Kapanışı geri al",
+    "cancel": "Vazgeç",
+    "saved": "Hesap {{day, onDay}} kapandı olarak işaretlendi.",
+    "reopened": "Hesap yeniden açık sayılıyor."
   },
   "status": {
     "title": "Durum",

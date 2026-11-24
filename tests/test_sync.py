@@ -6,7 +6,7 @@ import shutil
 import sqlite3
 import tempfile
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -20,7 +20,17 @@ from iplikci.app.workspace import Workspace
 from iplikci.domain.codes import Actor, Channel, DeliveryStatus, DocumentStatus, MemoryKind
 from iplikci.fakes import teb
 from iplikci.settings import config
-from iplikci.storage import aliases, annotations, audit, documents, events, feed_state, memories, notifications
+from iplikci.storage import (
+    aliases,
+    annotations,
+    audit,
+    closures,
+    documents,
+    events,
+    feed_state,
+    memories,
+    notifications,
+)
 from iplikci.storage import db as database
 from iplikci.storage import sync as stored
 from iplikci.sync import library, machine, places
@@ -220,12 +230,19 @@ def test_names_and_shared_settings_and_rules_reach_the_other_computer_but_its_ow
     [account] = {t.account for t in analyze(a).dataset.transactions}
     with a.db() as db:
         aliases.change(db, account, "Maaş hesabı", Actor.USER)
+        closures.close(db, account, date(2026, 2, 1), Actor.USER)
     config.update(a.layout.settings, "identity", {"names": ["Deneme Kişi"]})
     config.update(a.layout.settings, "server", {"port": 9100})
     a.rules.write_text(RULES + "\nUlaşım:\n  Taksi:\n    _: [TAKSI]\n", encoding="utf-8")
     rounds(a, b)
     with b.db() as db:
         assert aliases.every(db)[account].alias == "Maaş hesabı"
+    assert analyze(b).dataset.closed == {account: date(2026, 2, 1)}  # the user's closing too
+    with a.db() as db:
+        closures.reopen(db, account, Actor.USER)
+    rounds(a, b)
+    with b.db() as db:
+        assert closures.every(db) == {}
     settings = config.load(b.layout.settings)
     assert settings.identity.names == ("Deneme Kişi",)
     assert settings.server.port == 9000  # the computer's own
@@ -557,7 +574,7 @@ def test_google_drive_is_found_on_its_own_drive_letter_on_windows(tmp_path):
 operations = st.lists(
     st.tuples(
         st.integers(0, 2),  # the computer
-        st.sampled_from(["note", "unnote", "memory", "forget", "alias", "names", "rules", "round"]),
+        st.sampled_from(["note", "unnote", "memory", "forget", "alias", "close", "reopen", "names", "rules", "round"]),
         st.integers(0, 2),  # which piece
         st.integers(0, 3),  # which value
     ),
@@ -579,6 +596,10 @@ def _act(ws: Workspace, action: str, piece: int, value: int) -> None:
             memories.remove(db, f"not-{piece}", Actor.USER)
         elif action == "alias":
             aliases.change(db, f"hesap-{piece}", f"ad {value}" if value else "", Actor.USER)
+        elif action == "close":
+            closures.close(db, f"hesap-{piece}", date(2026, 1, 1 + value), Actor.USER)
+        elif action == "reopen":
+            closures.reopen(db, f"hesap-{piece}", Actor.USER)
     if action == "names":
         config.update(ws.layout.settings, "identity", {"names": [f"Kişi {value}"]})
     elif action == "rules":
@@ -622,6 +643,7 @@ def _essence(ws: Workspace) -> dict[str, object]:
         found: dict[str, object] = {f"note {k}": a.note for k, a in annotations.every(db).items()}
         found |= {f"memory {m.name}": (m.kind, m.description, m.body) for m in memories.every(db)}
         found |= {f"alias {k}": a.alias for k, a in aliases.every(db).items()}
+        found |= {f"closed {k}": c.closed_on for k, c in closures.every(db).items()}
     found["names"] = config.load(ws.layout.settings).identity.names
     found["rules"] = ws.rules.read_text(encoding="utf-8")
     return found
@@ -768,6 +790,7 @@ def test_a_malformed_or_forged_piece_is_left_out_and_the_rounds_go_on(a, b, driv
             ],
             ["source", "bir anahtar değil", stamp, {"sender": "", "subject": "", "sent_at": "", "received_at": ""}],
             ["alias", "hesap-1", stamp, {"alias": ["liste"], "updated_at": "", "actor": "user"}],
+            ["closure", "hesap-1", stamp, {"closed_on": "dün", "updated_at": "", "actor": "user"}],
             ["memory", "gelecek", "9999999999999.99999.aaaaaaaaaaaa", None],
             ["setting", "mail.verify_sender", stamp, False],
             ["rate", "2026-01-01 tcmb USD", stamp, {"buying": "1"}],  # a newer version's kind passes through
@@ -775,11 +798,11 @@ def test_a_malformed_or_forged_piece_is_left_out_and_the_rounds_go_on(a, b, driv
     )
     sync.turn_on(b, str(drive))
     result = sync.run_round(b)
-    assert result.ran and "5 kayıt atlandı" in result.problem
+    assert result.ran and "6 kayıt atlandı" in result.problem
     rounds(b)
     with b.db() as db:
         assert [d.name for d in documents.every(db)] == ["ocak.xls"]
-        assert not aliases.every(db)
+        assert not aliases.every(db) and not closures.every(db)
         assert stored.get(db, "rate", "2026-01-01 tcmb USD") is not None
         assert stored.load(db, sync.CLOCK) < "9"  # the clock took no stamp from 2286
     assert config.load(b.layout.settings).mail.verify_sender  # never another computer's to turn off

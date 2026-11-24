@@ -37,6 +37,8 @@ import type {
   Channel,
   ChannelStage,
   ChannelStateOut,
+  ClosedIn,
+  ClosedOut,
   ClosingOut,
   CommitmentIn,
   ConnectionOut,
@@ -315,6 +317,8 @@ export type Holding = HoldingOut;
 export type Brokerage = BrokerageOut;
 export type Loan = LoanOut;
 export type Alias = AliasOut;
+export type Closing = ClosedIn;
+export type Closed = ClosedOut;
 export type Flows = FlowsOut;
 export type FlowNode = FlowNodeOut;
 export type FlowEdge = FlowEdgeOut;

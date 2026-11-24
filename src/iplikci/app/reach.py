@@ -1,6 +1,7 @@
 """How far each account's documents reach, which accounts are closed and which months their statements cover (F05,
 F06, F07, F10). An account whose documents stopped more than 180 days before the newest document is closed or no
-longer followed: the screens list it apart and leave it out of every total (F07)."""
+longer followed, and so is one the user says they closed (Dataset.closed): the screens list it apart and leave it out
+of every total (F07)."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -38,12 +39,12 @@ def last_seen(ds: Dataset) -> dict[str, date]:
     return seen
 
 
-def closed(seen: dict[str, date]) -> set[str]:
-    """The accounts whose documents stopped more than ACTIVE_DAYS before the newest document."""
-    if not seen:
-        return set()
-    newest = max(seen.values())
-    return {account for account, day in seen.items() if (newest - day).days > ACTIVE_DAYS}
+def closed(seen: Mapping[str, date], marked: Mapping[str, date]) -> set[str]:
+    """The accounts whose documents stopped more than ACTIVE_DAYS before the newest document, and those the user marked
+    closed (marked: Dataset.closed)."""
+    newest = max(seen.values(), default=None)
+    stopped = {account for account, day in seen.items() if newest is not None and (newest - day).days > ACTIVE_DAYS}
+    return stopped | set(marked)
 
 
 def coverage(ds: Dataset, labels: Mapping[str, str]) -> Coverage:
@@ -54,7 +55,7 @@ def coverage(ds: Dataset, labels: Mapping[str, str]) -> Coverage:
     if not covered:
         return Coverage((), [])
     months = tuple(span(min(min(m) for m in covered.values()), max(max(m) for m in covered.values())))
-    gone = closed(last_seen(ds))
+    gone = closed(last_seen(ds), ds.closed)
     found = [
         Cover(account, account in gone, tuple(cover.get(m, 0.0) for m in months)) for account, cover in covered.items()
     ]

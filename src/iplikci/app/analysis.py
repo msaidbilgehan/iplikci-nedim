@@ -19,7 +19,7 @@ from ..fx.book import RateBook
 from ..insights import FULL, Insights, interpret, month_of, shift
 from ..parsers.common import BUSINESS_REASON
 from ..report import build_payload, write_csv, write_html, write_xlsx
-from ..storage import aliases, annotations, audit, documents, fx_rates, readings
+from ..storage import aliases, annotations, audit, closures, documents, fx_rates, readings
 from ..storage.annotations import Annotation
 from ..storage.db import Database
 from . import annotate, reading
@@ -139,11 +139,12 @@ def analyze(
             found, stats = ledger_input(db)
             notes = annotations.every(db)
             names_given = {account: given.alias for account, given in aliases.every(db).items()}
+            closed = {account: mark.day for account, mark in closures.every(db).items()}
             # The providers' rates as stored; offline too, as reading them changes nothing.
             book = RateBook(fx_rates.every(db))
     names = list(settings.identity.names)
     categorizer = Categorizer.layered(ws.rules)
-    ds = build(found, categorizer, {"ad_soyad": names} if names else {}, book)
+    ds = build(found, categorizer, {"ad_soyad": names} if names else {}, book, closed)
     applied = annotate.apply(ds, notes, categorizer)
     ins = interpret(ds)
     today = today or date.today()
@@ -264,7 +265,7 @@ def document_gaps(ds: Dataset, today: date | None = None, horizon: int = 12) -> 
     oldest = shift(month_of(newest), -horizon)
     gaps: list[Gap] = []
     for account, last in seen.items():
-        if (newest - last).days > _CLOSED_DAYS:
+        if (newest - last).days > _CLOSED_DAYS or account in ds.closed:
             continue
         cov = ds.coverage.get(account, {})
         months = sorted(cov)

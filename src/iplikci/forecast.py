@@ -220,6 +220,9 @@ def starts(ds: Dataset) -> tuple[dict[str, Start], list[tuple[str, str]]]:
             continue
         if account.type not in BANK_TYPES:
             continue
+        if account.id in ds.closed:
+            skipped.append((account.id, f"{_day(ds.closed[account.id])} tarihinde kapandı"))
+            continue
         start = start_of(ds, account.id)
         if start is None:
             skipped.append((account.id, "bakiyesi hiçbir belgede yazmıyor"))

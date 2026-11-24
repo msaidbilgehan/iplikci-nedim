@@ -711,6 +711,10 @@ def test_money_into_an_own_teb_account_left_the_only_account_there_that_could_ha
     assert drawn(ds) == {}
     start = start_of(ds, "teb-222")
     assert start is not None and (start.balance, start.drawn) == (40000, 0)
+    # Unless the user closed that one before the day: a closed account sends nothing.
+    ds.closed = {"teb-444": date(2026, 11, 23)}
+    assert drawn(ds) == {"teb-222": [big]}
+    assert holdings(ds) and all(h.label != "Test TEB Vadeli 2" for h in holdings(ds))  # and holds nothing
 
 
 def test_a_balance_tells_the_own_transfers_sent_to_its_account_or_bank_after_its_day():

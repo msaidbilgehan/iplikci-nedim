@@ -1,7 +1,8 @@
 """The Hesaplar screen's API (F07): the open accounts in their groups with assets and debts apart and the closed ones
 apart, an account's page with its rows, daily balance, months, fees and what its type adds, the name the user gives an
-account, and where the money went between the accounts."""
+account, the day the user says an account closed, and where the money went between the accounts."""
 
+import json
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
@@ -14,7 +15,7 @@ from iplikci.api.context import Context
 from iplikci.app import background, rebuild
 from iplikci.app.workspace import Busy, Workspace
 from iplikci.fakes import Move, garanti, isbank, teb
-from iplikci.storage import aliases, audit
+from iplikci.storage import aliases, audit, closures
 
 from conftest import add
 
@@ -24,6 +25,7 @@ OWN_PAGE = {"Origin": BASE, "X-Iplikci": "1"}
 CURRENT = "garanti-1234567"  # the Garanti current account of the fake documents
 CARD = "garanti-1234"  # the Garanti Bonus card it pays
 TEB = "teb-123456789"
+DEPOSIT = "teb-222333444"  # the TEB deposit of emptied_deposit
 
 
 def bearer() -> dict[str, str]:
@@ -71,6 +73,27 @@ def garanti_ws(ws: Workspace) -> Workspace:
     add(ws, "ekstre.pdf", garanti.bonus_statement())
     background.refresh(ws, date(2026, 11, 5))
     return ws
+
+
+def emptied_deposit(ws: Workspace, through: date = date(2026, 11, 24)) -> None:
+    """A TEB deposit's cüzdan ending on 20 November and the current account's up to through, which shows 40.050 TL
+    coming in on the 24th from another own TEB account (TEB names the receiving account only)."""
+    deposit = teb.passbook(
+        [Move(date(2026, 11, 19), "CEPTETEB Marifetli Hesap net faiz geliri %13", Decimal("11.00"))],
+        opening=Decimal("39989.00"),
+        number="222333444",
+        period=(date(2026, 11, 1), date(2026, 11, 20)),
+        kind="CEPTETEB Marifetli",
+        rate="Değişken faizlidir.",
+    )
+    current = teb.passbook(
+        [Move(date(2026, 11, 24), "111222333 no.lu hesaba gönderilmiştir.", Decimal("40050.00"))],
+        opening=Decimal(0),
+        number="111222333",
+        period=(date(2026, 11, 1), through),
+    )
+    add(ws, "marifetli.pdf", deposit)
+    add(ws, "vadesiz.pdf", current)
 
 
 def rent_receipt() -> bytes:
@@ -153,31 +176,15 @@ def test_this_months_money_is_not_told_as_none_before_a_document_reaches_the_mon
 
 
 def test_money_a_teb_account_got_from_an_own_account_whose_cuzdan_ends_before_leaves_that_account(ws):
-    # The deposit's cüzdan ends on 20 November; on the 24th the current account's shows 40.050 TL coming in from
-    # another own TEB account (TEB names the receiving account only). The deposit is the only TEB account that could
-    # have paid it, its interest since included: the money left it and is counted once.
-    deposit = teb.passbook(
-        [Move(date(2026, 11, 19), "CEPTETEB Marifetli Hesap net faiz geliri %13", Decimal("11.00"))],
-        opening=Decimal("39989.00"),
-        number="222333444",
-        period=(date(2026, 11, 10), date(2026, 11, 20)),
-        kind="CEPTETEB Marifetli",
-        rate="Değişken faizlidir.",
-    )
-    current = teb.passbook(
-        [Move(date(2026, 11, 24), "111222333 no.lu hesaba gönderilmiştir.", Decimal("40050.00"))],
-        opening=Decimal(0),
-        number="111222333",
-        period=(date(2026, 11, 1), date(2026, 11, 24)),
-    )
-    add(ws, "marifetli.pdf", deposit)
-    add(ws, "vadesiz.pdf", current)
+    # The deposit is the only TEB account that could have paid the 24th's 40.050 TL, its interest since included: the
+    # money left it and is counted once.
+    emptied_deposit(ws)
     found = get(client_for(ws, today=date(2026, 11, 24)), "/api/accounts")
-    held = by_id(found)["teb-222333444"]
+    held = by_id(found)[DEPOSIT]
     assert (held["balance"], held["value"]) == (tl(0), tl(0))
     assert "24.11.2026 tarihinde 40.050,00 TL TEB Vadesiz TL 111222333 hesabına geçti" in held["note"]
     [untold] = found["untold"]  # the interest of the days after the cüzdan, which went on with the rest
-    assert (untold["account"]["id"], untold["value"]) == ("teb-222333444", tl(5000))
+    assert (untold["account"]["id"], untold["value"]) == (DEPOSIT, tl(5000))
     assert (found["assets"], found["total"]) == (tl(4005000), tl(4000000))
 
 
@@ -400,6 +407,89 @@ def test_the_names_given_to_accounts_survive_the_rebuild_and_older_dumps_still_l
     older = rebuild.dump(primary).replace(f'"version": {rebuild.VERSION}', '"version": 3')
     assert rebuild.load(older).aliases == again.aliases  # a version 3 dump read back, its names as they are
     report = rebuild.check(garanti_ws, today=date(2026, 11, 5))
+    assert report.ok, report.differences
+
+
+# --- the day the user says an account closed ---------------------------------------------------------------------
+
+
+def test_an_account_the_user_closed_is_listed_apart_in_no_total_and_no_screen_waits_for_its_documents(ws):
+    # The deposit's money left it on the 24th and the user closed it: November no longer waits for its days after
+    # the cüzdan, the forecast leaves it out, and the total is the current account's, without the deposit's interest
+    # since its cüzdan taken off as money no document tells.
+    emptied_deposit(ws, through=date(2026, 11, 30))
+    client = signed_in(client_for(ws, today=date(2026, 12, 2)))
+    awaited = {a["account"]["id"]: a["status"] for a in get(client, "/api/month-end/2026-11")["accounts"]}
+    assert awaited[DEPOSIT] == "waiting"
+    marked = client.put(f"/api/accounts/{DEPOSIT}/closed", json={"day": "2026-11-24"}, headers=OWN_PAGE)
+    assert marked.status_code == 200, marked.text
+    assert marked.json()["closed_on"] == "2026-11-24"
+    found = get(client, "/api/accounts")
+    [gone] = found["closed"]
+    assert (gone["account"]["id"], gone["closed"], gone["closed_on"]) == (DEPOSIT, True, "2026-11-24")
+    assert (gone["balance"], gone["value"]) == (tl(0), None)
+    assert gone["note"] == "24.11.2026 tarihinde kapandı (sizin işaretinizle); toplamlara girmez"
+    assert (found["assets"], found["untold"], found["total"]) == (tl(4005000), [], tl(4005000))
+    month = get(client, "/api/month-end/2026-11")
+    assert {a["account"]["id"]: a["status"] for a in month["accounts"]}[DEPOSIT] == "closed"
+    skipped = {s["account"]["id"]: s["reason"] for s in get(client, "/api/forecast")["skipped"]}
+    assert skipped[DEPOSIT] == "24.11.2026 tarihinde kapandı"
+    with ws.db() as db:
+        [entry] = audit.entries(db, closures.CLOSED)
+    assert (entry.target, entry.detail) == (DEPOSIT, {"closed_on": "2026-11-24"})
+
+
+def test_taking_the_users_mark_away_opens_the_account_again(ws):
+    emptied_deposit(ws)
+    client = signed_in(client_for(ws, today=date(2026, 11, 24)))
+    client.put(f"/api/accounts/{DEPOSIT}/closed", json={"day": "2026-11-24"}, headers=OWN_PAGE)
+    again = client.put(f"/api/accounts/{DEPOSIT}/closed", json={"day": "2026-11-24"}, headers=OWN_PAGE)
+    assert again.json()["closed_on"] == "2026-11-24"  # the same day again changes nothing
+    opened = client.delete(f"/api/accounts/{DEPOSIT}/closed", headers=OWN_PAGE)
+    assert opened.status_code == 200 and opened.json()["closed_on"] is None
+    found = get(client, "/api/accounts")
+    assert found["closed"] == [] and by_id(found)[DEPOSIT]["closed_on"] is None
+    assert "40.050,00 TL TEB Vadesiz TL 111222333 hesabına geçti" in by_id(found)[DEPOSIT]["note"]
+    with ws.db() as db:
+        assert closures.every(db) == {}
+        assert [len(audit.entries(db, action)) for action in (closures.CLOSED, closures.REOPENED)] == [1, 1]
+
+
+def test_a_closing_day_after_today_or_before_the_accounts_newest_movement_is_refused(ws):
+    emptied_deposit(ws)
+    client = signed_in(client_for(ws, today=date(2026, 11, 24)))
+
+    def refused(account: str, day: str) -> tuple[int, str, str]:
+        found = client.put(f"/api/accounts/{account}/closed", json={"day": day}, headers=OWN_PAGE)
+        return found.status_code, found.json()["code"], found.json()["title"]
+
+    assert refused(DEPOSIT, "2026-11-25") == (400, "closing_refused", "Kapanış günü bugünden sonra olamaz.")
+    assert refused(DEPOSIT, "2026-11-18") == (
+        400,
+        "closing_refused",
+        "Hesabın 19.11.2026 tarihli bir hareketi var; kapanış günü ondan önce olamaz.",
+    )
+    assert refused("yok-boyle", "2026-11-24")[:2] == (404, "account_not_found")
+    gone = client.delete("/api/accounts/yok-boyle/closed", headers=OWN_PAGE)
+    assert (gone.status_code, gone.json()["code"]) == (404, "account_not_found")
+    token_only = client_for(ws).put(f"/api/accounts/{DEPOSIT}/closed", json={"day": "2026-11-24"}, headers=bearer())
+    assert token_only.status_code == 403  # the service's own pages only
+    with ws.db() as db:
+        assert closures.every(db) == {}
+
+
+def test_the_closed_accounts_survive_the_rebuild_and_older_dumps_still_load(ws):
+    emptied_deposit(ws)
+    client = signed_in(client_for(ws, today=date(2026, 11, 24)))
+    client.put(f"/api/accounts/{DEPOSIT}/closed", json={"day": "2026-11-24"}, headers=OWN_PAGE)
+    with ws.db() as db:
+        primary = rebuild.export(db)
+    again = rebuild.load(rebuild.dump(primary))
+    assert [(c.account, c.closed_on) for c in again.closures] == [(DEPOSIT, "2026-11-24")]
+    older = json.loads(rebuild.dump(primary)) | {"version": 7}
+    del older["closures"]
+    assert rebuild.load(json.dumps(older)).closures == []  # a version 7 dump, from before the closed accounts
+    report = rebuild.check(ws, today=date(2026, 11, 24))
     assert report.ok, report.differences
 
 

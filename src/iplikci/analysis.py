@@ -20,7 +20,7 @@ may cover the same days: each such day's rows are counted from one list only.
 import calendar
 import re
 from collections import Counter, defaultdict
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
 from decimal import Decimal
@@ -106,6 +106,9 @@ class Dataset:
     # foreign rows no document gives a rate for and the balances, and the banks' rates are compared with them. Empty
     # without the network: the documents' own rates are used then.
     book: RateBook = EMPTY
+    # The accounts the user says they closed, with the day (storage.closures, F07): listed with the closed ones, in no
+    # total, and no document of theirs awaited any more.
+    closed: dict[str, date] = field(default_factory=dict)
 
 
 def whole(ds: Dataset, t: Transaction) -> Transaction:
@@ -421,8 +424,10 @@ def settle_receipts(
     statements: list[Statement],
     accounts: dict[str, Account],
     days: dict[str, set[date]],
+    closed: Collection[str] = (),
 ) -> list[ReceiptLine]:
-    """What the statements say about each receipt row (see the module docstring).
+    """What the statements say about each receipt row (see the module docstring). closed: the accounts the user
+    closed, whose next statement never comes.
 
     A receipt keeps its status as a whole once one of its rows is found: a statement may print a
     transfer's fee and tax as one row, two rows or on another day."""
@@ -447,7 +452,7 @@ def settle_receipts(
                 status = NO_STATEMENT
             elif all(d in covered for d in window):
                 status = NOT_ON_STATEMENT
-            elif window[-1] > max(covered) and (newest - max(covered)).days <= ACTIVE_DAYS:
+            elif window[-1] > max(covered) and (newest - max(covered)).days <= ACTIVE_DAYS and t.account not in closed:
                 status = PROVISIONAL  # the next statement may still show it
             else:
                 status = NO_STATEMENT  # a gap between two statements: a document is missing
@@ -756,6 +761,8 @@ def drawn(ds: Dataset) -> dict[str, list[Transaction]]:
         for key, a in ds.accounts.items():
             if key == t.account or a.bank != to.bank or a.currency != to.currency or a.type not in _BANK_ACCOUNTS:
                 continue
+            if key in ds.closed and ds.closed[key] < t.date:
+                continue  # closed before the transfer
             if key not in starts:
                 starts[key] = _documented_start(ds, key)
             start = starts[key]
@@ -1130,10 +1137,13 @@ def build(
     categorizer: Categorizer,
     settings: Mapping[str, Any],
     book: RateBook = EMPTY,
+    closed: Mapping[str, date] | None = None,
 ) -> Dataset:
     """results: (document, its reading or None, (status, detail) when there is no reading) tuples; a document has
     a name, an origin and a sha256. book: the providers' rates; without them the documents' own rates value the
-    foreign rows."""
+    foreign rows. closed: the accounts the user closed with the day (storage.closures): no document of theirs is
+    awaited any more."""
+    shut = dict(closed or {})
     accounts: dict[str, Account] = {}
     told: dict[str, Account] = {}  # accounts as only bank notices name them
     listed: set[str] = set()  # the accounts a statement or list named
@@ -1197,7 +1207,7 @@ def build(
     account_txns = [t for s in counted if s.is_account for t in s.transactions]
     # Receipts add what no statement shows yet (a transfer made today) or ever will (a 2022 card payment,
     # old loan installments); a statement's own row stands for what it shows.
-    lines = settle_receipts(receipts, counted, accounts, days)
+    lines = settle_receipts(receipts, counted, accounts, days, shut)
     receipt_txns = [line.txn for line in lines if line.status in (PROVISIONAL, NO_STATEMENT)]
     for line in lines:
         line.txn.provisional = line.status == PROVISIONAL
@@ -1219,7 +1229,9 @@ def build(
     txns.sort(key=lambda t: (t.date, t.account, t.description))
     # Bills and receipts of non-bank senders only mark the rows that paid them, and may name what such a row bought;
     # they add no row (F14).
-    invoices = match_invoices(one_copy(bills), txns, settled_until(days))
+    invoices = match_invoices(
+        one_copy(bills), txns, settled_until({account: d for account, d in days.items() if account not in shut})
+    )
     for found in invoices:
         if found.row is not None:
             categorizer.name_by(found.row, found.invoice.seller)
@@ -1239,6 +1251,7 @@ def build(
         receipts=lines,
         invoices=invoices,
         book=book,
+        closed=shut,
     )
 
 

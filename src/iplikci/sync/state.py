@@ -30,6 +30,7 @@ class Kind(StrEnum):
 
     ANNOTATION = "annotation"  # an annotation, by the fingerprint of its row
     ALIAS = "alias"  # the name the user gave an account, by the account's id
+    CLOSURE = "closure"  # an account the user closed, with the day, by the account's id
     MEMORY = "memory"  # one of Claude's notes, by its name
     DOCUMENT = "document"  # a document kept or removed, by its sha256 (the bytes travel beside the state)
     SOURCE = "source"  # one arrival of a document

@@ -1,8 +1,8 @@
 // The Hesaplar screens on the service itself (F07): an account gets a name of the user's own, which the account map
 // shows; accounts chosen together open their rows on the İşlemler screen; the bank's name comes back; and a band of the
-// money's way between the accounts leads to its rows, from the table and from the drawing. Each theme's project names
-// an account of its own, so the two run side by side on the one demo data folder; the TL account the screens' test
-// opens is never renamed.
+// money's way between the accounts leads to its rows, from the table and from the drawing; the form for the day an
+// account closed passes axe. Each theme's project names an account of its own, so the two run side by side on the one
+// demo data folder; the TL account the screens' test opens is never renamed.
 
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
@@ -61,6 +61,23 @@ test("bir hesaba kendi adı verilir, seçilen hesapların işlemleri birlikte a�
   await page.getByRole("button", { name: "Bankanın adına dön" }).click();
   await expect(page.getByText("Hesap yeniden bankanın adıyla görünüyor.")).toBeVisible();
   await expect(heading).toHaveText(bank);
+});
+
+test("hesabın kapandığı günün formu erişilebilirlik denetiminden geçer ve vazgeçilince kapanır", async ({
+  page,
+}, testInfo) => {
+  // Nothing is saved: a closed account would leave the totals the other tests read on the same data folder.
+  await page.goto(`/hesaplar/${OWN[testInfo.project.name] ?? "garanti-1234567"}`);
+  await loaded(page);
+  await page.getByRole("button", { name: "Hesap kapandı" }).click();
+  const day = page.getByLabel("Hesabın kapandığı gün");
+  await expect(day).toHaveAttribute("type", "date");
+  await expect(day).toHaveValue(/^\d{4}-\d{2}-\d{2}$/); // today, which is also the latest day it takes
+  expect(await day.getAttribute("max")).toBe(await day.inputValue());
+  expect(await violations(page, "form")).toEqual([]);
+  await page.getByRole("button", { name: "Vazgeç" }).click();
+  await expect(day).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Hesap kapandı" })).toBeVisible();
 });
 
 test("hesaplar arası akışın tablosu erişilebilirlik denetiminden geçer ve bir akış işlemlerine götürür", async ({

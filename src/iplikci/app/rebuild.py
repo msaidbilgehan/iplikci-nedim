@@ -1,11 +1,12 @@
 """Making the database again from the vault and the primary data (ADR-0004), and checking that it comes out the
 same (`iplikci dogrula --yeniden-kur`).
 
-What the readers read is derived: every document is read again from the vault. What nothing else knows is primary:
-each document's name and arrivals, the user's annotations and account names, Claude's notes, the audit log (which, among
-others, counts the company documents that were never kept), the event log and the notifications. It is dumped as JSON,
-the dump is read back into a new database beside the real one, the documents are read again, and both are analysed and
-compared. The vault is only read: a company document found on the way is marked in the new database, never moved.
+What the readers read is derived: every document is read again from the vault. What nothing else knows is primary: each
+document's name and arrivals, the user's annotations, account names and closed accounts, Claude's notes, the audit log
+(which, among others, counts the company documents that were never kept), the event log and the notifications. It is
+dumped as JSON, the dump is read back into a new database beside the real one, the documents are read again, and both
+are analysed and compared. The vault is only read: a company document found on the way is marked in the new database,
+never moved.
 
 The exchange rates the providers gave are not primary, but they came from the network and may not come again: the
 dump carries them and the days each provider was asked for, so that both analyses use the same rates. A history of
@@ -24,10 +25,11 @@ from typing import Any
 from .. import baseline
 from ..domain.codes import Actor, DocumentStatus, MemoryKind, Necessity, RateSource, SourceKind
 from ..fx.book import Quote
-from ..storage import aliases, annotations, audit, documents, events, fx_rates, memories, notifications
+from ..storage import aliases, annotations, audit, closures, documents, events, fx_rates, memories, notifications
 from ..storage.aliases import Alias
 from ..storage.annotations import Annotation, Subject, parts_of
 from ..storage.audit import Entry
+from ..storage.closures import Closure
 from ..storage.db import Database
 from ..storage.documents import DocumentRow, Source
 from ..storage.events import Event
@@ -40,11 +42,11 @@ from .workspace import Workspace
 
 FORMAT = "iplikci-birincil-veri"
 # 2: the event log; 3: the notifications; 4: the accounts' names; 5: the split rows' parts; 6: the exchange rates;
-# 7: Claude's notes
-VERSION = 7
+# 7: Claude's notes; 8: the closed accounts
+VERSION = 8
 # A version 2 dump has no notifications, a version 3 one no account names, a version 4 one no parts, a version 5 one
-# no exchange rates, a version 6 one no notes of Claude's.
-_READS = (2, 3, 4, 5, 6, 7)
+# no exchange rates, a version 6 one no notes of Claude's, a version 7 one no closed accounts.
+_READS = (2, 3, 4, 5, 6, 7, 8)
 
 
 @dataclass(frozen=True)
@@ -66,6 +68,7 @@ class Primary:
     rates: list[Quote] = field(default_factory=list[Quote])
     rate_days: list[Asked] = field(default_factory=list[Asked])
     memories: list[Memory] = field(default_factory=list[Memory])
+    closures: list[Closure] = field(default_factory=list[Closure])
 
 
 def export(db: Database) -> Primary:
@@ -79,6 +82,7 @@ def export(db: Database) -> Primary:
         fx_rates.every(db),
         fx_rates.asked_days(db),
         memories.every(db),
+        list(closures.every(db).values()),
     )
 
 
@@ -134,6 +138,7 @@ def dump(primary: Primary) -> str:
         "rates": [_rate_line(q) for q in primary.rates],
         "rate_days": [_day_line(a) for a in primary.rate_days],
         "memories": [asdict(m) for m in primary.memories],
+        "closures": [asdict(c) for c in primary.closures],
     }
     return json.dumps(value, ensure_ascii=False, indent=1, sort_keys=True)
 
@@ -181,7 +186,8 @@ def load(text: str) -> Primary:
     remembered = [
         Memory(**(m | {"kind": MemoryKind(m["kind"]), "actor": Actor(m["actor"])})) for m in value.get("memories", [])
     ]
-    return Primary(kept, notes, entries, happened, told, names, rates, rate_days, remembered)
+    shut = [Closure(**(c | {"actor": Actor(c["actor"])})) for c in value.get("closures", [])]
+    return Primary(kept, notes, entries, happened, told, names, rates, rate_days, remembered, shut)
 
 
 def restore(db: Database, primary: Primary) -> None:
@@ -206,6 +212,8 @@ def restore(db: Database, primary: Primary) -> None:
         fx_rates.restore(db, primary.rates, primary.rate_days, fetched)
         for memory in primary.memories:
             memories.restore(db, memory)
+        for closure in primary.closures:
+            closures.restore(db, closure)
 
 
 def rebuild(ws: Workspace, folder: Path, primary: Primary, progress: reading.Progress | None = None) -> Workspace:
@@ -270,6 +278,8 @@ def compare(
         out.append(f"yetim düzeltmeler: {len(orphans_before)} → {len(orphans_after)}")
     if live.aliases != again.aliases:
         out.append(f"hesap adları: {len(live.aliases)} → {len(again.aliases)}")
+    if live.dataset.closed != again.dataset.closed:
+        out.append(f"kapanan hesaplar: {len(live.dataset.closed)} → {len(again.dataset.closed)}")
     return out
 
 

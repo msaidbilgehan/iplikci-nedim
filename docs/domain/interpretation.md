@@ -153,6 +153,8 @@ nedenleri arasında sayılmaz.
 - **Hisseler:** en yeni yatırım ekstresinin piyasa değeriyle, tarihi yazılarak.
 - **Eski belge:** en yeni belgesi en yeni ekstreden 180 günden eski olan bir bakiye TL değeri olmadan gösterilir ve
   hiçbir toplama girmez. Örnek: yalnızca açılış cüzdanından bilinen bir vadeli hesap.
+- **Kapanan hesap:** kullanıcının kapandı dediği hesap (F07) 0 bakiyeyle, kapandığı günüyle gösterilir ve hiçbir
+  toplama girmez; belgelerde olmayan girişi de toplamlardan düşülmez.
 - **Geçici dekontlar**
   - Bir listenin son gününden sonra gelen geçici dekontlar o listenin bakiyesini değiştirir; not, listenin bakiyesini
     ve değişikliği ayrıca yazar.
@@ -203,8 +205,8 @@ nedenleri arasında sayılmaz.
       bakiyeyi kullanır.
     - Dekont ve bildirimler eksiye düşemeyen bir hesabı sıfırın altına indiriyorsa başlangıç 0'dır; arada belgelerde
       olmayan bir giriş vardır (yukarıda, "Belgede görünmeyen giriş").
-    - Bakiyesi hiçbir belgede yazmayan, bakiyesi en yeni belgeden 180 günden eski olan ve döviz ya da altın olan
-      hesaplar öngörüye girmez; nedenleri yazılır.
+    - Bakiyesi hiçbir belgede yazmayan, bakiyesi en yeni belgeden 180 günden eski olan, kullanıcının kapandı dediği
+      (F07) ve döviz ya da altın olan hesaplar öngörüye girmez; nedenleri yazılır.
     - Döviz, altın ve yatırım hesapları bugünkü TL değerleriyle (net varlıktaki kurla; altının fiyatı belgede yoksa
       değersiz) öngörünün yanında verilir. Öngörü onlar olmadan TL'nin ne zaman biteceğini söyler; Pano isteyene
       onları bugünkü değerleriyle, değişmez sayarak çizgiye ekler. Uyarılar TL hesapları sayar.
@@ -400,6 +402,8 @@ ekstre gelmeden sayılır.
 
 - Ekstreleri o aya ulaşan her hesap kapanışa katılır. Belgeleri en yeni ekstreden `ACTIVE_DAYS` öncesinde bitmiş hesap
   dışarıda kalır.
+- Kullanıcının kapandı dediği hesabın (F07) en yeni kapsanan gününden sonraki günleri beklenmez; o günden sonraki
+  aylara katılmaz.
 - Hesabın durumu şöyle belirlenir:
   - En yeni kapsanan gününden önceki kapsanmamış günler `eksik`tir; bu günlerin belgesi indirilmelidir.
   - En yeni kapsanan gününden sonraki günler `bekleniyor`dur.

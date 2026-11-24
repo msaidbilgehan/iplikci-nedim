@@ -313,7 +313,7 @@ def balances(a: Analysis) -> tuple[list[Balance], list[Unknown]]:
     have their statements instead (cards); a closed account is listed on the Accounts screen only."""
     ds = a.dataset
     seen = reach.last_seen(ds)
-    gone = reach.closed(seen)
+    gone = reach.closed(seen, ds.closed)
     newest = max(seen.values(), default=None)
     found: list[Balance] = []
     unknown: list[Unknown] = []
@@ -402,7 +402,7 @@ def cards(a: Analysis) -> tuple[list[Card], list[Unknown]]:
     """Every open card's newest TL statement and the period it is in now; a card known from no statement, with
     why."""
     ds = a.dataset
-    gone = reach.closed(reach.last_seen(ds))
+    gone = reach.closed(reach.last_seen(ds), ds.closed)
     found: list[Card] = []
     unknown: list[Unknown] = []
     for account in sorted(ds.accounts.values(), key=lambda x: x.label):

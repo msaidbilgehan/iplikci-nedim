@@ -221,3 +221,74 @@ describe("AccountPage: the account's name", () => {
     expect(await screen.findByText("Hesap yeniden bankanın adıyla görünüyor.")).toBeInTheDocument();
   });
 });
+
+describe("AccountPage: an account the user closed", () => {
+  it("marks the account closed on a day the user picks", async () => {
+    let sent: unknown = null;
+    server.use(
+      http.put("/api/accounts/:id/closed", async ({ request }) => {
+        sent = await request.json();
+        return HttpResponse.json({ account: { id: "teb-123456789", label: "Örnek Vadesiz TL" }, closed_on: "2026-11-10" });
+      }),
+    );
+    const user = userEvent.setup();
+    open("teb-123456789");
+    await user.click(await screen.findByRole("button", { name: "Hesap kapandı" }));
+    const day = screen.getByLabelText("Hesabın kapandığı gün");
+    expect(day).toHaveAccessibleDescription(
+      "Kapanan hesap kapanmış hesaplarla listelenir ve hiçbir toplama girmez; ay sonu, tahmin ve yapılacaklar ondan " +
+        "belge beklemez. Gün, hesabın belgelerdeki son hareketinden önce olamaz.",
+    );
+    await user.clear(day);
+    await user.type(day, "2026-11-10");
+    await user.click(screen.getByRole("button", { name: "Kapandı olarak işaretle" }));
+    expect(await screen.findByText("Hesap 10.11.2026'da kapandı olarak işaretlendi.")).toBeInTheDocument();
+    expect(sent).toEqual({ day: "2026-11-10" });
+    expect(screen.queryByLabelText("Hesabın kapandığı gün")).not.toBeInTheDocument();
+  });
+
+  it("says why the service refused the day", async () => {
+    server.use(
+      http.put("/api/accounts/:id/closed", () =>
+        HttpResponse.json(
+          { code: "closing_refused", title: "Hesabın 04.11.2026 tarihli bir hareketi var; kapanış günü ondan önce olamaz." },
+          { status: 400 },
+        ),
+      ),
+    );
+    const user = userEvent.setup();
+    open("teb-123456789");
+    await user.click(await screen.findByRole("button", { name: "Hesap kapandı" }));
+    const day = screen.getByLabelText("Hesabın kapandığı gün");
+    await user.clear(day);
+    await user.type(day, "2026-11-01");
+    await user.click(screen.getByRole("button", { name: "Kapandı olarak işaretle" }));
+    expect(
+      await screen.findByText("Hesabın 04.11.2026 tarihli bir hareketi var; kapanış günü ondan önce olamaz."),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Hesabın kapandığı gün")).toBeInTheDocument(); // the form stays open
+  });
+
+  it("tells the day a closed account closed and takes the mark back", async () => {
+    let taken = false;
+    const page = accountPage();
+    server.use(
+      http.get("/api/accounts/:id", () =>
+        HttpResponse.json({ ...page, account: { ...page.account, closed: true, closed_on: "2026-11-10" } }),
+      ),
+      http.delete("/api/accounts/:id/closed", () => {
+        taken = true;
+        return HttpResponse.json({ account: { id: "teb-123456789", label: "Örnek Vadesiz TL" }, closed_on: null });
+      }),
+    );
+    const user = userEvent.setup();
+    open("teb-123456789");
+    expect(await screen.findByText("Örnek Bank · Vadesiz hesap · 10.11.2026'da kapandı")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Kapanışı değiştir" }));
+    expect(screen.getByLabelText("Hesabın kapandığı gün")).toHaveValue("2026-11-10");
+    expect(screen.getByRole("button", { name: "Kapandı olarak işaretle" })).toBeDisabled(); // the same day
+    await user.click(screen.getByRole("button", { name: "Kapanışı geri al" }));
+    expect(await screen.findByText("Hesap yeniden açık sayılıyor.")).toBeInTheDocument();
+    expect(taken).toBe(true);
+  });
+});

@@ -53,7 +53,11 @@ describe("AccountsPage: the account map", () => {
     expect(within(current).getByText("Bakiyesi belgelerde olmayan 1 hesap toplamlara girmedi.")).toBeInTheDocument();
     expect(await group("Döviz")).toBeInTheDocument();
     const closed = await group("Kapanmış hesaplar");
-    expect(within(closed).getByText("Belgeleri en yeni belgeden 180 günden eski; hiçbir toplama girmez.")).toBeInTheDocument();
+    expect(
+      within(closed).getByText(
+        "Kapandı olarak işaretlediğiniz ya da belgeleri en yeni belgeden 180 günden eski hesaplar; hiçbir toplama girmez.",
+      ),
+    ).toBeInTheDocument();
     expect(within(closed).getByRole("link", { name: "Örnek Eski Hesap" })).toHaveAttribute("href", "/hesaplar/ornek-999");
   });
 

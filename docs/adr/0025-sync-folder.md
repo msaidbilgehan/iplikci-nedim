@@ -65,7 +65,7 @@ eşitleme kapsam dışı" maddesini değiştirir; [ADR-0004](0004-sqlite-primary
 |---|---|
 | Belgeler: asılları, adları, gelişleri, kaldırılmaları | Okuyucuların okudukları (belgelerden yeniden okunur), analiz, ay kapanışları |
 | Kullanıcının düzeltmeleri ve notları (parmak izine bağlı) | Olay kaydı, akış ve bildirimler (her bilgisayar kendi analizinden üretir) |
-| Hesap adları | Denetim kaydı (öteki bilgisayardan gelen değişiklik "Eşitleme" diye yazılır) |
+| Hesap adları ve kullanıcının kapandı dediği hesaplar (v1.1.3'ten) | Denetim kaydı (öteki bilgisayardan gelen değişiklik "Eşitleme" diye yazılır) |
 | Claude'un notları | E-posta hesabı ve şifresi, tarayıcı eklentisinin eşleşmesi, Telegram belirteci |
 | `rules/personal.yaml` ve `rules/alerts.yaml` | `rules/history/` (her bilgisayar kendi eski sürümlerini tutar) |
 | Ayarlardan: adlar ve şirket adları, banka ve diğer göndericiler, sessiz saat ve ayrıntı düzeyleri, kur sağlayıcıları | Ayarlardan: port, uzaktan erişim, e-posta bağlantısı, göndericinin denetlenmesi (DMARC), MCP maskeleme, açık kanallar, Telegram sohbeti, yedekler, güncelleme biçimi, eşitleme klasörü ve bilgisayarın adı |
@@ -169,6 +169,8 @@ bilgisayarlarda kapatamamalı. Bu yüzden paylaşılmazlar.
 - Durum dosyası biçimini ve sürümünü taşır. Daha yeni bir sürümün yazdığı dosya okunmaz: o bilgisayar "bu bilgisayarı
   güncelleyin" der ve güncelleme (ADR-0022) üç saat içinde gelir. Bu sürümün bilmediği türdeki parçalar olduğu gibi
   saklanır ve yayılır. Bu sürümün kabul etmediği bir ayar ya da kural dosyası beklemede kalır.
+- Not (2026-11-24, v1.1.3): kapanan hesaplar yeni bir türdür (`closure`). 1.1.2 ve öncesi onu yalnızca taşır; o
+  bilgisayarda hesap güncellenene dek açık görünür.
 
 ## Sonuçlar
 

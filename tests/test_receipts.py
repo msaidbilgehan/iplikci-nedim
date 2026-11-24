@@ -73,9 +73,9 @@ def receipt(key: str, account: Account, *rows: Transaction) -> ParseResult:
     return ParseResult("dekont", accounts=[account], transactions=list(rows), receipt_key=key, holder=HOLDER)
 
 
-def analyse(cat, *results: ParseResult):
+def analyse(cat, *results: ParseResult, closed: dict[str, date] | None = None):
     docs = [(Document(f"{i}.pdf", "test", b"", f"sha{i}"), r, None) for i, r in enumerate(results)]
-    return build(docs, cat, {"ad_soyad": HOLDER})
+    return build(docs, cat, {"ad_soyad": HOLDER}, closed=closed)
 
 
 def statuses(ds) -> list[tuple[str, str]]:
@@ -101,6 +101,24 @@ def test_a_receipt_after_the_newest_statement_counts_now_as_provisional(cat):
     rent, fee = by_kind[TransactionKind.PURCHASE], by_kind[TransactionKind.INTEREST_FEE]
     assert (rent.category, rent.provisional) == ("Kira", True)  # resolved like a list row
     assert fee.provisional
+
+
+def test_a_receipt_after_the_last_list_of_an_account_the_user_closed_waits_for_no_list(cat):
+    # The user closed the account on 5 November: no list will show the 3rd's transfer, which stands on its receipt.
+    ds = analyse(
+        cat,
+        listing(CHECKING, date(2026, 10, 1), date(2026, 10, 31)),
+        receipt(
+            "r1",
+            CHECKING,
+            row(date(2026, 11, 3), "Giden FAST → VELİ ÖRNEKSOY", Decimal(15000), CHECKING, who="VELİ ÖRNEKSOY"),
+        ),
+        closed={CHECKING.id: date(2026, 11, 5)},
+    )
+    assert statuses(ds) == [("Giden FAST → VELİ ÖRNEKSOY", NO_STATEMENT)]
+    assert ds.closed == {CHECKING.id: date(2026, 11, 5)}
+    [sent] = [t for t in ds.transactions if t.account == CHECKING.id and t.date == date(2026, 11, 3)]
+    assert not sent.provisional
 
 
 def test_the_statements_row_takes_the_place_of_a_confirmed_receipt(cat):

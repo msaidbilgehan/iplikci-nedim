@@ -2,7 +2,7 @@
 // card's statements and installments, an overdraft's cost, a deposit's return, a holding's value, a portfolio, a
 // loan), its balance by day, its months, its fees, the regular payments and income through it, and its rows a page at
 // a time with the row's detail at the side (?satir=), in three parts shown one at a time (?bolum=). The user may give
-// it a name of their own.
+// it a name of their own and say the day it closed.
 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -11,6 +11,7 @@ import { Link, useParams, useSearchParams } from "react-router";
 import { ACCOUNT_ROWS, useAccount, useLabels } from "../api/queries";
 import type { AccountPage as Page, Labels } from "../api/types";
 import { AliasForm } from "../components/accounts/AliasForm";
+import { ClosingForm } from "../components/accounts/ClosingForm";
 import {
   BrokerageDetails,
   CardDetails,
@@ -47,10 +48,18 @@ export default function AccountPage() {
   const [params] = useSearchParams();
   const page = useAccount(id, offsetOf(params));
   const labels = useLabels().data ?? {};
-  const [renaming, setRenaming] = useState(false);
+  const [editing, setEditing] = useState<"" | "alias" | "closing">("");
   const [said, setSaid] = useState("");
   const found = page.data;
   const item = found?.account;
+  const edit = (form: "alias" | "closing") => () => {
+    setSaid("");
+    setEditing(form);
+  };
+  const done = (what: string) => {
+    setSaid(what);
+    setEditing("");
+  };
   return (
     <div className="flex flex-col gap-6">
       <Link to="/hesaplar" className={BACK}>
@@ -65,38 +74,30 @@ export default function AccountPage() {
                 item.bank,
                 labelOf(labels, "AccountType", item.type),
                 item.alias ? t("page.bankName", { label: item.label }) : "",
-                item.closed ? t("page.closed") : "",
+                item.closed_on ? t("page.closedOn", { day: item.closed_on }) : item.closed ? t("page.closed") : "",
               ]
                 .filter(Boolean)
                 .join(" · ")
             : null
         }
         actions={
-          item && !renaming ? (
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setSaid("");
-                setRenaming(true);
-              }}
-            >
-              {t("alias.edit")}
-            </Button>
+          item && !editing ? (
+            <>
+              <Button variant="secondary" onClick={edit("alias")}>
+                {t("alias.edit")}
+              </Button>
+              <Button variant="secondary" onClick={edit("closing")}>
+                {item.closed_on ? t("closing.change") : t("closing.edit")}
+              </Button>
+            </>
           ) : null
         }
       />
       <p aria-live="polite" className="-mt-4 text-sm empty:hidden">
         {said}
       </p>
-      {item && renaming ? (
-        <AliasForm
-          item={item}
-          onDone={(done) => {
-            setSaid(done);
-            setRenaming(false);
-          }}
-        />
-      ) : null}
+      {item && editing === "alias" ? <AliasForm item={item} onDone={done} /> : null}
+      {item && editing === "closing" ? <ClosingForm item={item} onDone={done} /> : null}
       {page.isPending ? <Loading /> : null}
       {page.isError ? <Failure error={page.error} onRetry={() => void page.refetch()} /> : null}
       {found ? <Sections found={found} labels={labels} /> : null}

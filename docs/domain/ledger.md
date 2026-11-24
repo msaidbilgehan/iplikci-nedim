@@ -134,9 +134,9 @@ Dekontlar (ve V1'de e-posta gövdesindeki banka bildirimleri), gün gün hesabı
 | MVP | V1 | Kural |
 |---|---|---|
 | `eslesti` | `matched` | Aynı hesapta aynı tutarlı bir ekstre satırı var ve tarihi kanıtın −1…+3 günü içinde (`POSTING_DAYS`). Kart ödemesi, kartın alacağıyla ya da ödeyen listedeki `kart_odemesi` satırıyla eşleşir. Sayılan ekstre satırıdır; kanıt yalnızca dayanaktır. Bir kanıtın bir satırı eşleşirse, ekstrenin farklı yazdığı diğer satırları (ücretler) da eşleşmiş sayılır. |
-| `gecici` | `provisional` | Eşleşme yok ve kanıtın günleri hesabın en yeni ekstresinin ötesine uzanıyor (sonraki ekstre gösterebilir). Satır sayılır ve geçici olarak işaretlenir. |
+| `gecici` | `provisional` | Eşleşme yok ve kanıtın günleri hesabın en yeni ekstresinin ötesine uzanıyor (sonraki ekstre gösterebilir). Satır sayılır ve geçici olarak işaretlenir. Kullanıcının kapandı dediği hesabın sonraki ekstresi gelmez: onun satırı `no_statement` olur. |
 | `eslesmedi` | `unmatched` | Ekstreler kanıtın bütün günlerini kapsıyor ama böyle bir satır yok. Satır hiçbir toplama girmez; bulgu olarak işaretlenir (ay kapanışında "kontrol"). |
-| `ekstresiz` | `no_statement` | O günleri kapsayan ekstre yok. Sebebi ekstrenin hiç olmaması, ilk ekstreden önce kalması, bir boşluk ya da belgeleri en yeni ekstreden `ACTIVE_DAYS` = 180 günden eski olan bir hesap olabilir. Satır sayılır. |
+| `ekstresiz` | `no_statement` | O günleri kapsayan ekstre yok. Sebebi ekstrenin hiç olmaması, ilk ekstreden önce kalması, bir boşluk, belgeleri en yeni ekstreden `ACTIVE_DAYS` = 180 günden eski olan ya da kullanıcının kapandı dediği bir hesap olabilir. Satır sayılır. |
 
 - Bir hareket listesi son gününün bir anında, indirildiği anda alınır; o günün sonraki hareketleri listede yoktur.
   Hesabın sonraki listesi ertesi gün başlıyorsa ve o geceyi kapsayan başka bir liste yoksa iki liste buluşur

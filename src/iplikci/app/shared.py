@@ -2,9 +2,9 @@
 piece reads, and how a value that won the merge is put in place here.
 
 Shared: the documents (kept or removed, with their names and arrivals; the bytes travel beside the state), the user's
-annotations and account names, Claude's notes, the category and alert rule files and the settings that make the
-numbers (the user's names and company names, the senders, the notification preferences, the rate providers, MCP's
-masking). Each computer keeps its own: what the readers read (made again from the documents), the analysis and the
+annotations, account names and closed accounts, Claude's notes, the category and alert rule files and the settings that
+make the numbers (the user's names and company names, the senders, the notification preferences, the rate providers,
+MCP's masking). Each computer keeps its own: what the readers read (made again from the documents), the analysis and the
 feed made from them, the event log and notifications, the e-mail account and the browser extension's pairing, the
 Telegram bot's token, the service's port, the backups and the update mode.
 
@@ -19,6 +19,7 @@ import re
 import tomllib
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field
+from datetime import date
 from pathlib import Path
 from typing import Any, cast
 
@@ -26,9 +27,10 @@ from .. import rulefile
 from ..domain.codes import Actor, DocumentStatus, MemoryKind, Necessity, SourceKind
 from ..notify import rules as alert_rules
 from ..settings import config, locks
-from ..storage import aliases, annotations, audit, documents, memories, readings
+from ..storage import aliases, annotations, audit, closures, documents, memories, readings
 from ..storage.aliases import Alias
 from ..storage.annotations import Annotation, Part, Subject
+from ..storage.closures import Closure
 from ..storage.db import Database
 from ..storage.documents import DocumentRow, Source
 from ..storage.memories import Memory
@@ -78,6 +80,10 @@ def _annotation(a: Annotation) -> str:
 
 def _alias(a: Alias) -> str:
     return canonical({"alias": a.alias, "updated_at": a.updated_at, "actor": a.actor.value})
+
+
+def _closure(c: Closure) -> str:
+    return canonical({"closed_on": c.closed_on, "updated_at": c.updated_at, "actor": c.actor.value})
 
 
 def _memory(m: Memory) -> str:
@@ -165,6 +171,8 @@ def db_values(db: Database) -> dict[tuple[str, str], str]:
         found[Kind.ANNOTATION, fp] = _annotation(a)
     for account, a in aliases.every(db).items():
         found[Kind.ALIAS, account] = _alias(a)
+    for account, c in closures.every(db).items():
+        found[Kind.CLOSURE, account] = _closure(c)
     for m in memories.every(db):
         found[Kind.MEMORY, m.name] = _memory(m)
     for d in documents.every(db):
@@ -184,7 +192,7 @@ def file_kind_values(ws: Workspace) -> dict[tuple[str, str], str]:
 # Kinds whose piece is never taken away here: a document is removed by its value, an arrival stays recorded. A row
 # missing here is one this computer has not put in place yet (a restored older database), never a removal.
 KEPT_KINDS = frozenset({Kind.DOCUMENT, Kind.SOURCE})
-DB_KINDS = frozenset({Kind.ANNOTATION, Kind.ALIAS, Kind.MEMORY, Kind.DOCUMENT, Kind.SOURCE})
+DB_KINDS = frozenset({Kind.ANNOTATION, Kind.ALIAS, Kind.CLOSURE, Kind.MEMORY, Kind.DOCUMENT, Kind.SOURCE})
 FILE_KINDS = frozenset({Kind.SETTING, Kind.FILE})
 # Kinds no computer has a value of its own of: the sync itself changes them.
 SYNC_KINDS = frozenset({Kind.SENDER})
@@ -198,6 +206,9 @@ def own_value(ws: Workspace, db: Database, kind: str, key: str) -> str | None:
     if kind == Kind.ALIAS:
         found = aliases.every(db).get(key)
         return None if found is None else _alias(found)
+    if kind == Kind.CLOSURE:
+        mark = closures.every(db).get(key)
+        return None if mark is None else _closure(mark)
     if kind == Kind.MEMORY:
         m = memories.get(db, key)
         return None if m is None else _memory(m)
@@ -222,6 +233,14 @@ def own_value(ws: Workspace, db: Database, kind: str, key: str) -> str | None:
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 _KEY_LONGEST = 500  # a fingerprint, an account's id, a note's name: short handles
 _SOURCE_KEY_LONGEST = 5000  # an arrival's key holds its file's name, where it came from and the message's id
+
+
+def _iso_day(text: str) -> bool:
+    try:
+        date.fromisoformat(text)
+    except ValueError:
+        return False
+    return True
 
 
 def _fields(value: str | None, shape: Mapping[str, type]) -> bool:
@@ -250,6 +269,7 @@ def _fields(value: str | None, shape: Mapping[str, type]) -> bool:
 _ANNOTATION = {"subject": dict, "note": str, "tags": list, "category": str, "necessity": str, "parts": list,
                "created_at": str, "updated_at": str, "actor": str}  # fmt: skip
 _ALIAS = {"alias": str, "updated_at": str, "actor": str}
+_CLOSURE = {"closed_on": str, "updated_at": str, "actor": str}
 _MEMORY = {"kind": str, "description": str, "body": str, "created_at": str, "updated_at": str, "actor": str}
 _DOCUMENT = {"name": str, "size": int, "added_at": str, "parent": str, "removed": bool, "reason": str}
 _SOURCE = {"sender": str, "subject": str, "sent_at": str, "received_at": str}
@@ -278,6 +298,8 @@ def valid(entry: Entry) -> bool:
         return _fields(value, _ANNOTATION)
     if kind == Kind.ALIAS:
         return _fields(value, _ALIAS)
+    if kind == Kind.CLOSURE:
+        return _fields(value, _CLOSURE) and (value is None or _iso_day(json.loads(value)["closed_on"]))
     if kind == Kind.MEMORY:
         return _fields(value, _MEMORY)
     if kind == Kind.DOCUMENT:
@@ -367,6 +389,11 @@ def put_db(ws: Workspace, db: Database, kind: str, key: str, value: str | None, 
             aliases.drop(db, key)
         else:
             aliases.put(db, Alias(key, data["alias"], data["updated_at"], Actor(data["actor"])))
+    elif kind == Kind.CLOSURE:
+        if data is None:
+            closures.drop(db, key)
+        else:
+            closures.put(db, Closure(key, data["closed_on"], data["updated_at"], Actor(data["actor"])))
     elif kind == Kind.MEMORY:
         if data is None:
             memories.drop(db, key)

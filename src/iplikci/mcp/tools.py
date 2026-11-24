@@ -1749,6 +1749,7 @@ def _account_view(v: accounts.AccountView) -> Json:
     return {
         "account": v.label,
         "alias": v.alias or None,
+        "closedOn": v.closed_on,  # the day the user marked it closed; None when unmarked
         "bank": v.bank,
         "type": v.type,
         "typeLabel": label(v.type),
@@ -1811,7 +1812,8 @@ def _accounts_overview(s: Session, args: Args) -> Json:
         "closed": [_account_view(v) for v in found.closed],
         "note": f"{found.note} balance hesabın kendi para biriminde (altın GR: gram), sıfırın altı borç; valueTL ve "
         "toplamlar TL. untold: bir hesabın belgelerde görünen bakiyesinden fazla ödediği, yani önce girmiş olması "
-        "gereken ama hiçbir belgede olmayan para; total = assets − debts − untold.",
+        "gereken ama hiçbir belgede olmayan para; total = assets − debts − untold. closed: 180 gündür belgesi "
+        "gelmeyen ya da kullanıcının kapandı dediği hesaplar (closedOn: kapandığı gün); toplamlara girmez.",
     }
 
 

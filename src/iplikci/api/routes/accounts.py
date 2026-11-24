@@ -63,7 +63,7 @@ class FreshnessOut(BaseModel):
 
 class CoverOut(BaseModel):
     account: AccountRefOut
-    closed: bool  # its documents stopped 180 days before the newest
+    closed: bool  # its documents stopped 180 days before the newest, or the user closed it
     shares: list[str]  # one per month: the share of its days its statements and lists cover, a decimal ("0.452")
     link: LinkOut
 
@@ -100,7 +100,8 @@ class AccountOut(BaseModel):
     note: str  # what the balance rests on, or why there is none
     freshness: FreshnessOut | None
     month: MonthFlowOut
-    closed: bool  # its documents stopped 180 days before the newest: listed apart, in no total
+    closed: bool  # its documents stopped 180 days before the newest, or the user closed it: listed apart, in no total
+    closed_on: date | None  # the day the user says they closed it; null without their mark
     link: LinkOut
 
 
@@ -278,6 +279,15 @@ class AliasOut(BaseModel):
     alias: str
 
 
+class ClosedIn(BaseModel):
+    day: date  # the day the account was closed: no later than today, no earlier than its newest movement
+
+
+class ClosedOut(BaseModel):
+    account: AccountRefOut
+    closed_on: date | None  # null: the user's mark taken away
+
+
 class FlowNodeOut(BaseModel):
     id: str  # an account's id, else "<kind>" or "<kind>:<name>"
     kind: FlowKind
@@ -355,6 +365,7 @@ def _account(v: accounts.AccountView, labels: dict[str, str]) -> AccountOut:
             note=m.note,
         ),
         closed=v.closed,
+        closed_on=v.closed_on,
         link=_link(v.link),
     )
 
@@ -621,3 +632,31 @@ def account_alias(request: Request, account: AccountId, body: AliasIn) -> AliasO
         raise Problem(400, "alias_refused", str(exc)) from exc
     label = kept or a.dataset.accounts[account].label
     return AliasOut(account=AccountRefOut(id=account, label=label), alias=kept)
+
+
+@router.put("/api/accounts/{account}/closed", dependencies=WRITE)
+def account_closed(request: Request, account: AccountId, body: ClosedIn) -> ClosedOut:
+    """Mark the account closed on the day given: it is listed with the closed accounts, in no total, and no document is
+    awaited for it from then on."""
+    context = context_of(request)
+    a = _analysis(context)
+    try:
+        day = accounts.close(context.ws, a, account, body.day, context.today(), Actor.USER)
+    except accounts.NotFound as exc:
+        raise Problem(404, "account_not_found", "Böyle bir hesap yok.") from exc
+    except accounts.Refused as exc:
+        raise Problem(400, "closing_refused", str(exc)) from exc
+    return ClosedOut(account=account_ref(account, account_labels(a)), closed_on=day)
+
+
+@router.delete("/api/accounts/{account}/closed", dependencies=WRITE)
+def account_reopened(request: Request, account: AccountId) -> ClosedOut:
+    """Take the user's mark away: the account is open again, unless its documents stopped 180 days before the
+    newest."""
+    context = context_of(request)
+    a = _analysis(context)
+    try:
+        accounts.reopen(context.ws, a, account, Actor.USER)
+    except accounts.NotFound as exc:
+        raise Problem(404, "account_not_found", "Böyle bir hesap yok.") from exc
+    return ClosedOut(account=account_ref(account, account_labels(a)), closed_on=None)

@@ -390,6 +390,21 @@ G11 · Çekirdek
 - **Hesaplar arası akış:** Sankey diyagramı ve tablo görünümü.
 - **Takma ad:** kullanıcı hesaba takma ad verebilir.
 - **Kapanmış hesaplar:** belgeleri en yeni belgeden 180 günden eski olan hesaplar ayrı gösterilir ve toplamlara girmez.
+- **"Hesap kapandı":** kullanıcı hesabın sayfasından hesabın kapandığı günü işaretler (`storage.closures`, v1.1.3).
+  Kullanıcının isteği (2026-11-24): kapattığı bir hesabın belgesi artık gelmiyordu, ama program 180 gün boyunca onu
+  açık sayıp belge bekleyecekti.
+  - Gün bugünden sonra olamaz; hesabın belgelerdeki son hareketinden önce de olamaz. Bir liste ya da ekstre
+    kapanıştan sonraki günlere uzanabilir, hareket uzanamaz.
+  - İşaretlenen hesap o andan itibaren kapanmış hesaplarla listelenir ve hiçbir toplama girmez: Hesaplar, Şu an,
+    net varlık, Döviz ve Değerlendirme. Bakiyesi 0 yazılır, notu kapandığı günü söyler.
+  - Ay sonu, son belgesinden sonraki günlerini beklemez. Öngörü onu atlar ve nedenini yazar. Belge eksikleri
+    listesi ondan belge istemez. Kartsa sonraki ekstresi beklenmez.
+  - Kapanmış bir hesap, kapandığı günden sonraki bir transferi göndermiş sayılmaz (`analysis.drawn`). Son
+    listesinden sonraki bir dekontu `ekstresiz` sayılır, `geçici` değil: onu gösterecek liste gelmeyecek.
+  - "Kapanışı geri al" işareti kaldırır: hesap yeniden açılır ya da yalnızca 180 gün kuralına kalır.
+  - İşaret birincil veridir: belgeler yeniden okununca kaybolmaz. Yeniden kurma dökümü (sürüm 8) ve yedekler onu
+    taşır, eşitleme klasörü diğer bilgisayarlara götürür (ADR-0025). Denetim kaydı yalnızca hesabın kimliğini ve
+    günü yazar. MCP'nin `accounts` aracı günü `closedOn` olarak verir.
 
 ## F08 — Abonelikler, düzenli ve dönemsel ödemeler
 

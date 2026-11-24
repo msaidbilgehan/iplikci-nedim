@@ -1,11 +1,11 @@
 """The accounts as the screens see them (F05, F06, F07): the Accounts screen's groups with their totals, each
 account's balance and how far its documents reach, its page, and the name the user gives it.
 
-An account whose documents stopped more than 180 days before the newest document is closed or no longer followed:
-the screens list it apart and leave it out of every total (F07). Balances are those of "Şu an" (app.now): the
-newest balance a document prints, moved by later receipts and notices, a card's statement less what was paid since,
-a brokerage account's portfolio; what has no TL value (gold, a currency without a rate) is listed without one and
-left out of the totals, never guessed.
+An account whose documents stopped more than 180 days before the newest document is closed or no longer followed, and
+so is one the user says they closed (storage.closures): the screens list it apart and leave it out of every total
+(F07). Balances are those of "Şu an" (app.now): the newest balance a document prints, moved by later receipts and
+notices, a card's statement less what was paid since, a brokerage account's portfolio; what has no TL value (gold, a
+currency without a rate) is listed without one and left out of the totals, never guessed.
 """
 
 from collections import defaultdict
@@ -28,7 +28,7 @@ from ..domain.codes import (
 )
 from ..domain.models import Security, Statement
 from ..insights import FULL, month_of, payments_after, shift
-from ..storage import aliases, documents
+from ..storage import aliases, closures, documents
 from ..storage.documents import DocumentRow
 from ..upcoming import Installment
 from . import account_pages, now, outlook, transactions
@@ -164,7 +164,8 @@ class AccountView:
     note: str  # what the balance rests on, or why there is none
     freshness: Freshness | None
     month: MonthFlow
-    closed: bool  # its documents stopped 180 days before the newest: listed apart, in no total
+    closed: bool  # its documents stopped 180 days before the newest, or the user closed it: listed apart, in no total
+    closed_on: date | None  # the day the user says they closed it (storage.closures); None without their mark
     link: Link
 
 
@@ -256,7 +257,8 @@ def _freshness(
     statements = [s for s in ds.statements if s.account == account]
     newest = max(statements, key=lambda s: s.cut_date) if statements else None
     kind, sha, name = _newest_document(ds, account, docs)
-    due = _expected(ds.accounts[account].type, newest) if newest is not None else None
+    # An account the user closed awaits no statement: its last one is its last.
+    due = _expected(ds.accounts[account].type, newest) if newest is not None and account not in ds.closed else None
     late = due is not None and (today - due[0]).days > due[1]
     if newest is None:
         note = "yalnızca dekont ve banka bildirimlerinden biliniyor"
@@ -290,7 +292,7 @@ def freshness(ws: Workspace, a: Analysis, today: date) -> list[Freshness]:
     due and whether it is late, and the months its statements skip."""
     ds = a.dataset
     seen = last_seen(ds)
-    gone = closed(seen)
+    gone = closed(seen, ds.closed)
     holes = {gap.id: gap.months for gap in document_gaps(ds, today)}
     docs = _documents_by_sha(ws)
     found = [
@@ -334,6 +336,8 @@ def _balance(
     """(balance, TL value, its day, certainty, note) of an account."""
     found = ds.accounts[account]
     if gone:
+        if (shut := ds.closed.get(account)) is not None:
+            return ZERO, None, shut, None, f"{_day(shut)} tarihinde kapandı (sizin işaretinizle); toplamlara girmez"
         start = start_of(ds, account)
         if start is None:
             return None, None, None, None, "kapanmış ya da artık izlenmeyen hesap; bakiyesi belgelerde yok"
@@ -369,7 +373,7 @@ def _views(ws: Workspace, a: Analysis, today: date, known: _Known, wanted: Colle
     """The wanted accounts as the Accounts screen shows them."""
     ds = a.dataset
     seen = last_seen(ds)
-    gone = closed(seen)
+    gone = closed(seen, ds.closed)
     holes = {gap.id: gap.months for gap in document_gaps(ds, today)}
     docs = _documents_by_sha(ws)
     by_account: defaultdict[str, list[transactions.RowView]] = defaultdict(list)
@@ -397,6 +401,7 @@ def _views(ws: Workspace, a: Analysis, today: date, known: _Known, wanted: Colle
                 freshness=_freshness(ds, account.id, last, today, holes, docs) if last is not None else None,
                 month=_month_flow(account.type, by_account.get(account.id, []), today, last),
                 closed=is_gone,
+                closed_on=ds.closed.get(account.id),
                 link=Link(Screen.ACCOUNT, account.id),
             )
         )
@@ -500,6 +505,38 @@ def rename(ws: Workspace, a: Analysis, account: str, alias: str, actor: Actor) -
     with ws.db() as db:
         kept = aliases.change(db, account, alias, actor)
     return kept.alias if kept is not None else ""
+
+
+# --- an account the user closed ---------------------------------------------------------------------------------------
+
+
+def close(ws: Workspace, a: Analysis, account: str, day: date, today: date, actor: Actor) -> date:
+    """Mark the account closed on day: from then on it is listed with the closed ones, in no total, and no document is
+    awaited for it. The day is no later than today and no earlier than the account's newest movement: a list or a
+    statement may run past the day it closed, a movement may not. Returns it."""
+    ds = a.dataset
+    if account not in ds.accounts:
+        raise NotFound(account)
+    if day > today:
+        raise Refused("Kapanış günü bugünden sonra olamaz.")
+    moved = max(
+        [t.date for t in ds.transactions if t.account == account]
+        + [line.txn.date for line in ds.receipts if line.txn.account == account],
+        default=None,
+    )
+    if moved is not None and day < moved:
+        raise Refused(f"Hesabın {_day(moved)} tarihli bir hareketi var; kapanış günü ondan önce olamaz.")
+    with ws.db() as db:
+        return closures.close(db, account, day, actor).day
+
+
+def reopen(ws: Workspace, a: Analysis, account: str, actor: Actor) -> bool:
+    """Take the user's mark away: the account is open again, or closed by the 180 days' rule alone. False when it had
+    no mark."""
+    if account not in a.dataset.accounts:
+        raise NotFound(account)
+    with ws.db() as db:
+        return closures.reopen(db, account, actor)
 
 
 # --- what the MCP server's accounts tool reports ---------------------------------------------------------------------

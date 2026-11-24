@@ -442,10 +442,11 @@ class _Shared:
             acc = self.ds.accounts[account]
             first, last = min(covered), max(covered)
             untracked = account in self.untracked
-            # Its later days are awaited only while documents keep coming for it, never after a passbook alone.
-            active = (self.newest - last).days <= ACTIVE_DAYS and not untracked
+            # Its later days are awaited only while documents keep coming for it: never after a passbook alone, nor
+            # once the user says they closed it (no document of it will come).
+            active = (self.newest - last).days <= ACTIVE_DAYS and not untracked and account not in self.ds.closed
             if first > hi or (last < lo and not active):
-                continue  # not open yet, or its documents stopped long before (closed)
+                continue  # not open yet, or its documents stopped before the month (closed)
             opened = month_of(first) == month and account in self.fresh  # opened this month: nothing before
             needed = [d for d in _days(lo, end) if not (d < first and opened) and not (d > last and not active)]
             holes = [d for d in needed if d not in covered]

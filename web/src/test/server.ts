@@ -1315,6 +1315,7 @@ export function accountItem(overrides: Partial<AccountItem> = {}): AccountItem {
       note: "",
     },
     closed: false,
+    closed_on: null,
     link: { screen: "account", id: CASH.id, query: {} },
     ...overrides,
   };

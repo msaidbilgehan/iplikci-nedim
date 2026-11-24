@@ -138,14 +138,15 @@ class Workspace:
         return tuple(_stamp(p) for p in (self.rules, self.layout.settings))
 
     def signature(self, files: tuple[object, ...] | None = None) -> tuple[object, ...]:
-        """Changes whenever the documents, their readings, the annotations, the exchange rates, the rules or the
-        settings change: when an analysis is stale. files: the file stamps taken before the files were read, for an
-        analysis that read them earlier: a change made since then must leave it stale."""
+        """Changes whenever the documents, their readings, the annotations, the accounts the user closed, the exchange
+        rates, the rules or the settings change: when an analysis is stale. files: the file stamps taken before the
+        files were read, for an analysis that read them earlier: a change made since then must leave it stale."""
         with self.db() as database:
             state = database.one(
                 "SELECT (SELECT count(*) FROM documents), (SELECT max(added_at) FROM documents), "
                 "(SELECT max(read_at) FROM documents), (SELECT count(*) FROM document_sources), "
                 "(SELECT count(*) FROM annotations), (SELECT max(updated_at) FROM annotations), "
+                "(SELECT count(*) FROM account_closures), (SELECT max(updated_at) FROM account_closures), "
                 "(SELECT count(*) FROM audit_log), "
                 "(SELECT count(*) FROM fx_rates), (SELECT max(fetched_at) FROM fx_rates)"
             )

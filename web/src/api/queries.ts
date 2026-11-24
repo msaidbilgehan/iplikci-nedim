@@ -26,6 +26,8 @@ import type {
   Calendar,
   CategoryRules,
   Channel,
+  Closed,
+  Closing,
   Correction,
   Coverage,
   Dashboard,
@@ -318,6 +320,23 @@ export function useRename(id: string) {
       ]) {
         void client.invalidateQueries({ queryKey: key });
       }
+    },
+  });
+}
+
+/**
+ * Mark an account closed on a day (F07), or take the mark away (null): its balance leaves every total, the forecast
+ * and the month-end stop waiting for it, so everything an analysis tells is asked again, the currencies' screen too.
+ */
+export function useCloseAccount(id: string) {
+  const client = useQueryClient();
+  const path = `/api/accounts/${encodeURIComponent(id)}/closed`;
+  return useMutation({
+    mutationFn: (day: string | null) =>
+      day === null ? api.delete<Closed>(path) : api.put<Closed>(path, { day } satisfies Closing),
+    onSuccess: () => {
+      refreshOutlook(client);
+      void client.invalidateQueries({ queryKey: keys.holdings });
     },
   });
 }

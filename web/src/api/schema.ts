@@ -57,6 +57,7 @@ export interface AccountOut {
   freshness: FreshnessOut | null;
   month: MonthFlowOut;
   closed: boolean;
+  closed_on: string | null;
   link: LinkOut;
 }
 
@@ -421,6 +422,15 @@ export interface ChannelStateOut {
   ready: boolean;
   stage: ChannelStage;
   note: string;
+}
+
+export interface ClosedIn {
+  day: string;
+}
+
+export interface ClosedOut {
+  account: AccountRefOut;
+  closed_on: string | null;
 }
 
 /** A month's closing (F11). */

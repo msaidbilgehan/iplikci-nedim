@@ -1300,6 +1300,8 @@ def holdings(ds: Dataset) -> list[Holding]:
     out = []
     for account, s in latest.items():
         a = ds.accounts[account]
+        if account in ds.closed:
+            continue  # the user closed it: it holds nothing any more
         if not s.is_account:
             paid = paid_after(ds, account, s.cut_date)
             owed = max(ZERO, s.total - paid)
