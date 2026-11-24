@@ -6,7 +6,7 @@ from decimal import Decimal
 
 import pytest
 
-from iplikci.analysis import PROVISIONAL, Dataset, ReceiptLine, sent_after
+from iplikci.analysis import PROVISIONAL, Dataset, ReceiptLine, drawn, sent_after, start_of
 from iplikci.domain.codes import AccountType, Necessity, SeriesPeriod, TransactionKind
 from iplikci.domain.models import Account, Security, Statement, Transaction
 from iplikci.insights import (
@@ -667,6 +667,50 @@ def test_holdings_take_the_balance_a_notice_prints_after_the_list():
         date(2026, 11, 9),
     )
     assert cash.note == "09.11.2026 banka bildiriminde 84.250 TL"
+
+
+def _listing(account: str, cut: date, total: str) -> Statement:
+    return Statement(account, cut, "TRY", "c.pdf", Decimal(0), Decimal(total), start=cut.replace(day=1))
+
+
+def test_money_into_an_own_teb_account_left_the_only_account_there_that_could_have_paid_it():
+    # TEB names only the receiving account on both sides of a transfer between a customer's own accounts. The
+    # current account's cüzdan shows 40.050 TL and 5.000 TL coming in on the 24th; the deposit's ends on the 20th with
+    # 40.000 TL, which with a few days' interest pays the larger. Nothing is left in it for the smaller, and the
+    # overdraft at zero could only have paid it with a credit line no document tells.
+    accounts = [
+        Account("teb-111", "Test TEB Vadesiz", "TEB", AccountType.CURRENT, number="11122233"),
+        Account("teb-222", "Test TEB Vadeli", "TEB", AccountType.DEPOSIT, number="22233344"),
+        Account("teb-333", "Test TEB Ek Hesap", "TEB", AccountType.OVERDRAFT, number="33344455"),
+    ]
+    lists = [
+        _listing("teb-222", date(2026, 11, 20), "40000"),
+        _listing("teb-333", date(2026, 11, 10), "0"),
+        _listing("teb-111", date(2026, 11, 24), "45050"),
+    ]
+    own, text, day = TransactionKind.OWN_TRANSFER, "11122233 no.lu hesaba gönderilmiştir.", date(2026, 11, 24)
+    big = tx(day, "Vadeliden", Decimal(-40050), kind=own, account="teb-111", description=text)
+    small = tx(day, "Fondan", Decimal(-5000), kind=own, account="teb-111", description=text)
+    ds = dataset([small, big], lists)
+    ds.accounts |= {a.id: a for a in accounts}
+    assert drawn(ds) == {"teb-222": [big]}
+    start = start_of(ds, "teb-222")
+    # The interest of the days after the cüzdan went with it: money in that no document tells yet.
+    assert start is not None and (start.balance, start.drawn, start.untold, start.told) == (0, 40050, 50, 40000)
+    deposit = next(h for h in holdings(ds) if h.label == "Test TEB Vadeli")
+    assert (deposit.kind, deposit.amount, deposit.untold) == ("vadeli", Decimal(0), Decimal(50))
+    assert deposit.note == (
+        "24.11.2026 tarihinde 40.050,00 TL Test TEB Vadesiz hesabına geçti (o hesabın belgesi gösteriyor; aynı "
+        "bankada bu parayı gönderebilecek başka hesabınız yok), bakiyeden düşüldü (geçici: bu hesabın belgesi gelince "
+        "kesinleşir); hesap eksiye düşmediğine göre arada belgelerde olmayan en az 50 TL girmiş olmalı, bakiye 0 "
+        "sayıldı"
+    )
+    # Another TEB account that could have paid either leaves the sender unknown: nothing moves.
+    ds.accounts["teb-444"] = Account("teb-444", "Test TEB Vadeli 2", "TEB", AccountType.DEPOSIT, number="44455566")
+    ds.statements.append(_listing("teb-444", date(2026, 11, 21), "50000"))
+    assert drawn(ds) == {}
+    start = start_of(ds, "teb-222")
+    assert start is not None and (start.balance, start.drawn) == (40000, 0)
 
 
 def test_a_balance_tells_the_own_transfers_sent_to_its_account_or_bank_after_its_day():

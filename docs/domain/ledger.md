@@ -207,6 +207,18 @@ satır alıcı hesabı ya da yalnızca bankayı adlandırıyorsa, o hesabın (ya
 belgesinin gününden sonra henüz içermez. Defter bakiyeyi değiştirmez; notlar bunu söyler
 ([yorumlama](interpretation.md#varlıklar-ve-borçlar)).
 
+**Nereden geldiği belli olmayan transfer** (`analysis.drawn`): TEB, iki kendi hesabınız arasındaki aktarmanın gelen
+tarafına da yalnızca alıcı hesabın numarasını yazar ("222333444 no.lu hesaba gönderilmiştir"); gönderen hesabı yazmaz.
+Gönderen hesabın o güne ait belgesi yoksa para iki kez sayılır: gönderenin eski bakiyesinde ve alanın yenisinde. Bu
+yüzden aynı bankada, aynı para biriminde, belgesi aktarmadan önce (en çok 31 gün önce) biten ve bu parayı ödeyebilecek
+tek bir hesap varsa para o hesaptan çıkmış sayılır: bakiyesinden düşülür (`start_of`, `Start.drawn`) ve not bunu söyler.
+Bir hesap en çok bakiyesi kadar öder: vadeli hesap arada işlemiş olabileceği faizle birlikte (yılda en çok %60), ek
+hesap bakiyesinin ötesinde hiç (kredi limiti belgelerde yazmaz). Bir günün büyük aktarmaları önce yerleşir.
+Ödeyebilecek hesap yoksa ya da birden fazlaysa hiçbir bakiye değişmez. Aradaki faiz gibi belgesiz girişler yüzünden
+bakiye sıfırın altına inerse sıfır sayılır ve fark belgelerde olmayan para olarak toplamlardan düşülür (`untold_in`).
+Gönderen hesabın belgesi o günü kapsayınca çıkarım kendiliğinden biter. v1.1.2'ye dek böyle bir aktarma toplamlarda
+iki kez sayılıyordu.
+
 ## Taksitli nakit avans
 
 - Kartın verdiği nakit avans bir borçtur: alındığı gün kendi hesabınıza gelir (kendi transferi), taksitlerle geri

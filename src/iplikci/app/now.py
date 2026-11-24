@@ -25,6 +25,7 @@ from ..fx.book import to_tl
 from ..insights import (
     balance_rate,
     complete_months,
+    drawn_note,
     month_name,
     month_of,
     payments_after,
@@ -263,19 +264,23 @@ def _balance(ds: Dataset, account: str, newest: date | None) -> Balance | Unknow
     value = start.balance if currency == TRY else to_tl(start.balance, rate.rate) if rate else None
     where = "banka bildiriminde" if start.notice else "dökümünde"
     note = f"{_day(start.on)} {where} {_amount(start.stated, currency)}"
+    gone = f"; {drawn_note(ds, account)}" if start.drawn else ""
     if start.untold:
+        moved = f"; sonraki {start.moves} dekont ve bildirimle {_signed(start.told - start.stated, currency)}"
         note += (
-            f"; sonraki {start.moves} dekont ve bildirimle {_signed(start.told - start.stated, currency)}. Ek hesabı "
+            f"{moved if start.moves else ''}{gone}. Ek hesabı "
             f"olmayan bir hesap eksiye düşmez: arada belgelerde olmayan en az {_amount(start.untold, currency)} "
-            "girmiş olmalı (başka bir hesabınızdan aktarılan para ya da bir döviz alım-satımı olabilir). Bakiye "
+            "girmiş olmalı (faiz, başka bir hesabınızdan aktarılan para ya da bir döviz alım-satımı olabilir). Bakiye "
             f"{_amount(start.balance, currency)} sayıldı (geçici: ekstre ya da döküm gelince kesinleşir)"
         )
     elif start.moves:
-        moved = start.balance - start.stated
+        moved = start.told - start.stated
         note += (
             f"; sonraki {start.moves} dekont ve bildirimle {_signed(moved, currency)} (geçici: ekstre ya da döküm "
             "gelince kesinleşir)"
-        )
+        ) + gone
+    else:
+        note += gone
     if currency == GOLD:
         note += "; güncel altın fiyatı belgelerde yok"
     elif currency != TRY:

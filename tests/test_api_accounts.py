@@ -152,6 +152,35 @@ def test_this_months_money_is_not_told_as_none_before_a_document_reaches_the_mon
     }
 
 
+def test_money_a_teb_account_got_from_an_own_account_whose_cuzdan_ends_before_leaves_that_account(ws):
+    # The deposit's cüzdan ends on 20 November; on the 24th the current account's shows 40.050 TL coming in from
+    # another own TEB account (TEB names the receiving account only). The deposit is the only TEB account that could
+    # have paid it, its interest since included: the money left it and is counted once.
+    deposit = teb.passbook(
+        [Move(date(2026, 11, 19), "CEPTETEB Marifetli Hesap net faiz geliri %13", Decimal("11.00"))],
+        opening=Decimal("39989.00"),
+        number="222333444",
+        period=(date(2026, 11, 10), date(2026, 11, 20)),
+        kind="CEPTETEB Marifetli",
+        rate="Değişken faizlidir.",
+    )
+    current = teb.passbook(
+        [Move(date(2026, 11, 24), "111222333 no.lu hesaba gönderilmiştir.", Decimal("40050.00"))],
+        opening=Decimal(0),
+        number="111222333",
+        period=(date(2026, 11, 1), date(2026, 11, 24)),
+    )
+    add(ws, "marifetli.pdf", deposit)
+    add(ws, "vadesiz.pdf", current)
+    found = get(client_for(ws, today=date(2026, 11, 24)), "/api/accounts")
+    held = by_id(found)["teb-222333444"]
+    assert (held["balance"], held["value"]) == (tl(0), tl(0))
+    assert "24.11.2026 tarihinde 40.050,00 TL TEB Vadesiz TL 111222333 hesabına geçti" in held["note"]
+    [untold] = found["untold"]  # the interest of the days after the cüzdan, which went on with the rest
+    assert (untold["account"]["id"], untold["value"]) == ("teb-222333444", tl(5000))
+    assert (found["assets"], found["total"]) == (tl(4005000), tl(4000000))
+
+
 def test_a_notice_paying_out_more_than_the_list_shows_leaves_the_account_at_zero_and_the_totals_take_it_off(ws):
     # The list was taken in the morning with the account emptied; the afternoon's notice tells 7.500 TL sent on. The
     # bank paid it, so the money came in first, which no document tells: an FX sale or a transfer in sends no notice.

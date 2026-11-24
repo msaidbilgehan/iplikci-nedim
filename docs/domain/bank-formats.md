@@ -324,7 +324,9 @@ göndermez.
   biter ve satırdaki oran düşer ("%45" → "%15"). Öngörü oranı satırdaki yazıdan değil, tutarların bakiyeye oranından
   okur ve en yeni oranı sürdürür (v1.1.1).
 - TEB, iki TEB hesabı arasındaki aktarmada alıcı hesabın numarasını iki tarafa da yazar: "222333444 no.lu hesaba
-  gönderilmiştir." Gönderen tarafın karşılığı yalnızca o numaralı hesaptadır (`analysis._goes_to`, v1.1.1).
+  gönderilmiştir." Gönderen tarafın karşılığı yalnızca o numaralı hesaptadır (`analysis._goes_to`, v1.1.1). Gelen taraf
+  gönderen hesabı yazmaz: gönderenin belgesi yoksa program parayı ödeyebilecek tek TEB hesabından çıkmış sayar
+  (`analysis.drawn`, v1.1.2).
 - Hesaptan alınan fon, pay sayısı ve adıyla yazar: "<pay> Pay <kod>-<kurucu> PORTFÖY PARA PİYASASI (TL) FO alış
   bedeli," (açıklama kaydırılır, kesilir). Genel kurallardaki "Yatırım Fonu" onu birikim sayar; v1.0.3'e dek kişiye
   gönderilen para sayılıyordu. Fonun kendisini gösteren bir belge yoktur; değeri varlıklara girmez.

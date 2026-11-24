@@ -388,6 +388,8 @@ def _notes(start: Start, spend: Spread | None, cards: Spread | None) -> list[str
     first = f"Başlangıç: {_day(start.on)} tarihli {where} {_tl(start.stated)}"
     if start.moves:
         first += f"; sonraki {start.moves} dekont ve bildirimle {_signed(start.told - start.stated)}"
+    if start.drawn:
+        first += f"; sonra başka bir hesabınıza {_tl(start.drawn)} geçti (yalnızca o hesabın belgesi gösteriyor)"
     if start.untold:
         first += (
             f". Ek hesabı olmayan bir hesap eksiye düşmez: arada belgelerde olmayan en az {_tl(start.untold)} girmiş "

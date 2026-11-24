@@ -33,6 +33,7 @@ from .analysis import (
     DatedRate,
     ReceiptLine,
     Start,
+    drawn,
     payments,
     sent_after,
     start_of,
@@ -1198,9 +1199,9 @@ def _with_untold(ds: Dataset, account: str, h: "Holding", rate: Decimal | None) 
     h.note += f"; hesap eksiye düşmediğine göre arada belgelerde olmayan en az {shown} girmiş olmalı, bakiye 0 sayıldı"
 
 
-def _from_notice(label: str, kind: str, currency: str, start: Start, rate: Decimal | None) -> Holding:
+def _from_notice(label: str, kind: str, currency: str, start: Start, rate: Decimal | None, gone: str = "") -> Holding:
     """A balance a bank notice prints after the account's newest list (analysis.start_of, as Hesaplar and the forecast
-    take it), moved by the receipt and notice rows after it."""
+    take it), moved by the receipt and notice rows after it; gone is drawn_note's sentence for what left it since."""
     shown = (lambda x: tl(x)) if currency == TRY else (lambda x: f"{format_amount(x)} {currency}")
     value = start.balance if currency == TRY else round_half_up(start.balance * rate) if rate else None
     note = f"{_day(start.on)} banka bildiriminde {shown(start.stated)}"
@@ -1210,6 +1211,8 @@ def _from_notice(label: str, kind: str, currency: str, start: Start, rate: Decim
         note += (
             f"; sonraki {start.moves} dekont ve bildirimle {sign}{shown(abs(moved))} (geçici, döküm gelince kesinleşir)"
         )
+    if gone:
+        note += f"; {gone}"
     h = Holding(label, kind, currency, start.balance, value, start.through, note)
     if start.untold:
         h.untold = start.untold if currency == TRY else round_half_up(start.untold * rate) if rate else ZERO
@@ -1236,6 +1239,34 @@ def sent_after_note(ds: Dataset, account: str, day: date) -> str:
                 "girdiği belgelerde yok"
             )
     return "; ".join(parts)
+
+
+def drawn_note(ds: Dataset, account: str) -> str:
+    """The money that left this account for another own account after its balance, which only that account's documents
+    show (analysis.drawn), as a note says it; "" for none."""
+    a = ds.accounts[account]
+    unit = "TL" if a.currency == TRY else a.currency
+    parts = [
+        f"{_day(t.date)} tarihinde {format_amount(-t.amount)} {unit} {ds.accounts[t.account].label} hesabına geçti"
+        for t in drawn(ds).get(account, [])
+    ]
+    if not parts:
+        return ""
+    return (
+        "; ".join(parts)
+        + " (o hesabın belgesi gösteriyor; aynı bankada bu parayı gönderebilecek başka hesabınız yok), "
+        "bakiyeden düşüldü (geçici: bu hesabın belgesi gelince kesinleşir)"
+    )
+
+
+def _with_drawn(ds: Dataset, account: str, h: Holding, rate: Decimal | None) -> None:
+    """Take off a balance the money that left it for another own account after it (analysis.drawn)."""
+    gone = sum((-t.amount for t in drawn(ds).get(account, [])), ZERO)
+    if not gone:
+        return
+    h.amount = round_half_up(h.amount - gone)
+    h.value = h.amount if h.currency == TRY else round_half_up(h.amount * rate) if rate else None
+    h.note = f"{h.note}; {drawn_note(ds, account)}" if h.note else drawn_note(ds, account)
 
 
 def _with_sent_after(ds: Dataset, account: str, h: Holding) -> None:
@@ -1296,7 +1327,9 @@ def holdings(ds: Dataset) -> list[Holding]:
             start = start_of(ds, account)
             if start is not None and start.notice:
                 rate = balance_rate(ds, a.currency, start.balance)
-                h = _from_notice(a.label, "doviz", a.currency, start, rate.rate if rate else None)
+                h = _from_notice(
+                    a.label, "doviz", a.currency, start, rate.rate if rate else None, drawn_note(ds, account)
+                )
                 h.note += "; " + (_rate_note(rate, start.balance < 0) if rate else "kur bulunamadı")
             else:
                 lines = waiting.get(account, [])
@@ -1308,15 +1341,17 @@ def holdings(ds: Dataset) -> list[Holding]:
                 note = _rate_note(rate, after < 0) if rate else "kur bulunamadı"
                 h = Holding(a.label, "doviz", a.currency, s.total, value, s.cut_date, note)
                 _with_receipts(h, lines, rate.rate if rate else None)
+                _with_drawn(ds, account, h, rate.rate if rate else None)
                 _with_untold(ds, account, h, rate.rate if rate else None)
             _with_sent_after(ds, account, h)
         else:
             start = start_of(ds, account)
             if start is not None and start.notice:
-                h = _from_notice(a.label, "nakit", TRY, start, None)
+                h = _from_notice(a.label, "nakit", TRY, start, None, drawn_note(ds, account))
             else:
                 h = Holding(a.label, "nakit", TRY, s.total, s.total, s.cut_date)
                 _with_receipts(h, waiting.get(account, []), None)
+                _with_drawn(ds, account, h, None)
                 _with_untold(ds, account, h, None)
             _with_sent_after(ds, account, h)
             h.kind = "kmh" if h.amount < 0 or a.type == AccountType.OVERDRAFT else "nakit"

@@ -710,6 +710,68 @@ def sent_after(ds: Dataset, account: str, day: date) -> list[tuple[Transaction, 
     return found
 
 
+# A deposit cannot have earned more than this a year since its newest balance: how far a transfer out of it may go
+# beyond that balance (drawn).
+_MOST_INTEREST = Decimal("0.6")
+# A balance older than this, before a transfer, says too little about the day to tell where the transfer came from.
+_DRAWN_WITHIN = 31
+
+
+def _names_itself(t: Transaction, accounts: Mapping[str, Account]) -> bool:
+    """Whether a row names its own account as where the money went: the receiving side of a TEB transfer between a
+    customer's own accounts ("12345678 no.lu hesaba gönderilmiştir"), which does not name the account it came from."""
+    found = _TO_ACCOUNT.search(t.description)
+    account = accounts.get(t.account)
+    if not found or account is None:
+        return False
+    number = re.sub(r"\D", "", account.number).lstrip("0")
+    return len(number) >= 6 and found[1].lstrip("0").endswith(number)
+
+
+def drawn(ds: Dataset) -> dict[str, list[Transaction]]:
+    """Own transfers into an account whose other side no document shows, by the own account they must have left. TEB
+    writes a transfer between a customer's own accounts as "<receiving account> no.lu hesaba gönderilmiştir" on both
+    sides, so the receiving side names itself, not the sender. When one and only one other account at that bank, in
+    that currency, whose balance is known only from before the transfer (within _DRAWN_WITHIN days), could have paid it,
+    the money left that account and its balance no longer holds it (start_of). An account pays no more than its balance:
+    a deposit also what it may have earned since (_MOST_INTEREST), an overdraft nothing beyond it, as its credit line
+    is not known. The larger transfers of a day are placed first, and each leaves its account that much less."""
+    rows = sorted(
+        (
+            t
+            for t in ds.transactions
+            if t.kind is TransactionKind.OWN_TRANSFER
+            and t.amount < 0
+            and not t.reason.pair
+            and _names_itself(t, ds.accounts)
+        ),
+        key=lambda t: (t.date, t.amount),  # money in is below zero: the largest first within a day
+    )
+    starts: dict[str, Start | None] = {}
+    left: dict[str, Decimal] = {}  # what each account still holds once the transfers placed on it are taken off
+    found: dict[str, list[Transaction]] = defaultdict(list)
+    for t in rows:
+        to = ds.accounts[t.account]
+        fits: list[str] = []
+        for key, a in ds.accounts.items():
+            if key == t.account or a.bank != to.bank or a.currency != to.currency or a.type not in _BANK_ACCOUNTS:
+                continue
+            if key not in starts:
+                starts[key] = _documented_start(ds, key)
+            start = starts[key]
+            if start is None or not 0 < (t.date - start.through).days <= _DRAWN_WITHIN:
+                continue
+            balance = left.setdefault(key, start.balance)
+            days = (t.date - start.through).days
+            earned = balance * _MOST_INTEREST * days / 365 if a.type is AccountType.DEPOSIT and balance > 0 else 0
+            if balance + earned >= -t.amount:
+                fits.append(key)
+        if len(fits) == 1:
+            left[fits[0]] = max(left[fits[0]] + t.amount, Decimal(0))
+            found[fits[0]].append(t)
+    return found
+
+
 def _free_card_payments(card_txns: list[Transaction], account_txns: list[Transaction]) -> list[Transaction]:
     """Card payments seen on a card statement but not as a card-payment row of any account:
     paid by a transfer from another bank, so they can pair with that transfer."""
@@ -1196,11 +1258,14 @@ class Start:
     # Money that came in which no document tells yet (analysis.untold_in): the rows after the balance took an account
     # that cannot go below zero this far below it, so the balance is zero and this much came in first.
     untold: Decimal = Decimal(0)
+    # Money that left for another own account after the balance, which only that account's documents show (drawn).
+    drawn: Decimal = Decimal(0)
 
     @property
     def told(self) -> Decimal:
-        """The balance as the documents' rows add up, before the money in no document tells yet."""
-        return self.balance - self.untold
+        """The balance as the account's own documents' rows add up: before the money in no document tells yet, and
+        before what only another account's documents show leaving it."""
+        return self.balance - self.untold + self.drawn
 
 
 def last_of_day(found: list[tuple[ReceiptLine, Decimal]]) -> tuple[ReceiptLine, Decimal]:
@@ -1220,9 +1285,21 @@ def start_of(ds: Dataset, account: str) -> Start | None:
     list's closing balance before a notice's on the same day (it closes the whole day), moved by the counted receipt
     and notice rows dated after it. Rows of that same day are taken to be in a notice's balance already. A list's
     closing balance holds only the rows the list shows: a provisional row of its last days is one it does not show
-    (settle_receipts: the bank may book it after the list ends), so it moves the balance too, as in the ledger. Rows
-    that take an account which cannot go below zero below it tell money out only: the money that came in first is in
-    no document yet (analysis.untold_in), so the balance is zero and Start.untold says how much came in."""
+    (settle_receipts: the bank may book it after the list ends), so it moves the balance too, as in the ledger. Money
+    that only another own account's documents show leaving it after that (drawn) is taken off, Start.drawn. Rows that
+    take an account which cannot go below zero below it tell money out only: the money that came in first is in no
+    document yet (analysis.untold_in), so the balance is zero and Start.untold says how much came in."""
+    start = _documented_start(ds, account)
+    gone = sum((-t.amount for t in drawn(ds).get(account, [])), Decimal(0))
+    if start is None or not gone:
+        return start
+    told = start.told - gone
+    untold = untold_in(ds, account, told)
+    return replace(start, balance=told + untold, untold=untold, drawn=gone)
+
+
+def _documented_start(ds: Dataset, account: str) -> Start | None:
+    """start_of as the account's own documents tell it, before what only another account's documents show (drawn)."""
     currency = ds.accounts[account].currency
     lists = [s for s in ds.statements if s.account == account and s.is_account and s.currency == currency]
     closing = max((s for s in lists if s.total is not None), key=lambda s: s.cut_date, default=None)
